@@ -206,7 +206,8 @@ def is_colnum_row(ws, i, offset, n_std, col_map=None):
         if not v:
             continue
         tot += 1
-        nums.append(int(v) if re.fullmatch(r"\d{1,2}", v) else None)
+        m = re.fullmatch(r"[-(]?(\d{1,2})\)?(?:\.0)?", v)   # 5 | (5) | -5 ('(5)' Excel đổi thành số âm)
+        nums.append(int(m.group(1)) if m else None)
     ints = [x for x in nums if x is not None]
     if tot < 5 or len(ints) < 5 or len(ints) < tot * 0.7:
         return False
@@ -378,9 +379,10 @@ def find_header(ws):
     return None, None
 
 def is_int_stt(v):
+    # STT không bao giờ âm: '(1)' gõ vào Excel bị hiểu thành -1 (kiểu số kế toán)
     if isinstance(v, bool): return False
-    if isinstance(v, int): return True
-    if isinstance(v, float) and float(v).is_integer(): return True
+    if isinstance(v, int): return v >= 0
+    if isinstance(v, float) and float(v).is_integer(): return v >= 0
     return bool(re.fullmatch(r"\d{1,3}", norm(v)))
 
 def header_text_of_col(ws, hdr, data_start, c):
@@ -428,7 +430,7 @@ def extract_from_sheet(ws, kind, unit_hint, std_keys=None):
     # dòng bắt đầu dữ liệu: sau dòng số cột "(1)"
     data_start = hdr + 1
     for r in range(hdr, hdr + 9):
-        if norm(cv(ws, r, stt_col)) in ("(1)", "1)"):
+        if norm(cv(ws, r, stt_col)) in ("(1)", "1)", "-1", "(1"):   # -1 = '(1)' bị Excel đổi
             data_start = r + 1; break
 
     # Căn cột: tìm cột Mã VV/VA thực tế trong file nguồn.
@@ -732,6 +734,43 @@ def match_phuluc(candidates, pl):
                 best = v; best_len = len(key)
         if best:
             return best
+    # Dự phòng: tên RÚT GỌN hoặc VIẾT TẮT, chỉ nhận khi khớp DUY NHẤT 1 đơn vị
+    #   'Văn Miếu' -> 'Văn Miếu - Quốc Tử Giám';  'VM-QTG' -> V.M.Q.T.G
+    for c in candidates:
+        if not c: continue
+        cc = re.sub(r"[^a-z0-9]+", " ", na(c)).strip()
+        if not cc: continue
+        ws_ = cc.split()
+        grams = [cc] + [" ".join(ws_[i:i + n]) for n in (4, 3, 2, 1) for i in range(len(ws_) - n + 1)]
+        for tok in grams:
+            gon = tok.replace(" ", ""); hits = []
+            for key, v in pl.items():
+                if not key: continue
+                viet_tat = "".join(w[0] for w in key.split())
+                if (len(tok) >= 6 and re.search(r"\b" + re.escape(tok) + r"\b", key)) \
+                        or (len(gon) >= 4 and len(key.split()) >= 4 and gon == viet_tat):
+                    hits.append(v)
+            if len(hits) == 1:
+                return hits[0]
+    return None
+
+def ten_don_vi_trong_file(wb):
+    """Tên đơn vị ghi ở phần tiêu đề file (ô A1...): 'CÔNG AN PHƯỜNG Ô CHỢ DỪA',
+    'CAP VĂN MIẾU-QUỐC TỬ GIÁM', 'Đơn vị CAX TÂY PHƯƠNG'... -> dùng khi TÊN FILE
+    không có tên đơn vị (vd 'báo cáo PL78 - T9.2026.xlsx')."""
+    pat = re.compile(r"(?:\bc[oô]ng\s*an\s+|\bca\s*)(ph[uư][oờ]ng|x[aã]|th[iị]\s*tr[aấ]n)\s+(.+)"
+                     r"|\bca[px]\s+(.+)", re.I)
+    for ws in wb.worksheets:
+        for r in range(1, 5):
+            for c in range(1, min(ws.max_column, 30) + 1):
+                v = cv(ws, r, c)
+                if not isinstance(v, str): continue
+                for line in re.split(r"\n|\s{3,}", v):
+                    m = pat.search(norm(line))
+                    if not m: continue
+                    ten = norm(m.group(2) or m.group(3)).strip(" .-…")
+                    if ten and re.search(r"[A-Za-zÀ-ỹ]{2}", ten) and "…" not in ten and ".." not in ten:
+                        return ten.title()
     return None
 
 # ---------- Ghi FILE TỔNG ----------
@@ -977,6 +1016,7 @@ def _pl_unit_cols(ws, lab_row, kind):
     return units
 
 def _pl_match(fkey, umap):
+    if not fkey: return None          # khoá rỗng: '' nằm trong MỌI tên -> khớp bừa
     if fkey in umap: return fkey
     best, blen = None, 0
     for k in umap:
@@ -999,21 +1039,28 @@ def _pl_prep_sheet(ws, kind):
     return dict(ws=ws, hdr=hdr, stt_c=stt_c, codes=codes, lab_row=lab_row,
                 units=units, umap={u[0]: u for u in units}, tong_c=tong_c)
 
+_PL_KHOP = {}   # id(sheet) -> [(file, cột)] — gom kết quả khớp để in báo cáo
+
 def _pl_fill(info, kind, dv_list):
     """Điền số liệu các đơn vị trong dv_list vào các cột tương ứng."""
     ws = info["ws"]; codes = info["codes"]; umap = info["umap"]
     matched = 0; unmatched = []
-    for fkey, base, data in dv_list:
+    for fkey, base, data, *them in dv_list:
         d = data[kind]
         if not d: continue
         mk = _pl_match(fkey, umap)
-        if not mk: unmatched.append(base); continue
-        u = umap[mk]; matched += 1
+        for k2 in (them[0] if them else []):   # dự phòng: tên đơn vị ghi trong file
+            if mk: break
+            mk = _pl_match(k2, umap)
+        khop = info.setdefault("khop", [])     # (file, cột đơn vị) để in báo cáo đối chiếu
+        if not mk: unmatched.append(base); khop.append((base, None)); continue
+        u = umap[mk]; matched += 1; khop.append((base, u[1]))
         for code, r in codes.items():
             if code not in d: continue
             if kind == "PL7": ws.cell(r, u[2]).value = d[code]
             else:
                 vu, bc = d[code]; ws.cell(r, u[2]).value = vu; ws.cell(r, u[3]).value = bc
+    _PL_KHOP[id(ws)] = info.get("khop", [])
     return matched, unmatched
 
 def _pl_tong(info, kind, sum_all):
@@ -1077,13 +1124,31 @@ def build_pl78(mau_path, dv_pl, out_path, qc_path):
                                unmatched_pc01=un_sub)
     wb.save(out_path)
     wq = openpyxl.Workbook(); wsq = wq.active; wsq.title = "Doi soat PL78"
+    # nhiều file cùng rơi vào 1 cột đơn vị -> file sau GHI ĐÈ file trước
+    khop_all = {}
+    for (kind, _), wsx in sh.items():
+        if wsx is None: continue
+        for base, cot in _PL_KHOP.pop(id(wsx), []):
+            khop_all.setdefault(kind, []).append((base, cot))
+    for kind in stats:
+        dem = Counter(c for _, c in khop_all.get(kind, []) if c)
+        stats[kind]["trung"] = "; ".join(
+            f"{c}: " + " | ".join(b for b, cc in khop_all[kind] if cc == c)
+            for c, n in dem.items() if n > 1)
     wsq.append(["Loại", "Sheet chính: đơn vị khớp", "Số cột", "KHÔNG khớp (chính)",
-                "PC01 con: Cụm/Đội khớp", "Số cột con", "KHÔNG khớp (con)"])
+                "PC01 con: Cụm/Đội khớp", "Số cột con", "KHÔNG khớp (con)",
+                "NHIỀU FILE CÙNG 1 CỘT (file sau ghi đè file trước) - CẦN KIỂM TRA"])
     for kind in ("PL7", "PL8"):
         if kind in stats:
             s = stats[kind]
             wsq.append([kind, s["matched"], s["cols"], "; ".join(s["unmatched"]) or "(không)",
-                        s["matched_pc01"], s["cols_pc01"], "; ".join(s["unmatched_pc01"]) or "(không)"])
+                        s["matched_pc01"], s["cols_pc01"], "; ".join(s["unmatched_pc01"]) or "(không)",
+                        s.get("trung") or "(không)"])
+    ws_k = wq.create_sheet("File -> cot")
+    ws_k.append(["Loại", "File", "Điền vào cột đơn vị"])
+    for kind in ("PL7", "PL8"):
+        for base, cot in khop_all.get(kind, []):
+            ws_k.append([kind, base, cot or "KHÔNG KHỚP - chưa điền"])
     wq.save(qc_path)
     return stats
 
@@ -1131,6 +1196,29 @@ def _vks_pos(std_keys, kind):
         if "vks thu ly" in key:
             return pos
     return {"3A": 30, "3B": 31, "3C": 30, "3D": 31}[kind]
+
+def _ma_pos(std_keys, kind):
+    """Vị trí cột Mã VV/VA trong mẫu chuẩn (3C/3D: Mã không nằm ở cột cuối)."""
+    cfg = SHEET_CFG[kind]; need = cfg.get("ma_hdr", cfg["last_hdr"])
+    for pos, key in (std_keys or {}).get(kind, []):
+        if key.startswith(need) or key == need:
+            return pos
+    return cfg["n_std"]
+
+def kiem_tra_trung_ma(units, kinds, std_keys):
+    """Cùng 1 mã VV/VA xuất hiện >= 2 lần trong 1 đơn vị -> cảnh báo (nghi ghi trùng vụ)."""
+    for u in units:
+        for kind in kinds:
+            pos = _ma_pos(std_keys, kind); seen = {}
+            for row in u[kind]:
+                ma = re.sub(r"\s+", "", norm(row["vals"][pos - 1])).upper()
+                if len(ma) >= 5 and re.search(r"\d", ma):
+                    seen.setdefault(ma, []).append(row["src_row"])
+            for ma, hang in seen.items():
+                if len(hang) > 1:
+                    u["warnings"].append(f"[TRÙNG MÃ - CẦN KIỂM TRA] {kind}: mã {ma} xuất hiện "
+                                         f"{len(hang)} lần (hàng {', '.join(map(str, hang))}) → "
+                                         f"nghi ghi trùng 1 vụ, số đếm có thể dư.")
 
 def chuan_hoa_vks(units, kinds, std_keys):
     """Sửa cột VKS của mọi dòng về dạng chuẩn (ghi thẳng vào dữ liệu sẽ đổ ra FILE TỔNG)
@@ -1283,14 +1371,18 @@ def main():
         try:
             cats = _classify(wb)
             for c in cats: cat[c] += 1
+            ten_nd = ten_don_vi_trong_file(wb)   # tên ĐV ghi trong file (dự phòng khi tên file thiếu)
             if "3AB" in cats and sk_ab is not None:
-                units_ab.append(process_unit_file(f, sk_ab, hint, wb=wb))
+                u = process_unit_file(f, sk_ab, hint, wb=wb); u["ten_nd"] = ten_nd
+                units_ab.append(u)
             if "3CD" in cats and sk_cd is not None:
-                units_cd.append(process_unit_3cd(f, sk_cd, hint, wb=wb))
+                u = process_unit_3cd(f, sk_cd, hint, wb=wb); u["ten_nd"] = ten_nd
+                units_cd.append(u)
             if "PL78" in cats:
                 base = hint or re.sub(r"\.(xlsx|xlsm)$", "", os.path.basename(f), flags=re.I)
                 fkey = _pl_key(re.sub(r"\b(pl\s*7|pl\s*8|07|08|phu luc|mau|thang|t9|2026|2025)\b", " ", base, flags=re.I))
-                dv_pl.append((fkey, base, read_unit_pl78(f, wb=wb)))
+                them = [_pl_key(ten_nd)] if ten_nd else []
+                dv_pl.append((fkey, base, read_unit_pl78(f, wb=wb), them))
             if not cats:
                 loi.append((f, "không nhận ra sheet 3A/3B, 3C/3D hay PL7/PL8"))
         except Exception as e:
@@ -1302,7 +1394,7 @@ def main():
 
     def _gan_phuluc(units):
         for u in units:
-            p = match_phuluc([u["fname"], u["unit_name"], u["diaban"]], pl); u["phuluc"] = p
+            p = match_phuluc([u["fname"], u.get("ten_nd"), u["unit_name"], u["diaban"]], pl); u["phuluc"] = p
             if p: u["unit_name"] = re.sub(r"^công an\s+(xã|phường|thị trấn)\s+", "", p["ten"], flags=re.I).strip()
             elif pl: u["warnings"].insert(0, f"[đối chiếu] KHÔNG khớp Phụ lục ('{u['fname'][:30]}').")
 
@@ -1310,6 +1402,7 @@ def main():
     if units_ab:
         _gan_phuluc(units_ab)
         chuan_hoa_vks(units_ab, ("3A", "3B"), sk_ab)
+        kiem_tra_trung_ma(units_ab, ("3A", "3B"), sk_ab)
         w = build_master(a.mau_3ab, units_ab, os.path.join(a.out_dir, "FILE_TONG_3AB.xlsx"))
         _build_report(units_ab, ("3A", "3B"), ("vviec", "van"), os.path.join(a.out_dir, "BAO_CAO_3AB.xlsx"), a.nguong)
         print("  3A/3B:", w, "->", len(units_ab), "đơn vị")
@@ -1320,6 +1413,7 @@ def main():
     if units_cd:
         _gan_phuluc(units_cd)
         chuan_hoa_vks(units_cd, ("3C", "3D"), sk_cd)
+        kiem_tra_trung_ma(units_cd, ("3C", "3D"), sk_cd)
         build_master_3cd(a.mau_3cd, units_cd, os.path.join(a.out_dir, "FILE_TONG_3CD.xlsx"))
         _build_report(units_cd, ("3C", "3D"), ("vviec_gq", "van_gq"), os.path.join(a.out_dir, "BAO_CAO_3CD.xlsx"), a.nguong)
         print("  3C/3D:", {k: sum(len(u[k]) for u in units_cd) for k in ("3C", "3D")}, "->", len(units_cd), "đơn vị")
