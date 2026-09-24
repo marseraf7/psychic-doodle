@@ -330,6 +330,7 @@ def sheet_cd_signature(ws):
             if not t: continue
             if "dinh chi dieu tra" in t: return "3D"
             if "khong khoi to va" in t or "khong khoi to vahs" in t: return "3C"
+            if re.search(r"\bkkt\b", t): return "3C"     # viết tắt 'QĐ KKT VAHS' (Đông Ngạc)
     return None
 
 def pick_best_sheets(wb):
@@ -437,7 +438,8 @@ def extract_from_sheet(ws, kind, unit_hint, std_keys=None):
     hdr_rows = list(range(hdr, data_start))
     src_ma_col = None
     for c in range(offset + 1, min(maxcol, offset + n_std + 8) + 1):
-        if cfg["last_hdr"] in flat_key(ws, hdr_rows, c):
+        fk = flat_key(ws, hdr_rows, c)
+        if cfg["last_hdr"] in fk or (kind == "3C" and re.search(r"\bkkt\b", fk)):
             src_ma_col = c; break
     # Nếu Mã KHÔNG ở đúng vị trí chuẩn -> file dùng mẫu hẹp/khác chuẩn:
     # ánh xạ cột theo TIÊU ĐỀ để đổ đúng cột (thay vì chép theo vị trí).
@@ -712,6 +714,10 @@ def load_phuluc(path):
     for i in range(1, ws.max_row + 1):
         name = norm(cv(ws, i, 2))
         vviec = cv(ws, i, 4); van = cv(ws, i, 5)
+        # dòng 'Tổng' / 'Tổng cộng' / 'Cộng' / 'Tổng số' không phải đơn vị (so NGUYÊN tên:
+        # 'Công an phường ...' bỏ dấu cũng bắt đầu bằng 'cong')
+        if re.fullmatch(r"(tong|cong)( cong| so)?", re.sub(r"[^a-z ]", "", na(name)).strip()):
+            continue
         if name and isinstance(vviec, (int, float)) and isinstance(van, (int, float)):
             gq_vv = cv(ws, i, 7); gq_va = cv(ws, i, 8)
             d[_pl_key(name)] = {"vviec": int(vviec), "van": int(van), "ten": name,
@@ -1242,6 +1248,19 @@ def _ma_pos(std_keys, kind):
             return pos
     return cfg["n_std"]
 
+def kiem_tra_trung_don_vi(units, loai):
+    """1 đơn vị có >= 2 file cùng loại (vd 2 file 3A/3B) -> số vụ bị cộng 2 lần."""
+    nhom = {}
+    for u in units:
+        nhom.setdefault(na(u["unit_name"]), []).append(u)
+    for ds in nhom.values():
+        if len(ds) > 1:
+            ten_file = " | ".join(x["file"] for x in ds)
+            for u in ds:
+                u["warnings"].insert(0, f"[TRÙNG ĐƠN VỊ - CẦN KIỂM TRA] '{u['unit_name']}' có {len(ds)} "
+                                        f"file {loai}: {ten_file} → số vụ bị CỘNG NHIỀU LẦN; bỏ file thừa "
+                                        f"hoặc kiểm tra file bị nhận nhầm loại.")
+
 def kiem_tra_trung_ma(units, kinds, std_keys):
     """Cùng 1 mã VV/VA xuất hiện >= 2 lần trong 1 đơn vị -> cảnh báo (nghi ghi trùng vụ)."""
     for u in units:
@@ -1291,7 +1310,7 @@ def chuan_hoa_vks(units, kinds, std_keys):
 # ============================================================================
 #  BÁO CÁO đối chiếu (3A/3B và 3C/3D dùng chung khung, khác cột Phụ lục)
 # ============================================================================
-def _build_report(units, kinds, pl_field, out_path, nguong):
+def _build_report(units, kinds, pl_field, out_path, nguong, pl=None):
     """kinds=('3A','3B') hoặc ('3C','3D'); pl_field=('vviec','van') hoặc ('vviec_gq','van_gq')."""
     from openpyxl import Workbook
     ka, kb = kinds; fa, fb = pl_field
@@ -1325,6 +1344,18 @@ def _build_report(units, kinds, pl_field, out_path, nguong):
     for u in units:
         for w in u["warnings"]: ws2.append([u["file"], w])
     # Bảng đối chiếu VKS: mỗi cách ghi gốc của từng đơn vị -> giá trị sau chuẩn hoá
+    # Đơn vị CÓ trong Phụ lục nhưng KHÔNG có file nào khớp -> chưa nộp / tên file-thư mục lạ
+    if pl:
+        da_co = {id(u["phuluc"]) for u in units if u.get("phuluc")}
+        thieu = [v for v in pl.values() if id(v) not in da_co]
+        ws4 = wbq.create_sheet("Chua co file", 1)
+        ws4.append([f"Đơn vị có trong Phụ lục nhưng KHÔNG có file {ka}/{kb} nào khớp "
+                    f"({len(thieu)} đơn vị) — chưa nộp, hoặc tên thư mục/file không nhận ra"])
+        ws4.append(["Đơn vị (Phụ lục)", f"{ka} (Phụ lục)", f"{kb} (Phụ lục)"])
+        for v in thieu:
+            ghi_chu = "(= tổng các Đội/Cụm PC01, thường không có file riêng)" \
+                if re.fullmatch(r"pc\s*0?1", na(v["ten"])) else ""
+            ws4.append([v["ten"], v.get(fa), v.get(fb), ghi_chu])
     ws3 = wbq.create_sheet("VKS")
     ws3.append(["File", "Đơn vị", "Nhiều loại VKS?", "Loại", "Giá trị gốc", "Sau chuẩn hoá",
                 "Tình trạng", "Số vụ", "Các hàng trong file gốc"])
@@ -1436,23 +1467,25 @@ def main():
             elif pl: u["warnings"].insert(0, f"[đối chiếu] KHÔNG khớp Phụ lục ('{u['fname'][:30]}').")
 
     # ---- 3A/3B ----
-    if units_ab:
+    if units_ab or (pl and sk_ab is not None):   # có Phụ lục -> vẫn lập báo cáo để liệt kê ĐV thiếu file
         _gan_phuluc(units_ab)
+        kiem_tra_trung_don_vi(units_ab, "3A/3B")
         chuan_hoa_vks(units_ab, ("3A", "3B"), sk_ab)
         kiem_tra_trung_ma(units_ab, ("3A", "3B"), sk_ab)
         w = build_master(a.mau_3ab, units_ab, os.path.join(a.out_dir, "FILE_TONG_3AB.xlsx"))
-        _build_report(units_ab, ("3A", "3B"), ("vviec", "van"), os.path.join(a.out_dir, "BAO_CAO_3AB.xlsx"), a.nguong)
+        _build_report(units_ab, ("3A", "3B"), ("vviec", "van"), os.path.join(a.out_dir, "BAO_CAO_3AB.xlsx"), a.nguong, pl)
         print("  3A/3B:", w, "->", len(units_ab), "đơn vị")
     elif cat["3AB"]:
         print("  [BỎ QUA 3A/3B] thiếu mẫu:", a.mau_3ab)
 
     # ---- 3C/3D ----
-    if units_cd:
+    if units_cd or (pl and sk_cd is not None):
         _gan_phuluc(units_cd)
+        kiem_tra_trung_don_vi(units_cd, "3C/3D")
         chuan_hoa_vks(units_cd, ("3C", "3D"), sk_cd)
         kiem_tra_trung_ma(units_cd, ("3C", "3D"), sk_cd)
         build_master_3cd(a.mau_3cd, units_cd, os.path.join(a.out_dir, "FILE_TONG_3CD.xlsx"))
-        _build_report(units_cd, ("3C", "3D"), ("vviec_gq", "van_gq"), os.path.join(a.out_dir, "BAO_CAO_3CD.xlsx"), a.nguong)
+        _build_report(units_cd, ("3C", "3D"), ("vviec_gq", "van_gq"), os.path.join(a.out_dir, "BAO_CAO_3CD.xlsx"), a.nguong, pl)
         print("  3C/3D:", {k: sum(len(u[k]) for u in units_cd) for k in ("3C", "3D")}, "->", len(units_cd), "đơn vị")
     elif cat["3CD"]:
         print("  [BỎ QUA 3C/3D] thiếu mẫu:", a.mau_3cd)
