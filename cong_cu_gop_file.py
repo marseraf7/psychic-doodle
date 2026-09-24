@@ -1298,6 +1298,15 @@ def chuan_hoa_vks(units, kinds, std_keys):
                 moi, tt = vks_chuan(goc)
                 row["vals"][pos - 1] = moi
                 if tt == "trong":
+                    # ô VKS trống nhưng cột KIỂM SÁT VIÊN (ngay bên trái) lại ghi tên VKS
+                    # (vd Yên Hòa: 'VKS TP P2') -> nghi ghi nhầm cột; chỉ GỢI Ý, không tự chuyển
+                    ksv = row["vals"][pos - 2] if pos >= 2 else None
+                    goi_y, tt2 = vks_chuan(ksv)
+                    if tt2 in ("sua", "chuan") and re.search(r"\b(vks|vien kiem sat|kv|phong)\b|\bp\s*\d",
+                                                            re.sub(r"[^a-z0-9]+", " ", na(ksv))):
+                        u["warnings"].append(f"[VKS - GHI NHẦM CỘT?] {kind} hàng {row['src_row']}: cột VKS "
+                                             f"trống, cột Kiểm sát viên ghi '{norm(ksv)}' → có lẽ VKS là "
+                                             f"'{goi_y}'. Kiểm tra và sửa tay.")
                     continue
                 loai[norm(moi)] += 1
                 k = (kind, norm(goc))
