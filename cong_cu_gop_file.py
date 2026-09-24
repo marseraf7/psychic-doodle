@@ -1088,6 +1088,82 @@ def build_pl78(mau_path, dv_pl, out_path, qc_path):
     return stats
 
 # ============================================================================
+#  CHUẨN HOÁ cột "VKS thụ lý" về 1 trong các dạng:
+#    VKS KV1 ... VKS KV12 | P1/P2/P3 - VKS TP Hà Nội | VKS TP Hà Nội
+# ============================================================================
+VKS_TP = "VKS TP Hà Nội"
+VKS_KV_MAX = 12
+VKS_PHONG = {"1": 1, "2": 2, "3": 3, "i": 1, "ii": 2, "iii": 3}
+VKS_TRONG = {"", "khong", "khong co", "chua", "chua co", "chua xac dinh", "x", "-", "0"}
+_RE_VKS_KV = re.compile(r"(?:kv|khu\s*vuc)\s*(?:so\s*)?0*(\d{1,3})(?!\d)")
+_RE_VKS_PHONG = re.compile(r"\b(?:phong|p)\s*(?:so\s*)?0*(\d+|i{1,3})\b")
+_RE_VKS_TP = re.compile(r"\btp\b|thanh pho|\btphn\b|vkstp|\bha noi\b|\bhn\b")
+
+def vks_chuan(val):
+    """Giá trị ô VKS -> (giá_trị_mới, tình_trạng).
+    tình_trạng: 'trong' (để trống/không) | 'chuan' (đã đúng mẫu) | 'sua' (đã sửa) |
+                'khong_ro' (không nhận ra / mơ hồ -> GIỮ NGUYÊN, cần kiểm tra tay)."""
+    t = na(val)
+    t = re.sub(r"[^a-z0-9]+", " ", t).strip()
+    if t in VKS_TRONG:
+        return val, "trong"
+    kv = {int(m) for m in _RE_VKS_KV.findall(t)}
+    ph = set(_RE_VKS_PHONG.findall(t))
+    if kv and ph:                               # vừa KV vừa Phòng -> không đoán
+        return val, "khong_ro"
+    if kv:
+        if len(kv) > 1 or not (1 <= min(kv) <= VKS_KV_MAX):
+            return val, "khong_ro"              # nhiều KV / KV ngoài 1..12
+        moi = f"VKS KV{kv.pop()}"
+    elif ph:
+        if len(ph) > 1 or ph.copy().pop() not in VKS_PHONG:
+            return val, "khong_ro"              # nhiều phòng / phòng ngoài 1..3
+        moi = f"P{VKS_PHONG[ph.pop()]} - {VKS_TP}"
+    elif _RE_VKS_TP.search(t):
+        moi = VKS_TP
+    else:
+        return val, "khong_ro"                  # vd 'VKS Thạch Thất', chỉ ghi số '7'
+    return moi, ("chuan" if norm(val) == moi else "sua")
+
+def _vks_pos(std_keys, kind):
+    """Vị trí cột 'VKS thụ lý' trong mẫu chuẩn (dò theo tiêu đề, dự phòng theo cấu hình)."""
+    for pos, key in (std_keys or {}).get(kind, []):
+        if "vks thu ly" in key:
+            return pos
+    return {"3A": 30, "3B": 31, "3C": 30, "3D": 31}[kind]
+
+def chuan_hoa_vks(units, kinds, std_keys):
+    """Sửa cột VKS của mọi dòng về dạng chuẩn (ghi thẳng vào dữ liệu sẽ đổ ra FILE TỔNG)
+    và ghi lại để báo cáo:
+      u['vks_loai']  : Counter {giá trị VKS sau chuẩn hoá: số vụ}
+      u['vks_bang']  : {(loại, gốc): [mới, tình trạng, [hàng gốc...]]}
+    Đơn vị có >= 2 loại VKS, hoặc có ô không nhận ra -> thêm cảnh báo."""
+    for u in units:
+        loai = Counter(); bang = {}
+        for kind in kinds:
+            pos = _vks_pos(std_keys, kind)
+            for row in u[kind]:
+                goc = row["vals"][pos - 1]
+                moi, tt = vks_chuan(goc)
+                row["vals"][pos - 1] = moi
+                if tt == "trong":
+                    continue
+                loai[norm(moi)] += 1
+                k = (kind, norm(goc))
+                if k not in bang: bang[k] = [norm(moi), tt, []]
+                bang[k][2].append(row["src_row"])
+        u["vks_loai"] = loai; u["vks_bang"] = bang
+        if len(loai) >= 2:
+            chi_tiet = "; ".join(f"{v} ({n} vụ)" for v, n in loai.most_common())
+            u["warnings"].append(f"[VKS - CẦN KIỂM TRA] Đơn vị ghi {len(loai)} loại VKS khác "
+                                 f"nhau: {chi_tiet}. Xem sheet 'VKS' trong báo cáo.")
+        for (kind, goc), (moi, tt, hang) in bang.items():
+            if tt == "khong_ro":
+                u["warnings"].append(f"[VKS - KHÔNG NHẬN RA] {kind}: '{goc}' ({len(hang)} vụ, hàng "
+                                     f"{', '.join(map(str, hang[:10]))}{'...' if len(hang) > 10 else ''})"
+                                     f" → GIỮ NGUYÊN, cần sửa tay.")
+
+# ============================================================================
 #  BÁO CÁO đối chiếu (3A/3B và 3C/3D dùng chung khung, khác cột Phụ lục)
 # ============================================================================
 def _build_report(units, kinds, pl_field, out_path, nguong):
@@ -1099,7 +1175,7 @@ def _build_report(units, kinds, pl_field, out_path, nguong):
     ws.append(["File", "Đơn vị", "PC01", "PC02", "PC03", "PC04", "CAP", "Chưa rõ Hệ",
                f"{ka} (máy)", f"{kb} (máy)", "Tổng (máy)",
                f"{ka} (Phụ lục)", f"{kb} (Phụ lục)", f"Lệch {ka}", f"Lệch {kb}",
-               "Vượt ngưỡng?", "Số cảnh báo"])
+               "Vượt ngưỡng?", "Số cảnh báo", "VKS (sau chuẩn hoá)", "Nhiều loại VKS?"])
     HE = ["PC01", "PC02", "PC03", "PC04", "CAP"]
     for u in units:
         cnt = {h: 0 for h in HE}; unk = 0
@@ -1117,10 +1193,22 @@ def _build_report(units, kinds, pl_field, out_path, nguong):
         if pv != "" or pa != "":
             over = "CÓ" if ((pv != "" and abs(na_ - pv) > nguong) or (pa != "" and abs(nb_ - pa) > nguong)) else "không"
         ws.append([u["file"], u["unit_name"], cnt["PC01"], cnt["PC02"], cnt["PC03"], cnt["PC04"],
-                   cnt["CAP"], unk, na_, nb_, na_ + nb_, pv, pa, da, db, over, len(u["warnings"])])
+                   cnt["CAP"], unk, na_, nb_, na_ + nb_, pv, pa, da, db, over, len(u["warnings"]),
+                   "; ".join(f"{v} ({n})" for v, n in u.get("vks_loai", Counter()).most_common()),
+                   "CÓ" if len(u.get("vks_loai", ())) >= 2 else "không"])
     ws2 = wbq.create_sheet("Canh bao chi tiet"); ws2.append(["File", "Nội dung"])
     for u in units:
         for w in u["warnings"]: ws2.append([u["file"], w])
+    # Bảng đối chiếu VKS: mỗi cách ghi gốc của từng đơn vị -> giá trị sau chuẩn hoá
+    ws3 = wbq.create_sheet("VKS")
+    ws3.append(["File", "Đơn vị", "Nhiều loại VKS?", "Loại", "Giá trị gốc", "Sau chuẩn hoá",
+                "Tình trạng", "Số vụ", "Các hàng trong file gốc"])
+    TT = {"chuan": "đúng mẫu sẵn", "sua": "ĐÃ SỬA", "khong_ro": "KHÔNG NHẬN RA - giữ nguyên"}
+    for u in units:
+        nhieu = "CÓ" if len(u.get("vks_loai", ())) >= 2 else ""
+        for (kind, goc), (moi, tt, hang) in sorted(u.get("vks_bang", {}).items()):
+            ws3.append([u["file"], u["unit_name"], nhieu, kind, goc, moi, TT[tt], len(hang),
+                        ", ".join(map(str, hang))])
     wbq.save(out_path)
 
 def _classify(wb):
@@ -1221,6 +1309,7 @@ def main():
     # ---- 3A/3B ----
     if units_ab:
         _gan_phuluc(units_ab)
+        chuan_hoa_vks(units_ab, ("3A", "3B"), sk_ab)
         w = build_master(a.mau_3ab, units_ab, os.path.join(a.out_dir, "FILE_TONG_3AB.xlsx"))
         _build_report(units_ab, ("3A", "3B"), ("vviec", "van"), os.path.join(a.out_dir, "BAO_CAO_3AB.xlsx"), a.nguong)
         print("  3A/3B:", w, "->", len(units_ab), "đơn vị")
@@ -1230,6 +1319,7 @@ def main():
     # ---- 3C/3D ----
     if units_cd:
         _gan_phuluc(units_cd)
+        chuan_hoa_vks(units_cd, ("3C", "3D"), sk_cd)
         build_master_3cd(a.mau_3cd, units_cd, os.path.join(a.out_dir, "FILE_TONG_3CD.xlsx"))
         _build_report(units_cd, ("3C", "3D"), ("vviec_gq", "van_gq"), os.path.join(a.out_dir, "BAO_CAO_3CD.xlsx"), a.nguong)
         print("  3C/3D:", {k: sum(len(u[k]) for u in units_cd) for k in ("3C", "3D")}, "->", len(units_cd), "đơn vị")
