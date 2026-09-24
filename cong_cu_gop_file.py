@@ -78,6 +78,7 @@ def he_from_text(text):
     # tên 'Văn Cấp'...) cũng thành 'cap' -> nhận nhầm là hệ CAP.
     if ("cong an xa" in t or "cong an phuong" in t or _is_cap_abbr(text)
             or "ca phuong" in t or "ca xa" in t or "ra quyet dinh" in t
+            or re.search(r"\bra\s*qd\b", t)          # 'DS AD Phường ra QĐ' (Yên Hòa)
             or ("thu ly" in t and ("phuong" in t or "xa" in t))):   # 'Phường/Xã thụ lý'
         return "CAP"
     return None
