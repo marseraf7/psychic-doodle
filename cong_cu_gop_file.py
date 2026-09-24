@@ -441,6 +441,11 @@ def extract_from_sheet(ws, kind, unit_hint, std_keys=None):
         fk = flat_key(ws, hdr_rows, c)
         if cfg["last_hdr"] in fk or (kind == "3C" and re.search(r"\bkkt\b", fk)):
             src_ma_col = c; break
+    # 3A/3B: đơn vị ghi nhầm 'Mã VV' cho sheet vụ án (hoặc ngược lại) nhưng cột VẪN
+    # nằm đúng vị trí chuẩn (vd Cầu Giấy 'Mã VV ĐTTH' ở cột AI của 3B) -> coi là đúng.
+    if src_ma_col is None and kind in ("3A", "3B") and \
+            re.search(r"\bma v[av]\b", flat_key(ws, hdr_rows, offset + n_std)):
+        src_ma_col = offset + n_std
     # Nếu Mã KHÔNG ở đúng vị trí chuẩn -> file dùng mẫu hẹp/khác chuẩn:
     # ánh xạ cột theo TIÊU ĐỀ để đổ đúng cột (thay vì chép theo vị trí).
     col_map = None
@@ -1268,7 +1273,9 @@ def kiem_tra_trung_ma(units, kinds, std_keys):
             pos = _ma_pos(std_keys, kind); seen = {}
             for row in u[kind]:
                 ma = re.sub(r"\s+", "", norm(row["vals"][pos - 1])).upper()
-                if len(ma) >= 5 and re.search(r"\d", ma):
+                # chỉ xét giá trị CÓ DẠNG MÃ (VV25-106031, VA24/0123...), bỏ câu chữ
+                # như 'PC03 đang tạm nhận để xem xét thẩm quyền'
+                if re.fullmatch(r"[A-ZĐ]{1,4}\d{2,4}[-/._]?\d{3,}[A-Z0-9]*", ma):
                     seen.setdefault(ma, []).append(row["src_row"])
             for ma, hang in seen.items():
                 if len(hang) > 1:
