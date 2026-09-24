@@ -593,8 +593,32 @@ def is_cum_doi_pc01(*names):
 
 def load_unit_wb(path):
     """Mở file đơn vị (lấy GIÁ TRỊ đã tính của công thức). Mỗi file chỉ mở 1 lần
-    rồi dùng chung cho phân loại + trích 3A/3B + 3C/3D + PL7/PL8."""
-    return openpyxl.load_workbook(path, data_only=True)
+    rồi dùng chung cho phân loại + trích 3A/3B + 3C/3D + PL7/PL8.
+
+    Đọc dạng LUỒNG (read_only) và chỉ chép các ô CÓ GIÁ TRỊ sang 1 workbook gọn:
+    file bị tô viền/màu cả cột, cả sheet (hàng trăm nghìn ô trống có định dạng)
+    không còn làm chậm/treo, và max_row/max_column = đúng vùng có dữ liệu."""
+    src = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    try:
+        wb = openpyxl.Workbook(); wb.remove(wb.active)
+        for s in src.worksheets:
+            ws = wb.create_sheet(s.title)
+            if not hasattr(s, "iter_rows"):      # chartsheet: không có ô
+                continue
+            s.reset_dimensions()   # không tin thẻ kích thước ghi trong file (hay sai)
+            for row in s.iter_rows():
+                for c in row:
+                    v = c.value
+                    if v is None:
+                        continue          # ô trống (kể cả ô chỉ có định dạng)
+                    cell = ws.cell(c.row, c.column)
+                    try:
+                        cell.value = v
+                    except Exception:     # ký tự điều khiển lạ trong chữ -> giữ nguyên
+                        cell._value = v; cell.data_type = "s"
+        return wb
+    finally:
+        src.close()
 
 def process_unit_file(path, std_keys=None, unit_hint=None, wb=None):
     wb = wb or load_unit_wb(path)
@@ -1160,10 +1184,14 @@ def main():
     cat = {"3AB": 0, "3CD": 0, "PL78": 0}
     for k, (f, hint) in enumerate(items, 1):
         print(f"  [{k}/{len(items)}] {os.path.basename(f)}", flush=True)
+        t1 = time.time()
         try:
             wb = load_unit_wb(f)
         except Exception as e:
             loi.append((f, f"không mở được: {e}")); continue
+        if time.time() - t1 > 10:
+            print(f"      (file nặng, mở mất {time.time() - t1:.0f} giây - thường do "
+                  f"tô định dạng cả cột/cả sheet; nên xoá định dạng thừa)", flush=True)
         try:
             cats = _classify(wb)
             for c in cats: cat[c] += 1
