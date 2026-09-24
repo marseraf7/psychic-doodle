@@ -1,0 +1,7 @@
+# Du lieu nghiep vu - KHONG dua len git
+*.xlsx
+*.xlsm
+*.xls
+donvi/
+ket_qua/
+__pycache__/
