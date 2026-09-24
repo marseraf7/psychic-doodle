@@ -1015,13 +1015,34 @@ def _pl_unit_cols(ws, lab_row, kind):
                 units.append((key, lab, c, c + 1) if kind == "PL8" else (key, lab, c))
     return units
 
+def _pl_prep_units(ws, kind):
+    """Danh sách cột đơn vị của 1 sheet biểu ngang (chỉ đọc, không xoá gì)."""
+    hdr, stt_c = _pl_find_hdr(ws)
+    return _pl_unit_cols(ws, _pl_unit_hdr_row(ws, hdr, stt_c), kind)
+
 def _pl_match(fkey, umap):
+    """Tên file/thư mục (đã chuẩn hoá) -> khoá cột đơn vị trong biểu PL7/PL8.
+    1) trùng khớp; 2) tên cột nằm NGUYÊN TỪ trong tên file (dài nhất, >= 4 ký tự —
+    tránh cột tên cụt như 'van' khớp bừa); 3) cụm từ trong tên file nằm trong đúng
+    1 tên cột ('Văn Miếu' -> 'Văn Miếu - Quốc Tử Giám') hoặc viết tắt ('VM-QTG')."""
     if not fkey: return None          # khoá rỗng: '' nằm trong MỌI tên -> khớp bừa
     if fkey in umap: return fkey
-    best, blen = None, 0
+    best = None
     for k in umap:
-        if len(k) >= 2 and (k in fkey or fkey in k) and len(k) > blen: best, blen = k, len(k)
-    return best
+        if len(k) >= 4 and re.search(r"\b" + re.escape(k) + r"\b", fkey) \
+                and (best is None or len(k) > len(best)):
+            best = k
+    if best: return best
+    ws_ = fkey.split()
+    grams = [fkey] + [" ".join(ws_[i:i + n]) for n in (4, 3, 2, 1) for i in range(len(ws_) - n + 1)]
+    for g in grams:
+        gon = g.replace(" ", "")
+        hits = [k for k in umap
+                if ((len(g) >= 6 or (" " in g and len(g) >= 5))     # 'cum 8', 'doi 2'
+                    and re.search(r"\b" + re.escape(g) + r"\b", k))
+                or (len(gon) >= 4 and len(k.split()) >= 4 and gon == "".join(w[0] for w in k.split()))]
+        if len(hits) == 1: return hits[0]
+    return None
 
 def _pl_prep_sheet(ws, kind):
     """Đọc cấu trúc 1 sheet biểu ngang + xoá sạch các ô số liệu đơn vị."""
@@ -1123,6 +1144,18 @@ def build_pl78(mau_path, dv_pl, out_path, qc_path):
                                matched_pc01=m_sub, cols_pc01=len(sub_info["units"]),
                                unmatched_pc01=un_sub)
     wb.save(out_path)
+    # KIỂM TRA MẪU: 2 sheet chính PL7/PL8 phải có cùng danh sách đơn vị
+    #   (vd ô tên 'Công an phường Tây Hồ' bị gõ đè thành 'van' -> Tây Hồ không bao giờ được điền)
+    loi_mau = []
+    tap = {k: {u[0]: u for u in _pl_prep_units(sh[(k, 0)], k)} for k in ("PL7", "PL8") if sh[(k, 0)] is not None}
+    if len(tap) == 2:
+        for a_, b_ in (("PL7", "PL8"), ("PL8", "PL7")):
+            for key in sorted(tap[a_].keys() - tap[b_].keys()):
+                u = tap[a_][key]
+                loi_mau.append(f"Sheet {a_} ('{sh[(a_, 0)].title}') ô {get_column_letter(u[2])}"
+                               f"{_pl_unit_hdr_row(sh[(a_, 0)], *_pl_find_hdr(sh[(a_, 0)]))}: "
+                               f"'{u[1]}' KHÔNG có ở sheet {b_} → kiểm tra tên cột trong mẫu")
+    for m in loi_mau: print("  [MẪU PL78]", m)
     wq = openpyxl.Workbook(); wsq = wq.active; wsq.title = "Doi soat PL78"
     # nhiều file cùng rơi vào 1 cột đơn vị -> file sau GHI ĐÈ file trước
     khop_all = {}
@@ -1144,6 +1177,10 @@ def build_pl78(mau_path, dv_pl, out_path, qc_path):
             wsq.append([kind, s["matched"], s["cols"], "; ".join(s["unmatched"]) or "(không)",
                         s["matched_pc01"], s["cols_pc01"], "; ".join(s["unmatched_pc01"]) or "(không)",
                         s.get("trung") or "(không)"])
+    if loi_mau:
+        wsm = wq.create_sheet("LOI MAU PL78", 0)
+        wsm.append(["File mẫu PL78 có tên cột đơn vị không khớp giữa 2 sheet — SỬA MẪU rồi chạy lại"])
+        for m in loi_mau: wsm.append([m])
     ws_k = wq.create_sheet("File -> cot")
     ws_k.append(["Loại", "File", "Điền vào cột đơn vị"])
     for kind in ("PL7", "PL8"):
