@@ -58,6 +58,10 @@ def na(s):
         return _na.__wrapped__(s)
 
 # ---------- Nhận diện HỆ ----------
+def _is_cap_abbr(text):
+    """Có viết tắt 'CAP'/'CAX' (KHÔNG dấu) như một từ riêng? 'cấp' có dấu -> không."""
+    return bool(re.search(r"\bca[px]\b", norm(text).lower()))
+
 def he_from_text(text):
     """Từ VĂN BẢN mô tả nhóm -> mã hệ (hiểu cả mã trực tiếp lẫn tên mô tả)."""
     t = na(text)
@@ -70,7 +74,9 @@ def he_from_text(text):
     if "ttxh" in t or "trat tu xa hoi" in t: return "PC02"
     if "van phong" in t:                     return "PC01"
     # Hệ 5 (CAP): 'Công an xã/phường', 'CAP'/'CAX', 'CA phường/xã ra quyết định'
-    if ("cong an xa" in t or "cong an phuong" in t or re.search(r"\bca[px]\b", t)
+    # Viết tắt CAP/CAX dò trên chữ CÒN DẤU: bỏ dấu thì 'cấp' (cung cấp, cấp xã,
+    # tên 'Văn Cấp'...) cũng thành 'cap' -> nhận nhầm là hệ CAP.
+    if ("cong an xa" in t or "cong an phuong" in t or _is_cap_abbr(text)
             or "ca phuong" in t or "ca xa" in t or "ra quyet dinh" in t
             or ("thu ly" in t and ("phuong" in t or "xa" in t))):   # 'Phường/Xã thụ lý'
         return "CAP"
@@ -83,7 +89,7 @@ def is_he_header(text):
     t = na(text)
     if not t:
         return None
-    he = he_from_text(t)
+    he = he_from_text(text)   # truyền chữ gốc (còn dấu) để phân biệt CAP / 'cấp'
     if not he:
         return None
     if ("he " in t or t.startswith("he") or "van phong" in t or "cong an" in t
@@ -245,7 +251,7 @@ def he_from_cell(val):
     if not s: return None
     m = re.search(r"pc\s*0?([1-4])", s)
     if m: return "PC0" + m.group(1)
-    if re.search(r"\bcap\b", s) or "cong an xa" in s or "cong an phuong" in s or s in ("ca xa","ca phuong"):
+    if _is_cap_abbr(val) or "cong an xa" in s or "cong an phuong" in s or s in ("ca xa","ca phuong"):
         return "CAP"
     return he_from_text(val)
 
