@@ -46,6 +46,9 @@ CAU_HINH_MAC_DINH = {
     "dung_ngu_nghia": True,           # False -> chỉ tìm theo từ khóa
     "kich_thuoc_toi_da_mb": 50,       # file lớn hơn: chỉ lưu tên, không đọc nội dung
     "so_doan_ngu_canh": 6,            # số đoạn trích đưa cho AI khi hỏi đáp
+    # Tìm theo nghĩa: bỏ kết quả có độ giống (cosine) thấp hơn ngưỡng này, để từ khóa không có
+    # trong file nào thì báo "không thấy" thay vì trả về file "gần nhất" chẳng liên quan
+    "nguong_ngu_nghia": 0.45,
 }
 
 LOAI_FILE = {
@@ -103,15 +106,54 @@ def ngay(ts):
 # =====================================================================
 # Cấu hình
 # =====================================================================
+_DA_CANH_BAO = set()
+
+
+def _canh_bao(thong_bao):
+    # Web tạo Kho cho mỗi yêu cầu -> chỉ in mỗi cảnh báo một lần
+    if thong_bao not in _DA_CANH_BAO:
+        _DA_CANH_BAO.add(thong_bao)
+        print(f"[CẢNH BÁO] {thong_bao}")
+
+
+def _kiem_tra_cau_hinh(ch):
+    """Sửa giá trị sai kiểu trong cau_hinh.json, tránh hỏng ngầm (vd chuỗi bị hiểu thành từng ký tự)."""
+    for k, mac_dinh in CAU_HINH_MAC_DINH.items():
+        v = ch.get(k)
+        if isinstance(mac_dinh, list):
+            if isinstance(v, str):
+                ch[k] = [v]
+                _canh_bao(f'cau_hinh.json: "{k}" phải là danh sách, vd ["{v}"] -> tạm hiểu là ["{v}"].')
+            elif not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
+                ch[k] = list(mac_dinh)
+                _canh_bao(f'cau_hinh.json: "{k}" phải là danh sách đường dẫn ["..."] -> dùng mặc định.')
+        elif isinstance(mac_dinh, bool):
+            if not isinstance(v, bool):
+                ch[k] = mac_dinh
+                _canh_bao(f'cau_hinh.json: "{k}" phải là true hoặc false -> dùng mặc định {json.dumps(mac_dinh)}.')
+        elif isinstance(mac_dinh, (int, float)):
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0 or (k == "nguong_ngu_nghia" and v > 1):
+                ch[k] = mac_dinh
+                _canh_bao(f'cau_hinh.json: "{k}" phải là số hợp lệ -> dùng mặc định {mac_dinh}.')
+        elif not isinstance(v, str) or not v.strip():
+            ch[k] = mac_dinh
+            _canh_bao(f'cau_hinh.json: "{k}" phải là chuỗi chữ -> dùng mặc định "{mac_dinh}".')
+    return ch
+
+
 def doc_cau_hinh(thu_muc):
     duong_dan = os.path.join(thu_muc, "cau_hinh.json")
     ch = dict(CAU_HINH_MAC_DINH)
     if os.path.exists(duong_dan):
         try:
             with open(duong_dan, encoding="utf-8") as f:
-                ch.update(json.load(f))
+                du_lieu = json.load(f)
+            if not isinstance(du_lieu, dict):
+                raise ValueError("phải là một đối tượng {...}")
+            ch.update(du_lieu)
         except (OSError, ValueError) as e:
-            print(f"[CẢNH BÁO] cau_hinh.json lỗi ({e}) -> dùng cấu hình mặc định.")
+            _canh_bao(f"cau_hinh.json lỗi ({e}) -> dùng cấu hình mặc định.")
+        _kiem_tra_cau_hinh(ch)
     else:
         os.makedirs(thu_muc, exist_ok=True)
         with open(duong_dan, "w", encoding="utf-8") as f:
@@ -146,7 +188,7 @@ class Kho:
             CREATE TABLE IF NOT EXISTS files(
                 id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, name TEXT, ext TEXT, loai TEXT,
                 size INTEGER, mtime REAL, sha1 TEXT, has_text INTEGER DEFAULT 0, loi TEXT,
-                last_seen INTEGER);
+                last_seen INTEGER, tren_may_chu INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS chunks(
                 id INTEGER PRIMARY KEY, file_id INTEGER NOT NULL, seq INTEGER, text TEXT, emb BLOB);
             CREATE INDEX IF NOT EXISTS ix_chunks_file ON chunks(file_id);
@@ -155,6 +197,8 @@ class Kho:
                 name, thu_muc, text, tokenize='unicode61 remove_diacritics 2');
             CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);
         """)
+        if "tren_may_chu" not in {r[1] for r in self.conn.execute("PRAGMA table_info(files)")}:
+            self.conn.execute("ALTER TABLE files ADD COLUMN tren_may_chu INTEGER DEFAULT 0")
 
     def meta(self, k, v=None):
         if v is None:
@@ -422,6 +466,18 @@ def _bo_qua_thu_muc(ten, duong_dan, bo_qua, rieng):
     return os.path.realpath(duong_dan) == rieng
 
 
+# Windows: file OneDrive/iCloud "chỉ có trên mạng". Mở ra đọc là Windows tự TẢI VỀ cả file.
+_THUOC_TINH_TREN_MAY_CHU = 0x00400000 | 0x00040000 | 0x00001000   # RECALL_ON_DATA_ACCESS | RECALL_ON_OPEN | OFFLINE
+
+
+def _lstat(p):
+    return os.lstat(p)
+
+
+def la_file_tren_may_chu(st):
+    return bool(getattr(st, "st_file_attributes", 0) & _THUOC_TINH_TREN_MAY_CHU)
+
+
 def _bo_qua_file(ten):
     t = ten.lower()
     return t in _FILE_RAC or t.startswith("~$") or t.startswith(".~lock")
@@ -431,8 +487,11 @@ def _luu_file(kho, path, st, lan_quet, file_id, gioi_han):
     ten = os.path.basename(path)
     ext = os.path.splitext(ten)[1].lower()
     text, loi = None, None
+    tren_may_chu = la_file_tren_may_chu(st)
     if la_nhay_cam(ten):
         loi = "file nhạy cảm: chỉ lưu tên"
+    elif tren_may_chu:
+        loi = "chỉ có trên OneDrive/đám mây: chỉ lưu tên (tải về máy rồi quét lại để đọc nội dung)"
     elif st.st_size > gioi_han:
         loi = f"lớn hơn {dung_luong(gioi_han)}: chỉ lưu tên"
     else:
@@ -446,13 +505,14 @@ def _luu_file(kho, path, st, lan_quet, file_id, gioi_han):
         c.execute("DELETE FROM fts WHERE rowid IN (SELECT id FROM chunks WHERE file_id=?)", (file_id,))
         c.execute("DELETE FROM chunks WHERE file_id=?", (file_id,))
         c.execute("""UPDATE files SET name=?, ext=?, loai=?, size=?, mtime=?, sha1=NULL, has_text=?,
-                     loi=?, last_seen=? WHERE id=?""",
-                  (ten, ext, phan_loai(ext), st.st_size, st.st_mtime, int(bool(doan)), loi, lan_quet, file_id))
+                     loi=?, last_seen=?, tren_may_chu=? WHERE id=?""",
+                  (ten, ext, phan_loai(ext), st.st_size, st.st_mtime, int(bool(doan)), loi, lan_quet,
+                   int(tren_may_chu), file_id))
     else:
-        file_id = c.execute("""INSERT INTO files(path, name, ext, loai, size, mtime, has_text, loi, last_seen)
-                               VALUES(?,?,?,?,?,?,?,?,?)""",
+        file_id = c.execute("""INSERT INTO files(path, name, ext, loai, size, mtime, has_text, loi, last_seen,
+                                                 tren_may_chu) VALUES(?,?,?,?,?,?,?,?,?,?)""",
                             (path, ten, ext, phan_loai(ext), st.st_size, st.st_mtime,
-                             int(bool(doan)), loi, lan_quet)).lastrowid
+                             int(bool(doan)), loi, lan_quet, int(tren_may_chu))).lastrowid
     thu_muc = os.path.basename(os.path.dirname(path))
     for seq, d in enumerate(doan or [""]):   # file không có chữ vẫn tìm được theo tên
         cid = c.execute("INSERT INTO chunks(file_id, seq, text) VALUES(?,?,?)", (file_id, seq, d)).lastrowid
@@ -484,8 +544,9 @@ def quet(kho, thu_muc=None, nhung=True, in_ra=print):
     # Mã lượt quét luôn tăng (2 lượt trong cùng 1ms không được trùng mã)
     lan_quet = max(int(time.time() * 1000), int(kho.meta("ma_lan_quet") or 0) + 1)
     kho.meta("ma_lan_quet", lan_quet)
-    cu = {p: (i, s, m) for i, p, s, m in kho.conn.execute("SELECT id, path, size, mtime FROM files")}
-    tk = dict(duyet=0, moi=0, cap_nhat=0, co_noi_dung=0, loi_doc=0, xoa=0)
+    cu = {p: (i, s, m, bool(mc)) for i, p, s, m, mc in
+          kho.conn.execute("SELECT id, path, size, mtime, tren_may_chu FROM files")}
+    tk = dict(duyet=0, moi=0, cap_nhat=0, co_noi_dung=0, loi_doc=0, xoa=0, tren_may_chu=0)
     khong_doi, bat_dau, thay_doi = [], time.time(), 0
 
     for root in roots:
@@ -498,7 +559,7 @@ def quet(kho, thu_muc=None, nhung=True, in_ra=print):
                     continue
                 p = os.path.join(dirpath, ten)
                 try:
-                    st = os.lstat(p)
+                    st = _lstat(p)
                 except OSError:
                     continue
                 if not stat.S_ISREG(st.st_mode):   # bỏ symlink, thiết bị...
@@ -506,15 +567,18 @@ def quet(kho, thu_muc=None, nhung=True, in_ra=print):
                 tk["duyet"] += 1
                 if tk["duyet"] % 500 == 0:
                     in_ra(f"  ... đã duyệt {tk['duyet']} file ({time.time() - bat_dau:.0f}s)")
+                tren_may_chu = la_file_tren_may_chu(st)
+                tk["tren_may_chu"] += tren_may_chu
                 old = cu.get(p)
-                if old and old[1] == st.st_size and old[2] == st.st_mtime:
+                # Tải file OneDrive về không đổi ngày sửa/kích thước -> phải so cả trạng thái này
+                if old and old[1] == st.st_size and old[2] == st.st_mtime and old[3] == tren_may_chu:
                     khong_doi.append((lan_quet, old[0]))
                     continue
                 fid, co_chu, loi = _luu_file(kho, p, st, lan_quet, old[0] if old else None, gioi_han)
-                cu[p] = (fid, st.st_size, st.st_mtime)
+                cu[p] = (fid, st.st_size, st.st_mtime, tren_may_chu)
                 tk["cap_nhat" if old else "moi"] += 1
                 tk["co_noi_dung"] += co_chu
-                if loi and not loi.startswith(("file nhạy cảm", "lớn hơn")):
+                if loi and not loi.startswith(("file nhạy cảm", "lớn hơn", "chỉ có trên")):
                     tk["loi_doc"] += 1
                 thay_doi += 1
                 if thay_doi % 200 == 0:
@@ -535,6 +599,9 @@ def quet(kho, thu_muc=None, nhung=True, in_ra=print):
     in_ra(f"Xong phần quét sau {time.time() - bat_dau:.0f}s: duyệt {tk['duyet']} file | mới {tk['moi']} | "
           f"cập nhật {tk['cap_nhat']} | đọc được nội dung {tk['co_noi_dung']} | "
           f"lỗi đọc {tk['loi_doc']} | xóa khỏi chỉ mục {tk['xoa']}")
+    if tk["tren_may_chu"]:
+        in_ra(f"  {tk['tren_may_chu']} file chỉ có trên OneDrive/đám mây: chỉ lưu tên, KHÔNG tải về. "
+              "Muốn đọc nội dung: chuột phải thư mục > 'Always keep on this device', rồi quét lại.")
     if nhung and ch["dung_ngu_nghia"]:
         tk["nhung"] = tao_nhung(kho, in_ra)
     return tk
@@ -583,6 +650,9 @@ def tao_nhung(kho, in_ra=print, lo=32):
     except KeyboardInterrupt:
         in_ra("\nĐã dừng tạo vector. Lần quét sau sẽ làm tiếp.")
     c.commit()
+    cb = canh_bao_vector(kho)
+    if cb:
+        in_ra(f"[CẢNH BÁO] {cb}")
     return xong
 
 
@@ -632,28 +702,69 @@ def _tim_tu_khoa(kho, cau, gioi_han, che_do, loc):
         return []
 
 
+# Không có numpy, tính tay quá số đoạn này thì mỗi lần tìm mất cả phút -> tắt tìm theo nghĩa
+GIOI_HAN_KHONG_NUMPY = 20000
+_KHOI_TINH = 16384   # tính điểm theo khối: chỉ đổi float16 -> float32 từng khối, không nhân đôi RAM
+
+
+def _co_numpy():
+    try:
+        import numpy
+        return numpy
+    except ImportError:
+        return None
+
+
+def so_doan_co_vector(kho):
+    return kho.conn.execute("SELECT count(*) FROM chunks WHERE length(emb)>0").fetchone()[0]
+
+
+def canh_bao_vector(kho):
+    """Chuỗi cảnh báo về RAM/tốc độ tìm theo nghĩa, hoặc None nếu ổn."""
+    n = so_doan_co_vector(kho)
+    if not n:
+        return None
+    if _co_numpy() is None:
+        if n > GIOI_HAN_KHONG_NUMPY:
+            return (f"Có {n} đoạn có vector nhưng chưa cài numpy -> đã TẮT tìm theo nghĩa (quá chậm). "
+                    "Chạy: pip install numpy")
+        return None
+    row = kho.conn.execute("SELECT length(emb) FROM chunks WHERE length(emb)>0 LIMIT 1").fetchone()
+    ram = n * (row[0] // 4) * 2   # giữ trong RAM dạng float16
+    if ram > 500 * 1024 * 1024:
+        return (f"Tìm theo nghĩa dùng khoảng {dung_luong(ram)} RAM cho {n} đoạn. Máy ít RAM: đặt "
+                '"dung_ngu_nghia": false trong cau_hinh.json hoặc bớt thư mục quét.')
+    return None
+
+
 def _ma_tran_vector(kho):
-    khoa = (kho.duong_dan_db, kho.meta("phien_nhung"),
-            kho.conn.execute("SELECT count(*) FROM chunks WHERE length(emb)>0").fetchone()[0])
+    n = so_doan_co_vector(kho)
+    khoa = (kho.duong_dan_db, kho.meta("phien_nhung"), n)
     with _KHOA_CACHE:
         cache = _CACHE_VECTOR.get(kho.duong_dan_db)
         if cache and cache[0] == khoa:
             return cache[1], cache[2]
-    ids, vecs = [], []
-    for cid, emb in kho.conn.execute("SELECT id, emb FROM chunks WHERE length(emb)>0"):
-        ids.append(cid)
-        vecs.append(emb)
-    try:
-        import numpy as np
-        if vecs:
-            dim = len(vecs[0]) // 4
-            giu = [i for i, v in enumerate(vecs) if len(v) // 4 == dim]
-            ids = [ids[i] for i in giu]
-            mat = np.frombuffer(b"".join(vecs[i] for i in giu), dtype=np.float32).reshape(len(giu), dim)
-        else:
-            mat = None
-    except ImportError:
-        mat = [array.array("f", v) for v in vecs]
+    np = _co_numpy()
+    ids, mat = [], None
+    cur = kho.conn.execute("SELECT id, emb FROM chunks WHERE length(emb)>0")
+    if np is not None:
+        # Điền thẳng vào ma trận float16 (nửa RAM so với float32, không giữ bản sao blob)
+        dim = None
+        for cid, emb in cur:
+            if dim is None:
+                dim = len(emb) // 4
+                mat = np.empty((n, dim), dtype=np.float16)
+            if len(emb) // 4 != dim or len(ids) >= n:
+                continue
+            mat[len(ids)] = np.frombuffer(emb, dtype=np.float32)
+            ids.append(cid)
+        if mat is not None:
+            mat = mat[:len(ids)]
+    elif n <= GIOI_HAN_KHONG_NUMPY:
+        mat = []
+        for cid, emb in cur:
+            ids.append(cid)
+            mat.append(array.array("f", emb))
     with _KHOA_CACHE:
         _CACHE_VECTOR[kho.duong_dan_db] = (khoa, ids, mat)
     return ids, mat
@@ -672,20 +783,24 @@ def _tim_ngu_nghia(kho, cau, gioi_han):
         return []   # Ollama tắt -> vẫn tìm theo từ khóa
     if not q or not q[0]:
         return []
+    nguong = float(ch["nguong_ngu_nghia"])
     qv = array.array("f")
     qv.frombytes(_chuan_hoa(q[0]))
     if isinstance(mat, list):   # không có numpy: tính tay
-        if mat and len(mat[0]) != len(qv):
+        if len(mat[0]) != len(qv):
             return []
         diem = [(sum(a * b for a, b in zip(v, qv)), cid) for cid, v in zip(ids, mat)]
-        diem.sort(reverse=True)
+        diem = sorted((x for x in diem if x[0] >= nguong), reverse=True)
         return [(cid, s) for s, cid in diem[:gioi_han]]
-    import numpy as np
+    np = _co_numpy()
     qn = np.frombuffer(qv.tobytes(), dtype=np.float32)
     if mat.shape[1] != qn.shape[0]:
         return []
-    s = mat @ qn
-    top = np.argsort(-s)[:gioi_han]
+    s = np.empty(mat.shape[0], dtype=np.float32)
+    for i in range(0, mat.shape[0], _KHOI_TINH):
+        s[i:i + _KHOI_TINH] = mat[i:i + _KHOI_TINH].astype(np.float32) @ qn
+    dat = np.nonzero(s >= nguong)[0]
+    top = dat[np.argsort(-s[dat])[:gioi_han]]
     return [(ids[i], float(s[i])) for i in top]
 
 
@@ -833,37 +948,56 @@ def _bam(path, mot_phan=False):
 
 
 def tim_trung_lap(kho, toi_thieu_kb=1, in_ra=print):
+    """Nhóm file trùng nội dung. Luôn kiểm tra lại file TRÊN ĐĨA lúc chạy (không tin chỉ mục cũ):
+    người dùng xóa file theo báo cáo này, báo nhầm là mất dữ liệu."""
     c = kho.conn
-    theo_size = defaultdict(list)
+    theo_size_db = defaultdict(list)
     for fid, p, s, m, h in c.execute("SELECT id, path, size, mtime, sha1 FROM files WHERE size>=?",
                                      (toi_thieu_kb * 1024,)):
-        theo_size[s].append((fid, p, m, h))
-    nhom_kq, da_bam = [], 0
-    for size, ds in theo_size.items():
+        theo_size_db[s].append((fid, p, s, m, h))
+    theo_size = defaultdict(list)
+    for ds in theo_size_db.values():
         if len(ds) < 2:
             continue
-        theo_dau = defaultdict(list)
-        for fid, p, m, h in ds:
+        for fid, p, s, m, h in ds:
             try:
-                theo_dau[h or _bam(p, True)].append((fid, p, m, h))
+                st = _lstat(p)
+            except OSError:
+                continue   # đã bị xóa/di chuyển
+            if not stat.S_ISREG(st.st_mode) or la_file_tren_may_chu(st):
+                continue   # đọc file chỉ có trên OneDrive = tải về cả file
+            # Mã băm lưu sẵn chỉ đúng khi file chưa đổi kể từ lần quét
+            con_nguyen = st.st_size == s and st.st_mtime == m
+            theo_size[st.st_size].append(dict(fid=fid, path=p, mtime=st.st_mtime,
+                                              sha1=h if con_nguyen else None, luu_duoc=con_nguyen))
+    nhom_kq, da_bam = [], 0
+    for size, ds in theo_size.items():
+        if len(ds) < 2 or size < toi_thieu_kb * 1024:
+            continue
+        theo_dau = defaultdict(list)   # luôn nhóm bằng băm một phần, không trộn với băm đầy đủ
+        for f in ds:
+            try:
+                theo_dau[_bam(f["path"], True)].append(f)
             except OSError:
                 pass
         for nhom in theo_dau.values():
             if len(nhom) < 2:
                 continue
             theo_bam = defaultdict(list)
-            for fid, p, m, h in nhom:
+            for f in nhom:
+                h = f["sha1"]
                 if not h:
                     try:
-                        h = _bam(p)
+                        h = _bam(f["path"])
                     except OSError:
                         continue
-                    c.execute("UPDATE files SET sha1=? WHERE id=?", (h, fid))
+                    if f["luu_duoc"]:
+                        c.execute("UPDATE files SET sha1=? WHERE id=?", (h, f["fid"]))
                     da_bam += 1
                     if da_bam % 100 == 0:
                         c.commit()
                         in_ra(f"  ... đã so sánh {da_bam} file")
-                theo_bam[h].append(dict(path=p, mtime=m))
+                theo_bam[h].append(dict(path=f["path"], mtime=f["mtime"]))
             for h, files in theo_bam.items():
                 if len(files) > 1:
                     files.sort(key=lambda x: x["mtime"])
@@ -889,7 +1023,7 @@ def _ten_khong_trung(dich):
     return f"{goc} ({i}){ext}"
 
 
-def sap_xep(kho, thu_muc, thuc_hien=False, in_ra=print):
+def sap_xep(kho, thu_muc, thuc_hien=False, in_ra=print, goi_y=True):
     """Đưa file ở NGAY cấp đầu thư mục vào thư mục con theo loại. Không đụng tới thư mục con có sẵn."""
     thu_muc = os.path.abspath(os.path.expanduser(thu_muc))
     ke_hoach = []
@@ -914,7 +1048,7 @@ def sap_xep(kho, thu_muc, thuc_hien=False, in_ra=print):
             in_ra(f"  {os.path.basename(t)}  ->  {os.path.relpath(d, thu_muc)}")
         if len(ke_hoach) > 30:
             in_ra(f"  ... và {len(ke_hoach) - 30} file khác")
-        if ke_hoach:
+        if ke_hoach and goi_y:
             in_ra("Chưa di chuyển gì. Thêm --thuc-hien để làm thật (có thể hoàn tác).")
         return ke_hoach
     da_chuyen = []
@@ -1170,7 +1304,7 @@ def main(argv=None):
     p.add_argument("thu_muc", nargs="*", help="bỏ trống = theo cau_hinh.json / Desktop, Documents, Downloads")
     p.add_argument("--khong-nhung", action="store_true", help="bỏ qua tạo vector ngữ nghĩa")
     p = sub.add_parser("tim", help="tìm file theo từ khóa/ý nghĩa")
-    p.add_argument("cau")
+    p.add_argument("cau", nargs="?", help="bỏ trống thì chương trình hỏi (gõ tiếng Việt có dấu an toàn hơn)")
     p.add_argument("-n", type=int, default=15)
     p.add_argument("--loai", choices=list(LOAI_FILE) + ["Khác"])
     p.add_argument("--duoi", help="đuôi file, vd pdf")
@@ -1186,6 +1320,7 @@ def main(argv=None):
     p = sub.add_parser("sap-xep", help="xếp file lộn xộn vào thư mục con theo loại")
     p.add_argument("thu_muc", nargs="?", default=os.path.join(os.path.expanduser("~"), "Downloads"))
     p.add_argument("--thuc-hien", action="store_true", help="di chuyển thật (mặc định chỉ chạy thử)")
+    p.add_argument("--xac-nhan", action="store_true", help="cho xem kế hoạch và hỏi lại trước khi di chuyển")
     sub.add_parser("hoan-tac", help="hoàn tác lần sắp xếp gần nhất")
     p = sub.add_parser("giao-dien", help="mở giao diện web cục bộ")
     p.add_argument("--cong", type=int, default=8765)
@@ -1213,12 +1348,23 @@ def main(argv=None):
                 print("Đọc PDF: [OK]")
             except ImportError:
                 print("Đọc PDF: [THIẾU] pip install pypdf")
-            co_vec = kho.conn.execute("SELECT count(*) FROM chunks WHERE length(emb)>0").fetchone()[0]
-            print(f"Vector ngữ nghĩa: {co_vec} đoạn")
+            print(f"Vector ngữ nghĩa: {so_doan_co_vector(kho)} đoạn"
+                  + ("" if _co_numpy() else " (chưa cài numpy: pip install numpy để tìm nhanh hơn)"))
+            cb = canh_bao_vector(kho)
+            if cb:
+                print(f"[CẢNH BÁO] {cb}")
         elif a.lenh == "quet":
             quet(kho, a.thu_muc or None, nhung=not a.khong_nhung)
         elif a.lenh == "tim":
-            _in_ket_qua_tim(tim_file(kho, a.cau, k=a.n, loai=a.loai, duoi=a.duoi, thu_muc=a.trong), a.cau)
+            # Nhập qua Python (không qua "set /p" của .bat): tiếng Việt có dấu và ký tự & " không bị hỏng
+            cau = a.cau
+            if cau is None:
+                try:
+                    cau = input("Từ khóa (có dấu hay không dấu đều được): ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    cau = ""
+            if cau:
+                _in_ket_qua_tim(tim_file(kho, cau, k=a.n, loai=a.loai, duoi=a.duoi, thu_muc=a.trong), cau)
         elif a.lenh == "hoi":
             _hoi_cli(kho, a.cau)
         elif a.lenh == "chat":
@@ -1279,6 +1425,16 @@ def main(argv=None):
             if not os.path.isdir(a.thu_muc):
                 print(f"[LỖI] Không có thư mục: {a.thu_muc}")
                 return 1
+            if a.thuc_hien and a.xac_nhan:
+                if not sap_xep(kho, a.thu_muc, False, goi_y=False):
+                    return 0
+                try:
+                    tl = input("\nDi chuyển các file trên? Gõ c để đồng ý, phím khác để hủy (c/k): ")
+                except (EOFError, KeyboardInterrupt):
+                    tl = ""
+                if bo_dau(tl.strip()) not in ("c", "co", "y", "yes"):
+                    print("Đã hủy, không di chuyển file nào.")
+                    return 0
             sap_xep(kho, a.thu_muc, a.thuc_hien)
         elif a.lenh == "hoan-tac":
             hoan_tac(kho)

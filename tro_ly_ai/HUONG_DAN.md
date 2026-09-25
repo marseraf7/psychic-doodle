@@ -45,13 +45,24 @@ File được tạo sẵn ở lần chạy đầu:
   "mo_hinh_nhung": "bge-m3",
   "dung_ngu_nghia": true,
   "kich_thuoc_toi_da_mb": 50,
-  "so_doan_ngu_canh": 6
+  "so_doan_ngu_canh": 6,
+  "nguong_ngu_nghia": 0.45
 }
 ```
 
 - `thu_muc_quet` để trống thì quét Desktop, Documents, Downloads (kể cả trong OneDrive).
 - Thư mục ẩn (bắt đầu bằng `.`), thư mục hệ thống và thư mục có tên trong `bo_qua_thu_muc` bị bỏ qua.
 - File lớn hơn `kich_thuoc_toi_da_mb` chỉ được lưu tên, không đọc nội dung.
+- `nguong_ngu_nghia` (0 đến 1): tìm theo nghĩa bỏ các kết quả giống ít hơn ngưỡng này. Thấy nhiều file
+  không liên quan thì tăng (vd 0.55); tìm theo nghĩa bỏ sót thì giảm (vd 0.35).
+- Ghi sai kiểu (vd `"thu_muc_quet": "D:\\TaiLieu"` thay vì `["D:\\TaiLieu"]`) thì chương trình cảnh báo
+  và tự sửa hoặc dùng giá trị mặc định, không chạy sai ngầm.
+
+### OneDrive
+
+File OneDrive **chỉ có trên mạng** (biểu tượng đám mây) chỉ được lưu tên: đọc nội dung sẽ khiến Windows
+tải cả file về máy. Muốn trợ lý đọc được nội dung: chuột phải thư mục → **Always keep on this device**,
+rồi quét lại. Công cụ tìm trùng lặp cũng bỏ qua các file này.
 
 ## Dùng bằng dòng lệnh
 
@@ -65,7 +76,7 @@ python tro_ly_ai.py chat
 python tro_ly_ai.py thong-ke
 python tro_ly_ai.py trung-lap --xuat trung_lap.csv
 python tro_ly_ai.py sap-xep                    :: chạy thử trên Downloads
-python tro_ly_ai.py sap-xep "D:\Lon xon" --thuc-hien
+python tro_ly_ai.py sap-xep "D:\Lon xon" --thuc-hien --xac-nhan   :: xem kế hoạch, hỏi lại rồi mới làm
 python tro_ly_ai.py hoan-tac
 python tro_ly_ai.py giao-dien
 ```
@@ -77,6 +88,7 @@ python tro_ly_ai.py giao-dien
   **chỉ được lưu tên, không đọc nội dung**, nên không bao giờ lọt vào câu trả lời của AI.
 - Chỉ mục nằm trong `du_lieu/chi_muc.sqlite3`. Xóa thư mục `du_lieu` là xóa sạch mọi thứ trợ lý đã lưu.
 - Giao diện web chỉ nghe trên `127.0.0.1` và từ chối mọi yêu cầu đến từ trang web khác.
+- Tìm trùng lặp luôn so lại file **trên đĩa lúc chạy**, nên file đã sửa sau lần quét không bị báo nhầm là trùng.
 - Công cụ **không bao giờ xóa file** của bạn. "Sắp xếp" chỉ di chuyển file ở cấp đầu thư mục, không ghi đè
   file trùng tên (tự thêm ` (1)`), và luôn có nhật ký để **hoàn tác**.
 
@@ -92,6 +104,10 @@ Câu hỏi ──> tìm từ khóa + tìm theo nghĩa ──trộn (RRF)──> 
 
 Chưa đọc được nội dung: file Office đời cũ (`.doc`, `.xls`, `.ppt` — lưu lại thành `.docx`/`.xlsx`/`.pptx`),
 PDF dạng ảnh scan (chưa có OCR), ảnh và video. Các file này vẫn tìm được theo tên và thư mục.
+
+Bộ nhớ: tìm theo nghĩa giữ vector trong RAM (khoảng 2 KB mỗi đoạn, vd 100.000 đoạn ≈ 200 MB).
+Lệnh `kiem-tra` cảnh báo khi quá 500 MB. Chưa cài numpy thì tìm theo nghĩa tự tắt khi quá 20.000 đoạn
+(file `.bat` tự cài numpy).
 
 ## Kiểm thử
 

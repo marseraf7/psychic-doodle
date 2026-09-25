@@ -42,7 +42,7 @@ echo   4. Mo giao dien web
 echo   5. Thong ke dung luong
 echo   6. Tim file trung lap
 echo   7. Sap xep Downloads - CHAY THU, khong di chuyen gi
-echo   8. Sap xep Downloads - LAM THAT, co the hoan tac
+echo   8. Sap xep Downloads - LAM THAT, hoi lai truoc, co the hoan tac
 echo   9. Hoan tac lan sap xep gan nhat
 echo   K. Kiem tra Ollama / mo hinh AI
 echo   T. Tai mo hinh AI  - can mang, khoang 5GB
@@ -50,24 +50,20 @@ echo   0. Thoat
 echo ============================================================
 set "CHON="
 set /p "CHON=Chon: "
+rem Bo dau " de lenh if ben duoi khong vo khi go nham
+if defined CHON set "CHON=%CHON:"=%"
 if "%CHON%"=="1" %PY% tro_ly_ai.py quet
-if "%CHON%"=="2" goto tim
+if "%CHON%"=="2" %PY% tro_ly_ai.py tim
 if "%CHON%"=="3" %PY% tro_ly_ai.py chat
 if "%CHON%"=="4" %PY% tro_ly_ai.py giao-dien
 if "%CHON%"=="5" %PY% tro_ly_ai.py thong-ke
 if "%CHON%"=="6" %PY% tro_ly_ai.py trung-lap --xuat du_lieu\trung_lap.csv
 if "%CHON%"=="7" %PY% tro_ly_ai.py sap-xep
-if "%CHON%"=="8" %PY% tro_ly_ai.py sap-xep --thuc-hien
+if "%CHON%"=="8" %PY% tro_ly_ai.py sap-xep --thuc-hien --xac-nhan
 if "%CHON%"=="9" %PY% tro_ly_ai.py hoan-tac
 if /i "%CHON%"=="K" %PY% tro_ly_ai.py kiem-tra
 if /i "%CHON%"=="T" goto tai
 if "%CHON%"=="0" exit /b 0
-goto menu
-
-:tim
-set "Q="
-set /p "Q=Tu khoa - go khong dau cung duoc: "
-if defined Q %PY% tro_ly_ai.py tim "%Q%"
 goto menu
 
 :tai

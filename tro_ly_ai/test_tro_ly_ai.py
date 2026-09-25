@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Chạy: python -m unittest test_tro_ly_ai -v   (trong thư mục tro_ly_ai)"""
-import json, os, shutil, tempfile, threading, time, unicodedata, unittest, urllib.request, zipfile
+import builtins, contextlib, io, json, os, shutil, sys, tempfile, threading, time, unicodedata, unittest
+import urllib.request, zipfile
+from unittest import mock
 
 import tro_ly_ai as t
 
@@ -292,6 +294,213 @@ class TestGiaoDien(CoSo):
         finally:
             srv.shutdown()
             srv.server_close()
+
+
+class StGia:
+    """Bọc os.stat_result, thêm thuộc tính file Windows (để giả lập file OneDrive trên Linux)."""
+    def __init__(self, st, thuoc_tinh):
+        self._st, self.st_file_attributes = st, thuoc_tinh
+
+    def __getattr__(self, k):
+        return getattr(self._st, k)
+
+
+class TestSuaLoiReview(CoSo):
+    # --- 1: không báo trùng nhầm khi file đã sửa sau lần quét ---
+    def test_trung_lap_khong_bao_nham_file_da_sua_sau_quet(self):
+        a, b = os.path.join(self.goc, "anh.jpg"), os.path.join(self.goc, "anh_ban_sao.jpg")
+        t.quet(self.kho, [self.goc], in_ra=self.im)
+        self.assertEqual(len(t.tim_trung_lap(self.kho, in_ra=self.im)), 1)   # lưu sẵn mã băm
+        with open(b, "r+b") as f:   # sửa nội dung, giữ nguyên kích thước, CHƯA quét lại
+            f.seek(100)
+            f.write(b"KHAC")
+        st = os.stat(b)
+        os.utime(b, (st.st_atime, st.st_mtime + 10))
+        self.assertEqual(t.tim_trung_lap(self.kho, in_ra=self.im), [])
+        # sửa nhưng giữ nguyên cả ngày sửa: băm một phần vẫn phát hiện được
+        with open(b, "r+b") as f:
+            f.seek(100)
+            f.write(b"xxxx")
+        os.utime(b, (st.st_atime, st.st_mtime))
+        with open(a, "r+b") as f:
+            f.seek(200)
+            f.write(b"ZZZZ")
+        os.utime(a, (os.stat(a).st_atime, os.stat(a).st_mtime))
+        self.assertEqual(t.tim_trung_lap(self.kho, in_ra=self.im), [])
+
+    def test_trung_lap_bo_qua_file_da_xoa(self):
+        t.quet(self.kho, [self.goc], in_ra=self.im)
+        os.remove(os.path.join(self.goc, "anh_ban_sao.jpg"))
+        self.assertEqual(t.tim_trung_lap(self.kho, in_ra=self.im), [])
+
+    # --- 2: bản sao mới vẫn được nhận ra khi các bản cũ đã có mã băm lưu sẵn ---
+    def test_trung_lap_nhan_ban_sao_moi(self):
+        t.quet(self.kho, [self.goc], in_ra=self.im)
+        self.assertEqual(len(t.tim_trung_lap(self.kho, in_ra=self.im)[0]["files"]), 2)
+        shutil.copy(os.path.join(self.goc, "anh.jpg"), os.path.join(self.goc, "anh_ban_sao_2.jpg"))
+        t.quet(self.kho, [self.goc], in_ra=self.im)
+        ds = t.tim_trung_lap(self.kho, in_ra=self.im)
+        self.assertEqual(len(ds), 1)
+        self.assertEqual(len(ds[0]["files"]), 3)
+        self.assertEqual(ds[0]["lang_phi"], 5002 * 2)
+
+    # --- 3: file OneDrive chỉ có trên mạng: không đọc (không kích hoạt tải về) ---
+    def _gia_lap_onedrive(self, ten_file):
+        dich = {os.path.join(self.goc, n) for n in ten_file}
+        goc_lstat = t._lstat
+        return mock.patch.object(t, "_lstat", lambda p: StGia(goc_lstat(p), 0x00400000)
+                                 if p in dich else goc_lstat(p))
+
+    def test_onedrive_khong_doc_khong_bam(self):
+        ten = ["Hợp đồng/thue_nha.txt".replace("/", os.sep), "anh.jpg", "anh_ban_sao.jpg"]
+        da_mo = []
+        goc_open = builtins.open
+
+        def open_theo_doi(p, *a, **kw):
+            da_mo.append(os.path.abspath(p) if isinstance(p, str) else p)
+            return goc_open(p, *a, **kw)
+
+        with self._gia_lap_onedrive(ten), mock.patch("builtins.open", open_theo_doi):
+            tk = t.quet(self.kho, [self.goc], in_ra=self.im)
+            ds = t.tim_trung_lap(self.kho, in_ra=self.im)
+        self.assertEqual(tk["tren_may_chu"], 3)
+        self.assertEqual(tk["loi_doc"], 0)
+        self.assertEqual(ds, [])
+        for n in ten:
+            self.assertNotIn(os.path.join(self.goc, n), da_mo)
+        # vẫn tìm được theo tên
+        self.assertIn("thue_nha.txt", self.ten_tim_thay("thue nha"))
+        self.assertNotIn("thue_nha.txt", self.ten_tim_thay("triệu"))   # chữ chỉ có trong nội dung
+        # tải về máy (ngày sửa/kích thước KHÔNG đổi) -> quét lại phải đọc nội dung
+        tk = t.quet(self.kho, [self.goc], in_ra=self.im)
+        self.assertEqual(tk["cap_nhat"], 3)
+        self.assertIn("thue_nha.txt", self.ten_tim_thay("triệu"))
+
+    def test_nang_cap_chi_muc_cu_khong_co_cot_moi(self):
+        self.kho.dong()
+        import sqlite3
+        db = os.path.join(self.du_lieu, "chi_muc.sqlite3")
+        c = sqlite3.connect(db)
+        c.execute("ALTER TABLE files DROP COLUMN tren_may_chu")
+        c.commit()
+        c.close()
+        self.kho = t.Kho(self.du_lieu)
+        self.kho.cau_hinh["dung_ngu_nghia"] = False
+        self.assertEqual(t.quet(self.kho, [self.goc], in_ra=self.im)["moi"], 8)
+
+    # --- 5: cấu hình sai kiểu ---
+    def test_cau_hinh_sai_kieu(self):
+        self.kho.dong()
+        with open(os.path.join(self.du_lieu, "cau_hinh.json"), "w", encoding="utf-8") as f:
+            json.dump({"thu_muc_quet": self.goc, "dung_ngu_nghia": "khong", "kich_thuoc_toi_da_mb": "50",
+                       "so_doan_ngu_canh": -1, "mo_hinh_chat": 5, "nguong_ngu_nghia": 3,
+                       "bo_qua_thu_muc": [1, 2]}, f)
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.kho = t.Kho(self.du_lieu)
+        ch = self.kho.cau_hinh
+        self.assertEqual(ch["thu_muc_quet"], [self.goc])
+        for k in ("dung_ngu_nghia", "kich_thuoc_toi_da_mb", "so_doan_ngu_canh", "mo_hinh_chat",
+                  "nguong_ngu_nghia", "bo_qua_thu_muc"):
+            self.assertEqual(ch[k], t.CAU_HINH_MAC_DINH[k], k)
+        self.assertIn("thu_muc_quet", out.getvalue())
+        ch["dung_ngu_nghia"] = False
+        self.assertEqual(t.quet(self.kho, in_ra=self.im)["moi"], 8)   # quét đúng thư mục, không phải từng ký tự
+
+    def test_cau_hinh_khong_phai_doi_tuong(self):
+        self.kho.dong()
+        with open(os.path.join(self.du_lieu, "cau_hinh.json"), "w", encoding="utf-8") as f:
+            f.write('["D:/TaiLieu"]')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.kho = t.Kho(self.du_lieu)
+        self.assertEqual(self.kho.cau_hinh["thu_muc_quet"], [])
+
+    # --- 6: lệnh tim tự hỏi từ khóa (không phụ thuộc "set /p" của .bat) ---
+    def test_tim_hoi_tu_khoa_qua_python(self):
+        t.quet(self.kho, [self.goc], in_ra=self.im)
+        self.kho.conn.commit()
+        with open(os.path.join(self.du_lieu, "cau_hinh.json"), "w", encoding="utf-8") as f:
+            json.dump({"dung_ngu_nghia": False}, f)
+        for go in ('hợp đồng & "thuê nhà"', "hop dong"):
+            with mock.patch("builtins.input", return_value=go), \
+                    contextlib.redirect_stdout(io.StringIO()) as out:
+                t.main(["--du-lieu", self.du_lieu, "tim"])
+            self.assertIn("thue_nha.txt", out.getvalue())
+
+    # --- 8: sắp xếp thật phải hỏi lại ---
+    def _sap_xep_cli(self, tra_loi):
+        with mock.patch("builtins.input", return_value=tra_loi), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            t.main(["--du-lieu", self.du_lieu, "sap-xep", self.goc, "--thuc-hien", "--xac-nhan"])
+        return out.getvalue()
+
+    def test_sap_xep_hoi_lai_truoc_khi_lam(self):
+        truoc = sorted(os.listdir(self.goc))
+        for tl in ("k", "", "không"):
+            out = self._sap_xep_cli(tl)
+            self.assertIn("Đã hủy", out)
+            self.assertIn("bao_cao_quy3.docx", out)   # đã cho xem kế hoạch
+            self.assertEqual(sorted(os.listdir(self.goc)), truoc)
+        self._sap_xep_cli("c")
+        self.assertTrue(os.path.exists(os.path.join(self.goc, "Tài liệu", "bao_cao_quy3.docx")))
+
+
+class TestNguNghiaNguongVaBoNho(CoSo):
+    def setUp(self):
+        super().setUp()
+        self._goc = t.Ollama
+        t.Ollama = OllamaGia
+        self.kho.cau_hinh["dung_ngu_nghia"] = True
+        t.quet(self.kho, [self.goc], in_ra=self.im)
+
+    def tearDown(self):
+        t.Ollama = self._goc
+        super().tearDown()
+
+    # --- 4: từ khóa không có ở đâu -> không trả về file "gần nhất" ---
+    def test_khong_co_gi_khop_thi_bao_khong_thay(self):
+        self.assertEqual(self.ten_tim_thay("zzqqxx"), [])
+        self.assertIn("thue_nha.txt", self.ten_tim_thay("hop dong"))
+
+    def test_nguong_cau_hinh_duoc(self):
+        self.kho.cau_hinh["nguong_ngu_nghia"] = 0.0001
+        t._CACHE_VECTOR.clear()
+        self.assertTrue(t._tim_ngu_nghia(self.kho, "doanh thu", 5))
+        self.kho.cau_hinh["nguong_ngu_nghia"] = 1.0
+        self.assertEqual(t._tim_ngu_nghia(self.kho, "doanh thu", 5), [])
+
+    # --- 7: bộ nhớ ---
+    @unittest.skipUnless(t._co_numpy(), "cần numpy")
+    def test_ma_tran_float16_va_khop_ket_qua(self):
+        import numpy as np
+        ids, mat = t._ma_tran_vector(self.kho)
+        self.assertEqual(mat.dtype, np.float16)
+        self.assertEqual(mat.shape[0], len(ids))
+        with mock.patch.object(t, "_KHOI_TINH", 2):   # nhiều khối vẫn ra đúng
+            t._CACHE_VECTOR.clear()
+            nho = t._tim_ngu_nghia(self.kho, "doanh thu quý", 5)
+        t._CACHE_VECTOR.clear()
+        with mock.patch.dict(sys.modules, {"numpy": None}):   # so với cách tính tay (float32)
+            tay = t._tim_ngu_nghia(self.kho, "doanh thu quý", 5)
+        self.assertEqual([c for c, _ in nho][:1], [c for c, _ in tay][:1])
+        for (_, a), (_, b) in zip(nho, tay):
+            self.assertAlmostEqual(a, b, places=2)
+
+    def test_khong_numpy_qua_gioi_han_thi_tat(self):
+        with mock.patch.dict(sys.modules, {"numpy": None}):
+            t._CACHE_VECTOR.clear()
+            self.assertTrue(t._tim_ngu_nghia(self.kho, "doanh thu", 5))
+            self.assertIsNone(t.canh_bao_vector(self.kho))
+            with mock.patch.object(t, "GIOI_HAN_KHONG_NUMPY", 1):
+                t._CACHE_VECTOR.clear()
+                self.assertEqual(t._tim_ngu_nghia(self.kho, "doanh thu", 5), [])
+                self.assertIn("numpy", t.canh_bao_vector(self.kho))
+                self.assertIn("thue_nha.txt", self.ten_tim_thay("hop dong"))   # từ khóa vẫn chạy
+
+    @unittest.skipUnless(t._co_numpy(), "cần numpy")
+    def test_canh_bao_ram_khi_qua_lon(self):
+        self.assertIsNone(t.canh_bao_vector(self.kho))
+        with mock.patch.object(t, "so_doan_co_vector", return_value=100_000_000):
+            self.assertIn("RAM", t.canh_bao_vector(self.kho))
 
 
 if __name__ == "__main__":
