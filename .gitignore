@@ -5,3 +5,6 @@
 donvi/
 ket_qua/
 __pycache__/
+# Loc VPN - ket qua va Xray-core tai ve
+vpn/ket_qua_vpn/
+vpn/xray/
