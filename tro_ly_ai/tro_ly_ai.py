@@ -184,6 +184,13 @@ class Kho:
         self.conn = sqlite3.connect(self.duong_dan_db, timeout=30)
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA synchronous=NORMAL")
+        try:
+            self.conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS temp._thu_fts5 USING fts5(x)")
+        except sqlite3.OperationalError:
+            raise RuntimeError(
+                f"Python này thiếu SQLite FTS5 (SQLite {sqlite3.sqlite_version}) nên không tìm kiếm được. "
+                "Cài Python bản chính thức từ https://www.python.org/downloads/ (không dùng bản Microsoft Store "
+                "hoặc bản rút gọn), rồi chạy lại.")
         self.conn.executescript("""
             CREATE TABLE IF NOT EXISTS files(
                 id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, name TEXT, ext TEXT, loai TEXT,
@@ -1327,7 +1334,11 @@ def main(argv=None):
     p.add_argument("--khong-mo-trinh-duyet", action="store_true")
     a = ap.parse_args(argv)
 
-    kho = Kho(a.du_lieu)
+    try:
+        kho = Kho(a.du_lieu)
+    except RuntimeError as e:
+        print(f"[LỖI] {e}")
+        return 1
     try:
         if a.lenh == "kiem-tra":
             ch = kho.cau_hinh

@@ -46,6 +46,7 @@ echo   8. Sap xep Downloads - LAM THAT, hoi lai truoc, co the hoan tac
 echo   9. Hoan tac lan sap xep gan nhat
 echo   K. Kiem tra Ollama / mo hinh AI
 echo   T. Tai mo hinh AI  - can mang, khoang 5GB
+echo   V. Kiem tra tren may nay, ghi bao cao - khong dung du lieu ca nhan
 echo   0. Thoat
 echo ============================================================
 set "CHON="
@@ -63,6 +64,7 @@ if "%CHON%"=="8" %PY% tro_ly_ai.py sap-xep --thuc-hien --xac-nhan
 if "%CHON%"=="9" %PY% tro_ly_ai.py hoan-tac
 if /i "%CHON%"=="K" %PY% tro_ly_ai.py kiem-tra
 if /i "%CHON%"=="T" goto tai
+if /i "%CHON%"=="V" %PY% kiem_tra_may_that.py
 if "%CHON%"=="0" exit /b 0
 goto menu
 

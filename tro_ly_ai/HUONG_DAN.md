@@ -109,6 +109,14 @@ Bộ nhớ: tìm theo nghĩa giữ vector trong RAM (khoảng 2 KB mỗi đoạn
 Lệnh `kiem-tra` cảnh báo khi quá 500 MB. Chưa cài numpy thì tìm theo nghĩa tự tắt khi quá 20.000 đoạn
 (file `.bat` tự cài numpy).
 
+## Kiểm tra trên máy thật
+
+Chọn **V** trong menu (hoặc `python kiem_tra_may_that.py`). Chương trình kiểm tra Python, SQLite, OneDrive
+(chỉ đọc thuộc tính, không làm tải file), Ollama và mô hình, đo ngưỡng tìm theo nghĩa bằng `bge-m3` thật,
+rồi thử quét, tìm và hỏi đáp trên **bộ tài liệu mẫu** trong thư mục tạm. Báo cáo ghi vào
+`du_lieu/bao_cao_kiem_tra.txt`, chỉ có số liệu (không có tên file hay nội dung của bạn, tên người dùng
+Windows được che thành `~`), nên gửi cho người hỗ trợ được.
+
 ## Kiểm thử
 
 ```bat
