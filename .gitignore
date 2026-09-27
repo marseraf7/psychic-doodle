@@ -5,3 +5,8 @@
 donvi/
 ket_qua/
 __pycache__/
+# Luan van ca nhan - KHONG dua len git
+kiem_tra_luan_van/nguon/
+kiem_tra_luan_van/ban_thao.*
+kiem_tra_luan_van/tai_lieu.csv
+.pytest_cache/
