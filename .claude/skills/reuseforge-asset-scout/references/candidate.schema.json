@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/candidate.schema.json",
+  "title": "ReuseForge Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "capability_id",
+    "source_type",
+    "source_ref",
+    "name",
+    "version_or_commit",
+    "claimed_capabilities",
+    "initial_relevance",
+    "known_license",
+    "evidence_refs",
+    "audit_required",
+    "open_questions"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^CAND-[A-Za-z0-9._-]+$"
+    },
+    "capability_id": {
+      "type": "string",
+      "pattern": "^CAP-[0-9]{3,}$"
+    },
+    "source_type": {
+      "enum": [
+        "github",
+        "huggingface",
+        "library",
+        "package",
+        "dataset",
+        "reference-implementation",
+        "scientific-code",
+        "vendor-example",
+        "design-pattern",
+        "technical-documentation",
+        "research-artifact",
+        "other"
+      ]
+    },
+    "source_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version_or_commit": {
+      "type": "string"
+    },
+    "claimed_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "initial_relevance": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "known_license": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "audit_required": {
+      "const": true
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

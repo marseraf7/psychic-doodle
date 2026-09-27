@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/reuse-decision.schema.json",
+  "title": "ReuseForge Reuse Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_id",
+    "capability_id",
+    "candidate_ids",
+    "action",
+    "rationale",
+    "evidence_status",
+    "evidence_refs",
+    "integration_cost",
+    "risks",
+    "open_questions"
+  ],
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "pattern": "^RF-D-[A-Za-z0-9._-]+$"
+    },
+    "capability_id": {
+      "type": "string",
+      "pattern": "^CAP-[0-9]{3,}$"
+    },
+    "candidate_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^CAND-[A-Za-z0-9._-]+$"
+      }
+    },
+    "action": {
+      "enum": [
+        "USE_AS_IS",
+        "WRAP",
+        "FORK_AND_MODIFY",
+        "VENDOR",
+        "EXTRACT_CONCEPT",
+        "REIMPLEMENT",
+        "RUN_SPIKE",
+        "REJECT"
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence_status": {
+      "enum": [
+        "USER_PROVIDED",
+        "SOURCE_VERIFIED",
+        "IMPLEMENTATION_VERIFIED",
+        "SPIKE_VERIFIED",
+        "ASSUMPTION",
+        "UNVERIFIED",
+        "CONFLICTING"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "integration_cost": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "unknown"
+      ]
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

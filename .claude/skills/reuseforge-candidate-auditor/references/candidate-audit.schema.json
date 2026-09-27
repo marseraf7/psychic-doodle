@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/candidate-audit.schema.json",
+  "title": "ReuseForge Candidate Audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "capability_id",
+    "pinned_ref",
+    "status",
+    "evidence_status",
+    "audit_dimensions",
+    "integration_effort",
+    "evidence_refs",
+    "open_questions"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "pattern": "^CAND-[A-Za-z0-9._-]+$"
+    },
+    "capability_id": {
+      "type": "string",
+      "pattern": "^CAP-[0-9]{3,}$"
+    },
+    "pinned_ref": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "VERIFIED",
+        "PARTIALLY_VERIFIED",
+        "SPIKE_REQUIRED",
+        "INSUFFICIENT_EVIDENCE",
+        "LICENSE_REVIEW_REQUIRED",
+        "INCOMPATIBLE",
+        "REJECTED"
+      ]
+    },
+    "evidence_status": {
+      "enum": [
+        "USER_PROVIDED",
+        "SOURCE_VERIFIED",
+        "IMPLEMENTATION_VERIFIED",
+        "SPIKE_VERIFIED",
+        "ASSUMPTION",
+        "UNVERIFIED",
+        "CONFLICTING"
+      ]
+    },
+    "audit_dimensions": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "integration_effort": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "unknown"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

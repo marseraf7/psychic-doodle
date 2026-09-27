@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/capability.schema.json",
+  "title": "ReuseForge Capability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "capability_id",
+    "name",
+    "purpose",
+    "priority",
+    "inputs",
+    "outputs",
+    "dependencies",
+    "hard_constraints",
+    "acceptance_tests",
+    "reuse_priority"
+  ],
+  "properties": {
+    "capability_id": {
+      "type": "string",
+      "pattern": "^CAP-[0-9]{3,}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "priority": {
+      "enum": [
+        "required",
+        "preferred",
+        "optional"
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^CAP-[0-9]{3,}$"
+      }
+    },
+    "hard_constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptance_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "reuse_priority": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  }
+}

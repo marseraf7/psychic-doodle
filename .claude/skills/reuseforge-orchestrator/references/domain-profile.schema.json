@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/domain-profile.schema.json",
+  "title": "ReuseForge Domain Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "project_id",
+    "profile_id",
+    "primary_domain",
+    "safety_critical"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "reuseforge/1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile_id": {
+      "type": "string",
+      "pattern": "^RF-DOM-[A-Za-z0-9._-]+$"
+    },
+    "primary_domain": {
+      "enum": [
+        "software",
+        "ai-ml",
+        "research",
+        "scientific-computing",
+        "matlab-simulink-simscape",
+        "automation",
+        "embedded",
+        "data",
+        "other-technical"
+      ]
+    },
+    "languages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "runtimes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "frameworks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "hardware": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "os_targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "toolchains": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "safety_critical": {
+      "type": "boolean"
+    },
+    "regulated_context": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "network_constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "data_constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

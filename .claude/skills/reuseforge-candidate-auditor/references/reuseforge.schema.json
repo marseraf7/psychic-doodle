@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/reuseforge.schema.json",
+  "title": "ReuseForge Canonical Handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "project_id",
+    "workflow_state",
+    "domain_profile",
+    "current_phase",
+    "current_task",
+    "execution_mode",
+    "inputs",
+    "outputs",
+    "locked_decisions",
+    "open_questions",
+    "blockers",
+    "approval",
+    "evidence_status",
+    "next_actor",
+    "next_action"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "reuseforge/1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "workflow_state": {
+      "enum": [
+        "IDEA",
+        "FRAMING",
+        "FRAMED",
+        "DISCOVERY",
+        "DISCOVERY_COMPLETE",
+        "AUDITING",
+        "AUDIT_COMPLETE",
+        "ARCHITECTURE_PROPOSED",
+        "ARCHITECTURE_APPROVED",
+        "PLANNING",
+        "PLAN_READY",
+        "EXECUTION_APPROVAL_REQUIRED",
+        "EXECUTION_APPROVED",
+        "EXECUTING",
+        "VERIFYING",
+        "REPAIR_REQUIRED",
+        "BLOCKED",
+        "COMPLETE"
+      ]
+    },
+    "domain_profile": {
+      "type": "string"
+    },
+    "current_phase": {
+      "type": "string"
+    },
+    "current_task": {
+      "type": "string"
+    },
+    "execution_mode": {
+      "enum": [
+        "",
+        "undecided",
+        "claude-code-internal",
+        "opencode-internal",
+        "codex",
+        "external-harness"
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifactRef"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifactRef"
+      }
+    },
+    "locked_decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/decisionRef"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "approval": {
+      "$ref": "#/$defs/approval"
+    },
+    "evidence_status": {
+      "enum": [
+        "USER_PROVIDED",
+        "SOURCE_VERIFIED",
+        "IMPLEMENTATION_VERIFIED",
+        "SPIKE_VERIFIED",
+        "ASSUMPTION",
+        "UNVERIFIED",
+        "CONFLICTING"
+      ]
+    },
+    "next_actor": {
+      "type": "string"
+    },
+    "next_action": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref"
+      ],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "evidence_status": {
+          "enum": [
+            "USER_PROVIDED",
+            "SOURCE_VERIFIED",
+            "IMPLEMENTATION_VERIFIED",
+            "SPIKE_VERIFIED",
+            "ASSUMPTION",
+            "UNVERIFIED",
+            "CONFLICTING"
+          ]
+        }
+      }
+    },
+    "decisionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision_id",
+        "summary",
+        "evidence_status",
+        "evidence_refs"
+      ],
+      "properties": {
+        "decision_id": {
+          "type": "string",
+          "pattern": "^RF-D-[A-Za-z0-9._-]+$"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_status": {
+          "enum": [
+            "USER_PROVIDED",
+            "SOURCE_VERIFIED",
+            "IMPLEMENTATION_VERIFIED",
+            "SPIKE_VERIFIED",
+            "ASSUMPTION",
+            "UNVERIFIED",
+            "CONFLICTING"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "approval_id",
+        "scope",
+        "approved",
+        "approved_items"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "approval_id": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string"
+        },
+        "approved": {
+          "type": "boolean"
+        },
+        "approved_items": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "approved": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "approval_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "scope": {
+                "type": "string",
+                "minLength": 1
+              },
+              "approved_items": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

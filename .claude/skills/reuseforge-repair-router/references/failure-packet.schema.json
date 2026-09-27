@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/failure-packet.schema.json",
+  "title": "ReuseForge Failure Packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "project_id",
+    "run_id",
+    "task_id",
+    "attempt",
+    "command_or_action",
+    "observed_failure",
+    "environment",
+    "changed_files",
+    "evidence_refs"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "reuseforge/1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "command_or_action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observed_failure": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "object"
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

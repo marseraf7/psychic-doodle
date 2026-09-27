@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reuseforge/1.0/task.schema.json",
+  "title": "ReuseForge Task",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "phase_id",
+    "capability_ids",
+    "objective",
+    "action",
+    "reuse_candidates",
+    "depends_on",
+    "allowed_read_scope",
+    "allowed_write_scope",
+    "planned_commands",
+    "verification",
+    "risk",
+    "complexity",
+    "recommended_worker_profile"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$"
+    },
+    "phase_id": {
+      "type": "string",
+      "pattern": "^P-[0-9]{2,}$"
+    },
+    "capability_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^CAP-[0-9]{3,}$"
+      }
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reuse_candidates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^T-[0-9]{3,}$"
+      }
+    },
+    "allowed_read_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowed_write_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "planned_commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "risk": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "complexity": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "recommended_worker_profile": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
