@@ -50,22 +50,102 @@ def _docx_blocks(path):
                 for cell in row.cells:
                     yield from cell.paragraphs
 
+# Dấu chú thích chân trang/cuối bài chèn vào chữ của đoạn: '⟨3⟩' (footnote 3), '⟨c3⟩' (endnote 3).
+# Dùng ngoặc ⟨⟩ để không lẫn với tham chiếu [N].
+_RE_DAU_CT = re.compile(r"⟨c?\d+⟩")
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+def _chu_doan_docx(p_el):
+    """Chữ của 1 đoạn .docx, có chèn dấu ⟨N⟩ tại vị trí tham chiếu chú thích
+    (p.text của python-docx bỏ mất các tham chiếu này)."""
+    phan = []
+    for el in p_el.iter():
+        if el.getparent() is None or el.getparent().tag != _W + "r":
+            continue            # bỏ w:tab trong định nghĩa tab-stop của đoạn...
+        if el.tag == _W + "t":
+            phan.append(el.text or "")
+        elif el.tag == _W + "tab":
+            phan.append("\t")
+        elif el.tag in (_W + "br", _W + "cr"):
+            phan.append(" ")
+        elif el.tag == _W + "footnoteReference":
+            phan.append(f"⟨{el.get(_W + 'id')}⟩")
+        elif el.tag == _W + "endnoteReference":
+            phan.append(f"⟨c{el.get(_W + 'id')}⟩")
+    return "".join(phan)
+
+def doc_chu_thich(path):
+    """Chú thích của .docx -> {'⟨3⟩': 'Выготский Л. С. Мышление и речь. М., 1999. С. 15.', ...}."""
+    if not path.lower().endswith(".docx"):
+        return {}
+    import zipfile
+    import xml.etree.ElementTree as ET
+    kq = {}
+    with zipfile.ZipFile(path) as z:
+        for ten_file, the, tien_to in (("word/footnotes.xml", "footnote", ""),
+                                       ("word/endnotes.xml", "endnote", "c")):
+            if ten_file not in z.namelist():
+                continue
+            goc = ET.fromstring(z.read(ten_file))
+            for fn in goc.findall(_W + the):
+                if fn.get(_W + "type") in ("separator", "continuationSeparator", "continuationNotice"):
+                    continue
+                chu = " ".join("".join(t.text or "" for t in para.iter(_W + "t"))
+                               for para in fn.iter(_W + "p"))
+                kq[f"⟨{tien_to}{fn.get(_W + 'id')}⟩"] = chu.strip()
+    return kq
+
+def _noi_dong_txt(dong):
+    """File .txt bị ngắt dòng cứng (mỗi dòng ~70 ký tự) -> nối lại thành đoạn.
+    Nối dòng với dòng sau khi dòng này chưa hết câu VÀ (dòng sau viết thường, hoặc
+    dòng này dài như dòng bị ngắt). Tiêu đề ngắn và mục danh mục (kết thúc bằng '.')
+    vẫn đứng riêng."""
+    doan, dang = [], ""
+    for d in dong:
+        d = d.rstrip()
+        if not d.strip():
+            if dang:
+                doan.append(dang)
+            doan.append("")
+            dang = ""
+            continue
+        if dang:
+            chua_het = not re.search(r"[.!?:;…»\"”)\]]$", dang)
+            if dang.endswith("-") and d.lstrip()[:1].islower():
+                dang = dang[:-1] + d.lstrip()            # từ bị gạch nối ngắt dòng
+                continue
+            if chua_het and (d.lstrip()[:1].islower() or len(dang) >= 60):
+                dang += " " + d.lstrip()
+                continue
+            doan.append(dang)
+        dang = d
+    if dang:
+        doan.append(dang)
+    return doan
+
+def _nap_pypdf():
+    try:
+        from pypdf import PdfReader
+        return PdfReader
+    except BaseException as e:     # pypdf hỏng thư viện phụ có thể ném PanicException (không phải Exception)
+        if isinstance(e, (KeyboardInterrupt, SystemExit)):
+            raise
+        raise RuntimeError("không nạp được thư viện pypdf (cài lại:  pip install --upgrade pypdf "
+                           f"cryptography cffi) — {type(e).__name__}: {e}") from None
+
 def doc_doan_van(path):
     """Danh sách đoạn văn (chuỗi) của file."""
     ext = os.path.splitext(path)[1].lower()
     if ext == ".docx":
-        return [p.text for p in _docx_blocks(path)]
+        return [_chu_doan_docx(p._p) for p in _docx_blocks(path)]
     if ext == ".pdf":
-        try:
-            from pypdf import PdfReader
-        except ImportError:
-            raise SystemExit("[LỖI] Đọc PDF cần thư viện pypdf:  pip install pypdf")
+        PdfReader = _nap_pypdf()
         text = "\n".join((pg.extract_text() or "") for pg in PdfReader(path).pages)
         # PDF ngắt dòng giữa câu -> nối lại, giữ dòng trống làm ranh giới đoạn
         text = re.sub(r"-\n(?=[а-яёa-z])", "", text)
         return [re.sub(r"\s*\n\s*", " ", p) for p in re.split(r"\n\s*\n", text)]
     if ext in (".txt", ".md", ""):
-        return _doc_txt(path).splitlines()
+        return _noi_dong_txt(_doc_txt(path).splitlines())
     raise SystemExit(f"[LỖI] Không đọc được định dạng {ext}: {path} (dùng .docx/.txt/.pdf)")
 
 DUOI_HO_TRO = (".docx", ".txt", ".pdf", ".md")
@@ -109,20 +189,25 @@ def goc_tu(tu):
 
 def tu_noi_dung(cau):
     """Gốc các từ có nghĩa trong câu (bỏ từ dừng, số, trích dẫn [..])."""
-    cau = re.sub(r"\[[^\]]*\]", " ", cau)
+    cau = _RE_DAU_CT.sub(" ", re.sub(r"\[[^\]]*\]", " ", cau))
     return [goc_tu(w) for w in _RE_TU.findall(cau) if w.lower().replace("ё", "е") not in TU_DUNG]
 
 # Từ viết tắt không kết thúc câu: 'т. е.', 'и т. д.', 'с. 12', 'Л. С. Выготский'...
 _VIET_TAT = set("т е д п др пр см рис табл гл им напр ср стр с т.е т.д т.п т.к г гг в вв ок "
                 "проф акад канд докт psych et al vol pp p".split())
 
+# Viết tắt thường ĐỨNG CUỐI câu: 'и др.', 'и пр.', 'и т. д.', 'и т. п.', 'в 1990-х гг.'
+_RE_VT_CUOI_CAU = re.compile(r"(\bи\s+(др|пр)|\bт\.\s*[дп]|\d\S*\s*гг?|\bвв)\.$", re.I)
+_DONG = r"(?:[»\"”)]|⟨c?\d+⟩)*"        # ngoặc đóng / dấu chú thích sau dấu chấm câu
+
 def tach_cau(doan):
     """Tách đoạn thành câu, không cắt sau chữ viết tắt hay chữ cái đầu tên."""
     cau, dau = [], 0
-    for m in re.finditer(r"[.!?…]+[»\"”)]*\s+(?=[«\"„(\[]?[А-ЯЁA-Z0-9])", doan):
-        truoc = re.search(r"([A-Za-zА-Яа-яЁё.]+)[.!?…]+[»\"”)]*\s+$", doan[dau:m.end()])
+    for m in re.finditer(r"[.!?…]+" + _DONG + r"\s+(?=[«\"„(\[]?[А-ЯЁA-Z0-9])", doan):
+        truoc = re.search(r"([A-Za-zА-Яа-яЁё.]+)[.!?…]+" + _DONG + r"\s+$", doan[dau:m.end()])
         tu = truoc.group(1).lower().strip(".") if truoc else ""
-        if doan[m.start()] == "." and (tu in _VIET_TAT or
+        ket_vt = _RE_VT_CUOI_CAU.search(doan[dau:m.start() + 1])
+        if doan[m.start()] == "." and not ket_vt and (tu in _VIET_TAT or
                                        (len(tu) == 1 and tu.isalpha())):   # chữ cái đầu tên
             continue
         cau.append(doan[dau:m.end()].strip())
@@ -163,13 +248,45 @@ _RE_DAN_SO = re.compile(r"\[\s*\d[^\]]*\]")                               # [12]
 _RE_DAN_TEN = re.compile(r"\(\s*[А-ЯЁA-Z][^()]{1,80}?,?\s+(1[89]|20)\d{2}[^()]{0,30}\)")  # (Иванов, 2010)
 _RE_NGOAC_KEP = re.compile(r"«[^«»]+»|„[^„“]+“|\"[^\"]+\"|“[^“”]+”")
 
+# Выготский (1934) / Иванова и Петров (2010а)
+_RE_TEN_NAM = re.compile(r"\b[А-ЯЁA-Z][а-яёa-z-]+(?:\s+(?:и|и\s+др\.|et\s+al\.))?\s*\((1[89]|20)\d{2}[а-яa-z]?\)")
+
 def co_dan_nguon(cau):
-    return bool(_RE_DAN_SO.search(cau) or _RE_DAN_TEN.search(cau))
+    """Có tham chiếu: [N], (Иванов, 2010), Иванов (2010) hoặc chú thích chân trang ⟨N⟩."""
+    return bool(_RE_DAN_SO.search(cau) or _RE_DAN_TEN.search(cau)
+                or _RE_TEN_NAM.search(cau) or _RE_DAU_CT.search(cau))
 
 def ty_le_ngoac_kep(cau):
     """Tỷ lệ ký tự của câu nằm trong ngoặc kép."""
     trong = sum(len(m.group()) for m in _RE_NGOAC_KEP.finditer(cau))
     return trong / max(1, len(cau.strip()))
+
+def cau_voi_vi_tri(doan):
+    """[(câu, vị trí đầu, vị trí cuối trong đoạn), ...]"""
+    ds, vt = [], 0
+    for c in tach_cau(doan):
+        i = doan.find(c, vt)
+        i = vt if i < 0 else i
+        ds.append((c, i, i + len(c)))
+        vt = i + len(c)
+    return ds
+
+def phan_tich_doan(doan):
+    """Tách đoạn thành câu, kèm cho mỗi câu:
+      - 'dan': có trích dẫn — của chính câu, HOẶC của một câu phía sau trong cùng đoạn
+        (kiểu viết phổ biến: 1 tham chiếu [N] ở cuối đoạn cho cả đoạn);
+      - 'ngoac': tỷ lệ chữ nằm trong ngoặc kép, tính trên cả đoạn để trích dẫn
+        «...» kéo dài qua nhiều câu vẫn được nhận ra."""
+    ds = cau_voi_vi_tri(doan)
+    mask = bytearray(len(doan))
+    for m in _RE_NGOAC_KEP.finditer(doan):
+        mask[m.start():m.end()] = b"\x01" * (m.end() - m.start())
+    kq, co_dan_sau = [], False
+    for c, a, b in reversed(ds):
+        co_dan_sau = co_dan_sau or co_dan_nguon(c)
+        kq.append({"cau": c, "dan": co_dan_sau, "dan_rieng": co_dan_nguon(c),
+                   "ngoac": sum(mask[a:b]) / max(1, b - a)})
+    return kq[::-1]
 
 # ======================================================================
 # Dò ký tự lạ (Antiplagiat gắn cờ "подозрительный документ")
@@ -203,25 +320,52 @@ def do_ky_tu_la(doan):
                 loi.append((f"Từ lẫn chữ Latin ('{la}') trong chữ Nga", w))
     return loi
 
+def _chuoi_style(st):
+    while st is not None:
+        yield st
+        st = st.base_style
+
+def _mau_rgb(font):
+    try:
+        if font.color is not None and font.color.type is not None and font.color.rgb is not None:
+            return str(font.color.rgb).upper()
+    except (AttributeError, ValueError):
+        pass
+    return None
+
+def _thuoc_tinh_that(r, p):
+    """(hidden, cỡ pt, màu RGB) THỰC TẾ của 1 run: lấy giá trị đặt trực tiếp trên run, nếu
+    không có thì theo style ký tự của run, rồi style đoạn (kể cả style gốc mà nó kế thừa).
+    Nhờ vậy chữ trắng/ẩn đặt qua Style vẫn bị phát hiện."""
+    fonts = [r.font]
+    try:
+        fonts += [st.font for st in _chuoi_style(r.style)]
+    except (KeyError, ValueError, AttributeError):
+        pass
+    try:
+        fonts += [st.font for st in _chuoi_style(p.style)]
+    except (KeyError, ValueError, AttributeError):
+        pass
+    an = next((f.hidden for f in fonts if f.hidden is not None), None)
+    co = next((f.size.pt for f in fonts if f.size is not None), None)
+    mau = next((m for m in map(_mau_rgb, fonts) if m is not None), None)
+    return an, co, mau
+
 def do_chu_an_docx(path):
-    """Chữ màu trắng / cỡ < 3pt / thuộc tính hidden trong .docx."""
+    """Chữ màu trắng / cỡ < 3pt / thuộc tính hidden trong .docx (đặt trực tiếp hoặc qua Style)."""
     loi = []
     for p in _docx_blocks(path):
         for r in p.runs:
             if not r.text.strip():
                 continue
-            f = r.font
+            an, co, mau = _thuoc_tinh_that(r, p)
             ly_do = None
-            if f.hidden:
+            if an:
                 ly_do = "chữ bị ẩn (hidden)"
-            elif f.size is not None and f.size.pt < 3:
-                ly_do = f"chữ cỡ {f.size.pt:g}pt"
-            else:
-                try:
-                    if f.color is not None and f.color.type is not None and str(f.color.rgb).upper() == "FFFFFF":
-                        ly_do = "chữ màu trắng"
-                except (AttributeError, ValueError):
-                    pass
+            elif co is not None and co < 3:
+                ly_do = f"chữ cỡ {co:g}pt"
+            elif mau == "FFFFFF":
+                ly_do = "chữ màu trắng"
             if ly_do:
                 loi.append((ly_do, r.text[:80]))
     return loi
@@ -284,13 +428,14 @@ MO_TA = {
                    "Lưu ý: tổng trích dẫn không nên chiếm quá nhiều bài."),
 }
 
-def phan_loai(cau, do_phu, nguong):
+def phan_loai(do_phu, nguong, dan, ngoac):
     if do_phu < nguong:
         return OK
-    dan = co_dan_nguon(cau)
-    if dan and ty_le_ngoac_kep(cau) >= 0.4:
+    if dan and ngoac >= 0.4:
         return TRICH_DUNG
     return CAN_DIEN_DAT if dan else THIEU_NGUON
+
+NGUON_RONG = 20     # nguồn có ít hơn số từ này -> gần như chắc là PDF scan / file lỗi
 
 def kiem_tra_trung_lap(ban_thao, thu_muc_nguon, nguong=0.5):
     """-> dict kết quả (dùng cho báo cáo và test)."""
@@ -298,6 +443,7 @@ def kiem_tra_trung_lap(ban_thao, thu_muc_nguon, nguong=0.5):
     than_bai, _ = tach_danh_muc(doan)
 
     chi_muc = ChiMucNguon()
+    canh_bao = []
     files = []
     if os.path.isdir(thu_muc_nguon):
         for goc, _, ds in os.walk(thu_muc_nguon):
@@ -313,18 +459,25 @@ def kiem_tra_trung_lap(ban_thao, thu_muc_nguon, nguong=0.5):
         except SystemExit:
             raise
         except Exception as e:   # 1 file hỏng không làm dừng cả lượt kiểm tra
-            print(f"  [BỎ QUA] {os.path.basename(f)}: {e}")
+            canh_bao.append(f"{os.path.basename(f)}: KHÔNG đọc được, đã bỏ qua — {e}")
+            print(f"  [BỎ QUA] {canh_bao[-1]}")
             continue
-        chi_muc.them(os.path.relpath(f, thu_muc_nguon) if os.path.isdir(thu_muc_nguon)
-                     else os.path.basename(f), nguon_doan)
+        ten = os.path.relpath(f, thu_muc_nguon) if os.path.isdir(thu_muc_nguon) else os.path.basename(f)
+        so_tu = sum(len(tu_noi_dung(d)) for d in nguon_doan)
+        if so_tu < NGUON_RONG:
+            canh_bao.append(f"{ten}: gần như không có chữ ({so_tu} từ) — nếu là PDF scan thì cần "
+                            "OCR trước, nếu không nguồn này KHÔNG được so sánh.")
+            print(f"  [CẢNH BÁO] {canh_bao[-1]}")
+        chi_muc.them(ten, nguon_doan)
 
     ket_qua_doan, tong_tu = [], 0
     tu_theo_loai, tu_theo_nguon = Counter(), Counter()
     for d in than_bai:
         ds_cau = []
-        for c in tach_cau(d):
+        for pt in phan_tich_doan(d):
+            c = pt["cau"]
             do_phu, so_tu, sid, cau_nguon = chi_muc.so_khop(c)
-            loai = phan_loai(c, do_phu, nguong)
+            loai = phan_loai(do_phu, nguong, pt["dan"], pt["ngoac"])
             tong_tu += so_tu
             if loai != OK:
                 tu_theo_loai[loai] += so_tu
@@ -341,7 +494,7 @@ def kiem_tra_trung_lap(ban_thao, thu_muc_nguon, nguong=0.5):
     return {"ban_thao": ban_thao, "nguon": chi_muc.ten, "nguong": nguong,
             "doan": ket_qua_doan, "tong_tu": tong_tu,
             "tu_theo_loai": tu_theo_loai, "tu_theo_nguon": tu_theo_nguon,
-            "ky_tu_la": ky_tu_la}
+            "ky_tu_la": ky_tu_la, "canh_bao_nguon": canh_bao}
 
 def _pt(a, b):
     return 100.0 * a / b if b else 0.0
@@ -373,10 +526,16 @@ def ghi_bao_cao_html(kq, out):
                 phan.append(f'<mark class="{c["loai"]}" title="{e(tip)}">{e(c["cau"])}</mark>')
         than.append("<p>" + " ".join(phan) + "</p>")
     la = "".join(f"<li><b>{e(l)}</b>: <code>{e(s)}</code></li>" for l, s in kq["ky_tu_la"][:200])
-    khoi_la = (f'<section class="canh-bao"><h2>Ký tự bất thường ({len(kq["ky_tu_la"])})</h2>'
-               "<p>Antiplagiat gắn cờ «подозрительный документ» khi thấy những thứ này, kể cả khi "
-               "do vô tình chép từ PDF. Hãy gõ lại các từ này / xóa ký tự ẩn.</p>"
-               f"<ul>{la}</ul></section>") if kq["ky_tu_la"] else ""
+    cb = "".join(f"<li>{e(x)}</li>" for x in kq.get("canh_bao_nguon", []))
+    khoi_la = ""
+    if cb:
+        khoi_la += ('<section class="canh-bao"><h2>Tài liệu nguồn không được so sánh</h2>'
+                    f"<ul>{cb}</ul></section>")
+    if kq["ky_tu_la"]:
+        khoi_la += (f'<section class="canh-bao"><h2>Ký tự bất thường ({len(kq["ky_tu_la"])})</h2>'
+                    "<p>Antiplagiat gắn cờ «подозрительный документ» khi thấy những thứ này, kể cả khi "
+                    "do vô tình chép từ PDF. Hãy gõ lại các từ này / xóa ký tự ẩn.</p>"
+                    f"<ul>{la}</ul></section>")
     trang = f"""<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Báo cáo trùng lặp</title><style>
@@ -437,46 +596,110 @@ def _so_trong_ngoac(noi_dung):
         for a, b in re.findall(r"(\d+)(?:\s*[-–—]\s*(\d+))?", phan):
             a = int(a)
             b = int(b) if b else a
-            if 0 < a <= b and b - a < 100:
+            if 0 < a <= b <= 999 and b - a < 100:   # [2015] là năm, không phải số thứ tự
                 so.update(range(a, b + 1))
     return so, co_trang
 
+_RE_NAM = re.compile(r"\b(1[5-9]|20)\d{2}\b")
+_RE_CO_TRANG = re.compile(r"(?<![А-ЯЁа-яёA-Za-z])(с|c|стр|p|pp|s)\.\s*\d", re.I)
+
+def _ho_trong_muc(muc):
+    """Gốc họ tác giả trong 1 mục danh mục: 'Выготский, Л. С.', 'Иванов И. И.', '/ Л. С. Выготский'."""
+    muc = re.sub(r"^\s*\d+[.)]\s*", "", muc)
+    ho = re.findall(r"([А-ЯЁA-Z][а-яёa-z'-]+),?\s+[А-ЯЁA-Z]\.", muc)
+    ho += re.findall(r"(?:[А-ЯЁA-Z]\.\s?){1,2}([А-ЯЁA-Z][а-яёa-z'-]+)", muc)
+    return {goc_tu(h) for h in ho}
+
+def trich_dan_tac_gia_nam(text):
+    """Trích dẫn kiểu tác giả–năm -> [(gốc họ, chuỗi gốc)]:
+    '(Иванов, 2010; Петров и др., 2011)', 'Выготский (1934)'."""
+    kq = []
+    for m in re.finditer(r"\(([^()]{2,200})\)", text):
+        for phan in m.group(1).split(";"):
+            mm = re.match(r"\s*(?:см\.\s*|cf\.\s*)?([А-ЯЁA-Z][а-яёa-z'-]+)", phan)
+            if mm and _RE_NAM.search(phan):
+                kq.append((goc_tu(mm.group(1)), phan.strip()))
+    for m in _RE_TEN_NAM.finditer(text):
+        kq.append((goc_tu(m.group().split()[0]), m.group()))
+    return kq
+
+def _tham_chieu_sat(text):
+    """Tham chiếu đứng NGAY đầu chuỗi (sau dấu câu/khoảng trắng): [..], (Tác giả, năm), ⟨N⟩."""
+    text = re.sub(r"^[\s,.;:!?…»\"”]*", "", text)
+    for rx in (r"\[[^\]]+\]", _RE_DAU_CT.pattern, _RE_DAN_TEN.pattern):
+        m = re.match(rx, text)
+        if m:
+            return m.group()
+    return None
+
 def kiem_tra_trich_dan(ban_thao, min_tu_trich=6):
     doan = doc_doan_van(ban_thao)
+    chu_thich = doc_chu_thich(ban_thao)
     than_bai, danh_muc = tach_danh_muc(doan)
     van_de = []          # (mức, nội dung)
-    da_dan = Counter()
+    da_dan = Counter()   # số thứ tự [N] -> số lần
+    tg_nam = []          # (gốc họ, chuỗi) của trích dẫn tác giả–năm
+    so_chu_thich = 0
+
+    def co_trang(tc):
+        if tc is None:
+            return False
+        if tc.startswith("["):
+            return _so_trong_ngoac(tc[1:-1])[1]
+        if tc.startswith("⟨"):
+            return bool(_RE_CO_TRANG.search(chu_thich.get(tc, "")))
+        return bool(_RE_CO_TRANG.search(tc))
 
     for d in than_bai:
         for m in re.finditer(r"\[([^\[\]]{1,120})\]", d):
-            so, _ = _so_trong_ngoac(m.group(1))
-            for n in so:
+            for n in _so_trong_ngoac(m.group(1))[0]:
                 da_dan[n] += 1
-        for c in tach_cau(d):
-            for q in _RE_NGOAC_KEP.finditer(c):
-                if len(_RE_TU.findall(q.group())) < min_tu_trich:
-                    continue   # «...» ngắn thường là thuật ngữ / tên riêng, không phải trích dẫn
-                sau = c[q.end():q.end() + 60]
-                m = re.match(r"\s*\[([^\]]+)\]", sau)
-                if m is None and not _RE_DAN_TEN.match(sau.lstrip()):
-                    van_de.append(("LỖI", f"Trích nguyên văn nhưng không có tham chiếu ngay sau: {c[:160]}"))
-                elif m is not None and not _so_trong_ngoac(m.group(1))[1]:
-                    van_de.append(("NHẮC", f"Trích nguyên văn nên ghi số trang [N, с. X]: {c[:160]}"))
+        tg_nam += trich_dan_tac_gia_nam(d)
+        so_chu_thich += len(_RE_DAU_CT.findall(d))
 
+        cau = cau_voi_vi_tri(d)
+        for q in _RE_NGOAC_KEP.finditer(d):   # cả đoạn: trích dẫn «...» có thể dài nhiều câu
+            if len(_RE_TU.findall(q.group())) < min_tu_trich:
+                continue   # «...» ngắn thường là thuật ngữ / tên riêng, không phải trích dẫn
+            tc = _tham_chieu_sat(d[q.end():q.end() + 80])
+            if tc is None:   # tham chiếu đặt TRƯỚC trích dẫn trong cùng câu: 'Выготский (1934) писал: «...»'
+                dau_cau = max((a for _, a, _ in cau if a <= q.start()), default=0)
+                truoc = d[dau_cau:q.start()]
+                tim = [m.group() for rx in (r"\[[^\]]+\]", _RE_DAU_CT.pattern, _RE_DAN_TEN.pattern,
+                                            _RE_TEN_NAM.pattern) for m in re.finditer(rx, truoc)]
+                if not tim:
+                    van_de.append(("LỖI", f"Trích nguyên văn nhưng không có tham chiếu: {q.group()[:160]}"))
+                    continue
+                tc = tim[-1]
+            if not co_trang(tc):
+                van_de.append(("NHẮC", f"Trích nguyên văn nên ghi số trang (с. X): {q.group()[:160]}"))
+
+    ho_ct = {goc_tu(w) for t in chu_thich.values() for w in _RE_TU.findall(t)}
     so_muc = len(danh_muc)
+    if not (da_dan or tg_nam or so_chu_thich):
+        van_de.append(("LỖI", "Không tìm thấy trích dẫn nào: [N], (Tác giả, năm) hay chú thích chân trang."))
     if not danh_muc:
         van_de.append(("LỖI", "Không tìm thấy tiêu đề «Список литературы» / «Список использованных "
                               "источников» (tiêu đề phải nằm riêng một dòng)."))
     else:
+        ho_muc = [_ho_trong_muc(m) for m in danh_muc]
+        tat_ca_ho = set().union(*ho_muc)
         for n in sorted(da_dan):
             if n > so_muc:
                 van_de.append(("LỖI", f"Tham chiếu [{n}] ({da_dan[n]} lần) nhưng danh mục chỉ có {so_muc} mục."))
-        for i, muc in enumerate(danh_muc, 1):
-            if i not in da_dan:
+        bao = set()
+        for goc, chuoi in tg_nam:
+            if goc not in tat_ca_ho and goc not in bao:
+                bao.add(goc)
+                van_de.append(("LỖI", f"Trích dẫn «{chuoi}» nhưng không có tác giả này trong danh mục."))
+        ho_da_dan = {g for g, _ in tg_nam} | ho_ct
+        for i, (muc, ho) in enumerate(zip(danh_muc, ho_muc), 1):
+            if i not in da_dan and not (ho & ho_da_dan):
                 van_de.append(("NHẮC", f"Mục {i} trong danh mục chưa được dẫn lần nào: {muc[:120]}"))
             for loi in kiem_tra_muc_gost(muc):
                 van_de.append(("NHẮC", f"Mục {i}: {loi} — {muc[:120]}"))
-    return {"so_muc": so_muc, "da_dan": da_dan, "van_de": van_de}
+    return {"so_muc": so_muc, "da_dan": da_dan, "tg_nam": tg_nam,
+            "so_chu_thich": so_chu_thich, "van_de": van_de}
 
 def kiem_tra_muc_gost(muc):
     """Kiểm tra nhanh các thành phần bắt buộc của 1 mục (không thay được người hướng dẫn)."""
@@ -501,7 +724,8 @@ def kiem_tra_muc_gost(muc):
 def lenh_kiem_tra_dan(a):
     kq = kiem_tra_trich_dan(a.ban_thao)
     dong = [f"KIỂM TRA TRÍCH DẪN: {a.ban_thao}",
-            f"Danh mục: {kq['so_muc']} mục · đã dẫn {len(kq['da_dan'])} số khác nhau", ""]
+            f"Danh mục: {kq['so_muc']} mục · [N]: {len(kq['da_dan'])} số khác nhau · "
+            f"tác giả–năm: {len(kq['tg_nam'])} · chú thích chân trang: {kq['so_chu_thich']}", ""]
     if not kq["van_de"]:
         dong.append("Không phát hiện vấn đề.")
     for muc, nd in kq["van_de"]:
@@ -516,12 +740,18 @@ def lenh_kiem_tra_dan(a):
 # ======================================================================
 # 2b) ĐỊNH DẠNG DANH MỤC THEO ГОСТ Р 7.0.100-2018
 # ======================================================================
+_RE_CHU_TAT = re.compile(r"^(?:[А-ЯЁA-Z]\.)+$")
+
 def tach_ten(s):
-    """'Выготский Л. С.' / 'Выготский, Л.С.' / 'Выготский Лев Семенович' -> ('Выготский', 'Л. С.')."""
+    """'Выготский Л. С.' / 'Выготский, Л.С.' / 'Выготский Лев Семенович' / 'Л. С. Выготский'
+    -> ('Выготский', 'Л. С.')."""
     s = s.strip().replace(",", " ")
     phan = s.split()
     if not phan:
         return None
+    # Chữ tắt viết TRƯỚC họ ('Л. С. Выготский', 'Л.С. Выготский') -> đưa họ lên đầu
+    if len(phan) > 1 and _RE_CHU_TAT.match(phan[0]) and not _RE_CHU_TAT.match(phan[-1]):
+        phan = [phan[-1]] + phan[:-1]
     ho, du = phan[0], phan[1:]
     tat = []
     for p in du:
@@ -540,10 +770,42 @@ def _cham(s):
     s = s.strip()
     return s if s.endswith((".", "?", "!", "…")) else s + "."
 
+LOAI = ("sach", "bai_bao", "luan_an", "tom_tat", "web")
+_BI_DANH = {"book": "sach", "kniga": "sach", "книга": "sach", "article": "bai_bao",
+            "статья": "bai_bao", "baibao": "bai_bao", "thesis": "luan_an", "dissertation": "luan_an",
+            "диссертация": "luan_an", "luanan": "luan_an", "luanvan": "luan_an",
+            "автореферат": "tom_tat", "tomtat": "tom_tat", "website": "web", "сайт": "web", "url": "web"}
+BAT_BUOC = {"sach": ("ten", "thanh_pho", "nam", "so_trang"),
+            "bai_bao": ("ten", "tap_chi", "nam", "trang"),
+            "luan_an": ("tac_gia", "ten", "thanh_pho", "nam", "so_trang"),
+            "tom_tat": ("tac_gia", "ten", "thanh_pho", "nam", "so_trang"),
+            "web": ("ten", "url", "ngay_truy_cap")}
+
+def chuan_loai(x):
+    """'Sách' / 'bài báo' / 'book' / 'Статья' -> mã loại chuẩn; không nhận ra -> None."""
+    t = "".join(c for c in unicodedata.normalize("NFD", (x or "").strip().lower())
+                if unicodedata.category(c) != "Mn").replace("đ", "d")
+    if not t:
+        return ""
+    t2 = re.sub(r"[\s_-]+", "", t)
+    for l in LOAI:
+        if t2 == l.replace("_", ""):
+            return l
+    return _BI_DANH.get(t2) or _BI_DANH.get(t)
+
+def kiem_tra_dong(r):
+    """-> danh sách lỗi của 1 dòng CSV (rỗng = hợp lệ)."""
+    g = lambda k: (r.get(k) or "").strip()
+    loai = chuan_loai(g("loai"))
+    if loai is None:
+        return [f"loại '{g('loai')}' không hợp lệ (dùng: {', '.join(LOAI)})"]
+    thieu = [c for c in BAT_BUOC[loai or "sach"] if not g(c)]
+    return [f"thiếu cột: {', '.join(thieu)}"] if thieu else []
+
 def dinh_dang_muc(r):
     """1 dòng CSV (dict) -> 1 mục danh mục theo ГОСТ Р 7.0.100-2018."""
     g = lambda k: (r.get(k) or "").strip()
-    loai = g("loai").lower() or "sach"
+    loai = chuan_loai(g("loai")) or "sach"
     tg = _tac_gia(g("tac_gia"))
     # ≤3 tác giả: tiêu đề mục là tác giả đầu; ≥4: bắt đầu bằng tên tài liệu
     dau = f"{tg[0][0]}, {tg[0][1]} ".replace(",  ", ", ") if 1 <= len(tg) <= 3 else ""
@@ -606,13 +868,23 @@ def _khoa_sap_xep(muc):
     return (0 if _chu_he(c) == "cyr" else 1, muc.lower().replace("ё", "е"))
 
 def lenh_dinh_dang(a):
-    with open(a.csv, encoding="utf-8-sig", newline="") as f:
-        tieu_de = f.readline()
-        f.seek(0)
-        # Excel bản tiếng Nga/Việt lưu CSV bằng ';' -> chọn dấu xuất hiện nhiều nhất ở dòng tiêu đề
-        sep = max(",;\t", key=tieu_de.count)
-        dong = [r for r in csv.DictReader(f, delimiter=sep) if any((v or "").strip() for v in r.values())]
-    muc = [dinh_dang_muc(r) for r in dong]
+    import io
+    noi_dung = _doc_txt(a.csv)          # Excel tiếng Nga lưu CSV bằng cp1251
+    tieu_de = noi_dung.split("\n", 1)[0]
+    # Excel bản tiếng Nga/Việt lưu CSV bằng ';' -> chọn dấu xuất hiện nhiều nhất ở dòng tiêu đề
+    sep = max(",;\t", key=tieu_de.count)
+    muc, so_loi = [], 0
+    for i, r in enumerate(csv.DictReader(io.StringIO(noi_dung, newline=""), delimiter=sep), 2):
+        if not any((v or "").strip() for v in r.values() if isinstance(v, str)):
+            continue
+        loi = kiem_tra_dong(r)
+        if loi:
+            so_loi += 1
+            print(f"  [BỎ QUA] Dòng {i} ({(r.get('ten') or '').strip()[:50]}): {'; '.join(loi)}")
+            continue
+        muc.append(dinh_dang_muc(r))
+    if so_loi:
+        print(f"  [CẢNH BÁO] {so_loi} dòng bị bỏ qua vì thiếu thông tin — sửa trong CSV rồi chạy lại.")
     if not a.giu_thu_tu:
         muc.sort(key=_khoa_sap_xep)
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
@@ -674,7 +946,10 @@ def main(argv=None):
     p.set_defaults(ham=lenh_dinh_dang)
 
     a = ap.parse_args(argv)
-    a.ham(a)
+    try:
+        a.ham(a)
+    except RuntimeError as e:        # vd. không đọc được PDF bản thảo
+        raise SystemExit(f"[LỖI] {e}")
 
 if __name__ == "__main__":
     main()

@@ -39,6 +39,7 @@ echo   2. Kiem tra trich dan [N] va Spisok literatury
 echo   3. Tao danh muc tai lieu theo GOST tu file tai_lieu.csv
 echo   4. Chay ca 3
 echo ============================================================
+set "DA_TRUNG="
 set /p CHON="Chon (1-4): "
 
 if "%CHON%"=="1" goto TRUNG
@@ -58,6 +59,7 @@ if not exist "nguon\" (
 )
 %PY% kiem_tra_luan_van.py trung-lap --ban-thao "%BT%" --nguon nguon
 if errorlevel 1 goto LOI
+set "DA_TRUNG=1"
 if not "%CHON%"=="4" goto XONG
 
 :DAN
@@ -91,5 +93,6 @@ exit /b 1
 :XONG
 echo.
 echo XONG! Ket qua trong thu muc "ket_qua".
-if exist "ket_qua\BAO_CAO_TRUNG_LAP.html" start "" "ket_qua\BAO_CAO_TRUNG_LAP.html"
+rem Chi mo bao cao khi vua chay kiem tra trung lap (tranh mo bao cao cu)
+if defined DA_TRUNG start "" "ket_qua\BAO_CAO_TRUNG_LAP.html"
 pause
