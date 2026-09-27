@@ -5,3 +5,6 @@
 donvi/
 ket_qua/
 __pycache__/
+bao_cao_pc/
+bin/
+*.dmp
