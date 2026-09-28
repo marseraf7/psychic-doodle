@@ -1,0 +1,26 @@
+# Chép vào /etc/systemd/system/caro.service rồi: systemctl enable --now caro
+[Unit]
+Description=Co Caro online
+After=network.target
+
+[Service]
+User=caro
+WorkingDirectory=/opt/caro/server
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=3
+Environment=PORT=8080
+Environment=DATA_DIR=/var/lib/caro
+Environment=TRUST_PROXY=1
+# Bỏ dấu # và điền Client ID nếu bật đăng nhập Google:
+#Environment=GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+
+# Giới hạn quyền của tiến trình
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/caro
+
+[Install]
+WantedBy=multi-user.target
