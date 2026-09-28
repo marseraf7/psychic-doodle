@@ -24,6 +24,15 @@ if not defined PY (
   exit /b 1
 )
 
+%PY% -c "import sys; sys.exit(sys.version_info < (3, 10))" >nul 2>nul
+if errorlevel 1 (
+  echo [LOI] Can Python 3.10 tro len. Phien ban hien tai:
+  %PY% --version
+  echo Tai ban moi tai https://www.python.org/downloads/
+  pause
+  exit /b 1
+)
+
 rem --- Chi cai thu vien khi chua co (khong can mang o cac lan sau) ---
 %PY% -c "import faster_whisper, anthropic" >nul 2>nul
 if errorlevel 1 (

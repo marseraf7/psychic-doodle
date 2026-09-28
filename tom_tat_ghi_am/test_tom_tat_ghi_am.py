@@ -103,6 +103,14 @@ class TestNhanDang(unittest.TestCase):
         _, nn, _ = T.nhan_dang(m, "x.mp3", "auto", in_tien_do=False)
         self.assertEqual((nn, len(m.goi)), ("en", 1))
 
+    def test_loc_ao_giac(self):
+        m = ModelGia(segs=[Seg(0, 2, "Hãy subscribe cho kênh Ghiền Mì Gõ để không bỏ lỡ những video hấp dẫn"),
+                           Seg(2, 4, "Субтитры сделал DimaTorzok"),
+                           Seg(4, 6, "Chúng ta chốt ngân sách quý bốn."),
+                           Seg(6, 9, "Thanks for watching the demo, now " + "let us review the numbers " * 5)])
+        doan, _, _ = T.nhan_dang(m, "x.mp3", "vi", in_tien_do=False)
+        self.assertEqual([d.bat_dau for d in doan], [4, 6])  # câu dài có cụm khớp vẫn giữ
+
     def test_ep_ngon_ngu_va_bo_doan_rong(self):
         m = ModelGia(segs=[Seg(0, 1, "  "), Seg(1, 2, "Привет всем")])
         doan, nn, _ = T.nhan_dang(m, "x.mp3", "ru", in_tien_do=False)
@@ -271,18 +279,48 @@ class TestMain(unittest.TestCase):
         self.assertIn("offline", md)
         self.assertIn("tiếng Việt (4 đoạn)", md)
 
-        # Lần 2: dùng lại văn bản, không nạp model
-        ma, model, nap = self.chay("--offline")
+        # Lần 2 cùng cấu hình: dùng lại văn bản, không nạp model
+        ma, model, nap = self.chay("--offline", "--ngon-ngu", "tron")
         self.assertEqual(ma, 0)
         nap.assert_not_called()
+        # Đổi ngôn ngữ (vd sau cảnh báo nhận nhầm): PHẢI nhận dạng lại, không dùng văn bản cũ
+        ma, model, nap = self.chay("--offline", "--ngon-ngu", "vi")
+        nap.assert_called_once()
+        self.assertEqual(model.goi[0][1]["language"], "vi")
         # --lam-lai: nhận dạng lại
-        ma, model, nap = self.chay("--offline", "--lam-lai")
+        ma, model, nap = self.chay("--offline", "--ngon-ngu", "vi", "--lam-lai")
+        nap.assert_called_once()
+        # File nguồn bị thay bằng bản ghi khác: nhận dạng lại
+        with open(self.audio, "wb") as f:
+            f.write(b"moi")
+        ma, model, nap = self.chay("--offline", "--ngon-ngu", "vi")
         nap.assert_called_once()
 
+    def test_trung_ten_khac_thu_muc(self):
+        # Điện thoại hay đặt tên giống nhau: 2 file 'Recording.m4a' ở 2 thư mục
+        a, b = os.path.join(self.td, "a"), os.path.join(self.td, "b")
+        os.makedirs(a); os.makedirs(b)
+        fa, fb = os.path.join(a, "Recording.m4a"), os.path.join(b, "Recording.m4a")
+        for f in (fa, fb):
+            open(f, "wb").close()
+        m = ModelGia()
+        with mock.patch.object(T, "nap_model_whisper", return_value=m):
+            self.assertEqual(T.main([fa, fb, "--offline", "--out-dir", self.out]), 0)
+            self.assertEqual(len(m.goi), 2)  # file thứ 2 không dùng nhầm văn bản của file 1
+            self.assertTrue(os.path.isfile(os.path.join(self.out, "Recording_tom_tat.md")))
+            self.assertTrue(os.path.isfile(os.path.join(self.out, "Recording_2_tom_tat.md")))
+            # Lần chạy sau chỉ file b: không được dùng lại văn bản của a
+            self.assertEqual(T.main([fb, "--offline", "--out-dir", self.out]), 0)
+            self.assertEqual(len(m.goi), 3)
+
     def test_khong_key_tu_chuyen_offline(self):
-        with mock.patch.object(T, "tom_tat_claude", side_effect=T.LoiKhongCoKey("chưa có API key")):
+        import io, contextlib
+        out = io.StringIO()
+        with mock.patch.object(T, "tom_tat_claude", side_effect=T.LoiKhongCoKey("chưa có API key")), \
+             contextlib.redirect_stdout(out):
             ma, _, _ = self.chay()
         self.assertEqual(ma, 0)
+        self.assertIn("1 file chỉ có bản tóm tắt OFFLINE", out.getvalue())
         self.assertIn("offline", self.doc("Họp giao ban_tom_tat.md"))
 
     def test_dung_claude(self):

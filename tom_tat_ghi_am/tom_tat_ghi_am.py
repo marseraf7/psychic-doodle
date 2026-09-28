@@ -21,7 +21,7 @@ Cách chạy:
     python tom_tat_ghi_am.py thu_muc_ghi_am/ --ngon-ngu tron --model large-v3
     python tom_tat_ghi_am.py bien_ban.txt              (tóm tắt file văn bản có sẵn)
 """
-import argparse, os, re, sys, time, glob, unicodedata
+import argparse, glob, json, os, re, sys, time, unicodedata
 from collections import Counter
 
 # Console Windows mặc định cp1252 -> in tiếng Việt/Nga bị lỗi
@@ -89,6 +89,18 @@ def doan_ngon_ngu(van_ban, mac_dinh=None):
     return mac_dinh
 
 
+# Câu Whisper hay "bịa" ra ở đoạn im lặng/nhạc (học từ phụ đề YouTube), không phải lời nói thật
+_RE_AO_GIAC = re.compile(
+    r"ghiền mì gõ|subscribe cho kênh|đăng ký kênh|like,? share và subscribe|"
+    r"субтитры (?:сделал|создавал|подогнал)|редактор субтитров|продолжение следует|"
+    r"thanks? (?:you )?for watching|please subscribe|amara\.org", re.IGNORECASE)
+
+
+def la_ao_giac(van_ban):
+    """Chỉ loại khi cả đoạn ngắn (<= 20 từ) mà khớp, để không xóa nhầm lời nói thật."""
+    return bool(_RE_AO_GIAC.search(van_ban)) and len(van_ban.split()) <= 20
+
+
 def ten_goc(duong_dan):
     return os.path.splitext(os.path.basename(duong_dan))[0]
 
@@ -137,8 +149,8 @@ def nhan_dang(model, duong_dan, che_do="auto", in_tien_do=True):
     ngon_ngu_chinh = info.language
     if che_do == "auto" and ngon_ngu_chinh not in NGON_NGU:
         # Tạp âm dễ làm Whisper đoán nhầm (vd tiếng Việt -> tiếng Khmer): chọn ngôn ngữ
-        # có xác suất cao nhất trong Việt/Anh/Nga rồi nhận dạng lại. segs là generator
-        # chưa chạy nên chỉ tốn thêm bước đọc file.
+        # có xác suất cao nhất trong Việt/Anh/Nga rồi gọi lại. segs là generator chưa chạy,
+        # nên chỉ tốn thêm bước giải mã audio + lọc khoảng lặng (vài chục giây với file dài).
         xac_suat = {k: p for k, p in (getattr(info, "all_language_probs", None) or []) if k in NGON_NGU}
         if xac_suat:
             ngon_ngu_chinh = max(xac_suat, key=xac_suat.get)
@@ -154,7 +166,7 @@ def nhan_dang(model, duong_dan, che_do="auto", in_tien_do=True):
 
     ket_qua, moc_in = [], time.time()
     for s in segs:  # generator: nhận dạng thực sự diễn ra khi lặp
-        if not norm(s.text):
+        if not norm(s.text) or la_ao_giac(s.text):
             continue
         ngon_ngu = doan_ngon_ngu(s.text, ngon_ngu_chinh) if che_do == "tron" else ngon_ngu_chinh
         ket_qua.append(Doan(s.start, s.end, s.text, ngon_ngu))
@@ -294,7 +306,8 @@ def tom_tat_claude(van_ban, ngon_ngu_ra="vi", ten_file="", do_ky="medium", clien
         ) as stream:
             msg = stream.get_final_message()
     except anthropic.AuthenticationError:
-        raise LoiKhongCoKey("API key không hợp lệ")
+        raise LoiKhongCoKey("API key không hợp lệ (sửa hoặc xóa file anthropic_api_key.txt / "
+                            "biến ANTHROPIC_API_KEY rồi chạy lại)")
     except anthropic.PermissionDeniedError as e:
         raise RuntimeError(f"API key không có quyền dùng model {MODEL_CLAUDE}: {e.message}")
     except anthropic.RateLimitError:
@@ -439,9 +452,35 @@ def liet_ke_file(dau_vao):
     return ket_qua
 
 
-def xu_ly_mot_file(duong_dan, args, lay_model):
-    """Xử lý 1 file. Trả về đường dẫn file tóm tắt."""
-    ten = ten_goc(duong_dan)
+FILE_BO_NHO = ".bo_nho_dem.json"
+
+
+def dau_van_tay(duong_dan, args):
+    """Thông tin quyết định văn bản đã nhận dạng còn dùng lại được hay không:
+    đúng file nguồn (đường dẫn + kích thước + giờ sửa) VÀ đúng model/ngôn ngữ."""
+    st = os.stat(duong_dan)
+    return {"nguon": os.path.normcase(os.path.abspath(duong_dan)), "kich_thuoc": st.st_size,
+            "sua_luc": int(st.st_mtime), "model": args.model, "ngon_ngu": args.ngon_ngu}
+
+
+def doc_bo_nho(out_dir):
+    try:
+        with open(os.path.join(out_dir, FILE_BO_NHO), encoding="utf-8") as f:
+            du_lieu = json.load(f)
+        return du_lieu if isinstance(du_lieu, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def ghi_bo_nho(out_dir, ten, van_tay):
+    du_lieu = doc_bo_nho(out_dir)
+    du_lieu[ten] = van_tay
+    ghi_file(os.path.join(out_dir, FILE_BO_NHO), json.dumps(du_lieu, ensure_ascii=False, indent=1))
+
+
+def xu_ly_mot_file(duong_dan, ten, args, lay_model):
+    """Xử lý 1 file; 'ten' là tiền tố tên file kết quả.
+    Trả về (đường dẫn kết quả, phương pháp tóm tắt hoặc None)."""
     duoi = os.path.splitext(duong_dan)[1].lower()
     f_txt = os.path.join(args.out_dir, f"{ten}_van_ban.txt")
     f_srt = os.path.join(args.out_dir, f"{ten}_phu_de.srt")
@@ -453,16 +492,20 @@ def xu_ly_mot_file(duong_dan, args, lay_model):
         doan = doc_van_ban(duong_dan)
         f_txt = duong_dan
     elif (not args.lam_lai and os.path.isfile(f_txt)
-          and os.path.getmtime(f_txt) >= os.path.getmtime(duong_dan)):
+          and doc_bo_nho(args.out_dir).get(ten) == dau_van_tay(duong_dan, args)):
         print(f"  Dùng lại văn bản đã nhận dạng: {f_txt}  (thêm --lam-lai để nhận dạng lại)")
         doan = doc_van_ban(f_txt)
     else:
+        cu = doc_bo_nho(args.out_dir).get(ten)
+        if cu and cu.get("nguon") != dau_van_tay(duong_dan, args)["nguon"]:
+            print(f"  [!] Ghi đè kết quả cũ '{ten}_*' của một file khác cùng tên: {cu.get('nguon')}")
         bat_dau = time.time()
         doan, ngon_ngu, tong = nhan_dang(lay_model(), duong_dan, args.ngon_ngu)
         dem = Counter(d.ngon_ngu for d in doan)
         hien_nn = len(dem) > 1
         ghi_file(f_txt, van_ban_co_moc(doan, hien_ngon_ngu=hien_nn))
         ghi_file(f_srt, noi_dung_srt(doan))
+        ghi_bo_nho(args.out_dir, ten, dau_van_tay(duong_dan, args))
         print(f"  Nhận dạng xong trong {mm_ss(time.time() - bat_dau)} -> {f_txt}")
         ds_nn = [f"{NGON_NGU.get(k, k)} ({v} đoạn)" for k, v in dem.most_common()]
         thong_tin.append(f"- Thời lượng: {mm_ss(tong)}")
@@ -471,10 +514,10 @@ def xu_ly_mot_file(duong_dan, args, lay_model):
     if not doan:
         ghi_file(f_md, f"# Tóm tắt: {ten}\n\nKhông nhận dạng được lời nói nào trong file.\n")
         print("  [!] Không có lời nói nào được nhận dạng.")
-        return f_md
+        return f_md, None
 
     if args.chi_chep_loi:
-        return f_txt
+        return f_txt, None
 
     van_ban = van_ban_co_moc(doan, hien_ngon_ngu=len({d.ngon_ngu for d in doan}) > 1)
 
@@ -499,7 +542,7 @@ def xu_ly_mot_file(duong_dan, args, lay_model):
            f"- Phương pháp tóm tắt: {phuong_phap}",
            f"- Văn bản đầy đủ: `{os.path.basename(f_txt)}`", "", "---", ""]
     ghi_file(f_md, "\n".join(dau) + tom_tat)
-    return f_md
+    return f_md, phuong_phap
 
 
 def tao_parser():
@@ -560,12 +603,21 @@ def main(argv=None):
                 raise RuntimeError("Chưa cài faster-whisper: pip install faster-whisper")
         return model[0]
 
-    thanh_cong, that_bai = [], []
+    thanh_cong, that_bai, offline_ngoai_y = [], [], []
+    ten_da_dung = set()
     for i, p in enumerate(hop_le, 1):
         print(f"\n[{i}/{len(hop_le)}] {p}")
+        # 'a.mp3' + 'a.m4a', hoặc 2 thư mục đều có 'Recording 1.m4a' -> không được ghi đè nhau
+        ten, so = ten_goc(p), 2
+        while ten.lower() in ten_da_dung:
+            ten, so = f"{ten_goc(p)}_{so}", so + 1
+        ten_da_dung.add(ten.lower())
         try:
-            thanh_cong.append(xu_ly_mot_file(p, args, lay_model))
-            print(f"  XONG -> {thanh_cong[-1]}")
+            ket_qua, phuong_phap = xu_ly_mot_file(p, ten, args, lay_model)
+            thanh_cong.append(ket_qua)
+            if phuong_phap and phuong_phap.startswith("offline") and not args.offline:
+                offline_ngoai_y.append(p)
+            print(f"  XONG -> {ket_qua}")
         except KeyboardInterrupt:
             print("\nĐã dừng theo yêu cầu.")
             return 130
@@ -576,6 +628,10 @@ def main(argv=None):
     print(f"\nHoàn tất: {len(thanh_cong)} thành công, {len(that_bai)} lỗi. Kết quả trong '{args.out_dir}'.")
     for p, e in that_bai:
         print(f"  - {p}: {e}")
+    if offline_ngoai_y:
+        print(f"\n[!] {len(offline_ngoai_y)} file chỉ có bản tóm tắt OFFLINE đơn giản vì không gọi được Claude "
+              f"(xem thông báo ở trên). Sửa lỗi rồi chạy lại: văn bản đã nhận dạng được dùng lại, "
+              f"chỉ mất thời gian tóm tắt.")
     return 0 if not that_bai else 1
 
 

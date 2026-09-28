@@ -19,8 +19,10 @@ Kết quả nằm trong thư mục `ket_qua_tom_tat/`:
 | `<tên>_van_ban.txt` | Văn bản đầy đủ, mỗi dòng có mốc `[mm:ss]` |
 | `<tên>_phu_de.srt` | Phụ đề, mở kèm file audio/video trong VLC |
 
-Khi chạy lại cùng một file, công cụ dùng lại văn bản đã nhận dạng lần trước (chỉ tóm tắt lại, nên rất nhanh).
-Muốn nhận dạng lại từ đầu thì thêm `--lam-lai`.
+Khi chạy lại cùng một file với cùng `--model` và `--ngon-ngu`, công cụ dùng lại văn bản đã nhận dạng lần trước
+(chỉ tóm tắt lại, nên rất nhanh). Đổi một trong hai tùy chọn đó, hoặc file ghi âm thay đổi, thì công cụ tự nhận dạng lại.
+Muốn bắt buộc nhận dạng lại thì thêm `--lam-lai`. Nếu có nhiều file trùng tên (ví dụ `Recording 1.m4a` ở hai thư mục),
+kết quả của file sau được đặt tên thêm `_2`, `_3`...
 
 ## Cách dùng trên Windows (dễ nhất)
 
