@@ -15,6 +15,7 @@ chơi online qua WebSocket (`/ws`):
 - Máy chủ kiểm tra mọi nước đi bằng chính `caro/rules.js` (không gian lận được từ client).
 - Mất mạng giữa ván: tự kết nối lại và vào lại phòng; mất kết nối quá 90 giây → xử thua.
   Rời phòng khi đang đánh → xử thua. Giới hạn số lần nhập sai mật khẩu/đăng nhập.
+  Đang có lời thách đấu chờ mà vào ván khác thì lời mời tự huỷ.
 
 ## Chạy thử trên máy
 
@@ -92,8 +93,14 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
 - Mật khẩu băm scrypt; token đăng nhập chỉ lưu dạng băm SHA-256 trong `db.json`.
 - Máy chủ kiểm tra mọi nước đi; tên người chơi được lọc/escape (chống XSS).
 - Header CSP, chống nhúng iframe (clickjacking), `nosniff`; chỉ cho phép GET/HEAD file tĩnh, chặn truy cập ngoài thư mục `caro/`.
-- Giới hạn: 8 lần sai mật khẩu phòng/đăng nhập mỗi 10 phút/IP; 8 tài khoản mới mỗi 10 phút/IP;
-  20 kết nối/IP; 15 tin nhắn/giây mỗi kết nối (vượt quá bị ngắt); tin nhắn tối đa 16KB.
+- Giới hạn thử sai (mỗi 10 phút), tính theo đối tượng bị dò chứ không khoá cả IP, vì nhà mạng di động
+  cho rất nhiều thuê bao dùng chung 1 IP (CGNAT):
+  - Mật khẩu phòng: 8 lần/IP cho mỗi phòng, 40 lần cho mỗi phòng (mọi IP), 60 lần/IP tổng cộng.
+  - Đăng nhập: 8 lần/IP cho mỗi tài khoản, 30 lần cho mỗi tài khoản (mọi IP), 100 lần/IP.
+  - Tạo tài khoản: 30 tài khoản/IP.
+- 200 kết nối/IP; 15 tin nhắn/giây mỗi kết nối (vượt quá bị ngắt); tin nhắn tối đa 16KB.
+- Mất kết nối quá 90 giây khi ván đang diễn ra (kể cả chưa đánh nước nào, hoặc rớt mạng giữa 2 ván Bo3/Bo5)
+  thì bị xử thua, không để đối thủ chờ vô hạn. Đăng xuất khi đang trong phòng thì rời phòng luôn.
 - File mẫu `deploy/caro.service` chạy dưới user riêng, chỉ được ghi vào thư mục dữ liệu.
 
 ## Giới hạn hiện tại

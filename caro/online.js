@@ -200,7 +200,10 @@
           <button type="button" class="ghost" id="logout">Đăng xuất</button>
         </div>
         <div id="google-link-btn"></div>`;
-      $('logout').onclick = () => send({ t: 'logout' });
+      $('logout').onclick = () => {
+        if (roomActive() && !confirm('Đăng xuất sẽ rời phòng và bị xử thua ván đang đánh. Vẫn đăng xuất?')) return;
+        send({ t: 'logout' });
+      };
       const lg = $('link-google');
       if (lg) lg.onclick = () => { lg.hidden = true; mountGoogle($('google-link-btn')); };
     }
@@ -292,7 +295,12 @@
         <button type="button" class="ghost sm" id="cancel-sent">Huỷ</button></div>`;
     }
     box.innerHTML = html;
-    box.querySelectorAll('[data-yes]').forEach((b) => { b.onclick = () => { send({ t: 'challengeRespond', id: b.dataset.yes, accept: true }); }; });
+    box.querySelectorAll('[data-yes]').forEach((b) => {
+      b.onclick = () => {
+        if (roomActive() && !confirm('Nhận lời sẽ rời ván đang đánh và bị xử thua ván đó. Vẫn nhận?')) return;
+        send({ t: 'challengeRespond', id: b.dataset.yes, accept: true });
+      };
+    });
     box.querySelectorAll('[data-no]').forEach((b) => {
       b.onclick = () => { send({ t: 'challengeRespond', id: b.dataset.no, accept: false }); S.invites.delete(b.dataset.no); renderInvites(); render(); };
     });
@@ -441,10 +449,14 @@
     if (!r || r.players.length < 2 || r.winner) return toast('Chưa có ván nào đang diễn ra');
     if (confirm('Đầu hàng ván này?')) send({ t: 'resign' });
   };
-  function leaveRoom() {
+  // Đang có ván dở (đã có nước đi) – rời đi sẽ bị xử thua.
+  function roomActive() {
     const r = S.room;
-    const active = r && r.players.length === 2 && !r.winner && r.moves.length;
-    if (active && !confirm('Rời phòng khi đang đánh sẽ bị xử thua. Vẫn rời?')) return;
+    return !!(r && r.players.length === 2 && !r.winner && r.moves.length);
+  }
+
+  function leaveRoom() {
+    if (roomActive() && !confirm('Rời phòng khi đang đánh sẽ bị xử thua. Vẫn rời?')) return;
     if (!send({ t: 'leaveRoom' })) {
       // Mất kết nối: vẫn cho quay về chơi cục bộ.
       S.room = null;

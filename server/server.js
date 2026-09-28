@@ -19,7 +19,8 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const STATIC_DIR = path.resolve(__dirname, '..', 'caro');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
-const MAX_CONN_PER_IP = 20; // số kết nối cùng lúc tối đa từ 1 IP
+// Số kết nối cùng lúc tối đa từ 1 IP. Đặt cao vì nhà mạng di động cho nhiều thuê bao dùng chung IP.
+const MAX_CONN_PER_IP = 200;
 const MSG_RATE = 15; // tin nhắn/giây cho mỗi kết nối (cho phép dồn tối đa MSG_BURST)
 const MSG_BURST = 40;
 

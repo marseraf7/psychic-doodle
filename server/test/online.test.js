@@ -295,3 +295,97 @@ test('bảo mật: header an toàn, chặn spam tin nhắn, token không lưu d�
   await closed;
   [u, again, bogus].forEach((x) => x.close());
 });
+
+test('giới hạn thử sai theo từng phòng / tài khoản, không khoá cả IP (CGNAT)', async () => {
+  const a = await Client.open();
+  const b = await Client.open();
+  const c = await Client.open();
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'createRoom', side: 'first' }, 'room');
+  const wrong = String((Number(a.room.password) + 1) % 1000).padStart(3, '0');
+  for (let i = 0; i < 8; i++) await c.req({ t: 'joinRoom', code: a.room.code, password: wrong }, 'error');
+  const locked = await c.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'error');
+  assert.match(locked.msg, /quá nhiều/);
+  // Cùng IP nhưng phòng khác vẫn vào được.
+  await c.req({ t: 'joinRoom', code: b.room.code, password: b.room.password }, 'room');
+  assert.strictEqual(c.room.code, b.room.code);
+
+  const u = await Client.open();
+  await u.req({ t: 'register', username: 'rl_one', password: '123456' }, 'welcome');
+  await u.req({ t: 'register', username: 'rl_two', password: '123456' }, 'welcome');
+  const d = await Client.open();
+  for (let i = 0; i < 8; i++) await d.req({ t: 'login', username: 'rl_one', password: 'sai' }, 'error');
+  assert.match((await d.req({ t: 'login', username: 'rl_one', password: '123456' }, 'error')).msg, /quá nhiều/);
+  await d.req({ t: 'login', username: 'rl_two', password: '123456' }, 'welcome', (m) => !m.me.guest);
+  [a, b, c, u, d].forEach((x) => x.close());
+});
+
+test('mất kết nối trước nước đầu tiên vẫn bị xử thua', async () => {
+  const a = await Client.open();
+  const b = await Client.open();
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  a.close(); // A cầm X, chưa đánh nước nào
+  const m = await b.wait('room', (x) => x.room.reason === 'timeout', 3000);
+  assert.strictEqual(m.room.winner, 2);
+  b.close();
+});
+
+test('Bo3: rớt mạng giữa 2 ván thì ván sau vẫn bị xử thua, không treo', async () => {
+  const a = await Client.open();
+  await a.req({ t: 'register', username: 'gap_a', password: '123456' }, 'welcome');
+  const b = await Client.open();
+  await b.req({ t: 'register', username: 'gap_b', password: '123456' }, 'welcome');
+  await a.req({ t: 'friendAdd', username: 'gap_b' }, 'friends', (m) => m.outgoing.length === 1);
+  await b.req({ t: 'friendAdd', username: 'gap_a' }, 'friends', (m) => m.friends.length === 1);
+  const inv = b.wait('invite');
+  a.send({ t: 'challenge', to: b.me.uid, bestOf: 3, first: 'me' });
+  const i = await inv;
+  const roomA = a.wait('room', (m) => m.room && m.room.kind === 'series');
+  await b.req({ t: 'challengeRespond', id: i.invite.id, accept: true }, 'room');
+  await roomA;
+  await playWin(a, b);
+  b.close(); // rớt mạng ngay sau ván 1
+  const m = await a.wait('room', (x) => x.room.gameNo === 2 && x.room.reason === 'timeout', 3000);
+  assert.strictEqual(m.room.score[a.me.id], 2);
+  assert.strictEqual(m.room.seriesWinner, a.me.id);
+  a.close();
+});
+
+test('đăng xuất khi đang trong phòng thì rời phòng luôn', async () => {
+  const a = await Client.open();
+  await a.req({ t: 'register', username: 'out_a', password: '123456' }, 'welcome');
+  const b = await Client.open();
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  await move(a, b, 0, 0);
+  const gone = b.wait('room', (m) => m.room.players.length === 1);
+  await a.req({ t: 'logout' }, 'loggedOut');
+  const m = await gone;
+  assert.strictEqual(m.room.score[b.me.id], 0, 'người ở lại chờ đối thủ mới, tỉ số làm mới');
+  assert.strictEqual(a.room, null);
+  a.close(); b.close();
+});
+
+test('thách đấu: vào phòng khác thì lời mời bị huỷ; đang đánh thì không gửi được', async () => {
+  const a = await Client.open();
+  await a.req({ t: 'register', username: 'inv_a', password: '123456' }, 'welcome');
+  const b = await Client.open();
+  await b.req({ t: 'register', username: 'inv_b', password: '123456' }, 'welcome');
+  await a.req({ t: 'friendAdd', username: 'inv_b' }, 'friends', (m) => m.outgoing.length === 1);
+  await b.req({ t: 'friendAdd', username: 'inv_a' }, 'friends', (m) => m.friends.length === 1);
+  const inv = b.wait('invite');
+  a.send({ t: 'challenge', to: b.me.uid, bestOf: 1, first: 'me' });
+  const i = await inv;
+  const gone = b.wait('inviteGone', (m) => m.id === i.invite.id);
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await gone;
+  const late = await b.req({ t: 'challengeRespond', id: i.invite.id, accept: true }, 'error');
+  assert.match(late.msg, /hết hạn/);
+
+  const c = await Client.open();
+  await c.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  const busy = await a.req({ t: 'challenge', to: b.me.uid, bestOf: 1, first: 'me' }, 'error');
+  assert.match(busy.msg, /đang trong một ván/);
+  [a, b, c].forEach((x) => x.close());
+});

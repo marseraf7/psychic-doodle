@@ -3,7 +3,6 @@ name: Deploy Caro to GitHub Pages
 
 on:
   push:
-    branches: [main, master]
     paths: ['caro/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
@@ -18,6 +17,8 @@ concurrency:
 
 jobs:
   deploy:
+    # Chỉ đăng từ nhánh mặc định của repo (dù tên nhánh là gì), hoặc khi bấm chạy tay.
+    if: github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     environment:
       name: github-pages

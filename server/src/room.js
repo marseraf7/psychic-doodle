@@ -42,6 +42,8 @@ class Room {
   opponentOf(id) { return this.players.find((p) => p.id !== id) || null; }
   get full() { return this.players.length === 2; }
   get inProgress() { return this.full && !this.winner && this.board.moves.length > 0; }
+  /** Ván đang diễn ra, kể cả khi chưa ai đánh nước nào. */
+  get active() { return this.full && !this.winner && !(this.kind === 'series' && this.seriesWinner); }
   get needWins() { return Math.floor(this.bestOf / 2) + 1; }
 
   /** Thêm người chơi. side: X/O mong muốn (chỉ áp dụng khi còn trống). */

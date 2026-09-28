@@ -14,6 +14,7 @@ const NEXT_GAME_MS = 4000; // Bo3/Bo5: ván sau tự bắt đầu sau 4s
 const INVITE_TTL_MS = 60 * 1000;
 const ROOM_IDLE_MS = 30 * 60 * 1000;
 const SEAT_IDLE_MS = 10 * 60 * 1000;
+const FAIL_WINDOW_MS = 10 * 60 * 1000;
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
 const userPid = (uid) => 'u_' + uid;
@@ -31,6 +32,7 @@ class Hub {
     this.roomOf = new Map(); // pid -> mã phòng
     this.invites = new Map();
     this.offlineAt = new Map(); // pid -> thời điểm mất kết nối
+    this.forfeitTimers = new Map(); // pid -> hẹn giờ xử thua khi mất kết nối
     this.fails = new Map();
     this.sweeper = setInterval(() => this.sweep(), 60 * 1000);
     this.sweeper.unref?.();
@@ -95,6 +97,8 @@ class Hub {
 
   cameOnline(pid) {
     this.offlineAt.delete(pid);
+    clearTimeout(this.forfeitTimers.get(pid));
+    this.forfeitTimers.delete(pid);
     const room = this.roomFor(pid);
     if (room) this.broadcastRoom(room);
     this.notifyFriends(pid);
@@ -105,21 +109,37 @@ class Hub {
     const room = this.roomFor(pid);
     if (room) {
       this.broadcastRoom(room);
-      if (room.inProgress) {
-        const game = room.gameNo;
-        setTimeout(() => {
-          if (this.isOnline(pid) || this.rooms.get(room.code) !== room) return;
-          if (!room.inProgress || room.gameNo !== game || !room.has(pid)) return;
-          room.finish(3 - room.sideOf(pid), 'timeout');
-          this.afterChange(room);
-        }, this.T.OFFLINE_FORFEIT_MS).unref?.();
-      }
+      this.armForfeit(room, pid);
     }
     // Lời mời chưa trả lời của người này bị huỷ.
     for (const inv of [...this.invites.values()]) {
       if (inv.from === pid || inv.to === pid) this.dropInvite(inv, inv.from === pid ? 'Người mời đã offline' : null);
     }
     this.notifyFriends(pid);
+  }
+
+  /** Người chơi mất kết nối trong lúc ván đang diễn ra (kể cả khi chưa ai đánh nước nào):
+   *  quá hạn mà chưa quay lại thì xử thua. */
+  armForfeit(room, pid) {
+    if (this.isOnline(pid) || !room.active || !room.has(pid)) return;
+    clearTimeout(this.forfeitTimers.get(pid));
+    const game = room.gameNo;
+    const t = setTimeout(() => {
+      this.forfeitTimers.delete(pid);
+      if (this.isOnline(pid) || this.rooms.get(room.code) !== room) return;
+      if (!room.active || room.gameNo !== game || !room.has(pid)) return;
+      room.finish(3 - room.sideOf(pid), 'timeout');
+      this.afterChange(room);
+    }, this.T.OFFLINE_FORFEIT_MS);
+    t.unref?.();
+    this.forfeitTimers.set(pid, t);
+  }
+
+  /** Bắt đầu ván mới; ai đang offline thì bắt đầu đếm giờ xử thua ngay. */
+  startNext(room) {
+    room.nextGame();
+    for (const p of room.players) this.armForfeit(room, p.id);
+    this.broadcastRoom(room);
   }
 
   // ---------------------------------------------------------------- danh tính
@@ -202,36 +222,47 @@ class Hub {
     this.broadcastRoom(room);
   }
 
-  limit(conn, kind) {
-    const key = kind + ':' + (conn.ip || '?');
-    const f = this.fails.get(key);
-    if (f && f.n >= 8 && Date.now() - f.t < 10 * 60 * 1000) {
-      throw new Error('Thử sai quá nhiều lần, vui lòng đợi vài phút');
+  /*
+   * Giới hạn thử sai. Nhà mạng di động dùng chung 1 IP cho rất nhiều thuê bao (CGNAT),
+   * nên không khoá cả IP sau vài lần sai: khoá theo từng đối tượng bị dò (phòng, tài khoản),
+   * còn ngưỡng theo IP đặt cao để chỉ chặn dò hàng loạt.
+   * rules: [[khoá, số lần tối đa trong 10 phút], ...]
+   */
+  limit(rules) {
+    const now = Date.now();
+    for (const [key, max] of rules) {
+      const f = this.fails.get(key);
+      if (f && f.n >= max && now - f.t < FAIL_WINDOW_MS) throw new Error('Thử sai quá nhiều lần, vui lòng đợi vài phút');
     }
   }
-  fail(conn, kind) {
-    const key = kind + ':' + (conn.ip || '?');
-    const f = this.fails.get(key);
-    if (!f || Date.now() - f.t > 10 * 60 * 1000) this.fails.set(key, { n: 1, t: Date.now() });
-    else f.n++;
+  fail(rules) {
+    const now = Date.now();
+    for (const [key] of rules) {
+      const f = this.fails.get(key);
+      if (!f || now - f.t > FAIL_WINDOW_MS) this.fails.set(key, { n: 1, t: now });
+      else f.n++;
+    }
   }
 
   on_register(conn, { username, password, name }) {
-    this.limit(conn, 'reg');
+    const rules = [['reg:' + conn.ip, 30]];
+    this.limit(rules);
     username = String(username || '').trim().toLowerCase();
     if (!USERNAME_RE.test(username)) throw new Error('Tên đăng nhập 3–20 ký tự: chữ thường không dấu, số, dấu _ hoặc .');
     if (typeof password !== 'string' || password.length < 6 || password.length > 100) throw new Error('Mật khẩu cần ít nhất 6 ký tự');
     if (this.store.byUsername.has(username)) throw new Error('Tên đăng nhập đã có người dùng');
-    this.fail(conn, 'reg'); // giới hạn số tài khoản tạo từ 1 IP
+    this.fail(rules); // giới hạn số tài khoản tạo từ 1 IP
     const user = this.store.createUser({ username, name: cleanName(name) || username, pass: hashPassword(password) });
     this.loginConn(conn, user);
   }
 
   on_login(conn, { username, password }) {
-    this.limit(conn, 'login');
-    const user = this.store.byUsername.get(String(username || '').trim().toLowerCase());
+    const name = String(username || '').trim().toLowerCase().slice(0, 40);
+    const rules = [['login:' + conn.ip + ':' + name, 8], ['login-user:' + name, 30], ['login-ip:' + conn.ip, 100]];
+    this.limit(rules);
+    const user = this.store.byUsername.get(name);
     if (!user || typeof password !== 'string' || !checkPassword(password, user.pass)) {
-      this.fail(conn, 'login');
+      this.fail(rules);
       throw new Error('Sai tên đăng nhập hoặc mật khẩu');
     }
     this.loginConn(conn, user);
@@ -239,12 +270,13 @@ class Hub {
 
   async on_google(conn, { credential }) {
     if (!this.googleClientId || !this.verifyGoogle) throw new Error('Máy chủ chưa bật đăng nhập Google');
-    this.limit(conn, 'google');
+    const rules = [['google:' + conn.ip, 60]];
+    this.limit(rules);
     let g;
     try {
       g = await this.verifyGoogle(String(credential || ''), this.googleClientId);
     } catch (e) {
-      this.fail(conn, 'google');
+      this.fail(rules);
       throw new Error('Không xác minh được tài khoản Google');
     }
     const google = { sub: g.sub, email: g.email || '' };
@@ -267,6 +299,12 @@ class Hub {
   }
 
   on_logout(conn) {
+    // Rời phòng trước (đang đánh thì xử thua, client đã hỏi xác nhận) để không bị
+    // giữ chỗ rồi âm thầm xử thua sau khi mất kết nối.
+    if (this.roomFor(conn.pid)) {
+      this.leave(conn.pid);
+      for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'room', room: null });
+    }
     if (conn.token) this.store.dropSession(conn.token);
     conn.token = null;
     conn.send({ t: 'loggedOut' });
@@ -410,6 +448,8 @@ class Hub {
   enter(room, pid, side) {
     room.addPlayer({ id: pid, name: this.nameOf(pid) }, side);
     this.roomOf.set(pid, room.code);
+    // Đã vào ván khác: huỷ lời thách đấu đang chờ để lúc bạn bè nhận lời không bị kéo khỏi ván này.
+    for (const inv of [...this.invites.values()]) if (inv.from === pid) this.dropInvite(inv);
   }
 
   leave(pid) {
@@ -442,12 +482,15 @@ class Hub {
     code = String(code || '').trim();
     const room = this.rooms.get(code);
     if (room && room.has(conn.pid)) { this.roomOf.set(conn.pid, code); return this.broadcastRoom(room); }
-    this.limit(conn, 'room');
-    if (!room || room.kind !== 'room') { this.fail(conn, 'room'); throw new Error('Không tìm thấy phòng ' + code); }
-    if (String(password || '').trim() !== room.password) { this.fail(conn, 'room'); throw new Error('Sai mật khẩu phòng'); }
+    code = code.slice(0, 12);
+    const rules = [['room:' + conn.ip + ':' + code, 8], ['room-code:' + code, 40], ['room-ip:' + conn.ip, 60]];
+    this.limit(rules);
+    if (!room || room.kind !== 'room') { this.fail(rules); throw new Error('Không tìm thấy phòng ' + code); }
+    if (String(password || '').trim() !== room.password) { this.fail(rules); throw new Error('Sai mật khẩu phòng'); }
     if (room.full) throw new Error('Phòng đã đủ 2 người');
     this.leave(conn.pid);
     this.enter(room, conn.pid);
+    for (const p of room.players) this.armForfeit(room, p.id); // chủ phòng có thể đã offline
     this.broadcastRoom(room);
     for (const p of room.players) this.notifyFriends(p.id);
     const opp = room.opponentOf(conn.pid);
@@ -506,8 +549,7 @@ class Hub {
       const game = room.gameNo;
       setTimeout(() => {
         if (this.rooms.get(room.code) !== room || room.gameNo !== game || !room.awaitingNextGame) return;
-        room.nextGame();
-        this.broadcastRoom(room);
+        this.startNext(room);
       }, this.T.NEXT_GAME_MS).unref?.();
     }
   }
@@ -531,6 +573,7 @@ class Hub {
     if (!friend || !me.friends.includes(friend.id)) throw new Error('Chỉ thách đấu được bạn bè');
     const toPid = userPid(friend.id);
     if (!this.isOnline(toPid)) throw new Error(`${friend.name} đang offline`);
+    if (this.roomFor(conn.pid)?.active) throw new Error('Bạn đang trong một ván đấu, hãy kết thúc hoặc rời phòng trước');
     bestOf = [1, 3, 5].includes(Number(bestOf)) ? Number(bestOf) : 1;
     first = ['me', 'them', 'random'].includes(first) ? first : 'random';
     for (const inv of [...this.invites.values()]) if (inv.from === conn.pid) this.dropInvite(inv);
