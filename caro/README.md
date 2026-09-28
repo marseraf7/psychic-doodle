@@ -7,7 +7,10 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   - 4 quân liền, không bị chặn đầu nào → thắng.
   - 5 quân liền, bị chặn 1 đầu → thắng.
   - Bị chặn cả 2 đầu → không tính thắng.
-- Chơi **2 người cùng máy** hoặc **với máy** (Dễ / Vừa / Khó).
+- Chơi **2 người cùng máy**, **với máy** (Dễ / Vừa / Khó), hoặc **online**:
+  tạo phòng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
+  thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online.
+  Phần online cần chạy máy chủ trong thư mục [`server/`](../server/README.md).
 - Đi lại, lưu ván đang chơi, tỉ số, chế độ sáng/tối theo máy.
 - Chế độ "chạm 2 lần để đánh" (bật sẵn trên điện thoại) để tránh bấm nhầm.
 - **Không dùng tài nguyên bên ngoài** (không CDN, không Google Fonts, không quảng cáo/analytics):
@@ -27,7 +30,9 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
 ## Đăng lên mạng
 
-- **GitHub Pages** (đã có sẵn workflow `.github/workflows/pages.yml`): vào
+- **Có chế độ online**: chạy máy chủ ở thư mục `server/` (xem [server/README.md](../server/README.md)) –
+  máy chủ phục vụ luôn giao diện này.
+- **Chỉ chơi offline** – **GitHub Pages** (đã có sẵn workflow `.github/workflows/pages.yml`): vào
   *Settings → Pages → Source: GitHub Actions*; mỗi lần gộp vào nhánh `main`,
   game tự đăng lên `https://<tên-tài-khoản>.github.io/<tên-repo>/`.
 - Hoặc tải thư mục `caro/` lên bất kỳ hosting tĩnh nào (Cloudflare Pages, Netlify,
@@ -49,5 +54,6 @@ node caro/tests/rules.test.js
 |---|---|
 | `rules.js` | Luật thắng + AI (dùng chung cho trình duyệt và Node) |
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái |
+| `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
 | `index.html`, `style.css` | Giao diện |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |

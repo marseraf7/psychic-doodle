@@ -1,6 +1,6 @@
 // Lưu toàn bộ game vào bộ nhớ đệm để chơi được cả khi mất mạng.
-const CACHE = 'caro-v1';
-const FILES = ['./', 'index.html', 'style.css', 'rules.js', 'app.js', 'icon.svg', 'manifest.webmanifest'];
+const CACHE = 'caro-v2';
+const FILES = ['./', 'index.html', 'style.css', 'config.js', 'rules.js', 'app.js', 'online.js', 'icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

@@ -25,6 +25,7 @@
     hover: null,
     thinking: false,
     lastPlacedAt: 0,
+    online: null, // { room, me, side } khi đang chơi online
   };
   const cam = { x: 0, y: 0, size: 36 };
   let W = 0, H = 0, dpr = 1;
@@ -46,6 +47,7 @@
     } catch (e) { /* bỏ qua dữ liệu hỏng */ }
   }
   function save() {
+    if (state.online) return; // ván online do máy chủ giữ, không ghi đè ván cục bộ
     try {
       localStorage.setItem(STORE, JSON.stringify({
         mode: state.mode, human: state.human, level: state.level,
@@ -69,6 +71,7 @@
   function play(x, y) {
     if (state.winner || state.board.get(x, y) !== EMPTY) return;
     state.pending = null;
+    if (state.online) return playOnline(x, y);
     const win = placeRaw(x, y);
     state.lastPlacedAt = performance.now();
     if (win) {
@@ -83,7 +86,7 @@
     maybeAI();
   }
 
-  const isAITurn = () => state.mode === 'ai' && !state.winner && state.turn !== state.human;
+  const isAITurn = () => !state.online && state.mode === 'ai' && !state.winner && state.turn !== state.human;
 
   function maybeAI() {
     if (!isAITurn() || state.thinking) return;
@@ -103,7 +106,7 @@
   }
 
   function undo() {
-    if (state.thinking) return;
+    if (state.thinking || state.online) return;
     const b = state.board;
     if (!b.moves.length) return;
     if (state.winner) state.score[state.winner] = Math.max(0, state.score[state.winner] - 1);
@@ -124,6 +127,7 @@
   }
 
   function newGame() {
+    if (state.online) return;
     state.board = new Board();
     state.turn = X;
     state.winner = null;
@@ -138,11 +142,118 @@
     maybeAI();
   }
 
+  // ------------------------------------------------------------ Online
+  const net = () => window.CaroOnline;
+
+  // Người chơi có được đánh lúc này không.
+  function canPlaceNow() {
+    if (state.winner || state.thinking) return false;
+    if (!state.online) return !isAITurn();
+    const { room, side } = state.online;
+    return room.players.length === 2 && !room.seriesWinner && room.turn === side;
+  }
+
+  function playOnline(x, y) {
+    if (!canPlaceNow()) return;
+    // Hiện ngay nước đi (máy chủ sẽ xác nhận lại).
+    placeRaw(x, y);
+    state.optimistic = [x, y];
+    state.lastPlacedAt = performance.now();
+    vibrate(8);
+    updateUI();
+    requestDraw();
+    ensureVisible(x, y);
+    net().send({ t: 'move', x, y });
+  }
+
+  /** Dựng lại bàn cờ theo trạng thái phòng từ máy chủ. */
+  function applyRoom(room, me) {
+    const prev = state.online && state.online.room;
+    const isNewGame = !prev || prev.gameNo !== room.gameNo || room.moves.length < prev.moves.length;
+    const b = new Board();
+    room.moves.forEach(([x, y], i) => b.play(x, y, i % 2 === 0 ? X : O));
+    const side = room.seats.x === me ? X : room.seats.o === me ? O : 0;
+    state.board = b;
+    state.turn = room.turn;
+    state.winner = room.winner;
+    state.winCells = room.winCells;
+    state.pending = null;
+    state.thinking = false;
+    state.online = { room, me, side };
+    const last = b.moves[b.moves.length - 1];
+    const grew = prev && !isNewGame && room.moves.length > prev.moves.length;
+    if (isNewGame && prev) animateCamera(0, 0, Math.max(cam.size, 32));
+    if (last && grew) {
+      const mine = state.optimistic && state.optimistic[0] === last.x && state.optimistic[1] === last.y;
+      if (!mine) {
+        state.lastPlacedAt = performance.now();
+        ensureVisible(last.x, last.y);
+        vibrate(15);
+      }
+    }
+    state.optimistic = null;
+    if (room.winner && (!prev || !prev.winner || isNewGame)) {
+      vibrate(40);
+      setTimeout(showBanner, 300);
+    }
+    if (!room.winner) hideBanner();
+    updateUI();
+    requestDraw();
+  }
+
+  function enterOnline(room, me) {
+    if (!state.online) {
+      save();
+      document.body.classList.add('online');
+      hideBanner();
+      animateCamera(0, 0, Math.max(cam.size, 32));
+    }
+    applyRoom(room, me);
+  }
+
+  function leaveOnline() {
+    if (!state.online) return;
+    state.online = null;
+    document.body.classList.remove('online');
+    state.board = new Board();
+    state.turn = X;
+    state.winner = null;
+    state.winCells = null;
+    state.pending = null;
+    hideBanner();
+    load();
+    updateUI();
+    requestDraw();
+    maybeAI();
+  }
+
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function updateOnlineUI() {
+    const { room, me, side } = state.online;
+    const opp = room.players.find((p) => p.id !== me);
+    const t = $('turn');
+    if (!opp) {
+      t.innerHTML = `Chờ đối thủ… <span class="thinking">Phòng ${esc(room.code)}</span>`;
+    } else if (room.winner) {
+      t.innerHTML = room.winner === side ? `${glyph(side)} Bạn thắng!` : `${glyph(room.winner)} Bạn thua`;
+    } else if (room.turn === side) {
+      t.innerHTML = `Lượt bạn ${glyph(side)}`;
+    } else {
+      t.innerHTML = `Lượt <span class="name">${esc(opp.name)}</span> ${glyph(room.turn)}` +
+        (opp.online ? '' : ' <span class="thinking">mất kết nối</span>');
+    }
+    const oppScore = opp ? room.score[opp.id] || 0 : 0;
+    $('score').innerHTML = `Bạn ${room.score[me] || 0} : ${oppScore} <span class="name">${esc(opp ? opp.name : '?')}</span>` +
+      (room.kind === 'series' ? ` · Bo${room.bestOf}` : '');
+  }
+
   // ------------------------------------------------------------ Giao diện
   const glyph = (p) => (p === X ? '<b class="dot x">X</b>' : '<b class="dot o">O</b>');
 
   function updateUI() {
     const t = $('turn');
+    if (state.online) return updateOnlineUI();
     if (state.winner) {
       t.innerHTML = `${glyph(state.winner)} thắng!`;
     } else {
@@ -157,6 +268,7 @@
 
   function showBanner() {
     if (!state.winner) return;
+    if (state.online) return net().showBanner();
     let text;
     if (state.mode === 'ai') text = state.winner === state.human ? '🎉 Bạn thắng!' : 'Máy thắng rồi!';
     else text = `${state.winner === X ? 'X' : 'O'} thắng!`;
@@ -275,7 +387,7 @@
 
     // Quân mờ: chờ xác nhận hoặc rê chuột.
     const ghost = state.pending || state.hover;
-    if (ghost && !state.winner && !state.thinking && state.board.get(ghost[0], ghost[1]) === EMPTY) {
+    if (ghost && canPlaceNow() && state.board.get(ghost[0], ghost[1]) === EMPTY) {
       const [sx, sy] = toScreen(ghost[0], ghost[1]);
       if (state.pending) {
         ctx.strokeStyle = state.turn === X ? colors.x : colors.o;
@@ -382,7 +494,7 @@
 
   function tap(sx, sy) {
     if (state.winner) { showBanner(); return; }
-    if (state.thinking || isAITurn()) return;
+    if (!canPlaceNow()) return;
     const [x, y] = toCell(sx, sy);
     if (state.board.get(x, y) !== EMPTY) return;
     if (state.confirm) {
@@ -500,9 +612,10 @@
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if ($('settings').open) return;
+    if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA/.test(document.activeElement?.tagName)) return;
     const step = 3;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     switch (e.key) {
       case 'ArrowLeft': cam.x -= step; break;
       case 'ArrowRight': cam.x += step; break;
@@ -557,6 +670,16 @@
     state.score = { 1: 0, 2: 0 };
     save();
     updateUI();
+  };
+
+  window.CaroApp = {
+    enterOnline,
+    applyRoom: (room, me) => (state.online ? applyRoom(room, me) : enterOnline(room, me)),
+    leaveOnline,
+    resync: () => { if (state.online) applyRoom(state.online.room, state.online.me); },
+    get online() { return state.online; },
+    hideBanner,
+    esc,
   };
 
   // ------------------------------------------------------------ Khởi động
