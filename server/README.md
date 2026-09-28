@@ -32,7 +32,7 @@ Biến môi trường:
 | `PORT` | Cổng (mặc định `8080`) |
 | `DATA_DIR` | Nơi lưu tài khoản `db.json` (mặc định `server/data`) – nhớ sao lưu |
 | `GOOGLE_CLIENT_ID` | Bật nút "Đăng nhập bằng Google" (bỏ trống thì nút bị ẩn) |
-| `TRUST_PROXY=1` | Khi chạy sau nginx/Caddy, để lấy đúng IP người chơi |
+| `TRUST_PROXY=1` | **Chỉ bật khi chạy sau nginx/Caddy** (lấy IP người chơi từ proxy). Không có proxy mà bật thì kẻ xấu giả IP để né giới hạn thử mật khẩu |
 
 ## Đưa lên mạng (để người ở Việt Nam và Nga đều vào được)
 
@@ -86,6 +86,15 @@ Caddy tự chuyển tiếp cả WebSocket. Nếu dùng nginx, nhớ thêm
 Nếu muốn giữ giao diện trên GitHub Pages, sửa `caro/config.js`:
 `window.CARO_SERVER = 'https://caro.ten-mien-cua-ban.com';`.
 Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời và Google hoạt động gọn hơn).
+
+## Bảo mật đã có
+
+- Mật khẩu băm scrypt; token đăng nhập chỉ lưu dạng băm SHA-256 trong `db.json`.
+- Máy chủ kiểm tra mọi nước đi; tên người chơi được lọc/escape (chống XSS).
+- Header CSP, chống nhúng iframe (clickjacking), `nosniff`; chỉ cho phép GET/HEAD file tĩnh, chặn truy cập ngoài thư mục `caro/`.
+- Giới hạn: 8 lần sai mật khẩu phòng/đăng nhập mỗi 10 phút/IP; 8 tài khoản mới mỗi 10 phút/IP;
+  20 kết nối/IP; 15 tin nhắn/giây mỗi kết nối (vượt quá bị ngắt); tin nhắn tối đa 16KB.
+- File mẫu `deploy/caro.service` chạy dưới user riêng, chỉ được ghi vào thư mục dữ liệu.
 
 ## Giới hạn hiện tại
 

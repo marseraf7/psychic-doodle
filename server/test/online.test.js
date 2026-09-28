@@ -272,3 +272,26 @@ test('khách đang trong phòng rồi đăng nhập vẫn giữ chỗ', async ()
   assert.strictEqual(side(a.room, a.me.id), 1);
   a.close(); b.close();
 });
+
+test('bảo mật: header an toàn, chặn spam tin nhắn, token không lưu dạng gốc', async () => {
+  const port = app.server.address().port;
+  const r = await fetch(`http://127.0.0.1:${port}/`);
+  assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.strictEqual(r.headers.get('x-frame-options'), 'DENY');
+  assert.strictEqual((await fetch(`http://127.0.0.1:${port}/`, { method: 'POST' })).status, 405);
+  assert.strictEqual((await fetch(`http://127.0.0.1:${port}/..%2fserver%2fserver.js`)).status, 404);
+
+  const u = await Client.open();
+  await u.req({ t: 'register', username: 'sec_test', password: '123456' }, 'welcome');
+  assert.ok(!app.store.sessions.has(u.token), 'không lưu token gốc');
+  const again = await Client.open({ token: u.token });
+  assert.strictEqual(again.me.username, 'sec_test');
+  const bogus = await Client.open({ token: { evil: 1 } });
+  assert.strictEqual(bogus.me.guest, true);
+
+  const spam = await Client.open();
+  const closed = new Promise((r2) => spam.ws.on('close', r2));
+  for (let i = 0; i < 200; i++) spam.send({ t: 'setName', name: 'x' + i });
+  await closed;
+  [u, again, bogus].forEach((x) => x.close());
+});

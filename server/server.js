@@ -19,6 +19,42 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const STATIC_DIR = path.resolve(__dirname, '..', 'caro');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
+const MAX_CONN_PER_IP = 20; // số kết nối cùng lúc tối đa từ 1 IP
+const MSG_RATE = 15; // tin nhắn/giây cho mỗi kết nối (cho phép dồn tối đa MSG_BURST)
+const MSG_BURST = 40;
+
+// Chính sách bảo mật nội dung: chỉ chạy script của chính trang (và Google khi bật đăng nhập Google).
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://accounts.google.com/gsi/client",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
+  "img-src 'self' data: https://*.googleusercontent.com",
+  "connect-src 'self' ws: wss: https://accounts.google.com/gsi/",
+  'frame-src https://accounts.google.com/gsi/',
+  "frame-ancestors 'none'",
+  "base-uri 'none'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join('; ');
+const SECURITY_HEADERS = {
+  'content-security-policy': CSP,
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'cross-origin-opener-policy': 'same-origin-allow-popups', // cần cho cửa sổ đăng nhập Google
+  'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+};
+
+/** IP thật của người chơi. Sau proxy (Caddy/nginx) lấy IP cuối cùng do proxy thêm vào,
+ *  vì các phần đầu của X-Forwarded-For do trình duyệt tự gửi và có thể bị giả mạo. */
+function clientIp(req) {
+  if (process.env.TRUST_PROXY) {
+    const parts = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1];
+  }
+  return req.socket.remoteAddress;
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -33,6 +69,8 @@ const MIME = {
 function serveStatic(req, res) {
   let url;
   try { url = decodeURIComponent(new URL(req.url, 'http://x').pathname); } catch (e) { res.writeHead(400); return res.end(); }
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
   if (url === '/healthz') { res.writeHead(200); return res.end('ok'); }
   if (url.endsWith('/')) url += 'index.html';
   const file = path.resolve(STATIC_DIR, '.' + url);
@@ -43,7 +81,6 @@ function serveStatic(req, res) {
       'content-type': MIME[path.extname(file)] || 'application/octet-stream',
       'content-length': st.size,
       'cache-control': 'no-cache',
-      'x-content-type-options': 'nosniff',
     });
     if (req.method === 'HEAD') return res.end();
     fs.createReadStream(file).pipe(res);
@@ -55,18 +92,34 @@ function start({ port = PORT, dataFile = path.join(DATA_DIR, 'db.json'), googleC
   const hub = new Hub({ store, googleClientId, verifyGoogle, ...(timers ? { timers } : {}) });
   const server = http.createServer(serveStatic);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
+  const perIp = new Map();
 
   wss.on('connection', (ws, req) => {
-    const fwd = process.env.TRUST_PROXY ? String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '';
+    const ip = clientIp(req);
+    const n = (perIp.get(ip) || 0) + 1;
+    if (n > MAX_CONN_PER_IP) return ws.close(1008, 'Too many connections');
+    perIp.set(ip, n);
     const conn = {
-      ip: fwd || req.socket.remoteAddress,
+      ip,
       send: (obj) => { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); },
     };
     hub.connect(conn);
     ws.isAlive = true;
     ws.on('pong', () => { ws.isAlive = true; });
-    ws.on('message', (data) => hub.handle(conn, data.toString()));
-    ws.on('close', () => hub.disconnect(conn));
+    // Chống spam: token bucket cho mỗi kết nối, vượt quá thì ngắt.
+    let tokens = MSG_BURST, last = Date.now();
+    ws.on('message', (data) => {
+      const now = Date.now();
+      tokens = Math.min(MSG_BURST, tokens + ((now - last) / 1000) * MSG_RATE);
+      last = now;
+      if (--tokens < 0) return ws.close(1008, 'Too many messages');
+      hub.handle(conn, data.toString());
+    });
+    ws.on('close', () => {
+      const left = (perIp.get(ip) || 1) - 1;
+      if (left > 0) perIp.set(ip, left); else perIp.delete(ip);
+      hub.disconnect(conn);
+    });
     ws.on('error', () => {});
   });
 

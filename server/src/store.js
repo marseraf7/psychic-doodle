@@ -8,12 +8,14 @@ const path = require('path');
 const crypto = require('crypto');
 
 const SESSION_TTL = 180 * 24 * 3600 * 1000;
+// Chỉ lưu mã băm của token: lộ file dữ liệu cũng không dùng được để đăng nhập.
+const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 class Store {
   constructor(file) {
     this.file = file;
     this.users = new Map(); // id -> user
-    this.sessions = new Map(); // token -> { uid, created }
+    this.sessions = new Map(); // sha256(token) -> { uid, created }
     this.byUsername = new Map();
     this.byGoogle = new Map();
     this.timer = null;
@@ -83,20 +85,22 @@ class Store {
 
   newSession(uid) {
     const token = crypto.randomBytes(24).toString('base64url');
-    this.sessions.set(token, { uid, created: Date.now() });
+    this.sessions.set(tokenHash(token), { uid, created: Date.now() });
     this.save();
     return token;
   }
 
   userByToken(token) {
-    const s = token && this.sessions.get(token);
+    if (typeof token !== 'string' || !token || token.length > 100) return null;
+    const h = tokenHash(token);
+    const s = this.sessions.get(h);
     if (!s) return null;
-    if (Date.now() - s.created > SESSION_TTL) { this.sessions.delete(token); return null; }
+    if (Date.now() - s.created > SESSION_TTL) { this.sessions.delete(h); return null; }
     return this.users.get(s.uid) || null;
   }
 
   dropSession(token) {
-    if (this.sessions.delete(token)) this.save();
+    if (typeof token === 'string' && this.sessions.delete(tokenHash(token))) this.save();
   }
 }
 

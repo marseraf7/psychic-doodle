@@ -1,0 +1,7 @@
+# Chép vào /etc/caddy/Caddyfile, thay tên miền, rồi: systemctl reload caddy
+# Caddy tự xin chứng chỉ HTTPS miễn phí và tự chuyển tiếp WebSocket.
+caro.ten-mien-cua-ban.com {
+	encode gzip
+	header Strict-Transport-Security "max-age=31536000"
+	reverse_proxy 127.0.0.1:8080
+}
