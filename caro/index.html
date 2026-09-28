@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)">
+  <meta name="description" content="Cờ Caro online – bàn cờ vô hạn, luật chặn 2 đầu, chơi 2 người hoặc với máy.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Cờ Caro</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <canvas id="board" aria-label="Bàn cờ caro"></canvas>
+
+  <header class="bar top">
+    <div class="turn" id="turn" aria-live="polite"></div>
+    <div class="score" id="score" title="Tỉ số"></div>
+  </header>
+
+  <nav class="bar bottom">
+    <button id="btn-new" type="button"><span class="ico">＋</span><span>Ván mới</span></button>
+    <button id="btn-undo" type="button"><span class="ico">↶</span><span>Đi lại</span></button>
+    <button id="btn-center" type="button"><span class="ico">◎</span><span>Về giữa</span></button>
+    <button id="btn-settings" type="button"><span class="ico">⚙</span><span>Cài đặt</span></button>
+  </nav>
+
+  <div class="banner" id="banner" hidden>
+    <div class="banner-card">
+      <div class="banner-title" id="banner-title"></div>
+      <div class="banner-actions">
+        <button id="banner-view" type="button" class="ghost">Xem bàn cờ</button>
+        <button id="banner-new" type="button" class="primary">Ván mới</button>
+      </div>
+    </div>
+  </div>
+
+  <dialog id="settings">
+    <form method="dialog" id="settings-form">
+      <h2>Cài đặt</h2>
+
+      <fieldset>
+        <legend>Chế độ chơi</legend>
+        <label><input type="radio" name="mode" value="ai"> Chơi với máy</label>
+        <label><input type="radio" name="mode" value="pvp"> 2 người (cùng máy)</label>
+      </fieldset>
+
+      <fieldset class="ai-only">
+        <legend>Bạn cầm</legend>
+        <label><input type="radio" name="human" value="1"> <b class="x">X</b> – đi trước</label>
+        <label><input type="radio" name="human" value="2"> <b class="o">O</b> – đi sau</label>
+      </fieldset>
+
+      <fieldset class="ai-only">
+        <legend>Độ khó</legend>
+        <label><input type="radio" name="level" value="1"> Dễ</label>
+        <label><input type="radio" name="level" value="2"> Vừa</label>
+        <label><input type="radio" name="level" value="3"> Khó</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Thao tác</legend>
+        <label class="switch"><input type="checkbox" name="confirm"> Chạm 2 lần để đánh (tránh bấm nhầm)</label>
+      </fieldset>
+
+      <details class="rules">
+        <summary>Luật chơi</summary>
+        <ul>
+          <li>X đi trước, hai bên lần lượt đánh vào ô trống. Bàn cờ không giới hạn – kéo để di chuyển, chụm/cuộn để phóng to.</li>
+          <li><b>4 quân liền</b> không bị chặn đầu nào → <b>thắng</b>.</li>
+          <li><b>5 quân liền</b> bị chặn 1 đầu → <b>thắng</b>.</li>
+          <li>Bị chặn <b>cả 2 đầu</b> → <b>không</b> tính thắng.</li>
+        </ul>
+      </details>
+
+      <div class="dialog-actions">
+        <button type="button" id="reset-score" class="ghost">Xoá tỉ số</button>
+        <button value="ok" class="primary">Xong</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="rules.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
