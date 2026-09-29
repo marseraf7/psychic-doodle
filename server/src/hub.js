@@ -627,6 +627,12 @@ class Hub {
         moves: room.board.moves.map((m) => [m.x, m.y]),
       });
     }
+    // Thống kê / điểm mới cho người chơi đang online (bạn bè thấy điểm mới trong danh sách)
+    for (const u of new Set([ux, uo].filter(Boolean))) {
+      const pid = userPid(u.id);
+      this.send(pid, { t: 'me', me: this.meView(pid) });
+      if (ux && uo) this.sendFriends(u.id);
+    }
     if (!leaving && room.awaitingNextGame) {
       const game = room.gameNo;
       setTimeout(() => {

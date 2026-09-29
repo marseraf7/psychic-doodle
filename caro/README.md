@@ -9,7 +9,8 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   - Bị chặn cả 2 đầu → không tính thắng.
 - Chơi **2 người cùng máy**, **với máy** (Dễ / Vừa / Khó), hoặc **online**:
   tạo phòng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
-  thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online.
+  thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online,
+  xin hoà, chat nhanh, nhắn tin bạn bè, lịch sử 10 trận + xem lại + link chia sẻ, đối đầu, Elo và bảng xếp hạng.
   Phần online cần chạy máy chủ trong thư mục [`server/`](../server/README.md).
 - Đi lại (bật/tắt trong Cài đặt: "Cho phép đi lại"), lưu ván đang chơi, tỉ số.
 - **Thời gian mỗi nước**: không giới hạn / 10 / 20 / 30 giây – hết giờ mà chưa đánh thì thua
@@ -58,8 +59,11 @@ node caro/tests/rules.test.js
 | File | Nội dung |
 |---|---|
 | `rules.js` | Luật thắng + AI (dùng chung cho trình duyệt và Node) |
-| `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái |
+| `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
+| `ai-worker.js` | Chạy AI trong Web Worker để giao diện không bị khựng |
+| `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
 | `i18n.js`, `theme.js` | Bản dịch 4 ngôn ngữ; giao diện Sáng/Tối/Hệ thống |
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
+| `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `index.html`, `style.css` | Giao diện |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |

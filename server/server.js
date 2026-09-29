@@ -87,7 +87,11 @@ function serveReplay(store, share, res) {
     share: g.share, created: g.created, kind: g.kind, timeLimit: g.time_limit,
     x: g.x_name, o: g.o_name, winner: g.winner, reason: g.reason, moves: g.moves,
   });
-  res.writeHead(g ? 200 : 404, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-cache' });
+  res.writeHead(g ? 200 : 404, {
+    'content-type': 'application/json; charset=utf-8',
+    'cache-control': 'no-cache',
+    'access-control-allow-origin': '*', // bản web tĩnh (CARO_SERVER) ở tên miền khác cũng đọc được
+  });
   res.end(body || '{"error":"not_found"}');
 }
 

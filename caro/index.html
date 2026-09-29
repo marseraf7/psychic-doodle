@@ -35,9 +35,24 @@
   <nav class="bar bottom online-only">
     <button id="btn-room" type="button"><span class="ico">ℹ</span><span data-i18n="btn_room"></span></button>
     <button id="btn-center2" type="button"><span class="ico">◎</span><span data-i18n="btn_center"></span></button>
+    <button id="btn-draw" type="button"><span class="ico">½</span><span id="btn-draw-label" data-i18n="btn_draw"></span></button>
     <button id="btn-resign" type="button"><span class="ico">⚑</span><span data-i18n="btn_resign"></span></button>
     <button id="btn-leave" type="button"><span class="ico">⎋</span><span data-i18n="btn_leave"></span></button>
   </nav>
+
+  <!-- Xem lại ván đã lưu -->
+  <nav class="bar bottom replay-only">
+    <button id="rp-first" type="button"><span class="ico">⏮</span><span data-i18n="rp_first"></span></button>
+    <button id="rp-prev" type="button"><span class="ico">◀</span><span data-i18n="rp_prev"></span></button>
+    <button id="rp-play" type="button"><span class="ico" id="rp-play-ico">▶</span><span id="rp-play-label" data-i18n="rp_play"></span></button>
+    <button id="rp-next" type="button"><span class="ico">▶︎|</span><span data-i18n="rp_next"></span></button>
+    <button id="rp-share" type="button"><span class="ico">↗</span><span data-i18n="share_game"></span></button>
+    <button id="rp-close" type="button"><span class="ico">✕</span><span data-i18n="rp_close"></span></button>
+  </nav>
+
+  <!-- Chat nhanh trong phòng -->
+  <button type="button" class="fab online-only" id="quick-btn" data-i18n-aria="quick_chat" data-i18n-title="quick_chat">💬</button>
+  <div class="quick-menu" id="quick-menu" hidden></div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
@@ -49,6 +64,7 @@
         <button id="banner-view" type="button" class="ghost" data-i18n="banner_view"></button>
         <button id="banner-leave" type="button" class="ghost online-only" data-i18n="btn_leave"></button>
         <button id="banner-new" type="button" class="primary local-only" data-i18n="btn_new"></button>
+        <button id="banner-share" type="button" class="ghost online-only" data-i18n="share_game" hidden></button>
         <button id="banner-rematch" type="button" class="primary online-only" data-i18n="rematch"></button>
       </div>
     </div>
@@ -184,6 +200,7 @@
         <span class="conn" id="conn"></span>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
+      <div class="dlg-invites" id="dlg-invites" hidden></div>
       <section class="card" id="account"></section>
       <section class="card">
         <h3 data-i18n="create_room"></h3>
@@ -219,6 +236,7 @@
       <label class="field reg-only"><span data-i18n="display_name"></span><input name="name" maxlength="24" autocomplete="nickname"></label>
       <label class="field"><span data-i18n="username"></span><input name="username" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
       <label class="field"><span data-i18n="password"></span><input name="password" type="password" maxlength="100" autocomplete="current-password" required></label>
+      <a href="#" class="link login-only" id="go-forgot" data-i18n="forgot" hidden></a>
       <p class="err" id="auth-err"></p>
       <button class="primary wide" id="auth-submit"></button>
       <div class="google-box" id="google-box" hidden>
@@ -261,6 +279,7 @@
       <button type="button" class="ghost wide" id="ri-share" hidden data-i18n="share"></button>
       <p class="hint" data-i18n="room_info_hint"></p>
       <ul class="players" id="ri-players"></ul>
+      <p class="hint" id="ri-h2h"></p>
     </div>
   </dialog>
 
@@ -300,11 +319,114 @@
     </form>
   </dialog>
 
+  <dialog id="history">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 data-i18n="history_title" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <ul class="games" id="history-list"></ul>
+    </div>
+  </dialog>
+
+  <dialog id="leaderboard">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 data-i18n="lb_title" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <p class="hint" id="lb-me"></p>
+      <ol class="ranks" id="lb-list"></ol>
+      <p class="hint" data-i18n="lb_hint"></p>
+    </div>
+  </dialog>
+
+  <dialog id="chat">
+    <div class="dlg chat-dlg">
+      <div class="dlg-head">
+        <div class="pn"><b id="chat-name"></b><small id="chat-sub"></small></div>
+        <button type="button" class="ghost sm" id="chat-report" data-i18n="report"></button>
+        <button type="button" class="ghost sm" id="chat-block" data-i18n="block"></button>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div class="msgs" id="chat-msgs"></div>
+      <form class="row" id="chat-form">
+        <input name="text" maxlength="500" autocomplete="off" data-i18n-ph="chat_ph" required>
+        <button class="primary" data-i18n="send"></button>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="report">
+    <form class="dlg" id="report-form">
+      <div class="dlg-head">
+        <h2 id="report-title" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div class="seg col">
+        <label><input type="radio" name="reason" value="spam" checked> <span data-i18n="reason_spam"></span></label>
+        <label><input type="radio" name="reason" value="abuse"> <span data-i18n="reason_abuse"></span></label>
+        <label><input type="radio" name="reason" value="cheat"> <span data-i18n="reason_cheat"></span></label>
+        <label><input type="radio" name="reason" value="other"> <span data-i18n="reason_other"></span></label>
+      </div>
+      <p class="hint" data-i18n="report_hint"></p>
+      <button class="primary wide" data-i18n="send_report"></button>
+    </form>
+  </dialog>
+
+  <dialog id="account-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 data-i18n="account_settings" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <form class="card" id="pw-form">
+        <h3 id="pw-title"></h3>
+        <p class="hint" id="pw-hint"></p>
+        <label class="field" id="pw-current"><span data-i18n="current_password"></span><input name="current" type="password" maxlength="100" autocomplete="current-password"></label>
+        <label class="field"><span data-i18n="new_password"></span><input name="next" type="password" minlength="6" maxlength="100" autocomplete="new-password" required></label>
+        <label class="field"><span data-i18n="confirm_password"></span><input name="again" type="password" minlength="6" maxlength="100" autocomplete="new-password" required></label>
+        <p class="err" id="pw-err"></p>
+        <button class="primary" data-i18n="save"></button>
+      </form>
+      <form class="card" id="email-form">
+        <h3 data-i18n="email"></h3>
+        <p class="hint" data-i18n="email_hint"></p>
+        <label class="field"><span data-i18n="email"></span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com"></label>
+        <label class="field" id="email-pw"><span data-i18n="current_password"></span><input name="password" type="password" maxlength="100" autocomplete="current-password"></label>
+        <p class="err" id="email-err"></p>
+        <button class="primary" data-i18n="save"></button>
+      </form>
+      <section class="card">
+        <h3 data-i18n="blocked_list"></h3>
+        <ul class="people" id="blocked-list"></ul>
+      </section>
+    </div>
+  </dialog>
+
+  <dialog id="forgot">
+    <form class="dlg" id="forgot-form">
+      <div class="dlg-head">
+        <h2 data-i18n="forgot_title" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <label class="field"><span data-i18n="forgot_login"></span><input name="login" maxlength="254" autocapitalize="none" spellcheck="false" autocomplete="username" required></label>
+      <p class="hint" id="forgot-hint" data-i18n="forgot_hint"></p>
+      <div class="step2" id="forgot-step2" hidden>
+        <label class="field"><span data-i18n="reset_code"></span><input name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+        <label class="field"><span data-i18n="new_password"></span><input name="password" type="password" minlength="6" maxlength="100" autocomplete="new-password"></label>
+      </div>
+      <p class="err" id="forgot-err"></p>
+      <button class="primary wide" id="forgot-submit"></button>
+    </form>
+  </dialog>
+
   <script src="config.js"></script>
   <script src="i18n.js"></script>
   <script src="sound.js"></script>
   <script src="rules.js"></script>
   <script src="app.js"></script>
   <script src="online.js"></script>
+  <script src="social.js"></script>
 </body>
 </html>

@@ -229,7 +229,7 @@ button {
   animation: pop 0.25s ease-out;
 }
 .banner-title { font-size: var(--fs-lg); font-weight: var(--fw-bold); margin-bottom: 10px; letter-spacing: -0.01em; }
-.banner-actions { display: flex; gap: 8px; justify-content: center; }
+.banner-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 @keyframes pop { from { transform: translateY(12px) scale(0.96); opacity: 0; } }
 
 dialog {
@@ -429,3 +429,92 @@ dialog form.dlg { padding: 16px 18px 18px; }
 
 /* Mở hộp thoại thì trỏ vào tiêu đề (không vẽ khung focus lên lựa chọn đầu tiên) */
 dialog h2:focus { outline: none; }
+
+/* ============================ Xem lại ván */
+.replay-only { display: none !important; }
+body.replay .replay-only { display: flex !important; }
+body.replay .local-only { display: none !important; }
+body.replay #banner { display: none; }
+.bar.bottom.replay-only button { min-width: 54px; padding: 6px 6px; }
+@media (max-width: 380px) { .bar.bottom.replay-only button { min-width: 48px; padding: 6px 4px; } }
+
+/* ============================ Chat nhanh trong phòng */
+.fab {
+  /* Góc phải, ngay dưới thanh trên: không che thẻ kết quả và lời mời ở phía dưới */
+  position: fixed; right: 12px; top: calc(64px + env(safe-area-inset-top)); z-index: 12;
+  width: 48px; height: 48px; border-radius: 50%; font-size: var(--fs-lg);
+  background: var(--panel); border: 1px solid var(--panel-border); box-shadow: var(--shadow);
+  align-items: center; justify-content: center;
+}
+.fab:active { transform: scale(0.94); }
+.quick-menu {
+  position: fixed; right: 12px; top: calc(120px + env(safe-area-inset-top)); z-index: 16;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 8px; width: min(320px, calc(100% - 24px));
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow);
+  animation: pop 0.18s ease-out;
+}
+.quick-menu[hidden] { display: none; }
+.quick-menu button {
+  padding: 9px 10px; font-size: var(--fs-sm); text-align: left; border: 1px solid var(--panel-border); border-radius: 10px;
+}
+.quick-menu button:hover { background: rgba(127, 127, 127, 0.12); }
+.toast.bubble { background: var(--panel); color: var(--text); border: 1px solid var(--panel-border); }
+.toast.bubble b { color: var(--o); font-weight: var(--fw-semibold); }
+.toast.bubble.mine b { color: var(--muted); }
+
+/* ============================ Điểm, đối đầu, lịch sử, xếp hạng */
+.rating {
+  display: inline-block; font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 999px; padding: 1px 7px; vertical-align: 1px;
+}
+.pn b .rating { display: inline-block; }
+.chat-btn { position: relative; }
+.chat-btn .count {
+  position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: #e5392f; color: #fff; font-size: 11px; font-style: normal; font-weight: var(--fw-bold); line-height: 18px; text-align: center;
+}
+.games, .ranks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; max-height: 60vh; }
+.games li, .ranks li { display: flex; align-items: center; gap: 8px; padding: 8px 2px; border-bottom: 1px solid var(--panel-border); }
+.games li:last-child, .ranks li:last-child { border-bottom: 0; }
+.games li.empty, .ranks li.empty { color: var(--muted); font-size: var(--fs-sm); border: 0; }
+.res {
+  flex: none; min-width: 52px; text-align: center; font-size: var(--fs-xs); font-weight: var(--fw-bold);
+  border-radius: 8px; padding: 4px 6px; color: #fff; background: #9aa3ae;
+}
+.res.win { background: #2fb45a; }
+.res.loss { background: #e5392f; }
+.rank { flex: none; width: 36px; text-align: center; font-weight: var(--fw-bold); color: var(--muted); font-variant-numeric: tabular-nums; }
+.pts { font-variant-numeric: tabular-nums; }
+.ranks li.me { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 10px; }
+
+/* ============================ Nhắn tin */
+#chat { width: min(460px, calc(100% - 16px)); }
+.chat-dlg { height: min(620px, calc(100dvh - 40px)); }
+.chat-dlg .dlg-head .pn small { white-space: normal; }
+.chat-dlg .dlg-head .x-close { margin-left: 0; }
+.msgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 2px; }
+.msg { align-self: flex-start; max-width: 80%; display: flex; flex-direction: column; }
+.msg span {
+  background: rgba(127, 127, 127, 0.14); border-radius: 14px 14px 14px 4px; padding: 8px 12px; font-size: var(--fs-md);
+  white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text;
+}
+.msg.mine { align-self: flex-end; align-items: flex-end; }
+.msg.mine span { background: var(--accent); color: #fff; border-radius: 14px 14px 4px 14px; }
+.msg time { font-size: 11px; color: var(--muted); margin: 2px 6px 0; }
+.older { align-self: center; }
+.hint.center { text-align: center; margin: auto 0; }
+
+/* ============================ Khác */
+.seg.col { flex-direction: column; }
+.link { color: var(--accent); font-size: var(--fs-sm); align-self: flex-start; text-decoration: none; }
+.link:hover { text-decoration: underline; }
+.link[hidden], #auth-form.register .login-only { display: none; }
+.step2 { display: flex; flex-direction: column; gap: 12px; }
+.step2[hidden], .field[hidden] { display: none; }
+#account-dlg { width: min(460px, calc(100% - 16px)); }
+#account-dlg .card .primary { align-self: flex-start; }
+.dlg-invites { display: flex; flex-direction: column; gap: 6px; }
+.dlg-invites[hidden] { display: none; }
+.dlg-invites .invite { width: 100%; box-shadow: none; }
+/* Chừa chỗ cho nút chat ở góc phải khi đang trong phòng */
+@media (max-width: 560px) { body.online .toasts { padding: 0 68px; } }

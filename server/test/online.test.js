@@ -481,6 +481,7 @@ test('xin hoà: đồng ý thì hoà, từ chối thì báo lại, đánh tiếp
   await x.req({ t: 'drawAnswer', accept: true }, 'room', (m) => m.room.winner === 3);
   assert.strictEqual(x.room.reason, 'draw');
   assert.deepStrictEqual(Object.values(x.room.score), [0, 0]);
+  if (a.me.stats.draws !== 1) await a.wait('me', (m) => m.me.stats.draws === 1); // cập nhật ngay, không cần tải lại
   const a2 = await Client.open({ token: a.token });
   assert.deepStrictEqual(a2.me.stats, { wins: 0, losses: 0, draws: 1 });
   assert.strictEqual(a2.me.rating, 1200, 'hai người cùng 1200 hoà thì giữ nguyên');

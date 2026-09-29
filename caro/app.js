@@ -29,6 +29,7 @@
     thinking: false,
     lastPlacedAt: 0,
     online: null, // { room, me, side } khi đang chơi online
+    replay: null, // { data, idx, timer } khi đang xem lại một ván đã lưu
     timeLimit: 0, // giây mỗi nước khi chơi offline, 0 = không giới hạn
     allowUndo: true, // cho phép "Đi lại" khi chơi offline
     winReason: null, // 'time' khi thắng vì đối phương hết giờ
@@ -57,7 +58,7 @@
     } catch (e) { /* bỏ qua dữ liệu hỏng */ }
   }
   function save() {
-    if (state.online) return; // ván online do máy chủ giữ, không ghi đè ván cục bộ
+    if (state.online || state.replay) return; // ván online / xem lại: không ghi đè ván cục bộ
     try {
       localStorage.setItem(STORE, JSON.stringify({
         mode: state.mode, human: state.human, level: state.level,
@@ -102,7 +103,7 @@
     resetClock();
   }
 
-  const isAITurn = () => !state.online && state.mode === 'ai' && !state.winner && state.turn !== state.human;
+  const isAITurn = () => !state.online && !state.replay && state.mode === 'ai' && !state.winner && state.turn !== state.human;
 
   // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
   // Trình duyệt không hỗ trợ (vd. mở file trực tiếp) thì tính ngay trên luồng chính.
@@ -143,7 +144,7 @@
   }
 
   function undo() {
-    if (state.thinking || state.online || !state.allowUndo) return;
+    if (state.thinking || state.online || state.replay || !state.allowUndo) return;
     const b = state.board;
     if (state.winReason === 'time') {
       // Thua vì hết giờ: "Đi lại" chỉ huỷ kết quả, cho đánh tiếp lượt đó.
@@ -176,7 +177,7 @@
   }
 
   function newGame() {
-    if (state.online) return;
+    if (state.online || state.replay) return;
     state.board = new Board();
     state.turn = X;
     state.winner = null;
@@ -200,7 +201,7 @@
   const clockPaused = () => document.hidden || !!document.querySelector('dialog[open]');
 
   function resetClock() {
-    if (state.online) return;
+    if (state.online || state.replay) return;
     const needs = state.timeLimit && !state.winner && !state.thinking && !isAITurn();
     state.clock = needs ? { endsAt: performance.now() + state.timeLimit * 1000, local: true } : null;
     renderClock();
@@ -254,7 +255,7 @@
 
   // Người chơi có được đánh lúc này không.
   function canPlaceNow() {
-    if (state.winner || state.thinking) return false;
+    if (state.winner || state.thinking || state.replay) return false;
     if (!state.online) return !isAITurn();
     const { room, side } = state.online;
     return room.players.length === 2 && !room.seriesWinner && room.turn === side;
@@ -315,6 +316,7 @@
   }
 
   function enterOnline(room, me) {
+    if (state.replay) closeReplay(true);
     if (!state.online) {
       save();
       document.body.classList.add('online');
@@ -328,6 +330,11 @@
     if (!state.online) return;
     state.online = null;
     document.body.classList.remove('online');
+    restoreLocal();
+  }
+
+  /** Quay lại ván chơi trên máy (sau khi rời phòng online hoặc thoát xem lại). */
+  function restoreLocal() {
     state.board = new Board();
     state.turn = X;
     state.winner = null;
@@ -351,6 +358,8 @@
     const t = $('turn');
     if (!opp) {
       t.innerHTML = `${esc(T('waiting_opp'))} <span class="thinking">${esc(T('room_code', { code: room.code }))}</span>`;
+    } else if (room.winner === 3) {
+      t.innerHTML = `🤝 ${esc(T('draw_short'))}`;
     } else if (room.winner) {
       t.innerHTML = room.winner === side ? `${glyph(side)} ${esc(T('you_won_short'))}` : `${glyph(room.winner)} ${esc(T('you_lost_short'))}`;
     } else if (room.turn === side) {
@@ -370,6 +379,7 @@
   function updateUI() {
     const t = $('turn');
     if (state.online) return updateOnlineUI();
+    if (state.replay) return updateReplayUI();
     if (state.winner) {
       t.innerHTML = T('p_wins', { p: glyph(state.winner) });
     } else {
@@ -382,6 +392,110 @@
     $('btn-undo').hidden = !state.allowUndo;
     $('btn-undo').disabled = !state.board.moves.length || state.thinking;
   }
+
+  // ------------------------------------------------------------ Xem lại ván đã lưu
+  /** data: { share, x, o, winner, reason, moves: [[x, y], ...] } (từ máy chủ). */
+  function openReplay(data) {
+    if (state.online) return false;
+    if (!state.replay) save();
+    stopReplay();
+    state.replay = { data, idx: 0, timer: 0 };
+    state.thinking = false;
+    state.pending = null;
+    state.clock = null;
+    renderClock();
+    hideBanner();
+    document.body.classList.add('replay');
+    seekReplay(data.moves.length, true);
+    // Khung nhìn vừa đủ toàn bộ quân cờ
+    const xs = data.moves.map((m) => m[0]), ys = data.moves.map((m) => m[1]);
+    if (xs.length) {
+      const w = Math.max(...xs) - Math.min(...xs) + 4, h = Math.max(...ys) - Math.min(...ys) + 4;
+      const size = Math.max(MIN_SIZE, Math.min(48, (W - 24) / w, (H - 160) / h));
+      animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2, size);
+    }
+    return true;
+  }
+
+  function seekReplay(i, quiet) {
+    const r = state.replay;
+    if (!r) return;
+    const moves = r.data.moves;
+    i = Math.max(0, Math.min(moves.length, i));
+    const forward = i === r.idx + 1;
+    r.idx = i;
+    const b = new Board();
+    for (let k = 0; k < i; k++) b.play(moves[k][0], moves[k][1], k % 2 ? O : X);
+    state.board = b;
+    state.turn = i % 2 ? O : X;
+    state.winner = null;
+    state.winCells = null;
+    const last = b.moves[b.moves.length - 1];
+    if (i === moves.length && r.data.reason === 'win' && last) {
+      state.winCells = checkWin(b, last.x, last.y, last.p);
+      state.winAt = performance.now();
+    }
+    if (last && !quiet) {
+      state.lastPlacedAt = forward ? performance.now() : 0;
+      if (forward) { sfx(last.p === X ? 'placeX' : 'placeO'); ensureVisible(last.x, last.y); }
+    }
+    if (i === moves.length) stopReplay();
+    updateUI();
+    requestDraw();
+  }
+
+  function stopReplay() {
+    const r = state.replay;
+    if (r && r.timer) { clearInterval(r.timer); r.timer = 0; }
+    renderReplayPlay();
+  }
+
+  function toggleReplayPlay() {
+    const r = state.replay;
+    if (!r) return;
+    if (r.timer) return stopReplay();
+    if (r.idx >= r.data.moves.length) seekReplay(0, true);
+    r.timer = setInterval(() => seekReplay(r.idx + 1), 700);
+    renderReplayPlay();
+  }
+
+  function renderReplayPlay() {
+    const playing = !!(state.replay && state.replay.timer);
+    $('rp-play-ico').textContent = playing ? '⏸' : '▶';
+    $('rp-play-label').textContent = T(playing ? 'rp_pause' : 'rp_play');
+  }
+
+  function closeReplay(silent) {
+    if (!state.replay) return;
+    stopReplay();
+    state.replay = null;
+    document.body.classList.remove('replay');
+    if (silent) return; // sắp vào phòng online: không cần dựng lại ván cục bộ
+    restoreLocal();
+  }
+
+  function updateReplayUI() {
+    const { data, idx } = state.replay;
+    const n = data.moves.length;
+    const who = (p, name) => `${glyph(p)} <span class="name" title="${esc(name)}">${esc(name)}</span>`;
+    $('turn').innerHTML = `${who(X, data.x)} <span class="thinking">–</span> ${who(O, data.o)}`;
+    let result = '';
+    if (idx === n) {
+      result = data.winner === 3 ? T('draw_short') : T('replay_wins', { name: data.winner === X ? data.x : data.o });
+      if (data.reason && !['win', 'draw'].includes(data.reason)) result += ' · ' + T('end_' + data.reason);
+    }
+    $('score').innerHTML = `${idx}/${n}` + (result ? ` · ${esc(result)}` : '');
+    $('rp-first').disabled = $('rp-prev').disabled = idx === 0;
+    $('rp-next').disabled = idx === n;
+    renderReplayPlay();
+  }
+
+  $('rp-first').onclick = () => { stopReplay(); seekReplay(0, true); };
+  $('rp-prev').onclick = () => { stopReplay(); seekReplay(state.replay.idx - 1, true); };
+  $('rp-next').onclick = () => { stopReplay(); seekReplay(state.replay.idx + 1); };
+  $('rp-play').onclick = toggleReplayPlay;
+  $('rp-close').onclick = () => closeReplay();
+  $('rp-share').onclick = () => net() && net().shareReplay(state.replay.data);
 
   function showBanner() {
     if (!state.winner) return;
@@ -748,6 +862,13 @@
     const step = 3;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (state.replay) {
+      // Xem lại: ← → từng nước, Home/End về đầu/cuối, Space phát/dừng, Esc thoát.
+      const r = state.replay;
+      const act = { ArrowLeft: () => seekReplay(r.idx - 1, true), ArrowRight: () => seekReplay(r.idx + 1),
+        Home: () => seekReplay(0, true), End: () => seekReplay(r.data.moves.length, true), ' ': toggleReplayPlay, Escape: () => closeReplay() }[e.key];
+      if (act) { e.preventDefault(); if (e.key !== ' ') stopReplay(); act(); return; }
+    }
     switch (e.key) {
       case 'ArrowLeft': cam.x -= step; break;
       case 'ArrowRight': cam.x += step; break;
@@ -756,7 +877,7 @@
       case '+': case '=': zoomAt(W / 2, H / 2, cam.size * 1.2); return;
       case '-': case '_': zoomAt(W / 2, H / 2, cam.size / 1.2); return;
       case 'c': case 'C': centerView(); return;
-      case 'n': case 'N': openNewGame(); return;
+      case 'n': case 'N': if (!state.replay) openNewGame(); return;
       default: return;
     }
     requestDraw();
@@ -843,6 +964,9 @@
     leaveOnline,
     resync: () => { if (state.online) applyRoom(state.online.room, state.online.me); },
     get online() { return state.online; },
+    get replay() { return state.replay; },
+    openReplay,
+    closeReplay,
     hideBanner,
     esc,
   };
