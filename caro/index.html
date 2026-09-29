@@ -56,7 +56,7 @@
 
   <dialog id="settings">
     <form method="dialog" id="settings-form">
-      <h2 data-i18n="settings"></h2>
+      <h2 data-i18n="settings" tabindex="-1" autofocus></h2>
 
       <fieldset>
         <legend data-i18n="mode"></legend>
@@ -123,6 +123,8 @@
         <button type="button" id="reset-score" class="ghost" data-i18n="reset_score"></button>
         <button value="ok" class="primary" data-i18n="done"></button>
       </div>
+
+      <p class="credit"><span class="credit-mark" aria-hidden="true">✦</span> Designed by <span class="credit-name">Dawn</span> <span class="credit-mark" aria-hidden="true">✦</span></p>
     </form>
   </dialog>
 
@@ -130,7 +132,7 @@
   <dialog id="online">
     <div class="dlg">
       <div class="dlg-head">
-        <h2 data-i18n="online_title"></h2>
+        <h2 data-i18n="online_title" tabindex="-1" autofocus></h2>
         <span class="conn" id="conn"></span>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
@@ -142,7 +144,7 @@
           <label><input type="radio" name="room-side" value="second"> <span data-i18n="me_second"></span></label>
         </div>
         <div class="seg" role="group" data-i18n-aria="time_limit">
-          <label><input type="radio" name="room-time" value="0" checked> ⏱ <span data-i18n="time_off"></span></label>
+          <label><input type="radio" name="room-time" value="0" checked> <span data-i18n="time_off"></span></label>
           <label><input type="radio" name="room-time" value="10"> <span data-i18n-n="10"></span></label>
           <label><input type="radio" name="room-time" value="20"> <span data-i18n-n="20"></span></label>
           <label><input type="radio" name="room-time" value="30"> <span data-i18n-n="30"></span></label>
