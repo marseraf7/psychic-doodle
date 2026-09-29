@@ -191,6 +191,7 @@ form.pvp .ai-only { display: none; }
 /* ============================================================ Online */
 .online-only { display: none !important; }
 body.online .online-only { display: flex !important; }
+body.no-online #btn-online { display: none; }
 body.online .local-only { display: none !important; }
 .banner-actions .online-only, .banner-actions .local-only { display: inline-block; }
 body.online .banner-actions .online-only { display: inline-block !important; }
