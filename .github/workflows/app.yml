@@ -59,7 +59,8 @@ jobs:
         run: |
           APK=app/android/app/build/outputs/apk/debug/app-debug.apk
           ls -la app/android/app/build/outputs/apk/*/ app/android/app/build/outputs/bundle/release/
-          "$ANDROID_HOME"/build-tools/*/aapt dump badging "$APK" | head -5
+          AAPT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt"
+          "$AAPT" dump badging "$APK" | grep -E "^(package|sdkVersion|targetSdkVersion|application-label):"
           unzip -l "$APK" | grep -E "assets/public/(index.html|config.js|native.js|vendor/capacitor.js)"
           unzip -p "$APK" assets/public/config.js
       - uses: actions/upload-artifact@v4
@@ -138,6 +139,7 @@ jobs:
   ios:
     name: iOS – dựng cho máy ảo + mở thử
     runs-on: macos-latest
+    timeout-minutes: 40
     env:
       CARO_SERVER_URL: ${{ vars.CARO_SERVER_URL }}
     steps:
@@ -160,17 +162,23 @@ jobs:
           test -d build/Build/Products/Debug-iphonesimulator/App.app
       - name: Mở app trên iPhone ảo và chụp màn hình
         working-directory: app/ios/App
+        timeout-minutes: 12
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
           echo "Simulator: $UDID"
-          xcrun simctl boot "$UDID"
-          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl boot "$UDID" || true
+          # Chờ máy ảo khởi động xong (tối đa ~4 phút), không dùng bootstatus vì có thể treo
+          for i in $(seq 1 120); do
+            if xcrun simctl list devices | grep "$UDID" | grep -q Booted; then echo "Booted sau ${i}x2 giây"; break; fi
+            sleep 2
+          done
+          xcrun simctl list devices | grep "$UDID"
           xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/App.app
           xcrun simctl launch "$UDID" io.github.marseraf7.caro
-          sleep 20
+          sleep 25
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/ios-launch.png"
           # App phải vẫn đang chạy (không bị thoát do lỗi)
-          xcrun simctl spawn "$UDID" launchctl list | grep -q io.github.marseraf7.caro
+          xcrun simctl spawn "$UDID" launchctl list | grep io.github.marseraf7.caro
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -42,11 +42,20 @@
 
   // ------------------------------------------------------------ Nút Back (Android)
   if (P.App && platform === 'android') {
+    // Ghi lại thứ tự mở hộp thoại để Back luôn đóng hộp thoại mở sau cùng (nằm trên cùng)
+    let seq = 0;
+    const showModal = window.HTMLDialogElement && HTMLDialogElement.prototype.showModal;
+    if (showModal) {
+      HTMLDialogElement.prototype.showModal = function () {
+        this.dataset.openedAt = String(++seq);
+        return showModal.apply(this, arguments);
+      };
+    }
     P.App.addListener('backButton', () => {
       const menu = document.getElementById('quick-menu');
       if (menu && !menu.hidden) { menu.hidden = true; return; }
-      // Hộp thoại mở sau cùng nằm cuối trong DOM của top layer: đóng cái trên cùng trước
-      const open = [...document.querySelectorAll('dialog[open]')];
+      const open = [...document.querySelectorAll('dialog[open]')]
+        .sort((a, b) => Number(a.dataset.openedAt || 0) - Number(b.dataset.openedAt || 0));
       if (open.length) {
         const d = open[open.length - 1];
         if (d.close) d.close(); else d.removeAttribute('open');

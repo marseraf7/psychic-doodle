@@ -96,10 +96,17 @@ const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
   await sleep(600); // camera về giữa bàn cờ
 
   // Chạm thật vào giữa bàn cờ trên điện thoại = ô (0, 0). Màn hình cảm ứng mặc định "chạm 2 lần để đánh".
+  // Chạm cảm ứng thật qua Chrome DevTools (Input.dispatchTouchEvent → pointer "touch" trong WebView)
   const box = await app.evaluate(() => { const r = document.getElementById('board').getBoundingClientRect(); return { x: r.width / 2, y: r.height / 2 }; });
-  await app.touchscreen.tap(box.x, box.y);
-  await sleep(300);
-  await app.touchscreen.tap(box.x, box.y);
+  const cdp = await app.context().newCDPSession(app);
+  const touch = async (x, y) => {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    await sleep(60);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  };
+  await touch(box.x, box.y);
+  await sleep(400);
+  if (!(await web.evaluate(() => window.CaroOnline.state.room.moves.length))) await touch(box.x, box.y); // chạm lần 2 để xác nhận
   check('chạm trên app → web thấy nước đi (0,0)', !!(await until(() => web.evaluate(() => {
     const r = window.CaroOnline.state.room; return r && r.moves.length === 1 && r.moves[0][0] === 0 && r.moves[0][1] === 0;
   }))));
