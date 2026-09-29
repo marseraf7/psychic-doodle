@@ -39,7 +39,7 @@ TEN_MODEL = {"whisper": "whisper-large-v3",
              "pyannote": "pyannote-community-1",
              "cam_xuc": "emotion2vec_plus_large"}
 PHIEN_BAN_DU_LIEU = 1
-PHIEN_BAN_GAN_NGUOI_NOI = 2   # tăng khi đổi cách ghép từ với người nói -> bước 3-4 tự chạy lại
+PHIEN_BAN_GAN_NGUOI_NOI = 3   # tăng khi đổi cách ghép từ với người nói -> bước 3-4 tự chạy lại
 
 
 # =====================================================================

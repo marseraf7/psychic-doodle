@@ -98,11 +98,12 @@ def gan_nguoi_noi(tu_list, doan_nguoi_noi, lan_can=1.0):
     return tu_list
 
 
-def _sua_tu_dau_luot(tu_list, doan, phu_toi_thieu=0.5):
+def _sua_tu_dau_luot(tu_list, doan, phu_toi_thieu=0.5, dai_toi_da=0.4):
     """Whisper hay đặt mốc từ đầu câu sau khoảng lặng QUÁ SỚM và kéo dài (~1 giây, phủ lên khoảng lặng),
     nên từ đầu lượt của người mới dính vào cuối đoạn của người trước ("... ủng hộ các kiến nghị này Khắp | nơi").
     Đo trên audio thật: nếu từ nằm ngay trước chỗ đổi người mà phần lớn thời lượng lòi ra SAU đoạn của
-    người được gán -> thực chất là từ đầu lượt của người sau."""
+    người được gán -> thực chất là từ đầu lượt của người sau. Mốc của từ đó cũng sai (quá sớm) nên dời
+    sát vào từ kế tiếp, dài tối đa `dai_toi_da` giây: không bị tách thành đơn vị 1 từ, mốc lượt nói đúng hơn."""
     for k in range(len(tu_list) - 1):
         t, sau = tu_list[k], tu_list[k + 1]
         if sau.nguoi == t.nguoi or sau.nguoi == KHONG_RO or t.ket_thuc <= t.bat_dau:
@@ -113,6 +114,8 @@ def _sua_tu_dau_luot(tu_list, doan, phu_toi_thieu=0.5):
         phu = sum(min(e, t.ket_thuc) - max(s, t.bat_dau) for s, e in cua_minh)
         if phu < phu_toi_thieu * (t.ket_thuc - t.bat_dau) and max(e for _, e in cua_minh) < t.ket_thuc:
             t.nguoi = sau.nguoi
+            dai = min(t.ket_thuc - t.bat_dau, dai_toi_da)
+            t.bat_dau, t.ket_thuc = max(t.bat_dau, sau.bat_dau - dai), max(t.bat_dau, sau.bat_dau - dai) + dai
 
 
 def _ket_thuc_cau(chu):

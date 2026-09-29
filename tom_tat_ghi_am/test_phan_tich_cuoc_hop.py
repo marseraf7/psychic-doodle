@@ -97,6 +97,8 @@ class TestNguoiNoi(unittest.TestCase):
         doan = [(59.8, 61.945, "A"), (64.19, 67.73, "B")]
         NN.gan_nguoi_noi(ds, doan)
         self.assertEqual([t.nguoi for t in ds], ["A", "B", "B"])
+        self.assertEqual((round(ds[1].bat_dau, 2), round(ds[1].ket_thuc, 2)), (63.95, 64.35))   # dời sát "nơi"
+        self.assertEqual(len(NN.chia_don_vi(ds)), 2)   # "Khắp nơi" chung 1 đơn vị
         # Từ cuối nằm gọn trong đoạn của mình thì giữ nguyên
         ds = [tu(61.2, 61.7, " này"), tu(61.7, 61.9, " thôi"), tu(64.35, 64.53, " nơi")]
         NN.gan_nguoi_noi(ds, doan)
