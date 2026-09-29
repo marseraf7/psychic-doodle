@@ -8,8 +8,11 @@
     "start": "node server.js",
     "test": "node --test test/*.test.js"
   },
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "dependencies": {
+    "nodemailer": "^10.0.12",
     "ws": "^8.18.0"
   }
 }

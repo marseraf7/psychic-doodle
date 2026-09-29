@@ -9,6 +9,7 @@ const Caro = require('../../caro/rules.js');
 const { E } = require('./msg.js');
 
 const { X, O } = Caro;
+const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
 const COORD_LIMIT = 1_000_000;
 
 class Room {
@@ -36,10 +37,11 @@ class Room {
   resetBoard() {
     this.board = new Caro.Board();
     this.turn = X;
-    this.winner = null; // X | O
+    this.winner = null; // X | O | DRAW
     this.winCells = null;
-    this.reason = null; // 'win' | 'resign' | 'leave' | 'timeout' (mất kết nối) | 'time' (hết giờ)
+    this.reason = null; // 'win' | 'resign' | 'leave' | 'timeout' (mất kết nối) | 'time' (hết giờ) | 'draw'
     this.turnEndsAt = null;
+    this.drawOffer = null; // id người đang xin hoà
   }
 
   /** Bắt đầu tính giờ cho lượt hiện tại (nếu phòng có giới hạn thời gian). */
@@ -102,6 +104,8 @@ class Room {
     }
     if (this.board.get(x, y) !== Caro.EMPTY) throw E('cell_taken');
     this.board.play(x, y, side);
+    // Đối thủ đánh tiếp thay vì trả lời = từ chối lời xin hoà.
+    if (this.drawOffer && this.drawOffer !== id) this.drawOffer = null;
     this.touch();
     const cells = Caro.checkWin(this.board, x, y, side);
     if (cells) {
@@ -119,11 +123,28 @@ class Room {
     this.finish(Caro.other(side), 'resign');
   }
 
+  /** Xin hoà. Trả về true nếu thành hoà ngay (đối thủ cũng đang xin hoà). */
+  offerDraw(id) {
+    if (!this.sideOf(id) || !this.active) throw E('cannot_draw');
+    if (this.drawOffer && this.drawOffer !== id) { this.finish(DRAW, 'draw'); return true; }
+    this.drawOffer = id;
+    return false;
+  }
+
+  /** Trả lời lời xin hoà của đối thủ. */
+  answerDraw(id, accept) {
+    if (!this.drawOffer || this.drawOffer === id || !this.active) throw E('no_draw_offer');
+    if (accept) this.finish(DRAW, 'draw');
+    else this.drawOffer = null;
+    return accept;
+  }
+
   finish(winnerSide, reason) {
     this.winner = winnerSide;
     this.reason = reason;
     this.turnEndsAt = null;
-    const wid = this.seats[winnerSide];
+    this.drawOffer = null;
+    const wid = winnerSide === DRAW ? null : this.seats[winnerSide];
     if (wid) this.score[wid] = (this.score[wid] || 0) + 1;
     if (this.kind === 'series' && wid && this.score[wid] >= this.needWins) this.seriesWinner = wid;
     this.rematch.clear();
@@ -180,8 +201,9 @@ class Room {
       gameNo: this.gameNo,
       rematch: [...this.rematch],
       seriesWinner: this.seriesWinner,
+      drawOffer: this.drawOffer,
     };
   }
 }
 
-module.exports = { Room };
+module.exports = { Room, DRAW };

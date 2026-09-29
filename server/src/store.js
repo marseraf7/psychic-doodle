@@ -76,7 +76,7 @@ class Store {
       gameRefs: q('SELECT COUNT(*) AS n FROM user_games WHERE game_id = ?'),
       dropGame: q('DELETE FROM games WHERE id = ?'),
       history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
-        length(g.moves) AS len FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? ORDER BY g.id DESC LIMIT ?`),
+        json_array_length(g.moves) AS moves FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? ORDER BY g.id DESC LIMIT ?`),
       gameByShare: q('SELECT * FROM games WHERE share = ?'),
       getH2h: q('SELECT a_wins, b_wins, draws FROM h2h WHERE a = ? AND b = ?'),
       addH2h: q(`INSERT INTO h2h (a, b, a_wins, b_wins, draws) VALUES (?, ?, ?, ?, ?)
