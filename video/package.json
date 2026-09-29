@@ -1,0 +1,23 @@
+{
+  "name": "video-doan-hoi-nga",
+  "private": true,
+  "description": "Video sơ đồ tổ chức Đoàn – Hội Sinh viên Việt Nam tại LB Nga (Remotion)",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render SoDoToChuc out/so-do-to-chuc.mp4",
+    "still": "remotion still SoDoToChuc out/khung-hinh.png --frame=300",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fontsource/be-vietnam-pro": "^5.2.5",
+    "@remotion/cli": "4.0.529",
+    "@remotion/paths": "4.0.529",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}
