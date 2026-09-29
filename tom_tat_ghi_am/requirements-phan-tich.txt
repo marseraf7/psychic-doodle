@@ -1,0 +1,8 @@
+# Cài PyTorch bản CUDA TRƯỚC (cai_dat.bat làm việc này), rồi mới cài file này.
+faster-whisper>=1.1
+pyannote.audio>=4.0
+funasr>=1.2
+librosa>=0.10
+huggingface_hub>=0.30
+anthropic>=1.9
+numpy

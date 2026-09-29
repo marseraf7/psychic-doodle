@@ -1,4 +1,109 @@
-# Tóm tắt file ghi âm / cuộc họp (tiếng Việt, tiếng Anh, tiếng Nga)
+# Công cụ xử lý file ghi âm / cuộc họp (tiếng Việt, tiếng Anh, tiếng Nga)
+
+Thư mục này có **hai công cụ**:
+
+| | `phan_tich_cuoc_hop.py` — **phân tích đầy đủ** | `tom_tat_ghi_am.py` — tóm tắt nhanh |
+|---|---|---|
+| Dùng cho | Họp dài (tới vài giờ), nội dung **mật** | Ghi âm ngắn, không mật |
+| Máy cần | Card NVIDIA (khuyến nghị 24GB VRAM) | Máy bất kỳ |
+| Phân biệt người nói | Có (ai nói gì, ai ngắt lời ai) | Không |
+| Ngữ điệu, cảm xúc, thái độ | Có | Không |
+| Viết biên bản | AI chạy trên máy (Qwen). Claude chỉ khi bạn bật | Claude (cần API key), hoặc trích câu |
+| Mạng khi chạy | **Bị chặn hoàn toàn** | Gửi văn bản lên Claude |
+
+---
+
+# Phân tích cuộc họp đầy đủ — 100% offline (`phan_tich_cuoc_hop.py`)
+
+## Làm được gì
+
+Với mỗi file ghi âm, công cụ tạo 4 file trong `ket_qua_phan_tich/`:
+
+| File | Nội dung |
+|---|---|
+| `<tên>_bien_ban.md` | **Biên bản**: bảng thống kê từng người (thời gian nói, số lượt, tốc độ, ngắt lời, cảm xúc nổi bật), các thời điểm căng thẳng, rồi biên bản do AI viết: tổng quan, nội dung theo chủ đề, quyết định, việc cần làm, **quan điểm và thái độ của từng người kèm dẫn chứng mốc thời gian**, bất đồng, vấn đề bỏ ngỏ |
+| `<tên>_van_ban.txt` | Bản chép lời đầy đủ: `[0:12:03] Người nói 2 [[giận dữ 0.71; nói to]]: ...` |
+| `<tên>_phu_de.srt` | Phụ đề có tên người nói, mở kèm file ghi âm trong VLC để nghe lại |
+| `<tên>_phan_tich.json` | Dữ liệu trung gian. Giúp chạy lại mà không phải xử lý lại audio |
+
+Các bước xử lý:
+
+1. **Chép lời**: Whisper large-v3, có mốc thời gian từng từ.
+2. **Tách người nói**: pyannote community-1.
+3. **Ngữ điệu**: đo âm lượng, cao độ và tốc độ nói, rồi so với **mức bình thường của chính người đó**. Người vốn nói to sẽ không bị gắn nhãn "nói to" suốt buổi.
+4. **Cảm xúc qua giọng**: emotion2vec+ large.
+5. **Biên bản**: Qwen3.8 27B chạy trên máy qua Ollama.
+
+## Thời gian xử lý (ước tính, chưa đo thực tế)
+
+Với file 3 giờ trên card 24GB (RTX 3090/4090): chép lời khoảng 10–15 phút, tách người nói 3–5 phút, cảm xúc và ngữ điệu 5–10 phút, AI viết biên bản 10–20 phút. **Tổng cộng khoảng 30–50 phút.**
+
+Mỗi bước xong đều được lưu lại. Nếu bị ngắt giữa chừng, chạy lại sẽ làm tiếp từ bước dở. Đặt tên thật cho người nói rồi chạy lại chỉ mất thời gian AI viết lại biên bản.
+
+## Cài đặt (Windows, làm 1 lần, cần mạng)
+
+1. Cài **driver NVIDIA** mới nhất và **Python 3.10–3.13** (nhớ tick "Add python.exe to PATH").
+2. Cài **Ollama**: https://ollama.com/download
+3. **Token HuggingFace** (miễn phí):
+   - Đăng ký tài khoản tại https://huggingface.co.
+   - Mở https://huggingface.co/pyannote/speaker-diarization-community-1, điền thông tin và bấm đồng ý điều khoản.
+   - Tạo token loại **Read** tại https://huggingface.co/settings/tokens.
+4. Chạy **`cai_dat.bat`**. File này làm lần lượt:
+   - tạo môi trường `.venv`;
+   - cài PyTorch bản GPU và các thư viện;
+   - hỏi token HuggingFace (không hiện trên màn hình);
+   - tải khoảng 5GB model vào `models/` và 18GB model Qwen qua Ollama;
+   - **tự kiểm tra nạp lại mọi model khi đã cắt mạng**.
+
+## Sử dụng
+
+Kéo thả file ghi âm vào **`chay_phan_tich.bat`**. Hoặc dùng dòng lệnh:
+
+```bat
+.venv\Scripts\python phan_tich_cuoc_hop.py hop.m4a --so-nguoi 5
+.venv\Scripts\python phan_tich_cuoc_hop.py hop.m4a --ten "Người nói 1=Anh Nam" --ten "Người nói 2=Chị Lan"
+```
+
+| Tùy chọn | Ý nghĩa |
+|---|---|
+| `--so-nguoi N` | Số người nói, nếu biết chắc. Tách người nói **chính xác hơn nhiều** khi có thông tin này. Có thể dùng `--it-nhat` / `--nhieu-nhat` nếu chỉ biết khoảng. |
+| `--ten "Người nói 1=Anh Nam"` | Đặt tên thật cho người nói. Nghe vài câu trong `_van_ban.txt` để biết ai là ai, rồi chạy lại. |
+| `--ngon-ngu vi\|en\|ru\|tron` | Chỉ định ngôn ngữ nói (mặc định tự nhận diện). |
+| `--tom-tat-bang vi\|en\|ru` | Ngôn ngữ viết biên bản. |
+| `--llm qwen3.6:35b-a3b` | Đổi model AI viết biên bản. Bản này nhanh hơn nhưng kém hơn một chút. |
+| `--llm-suy-nghi` | Cho AI suy nghĩ kỹ trước khi viết. Tốt hơn nhưng chậm hơn nhiều. |
+| `--nguong-cam-xuc 0.7` | Chỉ gắn nhãn cảm xúc khi máy tin chắc hơn mức này (mặc định 0.6). |
+| `--khong-cam-xuc` | Bỏ bước dự đoán cảm xúc. |
+| `--dung-claude` | **Gửi văn bản** (không gửi audio) lên Claude để viết biên bản tốt hơn. **Không dùng cho nội dung mật.** |
+| `--lam-lai` | Xử lý lại từ đầu. |
+
+## Bảo mật
+
+- **Mạng bị chặn khi chạy.** Mọi kết nối ra ngoài máy đều bị chương trình từ chối, kể cả kết nối qua proxy hay VPN đang chạy trên máy. Kết nối tới Ollama trên chính máy đó vẫn được phép. Cuối mỗi lần chạy, chương trình báo nếu có thư viện nào thử kết nối ra ngoài.
+- **Đã tắt các tính năng tự gửi dữ liệu của thư viện:**
+  - pyannote 4 **mặc định gửi thống kê** (tên model, thời lượng audio) về `otel.pyannote.ai`;
+  - funasr mặc định hỏi pypi.org xem có phiên bản mới;
+  - HuggingFace có telemetry riêng.
+- **Giới hạn:** lớp chặn nằm trong Python, nên không chặn được phần mềm khác trên máy, kể cả chính Ollama (ứng dụng Ollama tự kiểm tra bản cập nhật). **Bảo mật tuyệt đối = rút cáp mạng / tắt Wi-Fi khi xử lý**, hoặc dùng máy không bao giờ nối mạng.
+
+### Máy không bao giờ nối mạng
+
+1. Làm phần Cài đặt trên một máy có mạng, **cùng phiên bản Windows và Python** với máy offline.
+2. Chép sang máy offline bằng USB: cả thư mục công cụ (gồm `.venv` và `models/`), bộ cài Ollama, và thư mục `%USERPROFILE%\.ollama\models`.
+3. Trên máy offline, chạy `.venv\Scripts\python tai_model.py --kiem-tra` để xác nhận mọi thứ chạy được.
+
+`.venv` gắn với đường dẫn tuyệt đối, nên hãy chép vào **đúng đường dẫn** như trên máy cài đặt. Nếu không được thì cài lại bằng `pip download` / `pip install --no-index`.
+
+## Độ tin cậy — đọc trước khi dùng kết quả
+
+- **Cảm xúc là dự đoán, không phải sự thật.** emotion2vec học chủ yếu từ giọng tiếng Anh/Trung do diễn viên đọc, nên độ chính xác với tiếng Việt trong họp thật thấp hơn nhiều. Dùng nhãn cảm xúc để **biết đoạn nào nên nghe lại**. Không dùng làm kết luận về một người.
+- **Tiếng Việt có thanh điệu**, nên cao độ thay đổi theo từng từ. Công cụ chỉ gắn nhãn "giọng cao" khi lệch rõ (≥ 3 nửa cung) so với mức thường của người đó.
+- **Tách người nói** dễ nhầm khi giọng giống nhau, nhiều người nói chồng lên nhau, hoặc micro xa. Lời chen ngắn ở chỗ chuyển lượt có thể bị gán nhầm người.
+- **Nhận định thái độ** của AI dựa vào lời lẽ cùng các nhãn trên. Biên bản luôn kèm mốc thời gian để bạn kiểm chứng.
+
+---
+
+# Tóm tắt nhanh (`tom_tat_ghi_am.py`)
 
 Công cụ chuyển file ghi âm thành văn bản rồi tóm tắt nội dung cuộc họp.
 
@@ -76,7 +181,7 @@ python tom_tat_ghi_am.py bien_ban.txt                         # tóm tắt văn 
 ## Kiểm thử
 
 ```bash
-python -m unittest test_tom_tat_ghi_am -v
+python -m unittest test_tom_tat_ghi_am test_phan_tich_cuoc_hop -v
 ```
 
 Bộ kiểm thử không cần mạng và không cần model thật, vì đã dùng model nhận dạng giả và máy chủ API giả.

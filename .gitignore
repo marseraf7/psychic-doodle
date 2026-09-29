@@ -9,3 +9,6 @@ __pycache__/
 # Cong cu tom tat ghi am
 anthropic_api_key.txt
 ket_qua_tom_tat/
+ket_qua_phan_tich/
+.venv/
+tom_tat_ghi_am/models/

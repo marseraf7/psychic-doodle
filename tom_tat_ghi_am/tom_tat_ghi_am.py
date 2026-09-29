@@ -110,11 +110,12 @@ def ten_goc(duong_dan):
 # =====================================================================
 class Doan:
     """Một đoạn lời nói đã nhận dạng."""
-    __slots__ = ("bat_dau", "ket_thuc", "noi_dung", "ngon_ngu")
+    __slots__ = ("bat_dau", "ket_thuc", "noi_dung", "ngon_ngu", "tu")
 
-    def __init__(self, bat_dau, ket_thuc, noi_dung, ngon_ngu=None):
+    def __init__(self, bat_dau, ket_thuc, noi_dung, ngon_ngu=None, tu=None):
         self.bat_dau, self.ket_thuc = float(bat_dau), float(ket_thuc)
         self.noi_dung, self.ngon_ngu = norm(noi_dung), ngon_ngu
+        self.tu = tu or []   # [(bat_dau, ket_thuc, chữ)] khi nhận dạng có mốc từng từ
 
     def __repr__(self):
         return f"Doan({self.bat_dau:.1f}-{self.ket_thuc:.1f}, {self.ngon_ngu}, {self.noi_dung!r})"
@@ -133,9 +134,11 @@ def nap_model_whisper(ten_model, thiet_bi="cpu"):
                         cpu_threads=os.cpu_count() or 4)
 
 
-def nhan_dang(model, duong_dan, che_do="auto", in_tien_do=True):
-    """Trả về (danh sách Doan, mã ngôn ngữ chính, thời lượng giây)."""
-    tham_so = dict(beam_size=5, vad_filter=True,
+def nhan_dang(model, duong_dan, che_do="auto", in_tien_do=True, moc_tung_tu=False):
+    """Trả về (danh sách Doan, mã ngôn ngữ chính, thời lượng giây).
+    duong_dan có thể là đường dẫn file hoặc mảng audio 16kHz đã giải mã.
+    moc_tung_tu=True: lấy thêm mốc thời gian từng từ (để ghép với người nói)."""
+    tham_so = dict(beam_size=5, vad_filter=True, word_timestamps=moc_tung_tu,
                    vad_parameters={"min_silence_duration_ms": 500},
                    condition_on_previous_text=False)  # tránh lặp câu vô hạn ở đoạn ồn
     if che_do in NGON_NGU:
@@ -169,7 +172,8 @@ def nhan_dang(model, duong_dan, che_do="auto", in_tien_do=True):
         if not norm(s.text) or la_ao_giac(s.text):
             continue
         ngon_ngu = doan_ngon_ngu(s.text, ngon_ngu_chinh) if che_do == "tron" else ngon_ngu_chinh
-        ket_qua.append(Doan(s.start, s.end, s.text, ngon_ngu))
+        tu = [(w.start, w.end, w.word) for w in (getattr(s, "words", None) or [])]
+        ket_qua.append(Doan(s.start, s.end, s.text, ngon_ngu, tu))
         if in_tien_do and time.time() - moc_in >= 2:
             moc_in = time.time()
             pt = f"{min(s.end / tong, 1):.0%}" if tong else "?"
@@ -274,7 +278,8 @@ def lay_api_key():
     return None
 
 
-def tom_tat_claude(van_ban, ngon_ngu_ra="vi", ten_file="", do_ky="medium", client=None):
+def tom_tat_claude(van_ban, ngon_ngu_ra="vi", ten_file="", do_ky="medium", client=None,
+                   huong_dan=None):
     """Gọi Claude tóm tắt. Trả về chuỗi Markdown.
     Ném LoiKhongCoKey nếu chưa cấu hình key; lỗi khác ném RuntimeError có thông báo rõ ràng."""
     try:
@@ -288,7 +293,8 @@ def tom_tat_claude(van_ban, ngon_ngu_ra="vi", ten_file="", do_ky="medium", clien
             raise LoiKhongCoKey("chưa có API key (đặt ANTHROPIC_API_KEY hoặc tạo file anthropic_api_key.txt)")
         client = anthropic.Anthropic(api_key=key) if key else anthropic.Anthropic()
 
-    he_thong = HUONG_DAN_TOM_TAT.format(ngon_ngu_ra=NGON_NGU_RA.get(ngon_ngu_ra, ngon_ngu_ra))
+    he_thong = (huong_dan or HUONG_DAN_TOM_TAT).format(
+        ngon_ngu_ra=NGON_NGU_RA.get(ngon_ngu_ra, ngon_ngu_ra))
     tieu_de = f"Tên file: {ten_file}\n\n" if ten_file else ""
     yeu_cau = (f"{tieu_de}<ban_chep_loi>\n{van_ban}\n</ban_chep_loi>\n\n"
                f"Hãy tóm tắt bản chép lời trên theo hướng dẫn.")
