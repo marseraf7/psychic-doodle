@@ -11,7 +11,7 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   tạo phòng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
   thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online.
   Phần online cần chạy máy chủ trong thư mục [`server/`](../server/README.md).
-- Đi lại, lưu ván đang chơi, tỉ số.
+- Đi lại (bật/tắt trong Cài đặt: "Cho phép đi lại"), lưu ván đang chơi, tỉ số.
 - **Thời gian mỗi nước**: không giới hạn / 10 / 20 / 30 giây – hết giờ mà chưa đánh thì thua
   (offline: tạm dừng khi mở Cài đặt; online: máy chủ đếm giờ, người tạo phòng/người thách đấu chọn).
 - **Giao diện** Sáng / Tối / Theo hệ thống.

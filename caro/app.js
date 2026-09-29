@@ -29,6 +29,7 @@
     lastPlacedAt: 0,
     online: null, // { room, me, side } khi đang chơi online
     timeLimit: 0, // giây mỗi nước khi chơi offline, 0 = không giới hạn
+    allowUndo: true, // cho phép "Đi lại" khi chơi offline
     winReason: null, // 'time' khi thắng vì đối phương hết giờ
     clock: null, // { endsAt (performance.now), local } – đồng hồ lượt hiện tại
   };
@@ -47,6 +48,7 @@
         confirm: !!s.confirm,
         score: s.score || state.score,
         timeLimit: TIME_LIMITS.includes(s.timeLimit) ? s.timeLimit : 0,
+        allowUndo: s.allowUndo !== false,
       });
       for (const [x, y] of s.moves || []) placeRaw(x, y);
       if (s.timeout && !state.winner) { state.winner = s.timeout; state.winReason = 'time'; }
@@ -58,7 +60,7 @@
     try {
       localStorage.setItem(STORE, JSON.stringify({
         mode: state.mode, human: state.human, level: state.level,
-        confirm: state.confirm, score: state.score, timeLimit: state.timeLimit,
+        confirm: state.confirm, score: state.score, timeLimit: state.timeLimit, allowUndo: state.allowUndo,
         moves: state.board.moves.map((m) => [m.x, m.y]),
         timeout: state.winReason === 'time' ? state.winner : null,
         cam: { x: cam.x, y: cam.y, size: cam.size },
@@ -115,7 +117,7 @@
   }
 
   function undo() {
-    if (state.thinking || state.online) return;
+    if (state.thinking || state.online || !state.allowUndo) return;
     const b = state.board;
     if (state.winReason === 'time') {
       // Thua vì hết giờ: "Đi lại" chỉ huỷ kết quả, cho đánh tiếp lượt đó.
@@ -343,6 +345,7 @@
         (state.thinking ? ` <span class="thinking">${esc(T('thinking'))}</span>` : '');
     }
     $('score').innerHTML = `<span class="x">X</span> ${state.score[X]} : ${state.score[O]} <span class="o">O</span>`;
+    $('btn-undo').hidden = !state.allowUndo;
     $('btn-undo').disabled = !state.board.moves.length || state.thinking;
   }
 
@@ -732,6 +735,7 @@
     form.human.value = String(state.human);
     form.level.value = String(state.level);
     form.timeLimit.value = String(state.timeLimit);
+    form.allowUndo.value = state.allowUndo ? 'yes' : 'no';
     form.theme.value = window.CaroTheme.get();
     form.elements.lang.value = window.I18N.lang;
     form.confirm.checked = state.confirm;
@@ -747,6 +751,7 @@
     state.human = Number(form.human.value);
     state.level = Number(form.level.value);
     state.timeLimit = Number(form.timeLimit.value) || 0;
+    state.allowUndo = form.allowUndo.value !== 'no';
     state.confirm = form.confirm.checked;
     window.CaroTheme.set(form.theme.value);
     window.I18N.setLang(form.elements.lang.value);

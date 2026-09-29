@@ -1,5 +1,5 @@
 // Lưu toàn bộ game vào bộ nhớ đệm để chơi được cả khi mất mạng.
-const CACHE = 'caro-v4';
+const CACHE = 'caro-v5';
 const FILES = ['./', 'index.html', 'style.css', 'config.js', 'theme.js', 'i18n.js', 'rules.js', 'app.js', 'online.js', 'icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
