@@ -990,7 +990,8 @@
   resetClock();
 
   // Chạy offline (chỉ khi được phục vụ qua http/https).
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  // (Trong ứng dụng điện thoại các file đã nằm sẵn trong app, không cần service worker.)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.CaroNative) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();

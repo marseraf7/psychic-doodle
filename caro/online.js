@@ -219,7 +219,7 @@
           <button type="button" class="ghost sm" data-social="account">⚙ ${esc(T('account_settings'))}</button>
         </div>
         <div class="row">
-          ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : S.googleClientId ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
+          ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : googleAvailable() ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
           <button type="button" class="ghost" id="logout">${esc(T('logout'))}</button>
         </div>
         <div id="google-link-btn"></div>`;
@@ -366,8 +366,8 @@
     f.password.minLength = tab === 'login' ? 1 : 6;
     $('auth-err').textContent = '';
     const gb = $('google-box');
-    gb.hidden = !S.googleClientId;
-    if (S.googleClientId) mountGoogle($('google-btn'));
+    gb.hidden = !googleAvailable();
+    if (googleAvailable()) mountGoogle($('google-btn'));
     openDlg('auth');
   }
   $('auth-form').querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => openAuth(b.dataset.tab); });
@@ -401,12 +401,32 @@
     }
     return gisPromise;
   }
+  // Trong ứng dụng điện thoại: Google chặn đăng nhập trong WebView, nên dùng tài khoản Google
+  // trên máy (native.js) – vẫn gửi đúng ID token như bản web, máy chủ xác minh y hệt.
+  const nativeApp = !!window.CaroNative;
+  const googleAvailable = () => !!S.googleClientId && (!nativeApp || !!window.CaroNative.google);
   function mountGoogle(el) {
+    if (nativeApp) return mountNativeGoogle(el);
     loadGoogle().then((g) => {
       el.innerHTML = '';
       g.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', locale: window.I18N.googleLocale, width: 260 });
     }).catch(() => { el.innerHTML = `<p class="hint">${esc(T('google_load_fail'))}</p>`; });
   }
+  function mountNativeGoogle(el) {
+    el.innerHTML = `<button type="button" class="ghost google-native"><span class="g">G</span> ${esc(T('google_continue'))}</button>`;
+    const b = el.querySelector('button');
+    b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const credential = await window.CaroNative.google.signIn(S.googleClientId);
+        send({ t: 'google', credential });
+      } catch (e) {
+        // Người dùng tự huỷ thì im lặng; lỗi khác thì báo
+        if (!/cancel/i.test(String(e && (e.message || e.code) || e))) toast(T('google_load_fail'));
+      } finally { b.disabled = false; }
+    };
+  }
+
 
   // ------------------------------------------------------------ Phòng
   $('btn-online').onclick = () => { connect(); render(); openDlg('online'); };

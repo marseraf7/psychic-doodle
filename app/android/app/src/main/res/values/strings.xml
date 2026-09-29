@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cờ Caro</string>
+    <string name="title_activity_main">Cờ Caro</string>
+    <string name="package_name">io.github.marseraf7.caro</string>
+    <string name="custom_url_scheme">io.github.marseraf7.caro</string>
+</resources>

@@ -140,6 +140,7 @@
       or: 'hoặc',
       login_ok: 'Đăng nhập thành công',
       google_load_fail: 'Không tải được đăng nhập Google trên mạng này. Hãy dùng tài khoản riêng.',
+      google_continue: 'Tiếp tục với Google',
 
       join_title: 'Vào phòng',
       room_code_label: 'Mã phòng',
@@ -487,6 +488,7 @@
       or: 'or',
       login_ok: 'Logged in',
       google_load_fail: 'Could not load Google sign-in on this network. Please use a regular account.',
+      google_continue: 'Continue with Google',
 
       join_title: 'Join room',
       room_code_label: 'Room code',
@@ -829,6 +831,7 @@
       or: 'или',
       login_ok: 'Вход выполнен',
       google_load_fail: 'Не удалось загрузить вход через Google в этой сети. Используйте обычный аккаунт.',
+      google_continue: 'Продолжить с Google',
 
       join_title: 'Войти в комнату',
       room_code_label: 'Код комнаты',
@@ -1171,6 +1174,7 @@
       or: '或',
       login_ok: '登录成功',
       google_load_fail: '当前网络无法加载 Google 登录，请使用普通账号。',
+      google_continue: '使用 Google 继续',
 
       join_title: '加入房间',
       room_code_label: '房间号',

@@ -522,3 +522,10 @@ body.replay #banner { display: none; }
 .email-status.ok { color: #2fb45a; font-weight: var(--fw-medium); }
 #email-form[hidden] { display: none; }
 #email-verify .row input { flex: 1; min-width: 0; }
+
+/* ============================ Ứng dụng điện thoại */
+.google-native {
+  display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px; font-weight: var(--fw-semibold);
+  color: var(--text); border: 1px solid var(--grid-strong); border-radius: 999px;
+}
+.google-native .g { font-weight: var(--fw-bold); color: #4285f4; }
