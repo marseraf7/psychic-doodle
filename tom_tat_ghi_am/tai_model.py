@@ -46,6 +46,11 @@ def tai(models, token):
         except RepositoryNotFoundError:
             print(f"[LỖI] Không tìm thấy {repo} (token sai hoặc thiếu?).")
             return False
+        except Exception as e:   # mất mạng, tường lửa/proxy chặn huggingface.co, hết dung lượng...
+            print(f"[LỖI] Không tải được {repo}: {type(e).__name__}: {e}\n"
+                  f"      Kiểm tra kết nối mạng, tường lửa/proxy (cần truy cập huggingface.co) "
+                  f"và dung lượng ổ đĩa, rồi chạy lại (phần đã tải sẽ không tải lại).")
+            return False
         print(f"   xong ({kich_thuoc(dich) / 2**30:.1f} GB)")
     return True
 
@@ -66,8 +71,12 @@ def kiem_tra(models, llm):
     import numpy as np
     loi = 0
 
-    def muc(ten, ham):
+    def muc(ten, ham, thu_muc=None):
         nonlocal loi
+        if thu_muc and not os.path.isdir(os.path.join(models, thu_muc)):
+            loi += 1   # báo rõ thay vì để thư viện coi đường dẫn là tên repo và thử tải qua mạng
+            print(f"  [LỖI] {ten}: chưa có thư mục model {os.path.join(models, thu_muc)}")
+            return
         try:
             ham()
             print(f"  [OK]  {ten}")
@@ -97,9 +106,9 @@ def kiem_tra(models, llm):
         llm_cuc_bo.kiem_tra(llm)
 
     print("\n== Kiểm tra nạp model ở CHẾ ĐỘ CẤM MẠNG")
-    muc("Chép lời (Whisper large-v3)", whisper)
-    muc("Tách người nói (pyannote community-1)", pyannote)
-    muc("Cảm xúc (emotion2vec+ large)", cam_xuc)
+    muc("Chép lời (Whisper large-v3)", whisper, "whisper-large-v3")
+    muc("Tách người nói (pyannote community-1)", pyannote, "pyannote-community-1")
+    muc("Cảm xúc (emotion2vec+ large)", cam_xuc, "emotion2vec_plus_large")
     muc(f"AI viết biên bản (Ollama {llm})", ollama)
     try:
         import torch

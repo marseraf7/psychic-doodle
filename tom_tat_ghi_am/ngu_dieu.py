@@ -9,6 +9,7 @@ dao động tự nhiên theo từ; chỉ lệch rõ so với mức thường m�
 Nhãn cảm xúc là DỰ ĐOÁN của máy (emotion2vec chủ yếu học từ giọng Anh/Trung),
 chỉ dùng làm gợi ý để nghe lại, không phải kết luận."""
 import math
+import os
 import statistics
 from collections import defaultdict
 
@@ -125,6 +126,9 @@ def so_sanh_muc_thuong(don_vi_list):
 #  Cảm xúc (emotion2vec qua funasr)
 # ---------------------------------------------------------------------
 def nap_model_cam_xuc(thu_muc_model, thiet_bi):
+    if not os.path.isdir(thu_muc_model):
+        # funasr coi đường dẫn không tồn tại là tên model và thử tải từ modelscope.cn
+        raise RuntimeError(f"Chưa có model cảm xúc tại {thu_muc_model}. Chạy 'python tai_model.py' trước.")
     from funasr import AutoModel
     # disable_update: funasr mặc định hỏi pypi.org xem có bản mới không -> tắt
     # disable_pbar: không in 1 thanh tiến trình cho MỖI đoạn (họp 3 giờ ~ vài nghìn đoạn)

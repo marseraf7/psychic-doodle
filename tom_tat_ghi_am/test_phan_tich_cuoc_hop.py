@@ -552,5 +552,34 @@ class TestToanBo(CoOllamaGia):
         self.assertIn("tai_model.py", out.getvalue())
 
 
+# =====================================================================
+class TestTaiModel(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def test_mat_mang_bao_loi_ro_rang(self):
+        import tai_model
+        with mock.patch("huggingface_hub.snapshot_download", side_effect=OSError("403 Forbidden")), \
+             contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertFalse(tai_model.tai(self.tmp, None))
+        self.assertIn("huggingface.co", out.getvalue())
+
+    def test_kiem_tra_thieu_thu_muc_khong_goi_thu_vien(self):
+        import tai_model
+        with mock.patch.object(chan_mang, "bat"), \
+             mock.patch("llm_cuc_bo.kiem_tra"), \
+             mock.patch.object(ND, "nap_model_cam_xuc") as nap, \
+             contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertFalse(tai_model.kiem_tra(self.tmp, "qwen"))
+        nap.assert_not_called()
+        self.assertEqual(out.getvalue().count("chưa có thư mục model"), 3)
+
+    def test_cam_xuc_thieu_thu_muc(self):
+        with self.assertRaises(RuntimeError) as e:
+            ND.nap_model_cam_xuc(os.path.join(self.tmp, "khong_co"), "cpu")
+        self.assertIn("tai_model.py", str(e.exception))
+
+
 if __name__ == "__main__":
     unittest.main()
