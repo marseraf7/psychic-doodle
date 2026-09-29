@@ -8,6 +8,9 @@ dao động tự nhiên theo từ; chỉ lệch rõ so với mức thường m�
 
 Nhãn cảm xúc là DỰ ĐOÁN của máy (emotion2vec chủ yếu học từ giọng Anh/Trung),
 chỉ dùng làm gợi ý để nghe lại, không phải kết luận."""
+import contextlib
+import io
+import logging
 import math
 import os
 import statistics
@@ -132,8 +135,16 @@ def nap_model_cam_xuc(thu_muc_model, thiet_bi):
     from funasr import AutoModel
     # disable_update: funasr mặc định hỏi pypi.org xem có bản mới không -> tắt
     # disable_pbar: không in 1 thanh tiến trình cho MỖI đoạn (họp 3 giờ ~ vài nghìn đoạn)
-    return AutoModel(model=thu_muc_model, device=thiet_bi, disable_update=True, disable_pbar=True,
-                     log_level="ERROR")
+    # log_level của funasr không có tác dụng khi logging đã được cấu hình (basicConfig bỏ qua), nên khi nạp
+    # nó in ~200 dòng "init param" + "Warning, miss key ... decoder" (bình thường: phần decoder không dùng).
+    goc = logging.getLogger().level
+    logging.getLogger().setLevel(logging.ERROR)
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            return AutoModel(model=thu_muc_model, device=thiet_bi, disable_update=True, disable_pbar=True,
+                             log_level="ERROR")
+    finally:
+        logging.getLogger().setLevel(goc)
 
 
 def _ten_nhan(nhan):
