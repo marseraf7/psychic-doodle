@@ -7,6 +7,7 @@ Bản chép lời 3 giờ quá dài cho 1 lần gọi model 27B trên card 24GB,
 Chỉ dùng thư viện chuẩn; KHÔNG đi qua proxy hệ thống (dữ liệu không rời khỏi máy)."""
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -83,10 +84,21 @@ def chat(model, he_thong, noi_dung, num_ctx=16384, suy_nghi=False, timeout=1800,
                 if goi.get("done_reason") == "length":
                     phan.append("\n\n> ⚠ Bị cắt do vượt giới hạn độ dài.")
                 break
-    kq = "".join(phan).strip()
+    kq = bo_suy_nghi("".join(phan))
     if not kq:
         raise LoiOllama("Model không trả về nội dung.")
     return kq
+
+
+def bo_suy_nghi(van_ban):
+    """Bỏ phần "suy nghĩ" lọt vào nội dung trả lời. Model chỉ-có-chế-độ-suy-nghĩ (vd qwen3:4b bản
+    thinking-2507) bỏ qua think=false: template tự mở <think> nên suy nghĩ + '</think>' nằm trong content."""
+    van_ban = re.sub(r"<think>.*?</think>", "", van_ban, flags=re.S)
+    if "</think>" in van_ban:   # thẻ mở nằm trong template, chỉ thấy thẻ đóng
+        van_ban = van_ban.rsplit("</think>", 1)[1]
+    if "<think>" in van_ban:    # bị cắt giữa lúc đang suy nghĩ
+        van_ban = van_ban.split("<think>", 1)[0]
+    return van_ban.strip()
 
 
 def chia_phan(dong_list, toi_da_ky_tu=12000):

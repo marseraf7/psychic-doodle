@@ -302,6 +302,12 @@ class TestLLM(CoOllamaGia):
         self.assertIn("BIÊN BẢN", LLM.chat("m", "HT", "x", in_tien_do=False))
         self.assertNotIn("think", _OllamaGia.nhan[-1][1])
 
+    def test_bo_suy_nghi(self):
+        self.assertEqual(LLM.bo_suy_nghi("Okay, let's think...\n</think>\n\n### Nội dung"), "### Nội dung")
+        self.assertEqual(LLM.bo_suy_nghi("<think>abc</think>\nKQ"), "KQ")
+        self.assertEqual(LLM.bo_suy_nghi("KQ\n<think>bị cắt"), "KQ")
+        self.assertEqual(LLM.bo_suy_nghi("## Tổng quan"), "## Tổng quan")
+
     def test_kiem_tra(self):
         LLM.kiem_tra("qwen3.8:27b")
         with self.assertRaisesRegex(LLM.LoiOllama, "ollama pull khac:7b"):
