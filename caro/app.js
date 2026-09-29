@@ -3,6 +3,7 @@
   'use strict';
   const { Board, X, O, EMPTY, checkWin, chooseMove, other } = window.Caro;
   const T = window.I18N.t;
+  const sfx = (name) => window.CaroSound && window.CaroSound.play(name);
   const TIME_LIMITS = [0, 10, 20, 30];
 
   const STORE = 'caro.v1';
@@ -28,7 +29,9 @@
     thinking: false,
     lastPlacedAt: 0,
     online: null, // { room, me, side } khi đang chơi online
+    replay: null, // { data, idx, timer } khi đang xem lại một ván đã lưu
     timeLimit: 0, // giây mỗi nước khi chơi offline, 0 = không giới hạn
+    allowUndo: true, // cho phép "Đi lại" khi chơi offline
     winReason: null, // 'time' khi thắng vì đối phương hết giờ
     clock: null, // { endsAt (performance.now), local } – đồng hồ lượt hiện tại
   };
@@ -47,6 +50,7 @@
         confirm: !!s.confirm,
         score: s.score || state.score,
         timeLimit: TIME_LIMITS.includes(s.timeLimit) ? s.timeLimit : 0,
+        allowUndo: s.allowUndo !== false,
       });
       for (const [x, y] of s.moves || []) placeRaw(x, y);
       if (s.timeout && !state.winner) { state.winner = s.timeout; state.winReason = 'time'; }
@@ -54,11 +58,11 @@
     } catch (e) { /* bỏ qua dữ liệu hỏng */ }
   }
   function save() {
-    if (state.online) return; // ván online do máy chủ giữ, không ghi đè ván cục bộ
+    if (state.online || state.replay) return; // ván online / xem lại: không ghi đè ván cục bộ
     try {
       localStorage.setItem(STORE, JSON.stringify({
         mode: state.mode, human: state.human, level: state.level,
-        confirm: state.confirm, score: state.score, timeLimit: state.timeLimit,
+        confirm: state.confirm, score: state.score, timeLimit: state.timeLimit, allowUndo: state.allowUndo,
         moves: state.board.moves.map((m) => [m.x, m.y]),
         timeout: state.winReason === 'time' ? state.winner : null,
         cam: { x: cam.x, y: cam.y, size: cam.size },
@@ -80,11 +84,15 @@
     if (state.winner || state.board.get(x, y) !== EMPTY) return;
     state.pending = null;
     if (state.online) return playOnline(x, y);
+    const mover = state.turn;
     const win = placeRaw(x, y);
     state.lastPlacedAt = performance.now();
+    sfx(mover === X ? 'placeX' : 'placeO');
     if (win) {
       state.score[state.winner]++;
+      state.winAt = performance.now();
       vibrate(40);
+      setTimeout(() => sfx(state.mode === 'ai' && state.winner !== state.human ? 'lose' : 'win'), 150);
       setTimeout(showBanner, 250);
     } else vibrate(8);
     save();
@@ -95,27 +103,48 @@
     resetClock();
   }
 
-  const isAITurn = () => !state.online && state.mode === 'ai' && !state.winner && state.turn !== state.human;
+  const isAITurn = () => !state.online && !state.replay && state.mode === 'ai' && !state.winner && state.turn !== state.human;
+
+  // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
+  // Trình duyệt không hỗ trợ (vd. mở file trực tiếp) thì tính ngay trên luồng chính.
+  let aiWorker = null, aiSeq = 0;
+  try { if (window.Worker && location.protocol.startsWith('http')) aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
+
+  function askAI(p, level) {
+    const moves = state.board.moves.map((m) => [m.x, m.y, m.p]);
+    if (!aiWorker) return new Promise((resolve) => setTimeout(() => resolve(chooseMove(state.board, p, level)), 30));
+    const id = ++aiSeq;
+    return new Promise((resolve) => {
+      const onMsg = (e) => {
+        if (e.data.id !== id) return;
+        aiWorker.removeEventListener('message', onMsg);
+        resolve(e.data.move);
+      };
+      aiWorker.addEventListener('message', onMsg);
+      aiWorker.postMessage({ id, moves, p, level });
+    });
+  }
 
   function maybeAI() {
     if (!isAITurn() || state.thinking) return;
     state.thinking = true;
     updateUI();
     const started = performance.now();
-    // Để trình duyệt vẽ xong nước của người chơi trước khi máy tính toán.
-    setTimeout(() => {
-      const [x, y] = chooseMove(state.board, state.turn, state.level);
+    const board = state.board, count = board.moves.length;
+    askAI(state.turn, state.level).then(([x, y]) => {
       const wait = Math.max(0, 250 - (performance.now() - started));
       setTimeout(() => {
+        // Trong lúc máy nghĩ mà người chơi đã đi lại / ván mới thì bỏ kết quả cũ.
+        if (state.board !== board || board.moves.length !== count) return;
         state.thinking = false;
         if (isAITurn()) play(x, y);
         else updateUI();
       }, wait);
-    }, 30);
+    });
   }
 
   function undo() {
-    if (state.thinking || state.online) return;
+    if (state.thinking || state.online || state.replay || !state.allowUndo) return;
     const b = state.board;
     if (state.winReason === 'time') {
       // Thua vì hết giờ: "Đi lại" chỉ huỷ kết quả, cho đánh tiếp lượt đó.
@@ -148,7 +177,7 @@
   }
 
   function newGame() {
-    if (state.online) return;
+    if (state.online || state.replay) return;
     state.board = new Board();
     state.turn = X;
     state.winner = null;
@@ -172,7 +201,7 @@
   const clockPaused = () => document.hidden || !!document.querySelector('dialog[open]');
 
   function resetClock() {
-    if (state.online) return;
+    if (state.online || state.replay) return;
     const needs = state.timeLimit && !state.winner && !state.thinking && !isAITurn();
     state.clock = needs ? { endsAt: performance.now() + state.timeLimit * 1000, local: true } : null;
     renderClock();
@@ -186,6 +215,9 @@
     el.hidden = false;
     $('clock-n').textContent = left;
     el.classList.toggle('low', left <= 5);
+    const mine = c.local || (state.online && state.online.room.turn === state.online.side);
+    if (left <= 5 && left > 0 && left !== c.lastTick && mine) sfx('tick');
+    c.lastTick = left;
   }
 
   function tickClock() {
@@ -210,6 +242,7 @@
     state.pending = null;
     state.score[state.winner]++;
     vibrate(60);
+    sfx(state.mode === 'ai' && state.winner !== state.human ? 'lose' : 'win');
     save();
     updateUI();
     renderClock();
@@ -222,7 +255,7 @@
 
   // Người chơi có được đánh lúc này không.
   function canPlaceNow() {
-    if (state.winner || state.thinking) return false;
+    if (state.winner || state.thinking || state.replay) return false;
     if (!state.online) return !isAITurn();
     const { room, side } = state.online;
     return room.players.length === 2 && !room.seriesWinner && room.turn === side;
@@ -231,6 +264,7 @@
   function playOnline(x, y) {
     if (!canPlaceNow()) return;
     // Hiện ngay nước đi (máy chủ sẽ xác nhận lại).
+    sfx(state.turn === X ? 'placeX' : 'placeO');
     placeRaw(x, y);
     state.optimistic = [x, y];
     state.lastPlacedAt = performance.now();
@@ -266,11 +300,14 @@
         state.lastPlacedAt = performance.now();
         ensureVisible(last.x, last.y);
         vibrate(15);
+        sfx(last.p === X ? 'placeX' : 'placeO');
       }
     }
     state.optimistic = null;
     if (room.winner && (!prev || !prev.winner || isNewGame)) {
+      state.winAt = performance.now();
       vibrate(40);
+      setTimeout(() => sfx(room.winner === 3 ? 'draw' : room.winner === side ? 'win' : 'lose'), 150);
       setTimeout(showBanner, 300);
     }
     if (!room.winner) hideBanner();
@@ -279,6 +316,7 @@
   }
 
   function enterOnline(room, me) {
+    if (state.replay) closeReplay(true);
     if (!state.online) {
       save();
       document.body.classList.add('online');
@@ -292,6 +330,11 @@
     if (!state.online) return;
     state.online = null;
     document.body.classList.remove('online');
+    restoreLocal();
+  }
+
+  /** Quay lại ván chơi trên máy (sau khi rời phòng online hoặc thoát xem lại). */
+  function restoreLocal() {
     state.board = new Board();
     state.turn = X;
     state.winner = null;
@@ -315,16 +358,18 @@
     const t = $('turn');
     if (!opp) {
       t.innerHTML = `${esc(T('waiting_opp'))} <span class="thinking">${esc(T('room_code', { code: room.code }))}</span>`;
+    } else if (room.winner === 3) {
+      t.innerHTML = `🤝 ${esc(T('draw_short'))}`;
     } else if (room.winner) {
       t.innerHTML = room.winner === side ? `${glyph(side)} ${esc(T('you_won_short'))}` : `${glyph(room.winner)} ${esc(T('you_lost_short'))}`;
     } else if (room.turn === side) {
       t.innerHTML = `${esc(T('your_turn'))} ${glyph(side)}`;
     } else {
-      t.innerHTML = esc(T('turn_of', { name: '\u0000' })).replace('\u0000', `<span class="name">${esc(opp.name)}</span>`) +
+      t.innerHTML = esc(T('turn_of', { name: '\u0000' })).replace('\u0000', `<span class="name" title="${esc(opp.name)}">${esc(opp.name)}</span>`) +
         ` ${glyph(room.turn)}` + (opp.online ? '' : ` <span class="thinking">${esc(T('disconnected'))}</span>`);
     }
     const oppScore = opp ? room.score[opp.id] || 0 : 0;
-    $('score').innerHTML = `${esc(T('you'))} ${room.score[me] || 0} : ${oppScore} <span class="name">${esc(opp ? opp.name : '?')}</span>` +
+    $('score').innerHTML = `${esc(T('you'))} ${room.score[me] || 0} : ${oppScore} <span class="name" title="${esc(opp ? opp.name : '')}">${esc(opp ? opp.name : '?')}</span>` +
       (room.kind === 'series' ? ` · Bo${room.bestOf}` : '');
   }
 
@@ -334,6 +379,7 @@
   function updateUI() {
     const t = $('turn');
     if (state.online) return updateOnlineUI();
+    if (state.replay) return updateReplayUI();
     if (state.winner) {
       t.innerHTML = T('p_wins', { p: glyph(state.winner) });
     } else {
@@ -343,8 +389,113 @@
         (state.thinking ? ` <span class="thinking">${esc(T('thinking'))}</span>` : '');
     }
     $('score').innerHTML = `<span class="x">X</span> ${state.score[X]} : ${state.score[O]} <span class="o">O</span>`;
+    $('btn-undo').hidden = !state.allowUndo;
     $('btn-undo').disabled = !state.board.moves.length || state.thinking;
   }
+
+  // ------------------------------------------------------------ Xem lại ván đã lưu
+  /** data: { share, x, o, winner, reason, moves: [[x, y], ...] } (từ máy chủ). */
+  function openReplay(data) {
+    if (state.online) return false;
+    if (!state.replay) save();
+    stopReplay();
+    state.replay = { data, idx: 0, timer: 0 };
+    state.thinking = false;
+    state.pending = null;
+    state.clock = null;
+    renderClock();
+    hideBanner();
+    document.body.classList.add('replay');
+    seekReplay(data.moves.length, true);
+    // Khung nhìn vừa đủ toàn bộ quân cờ
+    const xs = data.moves.map((m) => m[0]), ys = data.moves.map((m) => m[1]);
+    if (xs.length) {
+      const w = Math.max(...xs) - Math.min(...xs) + 4, h = Math.max(...ys) - Math.min(...ys) + 4;
+      const size = Math.max(MIN_SIZE, Math.min(48, (W - 24) / w, (H - 160) / h));
+      animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2, size);
+    }
+    return true;
+  }
+
+  function seekReplay(i, quiet) {
+    const r = state.replay;
+    if (!r) return;
+    const moves = r.data.moves;
+    i = Math.max(0, Math.min(moves.length, i));
+    const forward = i === r.idx + 1;
+    r.idx = i;
+    const b = new Board();
+    for (let k = 0; k < i; k++) b.play(moves[k][0], moves[k][1], k % 2 ? O : X);
+    state.board = b;
+    state.turn = i % 2 ? O : X;
+    state.winner = null;
+    state.winCells = null;
+    const last = b.moves[b.moves.length - 1];
+    if (i === moves.length && r.data.reason === 'win' && last) {
+      state.winCells = checkWin(b, last.x, last.y, last.p);
+      state.winAt = performance.now();
+    }
+    if (last && !quiet) {
+      state.lastPlacedAt = forward ? performance.now() : 0;
+      if (forward) { sfx(last.p === X ? 'placeX' : 'placeO'); ensureVisible(last.x, last.y); }
+    }
+    if (i === moves.length) stopReplay();
+    updateUI();
+    requestDraw();
+  }
+
+  function stopReplay() {
+    const r = state.replay;
+    if (r && r.timer) { clearInterval(r.timer); r.timer = 0; }
+    renderReplayPlay();
+  }
+
+  function toggleReplayPlay() {
+    const r = state.replay;
+    if (!r) return;
+    if (r.timer) return stopReplay();
+    if (r.idx >= r.data.moves.length) seekReplay(0, true);
+    r.timer = setInterval(() => seekReplay(r.idx + 1), 700);
+    renderReplayPlay();
+  }
+
+  function renderReplayPlay() {
+    const playing = !!(state.replay && state.replay.timer);
+    $('rp-play-ico').textContent = playing ? '⏸' : '▶';
+    $('rp-play-label').textContent = T(playing ? 'rp_pause' : 'rp_play');
+  }
+
+  function closeReplay(silent) {
+    if (!state.replay) return;
+    stopReplay();
+    state.replay = null;
+    document.body.classList.remove('replay');
+    if (silent) return; // sắp vào phòng online: không cần dựng lại ván cục bộ
+    restoreLocal();
+  }
+
+  function updateReplayUI() {
+    const { data, idx } = state.replay;
+    const n = data.moves.length;
+    const who = (p, name) => `${glyph(p)} <span class="name" title="${esc(name)}">${esc(name)}</span>`;
+    $('turn').innerHTML = `${who(X, data.x)} <span class="thinking">–</span> ${who(O, data.o)}`;
+    let result = '';
+    if (idx === n) {
+      result = data.winner === 3 ? T('draw_short') : T('replay_wins', { name: data.winner === X ? data.x : data.o });
+      if (data.reason && !['win', 'draw'].includes(data.reason)) result += ' · ' + T('end_' + data.reason);
+    }
+    $('score').innerHTML = `${idx}/${n}` + (result ? ` · ${esc(result)}` : '');
+    $('rp-first').disabled = $('rp-prev').disabled = idx === 0;
+    $('rp-next').disabled = idx === n;
+    renderReplayPlay();
+  }
+
+  $('rp-first').onclick = () => { stopReplay(); seekReplay(0, true); };
+  $('rp-prev').onclick = () => { stopReplay(); seekReplay(state.replay.idx - 1, true); };
+  $('rp-next').onclick = () => { stopReplay(); seekReplay(state.replay.idx + 1); };
+  $('rp-play').onclick = toggleReplayPlay;
+  $('rp-close').onclick = () => closeReplay();
+  $('rp-share').onclick = () => net() && net().shareReplay(state.replay.data);
 
   function showBanner() {
     if (!state.winner) return;
@@ -455,6 +606,11 @@
       const [sx, sy] = toScreen(last.x - 0.5, last.y - 0.5);
       ctx.fillStyle = colors.last;
       ctx.fillRect(sx + 1, sy + 1, s - 1, s - 1);
+      // Chấm nhỏ màu của người vừa đánh ở góc ô
+      ctx.fillStyle = last.p === X ? colors.x : colors.o;
+      ctx.beginPath();
+      ctx.arc(sx + s - s * 0.14, sy + s * 0.14, Math.max(2, s * 0.06), 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // Quân cờ (chỉ vẽ các quân trong khung nhìn).
@@ -490,11 +646,15 @@
       const a = state.winCells[0], b = state.winCells[state.winCells.length - 1];
       const [ax, ay] = toScreen(a[0], a[1]);
       const [bx, by] = toScreen(b[0], b[1]);
+      // Vẽ dần từ đầu tới cuối trong ~0,45 giây
+      const t = Math.min(1, (now - (state.winAt || 0)) / 450);
+      if (t < 1) again = true;
+      const e = 1 - Math.pow(1 - t, 3);
       ctx.strokeStyle = colors.win;
       ctx.lineWidth = Math.max(3, s * 0.12);
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      ctx.moveTo(ax, ay); ctx.lineTo(ax + (bx - ax) * e, ay + (by - ay) * e);
       ctx.stroke();
     }
 
@@ -702,6 +862,13 @@
     const step = 3;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (state.replay) {
+      // Xem lại: ← → từng nước, Home/End về đầu/cuối, Space phát/dừng, Esc thoát.
+      const r = state.replay;
+      const act = { ArrowLeft: () => seekReplay(r.idx - 1, true), ArrowRight: () => seekReplay(r.idx + 1),
+        Home: () => seekReplay(0, true), End: () => seekReplay(r.data.moves.length, true), ' ': toggleReplayPlay, Escape: () => closeReplay() }[e.key];
+      if (act) { e.preventDefault(); if (e.key !== ' ') stopReplay(); act(); return; }
+    }
     switch (e.key) {
       case 'ArrowLeft': cam.x -= step; break;
       case 'ArrowRight': cam.x += step; break;
@@ -710,7 +877,7 @@
       case '+': case '=': zoomAt(W / 2, H / 2, cam.size * 1.2); return;
       case '-': case '_': zoomAt(W / 2, H / 2, cam.size / 1.2); return;
       case 'c': case 'C': centerView(); return;
-      case 'n': case 'N': newGame(); return;
+      case 'n': case 'N': if (!state.replay) openNewGame(); return;
       default: return;
     }
     requestDraw();
@@ -718,7 +885,28 @@
   });
 
   // ------------------------------------------------------------ Nút & cài đặt
-  $('btn-new').onclick = newGame;
+  $('btn-new').onclick = () => openNewGame();
+
+  // Bảng chọn nhanh khi bấm "Ván mới": chế độ, cầm quân, độ khó, thời gian – rồi bắt đầu ngay.
+  const ngDlg = $('newgame');
+  const ngForm = $('newgame-form');
+  function openNewGame() {
+    if (state.online) return;
+    ngForm.mode.value = state.mode;
+    ngForm.human.value = String(state.human);
+    ngForm.level.value = String(state.level);
+    ngForm.timeLimit.value = String(state.timeLimit);
+    ngForm.classList.toggle('pvp', state.mode === 'pvp');
+    if (ngDlg.showModal) ngDlg.showModal(); else ngDlg.setAttribute('open', '');
+  }
+  ngForm.addEventListener('change', () => ngForm.classList.toggle('pvp', ngForm.mode.value === 'pvp'));
+  ngForm.addEventListener('submit', () => {
+    state.mode = ngForm.mode.value;
+    state.human = Number(ngForm.human.value);
+    state.level = Number(ngForm.level.value);
+    state.timeLimit = Number(ngForm.timeLimit.value) || 0;
+    newGame();
+  });
   $('btn-undo').onclick = undo;
   $('btn-center').onclick = centerView;
   $('banner-new').onclick = newGame;
@@ -732,6 +920,8 @@
     form.human.value = String(state.human);
     form.level.value = String(state.level);
     form.timeLimit.value = String(state.timeLimit);
+    form.allowUndo.value = state.allowUndo ? 'yes' : 'no';
+    form.sound.value = window.CaroSound.enabled ? 'on' : 'off';
     form.theme.value = window.CaroTheme.get();
     form.elements.lang.value = window.I18N.lang;
     form.confirm.checked = state.confirm;
@@ -747,6 +937,8 @@
     state.human = Number(form.human.value);
     state.level = Number(form.level.value);
     state.timeLimit = Number(form.timeLimit.value) || 0;
+    state.allowUndo = form.allowUndo.value !== 'no';
+    window.CaroSound.enabled = form.sound.value !== 'off';
     state.confirm = form.confirm.checked;
     window.CaroTheme.set(form.theme.value);
     window.I18N.setLang(form.elements.lang.value);
@@ -772,6 +964,9 @@
     leaveOnline,
     resync: () => { if (state.online) applyRoom(state.online.room, state.online.me); },
     get online() { return state.online; },
+    get replay() { return state.replay; },
+    openReplay,
+    closeReplay,
     hideBanner,
     esc,
   };

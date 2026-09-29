@@ -5,7 +5,7 @@
  */
 'use strict';
 const crypto = require('crypto');
-const { Room } = require('./room.js');
+const { Room, DRAW } = require('./room.js');
 const { hashPassword, checkPassword } = require('./store.js');
 const { E, note, fmt } = require('./msg.js');
 
@@ -17,18 +17,48 @@ const ROOM_IDLE_MS = 30 * 60 * 1000;
 const SEAT_IDLE_MS = 10 * 60 * 1000;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
 const TIME_LIMITS = [0, 10, 20, 30]; // giây mỗi nước, 0 = không giới hạn
+const DRAW_COOLDOWN_MS = 30 * 1000; // bị từ chối hoà thì 30 giây sau mới được xin lại
+// Chống cày Elo bằng 2 tài khoản: ván kết thúc sớm (đầu hàng, hoà, rời phòng…) dưới 10 nước
+// không tính điểm, và mỗi cặp chỉ tính điểm tối đa 5 ván mỗi ngày.
+const MIN_RATED_MOVES = 10;
+const MAX_RATED_PER_PAIR_DAY = 5;
+const QUICK = ['hello', 'nice', 'gg', 'rematch', 'hurry', 'oops', 'thanks', 'wow']; // câu chat nhanh trong phòng
+const REPORT_REASONS = ['spam', 'abuse', 'cheat', 'other'];
+const EMAIL_RE = /^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[a-z]{2,24}$/i;
+const RESET_TTL_MS = 15 * 60 * 1000;
+const VERIFY_TTL_MS = 30 * 60 * 1000; // mã xác minh email có hiệu lực 30 phút
+const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+// Email xác minh địa chỉ (chỉ email đã xác minh mới dùng để khôi phục mật khẩu)
+const VERIFY_MAIL = {
+  vi: { subject: 'Mã xác minh email Cờ Caro', body: (u, c) => `Xin chào ${u},\n\nMã xác minh email của bạn là: ${c}\nMã có hiệu lực trong 30 phút.\n\nNếu bạn không thêm email này vào tài khoản Cờ Caro, hãy bỏ qua thư này.` },
+  en: { subject: 'Caro email verification code', body: (u, c) => `Hi ${u},\n\nYour email verification code is: ${c}\nIt expires in 30 minutes.\n\nIf you did not add this email to a Caro account, you can ignore this message.` },
+  ru: { subject: 'Код подтверждения почты Каро', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код подтверждения почты: ${c}\nКод действует 30 минут.\n\nЕсли вы не добавляли эту почту в аккаунт Каро, просто проигнорируйте письмо.` },
+  zh: { subject: '五子棋 Caro 邮箱验证码', body: (u, c) => `${u}，你好：\n\n你的邮箱验证码是：${c}\n验证码 30 分钟内有效。\n\n如果你没有在 Caro 账号中添加此邮箱，请忽略此邮件。` },
+};
+// Email đặt lại mật khẩu theo ngôn ngữ người dùng đang chọn
+const RESET_MAIL = {
+  vi: { subject: 'Mã đặt lại mật khẩu Cờ Caro', body: (u, c) => `Xin chào ${u},\n\nMã đặt lại mật khẩu của bạn là: ${c}\nMã có hiệu lực trong 15 phút.\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.` },
+  en: { subject: 'Caro password reset code', body: (u, c) => `Hi ${u},\n\nYour password reset code is: ${c}\nIt expires in 15 minutes.\n\nIf you did not request this, you can ignore this email.` },
+  ru: { subject: 'Код для сброса пароля Каро', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код для сброса пароля: ${c}\nКод действует 15 минут.\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.` },
+  zh: { subject: '五子棋 Caro 密码重置验证码', body: (u, c) => `${u}，你好：\n\n你的密码重置验证码是：${c}\n验证码 15 分钟内有效。\n\n如果这不是你本人的操作，请忽略此邮件。` },
+};
+const cleanText = (s, max) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
 const userPid = (uid) => 'u_' + uid;
 const uidOf = (pid) => (pid && pid.startsWith('u_') ? pid.slice(2) : null);
 
 class Hub {
-  constructor({ store, googleClientId = '', verifyGoogle = null, timers = {} }) {
+  /**
+   * sendMail(to, subject, text): gửi email đặt lại mật khẩu (null = tắt tính năng quên mật khẩu).
+   */
+  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {} }) {
     this.store = store;
+    this.sendMail = sendMail;
     this.googleClientId = googleClientId;
     this.verifyGoogle = verifyGoogle;
     // SECOND_MS: độ dài 1 "giây" của đồng hồ mỗi nước (test đặt nhỏ để chạy nhanh).
-    this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, ...timers };
+    this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, ...timers };
     this.byPid = new Map(); // pid -> Set<conn>
     this.names = new Map(); // pid khách -> tên
     this.rooms = new Map(); // mã phòng -> Room
@@ -41,7 +71,10 @@ class Hub {
     this.sweeper.unref?.();
   }
 
-  close() { clearInterval(this.sweeper); }
+  close() {
+    this.closed = true; // máy chủ đang tắt: bỏ qua các sự kiện đến muộn (CSDL sắp đóng)
+    clearInterval(this.sweeper);
+  }
 
   // ---------------------------------------------------------------- kết nối
   connect(conn) {
@@ -50,12 +83,13 @@ class Hub {
 
   disconnect(conn) {
     const pid = conn.pid;
-    if (!pid) return;
+    if (!pid || this.closed) return;
     this.detach(conn);
     if (!this.isOnline(pid)) this.wentOffline(pid);
   }
 
   async handle(conn, raw) {
+    if (this.closed) return;
     let msg;
     try {
       msg = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -158,7 +192,12 @@ class Hub {
     const uid = uidOf(pid);
     if (!uid) return { id: pid, name: this.nameOf(pid), guest: true };
     const u = this.store.users.get(uid);
-    return { id: pid, uid, name: u.name, username: u.username, guest: false, google: !!u.google, hasPassword: !!u.pass, stats: u.stats };
+    return {
+      id: pid, uid, name: u.name, username: u.username, guest: false, google: !!u.google, hasPassword: !!u.pass,
+      stats: u.stats, rating: u.rating, rated: u.rated, email: u.email,
+      pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
+      blocked: u.blocked.map((id) => ({ id, name: this.store.users.get(id)?.name || '?' })),
+    };
   }
 
   welcome(conn) {
@@ -168,6 +207,7 @@ class Hub {
       t: 'welcome',
       me: this.meView(pid),
       googleClientId: this.googleClientId,
+      resetEnabled: !!this.sendMail,
       room: room ? this.roomView(room) : null,
     });
     if (uidOf(pid)) {
@@ -321,8 +361,9 @@ class Hub {
     const pid = conn.pid;
     const uid = uidOf(pid);
     if (uid) {
-      this.store.users.get(uid).name = name;
-      this.store.save();
+      const u = this.store.users.get(uid);
+      u.name = name;
+      this.store.touch(u);
       this.notifyFriends(pid);
     } else this.names.set(pid, name);
     for (const c of this.byPid.get(pid) || []) c.send({ t: 'me', me: this.meView(pid) });
@@ -349,11 +390,16 @@ class Hub {
     const u = this.store.users.get(uid);
     const card = (id) => {
       const f = this.store.users.get(id);
-      return f && { id: f.id, username: f.username, name: f.name, status: this.status(f.id) };
+      return f && { id: f.id, username: f.username, name: f.name, status: this.status(f.id), rating: f.rating };
     };
+    const unread = this.store.unread(uid);
     return {
       t: 'friends',
-      friends: u.friends.map(card).filter(Boolean),
+      // Bạn bè: thêm thành tích đối đầu và số tin nhắn chưa đọc
+      friends: u.friends.map((id) => {
+        const c = card(id);
+        return c && { ...c, h2h: this.store.h2h(uid, id), unread: unread[id] || 0 };
+      }).filter(Boolean),
       incoming: u.incoming.map(card).filter(Boolean),
       outgoing: u.outgoing.map(card).filter(Boolean),
     };
@@ -375,12 +421,13 @@ class Hub {
     const other = id ? this.store.users.get(uidOf(id) || id) : this.store.byUsername.get(String(username || '').trim().toLowerCase().replace(/^@/, ''));
     if (!other) throw E('player_not_found');
     if (other.id === me.id) throw E('friend_self');
+    if (me.blocked.includes(other.id) || other.blocked.includes(me.id)) throw E('blocked');
     if (me.friends.includes(other.id)) throw E('already_friends');
     if (me.incoming.includes(other.id)) return this.on_friendRespond(conn, { id: other.id, accept: true });
     if (!me.outgoing.includes(other.id)) {
       me.outgoing.push(other.id);
       other.incoming.push(me.id);
-      this.store.save();
+      this.store.touch(me, other);
     }
     conn.send(note('friend_request_sent', { name: other.name }));
     this.send(userPid(other.id), note('friend_request_in', { name: me.name }));
@@ -399,7 +446,7 @@ class Hub {
       if (!other.friends.includes(me.id)) other.friends.push(me.id);
       this.send(userPid(id), note('friend_accepted', { name: me.name }));
     }
-    this.store.save();
+    this.store.touch(me, other);
     this.sendFriends(me.id);
     this.sendFriends(id);
   }
@@ -410,7 +457,7 @@ class Hub {
     const rm = (arr, x) => arr.filter((v) => v !== x);
     me.friends = rm(me.friends, id); me.outgoing = rm(me.outgoing, id); me.incoming = rm(me.incoming, id);
     if (other) { other.friends = rm(other.friends, me.id); other.outgoing = rm(other.outgoing, me.id); other.incoming = rm(other.incoming, me.id); }
-    this.store.save();
+    this.store.touch(me, other);
     this.sendFriends(me.id);
     if (other) this.sendFriends(other.id);
   }
@@ -423,7 +470,16 @@ class Hub {
 
   roomView(room) {
     const v = room.view();
-    for (const p of v.players) p.online = this.isOnline(p.id);
+    for (const p of v.players) {
+      p.online = this.isOnline(p.id);
+      const u = uidOf(p.id) && this.store.users.get(uidOf(p.id));
+      if (u) p.rating = u.rating;
+    }
+    // Thành tích đối đầu (chỉ khi cả hai có tài khoản), tính theo người cầm X ở ván hiện tại.
+    const ux = uidOf(v.seats.x), uo = uidOf(v.seats.o);
+    v.h2h = ux && uo ? this.store.h2h(ux, uo) : null;
+    v.share = room.lastShare || null; // mã xem lại ván vừa kết thúc
+    v.unrated = !!(room.winner && room.lastUnrated); // ván vừa xong giữa 2 tài khoản nhưng không tính Elo
     return v;
   }
 
@@ -463,6 +519,7 @@ class Hub {
       bestOf,
       timeLimit: TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
       secondMs: this.T.SECOND_MS,
+      drawCooldownMs: this.T.DRAW_COOLDOWN_MS,
     });
     this.rooms.set(room.code, room);
     return room;
@@ -562,11 +619,42 @@ class Hub {
   settle(room, leaving) {
     if (!room.winner || room.settled === room.gameNo + ':' + room.board.moves.length) return;
     room.settled = room.gameNo + ':' + room.board.moves.length;
-    const w = room.seats[room.winner];
-    const l = room.seats[3 - room.winner];
-    for (const [pid, key] of [[w, 'wins'], [l, 'losses']]) {
-      const u = uidOf(pid) && this.store.users.get(uidOf(pid));
-      if (u) { u.stats[key]++; this.store.save(); }
+    const draw = room.winner === DRAW;
+    const xPid = room.seats[1], oPid = room.seats[2];
+    const U = (pid) => (uidOf(pid) && this.store.users.get(uidOf(pid))) || null;
+    const ux = U(xPid), uo = U(oPid);
+    // Thống kê thắng / thua / hoà
+    for (const [u, side] of [[ux, 1], [uo, 2]]) {
+      if (!u) continue;
+      u.stats[draw ? 'draws' : room.winner === side ? 'wins' : 'losses']++;
+      this.store.touch(u);
+    }
+    // Đối đầu + Elo: chỉ khi cả hai có tài khoản
+    room.lastUnrated = false;
+    if (ux && uo && ux !== uo) {
+      this.store.addH2h(ux.id, uo.id, draw ? null : room.winner === 1 ? ux.id : uo.id);
+      const tooShort = room.reason !== 'win' && room.board.moves.length < MIN_RATED_MOVES;
+      if (tooShort || this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) room.lastUnrated = true;
+      else {
+        this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0);
+        this.store.bumpRated(ux.id, uo.id);
+      }
+    }
+    // Lưu ván để xem lại (bỏ qua ván chưa có nước nào)
+    if (room.board.moves.length) {
+      const name = (pid) => room.players.find((p) => p.id === pid)?.name || this.nameOf(pid);
+      room.lastShare = this.store.recordGame({
+        kind: room.kind, timeLimit: room.timeLimit,
+        xId: ux && ux.id, oId: uo && uo.id, xName: name(xPid), oName: name(oPid),
+        winner: room.winner, reason: room.reason,
+        moves: room.board.moves.map((m) => [m.x, m.y]),
+      });
+    }
+    // Thống kê / điểm mới cho người chơi đang online (bạn bè thấy điểm mới trong danh sách)
+    for (const u of new Set([ux, uo].filter(Boolean))) {
+      const pid = userPid(u.id);
+      this.send(pid, { t: 'me', me: this.meView(pid) });
+      if (ux && uo) this.sendFriends(u.id);
     }
     if (!leaving && room.awaitingNextGame) {
       const game = room.gameNo;
@@ -594,6 +682,7 @@ class Hub {
     const me = this.requireUser(conn);
     const friend = this.store.users.get(to);
     if (!friend || !me.friends.includes(friend.id)) throw E('challenge_friends_only');
+    if (me.blocked.includes(friend.id) || friend.blocked.includes(me.id)) throw E('blocked');
     const toPid = userPid(friend.id);
     if (!this.isOnline(toPid)) throw E('friend_offline', { name: friend.name });
     if (this.roomFor(conn.pid)?.active) throw E('busy_in_game');
@@ -632,6 +721,282 @@ class Hub {
     this.broadcastRoom(room);
     this.notifyFriends(inv.from);
     this.notifyFriends(inv.to);
+  }
+
+  // ---------------------------------------------------------------- Elo
+  /** Cập nhật điểm Elo; sa = kết quả của a (1 thắng, 0.5 hoà, 0 thua). */
+  rate(a, b, sa) {
+    const ea = 1 / (1 + Math.pow(10, (b.rating - a.rating) / 400));
+    const ka = a.rated < 20 ? 40 : 24, kb = b.rated < 20 ? 40 : 24; // người mới thay đổi nhanh hơn
+    a.rating = Math.round(a.rating + ka * (sa - ea));
+    b.rating = Math.round(b.rating + kb * ((1 - sa) - (1 - ea)));
+    a.rated++;
+    b.rated++;
+    this.store.touch(a, b);
+  }
+
+  on_leaderboard(conn) {
+    const ranked = [...this.store.users.values()].filter((u) => u.rated > 0)
+      .sort((a, b) => b.rating - a.rating || b.rated - a.rated);
+    const uid = uidOf(conn.pid);
+    const myRank = uid ? ranked.findIndex((u) => u.id === uid) + 1 : 0;
+    conn.send({
+      t: 'leaderboard',
+      top: ranked.slice(0, 20).map((u, i) => ({ rank: i + 1, id: u.id, name: u.name, username: u.username, rating: u.rating, games: u.rated })),
+      me: myRank ? { rank: myRank, rating: ranked[myRank - 1].rating } : null,
+    });
+  }
+
+  // ---------------------------------------------------------------- xin hoà & chat nhanh
+  on_drawOffer(conn) {
+    const room = this.inRoom(conn);
+    const res = room.offerDraw(conn.pid);
+    if (res === 'pending') return; // đã xin rồi, không làm phiền đối thủ thêm
+    if (res === 'offered') {
+      const opp = room.opponentOf(conn.pid);
+      if (opp) this.send(opp.id, note('draw_offered', { name: this.nameOf(conn.pid) }));
+    }
+    this.afterChange(room);
+  }
+
+  on_drawAnswer(conn, { accept }) {
+    const room = this.inRoom(conn);
+    const offerer = room.drawOffer;
+    room.answerDraw(conn.pid, !!accept);
+    if (!accept && offerer) this.send(offerer, note('draw_declined', { name: this.nameOf(conn.pid) }));
+    this.afterChange(room);
+  }
+
+  /** Câu chat nhanh có sẵn: gửi mã câu, mỗi người tự dịch sang ngôn ngữ của mình. */
+  on_quick(conn, { id }) {
+    const room = this.inRoom(conn);
+    if (!QUICK.includes(id)) throw E('bad_message');
+    const now = Date.now();
+    if (now - (conn.lastQuick || 0) < 1200) throw E('too_fast');
+    conn.lastQuick = now;
+    const opp = room.opponentOf(conn.pid);
+    if (opp && !this.isBlocked(opp.id, conn.pid)) this.send(opp.id, { t: 'quick', from: conn.pid, id });
+  }
+
+  // ---------------------------------------------------------------- lịch sử & đối đầu
+  on_history(conn) {
+    const me = this.requireUser(conn);
+    const games = this.store.history(me.id).map((g) => {
+      const mySide = g.x_id === me.id ? 1 : 2;
+      return {
+        share: g.share, created: g.created, kind: g.kind, timeLimit: g.time_limit,
+        opponent: mySide === 1 ? g.o_name : g.x_name, mySide,
+        result: g.winner === DRAW ? 'draw' : g.winner === mySide ? 'win' : 'loss',
+        reason: g.reason, moves: g.moves,
+      };
+    });
+    conn.send({ t: 'history', games });
+  }
+
+  on_h2h(conn, { id }) {
+    const me = this.requireUser(conn);
+    const other = this.store.users.get(uidOf(id) || id);
+    if (!other) throw E('player_not_found');
+    conn.send({ t: 'h2h', id: other.id, name: other.name, rating: other.rating, record: this.store.h2h(me.id, other.id) });
+  }
+
+  // ---------------------------------------------------------------- chặn & báo cáo
+  /** a đã chặn b (a, b là pid)? */
+  isBlocked(aPid, bPid) {
+    const a = uidOf(aPid) && this.store.users.get(uidOf(aPid));
+    const b = uidOf(bPid);
+    return !!(a && b && a.blocked.includes(b));
+  }
+
+  on_block(conn, { id }) {
+    const me = this.requireUser(conn);
+    const other = this.store.users.get(uidOf(id) || id);
+    if (!other || other.id === me.id) throw E('player_not_found');
+    if (!me.blocked.includes(other.id)) me.blocked.push(other.id);
+    // Chặn = huỷ kết bạn và mọi lời mời giữa hai người.
+    const rm = (arr, x) => arr.filter((v) => v !== x);
+    me.friends = rm(me.friends, other.id); me.incoming = rm(me.incoming, other.id); me.outgoing = rm(me.outgoing, other.id);
+    other.friends = rm(other.friends, me.id); other.incoming = rm(other.incoming, me.id); other.outgoing = rm(other.outgoing, me.id);
+    for (const inv of [...this.invites.values()]) {
+      if ([inv.from, inv.to].includes(conn.pid) && [inv.from, inv.to].includes(userPid(other.id))) this.dropInvite(inv);
+    }
+    this.store.touch(me, other);
+    for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) });
+    conn.send(note('user_blocked', { name: other.name }));
+    this.sendFriends(me.id);
+    this.sendFriends(other.id);
+  }
+
+  on_unblock(conn, { id }) {
+    const me = this.requireUser(conn);
+    const other = this.store.users.get(uidOf(id) || id);
+    me.blocked = me.blocked.filter((x) => x !== (other ? other.id : id));
+    this.store.touch(me);
+    for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) });
+    if (other) conn.send(note('user_unblocked', { name: other.name }));
+  }
+
+  /** Báo cáo người chơi. Máy chủ tự đính kèm tin nhắn gần nhất giữa hai người làm bằng chứng. */
+  on_report(conn, { id, reason }) {
+    const me = this.requireUser(conn);
+    const rules = [['report:' + me.id, 10]];
+    this.limit(rules);
+    this.fail(rules);
+    if (!REPORT_REASONS.includes(reason)) throw E('bad_message');
+    const targetUid = uidOf(id) || (this.store.users.has(id) ? id : null);
+    let context = '';
+    if (targetUid) {
+      context = this.store.listDm(me.id, targetUid, null, 20)
+        .map((m) => `[${new Date(m.created).toISOString()}] ${this.store.users.get(m.sender)?.username || m.sender}: ${m.text}`).join('\n');
+    }
+    this.store.addReport(me.id, targetUid || String(id).slice(0, 40), reason, context);
+    conn.send(note('reported'));
+  }
+
+  // ---------------------------------------------------------------- tin nhắn bạn bè
+  on_dmSend(conn, { to, text }) {
+    const me = this.requireUser(conn);
+    const other = this.store.users.get(uidOf(to) || to);
+    if (!other || !me.friends.includes(other.id)) throw E('not_friends');
+    if (me.blocked.includes(other.id) || other.blocked.includes(me.id)) throw E('blocked');
+    text = cleanText(text, 500);
+    if (!text) throw E('message_empty');
+    const rules = [['dm:' + me.id, 60]]; // tối đa 60 tin / 10 phút
+    this.limit(rules);
+    this.fail(rules);
+    const msg = this.store.addDm(me.id, other.id, text);
+    this.send(userPid(me.id), { t: 'dm', peer: other.id, msg });
+    this.send(userPid(other.id), { t: 'dm', peer: me.id, msg });
+  }
+
+  on_dmHistory(conn, { peer, before }) {
+    const me = this.requireUser(conn);
+    const other = this.store.users.get(uidOf(peer) || peer);
+    if (!other) throw E('player_not_found');
+    const msgs = this.store.listDm(me.id, other.id, Number(before) || null, 50);
+    conn.send({ t: 'dmHistory', peer: other.id, msgs, more: msgs.length === 50 });
+  }
+
+  on_dmRead(conn, { peer, lastId }) {
+    const me = this.requireUser(conn);
+    // Chỉ ghi cho người chơi có thật (không để chuỗi tuỳ ý làm phình CSDL)
+    if (typeof peer === 'string' && this.store.users.has(peer) && Number.isInteger(lastId) && lastId > 0) {
+      this.store.markRead(me.id, peer, lastId);
+    }
+  }
+
+  // ---------------------------------------------------------------- mật khẩu & email
+  on_changePassword(conn, { current, next }) {
+    const me = this.requireUser(conn);
+    if (typeof next !== 'string' || next.length < 6 || next.length > 100) throw E('short_password');
+    if (me.pass) {
+      const rules = [['pw:' + me.id, 8]];
+      this.limit(rules);
+      if (typeof current !== 'string' || !checkPassword(current, me.pass)) { this.fail(rules); throw E('wrong_password'); }
+    }
+    me.pass = hashPassword(next);
+    this.store.touch(me);
+    this.store.dropOtherSessions(me.id, conn.token); // đăng xuất các thiết bị khác
+    for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) });
+    conn.send(note('password_changed'));
+  }
+
+  /**
+   * Thêm / đổi email: gửi mã xác minh tới địa chỉ mới, nhập đúng mã thì email mới có hiệu lực
+   * (không để ai nhập email của người khác rồi khiến thư khôi phục mật khẩu gửi nhầm tới họ).
+   * Email trống = xoá email, có hiệu lực ngay.
+   */
+  on_setEmail(conn, { email, password, lang }) {
+    const me = this.requireUser(conn);
+    email = String(email || '').trim().toLowerCase();
+    if (email && !EMAIL_RE.test(email)) throw E('email_invalid');
+    // Mọi lần lưu email đều bị đếm (kể cả tài khoản Google chưa có mật khẩu), để không dùng
+    // thông báo "email đã được dùng" dò hàng loạt xem email nào đã đăng ký.
+    const tries = [['email:' + me.id, 10], ['email-ip:' + conn.ip, 30]];
+    this.limit(tries);
+    this.fail(tries);
+    if (me.pass) {
+      const rules = [['pw:' + me.id, 8]];
+      this.limit(rules);
+      if (typeof password !== 'string' || !checkPassword(password, me.pass)) { this.fail(rules); throw E('wrong_password'); }
+    }
+    const owner = email && this.store.byEmail.get(email);
+    if (owner && owner !== me) throw E('email_taken');
+    const sendMe = () => { for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) }); };
+    if (!email || email === me.email) {
+      me.emailPending = null;
+      if (!email) this.store.setEmail(me, '');
+      else this.store.touch(me);
+      sendMe();
+      return conn.send(note('email_saved'));
+    }
+    if (!this.sendMail) throw E('reset_unavailable');
+    // Không gửi dồn thư tới cùng một địa chỉ (kể cả từ nhiều tài khoản)
+    const toRules = [['email-to:' + email, 3]];
+    this.limit(toRules);
+    this.fail(toRules);
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    me.emailPending = { email, hash: sha256(code), expires: Date.now() + VERIFY_TTL_MS, tries: 0 };
+    this.store.touch(me);
+    const mail = VERIFY_MAIL[lang] || VERIFY_MAIL.vi;
+    Promise.resolve().then(() => this.sendMail(email, mail.subject, mail.body(me.username, code))).catch(() => {});
+    sendMe();
+    conn.send(note('email_code_sent', { email }));
+  }
+
+  /** Nhập mã xác minh email. Sai 5 lần thì phải gửi mã mới. */
+  on_verifyEmail(conn, { code }) {
+    const me = this.requireUser(conn);
+    const p = me.emailPending;
+    if (!p || p.expires < Date.now() || p.tries >= 5) throw E('email_bad_code');
+    if (sha256(String(code || '').trim()) !== p.hash) {
+      p.tries++;
+      this.store.touch(me);
+      throw E('email_bad_code');
+    }
+    const owner = this.store.byEmail.get(p.email);
+    if (owner && owner !== me) throw E('email_taken'); // người khác xác minh trước
+    me.emailPending = null;
+    this.store.setEmail(me, p.email);
+    for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) });
+    conn.send(note('email_verified'));
+  }
+
+  findByLogin(login) {
+    login = String(login || '').trim().toLowerCase().slice(0, 254);
+    return this.store.byUsername.get(login.replace(/^@/, '')) || this.store.byEmail.get(login) || null;
+  }
+
+  /** Quên mật khẩu: gửi mã 6 số qua email. Luôn trả lời giống nhau để không lộ tài khoản nào tồn tại. */
+  on_forgot(conn, { login, lang }) {
+    if (!this.sendMail) throw E('reset_unavailable');
+    const rules = [['forgot-ip:' + conn.ip, 10], ['forgot:' + String(login || '').toLowerCase().slice(0, 60), 3]];
+    this.limit(rules);
+    this.fail(rules);
+    const u = this.findByLogin(login);
+    if (u && u.email) {
+      const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+      this.store.setReset(u.id, code, RESET_TTL_MS);
+      const mail = RESET_MAIL[lang] || RESET_MAIL.vi;
+      // Gửi thư chạy nền: nếu chờ gửi xong mới trả lời thì thời gian trả lời sẽ lộ ra
+      // tài khoản có email hay không.
+      Promise.resolve().then(() => this.sendMail(u.email, mail.subject, mail.body(u.username, code))).catch(() => {});
+    }
+    conn.send({ t: 'forgotSent' });
+  }
+
+  on_reset(conn, { login, code, password }) {
+    if (!this.sendMail) throw E('reset_unavailable');
+    const rules = [['reset-ip:' + conn.ip, 20]];
+    this.limit(rules);
+    if (typeof password !== 'string' || password.length < 6 || password.length > 100) throw E('short_password');
+    const u = this.findByLogin(login);
+    if (!u || !this.store.checkReset(u.id, String(code || '').trim())) { this.fail(rules); throw E('reset_bad_code'); }
+    u.pass = hashPassword(password);
+    this.store.touch(u);
+    this.store.dropOtherSessions(u.id, null); // mật khẩu cũ có thể đã lộ: đăng xuất mọi nơi
+    this.loginConn(conn, u);
+    conn.send(note('password_changed'));
   }
 
   // ---------------------------------------------------------------- dọn dẹp

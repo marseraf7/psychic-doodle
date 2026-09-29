@@ -211,6 +211,66 @@
     return false;
   }
 
+  // ---------------------------------------------------------------- Tìm chuỗi nước ép (VCF)
+  // Mỗi nước của p tạo đe doạ thắng ngay; đối thủ buộc phải chặn; lặp lại tới khi không chặn nổi.
+
+  /** Các nước chặn của đối thủ làm mất hết các ô thắng W của p (đang có quân p vừa đánh). */
+  function blockingReplies(board, W, p) {
+    const opp = other(p);
+    const cells = new Map();
+    for (const [wx, wy] of W) {
+      for (const [dx, dy] of DIRS) {
+        for (let k = -5; k <= 5; k++) {
+          const rx = wx + k * dx, ry = wy + k * dy;
+          if (board.get(rx, ry) === EMPTY) cells.set(key(rx, ry), [rx, ry]);
+        }
+      }
+    }
+    const out = [];
+    for (const [rx, ry] of cells.values()) {
+      board.put(rx, ry, opp);
+      const stillWins = W.some(([wx, wy]) => board.get(wx, wy) === EMPTY && winsIfPlaced(board, wx, wy, p));
+      board.remove(rx, ry);
+      if (!stillWins) out.push([rx, ry]);
+    }
+    return out;
+  }
+
+  /**
+   * Tìm nước đầu của một chuỗi ép thắng cho p (giả sử đối thủ không có nước thắng ngay).
+   * depth: số nước tấn công tối đa. ctx.deadline: hết giờ thì bỏ cuộc (trả null).
+   */
+  function vcf(board, p, depth, ctx) {
+    if (depth <= 0 || Date.now() > ctx.deadline) return null;
+    const opp = other(p);
+    const threats = [];
+    for (const [x, y] of candidates(board, 2)) {
+      board.put(x, y, p);
+      const W = winCellsAround(board, x, y, p);
+      board.remove(x, y);
+      if (W.length) threats.push({ c: [x, y], n: W.length });
+    }
+    threats.sort((a, b) => b.n - a.n);
+    for (const { c } of threats.slice(0, 12)) {
+      if (Date.now() > ctx.deadline) return null;
+      board.put(c[0], c[1], p);
+      const W = winCellsAround(board, c[0], c[1], p);
+      const replies = blockingReplies(board, W, p);
+      let forced = true;
+      for (const [rx, ry] of replies) {
+        board.put(rx, ry, opp);
+        // Nước chặn tạo luôn đe doạ thắng cho đối thủ -> chuỗi ép bị gãy.
+        const counter = winCellsAround(board, rx, ry, opp).length > 0;
+        const ok = !counter && vcf(board, p, depth - 1, ctx);
+        board.remove(rx, ry);
+        if (!ok) { forced = false; break; }
+      }
+      board.remove(c[0], c[1]);
+      if (forced) return c;
+    }
+    return null;
+  }
+
   /**
    * Chọn nước đi cho p.
    * level: 1 = Dễ, 2 = Vừa, 3 = Khó.
@@ -255,7 +315,28 @@
       if (forcesWin(board, c[0], c[1], p, cands, false)) return c;
     }
 
-    // 4. Khó: tránh để đối thủ có nước thắng chắc.
+    // 4. Khó: tìm chuỗi nước ép sâu hơn cho mình, và phá chuỗi ép của đối thủ.
+    if (level >= 3) {
+      const ctx = { deadline: Date.now() + 450 };
+      const mine = vcf(board, p, 5, ctx);
+      if (mine) return mine;
+      const theirs = vcf(board, opp, 4, { deadline: Date.now() + 250 });
+      if (theirs) {
+        // Thử các nước tốt nhất + ô mở đầu chuỗi của đối thủ; chọn nước làm chuỗi ép của họ không còn.
+        const tries = [theirs, ...scored.slice(0, 10).map((o) => o.c)];
+        const budget = Date.now() + 500;
+        for (const c of tries) {
+          if (board.get(c[0], c[1]) !== EMPTY) continue;
+          board.put(c[0], c[1], p);
+          const still = Date.now() < budget && vcf(board, opp, 4, { deadline: Math.min(budget, Date.now() + 80) });
+          board.remove(c[0], c[1]);
+          if (!still) return c;
+        }
+        return theirs;
+      }
+    }
+
+    // 5. Khó: tránh để đối thủ có nước thắng chắc.
     if (level >= 3 && opponentHasForce(board, opp, 15)) {
       for (const { c } of scored.slice(0, 12)) {
         board.put(c[0], c[1], p);
@@ -268,7 +349,7 @@
     return scored[0].c;
   }
 
-  const Caro = { EMPTY, X, O, DIRS, Board, key, other, lineWin, checkWin, winsIfPlaced, candidates, cellScore, forcesWin, chooseMove };
+  const Caro = { EMPTY, X, O, DIRS, Board, key, other, lineWin, checkWin, winsIfPlaced, candidates, cellScore, forcesWin, vcf, chooseMove };
   if (typeof module !== 'undefined' && module.exports) module.exports = Caro;
   else global.Caro = Caro;
 })(typeof window !== 'undefined' ? window : globalThis);
