@@ -192,7 +192,8 @@ button {
 .bar.bottom button .ico { font-size: var(--fs-lg); line-height: 1; color: var(--text); }
 .bar.bottom button:hover { background: rgba(127, 127, 127, 0.12); }
 .bar.bottom button:active { transform: scale(0.96); }
-.bar.bottom button:disabled { opacity: 0.4; pointer-events: none; }
+.bar.bottom button:disabled { opacity: 0.55; pointer-events: none; }
+.bar.bottom button:disabled .ico { color: var(--muted); }
 
 .primary {
   background: var(--accent);

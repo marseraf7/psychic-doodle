@@ -92,6 +92,12 @@
       </fieldset>
 
       <fieldset>
+        <legend data-i18n="sound"></legend>
+        <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
+        <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
+      </fieldset>
+
+      <fieldset>
         <legend data-i18n="theme"></legend>
         <label><input type="radio" name="theme" value="light"> <span data-i18n="theme_light"></span></label>
         <label><input type="radio" name="theme" value="dark"> <span data-i18n="theme_dark"></span></label>
@@ -125,6 +131,48 @@
       </div>
 
       <p class="credit"><span class="credit-mark" aria-hidden="true">✦</span> Designed by <span class="credit-name">Dawn</span> <span class="credit-mark" aria-hidden="true">✦</span></p>
+    </form>
+  </dialog>
+
+  <!-- Bảng chọn nhanh khi bấm "Ván mới" -->
+  <dialog id="newgame">
+    <form class="dlg" id="newgame-form" method="dialog">
+      <div class="dlg-head">
+        <h2 data-i18n="btn_new" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <fieldset>
+        <legend data-i18n="mode"></legend>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
+          <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
+        </div>
+      </fieldset>
+      <fieldset class="ai-only">
+        <legend data-i18n="you_play"></legend>
+        <div class="seg">
+          <label><input type="radio" name="human" value="1"> <b class="x">X</b> <span data-i18n="goes_first"></span></label>
+          <label><input type="radio" name="human" value="2"> <b class="o">O</b> <span data-i18n="goes_second"></span></label>
+        </div>
+      </fieldset>
+      <fieldset class="ai-only">
+        <legend data-i18n="level"></legend>
+        <div class="seg">
+          <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
+          <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
+          <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend data-i18n="time_limit"></legend>
+        <div class="seg">
+          <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
+          <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
+          <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
+          <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
+        </div>
+      </fieldset>
+      <button class="primary wide" value="start" data-i18n="start_game"></button>
     </form>
   </dialog>
 
@@ -254,6 +302,7 @@
 
   <script src="config.js"></script>
   <script src="i18n.js"></script>
+  <script src="sound.js"></script>
   <script src="rules.js"></script>
   <script src="app.js"></script>
   <script src="online.js"></script>

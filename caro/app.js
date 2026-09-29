@@ -3,6 +3,7 @@
   'use strict';
   const { Board, X, O, EMPTY, checkWin, chooseMove, other } = window.Caro;
   const T = window.I18N.t;
+  const sfx = (name) => window.CaroSound && window.CaroSound.play(name);
   const TIME_LIMITS = [0, 10, 20, 30];
 
   const STORE = 'caro.v1';
@@ -82,11 +83,15 @@
     if (state.winner || state.board.get(x, y) !== EMPTY) return;
     state.pending = null;
     if (state.online) return playOnline(x, y);
+    const mover = state.turn;
     const win = placeRaw(x, y);
     state.lastPlacedAt = performance.now();
+    sfx(mover === X ? 'placeX' : 'placeO');
     if (win) {
       state.score[state.winner]++;
+      state.winAt = performance.now();
       vibrate(40);
+      setTimeout(() => sfx(state.mode === 'ai' && state.winner !== state.human ? 'lose' : 'win'), 150);
       setTimeout(showBanner, 250);
     } else vibrate(8);
     save();
@@ -99,21 +104,42 @@
 
   const isAITurn = () => !state.online && state.mode === 'ai' && !state.winner && state.turn !== state.human;
 
+  // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
+  // Trình duyệt không hỗ trợ (vd. mở file trực tiếp) thì tính ngay trên luồng chính.
+  let aiWorker = null, aiSeq = 0;
+  try { if (window.Worker && location.protocol.startsWith('http')) aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
+
+  function askAI(p, level) {
+    const moves = state.board.moves.map((m) => [m.x, m.y, m.p]);
+    if (!aiWorker) return new Promise((resolve) => setTimeout(() => resolve(chooseMove(state.board, p, level)), 30));
+    const id = ++aiSeq;
+    return new Promise((resolve) => {
+      const onMsg = (e) => {
+        if (e.data.id !== id) return;
+        aiWorker.removeEventListener('message', onMsg);
+        resolve(e.data.move);
+      };
+      aiWorker.addEventListener('message', onMsg);
+      aiWorker.postMessage({ id, moves, p, level });
+    });
+  }
+
   function maybeAI() {
     if (!isAITurn() || state.thinking) return;
     state.thinking = true;
     updateUI();
     const started = performance.now();
-    // Để trình duyệt vẽ xong nước của người chơi trước khi máy tính toán.
-    setTimeout(() => {
-      const [x, y] = chooseMove(state.board, state.turn, state.level);
+    const board = state.board, count = board.moves.length;
+    askAI(state.turn, state.level).then(([x, y]) => {
       const wait = Math.max(0, 250 - (performance.now() - started));
       setTimeout(() => {
+        // Trong lúc máy nghĩ mà người chơi đã đi lại / ván mới thì bỏ kết quả cũ.
+        if (state.board !== board || board.moves.length !== count) return;
         state.thinking = false;
         if (isAITurn()) play(x, y);
         else updateUI();
       }, wait);
-    }, 30);
+    });
   }
 
   function undo() {
@@ -188,6 +214,9 @@
     el.hidden = false;
     $('clock-n').textContent = left;
     el.classList.toggle('low', left <= 5);
+    const mine = c.local || (state.online && state.online.room.turn === state.online.side);
+    if (left <= 5 && left > 0 && left !== c.lastTick && mine) sfx('tick');
+    c.lastTick = left;
   }
 
   function tickClock() {
@@ -212,6 +241,7 @@
     state.pending = null;
     state.score[state.winner]++;
     vibrate(60);
+    sfx(state.mode === 'ai' && state.winner !== state.human ? 'lose' : 'win');
     save();
     updateUI();
     renderClock();
@@ -233,6 +263,7 @@
   function playOnline(x, y) {
     if (!canPlaceNow()) return;
     // Hiện ngay nước đi (máy chủ sẽ xác nhận lại).
+    sfx(state.turn === X ? 'placeX' : 'placeO');
     placeRaw(x, y);
     state.optimistic = [x, y];
     state.lastPlacedAt = performance.now();
@@ -268,11 +299,14 @@
         state.lastPlacedAt = performance.now();
         ensureVisible(last.x, last.y);
         vibrate(15);
+        sfx(last.p === X ? 'placeX' : 'placeO');
       }
     }
     state.optimistic = null;
     if (room.winner && (!prev || !prev.winner || isNewGame)) {
+      state.winAt = performance.now();
       vibrate(40);
+      setTimeout(() => sfx(room.winner === 3 ? 'draw' : room.winner === side ? 'win' : 'lose'), 150);
       setTimeout(showBanner, 300);
     }
     if (!room.winner) hideBanner();
@@ -322,11 +356,11 @@
     } else if (room.turn === side) {
       t.innerHTML = `${esc(T('your_turn'))} ${glyph(side)}`;
     } else {
-      t.innerHTML = esc(T('turn_of', { name: '\u0000' })).replace('\u0000', `<span class="name">${esc(opp.name)}</span>`) +
+      t.innerHTML = esc(T('turn_of', { name: '\u0000' })).replace('\u0000', `<span class="name" title="${esc(opp.name)}">${esc(opp.name)}</span>`) +
         ` ${glyph(room.turn)}` + (opp.online ? '' : ` <span class="thinking">${esc(T('disconnected'))}</span>`);
     }
     const oppScore = opp ? room.score[opp.id] || 0 : 0;
-    $('score').innerHTML = `${esc(T('you'))} ${room.score[me] || 0} : ${oppScore} <span class="name">${esc(opp ? opp.name : '?')}</span>` +
+    $('score').innerHTML = `${esc(T('you'))} ${room.score[me] || 0} : ${oppScore} <span class="name" title="${esc(opp ? opp.name : '')}">${esc(opp ? opp.name : '?')}</span>` +
       (room.kind === 'series' ? ` · Bo${room.bestOf}` : '');
   }
 
@@ -458,6 +492,11 @@
       const [sx, sy] = toScreen(last.x - 0.5, last.y - 0.5);
       ctx.fillStyle = colors.last;
       ctx.fillRect(sx + 1, sy + 1, s - 1, s - 1);
+      // Chấm nhỏ màu của người vừa đánh ở góc ô
+      ctx.fillStyle = last.p === X ? colors.x : colors.o;
+      ctx.beginPath();
+      ctx.arc(sx + s - s * 0.14, sy + s * 0.14, Math.max(2, s * 0.06), 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // Quân cờ (chỉ vẽ các quân trong khung nhìn).
@@ -493,11 +532,15 @@
       const a = state.winCells[0], b = state.winCells[state.winCells.length - 1];
       const [ax, ay] = toScreen(a[0], a[1]);
       const [bx, by] = toScreen(b[0], b[1]);
+      // Vẽ dần từ đầu tới cuối trong ~0,45 giây
+      const t = Math.min(1, (now - (state.winAt || 0)) / 450);
+      if (t < 1) again = true;
+      const e = 1 - Math.pow(1 - t, 3);
       ctx.strokeStyle = colors.win;
       ctx.lineWidth = Math.max(3, s * 0.12);
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      ctx.moveTo(ax, ay); ctx.lineTo(ax + (bx - ax) * e, ay + (by - ay) * e);
       ctx.stroke();
     }
 
@@ -713,7 +756,7 @@
       case '+': case '=': zoomAt(W / 2, H / 2, cam.size * 1.2); return;
       case '-': case '_': zoomAt(W / 2, H / 2, cam.size / 1.2); return;
       case 'c': case 'C': centerView(); return;
-      case 'n': case 'N': newGame(); return;
+      case 'n': case 'N': openNewGame(); return;
       default: return;
     }
     requestDraw();
@@ -721,7 +764,28 @@
   });
 
   // ------------------------------------------------------------ Nút & cài đặt
-  $('btn-new').onclick = newGame;
+  $('btn-new').onclick = () => openNewGame();
+
+  // Bảng chọn nhanh khi bấm "Ván mới": chế độ, cầm quân, độ khó, thời gian – rồi bắt đầu ngay.
+  const ngDlg = $('newgame');
+  const ngForm = $('newgame-form');
+  function openNewGame() {
+    if (state.online) return;
+    ngForm.mode.value = state.mode;
+    ngForm.human.value = String(state.human);
+    ngForm.level.value = String(state.level);
+    ngForm.timeLimit.value = String(state.timeLimit);
+    ngForm.classList.toggle('pvp', state.mode === 'pvp');
+    if (ngDlg.showModal) ngDlg.showModal(); else ngDlg.setAttribute('open', '');
+  }
+  ngForm.addEventListener('change', () => ngForm.classList.toggle('pvp', ngForm.mode.value === 'pvp'));
+  ngForm.addEventListener('submit', () => {
+    state.mode = ngForm.mode.value;
+    state.human = Number(ngForm.human.value);
+    state.level = Number(ngForm.level.value);
+    state.timeLimit = Number(ngForm.timeLimit.value) || 0;
+    newGame();
+  });
   $('btn-undo').onclick = undo;
   $('btn-center').onclick = centerView;
   $('banner-new').onclick = newGame;
@@ -736,6 +800,7 @@
     form.level.value = String(state.level);
     form.timeLimit.value = String(state.timeLimit);
     form.allowUndo.value = state.allowUndo ? 'yes' : 'no';
+    form.sound.value = window.CaroSound.enabled ? 'on' : 'off';
     form.theme.value = window.CaroTheme.get();
     form.elements.lang.value = window.I18N.lang;
     form.confirm.checked = state.confirm;
@@ -752,6 +817,7 @@
     state.level = Number(form.level.value);
     state.timeLimit = Number(form.timeLimit.value) || 0;
     state.allowUndo = form.allowUndo.value !== 'no';
+    window.CaroSound.enabled = form.sound.value !== 'off';
     state.confirm = form.confirm.checked;
     window.CaroTheme.set(form.theme.value);
     window.I18N.setLang(form.elements.lang.value);
