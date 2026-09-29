@@ -17,6 +17,11 @@ const ROOM_IDLE_MS = 30 * 60 * 1000;
 const SEAT_IDLE_MS = 10 * 60 * 1000;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
 const TIME_LIMITS = [0, 10, 20, 30]; // giây mỗi nước, 0 = không giới hạn
+const DRAW_COOLDOWN_MS = 30 * 1000; // bị từ chối hoà thì 30 giây sau mới được xin lại
+// Chống cày Elo bằng 2 tài khoản: ván kết thúc sớm (đầu hàng, hoà, rời phòng…) dưới 10 nước
+// không tính điểm, và mỗi cặp chỉ tính điểm tối đa 5 ván mỗi ngày.
+const MIN_RATED_MOVES = 10;
+const MAX_RATED_PER_PAIR_DAY = 5;
 const QUICK = ['hello', 'nice', 'gg', 'rematch', 'hurry', 'oops', 'thanks', 'wow']; // câu chat nhanh trong phòng
 const REPORT_REASONS = ['spam', 'abuse', 'cheat', 'other'];
 const EMAIL_RE = /^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[a-z]{2,24}$/i;
@@ -44,7 +49,7 @@ class Hub {
     this.googleClientId = googleClientId;
     this.verifyGoogle = verifyGoogle;
     // SECOND_MS: độ dài 1 "giây" của đồng hồ mỗi nước (test đặt nhỏ để chạy nhanh).
-    this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, ...timers };
+    this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, ...timers };
     this.byPid = new Map(); // pid -> Set<conn>
     this.names = new Map(); // pid khách -> tên
     this.rooms = new Map(); // mã phòng -> Room
@@ -464,6 +469,7 @@ class Hub {
     const ux = uidOf(v.seats.x), uo = uidOf(v.seats.o);
     v.h2h = ux && uo ? this.store.h2h(ux, uo) : null;
     v.share = room.lastShare || null; // mã xem lại ván vừa kết thúc
+    v.unrated = !!(room.winner && room.lastUnrated); // ván vừa xong giữa 2 tài khoản nhưng không tính Elo
     return v;
   }
 
@@ -503,6 +509,7 @@ class Hub {
       bestOf,
       timeLimit: TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
       secondMs: this.T.SECOND_MS,
+      drawCooldownMs: this.T.DRAW_COOLDOWN_MS,
     });
     this.rooms.set(room.code, room);
     return room;
@@ -613,9 +620,15 @@ class Hub {
       this.store.touch(u);
     }
     // Đối đầu + Elo: chỉ khi cả hai có tài khoản
+    room.lastUnrated = false;
     if (ux && uo && ux !== uo) {
       this.store.addH2h(ux.id, uo.id, draw ? null : room.winner === 1 ? ux.id : uo.id);
-      this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0);
+      const tooShort = room.reason !== 'win' && room.board.moves.length < MIN_RATED_MOVES;
+      if (tooShort || this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) room.lastUnrated = true;
+      else {
+        this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0);
+        this.store.bumpRated(ux.id, uo.id);
+      }
     }
     // Lưu ván để xem lại (bỏ qua ván chưa có nước nào)
     if (room.board.moves.length) {
@@ -727,8 +740,9 @@ class Hub {
   // ---------------------------------------------------------------- xin hoà & chat nhanh
   on_drawOffer(conn) {
     const room = this.inRoom(conn);
-    const done = room.offerDraw(conn.pid);
-    if (!done) {
+    const res = room.offerDraw(conn.pid);
+    if (res === 'pending') return; // đã xin rồi, không làm phiền đối thủ thêm
+    if (res === 'offered') {
       const opp = room.opponentOf(conn.pid);
       if (opp) this.send(opp.id, note('draw_offered', { name: this.nameOf(conn.pid) }));
     }
@@ -855,7 +869,10 @@ class Hub {
 
   on_dmRead(conn, { peer, lastId }) {
     const me = this.requireUser(conn);
-    if (typeof peer === 'string' && Number.isInteger(lastId)) this.store.markRead(me.id, peer, lastId);
+    // Chỉ ghi cho người chơi có thật (không để chuỗi tuỳ ý làm phình CSDL)
+    if (typeof peer === 'string' && this.store.users.has(peer) && Number.isInteger(lastId) && lastId > 0) {
+      this.store.markRead(me.id, peer, lastId);
+    }
   }
 
   // ---------------------------------------------------------------- mật khẩu & email
@@ -878,6 +895,11 @@ class Hub {
     const me = this.requireUser(conn);
     email = String(email || '').trim().toLowerCase();
     if (email && !EMAIL_RE.test(email)) throw E('email_invalid');
+    // Mọi lần lưu email đều bị đếm (kể cả tài khoản Google chưa có mật khẩu), để không dùng
+    // thông báo "email đã được dùng" dò hàng loạt xem email nào đã đăng ký.
+    const tries = [['email:' + me.id, 10], ['email-ip:' + conn.ip, 30]];
+    this.limit(tries);
+    this.fail(tries);
     if (me.pass) {
       const rules = [['pw:' + me.id, 8]];
       this.limit(rules);
@@ -896,7 +918,7 @@ class Hub {
   }
 
   /** Quên mật khẩu: gửi mã 6 số qua email. Luôn trả lời giống nhau để không lộ tài khoản nào tồn tại. */
-  async on_forgot(conn, { login, lang }) {
+  on_forgot(conn, { login, lang }) {
     if (!this.sendMail) throw E('reset_unavailable');
     const rules = [['forgot-ip:' + conn.ip, 10], ['forgot:' + String(login || '').toLowerCase().slice(0, 60), 3]];
     this.limit(rules);
@@ -906,7 +928,9 @@ class Hub {
       const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
       this.store.setReset(u.id, code, RESET_TTL_MS);
       const mail = RESET_MAIL[lang] || RESET_MAIL.vi;
-      try { await this.sendMail(u.email, mail.subject, mail.body(u.username, code)); } catch (e) { /* không lộ lỗi gửi thư */ }
+      // Gửi thư chạy nền: nếu chờ gửi xong mới trả lời thì thời gian trả lời sẽ lộ ra
+      // tài khoản có email hay không.
+      Promise.resolve().then(() => this.sendMail(u.email, mail.subject, mail.body(u.username, code))).catch(() => {});
     }
     conn.send({ t: 'forgotSent' });
   }

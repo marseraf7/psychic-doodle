@@ -18,6 +18,8 @@ chơi online qua WebSocket (`/ws`):
   `https://…/?replay=<mã>` (ai có link cũng xem được, không cần tài khoản).
 - **Đối đầu, Elo, bảng xếp hạng**: thành tích thắng–thua–hoà giữa hai người, điểm Elo
   (bắt đầu 1200, 20 trận đầu thay đổi nhanh hơn), top 20. Chỉ tính ván giữa hai tài khoản.
+  Chống cày điểm: ván kết thúc sớm dưới 10 nước (đầu hàng, hoà, rời phòng, hết giờ…) không tính,
+  mỗi cặp chỉ tính tối đa 5 ván mỗi ngày.
 - **Nhắn tin bạn bè**: lưu 100 tin gần nhất mỗi cặp, báo số tin chưa đọc; **chặn** (huỷ kết bạn,
   không nhắn / thách đấu / chat nhanh được nữa) và **báo cáo** (máy chủ tự đính kèm tin nhắn gần nhất).
 - **Mật khẩu**: đổi mật khẩu (đăng xuất các thiết bị khác), đặt mật khẩu cho tài khoản Google,
@@ -128,6 +130,9 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
 - Quên mật khẩu: luôn trả lời giống nhau dù tài khoản có tồn tại hay không; mã 6 số hết hạn sau
   15 phút, sai 5 lần là huỷ; đặt lại xong thì đăng xuất mọi thiết bị.
 - Link xem lại không chứa id tài khoản; tin nhắn tối đa 500 ký tự, 60 tin / 10 phút.
+- Chống dò email đã đăng ký: lưu email tối đa 10 lần / 10 phút mỗi tài khoản (30 lần / IP);
+  "Quên mật khẩu" trả lời ngay, gửi thư chạy nền (thời gian trả lời không lộ tài khoản có email hay không).
+- Xin hoà: đang chờ trả lời thì không báo lại cho đối thủ; bị từ chối thì 30 giây sau mới được xin lại.
 - Máy chủ kiểm tra mọi nước đi; tên người chơi được lọc/escape (chống XSS).
 - Header CSP, chống nhúng iframe (clickjacking), `nosniff`; chỉ cho phép GET/HEAD file tĩnh, chặn truy cập ngoài thư mục `caro/`.
 - Giới hạn thử sai (mỗi 10 phút), tính theo đối tượng bị dò chứ không khoá cả IP, vì nhà mạng di động

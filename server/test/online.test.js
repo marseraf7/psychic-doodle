@@ -20,7 +20,7 @@ test.before(async () => {
     },
     sendMail: async (to, subject, text) => { mails.push({ to, subject, text }); },
     msgRate: 2000, // test đánh rất nhanh; phần chặn spam vẫn kiểm tra bằng tin gửi dồn
-    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500, SECOND_MS: 20 }, // 1 "giây" = 20ms
+    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500, SECOND_MS: 20, DRAW_COOLDOWN_MS: 300 }, // 1 "giây" = 20ms
   });
   await new Promise((r) => app.server.on('listening', r));
   url = `ws://127.0.0.1:${app.server.address().port}/ws`;
@@ -472,10 +472,22 @@ test('xin hoà: đồng ý thì hoà, từ chối thì báo lại, đánh tiếp
   await declined;
   // Không có lời xin hoà thì không trả lời được
   assert.strictEqual((await o.req({ t: 'drawAnswer', accept: true }, 'error')).code, 'no_draw_offer');
-  // Xin hoà, đối thủ đánh tiếp -> lời xin hoà bị huỷ
+  // Vừa bị từ chối thì phải chờ mới được xin lại (chống spam lời xin hoà)
+  const wait = await x.req({ t: 'drawOffer' }, 'error');
+  assert.strictEqual(wait.code, 'draw_wait');
+  assert.ok(wait.args.n >= 1);
+  await new Promise((r) => setTimeout(r, 350));
+  // Xin hoà nhiều lần khi lời xin trước còn chờ: đối thủ chỉ nhận 1 thông báo
+  let notes = 0;
+  o.waiters.push((m) => { if (m.t === 'toast' && m.code === 'draw_offered') notes++; return false; });
   await x.req({ t: 'drawOffer' }, 'room', (m) => m.room.drawOffer === x.me.id);
+  for (let i = 0; i < 3; i++) x.send({ t: 'drawOffer' });
+  await new Promise((r) => setTimeout(r, 150));
+  assert.strictEqual(notes, 1);
+  // Đối thủ đánh tiếp -> lời xin hoà bị huỷ, và cũng tính là bị từ chối
   await move(o, x, 5, 5);
   assert.strictEqual(o.room.drawOffer, null);
+  assert.strictEqual((await x.req({ t: 'drawOffer' }, 'error')).code, 'draw_wait');
   // Xin hoà, đồng ý -> ván hoà
   await o.req({ t: 'drawOffer' }, 'room', (m) => m.room.drawOffer === o.me.id);
   await x.req({ t: 'drawAnswer', accept: true }, 'room', (m) => m.room.winner === 3);
@@ -484,7 +496,9 @@ test('xin hoà: đồng ý thì hoà, từ chối thì báo lại, đánh tiếp
   if (a.me.stats.draws !== 1) await a.wait('me', (m) => m.me.stats.draws === 1); // cập nhật ngay, không cần tải lại
   const a2 = await Client.open({ token: a.token });
   assert.deepStrictEqual(a2.me.stats, { wins: 0, losses: 0, draws: 1 });
-  assert.strictEqual(a2.me.rating, 1200, 'hai người cùng 1200 hoà thì giữ nguyên');
+  assert.strictEqual(a2.me.rating, 1200, 'hoà sau 3 nước: không tính Elo');
+  assert.strictEqual(a2.me.rated, 0);
+  assert.strictEqual(x.room.unrated, true, 'giao diện được báo ván không tính Elo');
   assert.deepStrictEqual(x.room.h2h, { wins: 0, losses: 0, draws: 1 });
   assert.strictEqual((await x.req({ t: 'drawOffer' }, 'error')).code, 'cannot_draw');
   [a, a2, b].forEach((c) => c.close());
@@ -544,8 +558,8 @@ test('lịch sử 10 trận, xem lại qua link chia sẻ, đối đầu, Elo v�
   const lb = await a.req({ t: 'leaderboard' }, 'leaderboard');
   const ra = lb.top.find((u) => u.username === 'hist_a'), rb = lb.top.find((u) => u.username === 'hist_b');
   assert.ok(ra.rating > rb.rating, JSON.stringify(lb.top));
-  assert.strictEqual(ra.games, 11);
-  assert.ok(Math.abs(ra.rating + rb.rating - 2400) <= 11);
+  assert.strictEqual(ra.games, 5, 'mỗi cặp chỉ tính Elo 5 ván/ngày (chống cày điểm)');
+  assert.ok(Math.abs(ra.rating + rb.rating - 2400) <= 5);
   assert.ok(lb.me && lb.me.rank >= 1);
   assert.ok(lb.top.every((u, i) => i === 0 || lb.top[i - 1].rating >= u.rating));
   [a, b].forEach((c) => c.close());
@@ -561,6 +575,11 @@ test('nhắn tin bạn bè: chỉ với bạn, chưa đọc, lịch sử, chặn
   assert.strictEqual(m.peer, a.me.uid);
   assert.strictEqual(m.msg.text, 'chào  bạn');
   assert.strictEqual((await a.req({ t: 'dmSend', to: b.me.uid, text: '   ' }, 'error')).code, 'message_empty');
+  // Đánh dấu đã đọc với người không tồn tại: không ghi gì vào CSDL
+  const before = app.store.db.prepare('SELECT COUNT(*) AS n FROM dm_read').get().n;
+  for (let i = 0; i < 5; i++) b.send({ t: 'dmRead', peer: 'rac' + i, lastId: 1 });
+  await b.req({ t: 'dmHistory', peer: a.me.uid }, 'dmHistory');
+  assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM dm_read').get().n, before);
   // Chưa đọc hiển thị trong danh sách bạn bè khi đăng nhập lại
   const b2 = await Client.open({ token: b.token });
   if (!b2.friends) await b2.wait('friends');
@@ -631,4 +650,42 @@ test('đổi mật khẩu (đăng xuất thiết bị khác), email, quên mật
   const l2 = await Client.open();
   await l2.req({ t: 'login', username: 'pw_a', password: 'reset1' }, 'welcome');
   [a, b, other, old, login, guest, l2].forEach((c) => c.close());
+});
+
+test('Elo: đầu hàng / hoà quá sớm không tính điểm; thắng thật thì tính', async () => {
+  const a = await account('elo_a'), b = await account('elo_b');
+  await roomOf(a, b);
+  const x = side(a.room, a.me.id) === 1 ? a : b, o = x === a ? b : a;
+  await move(x, o, 0, 0);
+  await o.req({ t: 'resign' }, 'room', (m) => !!m.room.winner);
+  assert.strictEqual(o.room.unrated, true);
+  const lb = await a.req({ t: 'leaderboard' }, 'leaderboard');
+  assert.ok(!lb.top.some((u) => u.username === 'elo_a'), 'chưa có ván tính điểm thì chưa lên bảng');
+  await a.req({ t: 'rematch' }, 'room', (m) => m.room.rematch.length === 1);
+  await b.req({ t: 'rematch' }, 'room', (m) => m.room.gameNo === 2);
+  if (a.room.gameNo !== 2) await a.wait('room', (m) => m.room.gameNo === 2);
+  await playWin(a, b);
+  assert.strictEqual(a.room.unrated, false);
+  if (a.me.rating === 1200) await a.wait('me', (m) => m.me.rating !== 1200);
+  assert.strictEqual(a.me.rating, 1220);
+  assert.strictEqual(a.me.rated, 1);
+  [a, b].forEach((c) => c.close());
+});
+
+test('email: giới hạn số lần lưu (chống dò email đã đăng ký); quên mật khẩu không chờ gửi thư', async () => {
+  const g = await Client.open();
+  await g.req({ t: 'google', credential: 'ok:sub-mail:m@x.com:Mail' }, 'welcome');
+  assert.strictEqual(g.me.hasPassword, false);
+  for (let i = 0; i < 10; i++) await g.req({ t: 'setEmail', email: `probe${i}@x.com` }, 'me');
+  const err = await g.req({ t: 'setEmail', email: 'last@x.com' }, 'error');
+  assert.strictEqual(err.code, 'too_many_attempts');
+  // Máy chủ gửi thư chậm (hoặc treo): vẫn trả lời ngay
+  const hang = app.hub.sendMail;
+  app.hub.sendMail = () => new Promise(() => {});
+  const c = await Client.open();
+  const t0 = Date.now();
+  await c.req({ t: 'forgot', login: 'probe9@x.com' }, 'forgotSent');
+  assert.ok(Date.now() - t0 < 500);
+  app.hub.sendMail = hang;
+  [g, c].forEach((x) => x.close());
 });

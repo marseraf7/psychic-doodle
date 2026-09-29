@@ -25,6 +25,7 @@ const DM_PER_PAIR = 100;
 // Chỉ lưu mã băm của token: lộ file dữ liệu cũng không dùng được để đăng nhập.
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 const pair = (a, b) => (a < b ? [a, b] : [b, a]);
+const today = () => new Date().toISOString().slice(0, 10);
 
 const SCHEMA = `
   PRAGMA journal_mode = WAL;
@@ -41,6 +42,9 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS dm (id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT NOT NULL, b TEXT NOT NULL,
     sender TEXT NOT NULL, text TEXT NOT NULL, created INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS dm_pair ON dm (a, b, id);
+  CREATE INDEX IF NOT EXISTS dm_b ON dm (b, id);
+  CREATE TABLE IF NOT EXISTS rated_pairs (a TEXT NOT NULL, b TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL,
+    PRIMARY KEY (a, b, day));
   CREATE TABLE IF NOT EXISTS dm_read (uid TEXT NOT NULL, peer TEXT NOT NULL, last_id INTEGER NOT NULL, PRIMARY KEY (uid, peer));
   CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, reporter TEXT, target TEXT, reason TEXT,
     context TEXT, created INTEGER);
@@ -86,8 +90,16 @@ class Store {
       listDm: q('SELECT id, sender, text, created FROM dm WHERE a = ? AND b = ? AND id < ? ORDER BY id DESC LIMIT ?'),
       getRead: q('SELECT last_id FROM dm_read WHERE uid = ? AND peer = ?'),
       setRead: q('INSERT INTO dm_read (uid, peer, last_id) VALUES (?, ?, ?) ON CONFLICT(uid, peer) DO UPDATE SET last_id = MAX(last_id, excluded.last_id)'),
-      unread: q(`SELECT sender AS peer, COUNT(*) AS n FROM dm d WHERE (d.a = ? OR d.b = ?) AND d.sender <> ?
-        AND d.id > COALESCE((SELECT last_id FROM dm_read r WHERE r.uid = ? AND r.peer = d.sender), 0) GROUP BY sender`),
+      // Hai nhánh a = ? / b = ? để SQLite dùng chỉ mục thay vì đọc cả bảng tin nhắn
+      // (câu này chạy mỗi lần gửi danh sách bạn bè, tức là rất thường xuyên).
+      unread: q(`SELECT sender AS peer, COUNT(*) AS n FROM (
+          SELECT id, sender FROM dm WHERE a = ? AND sender <> ?
+          UNION ALL SELECT id, sender FROM dm WHERE b = ? AND sender <> ?) d
+        WHERE d.id > COALESCE((SELECT last_id FROM dm_read r WHERE r.uid = ? AND r.peer = d.sender), 0) GROUP BY sender`),
+      ratedToday: q('SELECT n FROM rated_pairs WHERE a = ? AND b = ? AND day = ?'),
+      bumpRated: q(`INSERT INTO rated_pairs (a, b, day, n) VALUES (?, ?, ?, 1)
+        ON CONFLICT(a, b, day) DO UPDATE SET n = n + 1`),
+      pruneRated: q('DELETE FROM rated_pairs WHERE day < ?'),
       addReport: q('INSERT INTO reports (reporter, target, reason, context, created) VALUES (?, ?, ?, ?, ?)'),
       listReports: q('SELECT * FROM reports ORDER BY id DESC LIMIT ?'),
       setReset: q('INSERT INTO resets (uid, code_hash, expires, tries) VALUES (?, ?, ?, 0) ON CONFLICT(uid) DO UPDATE SET code_hash = excluded.code_hash, expires = excluded.expires, tries = 0'),
@@ -272,6 +284,19 @@ class Store {
     this.q.addH2h.run(a, b, winnerId === a ? 1 : 0, winnerId === b ? 1 : 0, winnerId ? 0 : 1);
   }
 
+  /** Số ván tính Elo giữa 2 người trong ngày (UTC) – chống 2 tài khoản đánh qua lại để cày điểm. */
+  ratedToday(x, y) {
+    const [a, b] = pair(x, y);
+    return this.q.ratedToday.get(a, b, today())?.n || 0;
+  }
+
+  bumpRated(x, y) {
+    const [a, b] = pair(x, y);
+    const day = today();
+    this.q.bumpRated.run(a, b, day);
+    if (this.prunedDay !== day) { this.prunedDay = day; this.q.pruneRated.run(day); }
+  }
+
   // ------------------------------------------------------------ Tin nhắn bạn bè
   addDm(from, to, text) {
     const [a, b] = pair(from, to);
@@ -294,7 +319,7 @@ class Store {
   /** { peerId: số tin chưa đọc } */
   unread(uid) {
     const out = {};
-    for (const r of this.q.unread.all(uid, uid, uid, uid)) out[r.peer] = r.n;
+    for (const r of this.q.unread.all(uid, uid, uid, uid, uid)) out[r.peer] = r.n;
     return out;
   }
 

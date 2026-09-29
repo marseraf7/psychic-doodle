@@ -13,13 +13,14 @@ const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
 const COORD_LIMIT = 1_000_000;
 
 class Room {
-  constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, secondMs = 1000 }) {
+  constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, secondMs = 1000, drawCooldownMs = 30000 }) {
     this.code = code;
     this.password = password;
     this.kind = kind;
     this.bestOf = bestOf;
     this.timeLimit = timeLimit; // giây mỗi nước, 0 = không giới hạn
     this.secondMs = secondMs;
+    this.drawCooldownMs = drawCooldownMs; // bị từ chối hoà thì phải chờ mới được xin lại
     this.turnEndsAt = null;
     this.players = []; // [{ id, name }]
     this.seats = { [X]: null, [O]: null }; // quân -> id người chơi
@@ -42,6 +43,7 @@ class Room {
     this.reason = null; // 'win' | 'resign' | 'leave' | 'timeout' (mất kết nối) | 'time' (hết giờ) | 'draw'
     this.turnEndsAt = null;
     this.drawOffer = null; // id người đang xin hoà
+    this.drawWait = {}; // id -> thời điểm được xin hoà lại
   }
 
   /** Bắt đầu tính giờ cho lượt hiện tại (nếu phòng có giới hạn thời gian). */
@@ -105,7 +107,7 @@ class Room {
     if (this.board.get(x, y) !== Caro.EMPTY) throw E('cell_taken');
     this.board.play(x, y, side);
     // Đối thủ đánh tiếp thay vì trả lời = từ chối lời xin hoà.
-    if (this.drawOffer && this.drawOffer !== id) this.drawOffer = null;
+    if (this.drawOffer && this.drawOffer !== id) this.declineDraw();
     this.touch();
     const cells = Caro.checkWin(this.board, x, y, side);
     if (cells) {
@@ -123,19 +125,30 @@ class Room {
     this.finish(Caro.other(side), 'resign');
   }
 
-  /** Xin hoà. Trả về true nếu thành hoà ngay (đối thủ cũng đang xin hoà). */
+  /**
+   * Xin hoà. Trả về 'draw' nếu thành hoà ngay (đối thủ cũng đang xin hoà),
+   * 'offered' nếu vừa gửi lời xin, 'pending' nếu lời xin trước vẫn đang chờ (không báo lại).
+   */
   offerDraw(id) {
     if (!this.sideOf(id) || !this.active) throw E('cannot_draw');
-    if (this.drawOffer && this.drawOffer !== id) { this.finish(DRAW, 'draw'); return true; }
+    if (this.drawOffer && this.drawOffer !== id) { this.finish(DRAW, 'draw'); return 'draw'; }
+    if (this.drawOffer === id) return 'pending';
+    const wait = (this.drawWait[id] || 0) - Date.now();
+    if (wait > 0) throw E('draw_wait', { n: Math.ceil(wait / 1000) });
     this.drawOffer = id;
-    return false;
+    return 'offered';
+  }
+
+  declineDraw() {
+    this.drawWait[this.drawOffer] = Date.now() + this.drawCooldownMs;
+    this.drawOffer = null;
   }
 
   /** Trả lời lời xin hoà của đối thủ. */
   answerDraw(id, accept) {
     if (!this.drawOffer || this.drawOffer === id || !this.active) throw E('no_draw_offer');
     if (accept) this.finish(DRAW, 'draw');
-    else this.drawOffer = null;
+    else this.declineDraw();
     return accept;
   }
 

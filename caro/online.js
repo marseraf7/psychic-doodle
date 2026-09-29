@@ -566,6 +566,7 @@
     } else {
       sub = (sub ? sub + ' · ' : '') + T('score_is', { score });
     }
+    if (r.unrated) sub = (sub ? sub + ' · ' : '') + T('unrated');
     if (!opp) { sub = T('opp_left'); rematch = false; }
     $('banner-title').textContent = title;
     $('banner-sub').textContent = sub;

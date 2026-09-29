@@ -56,6 +56,7 @@ const VI = {
   no_draw_offer: 'Không có lời xin hoà nào',
   draw_offered: '{name} xin hoà',
   draw_declined: '{name} không đồng ý hoà',
+  draw_wait: 'Đợi {n} giây nữa mới được xin hoà lại',
   blocked: 'Không thể tương tác với người chơi này',
   not_friends: 'Chỉ nhắn tin được với bạn bè',
   message_empty: 'Tin nhắn trống',
