@@ -11,7 +11,12 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   tạo phòng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
   thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online.
   Phần online cần chạy máy chủ trong thư mục [`server/`](../server/README.md).
-- Đi lại, lưu ván đang chơi, tỉ số, chế độ sáng/tối theo máy.
+- Đi lại, lưu ván đang chơi, tỉ số.
+- **Thời gian mỗi nước**: không giới hạn / 10 / 20 / 30 giây – hết giờ mà chưa đánh thì thua
+  (offline: tạm dừng khi mở Cài đặt; online: máy chủ đếm giờ, người tạo phòng/người thách đấu chọn).
+- **Giao diện** Sáng / Tối / Theo hệ thống.
+- **Ngôn ngữ**: Tiếng Việt, English, Русский, 中文 (lần đầu tự chọn theo ngôn ngữ trình duyệt,
+  không khớp thì dùng tiếng Việt; đổi trong Cài đặt). Bản dịch nằm trong `i18n.js`.
 - Chế độ "chạm 2 lần để đánh" (bật sẵn trên điện thoại) để tránh bấm nhầm.
 - **Không dùng tài nguyên bên ngoài** (không CDN, không Google Fonts, không quảng cáo/analytics):
   mọi thứ nằm trong thư mục này, nên không bị chặn ở Việt Nam hay Nga.
@@ -54,6 +59,7 @@ node caro/tests/rules.test.js
 |---|---|
 | `rules.js` | Luật thắng + AI (dùng chung cho trình duyệt và Node) |
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái |
+| `i18n.js`, `theme.js` | Bản dịch 4 ngôn ngữ; giao diện Sáng/Tối/Hệ thống |
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
 | `index.html`, `style.css` | Giao diện |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |
