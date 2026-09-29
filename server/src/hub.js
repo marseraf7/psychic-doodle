@@ -321,8 +321,9 @@ class Hub {
     const pid = conn.pid;
     const uid = uidOf(pid);
     if (uid) {
-      this.store.users.get(uid).name = name;
-      this.store.save();
+      const u = this.store.users.get(uid);
+      u.name = name;
+      this.store.touch(u);
       this.notifyFriends(pid);
     } else this.names.set(pid, name);
     for (const c of this.byPid.get(pid) || []) c.send({ t: 'me', me: this.meView(pid) });
@@ -380,7 +381,7 @@ class Hub {
     if (!me.outgoing.includes(other.id)) {
       me.outgoing.push(other.id);
       other.incoming.push(me.id);
-      this.store.save();
+      this.store.touch(me, other);
     }
     conn.send(note('friend_request_sent', { name: other.name }));
     this.send(userPid(other.id), note('friend_request_in', { name: me.name }));
@@ -399,7 +400,7 @@ class Hub {
       if (!other.friends.includes(me.id)) other.friends.push(me.id);
       this.send(userPid(id), note('friend_accepted', { name: me.name }));
     }
-    this.store.save();
+    this.store.touch(me, other);
     this.sendFriends(me.id);
     this.sendFriends(id);
   }
@@ -410,7 +411,7 @@ class Hub {
     const rm = (arr, x) => arr.filter((v) => v !== x);
     me.friends = rm(me.friends, id); me.outgoing = rm(me.outgoing, id); me.incoming = rm(me.incoming, id);
     if (other) { other.friends = rm(other.friends, me.id); other.outgoing = rm(other.outgoing, me.id); other.incoming = rm(other.incoming, me.id); }
-    this.store.save();
+    this.store.touch(me, other);
     this.sendFriends(me.id);
     if (other) this.sendFriends(other.id);
   }
@@ -566,7 +567,7 @@ class Hub {
     const l = room.seats[3 - room.winner];
     for (const [pid, key] of [[w, 'wins'], [l, 'losses']]) {
       const u = uidOf(pid) && this.store.users.get(uidOf(pid));
-      if (u) { u.stats[key]++; this.store.save(); }
+      if (u) { u.stats[key]++; this.store.touch(u); }
     }
     if (!leaving && room.awaitingNextGame) {
       const game = room.gameNo;

@@ -203,7 +203,7 @@ test('tài khoản, kết bạn, trạng thái online, thách đấu Bo3 đổi 
 
   // Thống kê được cập nhật.
   const a3 = await Client.open({ token: a.token });
-  assert.deepStrictEqual(a3.me.stats, { wins: 2, losses: 1 });
+  assert.deepStrictEqual(a3.me.stats, { wins: 2, losses: 1, draws: 0 });
   a3.close();
 
   // Offline -> bạn bè thấy trạng thái offline.
@@ -283,7 +283,8 @@ test('bảo mật: header an toàn, chặn spam tin nhắn, token không lưu d�
 
   const u = await Client.open();
   await u.req({ t: 'register', username: 'sec_test', password: '123456' }, 'welcome');
-  assert.ok(!app.store.sessions.has(u.token), 'không lưu token gốc');
+  const raw = app.store.db.prepare('SELECT hash FROM sessions').all().map((r) => r.hash);
+  assert.ok(raw.length && !raw.includes(u.token), 'không lưu token gốc');
   const again = await Client.open({ token: u.token });
   assert.strictEqual(again.me.username, 'sec_test');
   const bogus = await Client.open({ token: { evil: 1 } });

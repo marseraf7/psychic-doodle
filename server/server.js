@@ -90,8 +90,9 @@ function serveStatic(req, res) {
   });
 }
 
-function start({ port = PORT, dataFile = path.join(DATA_DIR, 'db.json'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken, timers } = {}) {
-  const store = new Store(dataFile);
+function start({ port = PORT, dataFile = path.join(DATA_DIR, 'caro.db'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken, timers } = {}) {
+  // dataFile = null: chỉ lưu trong bộ nhớ (test). Còn file db.json của bản cũ thì tự nhập một lần.
+  const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
   const hub = new Hub({ store, googleClientId, verifyGoogle, ...(timers ? { timers } : {}) });
   const server = http.createServer(serveStatic);
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
@@ -139,7 +140,7 @@ function start({ port = PORT, dataFile = path.join(DATA_DIR, 'db.json'), googleC
   const stop = () => new Promise((resolve) => {
     clearInterval(ping);
     hub.close();
-    store.flush();
+    store.close();
     for (const ws of wss.clients) ws.terminate();
     wss.close();
     server.close(() => resolve());
