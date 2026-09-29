@@ -64,7 +64,8 @@ def gan_nguoi_noi(tu_list, doan_nguoi_noi, lan_can=1.0):
     """Gán người nói cho mỗi từ theo đoạn tách người nói TRÙNG NHIỀU NHẤT về thời gian.
     doan_nguoi_noi: [(bat_dau, ket_thuc, nhan)] KHÔNG chồng lấn (exclusive diarization).
     Từ rơi vào khoảng trống: lấy đoạn gần nhất trong phạm vi `lan_can` giây,
-    nếu không có thì theo người nói của từ ngay trước."""
+    nếu không có thì theo người nói của từ ngay trước.
+    Sau đó sửa từ ĐẦU LƯỢT bị dính vào người trước (xem _sua_tu_dau_luot)."""
     doan = sorted(doan_nguoi_noi)
     bat_dau_list = [d[0] for d in doan]
     truoc = KHONG_RO
@@ -93,7 +94,25 @@ def gan_nguoi_noi(tu_list, doan_nguoi_noi, lan_can=1.0):
             tot_nhat = gan if gan is not None else truoc
         t.nguoi = tot_nhat
         truoc = tot_nhat
+    _sua_tu_dau_luot(tu_list, doan)
     return tu_list
+
+
+def _sua_tu_dau_luot(tu_list, doan, phu_toi_thieu=0.5):
+    """Whisper hay đặt mốc từ đầu câu sau khoảng lặng QUÁ SỚM và kéo dài (~1 giây, phủ lên khoảng lặng),
+    nên từ đầu lượt của người mới dính vào cuối đoạn của người trước ("... ủng hộ các kiến nghị này Khắp | nơi").
+    Đo trên audio thật: nếu từ nằm ngay trước chỗ đổi người mà phần lớn thời lượng lòi ra SAU đoạn của
+    người được gán -> thực chất là từ đầu lượt của người sau."""
+    for k in range(len(tu_list) - 1):
+        t, sau = tu_list[k], tu_list[k + 1]
+        if sau.nguoi == t.nguoi or sau.nguoi == KHONG_RO or t.ket_thuc <= t.bat_dau:
+            continue
+        cua_minh = [(s, e) for s, e, n in doan if n == t.nguoi and s < t.ket_thuc and e > t.bat_dau]
+        if not cua_minh:
+            continue
+        phu = sum(min(e, t.ket_thuc) - max(s, t.bat_dau) for s, e in cua_minh)
+        if phu < phu_toi_thieu * (t.ket_thuc - t.bat_dau) and max(e for _, e in cua_minh) < t.ket_thuc:
+            t.nguoi = sau.nguoi
 
 
 def _ket_thuc_cau(chu):

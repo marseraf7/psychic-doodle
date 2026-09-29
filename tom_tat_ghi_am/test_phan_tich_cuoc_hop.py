@@ -91,6 +91,17 @@ class TestNguoiNoi(unittest.TestCase):
         NN.gan_nguoi_noi(ds, doan)
         self.assertEqual([t.nguoi for t in ds], ["A", "A", "B", "B", "B"])
 
+    def test_tu_dau_luot_bi_keo_dai(self):
+        # Số liệu thật (VIVOS): Whisper đặt "Khắp" 61.73–62.69 phủ lên khoảng lặng, chỉ 0.2s nằm trong đoạn A
+        ds = [tu(61.2, 61.73, " này"), tu(61.73, 62.69, " Khắp"), tu(64.35, 64.53, " nơi")]
+        doan = [(59.8, 61.945, "A"), (64.19, 67.73, "B")]
+        NN.gan_nguoi_noi(ds, doan)
+        self.assertEqual([t.nguoi for t in ds], ["A", "B", "B"])
+        # Từ cuối nằm gọn trong đoạn của mình thì giữ nguyên
+        ds = [tu(61.2, 61.7, " này"), tu(61.7, 61.9, " thôi"), tu(64.35, 64.53, " nơi")]
+        NN.gan_nguoi_noi(ds, doan)
+        self.assertEqual([t.nguoi for t in ds], ["A", "A", "B"])
+
     def test_gan_nguoi_noi_khong_co_doan(self):
         ds = NN.gan_nguoi_noi([tu(0, 1, " a")], [])
         self.assertEqual(ds[0].nguoi, NN.KHONG_RO)

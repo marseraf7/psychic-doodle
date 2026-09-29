@@ -39,6 +39,7 @@ TEN_MODEL = {"whisper": "whisper-large-v3",
              "pyannote": "pyannote-community-1",
              "cam_xuc": "emotion2vec_plus_large"}
 PHIEN_BAN_DU_LIEU = 1
+PHIEN_BAN_GAN_NGUOI_NOI = 2   # tăng khi đổi cách ghép từ với người nói -> bước 3-4 tự chạy lại
 
 
 # =====================================================================
@@ -345,7 +346,7 @@ def phan_tich_file(duong_dan, ten_ra, args, thiet_bi, ten_tuy_chon):
     nguon = van_tay_nguon(duong_dan)
     vt_asr = {**nguon, "model": TEN_MODEL["whisper"], "ngon_ngu": args.ngon_ngu}
     vt_nn = {**nguon, "so_nguoi": args.so_nguoi, "it_nhat": args.it_nhat, "nhieu_nhat": args.nhieu_nhat}
-    vt_dv = {"asr": vt_asr, "nn": vt_nn, "cam_xuc": not args.khong_cam_xuc,
+    vt_dv = {"asr": vt_asr, "nn": vt_nn, "gan": PHIEN_BAN_GAN_NGUOI_NOI, "cam_xuc": not args.khong_cam_xuc,
              "nguong": args.nguong_cam_xuc}
 
     audio = []   # giải mã lười: chỉ khi cần chạy ít nhất 1 bước
