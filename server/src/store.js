@@ -11,12 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-// node:sqlite còn gắn nhãn "experimental" trong Node 22 – ẩn đúng cảnh báo đó, giữ các cảnh báo khác.
-const emitWarning = process.emitWarning;
-process.emitWarning = function (w, ...rest) {
-  if (String(w && w.message ? w.message : w).includes('SQLite')) return;
-  return emitWarning.call(process, w, ...rest);
-};
+// node:sqlite còn gắn nhãn "experimental" trong Node 22 nên in 1 dòng cảnh báo khi khởi động.
+// Các lệnh chạy (npm start, Dockerfile, caro.service) dùng --disable-warning=ExperimentalWarning để ẩn.
 const { DatabaseSync } = require('node:sqlite');
 
 const SESSION_TTL = 180 * 24 * 3600 * 1000;

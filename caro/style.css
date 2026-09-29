@@ -518,3 +518,7 @@ body.replay #banner { display: none; }
 .dlg-invites .invite { width: 100%; box-shadow: none; }
 /* Chừa chỗ cho nút chat ở góc phải khi đang trong phòng */
 @media (max-width: 560px) { body.online .toasts { padding: 0 68px; } }
+.email-status { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+.email-status.ok { color: #2fb45a; font-weight: var(--fw-medium); }
+#email-form[hidden] { display: none; }
+#email-verify .row input { flex: 1; min-width: 0; }

@@ -26,6 +26,15 @@ const QUICK = ['hello', 'nice', 'gg', 'rematch', 'hurry', 'oops', 'thanks', 'wow
 const REPORT_REASONS = ['spam', 'abuse', 'cheat', 'other'];
 const EMAIL_RE = /^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[a-z]{2,24}$/i;
 const RESET_TTL_MS = 15 * 60 * 1000;
+const VERIFY_TTL_MS = 30 * 60 * 1000; // mã xác minh email có hiệu lực 30 phút
+const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
+// Email xác minh địa chỉ (chỉ email đã xác minh mới dùng để khôi phục mật khẩu)
+const VERIFY_MAIL = {
+  vi: { subject: 'Mã xác minh email Cờ Caro', body: (u, c) => `Xin chào ${u},\n\nMã xác minh email của bạn là: ${c}\nMã có hiệu lực trong 30 phút.\n\nNếu bạn không thêm email này vào tài khoản Cờ Caro, hãy bỏ qua thư này.` },
+  en: { subject: 'Caro email verification code', body: (u, c) => `Hi ${u},\n\nYour email verification code is: ${c}\nIt expires in 30 minutes.\n\nIf you did not add this email to a Caro account, you can ignore this message.` },
+  ru: { subject: 'Код подтверждения почты Каро', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код подтверждения почты: ${c}\nКод действует 30 минут.\n\nЕсли вы не добавляли эту почту в аккаунт Каро, просто проигнорируйте письмо.` },
+  zh: { subject: '五子棋 Caro 邮箱验证码', body: (u, c) => `${u}，你好：\n\n你的邮箱验证码是：${c}\n验证码 30 分钟内有效。\n\n如果你没有在 Caro 账号中添加此邮箱，请忽略此邮件。` },
+};
 // Email đặt lại mật khẩu theo ngôn ngữ người dùng đang chọn
 const RESET_MAIL = {
   vi: { subject: 'Mã đặt lại mật khẩu Cờ Caro', body: (u, c) => `Xin chào ${u},\n\nMã đặt lại mật khẩu của bạn là: ${c}\nMã có hiệu lực trong 15 phút.\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.` },
@@ -186,6 +195,7 @@ class Hub {
     return {
       id: pid, uid, name: u.name, username: u.username, guest: false, google: !!u.google, hasPassword: !!u.pass,
       stats: u.stats, rating: u.rating, rated: u.rated, email: u.email,
+      pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
       blocked: u.blocked.map((id) => ({ id, name: this.store.users.get(id)?.name || '?' })),
     };
   }
@@ -891,7 +901,12 @@ class Hub {
     conn.send(note('password_changed'));
   }
 
-  on_setEmail(conn, { email, password }) {
+  /**
+   * Thêm / đổi email: gửi mã xác minh tới địa chỉ mới, nhập đúng mã thì email mới có hiệu lực
+   * (không để ai nhập email của người khác rồi khiến thư khôi phục mật khẩu gửi nhầm tới họ).
+   * Email trống = xoá email, có hiệu lực ngay.
+   */
+  on_setEmail(conn, { email, password, lang }) {
     const me = this.requireUser(conn);
     email = String(email || '').trim().toLowerCase();
     if (email && !EMAIL_RE.test(email)) throw E('email_invalid');
@@ -907,9 +922,44 @@ class Hub {
     }
     const owner = email && this.store.byEmail.get(email);
     if (owner && owner !== me) throw E('email_taken');
-    this.store.setEmail(me, email);
+    const sendMe = () => { for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) }); };
+    if (!email || email === me.email) {
+      me.emailPending = null;
+      if (!email) this.store.setEmail(me, '');
+      else this.store.touch(me);
+      sendMe();
+      return conn.send(note('email_saved'));
+    }
+    if (!this.sendMail) throw E('reset_unavailable');
+    // Không gửi dồn thư tới cùng một địa chỉ (kể cả từ nhiều tài khoản)
+    const toRules = [['email-to:' + email, 3]];
+    this.limit(toRules);
+    this.fail(toRules);
+    const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+    me.emailPending = { email, hash: sha256(code), expires: Date.now() + VERIFY_TTL_MS, tries: 0 };
+    this.store.touch(me);
+    const mail = VERIFY_MAIL[lang] || VERIFY_MAIL.vi;
+    Promise.resolve().then(() => this.sendMail(email, mail.subject, mail.body(me.username, code))).catch(() => {});
+    sendMe();
+    conn.send(note('email_code_sent', { email }));
+  }
+
+  /** Nhập mã xác minh email. Sai 5 lần thì phải gửi mã mới. */
+  on_verifyEmail(conn, { code }) {
+    const me = this.requireUser(conn);
+    const p = me.emailPending;
+    if (!p || p.expires < Date.now() || p.tries >= 5) throw E('email_bad_code');
+    if (sha256(String(code || '').trim()) !== p.hash) {
+      p.tries++;
+      this.store.touch(me);
+      throw E('email_bad_code');
+    }
+    const owner = this.store.byEmail.get(p.email);
+    if (owner && owner !== me) throw E('email_taken'); // người khác xác minh trước
+    me.emailPending = null;
+    this.store.setEmail(me, p.email);
     for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) });
-    conn.send(note('email_saved'));
+    conn.send(note('email_verified'));
   }
 
   findByLogin(login) {

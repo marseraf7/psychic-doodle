@@ -443,6 +443,15 @@ test('lỗi và thông báo có mã để giao diện tự dịch; thách đấu
 });
 
 // ------------------------------------------------------------------ tính năng mới
+/** Mã 6 số trong thư gần nhất gửi tới địa chỉ này (thư được gửi chạy nền nên chờ một chút). */
+async function mailCode(to) {
+  for (let i = 0; i < 50; i++) {
+    const m = [...mails].reverse().find((x) => x.to === to);
+    if (m) return m.text.match(/\b(\d{6})\b/)[1];
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  throw new Error('Không thấy thư gửi tới ' + to);
+}
 async function account(username, name) {
   const c = await Client.open();
   await c.req({ t: 'register', username, password: '123456', name: name || username }, 'welcome');
@@ -627,9 +636,25 @@ test('đổi mật khẩu (đăng xuất thiết bị khác), email, quên mật
   // Email
   assert.strictEqual((await a.req({ t: 'setEmail', email: 'khong-hop-le', password: 'moi456' }, 'error')).code, 'email_invalid');
   assert.strictEqual((await a.req({ t: 'setEmail', email: 'a@x.com', password: 'sai' }, 'error')).code, 'wrong_password');
-  await a.req({ t: 'setEmail', email: 'A@X.com', password: 'moi456' }, 'me', (m) => m.me.email === 'a@x.com');
+  // Email mới chỉ có hiệu lực sau khi nhập đúng mã gửi tới địa chỉ đó
+  mails.length = 0;
+  await a.req({ t: 'setEmail', email: 'A@X.com', password: 'moi456', lang: 'en' }, 'me', (m) => m.me.pendingEmail === 'a@x.com');
+  assert.strictEqual(a.me.email, '', 'chưa xác minh thì chưa có hiệu lực');
+  const vcode = await mailCode('a@x.com');
+  assert.match(mails[mails.length - 1].subject, /verification/);
+  const vwrong = String((Number(vcode) + 1) % 1e6).padStart(6, '0');
+  assert.strictEqual((await a.req({ t: 'verifyEmail', code: vwrong }, 'error')).code, 'email_bad_code');
+  await a.req({ t: 'verifyEmail', code: vcode }, 'me', (m) => m.me.email === 'a@x.com' && !m.me.pendingEmail);
+  assert.strictEqual((await a.req({ t: 'verifyEmail', code: vcode }, 'error')).code, 'email_bad_code', 'mã chỉ dùng 1 lần');
   const b = await account('pw_b');
   assert.strictEqual((await b.req({ t: 'setEmail', email: 'a@x.com', password: '123456' }, 'error')).code, 'email_taken');
+  // Nhập email người khác mà không xác minh: thư khôi phục mật khẩu không gửi tới đó
+  await b.req({ t: 'setEmail', email: 'nan-nhan@x.com', password: '123456' }, 'me', (m) => m.me.pendingEmail === 'nan-nhan@x.com');
+  await new Promise((r) => setTimeout(r, 30));
+  const sentBefore = mails.length;
+  await (await Client.open()).req({ t: 'forgot', login: 'pw_b' }, 'forgotSent');
+  await new Promise((r) => setTimeout(r, 30));
+  assert.strictEqual(mails.length, sentBefore, 'email chưa xác minh không nhận thư khôi phục');
 
   // Quên mật khẩu: tài khoản không tồn tại cũng trả lời giống hệt, không gửi thư
   const guest = await Client.open();
@@ -637,10 +662,9 @@ test('đổi mật khẩu (đăng xuất thiết bị khác), email, quên mật
   await guest.req({ t: 'forgot', login: 'khongco' }, 'forgotSent');
   assert.strictEqual(mails.length, 0);
   await guest.req({ t: 'forgot', login: 'a@x.com', lang: 'en' }, 'forgotSent');
+  const code = await mailCode('a@x.com'); // thư được gửi chạy nền
   assert.strictEqual(mails.length, 1);
-  assert.strictEqual(mails[0].to, 'a@x.com');
   assert.match(mails[0].subject, /password reset/);
-  const code = mails[0].text.match(/\b(\d{6})\b/)[1];
   const wrong = String((Number(code) + 1) % 1e6).padStart(6, '0');
   assert.strictEqual((await guest.req({ t: 'reset', login: 'pw_a', code: wrong, password: 'reset1' }, 'error')).code, 'reset_bad_code');
   await guest.req({ t: 'reset', login: 'pw_a', code, password: 'reset1' }, 'welcome');
@@ -676,7 +700,9 @@ test('email: giới hạn số lần lưu (chống dò email đã đăng ký); q
   const g = await Client.open();
   await g.req({ t: 'google', credential: 'ok:sub-mail:m@x.com:Mail' }, 'welcome');
   assert.strictEqual(g.me.hasPassword, false);
-  for (let i = 0; i < 10; i++) await g.req({ t: 'setEmail', email: `probe${i}@x.com` }, 'me');
+  for (let i = 0; i < 9; i++) await g.req({ t: 'setEmail', email: `probe${i}@x.com` }, 'me');
+  await g.req({ t: 'setEmail', email: 'probe9@x.com' }, 'me');
+  await g.req({ t: 'verifyEmail', code: await mailCode('probe9@x.com') }, 'me', (m) => m.me.email === 'probe9@x.com');
   const err = await g.req({ t: 'setEmail', email: 'last@x.com' }, 'error');
   assert.strictEqual(err.code, 'too_many_attempts');
   // Máy chủ gửi thư chậm (hoặc treo): vẫn trả lời ngay

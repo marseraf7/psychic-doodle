@@ -11,4 +11,4 @@ RUN mkdir -p /data && chown node:node /data
 VOLUME /data
 EXPOSE 8080
 USER node
-CMD ["node", "server/server.js"]
+CMD ["node", "--disable-warning=ExperimentalWarning", "server/server.js"]

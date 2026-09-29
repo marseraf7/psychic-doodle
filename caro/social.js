@@ -204,6 +204,12 @@
     $('pw-hint').textContent = has ? T('pw_other_devices') : T('set_password_hint');
     $('pw-current').hidden = !has;
     $('email-pw').hidden = !has;
+    // Email chỉ dùng để khôi phục mật khẩu: máy chủ không gửi được thư thì ẩn luôn
+    $('email-form').hidden = !S.resetEnabled;
+    $('email-status').textContent = me.email ? T('email_verified_tag', { email: me.email }) : T('email_none');
+    $('email-status').classList.toggle('ok', !!me.email);
+    $('email-verify').hidden = !me.pendingEmail;
+    $('email-verify-hint').textContent = me.pendingEmail ? T('email_verify_hint', { email: me.pendingEmail }) : '';
     const list = me.blocked || [];
     $('blocked-list').innerHTML = list.length
       ? list.map((b) => `<li><div class="pn"><b>${esc(b.name)}</b></div><button type="button" class="ghost sm" data-unblock="${esc(b.id)}">${esc(T('unblock'))}</button></li>`).join('')
@@ -221,11 +227,25 @@
     e.preventDefault();
     const f = e.target;
     $('email-err').textContent = '';
-    N.send({ t: 'setEmail', email: f.email.value.trim(), password: f.password.value });
+    N.send({ t: 'setEmail', email: f.email.value.trim(), password: f.password.value, lang: window.I18N.lang });
+  };
+  $('email-verify-btn').onclick = () => {
+    const code = $('email-form').code.value.trim();
+    $('email-err').textContent = '';
+    if (code) N.send({ t: 'verifyEmail', code });
+  };
+  $('email-form').code.addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, ''); });
+  $('email-form').code.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('email-verify-btn').click(); } });
+  $('email-resend').onclick = (e) => {
+    e.preventDefault();
+    const f = $('email-form');
+    $('email-err').textContent = '';
+    N.send({ t: 'setEmail', email: S.me.pendingEmail, password: f.password.value, lang: window.I18N.lang });
   };
   N.on('toast', (m) => {
     if (m.code === 'password_changed' && N.isOpen('account-dlg')) $('pw-form').reset();
-    if (m.code === 'email_saved') $('email-form').password.value = '';
+    if (['email_saved', 'email_verified'].includes(m.code)) { $('email-form').password.value = ''; $('email-form').code.value = ''; }
+    if (m.code === 'email_code_sent' && N.isOpen('account-dlg')) setTimeout(() => $('email-form').code.focus(), 50);
   });
   N.on('me', () => { if (N.isOpen('account-dlg')) fillAccount(); });
 
@@ -309,6 +329,7 @@
     const map = {
       changePassword: ['account-dlg', 'pw-err'],
       setEmail: ['account-dlg', 'email-err'],
+      verifyEmail: ['account-dlg', 'email-err'],
       forgot: ['forgot', 'forgot-err'],
       reset: ['forgot', 'forgot-err'],
     };

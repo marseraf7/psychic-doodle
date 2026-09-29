@@ -392,10 +392,19 @@
       <form class="card" id="email-form">
         <h3 data-i18n="email"></h3>
         <p class="hint" data-i18n="email_hint"></p>
+        <p class="email-status" id="email-status"></p>
         <label class="field"><span data-i18n="email"></span><input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com"></label>
         <label class="field" id="email-pw"><span data-i18n="current_password"></span><input name="password" type="password" maxlength="100" autocomplete="current-password"></label>
-        <p class="err" id="email-err"></p>
         <button class="primary" data-i18n="save"></button>
+        <div class="step2" id="email-verify" hidden>
+          <p class="hint" id="email-verify-hint"></p>
+          <div class="row">
+            <input name="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" data-i18n-ph="reset_code">
+            <button type="button" class="primary" id="email-verify-btn" data-i18n="verify"></button>
+          </div>
+          <a href="#" class="link" id="email-resend" data-i18n="resend"></a>
+        </div>
+        <p class="err" id="email-err"></p>
       </form>
       <section class="card">
         <h3 data-i18n="blocked_list"></h3>

@@ -75,7 +75,7 @@ docker run -d --name caro --restart unless-stopped -p 8080:8080 -v caro-data:/da
 
 ```bash
 git clone <repo> /opt/caro && cd /opt/caro/server && npm ci --omit=dev
-PORT=8080 DATA_DIR=/var/lib/caro node server.js
+PORT=8080 DATA_DIR=/var/lib/caro node --disable-warning=ExperimentalWarning server.js
 ```
 
 ### HTTPS (bắt buộc cho điện thoại & đăng nhập Google)
@@ -104,7 +104,8 @@ Cần một tài khoản gửi thư SMTP. Dễ nhất là Gmail: bật xác minh
 *App password* tại <https://myaccount.google.com/apppasswords>, rồi đặt
 `SMTP_URL=smtps://ten%40gmail.com:matkhau16kytu@smtp.gmail.com:465` (ký tự `@` trong tên
 đăng nhập viết thành `%40`). Có thể dùng Yandex, Mail.ru, Zoho… theo cách tương tự.
-Người chơi phải tự thêm email trong mục **Tài khoản** thì mới lấy lại mật khẩu được.
+Người chơi phải tự thêm email trong mục **Tài khoản** và **xác minh** bằng mã 6 số gửi tới
+email đó thì mới lấy lại mật khẩu được (không xác minh thì không ai dùng được email của người khác).
 
 ### Sao lưu dữ liệu
 
@@ -130,6 +131,8 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
 - Quên mật khẩu: luôn trả lời giống nhau dù tài khoản có tồn tại hay không; mã 6 số hết hạn sau
   15 phút, sai 5 lần là huỷ; đặt lại xong thì đăng xuất mọi thiết bị.
 - Link xem lại không chứa id tài khoản; tin nhắn tối đa 500 ký tự, 60 tin / 10 phút.
+- Email phải được xác minh (mã 6 số, 30 phút, sai 5 lần phải gửi mã mới; tối đa 3 thư / 10 phút
+  tới cùng một địa chỉ) mới được dùng để khôi phục mật khẩu.
 - Chống dò email đã đăng ký: lưu email tối đa 10 lần / 10 phút mỗi tài khoản (30 lần / IP);
   "Quên mật khẩu" trả lời ngay, gửi thư chạy nền (thời gian trả lời không lộ tài khoản có email hay không).
 - Xin hoà: đang chờ trả lời thì không báo lại cho đối thủ; bị từ chối thì 30 giây sau mới được xin lại.
