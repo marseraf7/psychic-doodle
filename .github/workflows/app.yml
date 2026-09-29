@@ -73,9 +73,14 @@ jobs:
           if-no-files-found: error
 
   android-e2e:
-    name: Android – chơi chéo app ⟷ web trên máy ảo
+    # Android 14 (API 34) và Android 15 (API 35 – bắt buộc tràn viền): kiểm tra thanh hệ thống, bàn phím
+    name: Android ${{ matrix.api }} – chơi chéo app ⟷ web trên máy ảo
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [34, 35]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -111,12 +116,12 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Máy ảo Android 14 + kiểm thử
+      - name: Máy ảo Android + kiểm thử
         uses: reactivecircus/android-emulator-runner@v2
         env:
           SHOTS_DIR: ${{ runner.temp }}
         with:
-          api-level: 34
+          api-level: ${{ matrix.api }}
           target: google_apis
           arch: x86_64
           profile: pixel_6
@@ -132,7 +137,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-e2e-screenshots
+          name: android-${{ matrix.api }}-e2e-screenshots
           path: ${{ runner.temp }}/*.png
           if-no-files-found: ignore
 

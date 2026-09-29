@@ -146,6 +146,7 @@
         <button value="ok" class="primary" data-i18n="done"></button>
       </div>
 
+      <p class="privacy-row"><a class="link privacy-link" target="_blank" rel="noopener" data-i18n="privacy"></a></p>
       <p class="credit"><span class="credit-mark" aria-hidden="true">✦</span> Designed by <span class="credit-name">Dawn</span> <span class="credit-mark" aria-hidden="true">✦</span></p>
     </form>
   </dialog>
@@ -410,6 +411,14 @@
         <h3 data-i18n="blocked_list"></h3>
         <ul class="people" id="blocked-list"></ul>
       </section>
+      <form class="card danger" id="delete-form">
+        <h3 data-i18n="delete_account"></h3>
+        <p class="hint" data-i18n="delete_hint"></p>
+        <label class="field"><span id="delete-label"></span><input name="secret" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
+        <p class="err" id="delete-err"></p>
+        <button class="danger-btn" data-i18n="delete_btn"></button>
+      </form>
+      <a class="link privacy-link" target="_blank" rel="noopener" data-i18n="privacy"></a>
     </div>
   </dialog>
 

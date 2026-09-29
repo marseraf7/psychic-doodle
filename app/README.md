@@ -24,8 +24,10 @@ Mỗi lần đẩy code, GitHub Actions ([`.github/workflows/app.yml`](../.githu
 - **Actions → App Caro → lần chạy mới nhất → Artifacts → `caro-android`**:
   - `app-debug.apk`: cài thẳng lên điện thoại Android để chơi thử (bật "Cài ứng dụng không rõ nguồn gốc").
   - `app-release.apk` / `app-release.aab`: bản phát hành (chỉ **đã ký** khi bạn cài khoá ký, xem dưới).
-- Job **Android – chơi chéo** chạy app trên máy ảo Android 14 thật, cho app đấu với bản web
-  (chạm thật vào bàn cờ, nút Back thật). Ảnh chụp màn hình ở artifact `android-e2e-screenshots`.
+- Job **Android – chơi chéo** chạy app trên máy ảo Android 14 và Android 15 thật, cho app đấu với bản web
+  (chạm thật vào bàn cờ, nút Back thật), kiểm tra giao diện không bị thanh trạng thái / thanh điều hướng
+  che (Android 15 bắt buộc tràn viền), bàn phím không che ô nhập tin nhắn, và sao chép link mời vào
+  bộ nhớ tạm. Ảnh chụp màn hình ở artifact `android-34-e2e-screenshots`, `android-35-e2e-screenshots`.
 - Job **iOS** dựng app cho iPhone ảo và mở thử (ảnh ở artifact `caro-ios-simulator`).
 
 ## Máy chủ
@@ -68,6 +70,21 @@ npx cap open ios              # mở Xcode → Run
    [Google Play Console](https://play.google.com/console) (phí đăng ký 25 USD, một lần).
    Số phiên bản (`versionCode`) tự tăng theo số lần chạy Actions; tên phiên bản lấy từ `version`
    trong `app/package.json`.
+4. Trong Play Console, mục *App content*:
+   - **Privacy policy**: `https://caroxo.duckdns.org/privacy.html`
+   - **Data safety → Account deletion**: xoá được ngay trong app; link web:
+     `https://caroxo.duckdns.org/privacy.html#delete`
+   - Khai báo dữ liệu thu thập: tên đăng nhập, email (tuỳ chọn), tin nhắn trong game, lịch sử ván;
+     không quảng cáo, không chia sẻ cho bên thứ ba (xem nội dung trang chính sách).
+
+### Phát hành bản mới và bắt buộc cập nhật
+
+Mỗi bản app gửi kèm số phiên bản (`version` trong `app/package.json`) khi kết nối. Khi đổi cách
+máy chủ và giao diện nói chuyện với nhau mà bản cũ không dùng được nữa:
+
+1. Tăng `version` trong `app/package.json` (ví dụ `1.1.0`), dựng và phát hành bản mới lên cửa hàng.
+2. Khi bản mới đã lên cửa hàng, đặt trên máy chủ `MIN_APP_VERSION=1.1.0` (và `ANDROID_UPDATE_URL`,
+   `IOS_UPDATE_URL`). App cũ hơn sẽ hiện "Cần cập nhật app" kèm nút mở cửa hàng; chơi với máy vẫn được.
 
 Mã ứng dụng là `io.github.marseraf7.caro`. Muốn đổi thì đổi **trước** lần phát hành đầu tiên
 (`appId` trong `scripts/build-web.js`, rồi tạo lại thư mục `android/`, `ios/`); sau khi đã lên

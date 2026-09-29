@@ -52,8 +52,14 @@ class Hub {
   /**
    * sendMail(to, subject, text): gửi email đặt lại mật khẩu (null = tắt tính năng quên mật khẩu).
    */
-  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {} }) {
+  /**
+   * minAppVersion / updateUrls: bản app điện thoại cũ hơn minAppVersion bị yêu cầu cập nhật
+   * (updateUrls = { android, ios } – link cửa hàng). Bản web luôn là bản mới nhất nên không bị kiểm tra.
+   */
+  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {}, minAppVersion = '', updateUrls = {} }) {
     this.store = store;
+    this.minAppVersion = minAppVersion;
+    this.updateUrls = updateUrls;
     this.sendMail = sendMail;
     this.googleClientId = googleClientId;
     this.verifyGoogle = verifyGoogle;
@@ -216,7 +222,13 @@ class Hub {
     }
   }
 
-  on_hello(conn, { token, guestKey, guestName }) {
+  on_hello(conn, { token, guestKey, guestName, client }) {
+    // App điện thoại quá cũ: không cho vào online (tránh lỗi khó hiểu khi giao thức đã đổi)
+    const platform = client && typeof client.platform === 'string' ? client.platform : 'web';
+    if ((platform === 'android' || platform === 'ios') && this.minAppVersion &&
+        compareVersions(String(client.version || '0'), this.minAppVersion) < 0) {
+      return conn.send({ t: 'updateRequired', min: this.minAppVersion, url: this.updateUrls[platform] || '' });
+    }
     conn.token = null;
     const user = this.store.userByToken(token);
     if (user) {
@@ -999,6 +1011,48 @@ class Hub {
     conn.send(note('password_changed'));
   }
 
+  // ---------------------------------------------------------------- xoá tài khoản
+  /**
+   * Xoá hẳn tài khoản (yêu cầu của Google Play / App Store với app có tạo tài khoản).
+   * Có mật khẩu: nhập mật khẩu. Chỉ có Google: gõ lại tên đăng nhập để xác nhận.
+   */
+  on_deleteAccount(conn, { password, confirm }) {
+    const me = this.requireUser(conn);
+    const rules = [['del:' + me.id, 8]];
+    this.limit(rules);
+    if (me.pass) {
+      if (typeof password !== 'string' || !checkPassword(password, me.pass)) { this.fail(rules); throw E('wrong_password'); }
+    } else if (String(confirm || '').trim().toLowerCase() !== me.username) {
+      this.fail(rules);
+      throw E('confirm_username');
+    }
+    const pid = userPid(me.id);
+    // Đang trong phòng: rời phòng như bình thường (đang đánh thì xử thua)
+    if (this.roomFor(pid)) this.leave(pid);
+    for (const inv of [...this.invites.values()]) if (inv.from === pid || inv.to === pid) this.dropInvite(inv);
+    clearTimeout(this.forfeitTimers.get(pid));
+    this.forfeitTimers.delete(pid);
+    this.offlineAt.delete(pid);
+    // Gỡ khỏi danh sách bạn bè / lời mời / chặn của mọi người
+    const affected = [];
+    for (const u of this.store.users.values()) {
+      if (u === me) continue;
+      let hit = false;
+      for (const k of ['friends', 'incoming', 'outgoing', 'blocked']) {
+        if (u[k].includes(me.id)) { u[k] = u[k].filter((x) => x !== me.id); hit = true; }
+      }
+      if (hit) { this.store.touch(u); affected.push(u.id); }
+    }
+    this.store.deleteUser(me);
+    // Mọi thiết bị đang đăng nhập tài khoản này quay về làm khách
+    for (const c of [...(this.byPid.get(pid) || [])]) {
+      c.send({ t: 'accountDeleted' });
+      this.detach(c);
+      c.token = null;
+    }
+    for (const id of affected) this.sendFriends(id);
+  }
+
   // ---------------------------------------------------------------- dọn dẹp
   sweep() {
     const now = Date.now();
@@ -1018,6 +1072,17 @@ class Hub {
   }
 }
 
+/** So sánh phiên bản dạng 1.2.3: âm nếu a < b. */
+function compareVersions(a, b) {
+  const pa = String(a).split('.').map((x) => parseInt(x, 10) || 0);
+  const pb = String(b).split('.').map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
 /** Xác minh ID token của Google Identity Services qua API tokeninfo. */
 async function verifyGoogleToken(credential, clientId) {
   const r = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(credential));
@@ -1029,4 +1094,4 @@ async function verifyGoogleToken(credential, clientId) {
   return { sub: j.sub, email: j.email_verified === 'true' || j.email_verified === true ? j.email : '', name: j.name };
 }
 
-module.exports = { Hub, verifyGoogleToken };
+module.exports = { Hub, verifyGoogleToken, compareVersions };

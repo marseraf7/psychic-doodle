@@ -7,6 +7,8 @@
  *   TRUST_PROXY=1     lấy IP thật từ X-Forwarded-For khi chạy sau nginx/Caddy
  *   SMTP_URL          máy chủ gửi thư để bật "Quên mật khẩu", ví dụ smtps://user:pass@smtp.gmail.com:465
  *   MAIL_FROM         địa chỉ người gửi, ví dụ "Cờ Caro <caro@example.com>" (mặc định: user trong SMTP_URL)
+ *   MIN_APP_VERSION   bản app điện thoại thấp nhất còn được chơi online (ví dụ 1.0.0; bỏ trống = không kiểm tra)
+ *   ANDROID_UPDATE_URL, IOS_UPDATE_URL  link cửa hàng hiện trong thông báo "cần cập nhật app"
  */
 'use strict';
 const http = require('http');
@@ -118,10 +120,12 @@ function serveStatic(store, req, res) {
 }
 
 function start({ port = PORT, dataFile = path.join(DATA_DIR, 'caro.db'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken,
-  sendMail = SMTP_URL ? smtpMailer(SMTP_URL, process.env.MAIL_FROM) : null, timers, msgRate = MSG_RATE } = {}) {
+  sendMail = SMTP_URL ? smtpMailer(SMTP_URL, process.env.MAIL_FROM) : null, timers, msgRate = MSG_RATE,
+  minAppVersion = process.env.MIN_APP_VERSION || '',
+  updateUrls = { android: process.env.ANDROID_UPDATE_URL || '', ios: process.env.IOS_UPDATE_URL || '' } } = {}) {
   // dataFile = null: chỉ lưu trong bộ nhớ (test). Còn file db.json của bản cũ thì tự nhập một lần.
   const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
-  const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, ...(timers ? { timers } : {}) });
+  const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, ...(timers ? { timers } : {}) });
   const server = http.createServer((req, res) => serveStatic(store, req, res));
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
   const perIp = new Map();

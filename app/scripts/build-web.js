@@ -12,6 +12,7 @@ const ROOT = path.resolve(__dirname, '..');
 const SRC = path.resolve(ROOT, '..', 'caro');
 const WWW = path.join(ROOT, 'www');
 const TEST = process.env.CARO_APP_TEST === '1';
+const APP_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 
 function fail(msg) { console.error('✗ ' + msg); process.exit(1); }
 
@@ -32,7 +33,9 @@ fs.cpSync(SRC, WWW, { recursive: true, filter: (src) => !SKIP.has(path.relative(
 
 fs.writeFileSync(path.join(WWW, 'config.js'),
   '// Tạo tự động bởi app/scripts/build-web.js – không sửa tay.\n' +
-  `window.CARO_SERVER = ${JSON.stringify(serverUrl)};\n`);
+  `window.CARO_SERVER = ${JSON.stringify(serverUrl)};\n` +
+  // Gửi kèm khi kết nối để máy chủ báo "cần cập nhật app" với bản quá cũ (MIN_APP_VERSION)
+  `window.CARO_APP_VERSION = ${JSON.stringify(APP_VERSION)};\n`);
 
 // ---------------------------------------------------------------- Thư viện Capacitor (không cần bundler)
 const VENDOR = [

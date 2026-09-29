@@ -74,6 +74,7 @@ const VI = {
   reported: 'Đã gửi báo cáo, cảm ơn bạn',
   user_blocked: 'Đã chặn {name}',
   user_unblocked: 'Đã bỏ chặn {name}',
+  confirm_username: 'Nhập đúng tên đăng nhập của bạn để xác nhận',
 };
 
 function fmt(code, args = {}) {

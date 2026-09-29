@@ -25,6 +25,41 @@ async function until(fn, ms = 15000, step = 250) {
   }
 }
 const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
+const API = Number(adb('shell', 'getprop', 'ro.build.version.sdk').trim());
+const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/api${API}-${name}.png`]);
+
+/** Vị trí thanh hệ thống / bàn phím trên màn hình (pixel), đọc từ dumpsys window. */
+function systemBars() {
+  const d = adb('shell', 'dumpsys', 'window');
+  const frame = (type, needVisible) => {
+    const re = new RegExp(`type=${type}[^\\n]*?frame=\\[(-?\\d+),(-?\\d+)\\]\\[(-?\\d+),(-?\\d+)\\][^\\n]*`, 'g');
+    let m, best = null;
+    while ((m = re.exec(d))) {
+      if (needVisible && !/visible=true/.test(m[0])) continue;
+      const f = { l: +m[1], t: +m[2], r: +m[3], b: +m[4] };
+      if (f.b > f.t) best = f;
+    }
+    return best;
+  };
+  return { status: frame('statusBars'), nav: frame('navigationBars'), ime: frame('ime', true) };
+}
+/** Khung của WebView trên màn hình (pixel), đọc từ uiautomator. */
+function webViewBounds() {
+  adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml');
+  const xml = adb('shell', 'cat', '/sdcard/ui.xml');
+  const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  if (!m) throw new Error('Không thấy WebView trong uiautomator dump');
+  return { l: +m[1], t: +m[2], r: +m[3], b: +m[4] };
+}
+/** Toạ độ màn hình (pixel) của một phần tử trong app. */
+async function screenRect(app, sel) {
+  const wv = webViewBounds();
+  const r = await app.evaluate((sel) => {
+    const b = document.querySelector(sel).getBoundingClientRect();
+    return { t: b.top, b: b.bottom, dpr: window.devicePixelRatio };
+  }, sel);
+  return { top: wv.t + r.t * r.dpr, bottom: wv.t + r.b * r.dpr };
+}
 
 (async () => {
   const [device] = await android.devices();
@@ -45,6 +80,20 @@ const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
   check('chạy trong app Android thật (Capacitor native)', info.native && info.platform === 'android');
   check('các plugin gốc có mặt', ['App', 'Share', 'Clipboard', 'Haptics', 'SocialLogin'].every((p) => info.plugins.includes(p)), info.plugins.join(','));
   check('Chia sẻ dùng bảng chia sẻ gốc', await app.evaluate(() => typeof navigator.share === 'function' && window.Capacitor.isPluginAvailable('Share')));
+  console.log(`Android API ${API} · WebView ${await app.evaluate(() => (navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1])}`);
+
+  // Tràn viền (Android 15+): thanh trên / dưới của game không được nằm dưới thanh trạng thái / điều hướng
+  {
+    const bars = systemBars();
+    console.log('Thanh hệ thống:', JSON.stringify(bars), '· WebView:', JSON.stringify(webViewBounds()));
+    const top = await screenRect(app, '.bar.top');
+    const bottom = await screenRect(app, '.bar.bottom.local-only');
+    check('thanh trên không bị thanh trạng thái che', !!bars.status && top.top >= bars.status.b - 1,
+      `thanh trên y=${Math.round(top.top)}, thanh trạng thái tới y=${bars.status && bars.status.b}`);
+    check('thanh dưới không bị thanh điều hướng che', !bars.nav || bottom.bottom <= bars.nav.t + 1,
+      `thanh dưới tới y=${Math.round(bottom.bottom)}, thanh điều hướng từ y=${bars.nav && bars.nav.t}`);
+    shot('home');
+  }
 
   // Bản web trên máy chạy CI
   const browser = await chromium.launch();
@@ -82,6 +131,37 @@ const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
   check('app nhận tin nhắn từ web', !!(await until(() => app.evaluate(() =>
     [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Hello from web'))))));
 
+  // Bàn phím: mở hộp chat, chạm vào ô nhập → bàn phím hiện, ô nhập phải nằm trên bàn phím
+  {
+    const cdpK = await app.context().newCDPSession(app);
+    await app.click('#friends [data-chat]');
+    await until(() => app.evaluate(() => document.getElementById('chat').open));
+    const inBox = await app.evaluate(() => {
+      const r = document.querySelector('#chat-form input').getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await cdpK.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [inBox] });
+    await sleep(60);
+    await cdpK.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const ime = await until(() => systemBars().ime, 8000, 400);
+    check('bàn phím hiện khi chạm ô nhập tin nhắn', !!ime);
+    if (ime) {
+      await sleep(800); // chờ WebView co lại theo bàn phím
+      const inp = await screenRect(app, '#chat-form input');
+      check('ô nhập tin nhắn không bị bàn phím che', inp.bottom <= ime.t + 1, `ô nhập tới y=${Math.round(inp.bottom)}, bàn phím từ y=${ime.t}`);
+      shot('keyboard');
+      await app.fill('#chat-form input', 'Typed on Android');
+      await app.click('#chat-form button');
+      check('gửi được tin nhắn khi bàn phím đang mở', !!(await until(() => web.evaluate(() =>
+        [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Typed on Android'))))));
+      adb('shell', 'input', 'keyevent', '4'); // Back lần 1: ẩn bàn phím
+      await sleep(600);
+    }
+    if (await app.evaluate(() => document.getElementById('chat').open)) adb('shell', 'input', 'keyevent', '4'); // Back: đóng hộp chat
+    check('Back đóng hộp chat', !!(await until(() => app.evaluate(() => !document.getElementById('chat').open), 5000)));
+    await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  }
+
   // App tạo phòng, đi trước; web vào bằng mã phòng
   await app.check('input[name="room-side"][value="first"]');
   await app.click('#create-room');
@@ -89,6 +169,10 @@ const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
   check('app tạo phòng', !!room && /^\d{6}$/.test(room.code));
   // Bảng thông tin phòng tự mở sau ~0,2 giây: chờ nó mở rồi đóng bằng nút Back thật
   check('bảng thông tin phòng tự mở', !!(await until(() => app.evaluate(() => document.getElementById('room-info').open), 5000)));
+  // Sao chép link mời bằng bộ nhớ tạm của Android, đọc lại qua plugin Clipboard
+  await app.click('#ri-copy');
+  const clip = await until(() => app.evaluate(() => window.Capacitor.Plugins.Clipboard.read().then((r) => r.value)), 5000);
+  check('sao chép link mời vào bộ nhớ tạm của máy', clip === `http://10.0.2.2:8790/?room=${room.code}`, String(clip));
   adb('shell', 'input', 'keyevent', '4');
   await until(() => app.evaluate(() => !document.getElementById('room-info').open), 5000);
   await web.evaluate(([c, p]) => window.CaroOnline.send({ t: 'joinRoom', code: c, password: p }), [room.code, room.password]);
@@ -133,7 +217,7 @@ const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
   check('app thắng, cả hai thấy cùng kết quả', winApp === 1 && winWeb === 1);
   check('app hiện thẻ kết quả', !!(await until(() => app.isVisible('#banner'))));
   await sleep(800);
-  execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/android-win.png`]);
+  shot('win');
 
   // Nút Back thật của Android: đóng thẻ kết quả, mở Cài đặt rồi Back đóng Cài đặt
   adb('shell', 'input', 'keyevent', '4');
@@ -159,8 +243,8 @@ const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
   })();
   check('lịch sử web có ván với app', hist >= 1, 'số ván ' + hist);
 
-  execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/android-rematch.png`]);
-  await web.screenshot({ path: `${SHOTS}/web-vs-android.png` });
+  shot('rematch');
+  await web.screenshot({ path: `${SHOTS}/api${API}-web-vs-android.png` });
   console.log('Lỗi JS:', errors.length ? errors : 'không có');
   if (errors.some((e) => !/Failed to load resource/.test(e))) failed++;
   await browser.close();
