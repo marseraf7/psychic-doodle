@@ -3,7 +3,7 @@
 """
 PHÂN TÍCH CUỘC HỌP DÀI (tới vài giờ) — chạy 100% trên máy, không gửi dữ liệu ra ngoài.
 
-  1. Chép lời      : Whisper large-v3 (GPU), có mốc thời gian từng từ.
+  1. Chép lời      : Whisper large-v3 (GPU), có mốc thời gian từng từ. Nhanh hơn: --whisper large-v3-turbo.
   2. Tách người nói: pyannote community-1 -> ai nói câu nào, ai ngắt lời ai.
   3. Ngữ điệu      : âm lượng / cao độ / tốc độ so với mức thường của CHÍNH người đó.
   4. Cảm xúc       : emotion2vec (dự đoán qua giọng, chỉ là gợi ý).
@@ -33,9 +33,10 @@ import tom_tat_ghi_am as T
 import nguoi_noi as NN
 import ngu_dieu as ND
 import llm_cuc_bo as LLM
+from tai_model import MODEL_WHISPER, MAC_DINH_WHISPER
 
 THU_MUC_SCRIPT = os.path.dirname(os.path.abspath(__file__))
-TEN_MODEL = {"whisper": "whisper-large-v3",
+TEN_MODEL = {"whisper": MODEL_WHISPER[MAC_DINH_WHISPER][0],   # đổi bằng --whisper
              "pyannote": "pyannote-community-1",
              "cam_xuc": "emotion2vec_plus_large"}
 PHIEN_BAN_DU_LIEU = 1
@@ -146,11 +147,18 @@ def giai_phong_vram():
         pass
 
 
+def ten_thu_muc_model(args, khoa):
+    if khoa == "whisper":
+        return MODEL_WHISPER[getattr(args, "whisper", MAC_DINH_WHISPER)][0]
+    return TEN_MODEL[khoa]
+
+
 def duong_dan_model(args, khoa):
-    p = os.path.join(args.models, TEN_MODEL[khoa])
+    ten = ten_thu_muc_model(args, khoa)
+    p = os.path.join(args.models, ten)
     if not os.path.isdir(p):
-        raise RuntimeError(f"Chưa có model '{TEN_MODEL[khoa]}' trong {args.models}. "
-                           f"Chạy 'python tai_model.py' trên máy có mạng trước.")
+        lenh = "python tai_model.py" + (" --turbo" if ten == MODEL_WHISPER["large-v3-turbo"][0] else "")
+        raise RuntimeError(f"Chưa có model '{ten}' trong {args.models}. Chạy '{lenh}' trên máy có mạng trước.")
     return p
 
 
@@ -344,7 +352,7 @@ def phan_tich_file(duong_dan, ten_ra, args, thiet_bi, ten_tuy_chon):
     f_json = os.path.join(args.out_dir, f"{ten_ra}_phan_tich.json")
     du_lieu = {} if args.lam_lai else doc_du_lieu(f_json)
     nguon = van_tay_nguon(duong_dan)
-    vt_asr = {**nguon, "model": TEN_MODEL["whisper"], "ngon_ngu": args.ngon_ngu}
+    vt_asr = {**nguon, "model": ten_thu_muc_model(args, "whisper"), "ngon_ngu": args.ngon_ngu}
     vt_nn = {**nguon, "so_nguoi": args.so_nguoi, "it_nhat": args.it_nhat, "nhieu_nhat": args.nhieu_nhat}
     vt_dv = {"asr": vt_asr, "nn": vt_nn, "gan": PHIEN_BAN_GAN_NGUOI_NOI, "cam_xuc": not args.khong_cam_xuc,
              "nguong": args.nguong_cam_xuc}
@@ -404,7 +412,7 @@ def phan_tich_file(duong_dan, ten_ra, args, thiet_bi, ten_tuy_chon):
         f"- Ngày xử lý: {time.strftime('%d/%m/%Y %H:%M')}",
         f"- Thời lượng: {gio(asr['thoi_luong'])} | Số người nói: {len([k for k in tk if k != NN.KHONG_RO])} "
         f"| Ngôn ngữ: {ngon_ngu}",
-        f"- Viết biên bản bằng: {phuong_phap}",
+        f"- Chép lời bằng: Whisper {args.whisper} | Viết biên bản bằng: {phuong_phap}",
         f"- Bản chép lời đầy đủ: `{ten_ra}_van_ban.txt` — phụ đề: `{ten_ra}_phu_de.srt`", "",
         "> Tên người nói do máy tự phân nhóm theo giọng (Người nói 1, 2...). Đặt tên thật bằng "
         "`--ten \"Người nói 1=Anh Nam\"` rồi chạy lại (chỉ mất thời gian viết lại biên bản).",
@@ -442,6 +450,9 @@ def tao_parser():
                "  python phan_tich_cuoc_hop.py hop.m4a --ten \"Người nói 1=Anh Nam\"")
     p.add_argument("dau_vao", nargs="+", help="file ghi âm / video, hoặc thư mục")
     p.add_argument("--ngon-ngu", default="auto", choices=T.CHE_DO_NGON_NGU)
+    p.add_argument("--whisper", default=MAC_DINH_WHISPER, choices=tuple(MODEL_WHISPER),
+                   help="model chép lời: large-v3 (mặc định, chính xác nhất) hoặc large-v3-turbo "
+                        "(nhanh hơn nhiều, cần tải bằng 'tai_model.py --turbo')")
     p.add_argument("--so-nguoi", type=int, help="số người nói, nếu biết chắc (chính xác hơn)")
     p.add_argument("--it-nhat", type=int, help="số người nói tối thiểu")
     p.add_argument("--nhieu-nhat", type=int, help="số người nói tối đa")

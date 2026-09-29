@@ -4,6 +4,7 @@
 rồi tự KIỂM TRA nạp lại từng model ở CHẾ ĐỘ CẤM MẠNG để chắc chắn máy offline chạy được.
 
     python tai_model.py                 # tải + kiểm tra
+    python tai_model.py --turbo         # tải thêm Whisper large-v3-turbo (chép lời nhanh hơn, xem README)
     python tai_model.py --kiem-tra      # chỉ kiểm tra (vd: trên máy offline sau khi chép USB)
 
 Token: đặt biến môi trường HF_TOKEN, hoặc nhập khi được hỏi (không hiện trên màn hình).
@@ -19,9 +20,16 @@ import sys
 THU_MUC_SCRIPT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, THU_MUC_SCRIPT)
 
+# Model chép lời: tên dùng ở --whisper -> (thư mục trong models/, repo HuggingFace)
+MODEL_WHISPER = {
+    "large-v3": ("whisper-large-v3", "Systran/faster-whisper-large-v3"),
+    "large-v3-turbo": ("whisper-large-v3-turbo", "mobiuslabsgmbh/faster-whisper-large-v3-turbo"),
+}
+MAC_DINH_WHISPER = "large-v3"
+
 # (thư mục trong models/, repo HuggingFace, cần token?)
 DANH_SACH = [
-    ("whisper-large-v3", "Systran/faster-whisper-large-v3", False),
+    (*MODEL_WHISPER[MAC_DINH_WHISPER], False),
     ("pyannote-community-1", "pyannote/speaker-diarization-community-1", True),
     ("emotion2vec_plus_large", "emotion2vec/emotion2vec_plus_large", False),
 ]
@@ -31,10 +39,11 @@ def kich_thuoc(thu_muc):
     return sum(os.path.getsize(os.path.join(g, f)) for g, _, fs in os.walk(thu_muc) for f in fs)
 
 
-def tai(models, token):
+def tai(models, token, turbo=False):
     from huggingface_hub import snapshot_download
     from huggingface_hub.errors import GatedRepoError, RepositoryNotFoundError
-    for ten, repo, can_token in DANH_SACH:
+    ds = DANH_SACH + ([(*MODEL_WHISPER["large-v3-turbo"], False)] if turbo else [])
+    for ten, repo, can_token in ds:
         dich = os.path.join(models, ten)
         print(f"\n== Tải {repo} -> {dich}")
         try:
@@ -63,7 +72,7 @@ def tai_ollama(model):
     subprocess.run(["ollama", "pull", model], check=False)
 
 
-def kiem_tra(models, llm):
+def kiem_tra(models, llm, turbo=False):
     """Chạy trong tiến trình riêng, đã bật cấm mạng -> nạp được là máy offline chạy được."""
     import chan_mang
     chan_mang.truoc_khi_import()
@@ -84,9 +93,9 @@ def kiem_tra(models, llm):
             loi += 1
             print(f"  [LỖI] {ten}: {type(e).__name__}: {e}")
 
-    def whisper():
+    def whisper(thu_muc):
         from faster_whisper import WhisperModel
-        m = WhisperModel(os.path.join(models, "whisper-large-v3"), device="cpu", compute_type="int8")
+        m = WhisperModel(os.path.join(models, thu_muc), device="cpu", compute_type="int8")
         list(m.transcribe(np.zeros(16000, dtype=np.float32), language="vi")[0])
 
     def pyannote():
@@ -106,7 +115,9 @@ def kiem_tra(models, llm):
         llm_cuc_bo.kiem_tra(llm)
 
     print("\n== Kiểm tra nạp model ở CHẾ ĐỘ CẤM MẠNG")
-    muc("Chép lời (Whisper large-v3)", whisper, "whisper-large-v3")
+    for ten in [MAC_DINH_WHISPER] + (["large-v3-turbo"] if turbo else []):
+        thu_muc = MODEL_WHISPER[ten][0]
+        muc(f"Chép lời (Whisper {ten})", lambda: whisper(thu_muc), thu_muc)
     muc("Tách người nói (pyannote community-1)", pyannote, "pyannote-community-1")
     muc("Cảm xúc (emotion2vec+ large)", cam_xuc, "emotion2vec_plus_large")
     muc(f"AI viết biên bản (Ollama {llm})", ollama)
@@ -127,12 +138,14 @@ def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--models", default=os.path.join(THU_MUC_SCRIPT, "models"))
     p.add_argument("--llm", default=llm_cuc_bo.MAC_DINH_MODEL)
+    p.add_argument("--turbo", action="store_true",
+                   help="tải/kiểm tra thêm Whisper large-v3-turbo (khoảng 1.6 GB) cho --whisper large-v3-turbo")
     p.add_argument("--kiem-tra", action="store_true", help="chỉ kiểm tra, không tải")
     p.add_argument("--_kiem_tra_noi_bo", action="store_true", help=argparse.SUPPRESS)
     a = p.parse_args()
 
     if a._kiem_tra_noi_bo:
-        return 0 if kiem_tra(a.models, a.llm) else 1
+        return 0 if kiem_tra(a.models, a.llm, a.turbo) else 1
 
     if not a.kiem_tra:
         token = os.environ.get("HF_TOKEN", "").strip()
@@ -140,13 +153,13 @@ def main():
             import getpass
             token = getpass.getpass("Dán token HuggingFace (hf_..., không hiện trên màn hình): ").strip()
         os.makedirs(a.models, exist_ok=True)
-        if not tai(a.models, token or None):
+        if not tai(a.models, token or None, a.turbo):
             return 1
         tai_ollama(a.llm)
 
     # Tiến trình mới: biến môi trường cấm mạng phải có TRƯỚC khi import thư viện
     kq = subprocess.run([sys.executable, os.path.abspath(__file__), "--_kiem_tra_noi_bo",
-                         "--models", a.models, "--llm", a.llm])
+                         "--models", a.models, "--llm", a.llm] + (["--turbo"] if a.turbo else []))
     if kq.returncode == 0 and not a.kiem_tra:
         print(f"\nĐể dùng trên máy KHÔNG nối mạng, chép sang bằng USB:\n"
               f"  1. Thư mục công cụ này (kèm '{a.models}', khoảng {kich_thuoc(a.models) / 2**30:.0f} GB)\n"

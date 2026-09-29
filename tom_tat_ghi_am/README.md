@@ -28,7 +28,7 @@ Với mỗi file ghi âm, công cụ tạo 4 file trong `ket_qua_phan_tich/`:
 
 Các bước xử lý:
 
-1. **Chép lời**: Whisper large-v3, có mốc thời gian từng từ.
+1. **Chép lời**: Whisper large-v3 (hoặc large-v3-turbo, nhanh hơn — xem [Chọn model](#chọn-model)), có mốc thời gian từng từ.
 2. **Tách người nói**: pyannote community-1.
 3. **Ngữ điệu**: đo âm lượng, cao độ và tốc độ nói, rồi so với **mức bình thường của chính người đó**. Người vốn nói to sẽ không bị gắn nhãn "nói to" suốt buổi.
 4. **Cảm xúc qua giọng**: emotion2vec+ large.
@@ -70,12 +70,46 @@ Kéo thả file ghi âm vào **`chay_phan_tich.bat`**. Hoặc dùng dòng lệnh
 | `--ten "Người nói 1=Anh Nam"` | Đặt tên thật cho người nói. Nghe vài câu trong `_van_ban.txt` để biết ai là ai, rồi chạy lại. |
 | `--ngon-ngu vi\|en\|ru\|tron` | Chỉ định ngôn ngữ nói (mặc định tự nhận diện). |
 | `--tom-tat-bang vi\|en\|ru` | Ngôn ngữ viết biên bản. |
+| `--whisper large-v3-turbo` | Chép lời nhanh hơn (xem [Chọn model](#chọn-model)). Cần tải trước bằng `tai_model.py --turbo`. |
 | `--llm qwen3.6:35b-a3b` | Đổi model AI viết biên bản. Bản này nhanh hơn nhưng kém hơn một chút. |
 | `--llm-suy-nghi` | Cho AI suy nghĩ kỹ trước khi viết. Tốt hơn nhưng chậm hơn nhiều. |
 | `--nguong-cam-xuc 0.7` | Chỉ gắn nhãn cảm xúc khi máy tin chắc hơn mức này (mặc định 0.6). |
 | `--khong-cam-xuc` | Bỏ bước dự đoán cảm xúc. |
 | `--dung-claude` | **Gửi văn bản** (không gửi audio) lên Claude để viết biên bản tốt hơn. **Không dùng cho nội dung mật.** |
 | `--lam-lai` | Xử lý lại từ đầu. |
+
+## Chọn model
+
+Số liệu dưới đây **đo thật trên CPU 4 nhân** (không có GPU) với 2 file mẫu công khai: VIVOS (tiếng Việt, 3 người, 3 phút, giọng đọc) và AMI (tiếng Anh, họp thật 4 người, 4 phút, micro xa).
+
+**Chép lời (`--whisper`)**
+
+| | `large-v3` (mặc định) | `large-v3-turbo` |
+|---|---|---|
+| Thời gian chép lời, file tiếng Việt 3 phút | 2 phút 28 giây | 1 phút 53 giây |
+| Thời gian chép lời, file tiếng Anh 4 phút | 2 phút 45 giây | 59 giây |
+| Tỉ lệ sai từ tiếng Việt (WER) | 11,2% | 8,2% |
+| Dung lượng | 2,9 GB | 1,6 GB |
+
+Turbo nhanh hơn 1,3–2,8 lần và với mẫu trên còn chép đúng hơn. Nhưng mẫu tiếng Việt là giọng đọc rõ ràng; với họp thật (nói nhanh, chen lời, ồn) turbo có thể kém hơn. Vì vậy **mặc định vẫn là large-v3**. Nên thử turbo trên một file họp của chính bạn, so bản chép lời, rồi mới dùng thường xuyên:
+
+```bat
+.venv\Scripts\python tai_model.py --turbo
+.venv\Scripts\python phan_tich_cuoc_hop.py hop.m4a --whisper large-v3-turbo --out-dir ket_qua_turbo
+```
+
+Đổi `--whisper` chỉ chép lời lại; kết quả tách người nói đã lưu vẫn được dùng lại.
+
+**AI viết biên bản (`--llm`)**
+
+| Model | Máy phù hợp | Nhận xét (bản chép lời mẫu, chạy trên CPU) |
+|---|---|---|
+| `qwen3.8:27b` (mặc định) | Card 24 GB | Chất lượng cần cho biên bản thật |
+| `qwen3.6:35b-a3b` | Card 24 GB | Nhanh hơn, kém hơn một chút |
+| `qwen3:4b-instruct` | Máy yếu / không có GPU | 3 phút. Nắm đúng quyết định, người phụ trách, thời hạn, trích dẫn đúng mốc; vẫn sót việc nhỏ và bỏ qua căng thẳng. Cần đọc lại kỹ |
+| `qwen3:1.7b` | Chỉ để thử quy trình | Sai quyết định, bỏ sót việc chính, dẫn sai mốc — **không dùng** |
+
+Tránh các model luôn "suy nghĩ" như `qwen3:4b` bản thường: rất chậm trên máy yếu.
 
 ## Bảo mật
 
@@ -90,7 +124,7 @@ Kéo thả file ghi âm vào **`chay_phan_tich.bat`**. Hoặc dùng dòng lệnh
 
 1. Làm phần Cài đặt trên một máy có mạng, **cùng phiên bản Windows và Python** với máy offline.
 2. Chép sang máy offline bằng USB: cả thư mục công cụ (gồm `.venv` và `models/`), bộ cài Ollama, và thư mục `%USERPROFILE%\.ollama\models`.
-3. Trên máy offline, chạy `.venv\Scripts\python tai_model.py --kiem-tra` để xác nhận mọi thứ chạy được.
+3. Trên máy offline, chạy `.venv\Scripts\python tai_model.py --kiem-tra` để xác nhận mọi thứ chạy được (thêm `--turbo` nếu đã tải Whisper turbo).
 
 `.venv` gắn với đường dẫn tuyệt đối, nên hãy chép vào **đúng đường dẫn** như trên máy cài đặt. Nếu không được thì cài lại bằng `pip download` / `pip install --no-index`.
 

@@ -395,6 +395,15 @@ class TestBuocModel(unittest.TestCase):
             kq = P.buoc_chep_loi(np.zeros(SR * 3, dtype=np.float32), self.args(), "cuda")
         self.assertTrue(WM.kw[0].endswith("whisper-large-v3"))
         self.assertEqual(WM.kw[1]["compute_type"], "float16")
+        # --whisper large-v3-turbo: thư mục riêng; chưa tải thì báo lệnh tải đúng
+        with self.assertRaisesRegex(RuntimeError, "tai_model.py --turbo"):
+            P.buoc_chep_loi(np.zeros(SR, dtype=np.float32), self.args(them=["--whisper", "large-v3-turbo"]), "cpu")
+        os.makedirs(os.path.join(self.td, "whisper-large-v3-turbo"))
+        with mock.patch("faster_whisper.WhisperModel", WM), contextlib.redirect_stdout(io.StringIO()):
+            P.buoc_chep_loi(np.zeros(SR * 3, dtype=np.float32), self.args(them=["--whisper", "large-v3-turbo"]), "cpu")
+        self.assertTrue(WM.kw[0].endswith("whisper-large-v3-turbo"))
+        with mock.patch("faster_whisper.WhisperModel", WM), contextlib.redirect_stdout(io.StringIO()):
+            P.buoc_chep_loi(np.zeros(SR * 3, dtype=np.float32), self.args(), "cuda")
         self.assertTrue(WM.tk["word_timestamps"])
         self.assertEqual(kq["tu"], [[0, 0.4, " Xin"], [0.4, 1, " chào."], [2, 3, " Привет"]])
         self.assertEqual(kq["ngon_ngu_dem"], {"vi": 1, "ru": 1})
@@ -538,6 +547,12 @@ class TestToanBo(CoOllamaGia):
         ma, goi, _ = self.chay("--so-nguoi", "4")
         self.assertEqual(goi, (0, 1, 1))
 
+        # Đổi model chép lời -> chép lời lại (tách người nói giữ nguyên), báo cáo ghi rõ model
+        os.makedirs(os.path.join(self.models, "whisper-large-v3-turbo"))
+        ma, goi, _ = self.chay("--so-nguoi", "4", "--whisper", "large-v3-turbo")
+        self.assertEqual(goi, (1, 0, 1))
+        self.assertIn("Whisper large-v3-turbo", self.doc("Họp giao ban_bien_ban.md"))
+
     def test_khong_co_ollama_van_ra_bao_cao(self):
         with mock.patch.dict(os.environ, {"OLLAMA_HOST": "127.0.0.1:1"}):
             ma, _, log = self.chay("--khong-cam-xuc")
@@ -593,6 +608,20 @@ class TestTaiModel(unittest.TestCase):
             self.assertFalse(tai_model.kiem_tra(self.tmp, "qwen"))
         nap.assert_not_called()
         self.assertEqual(out.getvalue().count("chưa có thư mục model"), 3)
+        with mock.patch.object(chan_mang, "bat"), mock.patch("llm_cuc_bo.kiem_tra"), \
+             contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertFalse(tai_model.kiem_tra(self.tmp, "qwen", turbo=True))
+        self.assertIn("whisper-large-v3-turbo", out.getvalue())
+        self.assertEqual(out.getvalue().count("chưa có thư mục model"), 4)
+
+    def test_tai_them_turbo(self):
+        import tai_model
+        with mock.patch("huggingface_hub.snapshot_download") as sd, \
+             contextlib.redirect_stdout(io.StringIO()):
+            self.assertTrue(tai_model.tai(self.tmp, None, turbo=True))
+        repo = [c.args[0] for c in sd.call_args_list]
+        self.assertEqual(repo[0], "Systran/faster-whisper-large-v3")
+        self.assertIn("mobiuslabsgmbh/faster-whisper-large-v3-turbo", repo)
 
     def test_cam_xuc_thieu_thu_muc(self):
         with self.assertRaises(RuntimeError) as e:
