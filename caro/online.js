@@ -3,6 +3,10 @@
   'use strict';
   const App = window.CaroApp;
   const esc = App.esc;
+  const T = window.I18N.t;
+  /** Dịch thông báo của máy chủ theo mã; chưa có bản dịch thì dùng chữ máy chủ gửi. */
+  const srv = (m) => (m.code && T('srv_' + m.code) !== 'srv_' + m.code ? T('srv_' + m.code, m.args || {}) : m.msg || '');
+  const secs = (n) => T('per_move', { n });
   const $ = (id) => document.getElementById(id);
 
   const LS = {
@@ -44,7 +48,9 @@
     try { ws = new WebSocket(wsUrl); } catch (e) { return scheduleRetry(); }
     ws.onopen = () => {
       retry = 0;
-      ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName: LS.get('caro.guestName') }));
+      // Tên khách mặc định theo ngôn ngữ đang chọn (vd. "Guest-3F2A"), nếu chưa tự đặt tên.
+      const guestName = LS.get('caro.guestName') || `${T('guest')}-${guestKey.slice(0, 4).toUpperCase()}`;
+      ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName }));
     };
     ws.onmessage = (e) => {
       let m;
@@ -67,7 +73,7 @@
 
   function send(m) {
     if (ws && ws.readyState === 1 && S.status === 'online') { ws.send(JSON.stringify(m)); return true; }
-    toast('Chưa kết nối được máy chủ online');
+    toast(T('not_connected'));
     connect();
     return false;
   }
@@ -90,7 +96,7 @@
     auth(m) {
       LS.set('caro.token', m.token);
       closeDlg('auth');
-      toast('Đăng nhập thành công');
+      toast(T('login_ok'));
     },
     loggedOut() {
       LS.set('caro.token', null);
@@ -109,13 +115,13 @@
       renderInvites();
       render();
     },
-    toast(m) { toast(m.msg); },
+    toast(m) { toast(srv(m)); },
     error(m) {
       if (m.ctx === 'move') App.resync();
       const target = m.ctx === 'joinRoom' && isOpen('join') ? 'join-err'
         : ['login', 'register'].includes(m.ctx) && isOpen('auth') ? 'auth-err' : null;
-      if (target) $(target).textContent = m.msg;
-      else toast(m.msg);
+      if (target) $(target).textContent = srv(m);
+      else toast(srv(m));
     },
   };
 
@@ -161,14 +167,14 @@
   }
 
   // ------------------------------------------------------------ Bảng Online
-  const STATUS_TEXT = { online: 'Online', playing: 'Đang chơi', offline: 'Offline' };
+  const statusText = (st) => T('st_' + st);
 
   function render() {
     // Chấm đỏ trên nút Online khi có lời mời.
     $('online-badge').hidden = !(S.invites.size || S.friends.incoming.length);
     const conn = $('conn');
     conn.className = 'conn ' + S.status;
-    conn.textContent = !wsUrl ? 'Không có máy chủ' : S.status === 'online' ? 'Đã kết nối' : S.status === 'connecting' ? 'Đang kết nối…' : 'Mất kết nối';
+    conn.textContent = T(!wsUrl ? 'conn_none' : 'conn_' + S.status);
     renderAccount();
     renderFriends();
   }
@@ -177,32 +183,32 @@
     const el = $('account');
     const me = S.me;
     if (!wsUrl) {
-      el.innerHTML = '<p class="hint">Bản này đang mở không qua máy chủ nên chưa chơi online được. Chế độ chơi với máy và 2 người vẫn dùng bình thường.</p>';
+      el.innerHTML = `<p class="hint">${esc(T('no_server_hint'))}</p>`;
       return;
     }
-    if (!me) { el.innerHTML = '<p class="hint">Đang kết nối máy chủ…</p>'; return; }
+    if (!me) { el.innerHTML = `<p class="hint">${esc(T('connecting_hint'))}</p>`; return; }
     const avatar = `<span class="avatar">${esc((me.name || '?').trim().charAt(0).toUpperCase())}</span>`;
     if (me.guest) {
       el.innerHTML = `
-        <div class="who">${avatar}<div><b>${esc(me.name)}</b><small>Khách · <a href="#" id="rename">đổi tên</a></small></div></div>
+        <div class="who">${avatar}<div><b>${esc(me.name)}</b><small>${esc(T('guest'))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
         <div class="row">
-          <button type="button" class="primary" id="go-login">Đăng nhập</button>
-          <button type="button" class="ghost" id="go-register">Tạo tài khoản</button>
+          <button type="button" class="primary" id="go-login">${esc(T('login'))}</button>
+          <button type="button" class="ghost" id="go-register">${esc(T('register'))}</button>
         </div>
-        <p class="hint">Có tài khoản để kết bạn, xem ai đang online và thách đấu Bo1/Bo3/Bo5.</p>`;
+        <p class="hint">${esc(T('account_hint'))}</p>`;
       $('go-login').onclick = () => openAuth('login');
       $('go-register').onclick = () => openAuth('register');
     } else {
       const st = me.stats || { wins: 0, losses: 0 };
       el.innerHTML = `
-        <div class="who">${avatar}<div><b>${esc(me.name)}</b><small>@${esc(me.username)} · Thắng ${st.wins} · Thua ${st.losses} · <a href="#" id="rename">đổi tên</a></small></div></div>
+        <div class="who">${avatar}<div><b>${esc(me.name)}</b><small>@${esc(me.username)} · ${esc(T('stats', { w: st.wins, l: st.losses }))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
         <div class="row">
-          ${me.google ? '<span class="tag">✓ Đã liên kết Google</span>' : S.googleClientId ? '<button type="button" class="ghost" id="link-google">Liên kết Google</button>' : ''}
-          <button type="button" class="ghost" id="logout">Đăng xuất</button>
+          ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : S.googleClientId ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
+          <button type="button" class="ghost" id="logout">${esc(T('logout'))}</button>
         </div>
         <div id="google-link-btn"></div>`;
       $('logout').onclick = () => {
-        if (roomActive() && !confirm('Đăng xuất sẽ rời phòng và bị xử thua ván đang đánh. Vẫn đăng xuất?')) return;
+        if (roomActive() && !confirm(T('confirm_logout'))) return;
         send({ t: 'logout' });
       };
       const lg = $('link-google');
@@ -210,7 +216,7 @@
     }
     $('rename').onclick = (e) => {
       e.preventDefault();
-      const name = prompt('Tên hiển thị mới:', me.name);
+      const name = prompt(T('rename_prompt'), me.name);
       if (name && name.trim()) {
         if (me.guest) LS.set('caro.guestName', name.trim());
         send({ t: 'setName', name: name.trim() });
@@ -221,28 +227,29 @@
   function renderFriends() {
     const el = $('friends');
     if (!S.me || S.me.guest) {
-      el.innerHTML = '<h3>Bạn bè</h3><p class="hint">Đăng nhập để kết bạn và thách đấu bạn bè.</p>';
+      el.innerHTML = `<h3>${esc(T('friends'))}</h3><p class="hint">${esc(T('friends_login_hint'))}</p>`;
       return;
     }
     const f = S.friends;
     const order = { online: 0, playing: 1, offline: 2 };
     const list = [...f.friends].sort((a, b) => order[a.status] - order[b.status] || a.name.localeCompare(b.name));
     const person = (p, extra) => `
-      <li><span class="st ${p.status}" title="${STATUS_TEXT[p.status]}"></span>
-        <div class="pn"><b>${esc(p.name)}</b><small>@${esc(p.username)} · ${STATUS_TEXT[p.status]}</small></div>${extra}</li>`;
+      <li><span class="st ${p.status}" title="${esc(statusText(p.status))}"></span>
+        <div class="pn"><b>${esc(p.name)}</b><small>@${esc(p.username)} · ${esc(statusText(p.status))}</small></div>${extra}</li>`;
+    const onlineCount = f.friends.filter((p) => p.status !== 'offline').length;
     el.innerHTML = `
-      <h3>Bạn bè <small>${f.friends.filter((p) => p.status !== 'offline').length}/${f.friends.length} online</small></h3>
+      <h3>${esc(T('friends'))} <small>${esc(T('friends_online', { on: onlineCount, all: f.friends.length }))}</small></h3>
       <form class="row" id="add-friend">
-        <input name="u" placeholder="Tên đăng nhập của bạn bè" autocapitalize="none" spellcheck="false" maxlength="21" required>
-        <button class="primary">Kết bạn</button>
+        <input name="u" placeholder="${esc(T('friend_username_ph'))}" autocapitalize="none" spellcheck="false" maxlength="21" required>
+        <button class="primary">${esc(T('add_friend'))}</button>
       </form>
-      ${f.incoming.length ? `<h4>Lời mời kết bạn</h4><ul class="people">${f.incoming.map((p) => person(p,
-        `<button type="button" class="ghost sm" data-deny="${esc(p.id)}">Từ chối</button><button type="button" class="primary sm" data-accept="${esc(p.id)}">Đồng ý</button>`)).join('')}</ul>` : ''}
+      ${f.incoming.length ? `<h4>${esc(T('friend_requests'))}</h4><ul class="people">${f.incoming.map((p) => person(p,
+        `<button type="button" class="ghost sm" data-deny="${esc(p.id)}">${esc(T('decline'))}</button><button type="button" class="primary sm" data-accept="${esc(p.id)}">${esc(T('accept'))}</button>`)).join('')}</ul>` : ''}
       <ul class="people">${list.map((p) => person(p,
-        `<button type="button" class="primary sm" data-challenge="${esc(p.id)}" ${p.status === 'online' ? '' : 'disabled'}>Thách đấu</button>
-         <button type="button" class="ghost sm icon" data-remove="${esc(p.id)}" title="Huỷ kết bạn">✕</button>`)).join('') ||
-        '<li class="empty">Chưa có bạn bè. Nhập tên đăng nhập để kết bạn.</li>'}</ul>
-      ${f.outgoing.length ? `<p class="hint">Đang chờ đồng ý: ${f.outgoing.map((p) => esc(p.name)).join(', ')}</p>` : ''}`;
+        `<button type="button" class="primary sm" data-challenge="${esc(p.id)}" ${p.status === 'online' ? '' : 'disabled'}>${esc(T('challenge'))}</button>
+         <button type="button" class="ghost sm icon" data-remove="${esc(p.id)}" title="${esc(T('unfriend'))}">✕</button>`)).join('') ||
+        `<li class="empty">${esc(T('no_friends'))}</li>`}</ul>
+      ${f.outgoing.length ? `<p class="hint">${esc(T('pending_friends', { names: f.outgoing.map((p) => p.name).join(', ') }))}</p>` : ''}`;
     $('add-friend').onsubmit = (e) => {
       e.preventDefault();
       const u = e.target.u.value.trim();
@@ -253,14 +260,14 @@
     el.querySelectorAll('[data-remove]').forEach((b) => {
       b.onclick = () => {
         const p = f.friends.find((x) => x.id === b.dataset.remove);
-        if (p && confirm(`Huỷ kết bạn với ${p.name}?`)) send({ t: 'friendRemove', id: p.id });
+        if (p && confirm(T('confirm_unfriend', { name: p.name }))) send({ t: 'friendRemove', id: p.id });
       };
     });
     el.querySelectorAll('[data-challenge]').forEach((b) => {
       b.onclick = () => {
         const p = f.friends.find((x) => x.id === b.dataset.challenge);
         S.challengeTo = p;
-        $('ch-title').textContent = 'Thách đấu ' + p.name;
+        $('ch-title').textContent = T('challenge_title', { name: p.name });
         openDlg('challenge');
       };
     });
@@ -269,7 +276,7 @@
   $('challenge-form').onsubmit = (e) => {
     e.preventDefault();
     const f = e.target;
-    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value });
+    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value, timeLimit: Number(f.time.value) });
   };
 
   // ------------------------------------------------------------ Lời thách đấu
@@ -281,24 +288,25 @@
       box.className = 'invites';
       document.body.appendChild(box);
     }
-    const firstText = (inv, fromName) => inv.first === 'random' ? 'ngẫu nhiên đi trước'
-      : inv.first === 'me' ? `${fromName} đi trước` : 'bạn đi trước';
+    // Thông tin trận: Bo3 · ai đi trước · thời gian mỗi nước
+    const details = (inv, first) => [`Bo${inv.bestOf}`, first, inv.timeLimit ? '⏱ ' + secs(inv.timeLimit) : ''].filter(Boolean).join(' · ');
     let html = '';
     for (const inv of S.invites.values()) {
-      html += `<div class="invite"><div><b>${esc(inv.from.name)}</b> thách đấu bạn<small>Bo${inv.bestOf} · ${esc(firstText(inv, inv.from.name))}</small></div>
-        <button type="button" class="ghost sm" data-no="${esc(inv.id)}">Từ chối</button>
-        <button type="button" class="primary sm" data-yes="${esc(inv.id)}">Nhận</button></div>`;
+      const first = inv.first === 'random' ? T('first_random') : inv.first === 'me' ? T('first_name', { name: inv.from.name }) : T('first_you');
+      html += `<div class="invite"><div><b>${esc(T('invite_from', { name: inv.from.name }))}</b><small>${esc(details(inv, first))}</small></div>
+        <button type="button" class="ghost sm" data-no="${esc(inv.id)}">${esc(T('decline'))}</button>
+        <button type="button" class="primary sm" data-yes="${esc(inv.id)}">${esc(T('receive'))}</button></div>`;
     }
     if (S.sent) {
       const s = S.sent;
-      const ft = s.first === 'random' ? 'ngẫu nhiên đi trước' : s.first === 'me' ? 'bạn đi trước' : `${s.to.name} đi trước`;
-      html += `<div class="invite"><div>Đang chờ <b>${esc(s.to.name)}</b> nhận lời…<small>Bo${s.bestOf} · ${esc(ft)}</small></div>
-        <button type="button" class="ghost sm" id="cancel-sent">Huỷ</button></div>`;
+      const first = s.first === 'random' ? T('first_random') : s.first === 'me' ? T('first_you') : T('first_name', { name: s.to.name });
+      html += `<div class="invite"><div>${esc(T('waiting_accept', { name: s.to.name }))}<small>${esc(details(s, first))}</small></div>
+        <button type="button" class="ghost sm" id="cancel-sent">${esc(T('cancel'))}</button></div>`;
     }
     box.innerHTML = html;
     box.querySelectorAll('[data-yes]').forEach((b) => {
       b.onclick = () => {
-        if (roomActive() && !confirm('Nhận lời sẽ rời ván đang đánh và bị xử thua ván đó. Vẫn nhận?')) return;
+        if (roomActive() && !confirm(T('confirm_accept_busy'))) return;
         send({ t: 'challengeRespond', id: b.dataset.yes, accept: true });
       };
     });
@@ -316,7 +324,7 @@
     const f = $('auth-form');
     f.classList.toggle('register', tab === 'register');
     f.querySelectorAll('[data-tab]').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
-    $('auth-submit').textContent = tab === 'login' ? 'Đăng nhập' : 'Tạo tài khoản';
+    $('auth-submit').textContent = T(tab === 'login' ? 'login' : 'register');
     f.password.autocomplete = tab === 'login' ? 'current-password' : 'new-password';
     f.password.minLength = tab === 'login' ? 1 : 6;
     $('auth-err').textContent = '';
@@ -359,15 +367,16 @@
   function mountGoogle(el) {
     loadGoogle().then((g) => {
       el.innerHTML = '';
-      g.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', locale: 'vi', width: 260 });
-    }).catch(() => { el.innerHTML = '<p class="hint">Không tải được đăng nhập Google trên mạng này. Hãy dùng tài khoản riêng.</p>'; });
+      g.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', locale: window.I18N.googleLocale, width: 260 });
+    }).catch(() => { el.innerHTML = `<p class="hint">${esc(T('google_load_fail'))}</p>`; });
   }
 
   // ------------------------------------------------------------ Phòng
   $('btn-online').onclick = () => { connect(); render(); openDlg('online'); };
   $('create-room').onclick = () => {
     const side = document.querySelector('input[name="room-side"]:checked').value;
-    send({ t: 'createRoom', side });
+    const timeLimit = Number(document.querySelector('input[name="room-time"]:checked').value);
+    send({ t: 'createRoom', side, timeLimit });
   };
   $('open-join').onclick = () => openJoin('');
 
@@ -413,7 +422,8 @@
   function fillRoomInfo() {
     const r = S.room;
     if (!r) return;
-    $('room-title').textContent = r.kind === 'series' ? `Thách đấu Bo${r.bestOf}` : 'Phòng chơi';
+    $('room-title').textContent = r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title');
+    $('ri-time').textContent = '⏱ ' + (r.timeLimit ? secs(r.timeLimit) : T('time_off'));
     $('ri-code').textContent = r.code;
     $('ri-pass').textContent = r.password;
     $('ri-link').value = inviteLink(r.code);
@@ -426,9 +436,9 @@
       const you = p.id === S.me.id;
       const canFriend = !you && !S.me.guest && p.id.startsWith('u_') && !friendIds.has(p.id);
       return `<li><span class="st ${p.online ? 'online' : 'offline'}"></span>${side}
-        <div class="pn"><b>${esc(p.name)}${you ? ' (bạn)' : ''}</b><small>Thắng ${r.score[p.id] || 0} ván${r.rematch.includes(p.id) ? ' · muốn tái đấu' : ''}</small></div>
-        ${canFriend ? (pending.has(p.id) ? '<small>Đã gửi kết bạn</small>' : `<button type="button" class="ghost sm" data-add="${esc(p.id)}">Kết bạn</button>`) : ''}</li>`;
-    }).join('') + (r.players.length < 2 ? '<li class="empty">Đang chờ đối thủ vào phòng…</li>' : '');
+        <div class="pn"><b>${esc(p.name)}${you ? ' ' + esc(T('you_tag')) : ''}</b><small>${esc(T('won_games', { n: r.score[p.id] || 0 }))}${r.rematch.includes(p.id) ? ' · ' + esc(T('wants_rematch_tag')) : ''}</small></div>
+        ${canFriend ? (pending.has(p.id) ? `<small>${esc(T('friend_sent'))}</small>` : `<button type="button" class="ghost sm" data-add="${esc(p.id)}">${esc(T('add_friend'))}</button>`) : ''}</li>`;
+    }).join('') + (r.players.length < 2 ? `<li class="empty">${esc(T('waiting_join'))}</li>` : '');
     $('ri-players').querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => send({ t: 'friendAdd', id: b.dataset.add }); });
   }
   function openRoomInfo() { fillRoomInfo(); openDlg('room-info'); }
@@ -437,18 +447,18 @@
     const link = $('ri-link').value;
     try { await navigator.clipboard.writeText(link); }
     catch (e) { $('ri-link').select(); document.execCommand('copy'); }
-    toast('Đã sao chép link mời');
+    toast(T('copied'));
   };
   $('ri-share').onclick = () => {
-    navigator.share({ title: 'Cờ Caro', text: `Vào chơi Cờ Caro với mình! Phòng ${S.room.code}`, url: inviteLink(S.room.code) }).catch(() => {});
+    navigator.share({ title: T('app_title'), text: T('share_text', { code: S.room.code }), url: inviteLink(S.room.code) }).catch(() => {});
   };
 
   $('btn-room').onclick = openRoomInfo;
   $('btn-center2').onclick = () => $('btn-center').click();
   $('btn-resign').onclick = () => {
     const r = S.room;
-    if (!r || r.players.length < 2 || r.winner) return toast('Chưa có ván nào đang diễn ra');
-    if (confirm('Đầu hàng ván này?')) send({ t: 'resign' });
+    if (!r || r.players.length < 2 || r.winner) return toast(T('no_game'));
+    if (confirm(T('confirm_resign'))) send({ t: 'resign' });
   };
   // Đang có ván dở (đã có nước đi) – rời đi sẽ bị xử thua.
   function roomActive() {
@@ -457,7 +467,7 @@
   }
 
   function leaveRoom() {
-    if (roomActive() && !confirm('Rời phòng khi đang đánh sẽ bị xử thua. Vẫn rời?')) return;
+    if (roomActive() && !confirm(T('confirm_leave'))) return;
     if (!send({ t: 'leaveRoom' })) {
       // Mất kết nối: vẫn cho quay về chơi cục bộ.
       S.room = null;
@@ -469,7 +479,6 @@
   $('banner-rematch').onclick = () => send({ t: 'rematch' });
 
   // ------------------------------------------------------------ Kết thúc ván
-  const REASON = { resign: 'đầu hàng', leave: 'rời phòng', timeout: 'mất kết nối quá lâu' };
   function showBanner() {
     const r = S.room;
     if (!r || !r.winner || !S.me) return;
@@ -477,34 +486,44 @@
     const winnerId = r.winner === 1 ? r.seats.x : r.seats.o;
     const won = winnerId === me;
     const opp = r.players.find((p) => p.id !== me);
-    const oppName = opp ? opp.name : 'Đối thủ';
-    let title = won ? '🎉 Bạn thắng!' : 'Bạn thua rồi';
+    const oppName = opp ? opp.name : T('opponent');
+    let title = T(won ? 'you_win' : 'lost');
     let sub = '';
-    if (r.reason && r.reason !== 'win') sub = won ? `${oppName} ${REASON[r.reason]}` : `Bạn ${REASON[r.reason]}`;
+    // Lý do kết thúc khác (đầu hàng, rời phòng, mất kết nối, hết giờ): nói ai là người thua.
+    if (r.reason && r.reason !== 'win') sub = won ? T(`r_${r.reason}_opp`, { name: oppName }) : T(`r_${r.reason}_you`);
     const score = `${r.score[me] || 0} – ${opp ? r.score[opp.id] || 0 : 0}`;
     let rematch = true;
     if (r.kind === 'series') {
       if (r.seriesWinner) {
-        title = r.seriesWinner === me ? `🏆 Bạn thắng chung cuộc ${score}!` : `${oppName} thắng chung cuộc ${score}`;
+        title = r.seriesWinner === me ? T('series_won', { score }) : T('series_lost', { name: oppName, score });
       } else {
-        sub = (sub ? sub + ' · ' : '') + `Tỉ số ${score} · Ván ${r.gameNo + 1} bắt đầu sau vài giây, đổi bên đi trước`;
+        sub = (sub ? sub + ' · ' : '') + T('score_is', { score }) + ' · ' + T('next_game', { n: r.gameNo + 1 });
         rematch = false;
       }
     } else {
-      sub = (sub ? sub + ' · ' : '') + `Tỉ số ${score}`;
+      sub = (sub ? sub + ' · ' : '') + T('score_is', { score });
     }
-    if (!opp) { sub = 'Đối thủ đã rời phòng'; rematch = false; }
+    if (!opp) { sub = T('opp_left'); rematch = false; }
     $('banner-title').textContent = title;
     $('banner-sub').textContent = sub;
     const btn = $('banner-rematch');
     btn.hidden = !rematch;
     const mine = r.rematch.includes(me), theirs = opp && r.rematch.includes(opp.id);
     btn.disabled = mine;
-    btn.textContent = mine ? 'Đang chờ đối thủ…' : theirs ? 'Đồng ý tái đấu' : 'Tái đấu';
+    btn.textContent = T(mine ? 'waiting_rematch' : theirs ? 'accept_rematch' : 'rematch');
     $('banner').hidden = false;
   }
 
   window.CaroOnline = { send, showBanner };
+
+  // Đổi ngôn ngữ: vẽ lại các phần do JS tạo ra.
+  window.addEventListener('langchange', () => {
+    render();
+    renderInvites();
+    if (isOpen('room-info')) fillRoomInfo();
+    if (isOpen('challenge') && S.challengeTo) $('ch-title').textContent = T('challenge_title', { name: S.challengeTo.name });
+    if (isOpen('auth')) $('auth-submit').textContent = T(authTab === 'login' ? 'login' : 'register');
+  });
 
   // Kết nối sẵn khi có tài khoản (để bạn bè thấy mình online), đang ở trong phòng, hoặc mở bằng link mời.
   function start() {
@@ -516,7 +535,7 @@
   function offlineOnly() {
     noServer = true;
     document.body.classList.add('no-online');
-    if (pendingLink) toast('Bản này chỉ chơi offline, không vào được phòng online');
+    if (pendingLink) toast(T('offline_only_link'));
   }
 
   if (!wsUrl) offlineOnly();

@@ -12,28 +12,31 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="style.css">
+  <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
+  <script src="theme.js"></script>
 </head>
 <body>
-  <canvas id="board" aria-label="Bàn cờ caro"></canvas>
+  <canvas id="board" data-i18n-aria="board_aria"></canvas>
 
   <header class="bar top">
     <div class="turn" id="turn" aria-live="polite"></div>
-    <div class="score" id="score" title="Tỉ số"></div>
+    <div class="clock" id="clock" hidden><span class="clock-ico">⏱</span><span id="clock-n"></span></div>
+    <div class="score" id="score" data-i18n-title="score_title"></div>
   </header>
 
   <nav class="bar bottom local-only">
-    <button id="btn-new" type="button"><span class="ico">＋</span><span>Ván mới</span></button>
-    <button id="btn-undo" type="button"><span class="ico">↶</span><span>Đi lại</span></button>
-    <button id="btn-center" type="button"><span class="ico">◎</span><span>Về giữa</span></button>
-    <button id="btn-online" type="button"><span class="ico">🌐</span><span>Online</span><i class="badge" id="online-badge" hidden></i></button>
-    <button id="btn-settings" type="button"><span class="ico">⚙</span><span>Cài đặt</span></button>
+    <button id="btn-new" type="button"><span class="ico">＋</span><span data-i18n="btn_new"></span></button>
+    <button id="btn-undo" type="button"><span class="ico">↶</span><span data-i18n="btn_undo"></span></button>
+    <button id="btn-center" type="button"><span class="ico">◎</span><span data-i18n="btn_center"></span></button>
+    <button id="btn-online" type="button"><span class="ico">🌐</span><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
+    <button id="btn-settings" type="button"><span class="ico">⚙</span><span data-i18n="btn_settings"></span></button>
   </nav>
 
   <nav class="bar bottom online-only">
-    <button id="btn-room" type="button"><span class="ico">ℹ</span><span>Phòng</span></button>
-    <button id="btn-center2" type="button"><span class="ico">◎</span><span>Về giữa</span></button>
-    <button id="btn-resign" type="button"><span class="ico">⚑</span><span>Đầu hàng</span></button>
-    <button id="btn-leave" type="button"><span class="ico">⎋</span><span>Rời phòng</span></button>
+    <button id="btn-room" type="button"><span class="ico">ℹ</span><span data-i18n="btn_room"></span></button>
+    <button id="btn-center2" type="button"><span class="ico">◎</span><span data-i18n="btn_center"></span></button>
+    <button id="btn-resign" type="button"><span class="ico">⚑</span><span data-i18n="btn_resign"></span></button>
+    <button id="btn-leave" type="button"><span class="ico">⎋</span><span data-i18n="btn_leave"></span></button>
   </nav>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -43,55 +46,76 @@
       <div class="banner-title" id="banner-title"></div>
       <div class="banner-sub" id="banner-sub"></div>
       <div class="banner-actions">
-        <button id="banner-view" type="button" class="ghost">Xem bàn cờ</button>
-        <button id="banner-leave" type="button" class="ghost online-only">Rời phòng</button>
-        <button id="banner-new" type="button" class="primary local-only">Ván mới</button>
-        <button id="banner-rematch" type="button" class="primary online-only">Tái đấu</button>
+        <button id="banner-view" type="button" class="ghost" data-i18n="banner_view"></button>
+        <button id="banner-leave" type="button" class="ghost online-only" data-i18n="btn_leave"></button>
+        <button id="banner-new" type="button" class="primary local-only" data-i18n="btn_new"></button>
+        <button id="banner-rematch" type="button" class="primary online-only" data-i18n="rematch"></button>
       </div>
     </div>
   </div>
 
   <dialog id="settings">
     <form method="dialog" id="settings-form">
-      <h2>Cài đặt</h2>
+      <h2 data-i18n="settings"></h2>
 
       <fieldset>
-        <legend>Chế độ chơi</legend>
-        <label><input type="radio" name="mode" value="ai"> Chơi với máy</label>
-        <label><input type="radio" name="mode" value="pvp"> 2 người (cùng máy)</label>
+        <legend data-i18n="mode"></legend>
+        <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
+        <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
       </fieldset>
 
       <fieldset class="ai-only">
-        <legend>Bạn cầm</legend>
-        <label><input type="radio" name="human" value="1"> <b class="x">X</b> – đi trước</label>
-        <label><input type="radio" name="human" value="2"> <b class="o">O</b> – đi sau</label>
+        <legend data-i18n="you_play"></legend>
+        <label><input type="radio" name="human" value="1"> <b class="x">X</b> – <span data-i18n="goes_first"></span></label>
+        <label><input type="radio" name="human" value="2"> <b class="o">O</b> – <span data-i18n="goes_second"></span></label>
       </fieldset>
 
       <fieldset class="ai-only">
-        <legend>Độ khó</legend>
-        <label><input type="radio" name="level" value="1"> Dễ</label>
-        <label><input type="radio" name="level" value="2"> Vừa</label>
-        <label><input type="radio" name="level" value="3"> Khó</label>
+        <legend data-i18n="level"></legend>
+        <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
+        <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
+        <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
       </fieldset>
 
       <fieldset>
-        <legend>Thao tác</legend>
-        <label class="switch"><input type="checkbox" name="confirm"> Chạm 2 lần để đánh (tránh bấm nhầm)</label>
+        <legend data-i18n="time_limit"></legend>
+        <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
+        <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
+        <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
+        <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="theme"></legend>
+        <label><input type="radio" name="theme" value="light"> <span data-i18n="theme_light"></span></label>
+        <label><input type="radio" name="theme" value="dark"> <span data-i18n="theme_dark"></span></label>
+        <label><input type="radio" name="theme" value="system"> <span data-i18n="theme_system"></span></label>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="language"></legend>
+        <select name="lang" class="select" data-i18n-aria="language"></select>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="controls"></legend>
+        <label class="switch"><input type="checkbox" name="confirm"> <span data-i18n="confirm_tap"></span></label>
       </fieldset>
 
       <details class="rules">
-        <summary>Luật chơi</summary>
+        <summary data-i18n="rules"></summary>
         <ul>
-          <li>X đi trước, hai bên lần lượt đánh vào ô trống. Bàn cờ không giới hạn – kéo để di chuyển, chụm/cuộn để phóng to.</li>
-          <li><b>4 quân liền</b> không bị chặn đầu nào → <b>thắng</b>.</li>
-          <li><b>5 quân liền</b> bị chặn 1 đầu → <b>thắng</b>.</li>
-          <li>Bị chặn <b>cả 2 đầu</b> → <b>không</b> tính thắng.</li>
+          <li data-i18n-html="rules_1"></li>
+          <li data-i18n-html="rules_2"></li>
+          <li data-i18n-html="rules_3"></li>
+          <li data-i18n-html="rules_4"></li>
+          <li data-i18n-html="rules_5"></li>
         </ul>
       </details>
 
       <div class="dialog-actions">
-        <button type="button" id="reset-score" class="ghost">Xoá tỉ số</button>
-        <button value="ok" class="primary">Xong</button>
+        <button type="button" id="reset-score" class="ghost" data-i18n="reset_score"></button>
+        <button value="ok" class="primary" data-i18n="done"></button>
       </div>
     </form>
   </dialog>
@@ -100,22 +124,28 @@
   <dialog id="online">
     <div class="dlg">
       <div class="dlg-head">
-        <h2>Chơi online</h2>
+        <h2 data-i18n="online_title"></h2>
         <span class="conn" id="conn"></span>
-        <button type="button" class="x-close" data-close aria-label="Đóng">✕</button>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
       <section class="card" id="account"></section>
       <section class="card">
-        <h3>Tạo phòng</h3>
+        <h3 data-i18n="create_room"></h3>
         <div class="seg">
-          <label><input type="radio" name="room-side" value="first" checked> Mình đi trước</label>
-          <label><input type="radio" name="room-side" value="second"> Mình đi sau</label>
+          <label><input type="radio" name="room-side" value="first" checked> <span data-i18n="me_first"></span></label>
+          <label><input type="radio" name="room-side" value="second"> <span data-i18n="me_second"></span></label>
+        </div>
+        <div class="seg" role="group" data-i18n-aria="time_limit">
+          <label><input type="radio" name="room-time" value="0" checked> ⏱ <span data-i18n="time_off"></span></label>
+          <label><input type="radio" name="room-time" value="10"> <span data-i18n-n="10"></span></label>
+          <label><input type="radio" name="room-time" value="20"> <span data-i18n-n="20"></span></label>
+          <label><input type="radio" name="room-time" value="30"> <span data-i18n-n="30"></span></label>
         </div>
         <div class="row">
-          <button type="button" class="primary" id="create-room">Tạo phòng</button>
-          <button type="button" class="ghost" id="open-join">Vào phòng bằng mã</button>
+          <button type="button" class="primary" id="create-room" data-i18n="create_room"></button>
+          <button type="button" class="ghost" id="open-join" data-i18n="join_by_code"></button>
         </div>
-        <p class="hint">Phòng có mã 6 số và mật khẩu 3 số. Gửi link cho bạn bè, họ nhập mật khẩu để vào. Tái đấu sẽ tự đổi bên đi trước.</p>
+        <p class="hint" data-i18n="room_hint"></p>
       </section>
       <section class="card" id="friends"></section>
     </div>
@@ -125,18 +155,18 @@
     <form class="dlg" id="auth-form">
       <div class="dlg-head">
         <div class="tabs">
-          <button type="button" data-tab="login" class="on">Đăng nhập</button>
-          <button type="button" data-tab="register">Tạo tài khoản</button>
+          <button type="button" data-tab="login" class="on" data-i18n="login"></button>
+          <button type="button" data-tab="register" data-i18n="register"></button>
         </div>
-        <button type="button" class="x-close" data-close aria-label="Đóng">✕</button>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
-      <label class="field reg-only">Tên hiển thị<input name="name" maxlength="24" autocomplete="nickname"></label>
-      <label class="field">Tên đăng nhập<input name="username" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
-      <label class="field">Mật khẩu<input name="password" type="password" maxlength="100" autocomplete="current-password" required></label>
+      <label class="field reg-only"><span data-i18n="display_name"></span><input name="name" maxlength="24" autocomplete="nickname"></label>
+      <label class="field"><span data-i18n="username"></span><input name="username" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+      <label class="field"><span data-i18n="password"></span><input name="password" type="password" maxlength="100" autocomplete="current-password" required></label>
       <p class="err" id="auth-err"></p>
-      <button class="primary wide" id="auth-submit">Đăng nhập</button>
+      <button class="primary wide" id="auth-submit"></button>
       <div class="google-box" id="google-box" hidden>
-        <div class="or">hoặc</div>
+        <div class="or" data-i18n="or"></div>
         <div id="google-btn"></div>
       </div>
     </form>
@@ -145,34 +175,35 @@
   <dialog id="join">
     <form class="dlg" id="join-form">
       <div class="dlg-head">
-        <h2>Vào phòng</h2>
-        <button type="button" class="x-close" data-close aria-label="Đóng">✕</button>
+        <h2 data-i18n="join_title"></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
       <div class="row">
-        <label class="field">Mã phòng<input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="123456" autocomplete="off" required></label>
-        <label class="field short">Mật khẩu<input name="password" inputmode="numeric" pattern="\d{3}" maxlength="3" placeholder="123" autocomplete="off" required></label>
+        <label class="field"><span data-i18n="room_code_label"></span><input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="123456" autocomplete="off" required></label>
+        <label class="field short"><span data-i18n="password"></span><input name="password" inputmode="numeric" pattern="\d{3}" maxlength="3" placeholder="123" autocomplete="off" required></label>
       </div>
       <p class="err" id="join-err"></p>
-      <button class="primary wide">Vào phòng</button>
+      <button class="primary wide" data-i18n="join_title"></button>
     </form>
   </dialog>
 
   <dialog id="room-info">
     <div class="dlg">
       <div class="dlg-head">
-        <h2 id="room-title">Phòng</h2>
-        <button type="button" class="x-close" data-close aria-label="Đóng">✕</button>
+        <h2 id="room-title"></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
       <div class="codes">
-        <div><small>Mã phòng</small><b id="ri-code"></b></div>
-        <div><small>Mật khẩu</small><b id="ri-pass"></b></div>
+        <div><small data-i18n="room_code_label"></small><b id="ri-code"></b></div>
+        <div><small data-i18n="password"></small><b id="ri-pass"></b></div>
       </div>
+      <p class="hint" id="ri-time"></p>
       <div class="link-row">
         <input id="ri-link" readonly>
-        <button type="button" class="primary" id="ri-copy">Sao chép</button>
+        <button type="button" class="primary" id="ri-copy" data-i18n="copy"></button>
       </div>
-      <button type="button" class="ghost wide" id="ri-share" hidden>Chia sẻ link mời…</button>
-      <p class="hint">Người nhận mở link và nhập mật khẩu để vào phòng.</p>
+      <button type="button" class="ghost wide" id="ri-share" hidden data-i18n="share"></button>
+      <p class="hint" data-i18n="room_info_hint"></p>
       <ul class="players" id="ri-players"></ul>
     </div>
   </dialog>
@@ -180,11 +211,11 @@
   <dialog id="challenge">
     <form class="dlg" id="challenge-form">
       <div class="dlg-head">
-        <h2 id="ch-title">Thách đấu</h2>
-        <button type="button" class="x-close" data-close aria-label="Đóng">✕</button>
+        <h2 id="ch-title"></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
       <fieldset>
-        <legend>Thể thức</legend>
+        <legend data-i18n="format"></legend>
         <div class="seg">
           <label><input type="radio" name="bo" value="1" checked> Bo1</label>
           <label><input type="radio" name="bo" value="3"> Bo3</label>
@@ -192,19 +223,29 @@
         </div>
       </fieldset>
       <fieldset>
-        <legend>Ván đầu tiên</legend>
+        <legend data-i18n="first_game"></legend>
         <div class="seg">
-          <label><input type="radio" name="first" value="me" checked> Mình đi trước</label>
-          <label><input type="radio" name="first" value="them"> Bạn ấy đi trước</label>
-          <label><input type="radio" name="first" value="random"> Ngẫu nhiên</label>
+          <label><input type="radio" name="first" value="me" checked> <span data-i18n="me_first"></span></label>
+          <label><input type="radio" name="first" value="them"> <span data-i18n="them_first"></span></label>
+          <label><input type="radio" name="first" value="random"> <span data-i18n="random"></span></label>
         </div>
       </fieldset>
-      <p class="hint">Các ván sau tự động đổi bên đi trước. Ai thắng trước 1/2/3 ván sẽ thắng chung cuộc.</p>
-      <button class="primary wide">Gửi lời thách đấu</button>
+      <fieldset>
+        <legend data-i18n="time_limit"></legend>
+        <div class="seg">
+          <label><input type="radio" name="time" value="0" checked> <span data-i18n="time_off"></span></label>
+          <label><input type="radio" name="time" value="10"> <span data-i18n-n="10"></span></label>
+          <label><input type="radio" name="time" value="20"> <span data-i18n-n="20"></span></label>
+          <label><input type="radio" name="time" value="30"> <span data-i18n-n="30"></span></label>
+        </div>
+      </fieldset>
+      <p class="hint" data-i18n="challenge_hint"></p>
+      <button class="primary wide" data-i18n="send_challenge"></button>
     </form>
   </dialog>
 
   <script src="config.js"></script>
+  <script src="i18n.js"></script>
   <script src="rules.js"></script>
   <script src="app.js"></script>
   <script src="online.js"></script>

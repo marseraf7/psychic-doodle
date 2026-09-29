@@ -17,7 +17,7 @@ test.before(async () => {
       const [, sub, email, name] = cred.split(':');
       return { sub, email, name };
     },
-    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500 },
+    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500, SECOND_MS: 20 }, // 1 "giây" = 20ms
   });
   await new Promise((r) => app.server.on('listening', r));
   url = `ws://127.0.0.1:${app.server.address().port}/ws`;
@@ -388,4 +388,51 @@ test('thách đấu: vào phòng khác thì lời mời bị huỷ; đang đánh
   const busy = await a.req({ t: 'challenge', to: b.me.uid, bestOf: 1, first: 'me' }, 'error');
   assert.match(busy.msg, /đang trong một ván/);
   [a, b, c].forEach((x) => x.close());
+});
+
+test('đồng hồ mỗi nước: hết giờ thì người đang tới lượt bị xử thua', async () => {
+  const a = await Client.open();
+  const b = await Client.open();
+  await a.req({ t: 'createRoom', side: 'first', timeLimit: 10 }, 'room'); // 10 "giây" = 200ms trong test
+  assert.strictEqual(a.room.timeLimit, 10);
+  assert.strictEqual(a.room.turnLeft, null, 'chưa đủ 2 người thì chưa tính giờ');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  assert.ok(b.room.turnLeft > 0 && b.room.turnLeft <= 200);
+  // A (X) không đánh -> A thua vì hết giờ
+  const m = await b.wait('room', (x) => x.room.reason === 'time', 2000);
+  assert.strictEqual(m.room.winner, 2);
+
+  // Ván mới: X đánh kịp, O để hết giờ -> O thua
+  await a.req({ t: 'rematch' }, 'room');
+  await b.req({ t: 'rematch' }, 'room', (x) => x.room.gameNo === 2);
+  const xPlayer = side(b.room, a.me.id) === 1 ? a : b;
+  const oPlayer = xPlayer === a ? b : a;
+  await move(xPlayer, oPlayer, 0, 0);
+  assert.ok(xPlayer.room.turnLeft > 0, 'lượt mới được tính lại giờ');
+  const m2 = await xPlayer.wait('room', (x) => x.room.reason === 'time', 2000);
+  assert.strictEqual(m2.room.winner, 1);
+  [a, b].forEach((x) => x.close());
+});
+
+test('lỗi và thông báo có mã để giao diện tự dịch; thách đấu mang theo thời gian mỗi nước', async () => {
+  const a = await Client.open();
+  await a.req({ t: 'register', username: 'code_a', password: '123456' }, 'welcome');
+  const b = await Client.open();
+  await b.req({ t: 'register', username: 'code_b', password: '123456' }, 'welcome');
+  const e = await b.req({ t: 'joinRoom', code: '999999', password: '000' }, 'error');
+  assert.strictEqual(e.code, 'room_not_found');
+  assert.deepStrictEqual(e.args, { code: '999999' });
+  const toastB = b.wait('toast', (m) => m.code === 'friend_request_in');
+  await a.req({ t: 'friendAdd', username: 'code_b' }, 'toast', (m) => m.code === 'friend_request_sent');
+  assert.strictEqual((await toastB).args.name, 'code_a');
+  await b.req({ t: 'friendAdd', username: 'code_a' }, 'friends', (m) => m.friends.length === 1);
+  const inv = b.wait('invite');
+  a.send({ t: 'challenge', to: b.me.uid, bestOf: 3, first: 'me', timeLimit: 20 });
+  const i = await inv;
+  assert.strictEqual(i.invite.timeLimit, 20);
+  await b.req({ t: 'challengeRespond', id: i.invite.id, accept: true }, 'room');
+  assert.strictEqual(b.room.timeLimit, 20);
+  const bad = await (await Client.open()).req({ t: 'nope' }, 'error');
+  assert.strictEqual(bad.code, 'unsupported');
+  [a, b].forEach((x) => x.close());
 });
