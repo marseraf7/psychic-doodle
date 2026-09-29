@@ -34,9 +34,10 @@
 
   // ------------------------------------------------------------ Kết nối
   let ws = null, retry = 0, retryTimer = 0;
+  let noServer = false; // true khi chạy trên hosting tĩnh, không có máy chủ game
 
   function connect() {
-    if (!wsUrl || (ws && ws.readyState <= 1)) return;
+    if (!wsUrl || noServer || (ws && ws.readyState <= 1)) return;
     clearTimeout(retryTimer);
     S.status = 'connecting';
     render();
@@ -506,6 +507,25 @@
   window.CaroOnline = { send, showBanner };
 
   // Kết nối sẵn khi có tài khoản (để bạn bè thấy mình online), đang ở trong phòng, hoặc mở bằng link mời.
-  if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink)) connect();
-  render();
+  function start() {
+    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink)) connect();
+    render();
+  }
+
+  // Bản chỉ có file tĩnh (GitHub Pages, mở file trực tiếp): không có máy chủ -> ẩn chế độ online.
+  function offlineOnly() {
+    noServer = true;
+    document.body.classList.add('no-online');
+    if (pendingLink) toast('Bản này chỉ chơi offline, không vào được phòng online');
+  }
+
+  if (!wsUrl) offlineOnly();
+  else if (window.CARO_SERVER) start();
+  else {
+    // Chỉ máy chủ của game mới trả lời /healthz. Nhận 404 = đang chạy trên hosting tĩnh.
+    // Lỗi mạng (máy chủ tạm sập) thì vẫn giữ chế độ online.
+    fetch(base + '/healthz', { cache: 'no-store' })
+      .then((r) => (r.status === 404 ? offlineOnly() : start()))
+      .catch(start);
+  }
 })();
