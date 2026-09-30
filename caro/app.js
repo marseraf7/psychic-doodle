@@ -477,11 +477,12 @@
   function updateReplayUI() {
     const { data, idx } = state.replay;
     const n = data.moves.length;
-    const who = (p, name) => `${glyph(p)} <span class="name" title="${esc(name)}">${esc(name)}</span>`;
+    const nm = (s) => s || T('deleted_player'); // người chơi đã xoá tài khoản
+    const who = (p, name) => `${glyph(p)} <span class="name" title="${esc(nm(name))}">${esc(nm(name))}</span>`;
     $('turn').innerHTML = `${who(X, data.x)} <span class="thinking">–</span> ${who(O, data.o)}`;
     let result = '';
     if (idx === n) {
-      result = data.winner === 3 ? T('draw_short') : T('replay_wins', { name: data.winner === X ? data.x : data.o });
+      result = data.winner === 3 ? T('draw_short') : T('replay_wins', { name: nm(data.winner === X ? data.x : data.o) });
       if (data.reason && !['win', 'draw'].includes(data.reason)) result += ' · ' + T('end_' + data.reason);
     }
     $('score').innerHTML = `${idx}/${n}` + (result ? ` · ${esc(result)}` : '');
@@ -990,7 +991,8 @@
   resetClock();
 
   // Chạy offline (chỉ khi được phục vụ qua http/https).
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  // (Trong ứng dụng điện thoại các file đã nằm sẵn trong app, không cần service worker.)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.CaroNative) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();

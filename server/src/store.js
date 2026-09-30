@@ -175,6 +175,40 @@ class Store {
     }
   }
 
+  /**
+   * Xoá hẳn một tài khoản và dữ liệu cá nhân: phiên đăng nhập, tin nhắn, đối đầu, mã khôi phục…
+   * Ván đã chơi với người khác vẫn còn trong lịch sử của họ nhưng bỏ tên và id của người bị xoá.
+   * Báo cáo người khác gửi VỀ tài khoản này được giữ lại cho quản trị viên (ghi trong chính sách).
+   */
+  deleteUser(u) {
+    const id = u.id;
+    this.dirty.delete(u);
+    this.db.exec('BEGIN');
+    try {
+      const run = (sql, ...args) => this.db.prepare(sql).run(...args);
+      run('DELETE FROM users WHERE id = ?', id);
+      run('DELETE FROM sessions WHERE uid = ?', id);
+      run("UPDATE games SET x_id = NULL, x_name = '' WHERE x_id = ?", id);
+      run("UPDATE games SET o_id = NULL, o_name = '' WHERE o_id = ?", id);
+      run('DELETE FROM user_games WHERE uid = ?', id);
+      run('DELETE FROM games WHERE id NOT IN (SELECT game_id FROM user_games)');
+      run('DELETE FROM h2h WHERE a = ? OR b = ?', id, id);
+      run('DELETE FROM dm WHERE a = ? OR b = ?', id, id);
+      run('DELETE FROM dm_read WHERE uid = ? OR peer = ?', id, id);
+      run('DELETE FROM resets WHERE uid = ?', id);
+      run('DELETE FROM rated_pairs WHERE a = ? OR b = ?', id, id);
+      run('DELETE FROM reports WHERE reporter = ?', id);
+      this.db.exec('COMMIT');
+    } catch (e) {
+      this.db.exec('ROLLBACK');
+      throw e;
+    }
+    this.users.delete(id);
+    if (this.byUsername.get(u.username) === u) this.byUsername.delete(u.username);
+    if (u.google && this.byGoogle.get(u.google.sub) === u) this.byGoogle.delete(u.google.sub);
+    if (u.email && this.byEmail.get(u.email) === u) this.byEmail.delete(u.email);
+  }
+
   close() {
     this.flush();
     this.db.close();

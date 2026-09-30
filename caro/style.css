@@ -522,3 +522,23 @@ body.replay #banner { display: none; }
 .email-status.ok { color: #2fb45a; font-weight: var(--fw-medium); }
 #email-form[hidden] { display: none; }
 #email-verify .row input { flex: 1; min-width: 0; }
+
+/* ============================ Ứng dụng điện thoại */
+.google-native {
+  display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px; font-weight: var(--fw-semibold);
+  color: var(--text); border: 1px solid var(--grid-strong); border-radius: 999px;
+}
+.google-native .g { font-weight: var(--fw-bold); color: #4285f4; }
+
+/* ============================ Xoá tài khoản, quyền riêng tư, cập nhật app */
+.card.danger { border-color: color-mix(in srgb, #e5392f 45%, transparent); }
+.card.danger h3 { color: #e5392f; }
+.danger-btn {
+  align-self: flex-start; padding: 10px 18px; font-weight: var(--fw-semibold);
+  color: #fff; background: #e5392f;
+}
+.danger-btn:disabled { opacity: 0.6; }
+.privacy-row { margin: 14px 0 0; text-align: center; }
+.privacy-row .link { font-size: var(--fs-sm); }
+#account-dlg > .dlg > .privacy-link { align-self: center; }
+.btn-link { display: inline-block; text-decoration: none; border-radius: 12px; align-self: flex-start; }

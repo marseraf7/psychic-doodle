@@ -1,0 +1,19 @@
+{
+  "appId": "io.github.marseraf7.caro",
+  "appName": "Cờ Caro",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {},
+  "plugins": {
+    "SocialLogin": {
+      "providers": {
+        "google": true,
+        "facebook": false,
+        "apple": false,
+        "twitter": false
+      }
+    }
+  }
+}

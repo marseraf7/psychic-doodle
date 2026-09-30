@@ -39,9 +39,10 @@
   // ------------------------------------------------------------ Kết nối
   let ws = null, retry = 0, retryTimer = 0;
   let noServer = false; // true khi chạy trên hosting tĩnh, không có máy chủ game
+  let outdated = null; // app điện thoại quá cũ: { min, url } – không kết nối online nữa, vẫn chơi offline
 
   function connect() {
-    if (!wsUrl || noServer || (ws && ws.readyState <= 1)) return;
+    if (!wsUrl || noServer || outdated || (ws && ws.readyState <= 1)) return;
     clearTimeout(retryTimer);
     S.status = 'connecting';
     render();
@@ -50,7 +51,9 @@
       retry = 0;
       // Tên khách mặc định theo ngôn ngữ đang chọn (vd. "Guest-3F2A"), nếu chưa tự đặt tên.
       const guestName = LS.get('caro.guestName') || `${T('guest')}-${guestKey.slice(0, 4).toUpperCase()}`;
-      ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName }));
+      // Bản app điện thoại gửi kèm phiên bản để máy chủ báo khi cần cập nhật
+      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null };
+      ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName, client }));
     };
     ws.onmessage = (e) => {
       let m;
@@ -107,6 +110,19 @@
       S.me = null;
       S.invites.clear();
       if (ws) ws.close(); // kết nối lại với tư cách khách
+    },
+    accountDeleted() {
+      handlers.loggedOut();
+      S.friends = { friends: [], incoming: [], outgoing: [] };
+      ['account-dlg', 'chat', 'history', 'report'].forEach(closeDlg);
+      toast(T('account_deleted'), 5000);
+    },
+    updateRequired(m) {
+      outdated = { min: m.min, url: m.url || '' };
+      S.status = 'offline';
+      if (ws) ws.close();
+      render();
+      toast(T('update_required'), 6000);
     },
     me(m) { S.me = m.me; render(); },
     friends(m) { S.friends = m; render(); },
@@ -184,7 +200,8 @@
     $('online-badge').hidden = !(S.invites.size || S.friends.incoming.length || unread);
     const conn = $('conn');
     conn.className = 'conn ' + S.status;
-    conn.textContent = T(!wsUrl ? 'conn_none' : 'conn_' + S.status);
+    conn.textContent = T(!wsUrl ? 'conn_none' : outdated ? 'conn_outdated' : 'conn_' + S.status);
+    $('create-room').disabled = $('open-join').disabled = !!outdated;
     renderAccount();
     renderFriends();
   }
@@ -194,6 +211,11 @@
     const me = S.me;
     if (!wsUrl) {
       el.innerHTML = `<p class="hint">${esc(T('no_server_hint'))}</p>`;
+      return;
+    }
+    if (outdated) {
+      el.innerHTML = `<p class="hint">${esc(T('update_required'))}</p>` +
+        (outdated.url ? `<a class="primary btn-link" href="${esc(outdated.url)}" target="_blank" rel="noopener">${esc(T('update_btn'))}</a>` : '');
       return;
     }
     if (!me) { el.innerHTML = `<p class="hint">${esc(T('connecting_hint'))}</p>`; return; }
@@ -219,7 +241,7 @@
           <button type="button" class="ghost sm" data-social="account">⚙ ${esc(T('account_settings'))}</button>
         </div>
         <div class="row">
-          ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : S.googleClientId ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
+          ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : googleAvailable() ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
           <button type="button" class="ghost" id="logout">${esc(T('logout'))}</button>
         </div>
         <div id="google-link-btn"></div>`;
@@ -366,8 +388,8 @@
     f.password.minLength = tab === 'login' ? 1 : 6;
     $('auth-err').textContent = '';
     const gb = $('google-box');
-    gb.hidden = !S.googleClientId;
-    if (S.googleClientId) mountGoogle($('google-btn'));
+    gb.hidden = !googleAvailable();
+    if (googleAvailable()) mountGoogle($('google-btn'));
     openDlg('auth');
   }
   $('auth-form').querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => openAuth(b.dataset.tab); });
@@ -401,12 +423,32 @@
     }
     return gisPromise;
   }
+  // Trong ứng dụng điện thoại: Google chặn đăng nhập trong WebView, nên dùng tài khoản Google
+  // trên máy (native.js) – vẫn gửi đúng ID token như bản web, máy chủ xác minh y hệt.
+  const nativeApp = !!window.CaroNative;
+  const googleAvailable = () => !!S.googleClientId && (!nativeApp || !!window.CaroNative.google);
   function mountGoogle(el) {
+    if (nativeApp) return mountNativeGoogle(el);
     loadGoogle().then((g) => {
       el.innerHTML = '';
       g.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', locale: window.I18N.googleLocale, width: 260 });
     }).catch(() => { el.innerHTML = `<p class="hint">${esc(T('google_load_fail'))}</p>`; });
   }
+  function mountNativeGoogle(el) {
+    el.innerHTML = `<button type="button" class="ghost google-native"><span class="g">G</span> ${esc(T('google_continue'))}</button>`;
+    const b = el.querySelector('button');
+    b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const credential = await window.CaroNative.google.signIn(S.googleClientId);
+        send({ t: 'google', credential });
+      } catch (e) {
+        // Người dùng tự huỷ thì im lặng; lỗi khác thì báo
+        if (!/cancel/i.test(String(e && (e.message || e.code) || e))) toast(T('google_load_fail'));
+      } finally { b.disabled = false; }
+    };
+  }
+
 
   // ------------------------------------------------------------ Phòng
   $('btn-online').onclick = () => { connect(); render(); openDlg('online'); };
@@ -596,7 +638,7 @@
   async function shareReplay(g) {
     const url = replayLink(g.share);
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-      return navigator.share({ title: T('app_title'), text: T('replay_share_text', { x: g.x, o: g.o }), url }).catch(() => {});
+      return navigator.share({ title: T('app_title'), text: T('replay_share_text', { x: g.x || T('deleted_player'), o: g.o || T('deleted_player') }), url }).catch(() => {});
     }
     try { await navigator.clipboard.writeText(url); } catch (e) { prompt(T('share_game'), url); return; }
     toast(T('replay_copied'));
@@ -616,6 +658,10 @@
     closeDlg('online');
     App.openReplay(data);
   }
+
+  // Chính sách quyền riêng tư: trong app mở trang trên máy chủ (trình duyệt), trên web mở trang cùng thư mục
+  const privacyUrl = window.CaroNative && base ? base + '/privacy.html' : 'privacy.html';
+  document.querySelectorAll('.privacy-link').forEach((a) => { a.href = privacyUrl; });
 
   window.CaroOnline = {
     send, showBanner, shareReplay, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,

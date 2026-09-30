@@ -453,6 +453,8 @@ async function mailCode(to) {
   throw new Error('Không thấy thư gửi tới ' + to);
 }
 async function account(username, name) {
+  // Mọi client test cùng 1 IP: bỏ đếm giới hạn "30 tài khoản / IP / 10 phút" giữa các bài test
+  for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
   const c = await Client.open();
   await c.req({ t: 'register', username, password: '123456', name: name || username }, 'welcome');
   return c;
@@ -714,4 +716,76 @@ test('email: giới hạn số lần lưu (chống dò email đã đăng ký); q
   assert.ok(Date.now() - t0 < 500);
   app.hub.sendMail = hang;
   [g, c].forEach((x) => x.close());
+});
+
+test('xoá tài khoản: cần mật khẩu, xoá dữ liệu cá nhân, bạn bè và lịch sử của người khác được dọn đúng', async () => {
+  const a = await account('del_a', 'Sẽ xoá'), b = await account('del_b', 'Bạn');
+  await befriend(a, b);
+  await a.req({ t: 'dmSend', to: b.me.uid, text: 'tin riêng' }, 'dm');
+  await roomOf(a, b);
+  await playWin(a, b);
+  const aUid = a.me.uid;
+  assert.strictEqual((await a.req({ t: 'deleteAccount', password: 'sai' }, 'error')).code, 'wrong_password');
+  const bFriends = b.wait('friends', (m) => m.friends.length === 0);
+  const other = await Client.open({ token: a.token }); // thiết bị thứ 2 của A
+  const gone2 = other.wait('accountDeleted');
+  await a.req({ t: 'deleteAccount', password: '123456' }, 'accountDeleted');
+  await gone2;
+  await bFriends;
+  // Tài khoản không còn: token hết hiệu lực, không đăng nhập được, tên đăng nhập dùng lại được
+  assert.ok((await Client.open({ token: a.token })).me.guest);
+  assert.strictEqual((await (await Client.open()).req({ t: 'login', username: 'del_a', password: '123456' }, 'error')).code, 'bad_login');
+  assert.ok(!app.store.users.has(aUid));
+  assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM dm WHERE a = ? OR b = ?').get(aUid, aUid).n, 0);
+  assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE uid = ?').get(aUid).n, 0);
+  assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM games WHERE x_id = ? OR o_id = ? OR x_name = ? OR o_name = ?').get(aUid, aUid, 'Sẽ xoá', 'Sẽ xoá').n, 0);
+  // B vẫn giữ ván đã chơi, nhưng không còn tên / id của người đã xoá
+  const h = await b.req({ t: 'history' }, 'history');
+  assert.strictEqual(h.games.length, 1);
+  assert.strictEqual(h.games[0].opponent, '');
+  const rep = await (await fetch(base + '/api/replay/' + h.games[0].share)).json();
+  assert.ok([rep.x, rep.o].includes('') && [rep.x, rep.o].includes('Bạn'));
+  const again = await Client.open();
+  for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
+  await again.req({ t: 'register', username: 'del_a', password: 'abcdef' }, 'welcome');
+  assert.notStrictEqual(again.me.uid, aUid);
+  [a, b, other, again].forEach((c) => c.close());
+});
+
+test('xoá tài khoản chỉ có Google: gõ lại tên đăng nhập để xác nhận', async () => {
+  const g = await Client.open();
+  await g.req({ t: 'google', credential: 'ok:sub-del:del@x.com:Del' }, 'welcome');
+  assert.strictEqual((await g.req({ t: 'deleteAccount', confirm: 'nham' }, 'error')).code, 'confirm_username');
+  await g.req({ t: 'deleteAccount', confirm: g.me.username.toUpperCase() }, 'accountDeleted');
+  // Đăng nhập lại cùng Google = tài khoản mới
+  const g2 = await Client.open();
+  await g2.req({ t: 'google', credential: 'ok:sub-del:del@x.com:Del' }, 'welcome');
+  assert.notStrictEqual(g2.me.uid, g.me.uid);
+  [g, g2].forEach((c) => c.close());
+});
+
+test('app điện thoại quá cũ được yêu cầu cập nhật; web và app mới vào bình thường', async () => {
+  app.hub.minAppVersion = '1.2.0';
+  app.hub.updateUrls = { android: 'https://play.google.com/store/apps/details?id=io.github.marseraf7.caro', ios: '' };
+  try {
+    const c = new Client();
+    c.ws = new WebSocket(url);
+    c.ws.on('message', (d) => { const m = JSON.parse(d); c.msgs.push(m); c.waiters = c.waiters.filter((w) => !w(m)); });
+    await new Promise((r) => c.ws.on('open', r));
+    const up = await c.req({ t: 'hello', guestKey: crypto.randomBytes(16).toString('hex'), client: { platform: 'android', version: '1.1.9' } }, 'updateRequired');
+    assert.strictEqual(up.min, '1.2.0');
+    assert.match(up.url, /play\.google\.com/);
+    const bad = await c.req({ t: 'createRoom' }, 'error');
+    assert.strictEqual(bad.code, 'no_hello', 'chưa vào được online');
+    c.close();
+    const ok = await Client.open({ client: { platform: 'android', version: '1.2.0' } });
+    assert.ok(ok.me.guest);
+    const ios = await Client.open({ client: { platform: 'ios', version: '1.10.0' } }); // 1.10 > 1.2
+    assert.ok(ios.me);
+    const web = await Client.open({ client: { platform: 'web', version: null } });
+    assert.ok(web.me);
+    [ok, ios, web].forEach((x) => x.close());
+  } finally {
+    app.hub.minAppVersion = '';
+  }
 });
