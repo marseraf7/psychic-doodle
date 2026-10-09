@@ -40,7 +40,8 @@ TEN_MODEL = {"whisper": MODEL_WHISPER[MAC_DINH_WHISPER][0],   # đổi bằng --
              "pyannote": "pyannote-community-1",
              "cam_xuc": "emotion2vec_plus_large"}
 PHIEN_BAN_DU_LIEU = 1
-PHIEN_BAN_GAN_NGUOI_NOI = 3   # tăng khi đổi cách ghép từ với người nói -> bước 3-4 tự chạy lại
+PHIEN_BAN_CHUAN_HOA = 1       # tự khuếch đại bản ghi quá nhỏ (tom_tat_ghi_am.chuan_hoa_am_luong)
+PHIEN_BAN_GAN_NGUOI_NOI = 3  # tăng khi đổi cách ghép từ với người nói -> bước 3-4 tự chạy lại
 
 
 # =====================================================================
@@ -242,6 +243,17 @@ def buoc_tach_nguoi_noi(audio, args, thiet_bi):
     return {"rieng": rieng, "chong": chong}
 
 
+def canh_bao_it_loi(so_tu, thoi_luong, toi_thieu_moi_phut=10):
+    """Họp/giảng bình thường 100–200 từ/phút. Quá ít -> file gần như không thu được tiếng
+    (gặp thật: bản ghi 3 giờ, 27% im lặng tuyệt đối, micro bị che) -> báo rõ thay vì ra biên bản rỗng."""
+    phut = thoi_luong / 60
+    if phut < 5 or so_tu >= toi_thieu_moi_phut * phut:
+        return ""
+    return (f"Chỉ nhận dạng được {so_tu} từ trong {gio(thoi_luong)} (bình thường 100–200 từ/phút). "
+            f"File gần như không thu được lời nói: kiểm tra micro có bị che/tắt, điện thoại để quá xa, "
+            f"hoặc ứng dụng ghi âm có ghi đúng nguồn âm không.")
+
+
 def lam_khong_chong_lan(doan):
     kq = []
     for s, e, nhan in sorted(doan):
@@ -352,6 +364,7 @@ def phan_tich_file(duong_dan, ten_ra, args, thiet_bi, ten_tuy_chon):
     f_json = os.path.join(args.out_dir, f"{ten_ra}_phan_tich.json")
     du_lieu = {} if args.lam_lai else doc_du_lieu(f_json)
     nguon = van_tay_nguon(duong_dan)
+    nguon["am_luong"] = PHIEN_BAN_CHUAN_HOA   # đổi cách chuẩn hóa âm lượng -> xử lý lại audio
     vt_asr = {**nguon, "model": ten_thu_muc_model(args, "whisper"), "ngon_ngu": args.ngon_ngu}
     vt_nn = {**nguon, "so_nguoi": args.so_nguoi, "it_nhat": args.it_nhat, "nhieu_nhat": args.nhieu_nhat}
     vt_dv = {"asr": vt_asr, "nn": vt_nn, "gan": PHIEN_BAN_GAN_NGUOI_NOI, "cam_xuc": not args.khong_cam_xuc,
@@ -361,9 +374,8 @@ def phan_tich_file(duong_dan, ten_ra, args, thiet_bi, ten_tuy_chon):
 
     def lay_audio():
         if not audio:
-            from faster_whisper import decode_audio
             print("  Giải mã audio...", flush=True)
-            audio.append(decode_audio(duong_dan, sampling_rate=ND.SR))
+            audio.append(T.giai_ma_va_chuan_hoa(duong_dan))
             print(f"  Thời lượng {gio(len(audio[0]) / ND.SR)}", flush=True)
         return audio[0]
 
@@ -385,6 +397,9 @@ def phan_tich_file(duong_dan, ten_ra, args, thiet_bi, ten_tuy_chon):
                lambda: buoc_chep_loi(lay_audio(), args, thiet_bi))
     if not asr["tu"]:
         raise RuntimeError("Không nhận dạng được lời nói nào trong file.")
+    canh_bao = canh_bao_it_loi(len(asr["tu"]), asr["thoi_luong"])
+    if canh_bao:
+        print(f"  [!] {canh_bao}", flush=True)
     nn = buoc("nguoi_noi", vt_nn, "[2/5] Tách người nói (pyannote)",
               lambda: buoc_tach_nguoi_noi(lay_audio(), args, thiet_bi))
     dv_du_lieu = buoc("don_vi", vt_dv, "[3-4/5] Ngữ điệu & cảm xúc",
@@ -409,6 +424,7 @@ def phan_tich_file(duong_dan, ten_ra, args, thiet_bi, ten_tuy_chon):
         or T.NGON_NGU.get(asr["ngon_ngu"], asr["ngon_ngu"])
     bao_cao = [
         f"# Biên bản phân tích: {os.path.basename(duong_dan)}", "",
+        *([f"> ⚠ **{canh_bao}**", ""] if canh_bao else []),
         f"- Ngày xử lý: {time.strftime('%d/%m/%Y %H:%M')}",
         f"- Thời lượng: {gio(asr['thoi_luong'])} | Số người nói: {len([k for k in tk if k != NN.KHONG_RO])} "
         f"| Ngôn ngữ: {ngon_ngu}",

@@ -178,6 +178,28 @@ class TestNguDieu(unittest.TestCase):
             ds.append(NN.DonVi(ten, [tu(s + k * 0.25, s + k * 0.25 + 0.25, " từ") for k in range(10)]))
         return ds
 
+    def test_chuan_hoa_am_luong(self):
+        import tom_tat_ghi_am as T
+        loi = giong(150, 10, 0.1)
+        # Bình thường -> giữ nguyên
+        kq, db = T.chuan_hoa_am_luong(loi)
+        self.assertEqual(db, 0.0)
+        self.assertIs(kq, loi)
+        # Rất nhỏ (~-80 dB, cỡ bản ghi thật đã gặp) + 1 tiếng "cộp" lớn -> khuếch đại tối đa 60 dB, không mẻ
+        nho = loi * 1e-3
+        nho[SR] = 0.11
+        kq, db = T.chuan_hoa_am_luong(nho)
+        self.assertAlmostEqual(db, 60.0, places=3)
+        self.assertLessEqual(float(np.abs(kq).max()), 1.0)
+        self.assertGreater(float(np.sqrt(np.mean(kq[2 * SR:] ** 2))), 0.03)
+        # Im lặng hoàn toàn -> không đổi
+        self.assertEqual(T.chuan_hoa_am_luong(np.zeros(SR, np.float32))[1], 0.0)
+
+    def test_canh_bao_it_loi(self):
+        self.assertIn("5 từ trong 2:57:19", P.canh_bao_it_loi(5, 10639))   # số liệu bản ghi thật đã gặp
+        self.assertEqual(P.canh_bao_it_loi(20000, 10639), "")             # bài giảng bình thường
+        self.assertEqual(P.canh_bao_it_loi(3, 120), "")                   # file ngắn: không kết luận
+
     def test_nhan_so_voi_muc_thuong(self):
         ds = self._nguoi("A", 6)
         audio = np.zeros(SR * 20, dtype=np.float32)

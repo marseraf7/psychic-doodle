@@ -134,6 +134,36 @@ def nap_model_whisper(ten_model, thiet_bi="cpu"):
                         cpu_threads=os.cpu_count() or 4)
 
 
+def chuan_hoa_am_luong(audio, muc_tieu=0.1, toi_da_db=60.0, khung=400):
+    """Khuếch đại bản ghi QUÁ NHỎ (điện thoại để xa, mức thu thấp). Không làm vậy thì bộ lọc khoảng
+    lặng (VAD) của Whisper và pyannote coi cả buổi là im lặng: gặp thật với 1 bản ghi 3 giờ ở ~-77 dB,
+    Whisper chỉ chép được 5 từ. Mức lời nói lấy theo khung 25 ms to thứ 95%, đưa về `muc_tieu`
+    (-20 dBFS); không vượt `toi_da_db`, không làm mẻ (clip) quá 0,01% số mẫu. Bản ghi bình thường
+    (cần khuếch đại < 6 dB) giữ nguyên. Trả về (audio, số dB đã khuếch đại)."""
+    import numpy as np
+    n = len(audio) // khung * khung
+    if n == 0:
+        return audio, 0.0
+    rms = np.sqrt(np.mean(np.square(audio[:n].reshape(-1, khung), dtype=np.float64), axis=1))
+    loi_noi = float(np.percentile(rms, 95))
+    if loi_noi <= 1e-9:
+        return audio, 0.0
+    he_so = min(muc_tieu / loi_noi, 10 ** (toi_da_db / 20),
+                0.99 / max(float(np.percentile(np.abs(audio), 99.99)), 1e-9))
+    if he_so < 2.0:
+        return audio, 0.0
+    return np.clip(audio * he_so, -1.0, 1.0).astype(np.float32), 20 * float(np.log10(he_so))
+
+
+def giai_ma_va_chuan_hoa(duong_dan, in_tien_do=True):
+    """Giải mã file thành mảng 16 kHz và khuếch đại nếu quá nhỏ."""
+    from faster_whisper import decode_audio
+    audio, db = chuan_hoa_am_luong(decode_audio(duong_dan, sampling_rate=16000))
+    if db and in_tien_do:
+        print(f"  [!] Bản ghi rất nhỏ: đã tự khuếch đại {db:.0f} dB để nhận dạng được lời nói.")
+    return audio
+
+
 def nhan_dang(model, duong_dan, che_do="auto", in_tien_do=True, moc_tung_tu=False):
     """Trả về (danh sách Doan, mã ngôn ngữ chính, thời lượng giây).
     duong_dan có thể là đường dẫn file hoặc mảng audio 16kHz đã giải mã.
@@ -506,7 +536,11 @@ def xu_ly_mot_file(duong_dan, ten, args, lay_model):
         if cu and cu.get("nguon") != dau_van_tay(duong_dan, args)["nguon"]:
             print(f"  [!] Ghi đè kết quả cũ '{ten}_*' của một file khác cùng tên: {cu.get('nguon')}")
         bat_dau = time.time()
-        doan, ngon_ngu, tong = nhan_dang(lay_model(), duong_dan, args.ngon_ngu)
+        try:
+            audio = giai_ma_va_chuan_hoa(duong_dan)
+        except Exception:   # không giải mã được ở đây -> để Whisper tự đọc file (và tự báo lỗi nếu hỏng)
+            audio = duong_dan
+        doan, ngon_ngu, tong = nhan_dang(lay_model(), audio, args.ngon_ngu)
         dem = Counter(d.ngon_ngu for d in doan)
         hien_nn = len(dem) > 1
         ghi_file(f_txt, van_ban_co_moc(doan, hien_ngon_ngu=hien_nn))
