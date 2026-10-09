@@ -3,7 +3,7 @@
 Ứng dụng điện thoại dùng **đúng giao diện và mã chơi của bản web** (thư mục [`caro/`](../caro)),
 đóng gói bằng [Capacitor](https://capacitorjs.com). Vì cùng một mã nguồn và cùng máy chủ online,
 mọi tính năng giống hệt bản web và **người chơi trên app đấu được với người chơi trên web**:
-tìm trận nhanh, phòng công khai, phòng chơi, thách đấu Bo1/3/5, bạn bè, nhắn tin, xin hoà, chat nhanh, lịch sử + xem lại, Elo, xếp hạng…
+giải đấu, câu lạc bộ, tìm trận nhanh, phòng công khai, phòng chơi, thách đấu Bo1/3/5, bạn bè, nhắn tin, xin hoà, chat nhanh, lịch sử + xem lại, Elo, xếp hạng…
 Sửa giao diện trong `caro/` là cả web lẫn app cùng được cập nhật (app cần dựng lại).
 
 Những chỗ app dùng tính năng gốc của điện thoại thay cho trình duyệt ([`caro/native.js`](../caro/native.js)):
@@ -28,7 +28,7 @@ Mỗi lần đẩy code, GitHub Actions ([`.github/workflows/app.yml`](../.githu
   (chạm thật vào bàn cờ, nút Back thật), kiểm tra giao diện không bị thanh trạng thái / thanh điều hướng
   che (Android 15 bắt buộc tràn viền), bàn phím không che ô nhập tin nhắn, và sao chép link mời vào
   bộ nhớ tạm, vào phòng công khai từ danh sách và tìm trận nhanh (thẻ "đang tìm" vẫn hiện khi đóng bảng
-  bằng nút Back) với bản web. Ảnh chụp màn hình ở artifact `android-34-e2e-screenshots`, `android-35-e2e-screenshots`.
+  bằng nút Back) với bản web, và vào giải đấu Arena bằng giao diện app (tham gia → giải bắt đầu → tự vào ván). Ảnh chụp màn hình ở artifact `android-34-e2e-screenshots`, `android-35-e2e-screenshots`.
 - Job **iOS** dựng app cho iPhone ảo và mở thử (ảnh ở artifact `caro-ios-simulator`).
 
 ## Máy chủ

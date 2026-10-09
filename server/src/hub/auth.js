@@ -256,6 +256,8 @@ class Auth {
       }
       if (hit) { this.store.touch(u); affected.push(u.id); }
     }
+    this.tourUserGone(me.id);
+    this.clubUserGone(me.id);
     this.store.deleteUser(me);
     // Mọi thiết bị đang đăng nhập tài khoản này quay về làm khách
     for (const c of [...(this.byPid.get(pid) || [])]) {

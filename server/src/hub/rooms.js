@@ -23,6 +23,8 @@ class Rooms {
     v.h2h = ux && uo ? this.store.h2h(ux, uo) : null;
     v.share = room.lastShare || null; // mã xem lại ván vừa kết thúc
     v.unrated = !!(room.winner && room.lastUnrated); // ván vừa xong giữa 2 tài khoản nhưng không tính Elo
+    // Phòng của giải đấu: tên giải, đã xong trận chưa (không tái đấu trong giải)
+    v.tour = room.tour ? { id: room.tour.id, name: room.tour.name, arena: !!room.tour.arena, done: !!room.tourDone } : null;
     return v;
   }
 
@@ -81,7 +83,9 @@ class Rooms {
     const room = this.roomFor(pid);
     this.roomOf.delete(pid);
     if (!room) return;
-    if (room.inProgress) {
+    if (this.tourLeft(room, pid)) {
+      // Phòng của giải: rời đi khi trận chưa xong = xử thua (xem tournaments.js)
+    } else if (room.inProgress) {
       // Rời phòng khi đang đánh = xử thua (tính trước khi bàn cờ được làm mới).
       room.finish(3 - room.sideOf(pid), 'leave');
       this.settle(room, true);
@@ -114,7 +118,7 @@ class Rooms {
     code = code.slice(0, 12);
     const rules = [['room:' + conn.ip + ':' + code, 8], ['room-code:' + code, 40], ['room-ip:' + conn.ip, 60]];
     this.limit(rules);
-    if (!room || room.kind !== 'room') { this.fail(rules); throw E('room_not_found', { code }); }
+    if (!room || room.kind !== 'room' || room.tour) { this.fail(rules); throw E('room_not_found', { code }); }
     const pw = String(password || '').trim();
     // Không gửi mật khẩu (mở link mời, thử vào thẳng phòng công khai) thì không tính là thử sai
     if (!room.public && pw !== room.password) { if (pw) this.fail(rules); throw E('wrong_room_password'); }
@@ -155,6 +159,7 @@ class Rooms {
 
   on_rematch(conn) {
     const room = this.inRoom(conn);
+    if (room.tour) throw E('tour_no_rematch');
     const started = room.voteRematch(conn.pid);
     if (started) for (const p of room.players) this.dequeue(p.id);
     else {
@@ -188,7 +193,8 @@ class Rooms {
     if (ux && uo && ux !== uo) {
       this.store.addH2h(ux.id, uo.id, draw ? null : room.winner === 1 ? ux.id : uo.id);
       const tooShort = room.reason !== 'win' && room.board.moves.length < MIN_RATED_MOVES;
-      if (tooShort || this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) room.lastUnrated = true;
+      const tourUnrated = room.tour && (!room.tour.rated || room.tour.cancelled); // giải không tính Elo
+      if (tooShort || tourUnrated || this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) room.lastUnrated = true;
       else {
         this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0);
         this.store.bumpRated(ux.id, uo.id);
@@ -210,10 +216,12 @@ class Rooms {
       this.send(pid, { t: 'me', me: this.meView(pid) });
       if (ux && uo) this.sendFriends(u.id);
     }
-    if (!leaving && room.awaitingNextGame) {
+    // Ván của giải đấu: cập nhật điểm / nhánh đấu (Arena và trận đã phân thắng thua thì không đánh tiếp)
+    const tourStop = room.tour ? this.tourOnGame(room, leaving) : false;
+    if (!leaving && !tourStop && room.awaitingNextGame) {
       const game = room.gameNo;
       setTimeout(() => {
-        if (this.rooms.get(room.code) !== room || room.gameNo !== game || !room.awaitingNextGame) return;
+        if (this.rooms.get(room.code) !== room || room.gameNo !== game || !room.awaitingNextGame || room.tourDone) return;
         this.startNext(room);
       }, this.T.NEXT_GAME_MS).unref?.();
     }

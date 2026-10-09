@@ -336,6 +336,34 @@ async function screenRect(app, sel) {
   }))));
   check('hết thẻ đang tìm sau khi ghép', !!(await until(() => app.isHidden('.qm-float'))));
   shot('matched');
+
+  // Giải đấu: web (quản trị viên, ADMIN_USERNAMES=web_1 trong CI) tạo giải Arena; app mở trang giải bằng giao diện,
+  // bấm Tham gia; bắt đầu giải -> app tự vào ván của giải
+  await web.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+  await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+  await until(() => app.evaluate(() => !window.CaroOnline.state.room));
+  const tourId = await web.evaluate(() => new Promise((resolve) => {
+    window.CaroOnline.on('tourCreated', (m) => resolve(m.id));
+    window.CaroOnline.send({ t: 'tourCreate', name: 'Arena CI', format: 'arena', startsAt: Date.now() + 120000, timeLimit: 30, minutes: 15 });
+  }));
+  check('quản trị viên tạo giải (duyệt luôn)', !!tourId);
+  await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  await app.locator('#open-tours').scrollIntoViewIfNeeded();
+  await app.click('#open-tours');
+  check('app thấy giải trong danh sách', !!(await until(() => app.isVisible(`[data-act="tour"][data-id="${tourId}"]`))));
+  await app.click(`[data-act="tour"][data-id="${tourId}"]`);
+  await until(() => app.isVisible('[data-act="join"]'));
+  await app.click('[data-act="join"]');
+  check('app tham gia giải', !!(await until(() => app.evaluate(() => !!document.querySelector('[data-act="leave"]')))));
+  shot('tour');
+  await web.evaluate((id) => window.CaroOnline.send({ t: 'tourJoin', id }), tourId);
+  await sleep(500);
+  await web.evaluate((id) => window.CaroOnline.send({ t: 'tourStart', id }), tourId);
+  check('bắt đầu giải: app tự vào ván với web', !!(await until(() => app.evaluate((id) => {
+    const r = window.CaroOnline.state.room; return !!(r && r.tour && r.tour.id === id && r.players.length === 2);
+  }, tourId))));
+  check('hộp thoại giải tự đóng để vào bàn cờ', !!(await until(() => app.evaluate(() => !document.getElementById('tour-dlg').open))));
+  shot('tour-game');
   await web.screenshot({ path: `${SHOTS}/api${API}-web-vs-android.png` });
   console.log('Lỗi JS:', errors.length ? errors : 'không có');
   if (errors.some((e) => !/Failed to load resource/.test(e))) failed++;

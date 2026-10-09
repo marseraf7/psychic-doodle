@@ -27,6 +27,22 @@ chơi online qua WebSocket (`/ws`):
   (bắt đầu 1200, 20 trận đầu thay đổi nhanh hơn), top 20. Chỉ tính ván giữa hai tài khoản.
   Chống cày điểm: ván kết thúc sớm dưới 10 nước (đầu hàng, hoà, rời phòng, hết giờ…) không tính,
   mỗi cặp chỉ tính tối đa 5 ván mỗi ngày.
+- **Câu lạc bộ** (giống Team của Lichess): ai có tài khoản cũng tạo được (tối đa 2 CLB mình làm chủ),
+  quản trị viên duyệt mới hiện công khai. Vào tự do / gửi yêu cầu chờ duyệt / bằng mã mời; vai trò chủ –
+  quản lý – thành viên (duyệt, mời ra, trao quyền chủ); thông báo ghim; thành viên xếp theo Elo, ai đang online;
+  giải đấu riêng của CLB.
+- **Giải đấu** (kết hợp Arena của Lichess và nhánh đấu của Challonge), ai cũng tạo được (tối đa 3 giải chưa
+  xong), quản trị viên duyệt mới mở đăng ký:
+  - *Arena*: chơi trong 15–120 phút, xong ván là tự được ghép ván mới với người có điểm gần mình;
+    thắng 2, hoà 1 (hoà dưới 10 nước: 0), thắng 2 ván liền thì 🔥 nhân đôi điểm. Vào muộn / tạm nghỉ được.
+  - *Loại trực tiếp*: Bo1/3/5 (ván sau đổi bên đi trước), hạt giống theo Elo hoặc ngẫu nhiên, thiếu người thì
+    hạt giống cao được miễn đấu, tuỳ chọn trận tranh hạng 3; điểm danh 10 phút trước giờ (không điểm danh =
+    không được xếp); tới lượt mà vắng mặt quá 2 phút = thua; rời trận giữa chừng = thua cả trận.
+  - Máy chủ tự mở phòng và đưa người chơi vào ván; trang giải cập nhật trực tiếp (nhánh đấu, bảng xếp hạng,
+    link xem lại từng ván, bục trao giải). Ban tổ chức: bắt đầu sớm, huỷ, loại người chơi. Giải theo thời gian
+    thực có giới hạn mỗi nước (10/20/30 giây), tuỳ chọn tính / không tính Elo, mở cho mọi người / ai có link /
+    thành viên CLB. Link mời `https://…/?t=<mã>`, CLB `https://…/?club=<mã>`. Lưu trong SQLite: máy chủ khởi
+    động lại thì giải vẫn chạy tiếp (ván đang dở được đấu lại).
 - **Nhắn tin bạn bè**: lưu 100 tin gần nhất mỗi cặp, báo số tin chưa đọc; **chặn** (huỷ kết bạn,
   không nhắn / thách đấu / chat nhanh được nữa) và **báo cáo** (máy chủ tự đính kèm tin nhắn gần nhất).
 - **Xoá tài khoản** ngay trong game (Online → Tài khoản → Xoá tài khoản): xoá phiên đăng nhập, bạn bè,
@@ -52,7 +68,8 @@ npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu d
 Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/room.js` (một phòng chơi),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, xếp hạng, lịch sử, chặn, tin nhắn),
-`rooms.js` (phòng, ván đấu, thách đấu, Elo, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai).
+`rooms.js` (phòng, ván đấu, thách đấu, Elo, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
+`clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu), `admin.js` (quản trị viên duyệt).
 Tin nhắn loại `X` do phương thức `on_X` xử lý.
 
 Cần **Node.js 22.13 trở lên** (dùng SQLite có sẵn trong Node, không phải cài thêm CSDL).
@@ -65,6 +82,7 @@ Biến môi trường:
 | `DATA_DIR` | Thư mục chứa CSDL `caro.db` (mặc định `server/data`) – nhớ sao lưu |
 | `GOOGLE_CLIENT_ID` | Bật nút "Đăng nhập bằng Google" (bỏ trống thì nút bị ẩn) |
 | `SMTP_URL` | Bật "Quên mật khẩu" qua email, ví dụ `smtps://ten%40gmail.com:mat-khau-ung-dung@smtp.gmail.com:465` (bỏ trống thì tính năng bị ẩn) |
+| `ADMIN_USERNAMES` | Tên đăng nhập của quản trị viên, cách nhau bởi dấu phẩy, ví dụ `minh,lan`. Quản trị viên duyệt câu lạc bộ và giải đấu mới (nút **Giải đấu → Duyệt**). Tạo tài khoản bình thường trong game rồi điền tên đăng nhập vào đây. Bỏ trống = không ai duyệt được, giải / CLB mới chỉ nằm ở trạng thái chờ |
 | `MIN_APP_VERSION` | Bản app điện thoại thấp nhất còn được chơi online, ví dụ `1.0.0`. App cũ hơn hiện "Cần cập nhật app" (chơi offline vẫn được). Bỏ trống = không kiểm tra. Bản web luôn mới nhất nên không bị ảnh hưởng |
 | `ANDROID_UPDATE_URL`, `IOS_UPDATE_URL` | Link cửa hàng cho nút "Cập nhật app", ví dụ `https://play.google.com/store/apps/details?id=io.github.marseraf7.caro` |
 | `MAIL_FROM` | Người gửi, ví dụ `"Cờ Caro <caro@ten-mien.com>"` (mặc định: tài khoản trong `SMTP_URL`) |

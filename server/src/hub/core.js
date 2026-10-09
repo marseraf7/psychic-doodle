@@ -11,7 +11,7 @@ class Hub {
    * minAppVersion / updateUrls: bản app điện thoại cũ hơn minAppVersion bị yêu cầu cập nhật
    * (updateUrls = { android, ios } – link cửa hàng). Bản web luôn là bản mới nhất nên không bị kiểm tra.
    */
-  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {}, minAppVersion = '', updateUrls = {} }) {
+  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {}, minAppVersion = '', updateUrls = {}, admins = [] }) {
     this.store = store;
     this.minAppVersion = minAppVersion;
     this.updateUrls = updateUrls;
@@ -19,7 +19,11 @@ class Hub {
     this.googleClientId = googleClientId;
     this.verifyGoogle = verifyGoogle;
     // SECOND_MS: độ dài 1 "giây" của đồng hồ mỗi nước (test đặt nhỏ để chạy nhanh).
-    this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250, ...timers };
+    this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250,
+      TOUR_TICK_MS: 1000, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 2 * 60 * 1000, TOUR_MIN_LEAD_MS: 5 * 60 * 1000, TOUR_PUSH_MS: 300,
+      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, ...timers };
+    // Quản trị viên: duyệt câu lạc bộ và giải đấu
+    this.admins = new Set(admins.map((a) => String(a).trim().toLowerCase()).filter(Boolean));
     this.byPid = new Map(); // pid -> Set<conn>
     this.names = new Map(); // pid khách -> tên
     this.rooms = new Map(); // mã phòng -> Room
@@ -32,6 +36,8 @@ class Hub {
     this.matchTimer = null;
     this.lobbyWatchers = new Set(); // kết nối đang mở sảnh phòng công khai
     this.lobbyTimer = null;
+    this.loadClubs();
+    this.loadTours();
     this.sweeper = setInterval(() => this.sweep(), 60 * 1000);
     this.sweeper.unref?.();
   }
@@ -41,6 +47,8 @@ class Hub {
     clearInterval(this.sweeper);
     this.stopMatching();
     clearTimeout(this.lobbyTimer);
+    clearInterval(this.tourTimer);
+    clearTimeout(this.tourPushTimer);
   }
 
   connect(conn) {
@@ -164,6 +172,7 @@ class Hub {
       stats: u.stats, rating: u.rating, rated: u.rated, email: u.email,
       pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
       blocked: u.blocked.map((id) => ({ id, name: this.store.users.get(id)?.name || '?' })),
+      admin: this.isAdmin(uid),
     };
   }
 
@@ -181,6 +190,7 @@ class Hub {
     if (uidOf(pid)) {
       conn.send(this.friendsMsg(uidOf(pid)));
       for (const inv of this.invites.values()) if (inv.to === pid) conn.send(this.inviteMsg(inv));
+      if (this.isAdmin(uidOf(pid))) conn.send({ t: 'adminCount', n: this.pendingCount() });
     }
   }
 

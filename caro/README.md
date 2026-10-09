@@ -8,7 +8,7 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   - 5 quân liền, bị chặn 1 đầu → thắng.
   - Bị chặn cả 2 đầu → không tính thắng.
 - Chơi **2 người cùng máy**, **với máy** (Dễ / Vừa / Khó), hoặc **online**:
-  **tìm trận nhanh** (ghép với người có Elo gần mình), phòng công khai (ai cũng vào được từ danh sách
+  **giải đấu** Arena / loại trực tiếp và **câu lạc bộ**, **tìm trận nhanh** (ghép với người có Elo gần mình), phòng công khai (ai cũng vào được từ danh sách
   "Phòng đang chờ"), tạo phòng riêng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
   thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online,
   xin hoà, chat nhanh, nhắn tin bạn bè, lịch sử 10 trận + xem lại + link chia sẻ, đối đầu, Elo và bảng xếp hạng.
@@ -67,6 +67,7 @@ node caro/tests/rules.test.js
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
+| `tour.js` | Giải đấu (Arena, loại trực tiếp: nhánh đấu, bảng xếp hạng, tạo giải), câu lạc bộ, trang duyệt của quản trị viên |
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `index.html`, `style.css` | Giao diện |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |

@@ -14,6 +14,8 @@ Environment=DATA_DIR=/var/lib/caro
 Environment=TRUST_PROXY=1
 # Bỏ dấu # và điền Client ID nếu bật đăng nhập Google:
 #Environment=GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+# Quản trị viên duyệt câu lạc bộ / giải đấu (tên đăng nhập, cách nhau bởi dấu phẩy)
+#Environment=ADMIN_USERNAMES=ten_dang_nhap_cua_ban
 
 # Giới hạn quyền của tiến trình
 NoNewPrivileges=true

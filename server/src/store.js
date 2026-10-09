@@ -45,6 +45,9 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, reporter TEXT, target TEXT, reason TEXT,
     context TEXT, created INTEGER);
   CREATE TABLE IF NOT EXISTS resets (uid TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires INTEGER NOT NULL, tries INTEGER DEFAULT 0);
+  CREATE TABLE IF NOT EXISTS clubs (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS tours (id TEXT PRIMARY KEY, status TEXT NOT NULL, created INTEGER NOT NULL, data TEXT NOT NULL);
+  CREATE INDEX IF NOT EXISTS tours_status ON tours (status, created);
 `;
 
 class Store {
@@ -61,6 +64,7 @@ class Store {
     this.byGoogle = new Map();
     this.byEmail = new Map();
     this.dirty = new Set();
+    this.dirtyDocs = new Map(); // 'club:id' / 'tour:id' -> bản ghi câu lạc bộ / giải đấu cần ghi
     this.timer = null;
     const q = (sql) => this.db.prepare(sql);
     this.q = {
@@ -102,6 +106,9 @@ class Store {
       getReset: q('SELECT code_hash, expires, tries FROM resets WHERE uid = ?'),
       bumpReset: q('UPDATE resets SET tries = tries + 1 WHERE uid = ?'),
       dropReset: q('DELETE FROM resets WHERE uid = ?'),
+      upsertClub: q('INSERT INTO clubs (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data'),
+      dropClub: q('DELETE FROM clubs WHERE id = ?'),
+      upsertTour: q('INSERT INTO tours (id, status, created, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data'),
     };
     for (const row of this.db.prepare('SELECT data FROM users').all()) this.index(this.upgrade(JSON.parse(row.data)));
     this.db.prepare('DELETE FROM sessions WHERE created < ?').run(Date.now() - SESSION_TTL);
@@ -153,6 +160,10 @@ class Store {
   /** Đánh dấu tài khoản đã thay đổi; ghi xuống đĩa sau ~300ms (gom nhiều thay đổi một lần). */
   touch(...users) {
     for (const u of users) if (u) this.dirty.add(u);
+    this.schedule();
+  }
+
+  schedule() {
     if (!this.timer) {
       this.timer = setTimeout(() => this.flush(), 300);
       this.timer.unref?.();
@@ -162,12 +173,18 @@ class Store {
   flush() {
     clearTimeout(this.timer);
     this.timer = null;
-    if (!this.dirty.size) return;
+    if (!this.dirty.size && !this.dirtyDocs.size) return;
     const list = [...this.dirty];
+    const docs = [...this.dirtyDocs.entries()];
     this.dirty.clear();
+    this.dirtyDocs.clear();
     this.db.exec('BEGIN');
     try {
       for (const u of list) this.q.upsertUser.run(u.id, u.username, JSON.stringify(u));
+      for (const [key, d] of docs) {
+        if (key.startsWith('club:')) this.q.upsertClub.run(d.id, JSON.stringify(d));
+        else this.q.upsertTour.run(d.id, d.status, d.created, JSON.stringify(d));
+      }
       this.db.exec('COMMIT');
     } catch (e) {
       this.db.exec('ROLLBACK');
@@ -360,6 +377,34 @@ class Store {
 
   reports(limit = 100) {
     return this.q.listReports.all(limit);
+  }
+
+  // ------------------------------------------------------------ Câu lạc bộ & giải đấu
+  /** Mọi câu lạc bộ (số lượng nhỏ, giữ trong bộ nhớ). */
+  loadClubs() {
+    return this.db.prepare('SELECT data FROM clubs').all().map((r) => JSON.parse(r.data));
+  }
+
+  saveClub(c) {
+    this.dirtyDocs.set('club:' + c.id, c);
+    this.schedule();
+  }
+
+  dropClub(id) {
+    this.dirtyDocs.delete('club:' + id);
+    this.q.dropClub.run(id);
+  }
+
+  /** Giải chưa kết thúc + các giải đã xong gần đây nhất. */
+  loadTours(recentDone = 100) {
+    const active = this.db.prepare("SELECT data FROM tours WHERE status IN ('pending', 'scheduled', 'running')").all();
+    const done = this.db.prepare("SELECT data FROM tours WHERE status NOT IN ('pending', 'scheduled', 'running') ORDER BY created DESC LIMIT ?").all(recentDone);
+    return [...active, ...done].map((r) => JSON.parse(r.data));
+  }
+
+  saveTour(t) {
+    this.dirtyDocs.set('tour:' + t.id, t);
+    this.schedule();
   }
 
   // ------------------------------------------------------------ Đặt lại mật khẩu

@@ -147,7 +147,7 @@
       }
       const target = m.ctx === 'joinRoom' && isOpen('join') ? 'join-err'
         : ['login', 'register'].includes(m.ctx) && isOpen('auth') ? 'auth-err'
-          : (window.CaroSocial && window.CaroSocial.errorTarget(m.ctx)) || null;
+          : (window.CaroSocial && window.CaroSocial.errorTarget(m.ctx)) || (window.CaroTour && window.CaroTour.errorTarget(m.ctx)) || null;
       if (target) $(target).textContent = srv(m);
       else toast(srv(m));
     },
@@ -512,16 +512,19 @@
   function fillRoomInfo() {
     const r = S.room;
     if (!r) return;
-    $('room-title').textContent = r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title');
+    $('room-title').textContent = r.tour ? '🏆 ' + r.tour.name : r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title');
+    // Phòng của giải đấu: không có mã / mật khẩu / link mời
+    document.querySelector('#room-info .codes').hidden = !!r.tour;
     $('ri-time').textContent = '⏱ ' + (r.timeLimit ? secs(r.timeLimit) : T('time_off'));
     $('ri-code').textContent = r.code;
     $('ri-pass').textContent = r.password;
-    $('ri-hint').textContent = T(r.public ? 'room_info_hint_public' : 'room_info_hint');
+    $('ri-hint').textContent = r.tour ? T('room_info_hint_tour') : T(r.public ? 'room_info_hint_public' : 'room_info_hint');
     $('ri-pass').parentElement.hidden = !!r.public; // phòng công khai: vào không cần mật khẩu
     if (r.public) $('ri-time').textContent += ' · 🌐 ' + T('public_tag');
     $('ri-link').value = inviteLink(r.code);
-    $('ri-link').closest('.link-row').hidden = r.kind === 'series';
-    $('ri-share').hidden = r.kind === 'series' || !navigator.share;
+    $('ri-link').closest('.link-row').hidden = r.kind === 'series' || !!r.tour;
+    $('ri-share').hidden = r.kind === 'series' || !!r.tour || !navigator.share;
+    $('ri-tour').hidden = !r.tour;
     const friendIds = new Set(S.friends.friends.map((f) => 'u_' + f.id));
     const pending = new Set(S.friends.outgoing.map((f) => 'u_' + f.id));
     $('ri-players').innerHTML = r.players.map((p) => {
@@ -556,6 +559,8 @@
   };
 
   $('btn-room').onclick = openRoomInfo;
+  // Phòng của giải: mở trang giải (bảng xếp hạng / nhánh đấu) ngay trong lúc chơi
+  $('ri-tour').onclick = () => { if (S.room && S.room.tour && window.CaroTour) { closeDlg('room-info'); window.CaroTour.open(S.room.tour.id); } };
   $('btn-center2').onclick = () => $('btn-center').click();
   $('btn-resign').onclick = () => {
     const r = S.room;
@@ -624,6 +629,12 @@
     }
     if (r.unrated) sub = (sub ? sub + ' · ' : '') + T('unrated');
     if (!opp) { sub = T('opp_left'); rematch = false; }
+    // Ván của giải đấu: không tái đấu; Arena tự ghép ván sau
+    if (r.tour) {
+      rematch = false;
+      if (r.tour.arena) sub = (sub ? sub + ' · ' : '') + T('tour_next_auto');
+    }
+    $('banner-tour').hidden = !r.tour;
     $('banner-title').textContent = title;
     $('banner-sub').textContent = sub;
     const btn = $('banner-rematch');
@@ -635,6 +646,7 @@
     $('banner-quick').hidden = !r.quick; // phòng do tìm trận nhanh: tìm đối thủ mới ngay
     $('banner').hidden = false;
   }
+  $('banner-tour').onclick = () => { if (S.room && S.room.tour && window.CaroTour) { $('banner').hidden = true; window.CaroTour.open(S.room.tour.id); } };
   $('banner-share').onclick = () => {
     const r = S.room;
     if (!r || !r.share) return;
@@ -708,7 +720,8 @@
 
   // Kết nối sẵn khi có tài khoản (để bạn bè thấy mình online), đang ở trong phòng, hoặc mở bằng link mời.
   function start() {
-    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink)) connect();
+    // (?t= / ?club=: link giải đấu / câu lạc bộ)
+    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club)=/.test(location.search))) connect();
     render();
     checkReplayLink();
   }

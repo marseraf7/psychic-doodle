@@ -58,6 +58,7 @@
         .sort((a, b) => Number(a.dataset.openedAt || 0) - Number(b.dataset.openedAt || 0));
       if (open.length) {
         const d = open[open.length - 1];
+        if (typeof d.onBack === 'function' && d.onBack()) return; // hộp thoại có nhiều trang: Back về trang trước
         if (d.close) d.close(); else d.removeAttribute('open');
         return;
       }

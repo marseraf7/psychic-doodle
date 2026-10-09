@@ -66,6 +66,7 @@
         <button id="banner-new" type="button" class="primary local-only" data-i18n="btn_new"></button>
         <button id="banner-share" type="button" class="ghost online-only" data-i18n="share_game" hidden></button>
         <button id="banner-quick" type="button" class="ghost online-only" data-i18n="qm_again" hidden></button>
+        <button id="banner-tour" type="button" class="primary online-only" data-i18n="tour_view" hidden></button>
         <button id="banner-rematch" type="button" class="primary online-only" data-i18n="rematch"></button>
       </div>
     </div>
@@ -223,6 +224,14 @@
         </div>
         <p class="hint" data-i18n="qm_hint"></p>
       </section>
+      <section class="card" id="tour-card">
+        <h3 data-i18n="tours_clubs"></h3>
+        <div class="row">
+          <button type="button" class="primary" id="open-tours">🏆 <span data-i18n="tours_title"></span> <i class="count" id="tour-badge" hidden></i></button>
+          <button type="button" class="ghost" id="open-clubs">👥 <span data-i18n="clubs_title"></span></button>
+        </div>
+        <p class="hint" data-i18n="tours_card_hint"></p>
+      </section>
       <section class="card">
         <h3 data-i18n="create_room"></h3>
         <div class="seg">
@@ -303,9 +312,26 @@
         <button type="button" class="primary" id="ri-copy" data-i18n="copy"></button>
       </div>
       <button type="button" class="ghost wide" id="ri-share" hidden data-i18n="share"></button>
+      <button type="button" class="primary wide" id="ri-tour" hidden>🏆 <span data-i18n="tour_view"></span></button>
       <p class="hint" id="ri-hint"></p>
       <ul class="players" id="ri-players"></ul>
       <p class="hint" id="ri-h2h"></p>
+    </div>
+  </dialog>
+
+  <dialog id="tour-dlg">
+    <div class="dlg tour-dlg">
+      <div class="dlg-head">
+        <button type="button" class="ghost sm icon" id="tour-back" hidden data-i18n-aria="back">←</button>
+        <h2 id="tour-title" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div class="tabs tour-tabs" id="tour-tabs">
+        <button type="button" data-ttab="tours" data-i18n="tours_title"></button>
+        <button type="button" data-ttab="clubs" data-i18n="clubs_title"></button>
+        <button type="button" data-ttab="admin" hidden></button>
+      </div>
+      <div class="tour-body" id="tour-body"></div>
     </div>
   </dialog>
 
@@ -473,5 +499,6 @@
   <script src="online.js"></script>
   <script src="social.js"></script>
   <script src="match.js"></script>
+  <script src="tour.js"></script>
 </body>
 </html>
