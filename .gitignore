@@ -5,3 +5,6 @@
 donvi/
 ket_qua/
 __pycache__/
+
+# Gói skill tạo ra khi đóng gói (tạo lại được)
+dist-skill/
