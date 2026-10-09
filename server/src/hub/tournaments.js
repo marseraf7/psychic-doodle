@@ -1,25 +1,19 @@
 /*
- * Giải đấu – kết hợp Arena của Lichess và nhánh loại trực tiếp của Challonge.
+ * Giải đấu – phần chung cho mọi thể thức: tạo, duyệt, danh sách, đăng ký / điểm danh / rút, ban tổ chức,
+ * gửi dữ liệu cho client, nhịp chạy giải, mở phòng cho ván của giải, kết thúc giải.
+ *   arena.js   – giải Arena (ghép ván liên tục, tính điểm, 🔥)
+ *   bracket.js – thi đấu theo giai đoạn (loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ)
+ *   stages.js  – logic thuần của các thể thức (không phụ thuộc mạng)
  *
  * Vòng đời: pending (chờ quản trị viên duyệt) → scheduled (mở đăng ký) → running → finished
  *           (hoặc rejected / cancelled). Giải lưu trong SQLite nên máy chủ khởi động lại vẫn chạy tiếp.
- *
- * Arena: chơi trong N phút. Xong ván là tự được ghép ván mới với người đang chờ có điểm gần mình.
- *   Thắng 2 điểm, hoà 1 điểm (hoà dưới 10 nước: 0 điểm), thua 0. Thắng 2 ván liền thì "🔥":
- *   ván sau thắng được 4, hoà được 2, cho tới khi hoà hoặc thua. Vào giải muộn vẫn được, nghỉ tạm được.
- * Thi đấu theo vòng ('bracket'): 1–3 vòng, mỗi vòng một thể thức (xem stages.js): loại trực tiếp, nhánh
- *   thắng-thua, vòng tròn (chia bảng), hệ Thụy Sĩ. Ví dụ: vòng bảng → playoff. Mỗi trận Bo1/Bo3/Bo5 (ván sau
- *   tự đổi bên đi trước). Hạt giống vòng đầu theo Elo hoặc ngẫu nhiên; vòng sau theo thành tích vòng trước.
- *   Điểm danh (check-in) 10 phút trước giờ bắt đầu: ai không điểm danh bị loại khỏi danh sách.
- *   Tới lượt đấu mà một người không có mặt (offline / đang bận ván khác) quá 2 phút thì xử thua.
- *
  * Bắt buộc có giới hạn thời gian mỗi nước để giải không bị kéo dài.
  */
 'use strict';
 const crypto = require('crypto');
 const { DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
-const { MIN_RATED_MOVES, cleanText, cleanName, userPid, uidOf } = require('./shared.js');
+const { cleanText, cleanName, userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
 
 const FORMATS = ['arena', 'bracket'];
@@ -28,7 +22,6 @@ const ARENA_MINUTES = [15, 20, 30, 45, 60, 90, 120];
 const ACCESS = ['public', 'link', 'club'];
 const MAX_ACTIVE_TOURS_PER_USER = 3;
 const MAX_START_DAYS = 30;
-const KEEP_GAMES = 300;
 
 class Tournaments {
   loadTours() {
@@ -50,32 +43,6 @@ class Tournaments {
 
   saveTour(t) {
     this.store.saveTour(t);
-  }
-
-  /** Giải 'knockout' của bản trước = thi đấu theo vòng, 1 vòng loại trực tiếp. */
-  upgradeTour(t) {
-    if (t.format !== 'knockout') return;
-    t.format = 'bracket';
-    t.stages = ST.normalizeStages([{ type: 'single', bestOf: t.bestOf, thirdPlace: t.thirdPlace }]);
-    if (t.status === 'running') { t.status = 'cancelled'; t.cancelReason = 'organizer'; }
-  }
-
-  allMatches(t) {
-    return (t.st || []).flatMap((st) => Object.values(st.matches));
-  }
-
-  curStage(t) {
-    return t.st ? t.st[t.stage] : null;
-  }
-
-  findMatch(t, id) {
-    const i = /^s(\d+)/.exec(String(id || ''));
-    const st = i && t.st && t.st[Number(i[1])];
-    return st && st.matches[id] ? { st, m: st.matches[id] } : null;
-  }
-
-  seedOf(t) {
-    return (uid) => (this.player(t, uid) && this.player(t, uid).seed) || 999;
   }
 
   player(t, uid) {
@@ -140,44 +107,11 @@ class Tournaments {
       paused: !!p.paused, withdrawn: !!p.withdrawn, out: p.out || null, checkedIn: !!p.checkedIn,
       online: this.isOnline(userPid(p.uid)), playing: live.has(p.uid),
     };
-    const side = (u) => (u ? { uid: u, name: this.player(t, u)?.name || '?', seed: this.player(t, u)?.seed || null } : null);
-    const sd = (u) => (ST.real(u) ? side(u) : u === ST.BYE ? { bye: true } : null);
-    const mv = (m) => m && {
-      id: m.id, round: m.round, a: sd(m.a), b: sd(m.b), wa: (ST.real(m.a) && m.wins[m.a]) || 0, wb: (ST.real(m.b) && m.wins[m.b]) || 0,
-      done: !!m.done, winner: ST.real(m.winner) ? m.winner : null, draw: !!(m.done && m.winner === null && !m.double),
-      double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0,
-      live: !!(m.room && !m.done && this.rooms.has(m.room)), games: m.games.map((g) => g.share).filter(Boolean),
-    };
-    const seedOf = this.seedOf(t);
-    const table = (st, rk, adv) => rk.list.map((u, i) => {
-      const x = rk.stats[u];
-      return { ...side(u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, sb: x.sb, adv: i < adv };
-    });
-    const stages = (t.st || []).map((st, i) => {
-      const M = (id) => mv(st.matches[id]);
-      const last = i === t.stages.length - 1;
-      const adv = last ? 0 : st.type === 'swiss' ? st.cfg.advance : st.cfg.advance || 0;
-      const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
-      if (st.type === 'single' || st.type === 'double') {
-        v.rounds = st.rounds.map((r) => r.map(M));
-        if (st.third) v.third = M(st.third);
-        if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
-        if (st.gf) v.gf = st.gf.map(M);
-      } else if (st.type === 'roundrobin') {
-        const tabs = ST.standings(st, seedOf);
-        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(st, tabs[gi], adv) }));
-      } else {
-        v.rounds = st.rounds.map((r) => r.map(M));
-        v.table = table(st, ST.standings(st, seedOf)[0], adv);
-        v.totalRounds = st.cfg.rounds;
-      }
-      return v;
-    });
+    const side = (u) => this.tourSide(t, u);
     let players = t.players.filter((p) => !p.withdrawn || p.games).map(pv);
     if (t.format === 'arena') players.sort((a, b) => b.score - a.score || b.wins - a.wins || b.rating - a.rating);
     else players.sort((a, b) => (a.seed || 999) - (b.seed || 999) || b.rating - a.rating);
-    const cur = this.curStage(t);
-    const myMatch = me && cur ? Object.values(cur.matches).find((m) => !m.done && (m.a === uid || m.b === uid)) : null;
+    const myMatch = me ? this.myMatch(t, uid) : null;
     return {
       ...this.tourSummary(t, uid),
       desc: t.desc, seeding: t.seeding, checkinEnabled: !!t.checkin,
@@ -185,14 +119,20 @@ class Tournaments {
       reviewNote: t.creator === uid || this.isAdmin(uid) ? t.reviewNote || '' : '', cancelReason: t.cancelReason || '',
       canManage: this.canManageTour(t, uid), canJoin: this.canJoinTour(t, uid),
       me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
-      players, stageViews: stages,
-      myMatch: myMatch ? mv(myMatch) : null,
+      players, stageViews: this.stageViews(t),
+      myMatch: myMatch ? this.matchView(t, myMatch) : null,
       podium: (t.podium || []).map((u) => side(u)),
       games: t.format === 'arena' ? t.games.slice(-30).reverse().map((g) => ({
         x: side(g.x), o: side(g.o), w: g.w, px: g.px, po: g.po, share: g.share || null,
       })) : null,
       now: Date.now(),
     };
+  }
+
+  /** Tên + hạt giống của một người trong giải (gửi cho client). */
+  tourSide(t, u) {
+    const p = u && this.player(t, u);
+    return u ? { uid: u, name: p?.name || '?', seed: p?.seed || null } : null;
   }
 
   /** Người đang mở trang giải nhận bản mới (gom thay đổi ~300ms). */
@@ -423,10 +363,8 @@ class Tournaments {
         }
         if (now >= t.startsAt) this.startTour(t);
       } else if (t.status === 'running') {
-        if (t.format === 'arena') {
-          if (now < t.endsAt) this.pairArena(t, now);
-          else if (![...this.rooms.values()].some((r) => r.tour && r.tour.id === t.id && r.active)) this.finishTour(t);
-        } else this.runBracket(t, now);
+        if (t.format === 'arena') this.tickArena(t, now);
+        else this.runBracket(t, now);
       }
     }
   }
@@ -442,108 +380,8 @@ class Tournaments {
   startTour(t) {
     const now = Date.now();
     t.startedAt = now;
-    if (t.format === 'arena') {
-      t.status = 'running';
-      t.endsAt = now + t.minutes * 60 * 1000;
-      this.saveTour(t);
-      this.notifyPlayers(t, 'tour_started');
-      this.pushTour(t);
-      this.pairArena(t, now);
-      return;
-    }
-    // Thi đấu theo vòng: chỉ người đã điểm danh (nếu bật điểm danh)
-    for (const p of t.players) if (!p.withdrawn && t.checkin && !t.checkinWaived && !p.checkedIn) p.out = 'no_checkin';
-    const entrants = this.activePlayers(t);
-    if (entrants.length < 2) {
-      this.cancelTour(t, 'too_few');
-      return;
-    }
-    for (const p of entrants) p.rating = this.store.users.get(p.uid)?.rating || p.rating;
-    if (t.seeding === 'random') {
-      for (let i = entrants.length - 1; i > 0; i--) {
-        const j = crypto.randomInt(i + 1);
-        [entrants[i], entrants[j]] = [entrants[j], entrants[i]];
-      }
-    } else entrants.sort((a, b) => b.rating - a.rating);
-    entrants.forEach((p, i) => { p.seed = i + 1; });
-    t.status = 'running';
-    t.stage = 0;
-    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u) })];
-    this.saveTour(t);
-    this.notifyPlayers(t, 'tour_started', {}, (p) => !p.out);
-    this.notifyPlayers(t, 'tour_no_checkin', {}, (p) => p.out === 'no_checkin');
-    this.pushTour(t);
-    this.runBracket(t, now);
-  }
-
-  isActiveIn(t, uid) {
-    const p = this.player(t, uid);
-    return !!(p && !p.withdrawn);
-  }
-
-  /** Ghi kết quả một trận (winner: người thắng / null = hoà); xong vòng thì sang vòng sau hoặc kết thúc giải. */
-  finishMatch(t, st, m, winner, opts = {}) {
-    if (m.done) return;
-    m.room = null;
-    if (opts.walkover) m.walkover = true;
-    ST.recordResult(st, m, winner, { seedOf: this.seedOf(t), double: opts.double, isActive: (u) => this.isActiveIn(t, u) });
-    for (const u of [m.a, m.b]) {
-      const p = ST.real(u) && this.player(t, u);
-      if (p && !p.out && ST.eliminated(st, u)) p.out = 'lost';
-    }
-    if (st.done && t.status === 'running') this.nextStage(t);
-  }
-
-  nextStage(t) {
-    const st = this.curStage(t);
-    if (t.stage >= t.stages.length - 1) return this.finishTour(t);
-    const { seeds, groupOf } = ST.advancers(st, this.seedOf(t));
-    const going = new Set(seeds);
-    for (const u of st.entrants) {
-      const p = this.player(t, u);
-      if (p && !going.has(u) && !p.out) p.out = 'not_advanced';
-    }
-    t.stage++;
-    t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, { groupOf, seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u) }));
-    this.notifyPlayers(t, 'tour_advanced', { n: t.stage + 1 }, (p) => going.has(p.uid));
-    this.notifyPlayers(t, 'tour_not_advanced', {}, (p) => p.out === 'not_advanced' && st.entrants.includes(p.uid));
-    this.saveTour(t);
-    this.pushTour(t);
-  }
-
-  /** Mở các trận đã sẵn sàng của vòng hiện tại; xử thua người vắng mặt / đã rút. */
-  runBracket(t, now) {
-    for (let guard = 0; guard < 500 && t.status === 'running'; guard++) {
-      const st = this.curStage(t);
-      let changed = false;
-      for (const m of ST.playable(st)) {
-        if (m.room && this.rooms.has(m.room)) continue;
-        if (!m.readyAt) m.readyAt = now;
-        const pa = this.player(t, m.a), pb = this.player(t, m.b);
-        const elim = ST.isElim(st.type);
-        const better = (pa.seed || 999) <= (pb.seed || 999) ? m.a : m.b;
-        // Người đã rút / bị loại: đối thủ thắng luôn (rút cả hai: vòng loại trực tiếp cho hạt giống cao hơn đi tiếp)
-        if (pa.withdrawn || pb.withdrawn) {
-          if (pa.withdrawn && pb.withdrawn && !elim) this.finishMatch(t, st, m, null, { double: true, walkover: true });
-          else this.finishMatch(t, st, m, pa.withdrawn && !pb.withdrawn ? m.b : !pa.withdrawn ? m.a : better, { walkover: true });
-          changed = true;
-          break;
-        }
-        const okA = this.available(m.a), okB = this.available(m.b);
-        if (okA && okB) { this.startTourMatch(t, st, m); continue; }
-        if (now - m.readyAt < this.T.TOUR_NOSHOW_MS) continue;
-        // Quá giờ mà một bên không có mặt: xử thua bên vắng; vắng cả hai thì (loại trực tiếp) hạt giống cao hơn
-        // đi tiếp, (vòng tròn / Thụy Sĩ) cả hai cùng thua
-        if (okA !== okB) {
-          this.send(userPid(okA ? m.b : m.a), note('tour_noshow', { name: t.name }));
-          this.finishMatch(t, st, m, okA ? m.a : m.b, { walkover: true });
-        } else if (elim) this.finishMatch(t, st, m, better, { walkover: true });
-        else this.finishMatch(t, st, m, null, { double: true, walkover: true });
-        changed = true;
-        break;
-      }
-      if (changed) { this.saveTour(t); this.pushTour(t); } else break;
-    }
+    if (t.format === 'arena') this.startArena(t, now);
+    else this.startBracket(t, now);
   }
 
   /** Mở phòng cho một ván / trận của giải và đưa hai người vào (rời phòng cũ đã xong ván). */
@@ -563,57 +401,6 @@ class Tournaments {
     return room;
   }
 
-  startTourMatch(t, st, m) {
-    const pa = this.player(t, m.a), pb = this.player(t, m.b);
-    // Ván đầu: ai được đi trước ít hơn thì đi trước (các ván sau trong trận tự đổi bên)
-    const aFirst = (pa.firsts || 0) < (pb.firsts || 0) || ((pa.firsts || 0) === (pb.firsts || 0) && crypto.randomInt(2) === 0);
-    (aFirst ? pa : pb).firsts = ((aFirst ? pa : pb).firsts || 0) + 1;
-    const room = this.openTourRoom(t, 'series', st.cfg.bestOf, m.a, m.b, aFirst, { match: m.id });
-    m.room = room.code;
-    m.wins = {};
-    this.saveTour(t);
-    this.pushTour(t);
-  }
-
-  /** Arena: ghép những người đang rảnh, điểm gần nhau; tránh gặp lại đối thủ vừa đánh nếu còn người khác. */
-  pairArena(t, now) {
-    const busy = this.koWaiting();
-    const waiting = t.players.filter((p) => !p.withdrawn && !p.paused && (p.restUntil || 0) <= now && this.available(p.uid) &&
-      !this.inTourGame(t, p.uid) && !busy.has(p.uid));
-    if (waiting.length < 2) return;
-    waiting.sort((a, b) => b.score - a.score || Math.random() - 0.5);
-    while (waiting.length >= 2) {
-      const a = waiting.shift();
-      let j = waiting.findIndex((b) => b.uid !== a.last && a.uid !== b.last);
-      if (j < 0) {
-        // Chỉ còn đúng đối thủ vừa gặp: chờ thêm cho có người khác, quá 20 giây thì cho gặp lại
-        if (now - Math.max(a.restUntil || 0, waiting[0].restUntil || 0) < this.T.ARENA_REPEAT_MS) continue;
-        j = 0;
-      }
-      const b = waiting.splice(j, 1)[0];
-      const aFirst = a.firsts < b.firsts || (a.firsts === b.firsts && crypto.randomInt(2) === 0);
-      (aFirst ? a : b).firsts++;
-      this.openTourRoom(t, 'room', 1, a.uid, b.uid, aFirst, {});
-    }
-    this.saveTour(t);
-    this.pushTour(t);
-  }
-
-  /** Người đang có trận loại trực tiếp sẵn sàng đấu (ở giải khác): ưu tiên trận đó, Arena không ghép nữa. */
-  koWaiting() {
-    const s = new Set();
-    for (const t of this.tours.values()) {
-      if (t.status !== 'running' || t.format !== 'bracket') continue;
-      for (const m of ST.playable(this.curStage(t))) if (!m.room) { s.add(m.a); s.add(m.b); }
-    }
-    return s;
-  }
-
-  inTourGame(t, uid) {
-    const r = this.roomFor(userPid(uid));
-    return !!(r && r.tour && r.tour.id === t.id && r.active);
-  }
-
   /**
    * Gọi từ settle() khi một ván trong phòng của giải vừa kết thúc.
    * Trả về true nếu không được tự bắt đầu ván tiếp theo trong phòng này.
@@ -624,77 +411,15 @@ class Tournaments {
     if (!t || info.cancelled || t.status !== 'running') { room.tourDone = true; return true; }
     const xUid = uidOf(room.seats[1]), oUid = uidOf(room.seats[2]);
     const winUid = room.winner === DRAW ? null : uidOf(room.seats[room.winner]);
-    if (t.format === 'arena') {
-      room.tourDone = true;
-      const now = Date.now();
-      const pts = {};
-      for (const uid of [xUid, oUid]) {
-        const p = this.player(t, uid);
-        if (!p) continue;
-        const fire = p.streak >= 2;
-        let gained = 0;
-        if (!winUid) {
-          gained = room.board.moves.length < MIN_RATED_MOVES ? 0 : fire ? 2 : 1;
-          p.draws++;
-          p.streak = 0;
-        } else if (winUid === uid) {
-          gained = fire ? 4 : 2;
-          p.wins++;
-          p.streak++;
-        } else {
-          p.losses++;
-          p.streak = 0;
-          if (room.reason === 'leave') p.paused = true; // rời ván giữa chừng = tạm nghỉ
-        }
-        p.score += gained;
-        p.games++;
-        p.last = uid === xUid ? oUid : xUid;
-        p.restUntil = now + this.T.ARENA_REST_MS; // nghỉ vài giây xem kết quả rồi mới ghép tiếp
-        pts[uid] = gained;
-      }
-      t.games.push({ x: xUid, o: oUid, w: winUid, px: pts[xUid] || 0, po: pts[oUid] || 0, share: room.lastShare || null, at: now });
-      if (t.games.length > KEEP_GAMES) t.games.splice(0, t.games.length - KEEP_GAMES);
-      this.saveTour(t);
-      this.pushTour(t);
-      return true;
-    }
-    // Thi đấu theo vòng
-    const found = this.findMatch(t, info.match);
-    if (!found || found.m.done) { room.tourDone = true; return true; }
-    const { st, m } = found;
-    m.games.push({ share: room.lastShare || null, w: winUid });
-    m.wins = { [m.a]: room.score[userPid(m.a)] || 0, [m.b]: room.score[userPid(m.b)] || 0 };
-    const bo = st.cfg.bestOf;
-    let decided;
-    if (room.reason === 'leave' && winUid) decided = winUid; // bỏ trận giữa chừng = thua cả trận
-    else if (room.seriesWinner) decided = uidOf(room.seriesWinner);
-    else if (!ST.isElim(st.type) && room.gameNo >= bo) {
-      // Vòng tròn / Thụy Sĩ: đánh đủ số ván mà chưa ai đủ số thắng: hơn ván thì thắng, bằng thì hoà
-      decided = m.wins[m.a] > m.wins[m.b] ? m.a : m.wins[m.b] > m.wins[m.a] ? m.b : null;
-    } else if (room.gameNo >= bo * 2) {
-      // Loại trực tiếp hoà quá nhiều ván: ai thắng nhiều ván hơn, bằng nhau thì hạt giống cao hơn đi tiếp
-      const pa = this.player(t, m.a), pb = this.player(t, m.b);
-      decided = m.wins[m.a] > m.wins[m.b] ? m.a : m.wins[m.b] > m.wins[m.a] ? m.b : ((pa.seed || 999) <= (pb.seed || 999) ? m.a : m.b);
-    }
-    if (decided !== undefined) {
-      room.tourDone = true;
-      this.finishMatch(t, st, m, decided);
-    }
-    this.saveTour(t);
-    this.pushTour(t);
-    return decided !== undefined;
+    if (t.format === 'arena') return this.arenaOnGame(t, room, xUid, oUid, winUid);
+    return this.bracketOnGame(t, room, winUid);
   }
 
   finishTour(t) {
     if (t.status === 'finished') return;
     t.status = 'finished';
     t.finishedAt = Date.now();
-    if (t.format === 'arena') {
-      t.podium = t.players.filter((p) => p.games > 0)
-        .sort((a, b) => b.score - a.score || b.wins - a.wins || b.rating - a.rating).slice(0, 3).map((p) => p.uid);
-    } else {
-      t.podium = ST.podium(this.curStage(t), this.seedOf(t)).slice(0, 4);
-    }
+    t.podium = t.format === 'arena' ? this.arenaPodium(t) : this.bracketPodium(t);
     this.saveTour(t);
     this.pushTour(t);
     const champ = t.podium[0] && this.player(t, t.podium[0]);

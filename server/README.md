@@ -82,8 +82,10 @@ Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/ro
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, xếp hạng, lịch sử, chặn, tin nhắn),
 `rooms.js` (phòng, ván đấu, thách đấu, Elo, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
-`clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu), `stages.js` (các thể thức: loại trực tiếp, nhánh
-thắng – thua, vòng tròn, Thụy Sĩ), `admin.js` (quản trị viên duyệt).
+`clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),
+`arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
+`stages.js` (logic thuần các thể thức: loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ),
+`admin.js` (quản trị viên duyệt).
 Tin nhắn loại `X` do phương thức `on_X` xử lý.
 
 Cần **Node.js 22.13 trở lên** (dùng SQLite có sẵn trong Node, không phải cài thêm CSDL).

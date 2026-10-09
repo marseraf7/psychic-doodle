@@ -6,7 +6,9 @@
  *   rooms.js       – phòng chơi, ván đấu, thách đấu, Elo, xin hoà
  *   matchmaking.js – tìm trận nhanh và phòng công khai
  *   clubs.js       – câu lạc bộ
- *   tournaments.js – giải đấu (Arena, loại trực tiếp)
+ *   tournaments.js – giải đấu: phần chung (tạo, đăng ký, xem, ban tổ chức, nhịp chạy)
+ *   arena.js       – giải Arena
+ *   bracket.js     – giải theo giai đoạn (dùng logic thể thức trong stages.js)
  *   admin.js       – quản trị viên duyệt câu lạc bộ / giải đấu
  * Mỗi phần là một lớp chỉ chứa phương thức; ở đây gộp tất cả vào Hub.prototype.
  * Tin nhắn loại X do phương thức on_X xử lý. Không phụ thuộc thư viện WebSocket:
@@ -20,10 +22,12 @@ const { Rooms } = require('./rooms.js');
 const { Matchmaking } = require('./matchmaking.js');
 const { Clubs } = require('./clubs.js');
 const { Tournaments } = require('./tournaments.js');
+const { Arena } = require('./arena.js');
+const { Bracket } = require('./bracket.js');
 const { Admin } = require('./admin.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, Rooms, Matchmaking, Clubs, Tournaments, Admin]) {
+for (const part of [Auth, Social, Rooms, Matchmaking, Clubs, Tournaments, Arena, Bracket, Admin]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);
