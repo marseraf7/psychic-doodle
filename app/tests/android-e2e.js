@@ -45,11 +45,15 @@ function systemBars() {
 }
 /** Khung của WebView trên màn hình (pixel), đọc từ uiautomator. */
 function webViewBounds() {
-  adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml');
-  const xml = adb('shell', 'cat', '/sdcard/ui.xml');
-  const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-  if (!m) throw new Error('Không thấy WebView trong uiautomator dump');
-  return { l: +m[1], t: +m[2], r: +m[3], b: +m[4] };
+  // uiautomator đôi khi chụp cây giao diện lúc màn hình đang vẽ lại (chưa có WebView): thử lại vài lần
+  for (let i = 0; ; i++) {
+    try { adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml'); } catch (e) { /* "could not get idle state" */ }
+    const xml = adb('shell', 'cat', '/sdcard/ui.xml');
+    const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    if (m) return { l: +m[1], t: +m[2], r: +m[3], b: +m[4] };
+    if (i >= 5) throw new Error('Không thấy WebView trong uiautomator dump');
+    execFileSync('sleep', ['1']);
+  }
 }
 /** Toạ độ màn hình (pixel) của một phần tử trong app. */
 async function screenRect(app, sel) {
@@ -146,9 +150,17 @@ async function screenRect(app, sel) {
     const ime = await until(() => systemBars().ime, 8000, 400);
     check('bàn phím hiện khi chạm ô nhập tin nhắn', !!ime);
     if (ime) {
-      await sleep(800); // chờ WebView co lại theo bàn phím
-      const inp = await screenRect(app, '#chat-form input');
-      check('ô nhập tin nhắn không bị bàn phím che', inp.bottom <= ime.t + 1, `ô nhập tới y=${Math.round(inp.bottom)}, bàn phím từ y=${ime.t}`);
+      // Chờ WebView co lại theo bàn phím (máy ảo chậm có thể mất vài giây), đo lại tới khi ổn định
+      let last = null;
+      const fit = await until(async () => {
+        const kb = systemBars().ime || ime;
+        const inp = await screenRect(app, '#chat-form input');
+        const vp = await app.evaluate(() => ({ inner: innerHeight, visual: Math.round(visualViewport ? visualViewport.height : 0) }));
+        last = { inp, kb, vp };
+        return inp.bottom <= kb.t + 1;
+      }, 10000, 500);
+      check('ô nhập tin nhắn không bị bàn phím che', !!fit,
+        `ô nhập tới y=${Math.round(last.inp.bottom)}, bàn phím từ y=${last.kb.t}, viewport ${JSON.stringify(last.vp)}`);
       shot('keyboard');
       await app.fill('#chat-form input', 'Typed on Android');
       await app.click('#chat-form button');
