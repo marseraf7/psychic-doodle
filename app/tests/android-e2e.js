@@ -170,6 +170,15 @@ async function screenRect(app, sel) {
     await sleep(60);
     await cdpK.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     const ime = await until(() => systemBars().ime, 8000, 400);
+    // Chẩn đoán: phần tử dưới điểm chạm, phần tử đang focus, Android có đang hiện bàn phím không
+    const diag = await app.evaluate((p) => {
+      const e = document.elementFromPoint(p.x, p.y), a = document.activeElement;
+      const d = (n) => n ? n.tagName + (n.id ? '#' + n.id : '') + (n.name ? '[name=' + n.name + ']' : '') : null;
+      return { at: d(e), focus: d(a), open: [...document.querySelectorAll('dialog[open]')].map((x) => x.id) };
+    }, inBox);
+    let imeShown = '';
+    try { imeShown = (adb('shell', 'dumpsys', 'input_method').match(/mInputShown=\w+|mIsInputViewShown=\w+/g) || []).join(' '); } catch (e) { /* bỏ qua */ }
+    console.log('Chạm ô nhập:', JSON.stringify(inBox), JSON.stringify(diag), imeShown);
     check('bàn phím hiện khi chạm ô nhập tin nhắn', !!ime);
     if (ime) {
       // Chờ WebView co lại theo bàn phím (máy ảo chậm có thể mất vài giây), đo lại tới khi ổn định
