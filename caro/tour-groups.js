@@ -57,7 +57,7 @@
       <div class="grp-grid">${cards}</div>
       ${warn.length ? `<p class="note bad">${warn.map(esc).join('<br>')}</p>` : ''}
       <div class="row tactions">
-        <button type="button" class="ghost sm" data-act="grpAdd">＋ ${esc(T('group_add'))}</button>
+        <button type="button" class="ghost sm" data-act="grpAdd">${K.icon('plus')}${esc(T('group_add'))}</button>
         ${G.dirty ? `<button type="button" class="ghost sm" data-act="grpDiscard">${esc(T('groups_discard'))}</button>` : ''}
         ${t.groupDraft.manual ? `<button type="button" class="ghost sm" data-act="grpAuto">${esc(T('groups_auto'))}</button>` : ''}
         <button type="button" class="primary sm" data-act="grpSave" ${G.dirty && !groups.some((g) => g.length > max) ? '' : 'disabled'}>${esc(T('groups_save'))}</button>

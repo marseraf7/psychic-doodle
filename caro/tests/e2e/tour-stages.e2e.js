@@ -97,7 +97,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   await sleep(500);
   const txt1 = await boss.textContent('#tour-body');
   ok(txt1.includes('Bảng A') && txt1.includes('Bảng B') && txt1.includes('Chung kết') && txt1.includes('Tranh hạng 3'), 'Bảng A/B + nhánh playoff + tranh hạng 3');
-  ok(/🥇\s*an_vi/.test(txt1), 'Vô địch an_vi');
+  ok((await boss.textContent('#tour-body .podium .p1')).includes('an_vi'), 'Vô địch an_vi');
   const B = ps[1];
   await B.evaluate(() => window.CaroTour.open(window.CaroOnline.state.room.tour.id)); await sleep(700);
   await B.evaluate(() => document.querySelectorAll('#tour-body details.fold').forEach((d) => { d.open = true; }));

@@ -764,6 +764,23 @@ table.stand tr.me td { background: color-mix(in srgb, var(--accent) 10%, transpa
 .grp-list .grip { color: var(--muted); font-size: var(--fs-2xs); letter-spacing: -2px; }
 .tour-body select.grp-move { width: auto; max-width: 92px; padding: 3px 4px; font-size: var(--fs-xs); flex: none; }
 
+/* ============================ Biểu tượng nằm cạnh chữ (giải đấu, câu lạc bộ) */
+svg.ico.i-in { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin-inline-end: 0.35em; }
+.pn b svg.ico.i-in, .b-p svg.ico.i-in { margin-inline: 0.3em 0; }
+button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.15em; }
+.ticon svg.ico.i-in { width: 1.3em; height: 1.3em; margin: 0; color: var(--accent); }
+#tour-title svg.ico.i-in { color: var(--accent); }
+.ico.m1 { color: #d4a300; }
+.ico.m2 { color: #9aa3ae; }
+.ico.m3 { color: #c07a3c; }
+.ico.fire { color: #f26b1d; }
+.ico.star { color: #f0a800; }
+.ico.ok { color: #2fb45a; }
+.ico.muted { color: var(--muted); }
+.podium .pl svg.ico.i-in { width: var(--fs-xl); height: var(--fs-xl); margin: 0 auto 4px; display: block; }
+.b-match small a svg.ico.i-in, .mrow small a svg.ico.i-in, .tgames a svg.ico.i-in { width: 0.9em; height: 0.9em; margin-inline-end: 0.1em; vertical-align: -0.1em; }
+.announce svg.ico.i-in { color: var(--accent); }
+
 /* ============================ Bớt chuyển động khi người dùng chọn "giảm chuyển động" trong máy */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after, ::backdrop { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }

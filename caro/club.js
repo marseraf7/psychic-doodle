@@ -6,7 +6,7 @@
   'use strict';
   const K = window.CaroTourKit;
   if (!K) return;
-  const { O, T, esc, $, D, V, me, logo, tourItem, setTitle, needLogin, isOpen, open, top, back, render, share, shareLink } = K;
+  const { O, T, esc, $, D, V, me, logo, tourItem, setTitle, needLogin, isOpen, open, top, back, render, share, shareLink, icon } = K;
 
   function clubItem(c) {
     const tags = [];
@@ -19,7 +19,7 @@
   }
   function pageClubs() {
     setTitle('clubs_title');
-    let html = `<div class="row"><button type="button" class="primary" data-act="clubNew" ${me() ? '' : 'disabled'}>＋ ${esc(T('club_create'))}</button>
+    let html = `<div class="row"><button type="button" class="primary" data-act="clubNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('club_create'))}</button>
       <input id="club-q" placeholder="${esc(T('club_search'))}" maxlength="40" value="${esc(D.clubQ || '')}"></div>`;
     if (!me()) html += needLogin();
     if (!D.clubs) return html + `<p class="hint">…</p>`;
@@ -35,7 +35,7 @@
     let html = `<div class="chead">${logo(c.name)}<div class="pn"><b>${esc(c.name)}</b><small>${esc(T('members_n', { n: c.count }))} · ${esc(T('join_' + c.join))} · ${esc(T('club_owner_name', { name: c.owner }))}</small></div></div>`;
     if (c.status === 'pending') html += `<p class="note">${esc(T('club_pending_note'))}</p>`;
     if (c.status === 'rejected') html += `<p class="note bad">${esc(T('club_rejected_note'))}${c.reviewNote ? ': ' + esc(c.reviewNote) : ''}</p>`;
-    if (c.announcement) html += `<p class="announce">📌 ${esc(c.announcement)}</p>`;
+    if (c.announcement) html += `<p class="announce">${icon('pin')}${esc(c.announcement)}</p>`;
     if (c.desc) html += `<p class="tdesc">${esc(c.desc)}</p>`;
     const b = [];
     if (me() && c.status === 'approved' && !c.role) {
@@ -44,12 +44,12 @@
         : `<button type="button" class="primary" data-act="clubJoin">${esc(T(c.join === 'request' ? 'club_request' : 'club_join'))}</button>`);
     }
     if (c.role && c.role !== 'owner') b.push(`<button type="button" class="ghost" data-act="clubLeave">${esc(T('club_leave'))}</button>`);
-    if (c.officer && c.status === 'approved') b.push(`<button type="button" class="ghost" data-act="tourNewClub">🏆 ${esc(T('club_new_tour'))}</button>`);
-    b.push(`<button type="button" class="ghost" data-act="clubShare">🔗 ${esc(T('share'))}</button>`);
+    if (c.officer && c.status === 'approved') b.push(`<button type="button" class="ghost" data-act="tourNewClub">${icon('trophy')}${esc(T('club_new_tour'))}</button>`);
+    b.push(`<button type="button" class="ghost" data-act="clubShare">${icon('link')}${esc(T('share'))}</button>`);
     if (!me()) b.push(`<span class="hint">${esc(T('tour_login_hint'))}</span>`);
     html += `<div class="row tactions">${b.join('')}</div>`;
     if (c.officer) {
-      html += `<details class="card" id="club-manage" ${D.manageOpen ? 'open' : ''}><summary>⚙ ${esc(T('club_manage'))}</summary>
+      html += `<details class="card" id="club-manage" ${D.manageOpen ? 'open' : ''}><summary>${icon('gear')}${esc(T('club_manage'))}</summary>
         <form id="club-edit" class="tform">
           <label class="field"><span>${esc(T('club_announcement'))}</span><input name="announcement" maxlength="300" value="${esc(c.announcement)}"></label>
           <label class="field"><span>${esc(T('club_desc'))}</span><textarea name="desc" maxlength="500" rows="3">${esc(c.desc)}</textarea></label>

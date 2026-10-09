@@ -6,7 +6,7 @@
   'use strict';
   const K = window.CaroTourKit;
   if (!K) return;
-  const { O, T, esc, $, D, V, secs, me, setTitle, needLogin, open } = K;
+  const { O, T, esc, $, D, V, secs, me, setTitle, needLogin, open, icon } = K;
   const { stageName, advText } = K;
 
   // Mẫu có sẵn; chọn xong vẫn sửa tự do từng giai đoạn (đổi gì cũng thành "Tuỳ chỉnh")
@@ -30,7 +30,7 @@
     swiss_single: () => [{ ...STAGE_DEFAULT.swiss(), advance: 8 }, { ...STAGE_DEFAULT.single(), thirdPlace: false }],
     custom: null,
   };
-  const presetLabel = (k) => (k === 'arena' ? '⚔️ ' : k === 'custom' ? '🛠 ' : '🏆 ') + T('fmt_' + k);
+  const presetLabel = (k) => T('fmt_' + k); // <option> chỉ hiện được chữ
   const F = { preset: 'arena', stages: null };
   const MAX_STAGES = 3;
   /** Trình sửa các giai đoạn (vẽ riêng để không mất các ô khác của form). */
@@ -58,14 +58,14 @@
         f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
       }
       if (!last) f.push(field(T(c.type === 'roundrobin' ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
-      const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">✕</button>` : '';
+      const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div></div>`;
     });
     const arrows = [];
     st.forEach((c, i) => { arrows.push(stageName(c)); if (i < st.length - 1) arrows.push(advText(c)); });
     return `<p class="flow">${arrows.map((x, i) => (i % 2 ? `<span class="muted">→ ${esc(x)} →</span>` : `<b>${esc(x)}</b>`)).join(' ')}</p>
       ${cards.join('<div class="sc-arrow">↓</div>')}
-      ${st.length < MAX_STAGES ? `<button type="button" class="ghost sm" data-sact="add">＋ ${esc(T('stage_add'))}</button>` : ''}`;
+      ${st.length < MAX_STAGES ? `<button type="button" class="ghost sm" data-sact="add">${icon('plus')}${esc(T('stage_add'))}</button>` : ''}`;
   }
   function pageTourNew() {
     setTitle('tour_create');

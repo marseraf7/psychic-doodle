@@ -95,8 +95,8 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   await play(C, A); await play(B, Dd);
   await sleep(800);
   await shot(boss, 't10-podium-vi.png');
-  const txt = await boss.textContent('#tour-body');
-  ok(txt.includes('🥇') && txt.includes('chen_zh'), 'Bục trao giải: vô địch chen_zh');
+  const champ = await boss.textContent('#tour-body .podium .p1').catch(() => '');
+  ok(champ.includes('chen_zh') && await boss.isVisible('#tour-body .podium .p1 svg.ico.m1'), 'Bục trao giải: vô địch chen_zh (huy chương vàng)');
   // Trang CLB trên màn hẹp (đã sửa số thành viên / danh sách)
   await A.evaluate(() => { document.getElementById('banner').hidden = true; });
   await A.click('#btn-leave').catch(() => {}); await sleep(300);

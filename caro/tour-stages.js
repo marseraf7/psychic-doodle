@@ -7,7 +7,7 @@
   'use strict';
   const K = window.CaroTourKit;
   if (!K) return;
-  const { T, esc, D, me } = K;
+  const { T, esc, D, me, icon } = K;
 
   /** Tên ngắn của một giai đoạn: "Vòng tròn (4 bảng)", "Thụy Sĩ (5 vòng)"… */
   function stageName(c) {
@@ -29,7 +29,7 @@
     return T('r_round', { n: r + 1 });
   }
   const uidMe = () => me() && me().uid;
-  const replays = (m) => m.games.map((g, i) => `<a href="#" data-act="replay" data-share="${esc(g)}">▶${i + 1}</a>`);
+  const replays = (m) => m.games.map((g, i) => `<a href="#" data-act="replay" data-share="${esc(g)}">${icon('play')}${i + 1}</a>`);
   function matchBox(m) {
     const row = (p, w, isWin) => p && p.uid
       ? `<div class="b-p ${isWin ? 'win' : ''} ${p.uid === uidMe() ? 'me' : ''}"><span class="seed">${p.seed || ''}</span><span class="nm">${esc(p.name)}</span><b>${m.bye ? '' : w}</b></div>`
@@ -103,7 +103,7 @@
         const name = esc(T('group_name', { name: g.name }));
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
-        return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? ' ★' : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);
+        return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? icon('star', 'star') : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);
       }).join('') + `<p class="hint">${esc(T('tb_note_rr'))}</p>`;
     }
     // Thụy Sĩ: vòng mới nhất lên đầu
@@ -128,7 +128,7 @@
       const info = [stageName(c), 'Bo' + c.bestOf, advText(c)].filter(Boolean).join(' · ');
       const body = v ? stageBody(t, v) : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>`;
       if (!multi) return `<h4>${esc(info)}</h4>${body}`;
-      const title = `<b>${esc(T('stage_n', { n: i + 1 }))}</b> <span class="muted">${esc(info)}</span>${v && v.done ? ' ✔' : ''}`;
+      const title = `<b>${esc(T('stage_n', { n: i + 1 }))}</b> <span class="muted">${esc(info)}</span>${v && v.done ? icon('check', 'ok') : ''}`;
       const current = t.status === 'finished' ? i === cfgs.length - 1 : i === (t.stage || 0);
       return fold(t.id + ':s' + i, title, body, current);
     }).join('');

@@ -513,7 +513,8 @@
   function fillRoomInfo() {
     const r = S.room;
     if (!r) return;
-    $('room-title').textContent = r.tour ? '🏆 ' + r.tour.name : r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title');
+    $('room-title').innerHTML = r.tour ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-trophy"/></svg>' + esc(r.tour.name)
+      : esc(r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title'));
     // Phòng của giải đấu: không có mã / mật khẩu / link mời
     document.querySelector('#room-info .codes').hidden = !!r.tour;
     $('ri-time').textContent = '⏱ ' + (r.timeLimit ? secs(r.timeLimit) : T('time_off'));

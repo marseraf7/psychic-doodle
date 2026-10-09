@@ -40,7 +40,12 @@
     for (const ch of String(name)) h = (h * 31 + ch.codePointAt(0)) % 360;
     return `<span class="club-logo" style="background:hsl(${h} 55% 45%)">${esc((String(name).trim()[0] || '?').toUpperCase())}</span>`;
   };
-  const fmtIcon = (f) => (f === 'arena' ? '⚔️' : '🏆');
+  /** Biểu tượng SVG (index.html, #i-…) đặt cạnh chữ. */
+  const icon = (name, cls = '') => `<svg class="ico i-in ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  const fmtIcon = (f) => icon(f === 'arena' ? 'swords' : 'trophy');
+  const CLOCK = '\u0001'; // chỗ đặt biểu tượng đồng hồ trong tourMeta (chuỗi chữ thường, thay khi chuyển sang HTML)
+  /** tourMeta đã escape, kèm biểu tượng đồng hồ. */
+  const metaHtml = (t) => esc(tourMeta(t)).replace(CLOCK, icon('clock'));
   function tourMeta(t) {
     const parts = [];
     if (t.format === 'arena') parts.push(T('fmt_arena'), T('minutes_n', { n: t.minutes }));
@@ -49,7 +54,7 @@
       parts.push(st.map(K.stageName).join(' → '));
       if (st.length === 1) parts.push('Bo' + st[0].bestOf);
     }
-    parts.push('⏱ ' + secs(t.timeLimit));
+    parts.push(CLOCK + secs(t.timeLimit));
     if (!t.rated) parts.push(T('unrated_short'));
     parts.push(T('players_n', { n: t.count, max: t.maxPlayers }));
     return parts.join(' · ');
@@ -125,7 +130,10 @@
     bind(body);
     if (!ticker) ticker = setInterval(tick, 1000);
   }
-  function setTitle(key, text) { $('tour-title').textContent = text != null ? text : T(key); }
+  /** Tiêu đề hộp thoại; iconName: biểu tượng đặt trước (tuỳ chọn). */
+  function setTitle(key, text, iconName) {
+    $('tour-title').innerHTML = (iconName ? icon(iconName) : '') + esc(text != null ? text : T(key));
+  }
   function tick() {
     document.querySelectorAll('#tour-body .cd').forEach((el) => {
       el.textContent = T(el.dataset.prefix, { t: left(Number(el.dataset.at) - serverNow()) });
@@ -137,7 +145,7 @@
   function pageTours() {
     setTitle('tours_title');
     const list = D.tours;
-    let html = `<div class="row"><button type="button" class="primary" data-act="tourNew" ${me() ? '' : 'disabled'}>＋ ${esc(T('tour_create'))}</button></div>`;
+    let html = `<div class="row"><button type="button" class="primary" data-act="tourNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('tour_create'))}</button></div>`;
     if (!me()) html += needLogin();
     if (!list) return html + `<p class="hint">…</p>`;
     const groups = [['running', 'tg_running'], ['scheduled', 'tg_scheduled'], ['pending', 'tg_pending'], ['done', 'tg_done']];
@@ -155,7 +163,7 @@
     if (t.club) tags.push(`<span class="pill club">${esc(t.club.name)}</span>`);
     return `<li><button type="button" class="titem" data-act="tour" data-id="${esc(t.id)}">
       <span class="ticon">${fmtIcon(t.format)}</span>
-      <span class="pn"><b>${esc(t.name)}</b><small>${esc(tourMeta(t))}</small><small>${timeLine(t)}${t.winner ? ' · 🥇 ' + esc(t.winner) : ''}</small></span>
+      <span class="pn"><b>${esc(t.name)}</b><small>${metaHtml(t)}</small><small>${timeLine(t)}${t.winner ? ' · ' + icon('medal', 'm1') + esc(t.winner) : ''}</small></span>
       <span class="tags">${tags.join('')}</span></button></li>`;
   }
 
@@ -163,8 +171,8 @@
   function pageTour() {
     const t = D.tour;
     if (!t) { setTitle('tours_title'); return `<p class="hint">…</p>`; }
-    setTitle(null, `${fmtIcon(t.format)} ${t.name}`);
-    let html = `<div class="thead">${statusTag(t)} <span class="muted">${esc(tourMeta(t))}</span></div>
+    setTitle(null, t.name, t.format === 'arena' ? 'swords' : 'trophy');
+    let html = `<div class="thead">${statusTag(t)} <span class="muted">${metaHtml(t)}</span></div>
       <p class="muted">${timeLine(t)}${t.club ? ` · <a href="#" data-act="club" data-id="${esc(t.club.id)}">${esc(t.club.name)}</a>` : ''} · ${esc(T('organizer', { name: t.creator }))}</p>`;
     if (t.desc) html += `<p class="tdesc">${esc(t.desc)}</p>`;
     if (t.status === 'pending') html += `<p class="note">${esc(T('tour_pending_note'))}</p>`;
@@ -176,7 +184,7 @@
     html += `<div class="row tactions">${actions(t)}</div>`;
     html += myCard(t);
     if (t.podium && t.podium.length && t.status === 'finished') {
-      html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${['🥇', '🥈', '🥉'][i]}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
+      html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
     if (t.format === 'bracket') html += (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
     html += t.format === 'arena' ? standings(t) : playerList(t);
@@ -187,14 +195,14 @@
     const b = [];
     const mine = t.joined;
     if (t.canJoin) b.push(`<button type="button" class="primary" data-act="join">${esc(T('tour_join'))}</button>`);
-    if (mine && t.status === 'scheduled' && t.checkin && t.me && !t.me.checkedIn) b.push(`<button type="button" class="primary" data-act="checkin">✔ ${esc(T('tour_checkin'))}</button>`);
-    if (mine && t.status === 'scheduled' && t.me && t.me.checkedIn && t.checkin) b.push(`<span class="pill mine">✔ ${esc(T('checked_in'))}</span>`);
+    if (mine && t.status === 'scheduled' && t.checkin && t.me && !t.me.checkedIn) b.push(`<button type="button" class="primary" data-act="checkin">${icon('check')}${esc(T('tour_checkin'))}</button>`);
+    if (mine && t.status === 'scheduled' && t.me && t.me.checkedIn && t.checkin) b.push(`<span class="pill mine">${icon('check')}${esc(T('checked_in'))}</span>`);
     if (mine && t.format === 'arena' && t.status === 'running') {
       b.push(`<button type="button" class="ghost" data-act="pause" data-v="${t.me && t.me.paused ? 0 : 1}">${esc(T(t.me && t.me.paused ? 'tour_resume' : 'tour_pause'))}</button>`);
     }
     if (mine && (t.status === 'scheduled' || t.status === 'running')) b.push(`<button type="button" class="ghost" data-act="leave">${esc(T('tour_withdraw'))}</button>`);
-    if (t.status !== 'pending' && t.status !== 'rejected') b.push(`<button type="button" class="ghost" data-act="share">🔗 ${esc(T('share'))}</button>`);
-    if (t.canManage && t.status === 'scheduled') b.push(`<button type="button" class="ghost" data-act="start">▶ ${esc(T('tour_start_now'))}</button>`);
+    if (t.status !== 'pending' && t.status !== 'rejected') b.push(`<button type="button" class="ghost" data-act="share">${icon('link')}${esc(T('share'))}</button>`);
+    if (t.canManage && t.status === 'scheduled') b.push(`<button type="button" class="ghost" data-act="start">${icon('play')}${esc(T('tour_start_now'))}</button>`);
     if (t.canManage && ['pending', 'scheduled', 'running'].includes(t.status)) b.push(`<button type="button" class="ghost danger" data-act="cancel">${esc(T('tour_cancel'))}</button>`);
     if (!me() && (t.status === 'scheduled' || t.status === 'running')) b.push(`<span class="hint">${esc(T('tour_login_hint'))}</span>`);
     return b.join('');
@@ -204,7 +212,7 @@
     if (!t.joined || t.status !== 'running' || !t.me) return '';
     const r = S.room;
     if (r && r.tour && r.tour.id === t.id && !r.winner) {
-      return `<div class="mycard live"><b>⚔ ${esc(T('tour_playing'))}</b><button type="button" class="primary sm" data-act="toGame">${esc(T('tour_to_game'))}</button></div>`;
+      return `<div class="mycard live"><b>${icon('swords')}${esc(T('tour_playing'))}</b><button type="button" class="primary sm" data-act="toGame">${esc(T('tour_to_game'))}</button></div>`;
     }
     if (t.format === 'arena') {
       return `<div class="mycard"><span class="spinner" aria-hidden="true"></span><b>${esc(T(t.me.paused ? 'tour_paused_note' : 'tour_waiting_pair'))}</b></div>`;
@@ -217,15 +225,15 @@
   const dot = (p) => `<span class="st ${p.playing ? 'playing' : p.online ? 'online' : 'offline'}" title="${esc(T(p.playing ? 'st_playing' : p.online ? 'st_online' : 'st_offline'))}"></span>`;
   function kick(t, p) {
     return t.canManage && !p.withdrawn && (t.status === 'scheduled' || t.status === 'running') && p.uid !== (me() && me().uid)
-      ? `<button type="button" class="ghost sm icon" data-act="kick" data-uid="${esc(p.uid)}" data-name="${esc(p.name)}" title="${esc(T('tour_kick'))}">✕</button>` : '';
+      ? `<button type="button" class="ghost sm icon" data-act="kick" data-uid="${esc(p.uid)}" data-name="${esc(p.name)}" title="${esc(T('tour_kick'))}" aria-label="${esc(T('tour_kick'))}">${icon('close')}</button>` : '';
   }
   function standings(t) {
     if (!t.players.length) return `<p class="hint">${esc(T('tour_no_players'))}</p>`;
     return `<h4>${esc(T('standings'))}</h4><ol class="ranks tstand">${t.players.map((p, i) => `
       <li class="${me() && p.uid === me().uid ? 'me' : ''}"><span class="rank">${i + 1}</span>${dot(p)}
-        <div class="pn"><b>${esc(p.name)}${p.fire ? ' 🔥' : ''}${p.paused ? ' ⏸' : ''}${p.withdrawn ? ' ✕' : ''}</b><small>${esc(T('wdl', { w: p.wins, d: p.draws, l: p.losses }))} · ${esc(String(p.rating))}</small></div>
+        <div class="pn"><b>${esc(p.name)}${p.fire ? icon('fire', 'fire') : ''}${p.paused ? icon('pause', 'muted') : ''}${p.withdrawn ? icon('close', 'muted') : ''}</b><small>${esc(T('wdl', { w: p.wins, d: p.draws, l: p.losses }))} · ${esc(String(p.rating))}</small></div>
         <span class="pts">${p.score}</span>${kick(t, p)}</li>`).join('')}</ol>
-      <p class="hint">${esc(T('arena_rules'))}</p>`;
+      <p class="hint">${esc(T('arena_rules')).replace('🔥', icon('fire', 'fire'))}</p>`;
   }
   function playerList(t) {
     if (!t.players.length) return `<p class="hint">${esc(T('tour_no_players'))}</p>`;
@@ -238,7 +246,7 @@
     return `<h4>${esc(T('recent_games'))}</h4><ul class="people tgames">${t.games.slice(0, 15).map((g) => {
       const x = g.x ? g.x.name : '?', o = g.o ? g.o.name : '?';
       const res = !g.w ? '½–½' : g.x && g.w === g.x.uid ? '1–0' : '0–1';
-      return `<li><div class="pn"><b>${esc(x)} <span class="muted">${res}</span> ${esc(o)}</b><small>+${g.px} / +${g.po}</small></div>${g.share ? `<a href="#" data-act="replay" data-share="${esc(g.share)}">▶</a>` : ''}</li>`;
+      return `<li><div class="pn"><b>${esc(x)} <span class="muted">${res}</span> ${esc(o)}</b><small>+${g.px} / +${g.po}</small></div>${g.share ? `<a href="#" data-act="replay" data-share="${esc(g.share)}" aria-label="${esc(T('replay'))}">${icon('play')}</a>` : ''}</li>`;
     }).join('')}</ul>`;
   }
   // ---- Duyệt (quản trị viên)
@@ -251,7 +259,7 @@
       <div class="row"><button type="button" class="ghost sm danger" data-act="review" data-kind="${kind}" data-id="${esc(x.id)}" data-v="0">${esc(T('reject'))}</button>
       <button type="button" class="primary sm" data-act="review" data-kind="${kind}" data-id="${esc(x.id)}" data-v="1">${esc(T('approve'))}</button></div></li>`;
     let html = '';
-    if (q.tours.length) html += `<h4>${esc(T('tours_title'))}</h4><ul class="tlist">${q.tours.map((t) => item('tour', t, `<small>${fmtIcon(t.format)} ${esc(tourMeta(t))}</small><small>${esc(when(t.startsAt))}${t.club ? ' · ' + esc(t.club.name) : ''} · ${esc(T('acc_' + t.access))}</small>`)).join('')}</ul>`;
+    if (q.tours.length) html += `<h4>${esc(T('tours_title'))}</h4><ul class="tlist">${q.tours.map((t) => item('tour', t, `<small>${fmtIcon(t.format)} ${metaHtml(t)}</small><small>${esc(when(t.startsAt))}${t.club ? ' · ' + esc(t.club.name) : ''} · ${esc(T('acc_' + t.access))}</small>`)).join('')}</ul>`;
     if (q.clubs.length) html += `<h4>${esc(T('clubs_title'))}</h4><ul class="tlist">${q.clubs.map((c) => item('club', c, `<small>${esc(T('join_' + c.join))}</small>`)).join('')}</ul>`;
     return html;
   }
@@ -369,7 +377,7 @@
   K.pages.tour = pageTour;
   K.pages.admin = pageAdmin;
   Object.assign(K, {
-    O, T, esc, $, S, D, V, secs, me, when, logo, tourItem, setTitle, needLogin, isOpen,
+    O, T, esc, $, S, D, V, secs, me, when, logo, tourItem, setTitle, needLogin, isOpen, icon,
     open, top, back, render, share, shareLink,
   });
 
