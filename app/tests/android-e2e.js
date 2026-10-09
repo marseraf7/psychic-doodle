@@ -159,7 +159,6 @@ async function screenRect(app, sel) {
 
   // Bàn phím: mở hộp chat, chạm vào ô nhập → bàn phím hiện, ô nhập phải nằm trên bàn phím
   {
-    const cdpK = await app.context().newCDPSession(app);
     // Ghi lại mọi lần mất focus (kèm nơi gọi) để biết do mã JS hay do WebView mất focus
     await app.evaluate(() => {
       window.__blur = [];
@@ -180,10 +179,15 @@ async function screenRect(app, sel) {
       const r = document.querySelector('#chat-form input').getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
-    await cdpK.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [inBox] });
-    await sleep(60);
-    await cdpK.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    const ime = await until(() => systemBars().ime, 8000, 400);
+    // Chạm thật của Android (adb input tap) vào giữa ô nhập: chạm giả lập qua DevTools đôi khi không
+    // mở được bàn phím trên Android 15 (WebView bỏ qua hoặc chỉ làm mất focus), người dùng thật thì không gặp
+    {
+      const wv = webViewBounds();
+      const dpr = await app.evaluate(() => window.devicePixelRatio);
+      adb('shell', 'input', 'tap', String(Math.round(wv.l + inBox.x * dpr)), String(Math.round(wv.t + inBox.y * dpr)));
+    }
+    // Bàn phím thật sự đang hiện (mInputShown=true) – khung "ime" trong dumpsys window có thể là số liệu cũ
+    const ime = await until(() => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')) && systemBars().ime, 8000, 400);
     // Chẩn đoán: phần tử dưới điểm chạm, phần tử đang focus, Android có đang hiện bàn phím không
     const diag = await app.evaluate((p) => {
       const e = document.elementFromPoint(p.x, p.y), a = document.activeElement;
