@@ -1,0 +1,28 @@
+/*
+ * Trung tâm xử lý tin nhắn realtime, chia theo chủ đề:
+ *   core.js        – trạng thái chung, kết nối, phiên, giới hạn tần suất, dọn dẹp
+ *   auth.js        – tài khoản, mật khẩu, email, xoá tài khoản
+ *   social.js      – bạn bè, xếp hạng, lịch sử, chặn/báo cáo, tin nhắn
+ *   rooms.js       – phòng chơi, ván đấu, thách đấu, Elo, xin hoà
+ *   matchmaking.js – tìm trận nhanh và phòng công khai
+ * Mỗi phần là một lớp chỉ chứa phương thức; ở đây gộp tất cả vào Hub.prototype.
+ * Tin nhắn loại X do phương thức on_X xử lý. Không phụ thuộc thư viện WebSocket:
+ * mỗi kết nối chỉ cần có conn.send(obj) và conn.ip.
+ */
+'use strict';
+const { Hub } = require('./core.js');
+const { Auth } = require('./auth.js');
+const { Social } = require('./social.js');
+const { Rooms } = require('./rooms.js');
+const { Matchmaking } = require('./matchmaking.js');
+const { compareVersions, verifyGoogleToken } = require('./shared.js');
+
+for (const part of [Auth, Social, Rooms, Matchmaking]) {
+  for (const name of Object.getOwnPropertyNames(part.prototype)) {
+    if (name === 'constructor') continue;
+    if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);
+    Object.defineProperty(Hub.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
+  }
+}
+
+module.exports = { Hub, verifyGoogleToken, compareVersions };

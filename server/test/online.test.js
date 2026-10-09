@@ -20,7 +20,7 @@ test.before(async () => {
     },
     sendMail: async (to, subject, text) => { mails.push({ to, subject, text }); },
     msgRate: 2000, // test đánh rất nhanh; phần chặn spam vẫn kiểm tra bằng tin gửi dồn
-    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500, SECOND_MS: 20, DRAW_COOLDOWN_MS: 300 }, // 1 "giây" = 20ms
+    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500, SECOND_MS: 20, DRAW_COOLDOWN_MS: 300, MATCH_TICK_MS: 50, LOBBY_DEBOUNCE_MS: 30 }, // 1 "giây" = 20ms
   });
   await new Promise((r) => app.server.on('listening', r));
   url = `ws://127.0.0.1:${app.server.address().port}/ws`;
@@ -788,4 +788,139 @@ test('app điện thoại quá cũ được yêu cầu cập nhật; web và app
   } finally {
     app.hub.minAppVersion = '';
   }
+});
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('tìm trận nhanh: hợp thời gian mới ghép, chọn Elo gần nhất, không ghép người đã chặn nhau', async () => {
+  const a = await Client.open({ guestName: 'Nhanh A' });
+  const b = await Client.open({ guestName: 'Nhanh B' });
+  const q = await a.req({ t: 'quickMatch', timeLimit: 10 }, 'queue');
+  assert.strictEqual(q.state, 'searching');
+  assert.strictEqual(q.timeLimit, 10);
+  await b.req({ t: 'quickMatch', timeLimit: 20 }, 'queue', (m) => m.state === 'searching');
+  await sleep(150);
+  assert.ok(!a.room && !b.room, 'khác thời gian mỗi nước: không ghép');
+  await b.req({ t: 'quickCancel' }, 'queue', (m) => m.state === 'idle');
+  assert.ok(!app.hub.queue.has(b.me.id));
+
+  // "Sao cũng được" ghép với người chọn 10 giây -> phòng 10 giây, đi trước ngẫu nhiên
+  const c = await Client.open({ guestName: 'Nhanh C' });
+  const found = a.wait('toast', (m) => m.code === 'match_found');
+  const room = a.wait('room', (m) => m.room && m.room.players.length === 2);
+  c.send({ t: 'quickMatch', timeLimit: 'any' });
+  assert.strictEqual((await found).args.name, 'Nhanh C');
+  const r = (await room).room;
+  assert.ok(r.quick && !r.public);
+  assert.strictEqual(r.timeLimit, 10);
+  assert.deepStrictEqual(new Set([r.seats.x, r.seats.o]), new Set([a.me.id, c.me.id]));
+  await c.wait('room', (m) => m.room && m.room.players.length === 2);
+  assert.strictEqual(app.hub.queue.size, 0);
+
+  [a, c].forEach((x) => x.close()); // (phòng 10 "giây" = 200ms trong test: hết giờ rất nhanh)
+
+  // Đang trong ván thì không tìm trận được; vào phòng khác / mất kết nối thì ra khỏi hàng chờ
+  const d = await Client.open(), e = await Client.open();
+  await d.req({ t: 'quickMatch' }, 'queue');
+  await e.req({ t: 'quickMatch' }, 'room', (m) => m.room && m.room.players.length === 2);
+  assert.strictEqual(e.room.timeLimit, 0, 'cả hai "sao cũng được": không giới hạn thời gian');
+  const busy = await d.req({ t: 'quickMatch' }, 'error');
+  assert.strictEqual(busy.code, 'busy_in_game');
+  [d, e].forEach((x) => x.close());
+  await b.req({ t: 'quickMatch' }, 'queue', (m) => m.state === 'searching');
+  await b.req({ t: 'createRoom' }, 'queue', (m) => m.state === 'idle');
+  b.send({ t: 'leaveRoom' });
+  await b.req({ t: 'quickMatch' }, 'queue', (m) => m.state === 'searching');
+  b.close();
+  await sleep(50);
+  assert.strictEqual(app.hub.queue.size, 0, 'mất kết nối: bỏ khỏi hàng chờ');
+
+  // Elo: người 1500 được ghép với 1520 chứ không với 2400
+  const p = await account('qm_p'), hi = await account('qm_hi'), near = await account('qm_near');
+  app.hub.store.users.get(p.me.uid).rating = 1500;
+  app.hub.store.users.get(hi.me.uid).rating = 2400;
+  app.hub.store.users.get(near.me.uid).rating = 1520;
+  await p.req({ t: 'quickMatch' }, 'queue');
+  await hi.req({ t: 'quickMatch' }, 'queue');
+  const pr = p.wait('room', (m) => m.room && m.room.players.length === 2);
+  near.send({ t: 'quickMatch' });
+  const pair = (await pr).room;
+  assert.deepStrictEqual(new Set(pair.players.map((x) => x.id)), new Set([p.me.id, near.me.id]));
+  assert.ok(app.hub.queue.has(hi.me.id), 'người Elo xa vẫn chờ');
+  // Chờ lâu thì khoảng chênh được nới ra: 2400 ghép được với người 1200
+  const g = await Client.open();
+  const hr = hi.wait('room', (m) => m.room && m.room.players.length === 2, 3000);
+  g.send({ t: 'quickMatch' });
+  assert.ok((await hr).room.quick);
+  // Đang chờ trận mới mà cùng đối thủ cũ tái đấu: thôi tìm trận
+  await p.req({ t: 'resign' }, 'room', (m) => !!m.room.winner);
+  await p.req({ t: 'quickMatch' }, 'queue', (m) => m.state === 'searching');
+  await near.req({ t: 'rematch' }, 'room');
+  const idle = p.wait('queue', (m) => m.state === 'idle');
+  await p.req({ t: 'rematch' }, 'room', (m) => m.room.gameNo === 2);
+  await idle;
+
+  // Đã chặn nhau thì không bao giờ ghép
+  const x = await account('qm_x'), y = await account('qm_y');
+  await x.req({ t: 'block', id: y.me.uid }, 'me', (m) => m.me.blocked.length === 1);
+  await x.req({ t: 'quickMatch' }, 'queue');
+  await y.req({ t: 'quickMatch' }, 'queue');
+  await sleep(300);
+  assert.ok(!x.room && !y.room);
+  await y.req({ t: 'logout' }, 'loggedOut');
+  assert.ok(!app.hub.queue.has(y.me.id), 'đăng xuất: bỏ khỏi hàng chờ');
+  await x.req({ t: 'quickCancel' }, 'queue', (m) => m.state === 'idle');
+  [p, hi, near, g, x, y].forEach((k) => k.close());
+});
+
+test('phòng công khai: hiện trong sảnh, vào không cần mật khẩu, đầy / chủ phòng offline thì ẩn', async () => {
+  const w = await Client.open({ guestName: 'Xem sảnh' });
+  const first = await w.req({ t: 'lobbyWatch', on: true }, 'lobby');
+  assert.deepStrictEqual(first.rooms, []);
+  const h = await Client.open({ guestName: 'Chủ phòng' });
+  const listed = w.wait('lobby', (m) => m.rooms.length === 1);
+  await h.req({ t: 'createRoom', timeLimit: 20, public: true }, 'room');
+  assert.ok(h.room.public);
+  const entry = (await listed).rooms[0];
+  assert.strictEqual(entry.code, h.room.code);
+  assert.strictEqual(entry.timeLimit, 20);
+  assert.strictEqual(entry.host.name, 'Chủ phòng');
+  assert.strictEqual(entry.password, undefined, 'sảnh không lộ mật khẩu');
+  assert.deepStrictEqual((await h.req({ t: 'lobby' }, 'lobby')).rooms, [], 'không thấy phòng của chính mình');
+
+  // Phòng riêng không hiện trong sảnh
+  const priv = await Client.open();
+  await priv.req({ t: 'createRoom' }, 'room');
+  await sleep(80);
+  assert.strictEqual(w.msgs.filter((m) => m.t === 'lobby').pop().rooms.length, 1);
+
+  // Vào không cần mật khẩu -> đầy -> biến khỏi sảnh; đối thủ rời -> hiện lại
+  const j = await Client.open({ guestName: 'Khách vào' });
+  const gone = w.wait('lobby', (m) => m.rooms.length === 0);
+  await j.req({ t: 'joinRoom', code: entry.code }, 'room', (m) => m.room.players.length === 2);
+  await gone;
+  const back = w.wait('lobby', (m) => m.rooms.length === 1);
+  j.send({ t: 'leaveRoom' });
+  await back;
+
+  // Chủ phòng chặn người xem: người đó không thấy phòng và không vào được
+  const ha = await account('lob_host'), va = await account('lob_view');
+  await ha.req({ t: 'block', id: va.me.uid }, 'me', (m) => m.me.blocked.length === 1);
+  await ha.req({ t: 'createRoom', public: true }, 'room');
+  const seen = (await va.req({ t: 'lobby' }, 'lobby')).rooms.map((r) => r.code);
+  assert.ok(seen.includes(entry.code) && !seen.includes(ha.room.code));
+  const blk = await va.req({ t: 'joinRoom', code: ha.room.code }, 'error');
+  assert.strictEqual(blk.code, 'blocked');
+
+  // Chủ phòng mất kết nối -> ẩn; tắt xem sảnh thì không nhận nữa
+  const hidden = w.wait('lobby', (m) => !m.rooms.some((r) => r.code === entry.code));
+  h.close();
+  await hidden;
+  w.send({ t: 'lobbyWatch', on: false });
+  await sleep(30);
+  const n = w.msgs.length;
+  ha.send({ t: 'leaveRoom' });
+  await sleep(120);
+  assert.strictEqual(w.msgs.filter((m) => m.t === 'lobby').length, w.msgs.slice(0, n).filter((m) => m.t === 'lobby').length);
+  [w, priv, j, ha, va].forEach((k) => k.close());
 });

@@ -31,6 +31,7 @@ const VI = {
   friend_accepted: '{name} đã đồng ý kết bạn',
   left_room: '{name} đã rời phòng',
   joined_room: '{name} đã vào phòng',
+  match_found: 'Đã tìm được đối thủ: {name}',
   room_not_found: 'Không tìm thấy phòng {code}',
   wrong_room_password: 'Sai mật khẩu phòng',
   room_full: 'Phòng đã đủ 2 người',

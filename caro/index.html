@@ -65,6 +65,7 @@
         <button id="banner-leave" type="button" class="ghost online-only" data-i18n="btn_leave"></button>
         <button id="banner-new" type="button" class="primary local-only" data-i18n="btn_new"></button>
         <button id="banner-share" type="button" class="ghost online-only" data-i18n="share_game" hidden></button>
+        <button id="banner-quick" type="button" class="ghost online-only" data-i18n="qm_again" hidden></button>
         <button id="banner-rematch" type="button" class="primary online-only" data-i18n="rematch"></button>
       </div>
     </div>
@@ -203,6 +204,25 @@
       </div>
       <div class="dlg-invites" id="dlg-invites" hidden></div>
       <section class="card" id="account"></section>
+      <section class="card" id="quick-card">
+        <h3 data-i18n="quick_title"></h3>
+        <div class="seg" role="group" data-i18n-aria="time_limit">
+          <label><input type="radio" name="qm-time" value="-1" checked> <span data-i18n="qm_any"></span></label>
+          <label><input type="radio" name="qm-time" value="0"> <span data-i18n="time_off"></span></label>
+          <label><input type="radio" name="qm-time" value="10"> <span data-i18n-n="10"></span></label>
+          <label><input type="radio" name="qm-time" value="20"> <span data-i18n-n="20"></span></label>
+          <label><input type="radio" name="qm-time" value="30"> <span data-i18n-n="30"></span></label>
+        </div>
+        <div class="row" id="qm-idle">
+          <button type="button" class="primary" id="qm-start" data-i18n="qm_start"></button>
+        </div>
+        <div class="row qm-search" id="qm-search" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="qm-status" id="qm-status" role="status"></span>
+          <button type="button" class="ghost" id="qm-cancel" data-i18n="cancel"></button>
+        </div>
+        <p class="hint" data-i18n="qm_hint"></p>
+      </section>
       <section class="card">
         <h3 data-i18n="create_room"></h3>
         <div class="seg">
@@ -215,11 +235,16 @@
           <label><input type="radio" name="room-time" value="20"> <span data-i18n-n="20"></span></label>
           <label><input type="radio" name="room-time" value="30"> <span data-i18n-n="30"></span></label>
         </div>
+        <label class="check"><input type="checkbox" id="room-public"> <span data-i18n="room_public"></span></label>
         <div class="row">
           <button type="button" class="primary" id="create-room" data-i18n="create_room"></button>
           <button type="button" class="ghost" id="open-join" data-i18n="join_by_code"></button>
         </div>
         <p class="hint" data-i18n="room_hint"></p>
+      </section>
+      <section class="card" id="lobby-card">
+        <h3 data-i18n="lobby_title"></h3>
+        <ul class="people" id="lobby-list"></ul>
       </section>
       <section class="card" id="friends"></section>
     </div>
@@ -278,7 +303,7 @@
         <button type="button" class="primary" id="ri-copy" data-i18n="copy"></button>
       </div>
       <button type="button" class="ghost wide" id="ri-share" hidden data-i18n="share"></button>
-      <p class="hint" data-i18n="room_info_hint"></p>
+      <p class="hint" id="ri-hint"></p>
       <ul class="players" id="ri-players"></ul>
       <p class="hint" id="ri-h2h"></p>
     </div>
@@ -447,5 +472,6 @@
   <script src="app.js"></script>
   <script src="online.js"></script>
   <script src="social.js"></script>
+  <script src="match.js"></script>
 </body>
 </html>

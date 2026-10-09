@@ -6,6 +6,13 @@ chơi online qua WebSocket (`/ws`):
 - **Phòng chơi**: mã 6 số + mật khẩu 3 số, người tạo chọn đi trước/đi sau, gửi link mời
   (`https://…/?room=123456`) – người vào vẫn phải nhập mật khẩu. **Tái đấu** cần cả hai bấm,
   mỗi ván tái đấu tự đổi bên đi trước.
+- **Phòng công khai**: đánh dấu khi tạo phòng → phòng hiện trong mục "Phòng đang chờ" của mọi người
+  (cập nhật tức thì), vào không cần mật khẩu. Phòng đã đủ 2 người hoặc chủ phòng offline thì ẩn đi;
+  người đã chặn nhau không thấy phòng của nhau.
+- **Tìm trận nhanh**: chọn thời gian mỗi nước (hoặc "Bất kỳ") rồi bấm tìm; máy chủ ghép với người
+  đang tìm có Elo gần nhất (lệch tối đa 150 điểm, nới thêm 25 điểm mỗi giây chờ), ngẫu nhiên ai đi trước.
+  Không ghép người đã chặn nhau; khách tìm trận được nhưng ván không tính Elo. Mất kết nối, vào phòng khác
+  hoặc tái đấu với đối thủ cũ thì tự thôi tìm.
 - **Thách đấu bạn bè**: Bo1 / Bo3 / Bo5, ván đầu: mình đi trước / bạn đi trước / ngẫu nhiên;
   các ván sau tự đổi bên, ai thắng trước 1/2/3 ván thắng chung cuộc.
 - **Tài khoản**: đăng ký tên đăng nhập + mật khẩu (mã hoá scrypt), hoặc đăng nhập /
@@ -39,7 +46,14 @@ cd server
 npm install
 npm start            # mở http://localhost:8080
 npm test             # kiểm thử tự động (2 người chơi giả lập qua WebSocket)
+npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu dưới 90% dòng / 80% nhánh / 85% hàm)
 ```
+
+Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/room.js` (một phòng chơi),
+`src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
+`auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, xếp hạng, lịch sử, chặn, tin nhắn),
+`rooms.js` (phòng, ván đấu, thách đấu, Elo, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai).
+Tin nhắn loại `X` do phương thức `on_X` xử lý.
 
 Cần **Node.js 22.13 trở lên** (dùng SQLite có sẵn trong Node, không phải cài thêm CSDL).
 

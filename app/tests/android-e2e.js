@@ -244,6 +244,36 @@ async function screenRect(app, sel) {
   check('lịch sử web có ván với app', hist >= 1, 'số ván ' + hist);
 
   shot('rematch');
+
+  // Phòng công khai: web tạo phòng công khai, app thấy trong "Phòng đang chờ" và chạm "Vào" (không cần mật khẩu)
+  await web.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+  await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+  await until(() => app.evaluate(() => !window.CaroOnline.state.room));
+  await web.evaluate(() => window.CaroOnline.send({ t: 'createRoom', public: true }));
+  await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  check('app thấy phòng công khai của web', !!(await until(() => app.evaluate(() => !!document.querySelector('[data-lobby-join]')))));
+  await app.locator('#lobby-card').scrollIntoViewIfNeeded();
+  shot('lobby');
+  await app.click('[data-lobby-join]');
+  check('app vào phòng công khai không cần mật khẩu', !!(await until(() => app.evaluate(() => window.CaroOnline.state.room?.players.length === 2))));
+  await web.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+  await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+  await until(() => app.evaluate(() => !window.CaroOnline.state.room));
+
+  // Tìm trận nhanh: app bấm "Tìm trận", đóng bảng bằng Back (thẻ "đang tìm" nổi trên màn chơi), web tìm trận → được ghép
+  await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  await app.locator('#qm-start').scrollIntoViewIfNeeded();
+  await app.click('#qm-start');
+  check('app đang tìm trận', !!(await until(() => app.isVisible('#qm-search'))));
+  adb('shell', 'input', 'keyevent', '4');
+  check('Back đóng bảng, thẻ đang tìm hiện trên màn chơi', !!(await until(() => app.isVisible('.qm-float'))));
+  shot('searching');
+  await web.evaluate(() => window.CaroOnline.send({ t: 'quickMatch', timeLimit: -1 }));
+  check('tìm trận nhanh ghép app với web', !!(await until(() => app.evaluate(() => {
+    const r = window.CaroOnline.state.room; return !!(r && r.quick && r.players.length === 2);
+  }))));
+  check('hết thẻ đang tìm sau khi ghép', !!(await until(() => app.isHidden('.qm-float'))));
+  shot('matched');
   await web.screenshot({ path: `${SHOTS}/api${API}-web-vs-android.png` });
   console.log('Lỗi JS:', errors.length ? errors : 'không có');
   if (errors.some((e) => !/Failed to load resource/.test(e))) failed++;

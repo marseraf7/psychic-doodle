@@ -215,6 +215,8 @@ class Room {
       rematch: [...this.rematch],
       seriesWinner: this.seriesWinner,
       drawOffer: this.drawOffer,
+      public: !!this.public, // phòng công khai (trong sảnh)
+      quick: !!this.quick, // phòng do tìm trận nhanh tạo
     };
   }
 }

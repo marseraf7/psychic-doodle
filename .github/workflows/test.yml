@@ -18,5 +18,7 @@ jobs:
       - run: node caro/tests/rules.test.js
       - run: npm ci
         working-directory: server
-      - run: npm test
+      # Chạy toàn bộ kiểm thử máy chủ + luật chơi kèm đo độ phủ; dưới ngưỡng (dòng 90%, nhánh 80%, hàm 85%) thì báo lỗi
+      - name: Kiểm thử + độ phủ
+        run: npm run coverage
         working-directory: server

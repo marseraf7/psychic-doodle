@@ -64,6 +64,7 @@
     ws.onclose = () => {
       ws = null;
       S.status = 'offline';
+      for (const fn of hooks.close || []) fn();
       render();
       scheduleRetry();
     };
@@ -126,7 +127,7 @@
     },
     me(m) { S.me = m.me; render(); },
     friends(m) { S.friends = m; render(); },
-    room(m) { setRoom(m.room); },
+    room(m) { probing = null; setRoom(m.room); },
     invite(m) { S.invites.set(m.invite.id, m.invite); navigator.vibrate?.(60); renderInvites(); render(); },
     inviteSent(m) { S.sent = m.invite; closeDlg('challenge'); renderInvites(); },
     inviteGone(m) {
@@ -138,6 +139,12 @@
     toast(m) { toast(srv(m)); },
     error(m) {
       if (m.ctx === 'move') App.resync();
+      // Mở bằng link mời: phòng công khai vào thẳng, phòng riêng (sai/thiếu mật khẩu) thì hỏi mật khẩu
+      if (m.ctx === 'joinRoom' && probing) {
+        const code = probing;
+        probing = null;
+        if (m.code === 'wrong_room_password') return openJoin(code);
+      }
       const target = m.ctx === 'joinRoom' && isOpen('join') ? 'join-err'
         : ['login', 'register'].includes(m.ctx) && isOpen('auth') ? 'auth-err'
           : (window.CaroSocial && window.CaroSocial.errorTarget(m.ctx)) || null;
@@ -201,7 +208,7 @@
     const conn = $('conn');
     conn.className = 'conn ' + S.status;
     conn.textContent = T(!wsUrl ? 'conn_none' : outdated ? 'conn_outdated' : 'conn_' + S.status);
-    $('create-room').disabled = $('open-join').disabled = !!outdated;
+    $('create-room').disabled = $('open-join').disabled = $('qm-start').disabled = !!outdated;
     renderAccount();
     renderFriends();
   }
@@ -359,7 +366,7 @@
     }
     // Hiện cả trong bảng Online (hộp thoại đang mở che mất thẻ lời mời phía dưới)
     const inner = $('dlg-invites');
-    box.innerHTML = html;
+    box.innerHTML = html + ((window.CaroMatch && window.CaroMatch.floatHtml()) || '');
     inner.innerHTML = html;
     inner.hidden = !html;
     const all = (sel) => [...box.querySelectorAll(sel), ...inner.querySelectorAll(sel)];
@@ -373,6 +380,8 @@
     all('[data-no]').forEach((b) => {
       b.onclick = () => { send({ t: 'challengeRespond', id: b.dataset.no, accept: false }); S.invites.delete(b.dataset.no); renderInvites(); render(); };
     });
+    box.querySelectorAll('[data-qm-cancel]').forEach((b) => { b.onclick = () => send({ t: 'quickCancel' }); });
+    box.querySelectorAll('[data-qm-open]').forEach((b) => { b.onclick = () => $('btn-online').click(); });
     all('[data-cancel-sent]').forEach((c) => { c.onclick = () => { send({ t: 'challengeCancel', id: S.sent.id }); S.sent = null; renderInvites(); }; });
   }
 
@@ -455,7 +464,7 @@
   $('create-room').onclick = () => {
     const side = document.querySelector('input[name="room-side"]:checked').value;
     const timeLimit = Number(document.querySelector('input[name="room-time"]:checked').value);
-    send({ t: 'createRoom', side, timeLimit });
+    send({ t: 'createRoom', side, timeLimit, public: $('room-public').checked });
   };
   $('open-join').onclick = () => openJoin('');
 
@@ -488,8 +497,10 @@
     url.searchParams.delete('room');
     history.replaceState(null, '', url);
     if (S.room && S.room.code === code) return;
-    openJoin(code);
+    probing = code;
+    send({ t: 'joinRoom', code }); // không gửi mật khẩu: phòng công khai thì vào luôn
   }
+  let probing = null;
 
   function inviteLink(code) {
     const u = new URL(base ? base + '/' : location.href);
@@ -505,6 +516,9 @@
     $('ri-time').textContent = '⏱ ' + (r.timeLimit ? secs(r.timeLimit) : T('time_off'));
     $('ri-code').textContent = r.code;
     $('ri-pass').textContent = r.password;
+    $('ri-hint').textContent = T(r.public ? 'room_info_hint_public' : 'room_info_hint');
+    $('ri-pass').parentElement.hidden = !!r.public; // phòng công khai: vào không cần mật khẩu
+    if (r.public) $('ri-time').textContent += ' · 🌐 ' + T('public_tag');
     $('ri-link').value = inviteLink(r.code);
     $('ri-link').closest('.link-row').hidden = r.kind === 'series';
     $('ri-share').hidden = r.kind === 'series' || !navigator.share;
@@ -618,6 +632,7 @@
     btn.disabled = mine;
     btn.textContent = T(mine ? 'waiting_rematch' : theirs ? 'accept_rematch' : 'rematch');
     $('banner-share').hidden = !r.share;
+    $('banner-quick').hidden = !r.quick; // phòng do tìm trận nhanh: tìm đối thủ mới ngay
     $('banner').hidden = false;
   }
   $('banner-share').onclick = () => {
@@ -664,7 +679,7 @@
   document.querySelectorAll('.privacy-link').forEach((a) => { a.href = privacyUrl; });
 
   window.CaroOnline = {
-    send, showBanner, shareReplay, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
+    send, showBanner, shareReplay, renderInvites, roomActive, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
     get connected() { return S.status === 'online'; },
   };
 

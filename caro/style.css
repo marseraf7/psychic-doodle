@@ -542,3 +542,19 @@ body.replay #banner { display: none; }
 .privacy-row .link { font-size: var(--fs-sm); }
 #account-dlg > .dlg > .privacy-link { align-self: center; }
 .btn-link { display: inline-block; text-decoration: none; border-radius: 12px; align-self: flex-start; }
+
+/* ============================ Chơi nhanh & phòng công khai */
+.check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: none; }
+.qm-search { align-items: center; }
+.qm-search[hidden] { display: none; }
+.qm-status { flex: 1; font-size: var(--fs-sm); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.qm-float b { font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.spinner {
+  width: 18px; height: 18px; flex: none; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent);
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+#qm-idle[hidden] { display: none; }
