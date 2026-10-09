@@ -160,6 +160,16 @@ async function screenRect(app, sel) {
   // Bàn phím: mở hộp chat, chạm vào ô nhập → bàn phím hiện, ô nhập phải nằm trên bàn phím
   {
     const cdpK = await app.context().newCDPSession(app);
+    // Ghi lại mọi lần mất focus (kèm nơi gọi) để biết do mã JS hay do WebView mất focus
+    await app.evaluate(() => {
+      window.__blur = [];
+      document.addEventListener('focusout', (e) => window.__blur.push({
+        t: Math.round(performance.now()), from: e.target.tagName + (e.target.name ? '[' + e.target.name + ']' : ''),
+        to: e.relatedTarget ? e.relatedTarget.tagName : null, doc: document.hasFocus(),
+        stack: (new Error().stack || '').split('\n').slice(2, 5).map((l) => l.trim()).join(' < '),
+      }), true);
+      window.addEventListener('blur', () => window.__blur.push({ t: Math.round(performance.now()), from: 'window' }));
+    });
     await app.click('#friends [data-chat]');
     await until(() => app.evaluate(() => document.getElementById('chat').open));
     // Hộp chat tự focus ô nhập sau 50ms: chờ xong rồi mới chạm (chạm trùng lúc tự focus thì focus rơi về BODY
@@ -183,6 +193,7 @@ async function screenRect(app, sel) {
     let imeShown = '';
     try { imeShown = (adb('shell', 'dumpsys', 'input_method').match(/mInputShown=\w+|mIsInputViewShown=\w+/g) || []).join(' '); } catch (e) { /* bỏ qua */ }
     console.log('Chạm ô nhập:', JSON.stringify(inBox), JSON.stringify(diag), imeShown);
+    console.log('Mất focus:', JSON.stringify(await app.evaluate(() => ({ now: Math.round(performance.now()), hasFocus: document.hasFocus(), ev: window.__blur.slice(-6) }))));
     check('bàn phím hiện khi chạm ô nhập tin nhắn', !!ime);
     if (ime) {
       // Chờ WebView co lại theo bàn phím (máy ảo chậm có thể mất vài giây), đo lại tới khi ổn định
