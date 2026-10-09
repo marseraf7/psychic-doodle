@@ -35,9 +35,22 @@ chơi online qua WebSocket (`/ws`):
   xong), quản trị viên duyệt mới mở đăng ký:
   - *Arena*: chơi trong 15–120 phút, xong ván là tự được ghép ván mới với người có điểm gần mình;
     thắng 2, hoà 1 (hoà dưới 10 nước: 0), thắng 2 ván liền thì 🔥 nhân đôi điểm. Vào muộn / tạm nghỉ được.
-  - *Loại trực tiếp*: Bo1/3/5 (ván sau đổi bên đi trước), hạt giống theo Elo hoặc ngẫu nhiên, thiếu người thì
-    hạt giống cao được miễn đấu, tuỳ chọn trận tranh hạng 3; điểm danh 10 phút trước giờ (không điểm danh =
-    không được xếp); tới lượt mà vắng mặt quá 2 phút = thua; rời trận giữa chừng = thua cả trận.
+  - *Nhánh đấu / vòng bảng*: ghép tự do 1–3 giai đoạn, mỗi giai đoạn một thể thức:
+    - **loại trực tiếp** (tuỳ chọn tranh hạng 3),
+    - **nhánh thắng – thua** (double elimination: thua 2 trận mới bị loại, chung kết tổng có thể "reset"),
+    - **vòng tròn** (chia 1–16 bảng kiểu rắn, gặp nhau 1 hoặc 2 lượt, điểm thắng / hoà / thua tự đặt;
+      bằng điểm xét đối đầu rồi hiệu số ván),
+    - **hệ Thụy Sĩ** (1–15 vòng, ghép người cùng điểm chưa gặp nhau, miễn đấu cho người thấp nhất chưa
+      được miễn; bằng điểm xét Buchholz rồi Sonneborn–Berger).
+
+    Giai đoạn trước giai đoạn cuối phải là vòng tròn / Thụy Sĩ và có "số người đi tiếp", ví dụ vòng bảng
+    (4 bảng, nhì bảng trở lên đi tiếp) → playoff loại trực tiếp hoặc nhánh thắng – thua. Người đi tiếp được
+    xếp hạt giống theo thành tích (các nhất bảng trước, rồi các nhì bảng…), nhất bảng không gặp người cùng
+    bảng ở trận đầu playoff. Mỗi giai đoạn có Bo1/3/5 riêng (ván sau đổi bên đi trước; vòng tròn / Thụy Sĩ
+    hoà được). Hạt giống theo Elo hoặc ngẫu nhiên, thiếu người thì hạt giống cao được miễn đấu; điểm danh
+    10 phút trước giờ (không điểm danh = không được xếp); tới lượt mà vắng mặt quá 2 phút = thua (cả hai
+    vắng: ở vòng tròn / Thụy Sĩ cả hai cùng thua); rời trận giữa chừng = thua cả trận.
+    Logic các thể thức nằm riêng trong `src/hub/stages.js` (không phụ thuộc mạng, có kiểm thử riêng).
   - Máy chủ tự mở phòng và đưa người chơi vào ván; trang giải cập nhật trực tiếp (nhánh đấu, bảng xếp hạng,
     link xem lại từng ván, bục trao giải). Ban tổ chức: bắt đầu sớm, huỷ, loại người chơi. Giải theo thời gian
     thực có giới hạn mỗi nước (10/20/30 giây), tuỳ chọn tính / không tính Elo, mở cho mọi người / ai có link /
@@ -69,7 +82,8 @@ Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/ro
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, xếp hạng, lịch sử, chặn, tin nhắn),
 `rooms.js` (phòng, ván đấu, thách đấu, Elo, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
-`clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu), `admin.js` (quản trị viên duyệt).
+`clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu), `stages.js` (các thể thức: loại trực tiếp, nhánh
+thắng – thua, vòng tròn, Thụy Sĩ), `admin.js` (quản trị viên duyệt).
 Tin nhắn loại `X` do phương thức `on_X` xử lý.
 
 Cần **Node.js 22.13 trở lên** (dùng SQLite có sẵn trong Node, không phải cài thêm CSDL).

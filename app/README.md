@@ -3,7 +3,7 @@
 Ứng dụng điện thoại dùng **đúng giao diện và mã chơi của bản web** (thư mục [`caro/`](../caro)),
 đóng gói bằng [Capacitor](https://capacitorjs.com). Vì cùng một mã nguồn và cùng máy chủ online,
 mọi tính năng giống hệt bản web và **người chơi trên app đấu được với người chơi trên web**:
-giải đấu, câu lạc bộ, tìm trận nhanh, phòng công khai, phòng chơi, thách đấu Bo1/3/5, bạn bè, nhắn tin, xin hoà, chat nhanh, lịch sử + xem lại, Elo, xếp hạng…
+giải đấu (Arena, loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ, vòng bảng → playoff), câu lạc bộ, tìm trận nhanh, phòng công khai, phòng chơi, thách đấu Bo1/3/5, bạn bè, nhắn tin, xin hoà, chat nhanh, lịch sử + xem lại, Elo, xếp hạng…
 Sửa giao diện trong `caro/` là cả web lẫn app cùng được cập nhật (app cần dựng lại).
 
 Những chỗ app dùng tính năng gốc của điện thoại thay cho trình duyệt ([`caro/native.js`](../caro/native.js)):
