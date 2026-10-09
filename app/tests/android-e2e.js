@@ -43,17 +43,39 @@ function systemBars() {
   };
   return { status: frame('statusBars'), nav: frame('navigationBars'), ime: frame('ime', true) };
 }
-/** Khung của WebView trên màn hình (pixel), đọc từ uiautomator. */
+/** Khung của WebView trên màn hình (pixel).
+ *  Cách 1: uiautomator (cần màn hình "đứng yên", đôi khi không chụp được cây giao diện).
+ *  Cách 2: cây View của activity trong `dumpsys activity top` – toạ độ tương đối với view cha, cộng dồn lên. */
+function webViewFromUiautomator() {
+  try { adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml'); } catch (e) { return null; }
+  let xml = '';
+  try { xml = adb('shell', 'cat', '/sdcard/ui.xml'); } catch (e) { return null; }
+  adb('shell', 'rm', '-f', '/sdcard/ui.xml'); // không đọc nhầm file cũ ở lần sau
+  const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+  return m ? { l: +m[1], t: +m[2], r: +m[3], b: +m[4] } : null;
+}
+function webViewFromDumpsys() {
+  const lines = adb('shell', 'dumpsys', 'activity', 'top').split('\n');
+  const stack = []; // [{ indent, x, y }] tổ tiên của dòng đang xét, toạ độ tuyệt đối
+  for (const line of lines) {
+    const m = line.match(/^(\s*)([\w.$]+)\{[^}]*?\s(-?\d+),(-?\d+)-(-?\d+),(-?\d+)/);
+    if (!m) continue;
+    const indent = m[1].length;
+    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+    const px = stack.length ? stack[stack.length - 1].x : 0, py = stack.length ? stack[stack.length - 1].y : 0;
+    const l = px + +m[3], t = py + +m[4], r = px + +m[5], b = py + +m[6];
+    if (/WebView$/.test(m[2]) && b > t) return { l, t, r, b };
+    stack.push({ indent, x: l, y: t });
+  }
+  return null;
+}
 function webViewBounds() {
-  // uiautomator đôi khi chụp cây giao diện lúc màn hình đang vẽ lại (chưa có WebView): thử lại vài lần
-  for (let i = 0; ; i++) {
-    try { adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml'); } catch (e) { /* "could not get idle state" */ }
-    const xml = adb('shell', 'cat', '/sdcard/ui.xml');
-    const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-    if (m) return { l: +m[1], t: +m[2], r: +m[3], b: +m[4] };
-    if (i >= 5) throw new Error('Không thấy WebView trong uiautomator dump');
+  for (let i = 0; i < 3; i++) {
+    const wv = webViewFromUiautomator() || webViewFromDumpsys();
+    if (wv) return wv;
     execFileSync('sleep', ['1']);
   }
+  throw new Error('Không đo được khung WebView (uiautomator và dumpsys activity top)');
 }
 /** Toạ độ màn hình (pixel) của một phần tử trong app. */
 async function screenRect(app, sel) {
