@@ -44,3 +44,8 @@ SEED_DEMO = os.environ.get("SEED_DEMO", "1") == "1"
 DB_PATH = Path(os.environ.get("DB_PATH", "data/shop.db"))
 if not DB_PATH.is_absolute():
     DB_PATH = BASE_DIR / DB_PATH
+
+# Google Sheet bảng giá (cột A: tên, cột B: giá, cột C: ghi chú "HẾT HÀNG")
+SHEET_URL = os.environ.get("SHEET_URL", "")
+PRICE_MARKUP = _int("PRICE_MARKUP", 20000)
+SYNC_MINUTES = max(1, _int("SYNC_MINUTES", 60))

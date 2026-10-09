@@ -2,6 +2,7 @@
 
 Chạy:  python bot.py   (cấu hình trong file .env, xem .env.example)
 """
+import asyncio
 import html
 import io
 import logging
@@ -27,7 +28,9 @@ from telegram.ext import (
 )
 
 import config
+import sheet_sync
 from db import DB, InsufficientBalance, OutOfStock
+from utils import parse_amount, vnd
 
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -54,33 +57,12 @@ TOPUP_AMOUNTS = [20000, 50000, 100000, 200000, 500000, 1000000]
 MAX_TOPUP = 50_000_000
 
 
-def vnd(n: int) -> str:
-    return f"{n:,}".replace(",", ".") + "đ"
-
-
 def esc(s) -> str:
     return html.escape(str(s or ""))
 
 
 def is_admin(uid: int) -> bool:
     return uid in config.ADMIN_IDS
-
-
-def parse_amount(text: str) -> int | None:
-    """'150000', '150.000', '150k', '1.5tr', '2m' -> số nguyên VND."""
-    t = text.lower().replace("vnd", "").replace("đ", "").replace(" ", "")
-    mult = 1
-    for suffix, m in (("tr", 1_000_000), ("m", 1_000_000), ("k", 1000)):
-        if t.endswith(suffix):
-            t, mult = t[: -len(suffix)].replace(",", "."), m
-            break
-    else:
-        t = t.replace(".", "").replace(",", "")
-    try:
-        value = round(float(t) * mult)
-    except ValueError:
-        return None
-    return value if abs(value) < 10**12 else None
 
 
 async def touch_user(update: Update, referrer_id=None):
@@ -148,6 +130,17 @@ async def show_categories(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await reply(update, "🛒 <b>DANH MỤC SẢN PHẨM</b>\n\nChọn danh mục bạn quan tâm:", InlineKeyboardMarkup(kb))
 
 
+def can_sell(p, qty=1) -> bool:
+    """Đủ hàng trong kho, hoặc sản phẩm bán kiểu đặt hàng (admin giao tay) và nguồn chưa báo hết."""
+    return p["in_stock"] >= qty or bool(p["manual"] and not p["sold_out"])
+
+
+def stock_label(p) -> str:
+    if p["in_stock"]:
+        return f"còn {p['in_stock']}"
+    return "còn hàng" if can_sell(p) else "hết hàng"
+
+
 async def show_category(update: Update, ctx, cid: int):
     prods = db.products(cid)
     if not prods:
@@ -155,8 +148,8 @@ async def show_category(update: Update, ctx, cid: int):
         return
     kb = []
     for p in prods:
-        tag = f"còn {p['in_stock']}" if p["in_stock"] else "hết hàng"
-        kb.append([Btn(f"{p['name']} • {vnd(p['price'])} ({tag})", callback_data=f"prod:{p['id']}")])
+        icon = "" if can_sell(p) else "⛔ "
+        kb.append([Btn(f"{icon}{p['name']} • {vnd(p['price'])}", callback_data=f"prod:{p['id']}")])
     kb.append([Btn("⬅️ Danh mục", callback_data="cats")])
     await reply(update, "📋 <b>Chọn sản phẩm:</b>", InlineKeyboardMarkup(kb))
 
@@ -170,11 +163,11 @@ async def show_product(update: Update, ctx, pid: int):
         f"🏷 <b>{esc(p['name'])}</b>\n\n"
         f"{esc(p['description'])}\n\n"
         f"💵 Giá: <b>{vnd(p['price'])}</b>\n"
-        f"📦 Còn lại: <b>{p['in_stock']}</b>"
+        f"📦 Tình trạng: <b>{stock_label(p)}</b>"
     )
     kb = []
-    if p["in_stock"]:
-        qtys = [q for q in (1, 2, 3, 5, 10) if q <= p["in_stock"]]
+    if can_sell(p):
+        qtys = [q for q in (1, 2, 3, 5, 10) if can_sell(p, q)]
         kb.append([Btn(f"Mua {q}", callback_data=f"buy:{pid}:{q}") for q in qtys])
     else:
         text += "\n\n⛔ Sản phẩm tạm hết hàng. Liên hệ hỗ trợ để đặt trước."
@@ -185,8 +178,8 @@ async def show_product(update: Update, ctx, pid: int):
 async def confirm_buy(update: Update, ctx, pid: int, qty: int):
     p = db.product(pid)
     u = db.get_user(update.effective_user.id)
-    if not p or not p["active"] or p["in_stock"] < qty:
-        await reply(update, "⛔ Không đủ hàng trong kho.", InlineKeyboardMarkup([[Btn("⬅️ Quay lại", callback_data=f"prod:{pid}")]]))
+    if not p or not p["active"] or not can_sell(p, qty):
+        await reply(update, "⛔ Không đủ hàng.", InlineKeyboardMarkup([[Btn("⬅️ Quay lại", callback_data=f"prod:{pid}")]]))
         return
     total = p["price"] * qty
     text = (
@@ -205,15 +198,12 @@ async def confirm_buy(update: Update, ctx, pid: int, qty: int):
     await reply(update, text, InlineKeyboardMarkup(kb))
 
 
-async def send_items(chat, order_id: int, product_name: str, items: list[str], header: str):
-    body = "\n".join(items)
-    text = f"{header}\n\n🧾 Mã đơn: <b>#{order_id}</b>\n🏷 {esc(product_name)}\n\n<code>{esc(body)}</code>"
-    if len(text) <= 4000:
-        await chat.send_message(text, parse_mode=ParseMode.HTML)
-    else:
-        await chat.send_message(f"{header}\n\n🧾 Mã đơn: <b>#{order_id}</b> — nội dung gửi kèm file bên dưới.",
-                                parse_mode=ParseMode.HTML)
-        await chat.send_document(io.BytesIO(body.encode()), filename=f"don_{order_id}.txt")
+async def notify_admins(ctx, text: str):
+    for admin in config.ADMIN_IDS:
+        try:
+            await ctx.bot.send_message(admin, text, parse_mode=ParseMode.HTML)
+        except TelegramError:
+            pass
 
 
 async def do_buy(update: Update, ctx, pid: int, qty: int):
@@ -228,19 +218,37 @@ async def do_buy(update: Update, ctx, pid: int, qty: int):
                     InlineKeyboardMarkup([[Btn("💰 Nạp tiền", callback_data="topup")]]))
         return
     p = db.product(pid)
-    await reply(update, f"✅ Thanh toán thành công! Số dư còn lại: <b>{vnd(balance)}</b>")
-    await send_items(update.effective_chat, oid, p["name"], items, "🎉 <b>GIAO HÀNG THÀNH CÔNG</b>")
     u = update.effective_user
-    for admin in config.ADMIN_IDS:
-        try:
-            await ctx.bot.send_message(
-                admin,
-                f"🛍 Đơn mới #{oid}: <b>{esc(u.full_name)}</b> (<code>{u.id}</code>) mua {qty} × {esc(p['name'])} "
-                f"= {vnd(p['price'] * qty)}. Kho còn {p['in_stock']}.",
-                parse_mode=ParseMode.HTML,
-            )
-        except TelegramError:
-            pass
+    who = f"<b>{esc(u.full_name)}</b> (@{esc(u.username or '-')}, <code>{u.id}</code>)"
+    order = f"{qty} × {esc(p['name'])} = {vnd(p['price'] * qty)}"
+    if items:
+        await reply(update, f"✅ Thanh toán thành công! Số dư còn lại: <b>{vnd(balance)}</b>")
+        await send_items(ctx.bot, update.effective_chat.id, oid, p["name"], items, "🎉 <b>GIAO HÀNG THÀNH CÔNG</b>")
+        await notify_admins(ctx, f"🛍 Đơn mới #{oid}: {who} mua {order}. Kho còn {p['in_stock']}.")
+    else:
+        await reply(
+            update,
+            f"✅ Thanh toán thành công! Số dư còn lại: <b>{vnd(balance)}</b>\n\n"
+            f"🧾 Đơn <b>#{oid}</b> đang được xử lý — admin sẽ giao hàng qua bot trong thời gian sớm nhất. "
+            "Bạn sẽ nhận được tin nhắn khi có hàng.",
+        )
+        await notify_admins(
+            ctx,
+            f"🔔 <b>ĐƠN CẦN GIAO #{oid}</b>\n{who} mua {order}.\n\n"
+            f"Giao hàng: gõ <code>/giao {oid}</code> rồi xuống dòng ghi thông tin tài khoản.\n"
+            f"Huỷ + hoàn tiền: <code>/huydon {oid}</code>",
+        )
+
+
+async def send_items(bot, chat_id: int, order_id: int, product_name: str, items: list[str], header: str):
+    body = "\n".join(items)
+    text = f"{header}\n\n🧾 Mã đơn: <b>#{order_id}</b>\n🏷 {esc(product_name)}\n\n<code>{esc(body)}</code>"
+    if len(text) <= 4000:
+        await bot.send_message(chat_id, text, parse_mode=ParseMode.HTML)
+    else:
+        await bot.send_message(chat_id, f"{header}\n\n🧾 Mã đơn: <b>#{order_id}</b> — nội dung gửi kèm file bên dưới.",
+                                parse_mode=ParseMode.HTML)
+        await bot.send_document(chat_id, io.BytesIO(body.encode()), filename=f"don_{order_id}.txt")
 
 
 async def show_account(update: Update, ctx):
@@ -331,9 +339,11 @@ async def show_orders(update: Update, ctx):
     if not orders:
         await reply(update, "📦 Bạn chưa có đơn hàng nào.", InlineKeyboardMarkup([[Btn("🛒 Mua ngay", callback_data="cats")]]))
         return
-    kb = [[Btn(f"#{o['id']} • {o['name'][:28]} ×{o['quantity']} • {vnd(o['total'])}", callback_data=f"ord:{o['id']}")]
-          for o in orders]
-    await reply(update, "📦 <b>10 ĐƠN HÀNG GẦN NHẤT</b>\nBấm vào đơn để xem lại thông tin đã mua:", InlineKeyboardMarkup(kb))
+    icons = {"done": "✅", "pending": "⏳", "cancelled": "❌"}
+    kb = [[Btn(f"{icons.get(o['status'], '')} #{o['id']} • {o['name'][:26]} ×{o['quantity']} • {vnd(o['total'])}",
+               callback_data=f"ord:{o['id']}")] for o in orders]
+    await reply(update, "📦 <b>10 ĐƠN HÀNG GẦN NHẤT</b>\n✅ đã giao · ⏳ đang xử lý · ❌ đã huỷ (hoàn tiền)\n"
+                        "Bấm vào đơn để xem lại thông tin đã mua:", InlineKeyboardMarkup(kb))
 
 
 async def show_order(update: Update, ctx, oid: int):
@@ -341,7 +351,12 @@ async def show_order(update: Update, ctx, oid: int):
     uid = update.effective_user.id
     if not o or (o["user_id"] != uid and not is_admin(uid)):
         return
-    await send_items(update.effective_chat, o["id"], o["name"], items, f"📦 <b>ĐƠN HÀNG</b> — {o['created_at']}")
+    if o["status"] != "done":
+        state = "⏳ đang được xử lý" if o["status"] == "pending" else "❌ đã huỷ và hoàn tiền"
+        await update.effective_chat.send_message(
+            f"🧾 Đơn <b>#{o['id']}</b> — {esc(o['name'])} ×{o['quantity']}\nTrạng thái: {state}", parse_mode=ParseMode.HTML)
+        return
+    await send_items(ctx.bot, update.effective_chat.id, o["id"], o["name"], items, f"📦 <b>ĐƠN HÀNG</b> — {o['created_at']}")
 
 
 async def show_ref(update: Update, ctx):
@@ -445,6 +460,12 @@ ADMIN_HELP = """🛠 <b>LỆNH QUẢN TRỊ</b>
 /giasp &lt;id_sp&gt; &lt;giá&gt; — đổi giá
 /ansp &lt;id_sp&gt; · /hiensp &lt;id_sp&gt; — ẩn / hiện sản phẩm
 /themkho &lt;id_sp&gt; rồi xuống dòng, mỗi dòng 1 hàng (vd: email|mật khẩu)
+/capnhat — cập nhật giá từ Google Sheet ngay (tự động mỗi {sync} phút)
+
+<b>Đơn đặt hàng (giao tay)</b>
+/donchua — các đơn đang chờ giao
+/giao &lt;mã đơn&gt; rồi xuống dòng ghi thông tin giao cho khách
+/huydon &lt;mã đơn&gt; — huỷ đơn chờ giao và hoàn tiền
 
 <b>Khách hàng</b>
 /khach &lt;id&gt; — xem thông tin khách
@@ -469,7 +490,7 @@ def admin_only(func):
 
 @admin_only
 async def cmd_admin(update: Update, ctx):
-    await update.message.reply_text(ADMIN_HELP, parse_mode=ParseMode.HTML)
+    await update.message.reply_text(ADMIN_HELP.replace("{sync}", str(config.SYNC_MINUTES)), parse_mode=ParseMode.HTML)
 
 
 @admin_only
@@ -496,7 +517,10 @@ async def cmd_list(update: Update, ctx):
         for p in prods:
             if p["category_id"] == cid:
                 hidden = " 🚫ẩn" if not p["active"] else ""
-                lines.append(f"  • <code>{p['id']}</code> {esc(p['name'])} — {vnd(p['price'])} — kho {p['in_stock']}{hidden}")
+                stock = f"kho {p['in_stock']}" if p["in_stock"] or not p["manual"] else "đặt hàng"
+                if p["sold_out"]:
+                    stock += " (nguồn hết)"
+                lines.append(f"  • <code>{p['id']}</code> {esc(p['name'])} — {vnd(p['price'])} — {stock}{hidden}")
     text = "📋 <b>DANH SÁCH SẢN PHẨM</b>" + ("\n".join(lines) if lines else "\nChưa có gì.")
     for i in range(0, len(text), 4000):
         await update.message.reply_text(text[i:i + 4000], parse_mode=ParseMode.HTML)
@@ -533,7 +557,7 @@ async def cmd_price(update: Update, ctx):
 
 async def _set_active(update: Update, ctx, active: int):
     pid = int(ctx.args[0])
-    if not db.run("UPDATE products SET active=? WHERE id=?", active, pid).rowcount:
+    if not db.run("UPDATE products SET active=?, admin_hidden=? WHERE id=?", active, 1 - active, pid).rowcount:
         raise ValueError
     await update.message.reply_text(f"✅ Đã {'hiện' if active else 'ẩn'} sản phẩm {pid}")
 
@@ -670,6 +694,108 @@ async def admin_resolve(update: Update, ctx, tid: int, approve: bool):
         pass
 
 
+@admin_only
+async def cmd_pending(update: Update, ctx):
+    orders = db.pending_orders()
+    if not orders:
+        await update.message.reply_text("✅ Không có đơn nào đang chờ giao.")
+        return
+    lines = [f"⏳ <b>{len(orders)} ĐƠN CHỜ GIAO</b>"]
+    for o in orders:
+        lines.append(f"\n<b>#{o['id']}</b> {o['created_at'][5:16]} — {esc(o['full_name'])} (<code>{o['user_id']}</code>)\n"
+                     f"   {o['quantity']} × {esc(o['name'])} = {vnd(o['total'])}")
+    text = "\n".join(lines)
+    for i in range(0, len(text), 4000):
+        await update.message.reply_text(text[i:i + 4000], parse_mode=ParseMode.HTML)
+
+
+@admin_only
+async def cmd_deliver(update: Update, ctx):
+    first, _, content = update.message.text.partition("\n")
+    oid = int(first.split()[1])
+    content = content.strip()
+    if not content:
+        await update.message.reply_text(f"Gửi theo mẫu:\n/giao {oid}\nemail@gmail.com|matkhau")
+        return
+    if not db.deliver_order(oid, content):
+        await update.message.reply_text("⚠️ Không tìm thấy đơn đang chờ giao với mã này.")
+        return
+    o, items = db.order(oid)
+    try:
+        await send_items(ctx.bot, o["user_id"], oid, o["name"], items, "🎉 <b>GIAO HÀNG THÀNH CÔNG</b>")
+        await update.message.reply_text(f"✅ Đã giao đơn #{oid} cho khách.")
+    except TelegramError as e:
+        await update.message.reply_text(f"⚠️ Đã lưu nội dung đơn #{oid} nhưng không gửi được cho khách ({e}). "
+                                        "Khách vẫn xem lại được trong 📦 Đơn hàng.")
+
+
+@admin_only
+async def cmd_cancel_order(update: Update, ctx):
+    oid = int(ctx.args[0])
+    result = db.cancel_order(oid)
+    if not result:
+        await update.message.reply_text("⚠️ Không tìm thấy đơn đang chờ giao với mã này.")
+        return
+    o, balance = result
+    await update.message.reply_text(f"✅ Đã huỷ đơn #{oid}, hoàn {vnd(o['total'])} cho khách.")
+    try:
+        await ctx.bot.send_message(
+            o["user_id"],
+            f"❌ Đơn <b>#{oid}</b> đã bị huỷ, bạn được hoàn <b>{vnd(o['total'])}</b>.\n💰 Số dư: <b>{vnd(balance)}</b>",
+            parse_mode=ParseMode.HTML,
+        )
+    except TelegramError:
+        pass
+
+
+# ---------- đồng bộ Google Sheet ----------
+
+async def sync_sheet(app: Application) -> dict:
+    rows = await sheet_sync.fetch_rows(config.SHEET_URL, config.PRICE_MARKUP)
+    if not rows:
+        raise ValueError("Sheet không có dòng sản phẩm hợp lệ (cột A tên, cột B giá).")
+    stats = db.sync_sheet_products(rows)
+    stats["total"] = len(rows)
+    log.info("Đồng bộ sheet: %s", stats)
+    return stats
+
+
+async def sync_loop(app: Application):
+    failing = False
+    while True:
+        try:
+            await sync_sheet(app)
+            failing = False
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # mạng lỗi, sheet bị khoá... -> giữ nguyên giá cũ, thử lại lần sau
+            log.warning("Đồng bộ sheet lỗi: %s", e)
+            if not failing:  # chỉ báo admin lần đầu, tránh spam mỗi giờ
+                failing = True
+                for admin in config.ADMIN_IDS:
+                    try:
+                        await app.bot.send_message(admin, f"⚠️ Không cập nhật được giá từ Google Sheet: {e}")
+                    except TelegramError:
+                        pass
+        await asyncio.sleep(config.SYNC_MINUTES * 60)
+
+
+@admin_only
+async def cmd_sync(update: Update, ctx):
+    if not config.SHEET_URL:
+        await update.message.reply_text("Chưa cấu hình SHEET_URL trong file .env.")
+        return
+    try:
+        s = await sync_sheet(ctx.application)
+    except Exception as e:
+        await update.message.reply_text(f"⚠️ Cập nhật lỗi: {e}")
+        return
+    await update.message.reply_text(
+        f"✅ Đã cập nhật {s['total']} sản phẩm từ sheet (giá +{vnd(config.PRICE_MARKUP)}).\n"
+        f"Mới: {s['added']} · Thay đổi: {s['updated']} · Ngừng bán (đã xoá khỏi sheet): {s['removed']}"
+    )
+
+
 # ================= KHỞI ĐỘNG =================
 
 async def post_init(app: Application):
@@ -682,6 +808,14 @@ async def post_init(app: Application):
         BotCommand("hotro", "Liên hệ hỗ trợ"),
     ])
     log.info("Bot @%s đã sẵn sàng", app.bot.username)
+    if config.SHEET_URL:
+        app.bot_data["sync_task"] = asyncio.create_task(sync_loop(app))
+
+
+async def post_shutdown(app: Application):
+    task = app.bot_data.get("sync_task")
+    if task:
+        task.cancel()
 
 
 def user_cmd(func):
@@ -699,10 +833,10 @@ async def on_error(update: object, ctx: ContextTypes.DEFAULT_TYPE):
 def main():
     if not config.BOT_TOKEN:
         raise SystemExit("Thiếu BOT_TOKEN. Sao chép .env.example thành .env và điền token từ @BotFather.")
-    if config.SEED_DEMO:
+    if config.SEED_DEMO and not config.SHEET_URL:
         db.seed_demo()
 
-    app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).build()
+    app = Application.builder().token(config.BOT_TOKEN).post_init(post_init).post_shutdown(post_shutdown).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("sanpham", user_cmd(show_categories)))
     app.add_handler(CommandHandler("naptien", user_cmd(show_topup)))
@@ -715,6 +849,7 @@ def main():
         "themsp": cmd_add_product, "giasp": cmd_price, "ansp": cmd_hide, "hiensp": cmd_show,
         "themkho": cmd_add_stock, "khach": cmd_user, "congtien": cmd_add_money,
         "ban": cmd_ban, "unban": cmd_unban, "thongbao": cmd_broadcast,
+        "capnhat": cmd_sync, "donchua": cmd_pending, "giao": cmd_deliver, "huydon": cmd_cancel_order,
     }.items():
         app.add_handler(CommandHandler(name, fn))
 

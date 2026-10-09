@@ -1,4 +1,5 @@
 """Lưu trữ SQLite cho shop: khách hàng, danh mục, sản phẩm, kho hàng, đơn hàng, phiếu nạp."""
+import re
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -72,6 +73,20 @@ DEMO = [
 ]
 
 
+def describe(name: str) -> str:
+    """Mô tả tự động cho sản phẩm lấy từ sheet, dựa vào ký hiệu bảo hành trong tên."""
+    up = name.upper()
+    if "KBH" in up:
+        warranty = "Không bảo hành."
+    elif re.search(r"\bBHF\b|BẢO HÀNH FULL", up):
+        warranty = "Bảo hành full thời gian sử dụng."
+    else:
+        m = re.search(r"\bBH\s*(\d+)\s*(D|NGÀY)?", up)
+        warranty = f"Bảo hành {m.group(1)} ngày." if m else ""
+    return ("🛡 " + warranty + "\n" if warranty else "") + \
+        "📩 Sau khi thanh toán, admin sẽ giao hàng qua bot trong thời gian sớm nhất."
+
+
 def now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -93,6 +108,28 @@ class DB:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self):
+        """Thêm cột mới cho CSDL tạo từ bản cũ."""
+        cols = {
+            "products": [
+                ("source_key", "TEXT"),                       # khoá sản phẩm đồng bộ từ Google Sheet
+                ("manual", "INTEGER NOT NULL DEFAULT 0"),     # 1 = hết kho vẫn bán, admin giao tay
+                ("sold_out", "INTEGER NOT NULL DEFAULT 0"),   # 1 = nguồn báo hết hàng
+                ("admin_hidden", "INTEGER NOT NULL DEFAULT 0"),
+            ],
+            "orders": [
+                ("status", "TEXT NOT NULL DEFAULT 'done'"),   # done | pending | cancelled
+                ("delivery", "TEXT"),                         # nội dung admin giao tay
+            ],
+        }
+        for table, wanted in cols.items():
+            have = {r["name"] for r in self.all(f"PRAGMA table_info({table})")}
+            for name, decl in wanted:
+                if name not in have:
+                    self.run(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+        self.run("CREATE UNIQUE INDEX IF NOT EXISTS idx_products_source ON products(source_key)")
 
     # ---------- tiện ích ----------
     def one(self, sql, *args):
@@ -197,7 +234,10 @@ class DB:
 
     # ---------- mua hàng ----------
     def buy(self, uid, pid, qty):
-        """Trừ tiền + xuất kho trong một giao dịch. Trả về (order_id, [nội dung], số dư mới)."""
+        """Trừ tiền + xuất kho trong một giao dịch. Trả về (order_id, [nội dung], số dư mới).
+
+        Kho đủ -> giao ngay. Kho thiếu mà sản phẩm bán kiểu đặt hàng -> tạo đơn chờ admin giao ([] nội dung).
+        """
         with self.tx():
             p = self.one("SELECT * FROM products WHERE id=? AND active=1", pid)
             if not p:
@@ -206,15 +246,17 @@ class DB:
                 "SELECT id, content FROM stock WHERE product_id=? AND order_id IS NULL ORDER BY id LIMIT ?", pid, qty
             )
             if len(items) < qty:
-                raise OutOfStock()
+                if not p["manual"] or p["sold_out"]:
+                    raise OutOfStock()
+                items = []
             total = p["price"] * qty
             balance = self.one("SELECT balance FROM users WHERE id=?", uid)["balance"]
             if balance < total:
                 raise InsufficientBalance(total - balance)
             self.run("UPDATE users SET balance = balance - ? WHERE id=?", total, uid)
             oid = self.run(
-                "INSERT INTO orders(user_id, product_id, quantity, total, created_at) VALUES (?, ?, ?, ?, ?)",
-                uid, pid, qty, total, now(),
+                "INSERT INTO orders(user_id, product_id, quantity, total, created_at, status) VALUES (?, ?, ?, ?, ?, ?)",
+                uid, pid, qty, total, now(), "done" if items else "pending",
             ).lastrowid
             self.conn.executemany("UPDATE stock SET order_id=? WHERE id=?", [(oid, it["id"]) for it in items])
             return oid, [it["content"] for it in items], balance - total
@@ -231,7 +273,76 @@ class DB:
         if not o:
             return None, []
         items = [r["content"] for r in self.all("SELECT content FROM stock WHERE order_id=? ORDER BY id", oid)]
+        if o["delivery"]:
+            items.append(o["delivery"])
         return o, items
+
+    def pending_orders(self):
+        return self.all(
+            """SELECT o.*, p.name, u.full_name, u.username FROM orders o
+               JOIN products p ON p.id = o.product_id JOIN users u ON u.id = o.user_id
+               WHERE o.status='pending' ORDER BY o.id"""
+        )
+
+    def deliver_order(self, oid, content) -> bool:
+        return self.run(
+            "UPDATE orders SET status='done', delivery=? WHERE id=? AND status='pending'", content, oid
+        ).rowcount == 1
+
+    def cancel_order(self, oid):
+        """Huỷ đơn chờ giao và hoàn tiền. Trả về (đơn, số dư mới) hoặc None."""
+        with self.tx():
+            o = self.one("SELECT * FROM orders WHERE id=? AND status='pending'", oid)
+            if not o:
+                return None
+            self.run("UPDATE orders SET status='cancelled' WHERE id=?", oid)
+            self.run("UPDATE users SET balance = balance + ? WHERE id=?", o["total"], o["user_id"])
+            return o, self.one("SELECT balance FROM users WHERE id=?", o["user_id"])["balance"]
+
+    # ---------- đồng bộ Google Sheet ----------
+    def sync_sheet_products(self, rows):
+        """rows: [(key, tên, giá, danh mục (emoji, tên), hết hàng?)]. Trả về thống kê thay đổi."""
+        stats = {"added": 0, "updated": 0, "removed": 0}
+        with self.tx():
+            cat_ids = {}
+            for _, _, _, (emoji, cname), _ in rows:
+                if cname not in cat_ids:
+                    c = self.one("SELECT id FROM categories WHERE name=?", cname)
+                    cat_ids[cname] = c["id"] if c else self.add_category(emoji, cname)
+            seen = set()
+            for key, name, price, (_, cname), sold_out in rows:
+                seen.add(key)
+                p = self.one("SELECT * FROM products WHERE source_key=?", key)
+                if not p:
+                    self.run(
+                        """INSERT INTO products(category_id, name, description, price, source_key, manual, sold_out)
+                           VALUES (?, ?, ?, ?, ?, 1, ?)""",
+                        cat_ids[cname], name, describe(name), price, key, int(sold_out),
+                    )
+                    stats["added"] += 1
+                    continue
+                active = 0 if p["admin_hidden"] else 1
+                changed = (p["name"], p["price"], p["sold_out"], p["active"], p["category_id"]) != (
+                    name, price, int(sold_out), active, cat_ids[cname])
+                if changed:
+                    self.run(
+                        "UPDATE products SET name=?, price=?, sold_out=?, active=?, category_id=? WHERE id=?",
+                        name, price, int(sold_out), active, cat_ids[cname], p["id"],
+                    )
+                    stats["updated"] += 1
+            # ẩn sản phẩm mẫu (giá minh hoạ) nếu chưa từng nhập kho
+            for _, _, products in DEMO:
+                for pname, _, _ in products:
+                    self.run(
+                        """UPDATE products SET active=0 WHERE name=? AND source_key IS NULL AND active=1
+                           AND NOT EXISTS (SELECT 1 FROM stock s WHERE s.product_id = products.id)""",
+                        pname,
+                    )
+            for p in self.all("SELECT id, source_key FROM products WHERE source_key IS NOT NULL AND active=1"):
+                if p["source_key"] not in seen:
+                    self.run("UPDATE products SET active=0 WHERE id=?", p["id"])
+                    stats["removed"] += 1
+        return stats
 
     # ---------- nạp tiền ----------
     def create_topup(self, uid, amount):

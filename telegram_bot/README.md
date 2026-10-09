@@ -2,6 +2,27 @@
 
 Bot bán tài khoản / dịch vụ AI (ChatGPT, Claude, Gemini, Canva, CapCut...) với **giao hàng tự động**.
 
+## Bảng giá tự động từ Google Sheet
+
+Bot đọc bảng giá tại `SHEET_URL` (file `.env`) **mỗi 60 phút** (`SYNC_MINUTES`) và **cộng thêm 20.000đ** (`PRICE_MARKUP`) vào giá mỗi sản phẩm.
+
+- Cột A: tên sản phẩm · Cột B: giá (`44k`, `1299k`, `150.000`...) · Cột C: ghi `HẾT HÀNG` thì bot tạm ngừng bán sản phẩm đó.
+  Các dòng không có giá (tiêu đề, quảng cáo) được bỏ qua.
+- Sản phẩm mới trong sheet → tự thêm; đổi tên/giá → tự cập nhật; xoá khỏi sheet → tự ngừng bán.
+- Sản phẩm tự xếp vào danh mục theo tên: API Token AI, AI Chat & Lập trình, AI Ảnh/Video/Giọng nói, Thiết kế,
+  VPN & Proxy, Giải trí, Học tập & Làm việc, MMO & Marketing (sửa quy tắc trong `sheet_sync.py`).
+- Sheet phải bật chia sẻ **"Bất kỳ ai có đường liên kết đều có thể xem"**. Nếu không đọc được, bot giữ nguyên giá cũ và báo admin.
+- `/capnhat` để cập nhật ngay. Lưu ý: `/giasp` với sản phẩm từ sheet sẽ bị ghi đè ở lần cập nhật sau — hãy sửa giá trên sheet.
+  `/ansp` thì vẫn giữ ẩn dù sheet cập nhật.
+
+**Giao hàng cho sản phẩm từ sheet:** khách trả tiền bằng số dư → bot báo admin "🔔 ĐƠN CẦN GIAO". Admin giao bằng:
+```
+/giao 12
+email@gmail.com|matkhau
+```
+Bot gửi ngay cho khách. Nếu không giao được: `/huydon 12` (hoàn tiền tự động). `/donchua` xem các đơn đang chờ.
+Nếu bạn `/themkho` cho một sản phẩm thì sản phẩm đó được giao tự động từ kho trước.
+
 ## Tính năng
 
 **Khách hàng** (menu nút bấm):
@@ -26,6 +47,10 @@ Bot bán tài khoản / dịch vụ AI (ChatGPT, Claude, Gemini, Canva, CapCut..
 | `/khach <id>` | Xem thông tin khách |
 | `/congtien <id> 50000` | Cộng tiền (số âm để trừ) |
 | `/ban <id>` / `/unban <id>` | Chặn / bỏ chặn khách |
+| `/capnhat` | Cập nhật giá từ Google Sheet ngay |
+| `/donchua` | Đơn đang chờ giao |
+| `/giao <mã đơn>` + xuống dòng nội dung | Giao đơn cho khách |
+| `/huydon <mã đơn>` | Huỷ đơn chờ giao, hoàn tiền |
 | `/thongke` | Doanh thu, tổng nạp, phiếu chờ duyệt |
 | `/thongbao <nội dung>` | Gửi thông báo cho toàn bộ khách |
 
@@ -52,7 +77,6 @@ email2@gmail.com|matkhau2
 4. Mở `.env`, điền `BOT_TOKEN`, `ADMIN_IDS`, thông tin ngân hàng (`BANK_ID` theo mã VietQR: MB, VCB, TCB, ACB, BIDV, ICB...).
 5. Chạy: `python bot.py` (Windows có thể bấm đúp `chay_bot.bat`).
 
-Lần chạy đầu bot tạo sẵn vài danh mục/sản phẩm mẫu (đặt `SEED_DEMO=0` để tắt). Sản phẩm hiện "hết hàng"
-cho tới khi bạn `/themkho`. Dữ liệu lưu trong `data/shop.db` (SQLite) — nhớ sao lưu file này.
+Khi có `SHEET_URL`, sản phẩm được lấy từ sheet ngay lúc bot khởi động. Dữ liệu lưu trong `data/shop.db` (SQLite) — nhớ sao lưu file này.
 
 Để bot chạy 24/7, đặt trên VPS và chạy bằng `systemd`, `pm2` hoặc `screen`/`tmux`.
