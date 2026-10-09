@@ -1,7 +1,21 @@
-# Chép vào /etc/caddy/Caddyfile, thay tên miền, rồi: systemctl reload caddy
-# Caddy tự xin chứng chỉ HTTPS miễn phí và tự chuyển tiếp WebSocket.
+# install.sh tự cài file này. Cài tay: chép vào /etc/caddy/Caddyfile, thay tên miền, rồi: systemctl reload caddy
+# Caddy tự xin / gia hạn chứng chỉ HTTPS miễn phí và tự chuyển tiếp WebSocket.
+# Các header bảo mật nội dung (CSP, chống nhúng iframe, nosniff…) do máy chủ Node tự gửi.
 caro.ten-mien-cua-ban.com {
-	encode gzip
-	header Strict-Transport-Security "max-age=31536000"
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	# Máy chủ chỉ nhận GET (file tĩnh) và WebSocket: chặn yêu cầu có thân lớn
+	request_body {
+		max_size 16KB
+	}
 	reverse_proxy 127.0.0.1:8080
+	log {
+		output file /var/log/caddy/caro-access.log {
+			roll_size 10MiB
+			roll_keep 5
+		}
+	}
 }

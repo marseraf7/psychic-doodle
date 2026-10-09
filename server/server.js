@@ -4,7 +4,9 @@
  *   PORT              cổng (mặc định 8080)
  *   DATA_DIR          thư mục lưu tài khoản (mặc định ./data)
  *   GOOGLE_CLIENT_ID  OAuth Client ID để bật "Đăng nhập bằng Google" (tuỳ chọn)
+ *   HOST              địa chỉ lắng nghe (mặc định mọi địa chỉ; chạy sau Caddy/nginx trên cùng máy: 127.0.0.1)
  *   TRUST_PROXY=1     lấy IP thật từ X-Forwarded-For khi chạy sau nginx/Caddy
+ *                     (chỉ tin header này khi kết nối đến từ chính máy chủ hoặc mạng nội bộ – proxy)
  *   SMTP_URL          máy chủ gửi thư để bật "Quên mật khẩu", ví dụ smtps://user:pass@smtp.gmail.com:465
  *   MAIL_FROM         địa chỉ người gửi, ví dụ "Cờ Caro <caro@example.com>" (mặc định: user trong SMTP_URL)
  *   MIN_APP_VERSION   bản app điện thoại thấp nhất còn được chơi online (ví dụ 1.0.0; bỏ trống = không kiểm tra)
@@ -20,6 +22,7 @@ const { Store } = require('./src/store.js');
 const { Hub, verifyGoogleToken } = require('./src/hub.js');
 
 const PORT = Number(process.env.PORT) || 8080;
+const HOST = process.env.HOST || '';
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const STATIC_DIR = path.resolve(__dirname, '..', 'caro');
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
@@ -62,8 +65,17 @@ const SECURITY_HEADERS = {
 
 /** IP thật của người chơi. Sau proxy (Caddy/nginx) lấy IP cuối cùng do proxy thêm vào,
  *  vì các phần đầu của X-Forwarded-For do trình duyệt tự gửi và có thể bị giả mạo. */
+/** Kết nối từ chính máy này hoặc mạng nội bộ (proxy như Caddy / nginx / Docker) – không thể giả từ Internet. */
+function fromProxy(addr) {
+  const a = String(addr || '').replace(/^::ffff:/, '');
+  if (a === '::1' || /^127\./.test(a) || /^10\./.test(a) || /^192\.168\./.test(a)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(a)) return true;
+  return /^f[cd][0-9a-f]{2}:/i.test(a); // IPv6 nội bộ fc00::/7
+}
+
 function clientIp(req) {
-  if (process.env.TRUST_PROXY) {
+  // Chỉ tin X-Forwarded-For khi kết nối đến từ proxy; ai gọi thẳng vào cổng Node từ Internet thì không giả IP được
+  if (process.env.TRUST_PROXY && fromProxy(req.socket.remoteAddress)) {
     const parts = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
     if (parts.length) return parts[parts.length - 1];
   }
@@ -120,7 +132,7 @@ function serveStatic(store, req, res) {
   });
 }
 
-function start({ port = PORT, dataFile = path.join(DATA_DIR, 'caro.db'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken,
+function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.db'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken,
   sendMail = SMTP_URL ? smtpMailer(SMTP_URL, process.env.MAIL_FROM) : null, timers, msgRate = MSG_RATE,
   minAppVersion = process.env.MIN_APP_VERSION || '', admins = (process.env.ADMIN_USERNAMES || '').split(','),
   updateUrls = { android: process.env.ANDROID_UPDATE_URL || '', ios: process.env.IOS_UPDATE_URL || '' } } = {}) {
@@ -176,7 +188,7 @@ function start({ port = PORT, dataFile = path.join(DATA_DIR, 'caro.db'), googleC
     }
   }, 25000);
 
-  server.listen(port);
+  server.listen(port, host || undefined);
   const stop = () => new Promise((resolve) => {
     clearInterval(ping);
     hub.close();
@@ -200,4 +212,4 @@ if (require.main === module) {
   process.on('SIGTERM', shutdown);
 }
 
-module.exports = { start };
+module.exports = { fromProxy, start };

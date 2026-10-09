@@ -102,6 +102,7 @@ Biến môi trường:
 | Biến | Ý nghĩa |
 |---|---|
 | `PORT` | Cổng (mặc định `8080`) |
+| `HOST` | Địa chỉ lắng nghe (mặc định mọi địa chỉ). Chạy sau Caddy/nginx trên cùng máy thì đặt `127.0.0.1` để không ai gọi thẳng vào cổng Node |
 | `DATA_DIR` | Thư mục chứa CSDL `caro.db` (mặc định `server/data`) – nhớ sao lưu |
 | `GOOGLE_CLIENT_ID` | Bật nút "Đăng nhập bằng Google" (bỏ trống thì nút bị ẩn) |
 | `SMTP_URL` | Bật "Quên mật khẩu" qua email, ví dụ `smtps://ten%40gmail.com:mat-khau-ung-dung@smtp.gmail.com:465` (bỏ trống thì tính năng bị ẩn) |
@@ -109,7 +110,7 @@ Biến môi trường:
 | `MIN_APP_VERSION` | Bản app điện thoại thấp nhất còn được chơi online, ví dụ `1.0.0`. App cũ hơn hiện "Cần cập nhật app" (chơi offline vẫn được). Bỏ trống = không kiểm tra. Bản web luôn mới nhất nên không bị ảnh hưởng |
 | `ANDROID_UPDATE_URL`, `IOS_UPDATE_URL` | Link cửa hàng cho nút "Cập nhật app", ví dụ `https://play.google.com/store/apps/details?id=io.github.marseraf7.caro` |
 | `MAIL_FROM` | Người gửi, ví dụ `"Cờ Caro <caro@ten-mien.com>"` (mặc định: tài khoản trong `SMTP_URL`) |
-| `TRUST_PROXY=1` | **Chỉ bật khi chạy sau nginx/Caddy** (lấy IP người chơi từ proxy). Không có proxy mà bật thì kẻ xấu giả IP để né giới hạn thử mật khẩu |
+| `TRUST_PROXY=1` | **Chỉ bật khi chạy sau nginx/Caddy** (lấy IP người chơi từ header `X-Forwarded-For`). Máy chủ chỉ tin header này khi kết nối đến từ chính máy hoặc mạng nội bộ (proxy), nên người gọi thẳng từ Internet không giả IP được |
 
 ## Đưa lên mạng (để người ở Việt Nam và Nga đều vào được)
 
@@ -123,20 +124,52 @@ chạy Node.js. Cách đơn giản nhất là thuê 1 VPS nhỏ (1 CPU / 512MB l
   Google cần truy cập `accounts.google.com` / `oauth2.googleapis.com`; nếu mạng chặn Google
   thì người chơi vẫn dùng tài khoản riêng bình thường.
 
-### Cách 1 – Docker
+### Cách 1 – Script cài tự động (khuyên dùng, VPS Ubuntu 22.04 / 24.04)
+
+```bash
+sudo git clone -b <nhánh> https://github.com/<chủ>/<repo>.git /opt/caro
+sudo bash /opt/caro/server/deploy/install.sh caro.ten-mien.com
+sudo nano /etc/caro/caro.env          # ADMIN_USERNAMES, GOOGLE_CLIENT_ID, SMTP_URL…
+sudo systemctl restart caro
+```
+
+`install.sh` cài Node.js 22 + Caddy (HTTPS tự động) và bật sẵn các lớp bảo vệ:
+
+- Máy chủ chạy bằng user `caro` không có quyền gì, bị cách ly bằng systemd (`deploy/caro.service`:
+  chỉ ghi được thư mục dữ liệu, không thấy `/home`, chặn lệnh hệ thống nguy hiểm, giới hạn 600 MB RAM;
+  `systemd-analyze security caro` chấm 1.2 – mức "OK"). Mã nguồn thuộc root, dịch vụ không sửa được.
+- Cổng Node chỉ nghe `127.0.0.1`; ra Internet chỉ qua Caddy (HTTPS, HSTS, ẩn phiên bản, chặn yêu cầu > 16 KB).
+- Tường lửa `ufw`: chỉ mở SSH, 80, 443. SSH: tắt đăng nhập bằng mật khẩu và đăng nhập root (chỉ khi
+  bạn đang đăng nhập bằng khoá – nếu không, script giữ nguyên để bạn không bị khoá ở ngoài); `fail2ban`
+  chặn 1 giờ IP đăng nhập SSH sai 5 lần.
+- Bí mật (`SMTP_URL`…) nằm trong `/etc/caro/caro.env`, chỉ root đọc được (file dịch vụ ai cũng đọc được).
+- Tự cài bản vá bảo mật Ubuntu, giới hạn nhật ký 200 MB, tham số mạng an toàn (sysctl),
+  sao lưu CSDL mỗi ngày vào `/var/backups/caro` (giữ 14 ngày).
+
+Cập nhật code: `sudo bash /opt/caro/server/deploy/update.sh` – sao lưu dữ liệu trước, tải code mới,
+khởi động lại; bản mới không chạy được thì tự quay lại bản cũ.
+
+Repo riêng tư: clone bằng *deploy key* (khoá chỉ đọc, GitHub → Settings → Deploy keys), rồi
+`sudo git -C /opt/caro config core.sshCommand "ssh -i /root/.ssh/caro_deploy"` để `update.sh` tải được.
+
+### Cách 2 – Docker
 
 ```bash
 docker build -f server/Dockerfile -t caro .
-docker run -d --name caro --restart unless-stopped -p 8080:8080 -v caro-data:/data \
+docker run -d --name caro --restart unless-stopped -p 127.0.0.1:8080:8080 -v caro-data:/data \
   -e GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com -e TRUST_PROXY=1 caro
 ```
 
-### Cách 2 – Node trực tiếp + systemd
+`-p 127.0.0.1:8080:8080`: chỉ mở cổng trong máy, người ngoài vào qua Caddy/nginx.
+
+### Cách 3 – Node trực tiếp + systemd (tự làm từng bước)
 
 ```bash
 git clone <repo> /opt/caro && cd /opt/caro/server && npm ci --omit=dev
-PORT=8080 DATA_DIR=/var/lib/caro node --disable-warning=ExperimentalWarning server.js
+HOST=127.0.0.1 PORT=8080 DATA_DIR=/var/lib/caro node --disable-warning=ExperimentalWarning server.js
 ```
+
+Mẫu file dịch vụ và cấu hình: `deploy/caro.service`, `deploy/caro.env.example`, `deploy/Caddyfile`.
 
 ### HTTPS (bắt buộc cho điện thoại & đăng nhập Google)
 
@@ -206,7 +239,12 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
 - 200 kết nối/IP; 15 tin nhắn/giây mỗi kết nối (vượt quá bị ngắt); tin nhắn tối đa 16KB.
 - Mất kết nối quá 90 giây khi ván đang diễn ra (kể cả chưa đánh nước nào, hoặc rớt mạng giữa 2 ván Bo3/Bo5)
   thì bị xử thua, không để đối thủ chờ vô hạn. Đăng xuất khi đang trong phòng thì rời phòng luôn.
-- File mẫu `deploy/caro.service` chạy dưới user riêng, chỉ được ghi vào thư mục dữ liệu.
+- Chống spam "mở trang giải" (mỗi lần mở giải 512 người là ~1,4 MB dữ liệu): phần chung của trang giải được
+  lưu sẵn và dùng lại; số lần tải trang đầy đủ giới hạn theo IP (giải càng đông càng tốn lượt), hết lượt thì
+  nhận ở nhịp cập nhật kế tiếp. Trước khi sửa, 1 kết nối spam đã chiếm ~0,9 vCPU; nay ~0,14 và bị chặn sau ~40 lần.
+- Chỉ tin `X-Forwarded-For` khi kết nối đến từ proxy (chính máy / mạng nội bộ); cổng Node có thể chỉ nghe `127.0.0.1`.
+- `deploy/install.sh` cài sẵn: dịch vụ cách ly (systemd, mức 1.2 "OK"), tường lửa, SSH chỉ dùng khoá, fail2ban,
+  tự vá bảo mật, sao lưu hằng ngày (xem mục *Đưa lên mạng*).
 
 ## Giới hạn hiện tại
 

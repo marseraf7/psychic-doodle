@@ -141,6 +141,7 @@ class Tournaments {
       me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
       groupDraft: manage ? this.groupDraft(t) : null,
       myMatch: myMatch ? this.matchView(t, myMatch) : null,
+      now: Date.now(), // giờ máy chủ (phần chung có thể là bản đã lưu vài giây trước)
     };
   }
 

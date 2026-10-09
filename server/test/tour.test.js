@@ -32,13 +32,17 @@ class Client {
     c.ws.on('message', (d) => {
       let m = JSON.parse(d);
       // Bản vá trang giải: áp như client thật (caro/tour-patch.js), rồi coi như nhận bản đầy đủ
-      if (m.t === 'tour' && m.tour) c.tours[m.id] = structuredClone(m.tour);
+      // shared = phần chung máy chủ gửi; tour = phần chung + phần riêng (như client thật ghép lại)
+      if (m.t === 'tour' && m.tour) {
+        c.tours[m.id] = structuredClone(m.tour);
+        if (m.mine) m = { ...m, shared: m.tour, tour: { ...m.tour, ...m.mine } };
+      }
       if (m.t === 'tourPatch') {
         const cur = c.tours[m.id];
         assert.ok(cur, 'nhận bản vá khi chưa có bản đầy đủ');
         assert.ok(TourPatch.apply(cur, structuredClone(m.patch)), 'áp bản vá được');
         c.patches++;
-        m = { t: 'tour', id: m.id, tour: structuredClone(cur), mine: m.mine, patched: true };
+        m = { t: 'tour', id: m.id, shared: structuredClone(cur), tour: { ...structuredClone(cur), ...m.mine }, mine: m.mine, patched: true };
       }
       c.msgs.push(m);
       if (m.t === 'room') c.room = m.room;
@@ -111,7 +115,13 @@ async function playOut(winner, loser) {
     const done = (m) => m.room && (m.room.code !== code || m.room.moves.length >= n || !!m.room.winner);
     const p = Promise.all([turnC.wait('room', done), other.wait('room', done)]);
     turnC.send(turnC === winner ? { t: 'move', x: i++, y: 0 } : { t: 'move', x: (j++) * 3, y: 5 });
-    await p;
+    try { await p; } catch (e) {
+      // Hết giờ chờ: in thêm lỗi của cả hai người và trạng thái phòng để biết nguyên nhân
+      const info = (c) => ({ me: c.me.id, errors: c.msgs.filter((m) => m.t === 'error').slice(-3),
+        room: c.room && { code: c.room.code, turn: c.room.turn, moves: c.room.moves.length, winner: c.room.winner, seats: c.room.seats } });
+      e.message += ' | người đi: ' + JSON.stringify(info(turnC)) + ' | người kia: ' + JSON.stringify(info(other));
+      throw e;
+    }
   }
 }
 
@@ -432,12 +442,13 @@ test('cập nhật trang giải: phần chung dựng một lần, phần riêng 
   await B.req({ t: 'tourGet', id }, 'tour', (m) => m.id === id);
   await p1.req({ t: 'tourGet', id }, 'tour', (m) => m.id === id);
   // p2 đăng ký -> người đang xem nhận bản cập nhật
-  const gotB = B.wait('tour', (m) => m.id === id && m.mine && m.tour.count === 1);
-  const got1 = p1.wait('tour', (m) => m.id === id && m.mine && m.tour.count === 1);
+  const gotB = B.wait('tour', (m) => m.id === id && m.mine && m.shared.count === 1);
+  const got1 = p1.wait('tour', (m) => m.id === id && m.mine && m.shared.count === 1);
   await p2.req({ t: 'tourJoin', id }, 'toast');
   const [mb, m1] = await Promise.all([gotB, got1]);
-  assert.deepStrictEqual(mb.tour, m1.tour, 'phần chung giống hệt nhau');
-  for (const k of ['groupDraft', 'reviewNote', 'canManage', 'me', 'myMatch']) assert.ok(!(k in mb.tour), 'phần chung không có ' + k);
+  const strip = (x) => ({ ...x, now: 0 });
+  assert.deepStrictEqual(strip(mb.shared), strip(m1.shared), 'phần chung giống hệt nhau');
+  for (const k of ['groupDraft', 'reviewNote', 'canManage', 'me', 'myMatch']) assert.ok(!(k in mb.shared), 'phần chung không có ' + k);
   assert.strictEqual(mb.mine.canManage, true);
   assert.strictEqual(mb.mine.groupDraft.groups.flat().length, 1, 'ban tổ chức thấy bảng dự kiến');
   assert.strictEqual(m1.mine.canManage, false);
@@ -451,6 +462,49 @@ test('cập nhật trang giải: phần chung dựng một lần, phần riêng 
   assert.match(B.ws.extensions, /permessage-deflate/);
   B.send({ t: 'tourCancel', id });
   [p1, p2].forEach((c) => c.close());
+});
+
+test('chống spam mở trang giải: dùng lại phần chung đã lưu, giới hạn lượt theo IP, hết lượt thì nhận ở nhịp sau', async () => {
+  const B = await admin();
+  const { id } = await B.req({ t: 'tourCreate', name: 'Chống spam', format: 'bracket', startsAt: soon(), timeLimit: 30, stages: [{ type: 'single' }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  // Phần chung chỉ dựng lại khi giải đổi
+  let builds = 0;
+  const orig = app.hub.tourShared;
+  app.hub.tourShared = function (tt, ...a) { if (tt.id === id) builds++; return orig.call(this, tt, ...a); };
+  try {
+    const cs = [await Client.open(), await Client.open(), await Client.open()]; // cùng IP 127.0.0.1
+    app.hub.fullBuckets?.clear();
+    const got = cs.map(() => 0);
+    cs.forEach((c, i) => c.ws.on('message', (d) => { if (String(d).startsWith('{"t":"tour",')) got[i]++; }));
+    // Đợt 1: mở trang lần đầu (dựng phần chung + mốc so sánh cho cập nhật)
+    cs.forEach((c) => c.send({ t: 'tourGet', id }));
+    await until(() => got.every((n) => n > 0));
+    await sleep(150);
+    const b1 = builds;
+    // Đợt 2: spam 57 lần nữa khi giải không đổi -> không dựng lại lần nào
+    for (let k = 0; k < 19; k++) cs.forEach((c) => c.send({ t: 'tourGet', id }));
+    await sleep(150);
+    assert.strictEqual(builds, b1, `spam mở trang khi giải không đổi không được dựng lại phần chung (${b1} -> ${builds})`);
+    const now = got.reduce((a, b) => a + b, 0);
+    // 40 lượt theo IP + mỗi kết nối nhận thêm tối đa 1 bản ở nhịp cập nhật kế tiếp (trong kiểm thử: 20 ms)
+    assert.ok(now >= 40 && now <= 40 + 2 * cs.length, `trả ngay khoảng 40 lần (hết lượt theo IP): ${now}`);
+    // Người hết lượt vẫn nhận trang giải ở nhịp cập nhật kế tiếp
+    const waiting = () => [...app.hub.byPid.values()].flatMap((set) => [...set]).filter((c) => c.watchTour === id && c.tourFull);
+    await until(() => got.every((n) => n > 0) && !waiting().length, 3000);
+    // Máy chủ vẫn trả lời bình thường
+    assert.strictEqual((await cs[0].req({ t: 'tourList' }, 'tourList')).t, 'tourList');
+    // Giải đổi -> bỏ bản đã lưu
+    const before = builds;
+    app.hub.pushTour(t);
+    app.hub.fullBuckets.clear();
+    await cs[1].req({ t: 'tourGet', id }, 'tour', (m) => m.id === id);
+    assert.ok(builds > before, 'giải đổi thì dựng lại phần chung');
+    cs.forEach((c) => c.close());
+  } finally {
+    app.hub.tourShared = orig;
+    B.send({ t: 'tourCancel', id });
+  }
 });
 
 test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh thắng-thua 3 người', async () => {

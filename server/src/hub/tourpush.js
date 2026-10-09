@@ -9,6 +9,11 @@
 'use strict';
 const { uidOf } = require('./shared.js');
 
+const VIEW_TTL_MS = 10000; // phần chung đã chuyển JSON dùng lại tối đa 10 giây (giải có thay đổi thì bỏ ngay)
+// Lượt tải trang giải đầy đủ theo IP (chống spam "mở trang giải" làm treo máy chủ): giải càng đông càng tốn lượt
+const FULL_BURST = 40;
+const FULL_RATE = 4; // lượt hồi lại mỗi giây
+
 /** Chuỗi JSON của một dòng bảng xếp hạng, bỏ hạng (client tính lại theo vị trí). */
 const rowJson = (r) => JSON.stringify({ ...r, rank: 0 });
 const isMatch = (x) => x && typeof x === 'object' && 'wa' in x && 'id' in x;
@@ -73,7 +78,10 @@ function diffParts(prev, next, shared) {
 }
 
 class TourPush {
-  pushTour(t) {
+  /** Giải vừa đổi: gửi cập nhật cho người đang xem (sau một nhịp gom). changed=false: chỉ gửi, không có gì đổi. */
+  pushTour(t, changed = true) {
+    if (!this.tourDirty) this.tourDirty = new Set();
+    if (changed) { this.tourJson?.delete(t.id); this.tourDirty.add(t.id); }
     if (this.closed) return;
     if (!this.tourPushTimers) this.tourPushTimers = new Map();
     if (this.tourPushTimers.has(t.id)) return;
@@ -91,11 +99,47 @@ class TourPush {
     return Math.max(this.T.TOUR_PUSH_MS, Math.min(2000, n * 4));
   }
 
-  /** Người vừa mở trang giải: bản đầy đủ ngay, và bản đầy đủ thêm một lần ở cập nhật kế tiếp. */
+  /** Phần chung đã chuyển JSON (dùng lại khi nhiều người mở trang giải liền nhau). */
+  sharedJson(t, shared) {
+    if (!this.tourJson) this.tourJson = new Map();
+    const c = this.tourJson.get(t.id);
+    if (!shared && c && Date.now() - c.at < VIEW_TTL_MS) return c.json;
+    const json = JSON.stringify(shared || this.tourShared(t));
+    this.tourJson.set(t.id, { json, at: Date.now() });
+    return json;
+  }
+
+  /** Còn lượt tải trang giải đầy đủ không (theo IP; giải 64 người tốn 1 lượt, 512 người tốn 8 lượt). */
+  fullViewAllowed(conn, t) {
+    if (!this.fullBuckets) this.fullBuckets = new Map();
+    const now = Date.now();
+    const key = conn.ip || '';
+    let b = this.fullBuckets.get(key);
+    if (!b) { b = { tokens: FULL_BURST, at: now }; this.fullBuckets.set(key, b); }
+    b.tokens = Math.min(FULL_BURST, b.tokens + ((now - b.at) / 1000) * FULL_RATE);
+    b.at = now;
+    const cost = Math.max(1, Math.ceil(t.players.length / 64));
+    if (b.tokens < cost) return false;
+    b.tokens -= cost;
+    if (this.fullBuckets.size > 10000) { // dọn IP đã đầy lượt
+      for (const [k, x] of this.fullBuckets) if (x.tokens + ((now - x.at) / 1000) * FULL_RATE >= FULL_BURST) this.fullBuckets.delete(k);
+    }
+    return true;
+  }
+
+  /**
+   * Người vừa mở trang giải: bản đầy đủ ngay (và thêm một lần ở cập nhật kế tiếp, cho khớp với bản mọi người
+   * đang có). Hết lượt tải theo IP thì không gửi ngay: bản đầy đủ tới ở nhịp cập nhật kế tiếp (≤ 2 giây).
+   */
   watchTour(conn, t, uid) {
     conn.watchTour = t.id;
     conn.tourFull = true;
-    conn.send({ t: 'tour', id: t.id, tour: this.tourView(t, uid) });
+    if (!this.fullViewAllowed(conn, t)) { this.pushTour(t, false); return; }
+    this.sendRaw(conn, `{"t":"tour","id":${JSON.stringify(t.id)},"tour":${this.sharedJson(t)},"mine":${JSON.stringify(this.tourMine(t, uid))}}`);
+  }
+
+  sendRaw(conn, raw) {
+    if (conn.sendRaw) conn.sendRaw(raw); else conn.send(JSON.parse(raw));
   }
 
   /** Gửi cập nhật: phần chung (đầy đủ hoặc bản vá) chuyển JSON một lần, mỗi người xem chỉ thêm phần riêng. */
@@ -109,25 +153,38 @@ class TourPush {
       for (const conn of watchers) conn.send({ t: 'tour', id, tour: null });
       return;
     }
+    // Không có gì đổi (chỉ có người mở trang giải lúc hết lượt): gửi bản đầy đủ đã lưu cho họ, không dựng lại
+    if (!this.tourDirty?.has(id) && this.tourSnaps.has(id) && this.tourJson?.has(id)) {
+      const head = `{"t":"tour","id":${JSON.stringify(id)},"tour":${this.sharedJson(t)},"mine":`;
+      for (const conn of watchers) {
+        if (!conn.tourFull) continue;
+        conn.tourFull = false;
+        const uid = uidOf(conn.pid);
+        if (!this.canSeeTour(t, uid)) conn.send({ t: 'tour', id, tour: null });
+        else this.sendRaw(conn, head + JSON.stringify(this.tourMine(t, uid)) + '}');
+      }
+      return;
+    }
+    this.tourDirty?.delete(id);
     const shared = this.tourShared(t);
     const next = viewParts(shared);
     const prev = this.tourSnaps.get(id);
     this.tourSnaps.set(id, next);
+    this.sharedJson(t, shared); // lưu lại cho người mở trang giải sau
     let fullHead = null, patchHead = null;
     for (const conn of watchers) {
       const uid = uidOf(conn.pid);
       if (!this.canSeeTour(t, uid)) { conn.send({ t: 'tour', id, tour: null }); continue; }
       let head;
       if (!prev || conn.tourFull) {
-        fullHead = fullHead || `{"t":"tour","id":${JSON.stringify(id)},"tour":${JSON.stringify(shared)},"mine":`;
+        fullHead = fullHead || `{"t":"tour","id":${JSON.stringify(id)},"tour":${this.sharedJson(t)},"mine":`;
         head = fullHead;
         conn.tourFull = false;
       } else {
         patchHead = patchHead || `{"t":"tourPatch","id":${JSON.stringify(id)},"patch":${JSON.stringify(diffParts(prev, next, shared))},"mine":`;
         head = patchHead;
       }
-      const raw = head + JSON.stringify(this.tourMine(t, uid)) + '}';
-      if (conn.sendRaw) conn.sendRaw(raw); else conn.send(JSON.parse(raw));
+      this.sendRaw(conn, head + JSON.stringify(this.tourMine(t, uid)) + '}');
     }
   }
 }

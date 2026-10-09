@@ -924,3 +924,13 @@ test('phòng công khai: hiện trong sảnh, vào không cần mật khẩu, đ
   assert.strictEqual(w.msgs.filter((m) => m.t === 'lobby').length, w.msgs.slice(0, n).filter((m) => m.t === 'lobby').length);
   [w, priv, j, ha, va].forEach((k) => k.close());
 });
+
+test('chỉ tin X-Forwarded-For khi kết nối đến từ proxy (chính máy chủ / mạng nội bộ), không tin IP Internet', () => {
+  const { fromProxy } = require('../server.js');
+  for (const a of ['127.0.0.1', '::1', '::ffff:127.0.0.1', '10.0.0.4', '172.17.0.1', '172.31.255.1', '192.168.1.2', 'fd00::1', 'fc12:3::1']) {
+    assert.strictEqual(fromProxy(a), true, a);
+  }
+  for (const a of ['8.8.8.8', '::ffff:20.1.2.3', '172.32.0.1', '172.15.0.1', '11.0.0.1', '2001:db8::1', 'fe80::1', '', undefined]) {
+    assert.strictEqual(fromProxy(a), false, String(a));
+  }
+});
