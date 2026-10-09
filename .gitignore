@@ -12,3 +12,7 @@ ket_qua_tom_tat/
 ket_qua_phan_tich/
 .venv/
 tom_tat_ghi_am/models/
+
+# Bot Telegram
+telegram_bot/.env
+telegram_bot/data/
