@@ -1,8 +1,8 @@
 // Lưu toàn bộ game vào bộ nhớ đệm để chơi được cả khi mất mạng.
-const CACHE = 'caro-v19';
+const CACHE = 'caro-v20';
 const FILES = ['./', 'index.html', 'style.css', 'config.js', 'theme.js', 'i18n.js', 'sound.js', 'rules.js', 'ai-worker.js', 'app.js', 'online.js', 'social.js', 'match.js', 'tour-patch.js', 'tour.js', 'tour-stages.js', 'tour-form.js', 'tour-groups.js', 'club.js', 'native.js', 'privacy.html', 'icon.svg', 'manifest.webmanifest',
-  'fonts/inter-latin-wght-normal.woff2', 'fonts/inter-latin-ext-wght-normal.woff2', 'fonts/inter-vietnamese-wght-normal.woff2',
-  'fonts/inter-cyrillic-wght-normal.woff2', 'fonts/inter-cyrillic-ext-wght-normal.woff2'];
+  // Phông cho 4 ngôn ngữ của game; phần chữ hiếm (latin-ext, cyrillic-ext) tự được lưu khi cần
+  'fonts/noto-sans-latin-wght-normal.woff2', 'fonts/noto-sans-vietnamese-wght-normal.woff2', 'fonts/noto-sans-cyrillic-wght-normal.woff2'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));

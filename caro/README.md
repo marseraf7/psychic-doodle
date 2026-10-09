@@ -50,6 +50,18 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
 `←↑→↓` di chuyển · `+`/`-` phóng to/thu nhỏ · `C` về giữa · `N` ván mới · `Ctrl+Z` đi lại
 
+## Giao diện (học theo Lichess)
+
+- **Phông Noto Sans** (giống Lichess), lưu trong `fonts/`, không tải từ dịch vụ ngoài; đủ dấu tiếng Việt và chữ Nga,
+  chữ Hán dùng phông Noto Sans SC / PingFang của máy. Trang tiếng Việt chỉ tải ~49 KB phông.
+- **Thang cỡ chữ** duy nhất trong `style.css` (`--fs-2xs` … `--fs-xl`): co giãn theo bề rộng màn hình bằng `clamp()`
+  và tính theo `rem` (theo cỡ chữ người dùng đặt). Không ghi cỡ chữ bằng px ở chỗ khác; ô nhập luôn ≥16px (iOS không tự phóng to).
+- **Biểu tượng SVG** (`index.html`, `<symbol id="i-…">`): nét 2px cùng một kiểu, thay cho ký tự / emoji vốn hiện khác nhau trên mỗi máy.
+- **Nút chọn dạng phân đoạn** (`.seg`): các lựa chọn liền một khối trên một hàng; ô radio thật vẫn còn (trong suốt, phủ kín ô)
+  để bàn phím, trình đọc màn hình và kiểm thử dùng được.
+- **Chơi nhanh**: lưới ô như Lichess – bấm một ô là tìm trận ngay với thời gian đó.
+- Hiệu ứng mở hộp thoại / bấm nút ngắn; tắt hết khi máy bật "giảm chuyển động".
+
 ## Kiểm thử
 
 ```bash

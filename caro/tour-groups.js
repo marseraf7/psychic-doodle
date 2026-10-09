@@ -63,7 +63,7 @@
         <button type="button" class="primary sm" data-act="grpSave" ${G.dirty && !groups.some((g) => g.length > max) ? '' : 'disabled'}>${esc(T('groups_save'))}</button>
       </div>`;
     const title = `<b>${esc(T('groups_title'))}</b> <span class="muted">${esc(T('groups_n', { n: groups.length }))}${G.dirty ? ' · ' + esc(T('unsaved')) : ''}</span>`;
-    return K.fold(t.id + ':grp', title, body, true);
+    return K.fold(t.id + ':grp', title, body, groups.some((g) => g.length));
   }
 
   /** Chuyển một người sang bảng khác (to = số thứ tự bảng, hoặc 'new' = bảng mới). */

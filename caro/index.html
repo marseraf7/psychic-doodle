@@ -16,42 +16,64 @@
   <script src="theme.js"></script>
 </head>
 <body>
+  <!-- Bộ biểu tượng (nét 2px, cùng một kiểu) – dùng: <svg class="ico"><use href="#i-..."/></svg> -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-center" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.13 10.03 L21.47 10.45 L21.47 13.55 L19.13 13.97 L18.44 15.65 L19.79 17.60 L17.60 19.79 L15.65 18.44 L13.97 19.13 L13.55 21.47 L10.45 21.47 L10.03 19.13 L8.35 18.44 L6.40 19.79 L4.21 17.60 L5.56 15.65 L4.87 13.97 L2.53 13.55 L2.53 10.45 L4.87 10.03 L5.56 8.35 L4.21 6.40 L6.40 4.21 L8.35 5.56 L10.03 4.87 L10.45 2.53 L13.55 2.53 L13.97 4.87 L15.65 5.56 L17.60 4.21 L19.79 6.40 L18.44 8.35Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
+    <symbol id="i-draw" viewBox="0 0 24 24"><text x="12" y="19" text-anchor="middle" font-size="21" font-weight="700" fill="currentColor" stroke="none">½</text></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></symbol>
+    <symbol id="i-exit" viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M9 17l-5-5 5-5M4 12h11"/></symbol>
+    <symbol id="i-first" viewBox="0 0 24 24"><path d="M18 6l-7 6 7 6M6 6v12"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H10l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  </svg>
+
   <canvas id="board" data-i18n-aria="board_aria"></canvas>
 
   <header class="bar top">
     <div class="turn" id="turn" aria-live="polite"></div>
-    <div class="clock" id="clock" hidden><span class="clock-ico">⏱</span><span id="clock-n"></span></div>
+    <div class="clock" id="clock" hidden><svg class="ico clock-ico" aria-hidden="true"><use href="#i-clock"/></svg><span id="clock-n"></span></div>
     <div class="score" id="score" data-i18n-title="score_title"></div>
   </header>
 
   <nav class="bar bottom local-only">
-    <button id="btn-new" type="button"><span class="ico">＋</span><span data-i18n="btn_new"></span></button>
-    <button id="btn-undo" type="button"><span class="ico">↶</span><span data-i18n="btn_undo"></span></button>
-    <button id="btn-center" type="button"><span class="ico">◎</span><span data-i18n="btn_center"></span></button>
-    <button id="btn-online" type="button"><span class="ico">🌐</span><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
-    <button id="btn-settings" type="button"><span class="ico">⚙</span><span data-i18n="btn_settings"></span></button>
+    <button id="btn-new" type="button"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="btn_new"></span></button>
+    <button id="btn-undo" type="button"><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg><span data-i18n="btn_undo"></span></button>
+    <button id="btn-center" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
+    <button id="btn-online" type="button"><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
+    <button id="btn-settings" type="button"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span data-i18n="btn_settings"></span></button>
   </nav>
 
   <nav class="bar bottom online-only">
-    <button id="btn-room" type="button"><span class="ico">ℹ</span><span data-i18n="btn_room"></span></button>
-    <button id="btn-center2" type="button"><span class="ico">◎</span><span data-i18n="btn_center"></span></button>
-    <button id="btn-draw" type="button"><span class="ico">½</span><span id="btn-draw-label" data-i18n="btn_draw"></span></button>
-    <button id="btn-resign" type="button"><span class="ico">⚑</span><span data-i18n="btn_resign"></span></button>
-    <button id="btn-leave" type="button"><span class="ico">⎋</span><span data-i18n="btn_leave"></span></button>
+    <button id="btn-room" type="button"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span data-i18n="btn_room"></span></button>
+    <button id="btn-center2" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
+    <button id="btn-draw" type="button"><svg class="ico" aria-hidden="true"><use href="#i-draw"/></svg><span id="btn-draw-label" data-i18n="btn_draw"></span></button>
+    <button id="btn-resign" type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span data-i18n="btn_resign"></span></button>
+    <button id="btn-leave" type="button"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg><span data-i18n="btn_leave"></span></button>
   </nav>
 
   <!-- Xem lại ván đã lưu -->
   <nav class="bar bottom replay-only">
-    <button id="rp-first" type="button"><span class="ico">⏮</span><span data-i18n="rp_first"></span></button>
-    <button id="rp-prev" type="button"><span class="ico">◀</span><span data-i18n="rp_prev"></span></button>
-    <button id="rp-play" type="button"><span class="ico" id="rp-play-ico">▶</span><span id="rp-play-label" data-i18n="rp_play"></span></button>
-    <button id="rp-next" type="button"><span class="ico">▶︎|</span><span data-i18n="rp_next"></span></button>
-    <button id="rp-share" type="button"><span class="ico">↗</span><span data-i18n="share_game"></span></button>
-    <button id="rp-close" type="button"><span class="ico">✕</span><span data-i18n="rp_close"></span></button>
+    <button id="rp-first" type="button"><svg class="ico" aria-hidden="true"><use href="#i-first"/></svg><span data-i18n="rp_first"></span></button>
+    <button id="rp-prev" type="button"><svg class="ico" aria-hidden="true"><use href="#i-prev"/></svg><span data-i18n="rp_prev"></span></button>
+    <button id="rp-play" type="button"><svg class="ico" id="rp-play-ico" aria-hidden="true"><use href="#i-play"/></svg><span id="rp-play-label" data-i18n="rp_play"></span></button>
+    <button id="rp-next" type="button"><svg class="ico" aria-hidden="true"><use href="#i-next"/></svg><span data-i18n="rp_next"></span></button>
+    <button id="rp-share" type="button"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg><span data-i18n="share_game"></span></button>
+    <button id="rp-close" type="button"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg><span data-i18n="rp_close"></span></button>
   </nav>
 
   <!-- Chat nhanh trong phòng -->
-  <button type="button" class="fab online-only" id="quick-btn" data-i18n-aria="quick_chat" data-i18n-title="quick_chat">💬</button>
+  <button type="button" class="fab online-only" id="quick-btn" data-i18n-aria="quick_chat" data-i18n-title="quick_chat"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></button>
   <div class="quick-menu" id="quick-menu" hidden></div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -78,48 +100,62 @@
 
       <fieldset>
         <legend data-i18n="mode"></legend>
-        <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
-        <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
+          <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
+        </div>
       </fieldset>
 
       <fieldset class="ai-only">
         <legend data-i18n="you_play"></legend>
-        <label><input type="radio" name="human" value="1"> <b class="x">X</b> – <span data-i18n="goes_first"></span></label>
-        <label><input type="radio" name="human" value="2"> <b class="o">O</b> – <span data-i18n="goes_second"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="human" value="1"> <b class="x">X</b> – <span data-i18n="goes_first"></span></label>
+          <label><input type="radio" name="human" value="2"> <b class="o">O</b> – <span data-i18n="goes_second"></span></label>
+        </div>
       </fieldset>
 
       <fieldset class="ai-only">
         <legend data-i18n="level"></legend>
-        <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
-        <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
-        <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
+          <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
+          <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="time_limit"></legend>
-        <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
-        <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
-        <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
-        <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
+          <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
+          <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
+          <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="allow_undo"></legend>
-        <label><input type="radio" name="allowUndo" value="yes"> <span data-i18n="yes"></span></label>
-        <label><input type="radio" name="allowUndo" value="no"> <span data-i18n="no"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="allowUndo" value="yes"> <span data-i18n="yes"></span></label>
+          <label><input type="radio" name="allowUndo" value="no"> <span data-i18n="no"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="sound"></legend>
-        <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
-        <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
+          <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="theme"></legend>
-        <label><input type="radio" name="theme" value="light"> <span data-i18n="theme_light"></span></label>
-        <label><input type="radio" name="theme" value="dark"> <span data-i18n="theme_dark"></span></label>
-        <label><input type="radio" name="theme" value="system"> <span data-i18n="theme_system"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="theme" value="light"> <span data-i18n="theme_light"></span></label>
+          <label><input type="radio" name="theme" value="dark"> <span data-i18n="theme_dark"></span></label>
+          <label><input type="radio" name="theme" value="system"> <span data-i18n="theme_system"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
@@ -207,15 +243,13 @@
       <section class="card" id="account"></section>
       <section class="card" id="quick-card">
         <h3 data-i18n="quick_title"></h3>
-        <div class="seg" role="group" data-i18n-aria="time_limit">
-          <label><input type="radio" name="qm-time" value="-1" checked> <span data-i18n="qm_any"></span></label>
-          <label><input type="radio" name="qm-time" value="0"> <span data-i18n="time_off"></span></label>
-          <label><input type="radio" name="qm-time" value="10"> <span data-i18n-n="10"></span></label>
-          <label><input type="radio" name="qm-time" value="20"> <span data-i18n-n="20"></span></label>
-          <label><input type="radio" name="qm-time" value="30"> <span data-i18n-n="30"></span></label>
-        </div>
-        <div class="row" id="qm-idle">
-          <button type="button" class="primary" id="qm-start" data-i18n="qm_start"></button>
+        <!-- Như Lichess: bấm một ô là tìm trận ngay với thời gian đó -->
+        <div class="qm-grid" id="qm-grid" role="group" data-i18n-aria="time_limit">
+          <button type="button" class="qm-tile" data-time="10"><b>10</b><small data-i18n="qm_unit"></small></button>
+          <button type="button" class="qm-tile" data-time="20"><b>20</b><small data-i18n="qm_unit"></small></button>
+          <button type="button" class="qm-tile" data-time="30"><b>30</b><small data-i18n="qm_unit"></small></button>
+          <button type="button" class="qm-tile" data-time="0"><b>∞</b><small data-i18n="time_off"></small></button>
+          <button type="button" class="qm-tile wide2" data-time="-1" id="qm-start"><b data-i18n="qm_any"></b><small data-i18n="qm_any_sub"></small></button>
         </div>
         <div class="row qm-search" id="qm-search" hidden>
           <span class="spinner" aria-hidden="true"></span>

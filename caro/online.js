@@ -208,7 +208,8 @@
     const conn = $('conn');
     conn.className = 'conn ' + S.status;
     conn.textContent = T(!wsUrl ? 'conn_none' : outdated ? 'conn_outdated' : 'conn_' + S.status);
-    $('create-room').disabled = $('open-join').disabled = $('qm-start').disabled = !!outdated;
+    $('create-room').disabled = $('open-join').disabled = !!outdated;
+    document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => { b.disabled = !!outdated; });
     renderAccount();
     renderFriends();
   }

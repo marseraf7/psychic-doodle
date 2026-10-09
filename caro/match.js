@@ -19,17 +19,16 @@
   const statusText = () => T('qm_searching', { t: waited() });
 
   // ------------------------------------------------------------ Tìm trận nhanh
-  function chosenTime() {
-    const el = document.querySelector('input[name="qm-time"]:checked');
-    return el ? Number(el.value) : -1;
-  }
-  function start() {
+  // Ô vừa chọn trên lưới "Chơi nhanh" (dùng lại cho nút "Tìm trận khác" trên thẻ kết quả)
+  Q.time = -1;
+  function start(time) {
     if (O.roomActive() && !confirm(T('confirm_leave'))) return;
-    O.send({ t: 'quickMatch', timeLimit: chosenTime() });
+    if (typeof time === 'number') Q.time = time;
+    O.send({ t: 'quickMatch', timeLimit: Q.time });
   }
-  $('qm-start').onclick = start;
+  document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => { b.onclick = () => start(Number(b.dataset.time)); });
   $('qm-cancel').onclick = () => O.send({ t: 'quickCancel' });
-  $('banner-quick').onclick = start;
+  $('banner-quick').onclick = () => start();
 
   function setSearching(on) {
     if (on && !Q.searching) Q.since = Date.now(); // tính giờ theo máy mình (đồng hồ máy chủ có thể lệch)
@@ -44,14 +43,21 @@
     document.querySelectorAll('.qm-time').forEach((el) => { el.textContent = statusText(); });
   }
   function renderQuick() {
-    $('qm-idle').hidden = Q.searching;
+    document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => {
+      b.classList.toggle('on', Q.searching && Number(b.dataset.time) === Q.time);
+      b.setAttribute('aria-pressed', String(Q.searching && Number(b.dataset.time) === Q.time));
+    });
+    $('qm-grid').classList.toggle('searching', Q.searching);
     $('qm-search').hidden = !Q.searching;
     $('qm-status').textContent = Q.searching ? statusText() : '';
     $('banner-quick').disabled = Q.searching;
     $('banner-quick').textContent = T(Q.searching ? 'qm_searching_short' : 'qm_again');
   }
 
-  O.on('queue', (m) => setSearching(m.state === 'searching'));
+  O.on('queue', (m) => {
+    if (m.state === 'searching' && typeof m.timeLimit === 'number') Q.time = m.timeLimit; // ô đang tìm (cả sau khi kết nối lại)
+    setSearching(m.state === 'searching');
+  });
   O.on('welcome', () => {
     setSearching(false); // máy chủ gửi lại trạng thái hàng chờ ngay sau đây nếu vẫn đang tìm
     if ($('online').open) watch(true);

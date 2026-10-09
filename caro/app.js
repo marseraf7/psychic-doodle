@@ -461,7 +461,7 @@
 
   function renderReplayPlay() {
     const playing = !!(state.replay && state.replay.timer);
-    $('rp-play-ico').textContent = playing ? '⏸' : '▶';
+    $('rp-play-ico').firstElementChild.setAttribute('href', playing ? '#i-pause' : '#i-play');
     $('rp-play-label').textContent = T(playing ? 'rp_pause' : 'rp_play');
   }
 
