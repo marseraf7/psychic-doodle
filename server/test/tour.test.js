@@ -10,7 +10,7 @@ const crypto = require('crypto');
 const { start } = require('../server.js');
 
 const TIMERS = {
-  NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 400, INVITE_TTL_MS: 500, SECOND_MS: 20, DRAW_COOLDOWN_MS: 300,
+  NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 400, INVITE_TTL_MS: 500, SECOND_MS: 300, DRAW_COOLDOWN_MS: 300,
   MATCH_TICK_MS: 50, LOBBY_DEBOUNCE_MS: 30,
   TOUR_TICK_MS: 30, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 400, TOUR_MIN_LEAD_MS: 0, TOUR_PUSH_MS: 20,
   ARENA_REST_MS: 50, ARENA_REPEAT_MS: 300,
@@ -90,13 +90,15 @@ const soon = () => Date.now() + 5 * 60 * 1000;
 
 /** Người đến lượt đánh nước thắng: X ở hàng 0, O rải rác ở hàng 5 (chờ cả hai nhận trạng thái mới). */
 async function playOut(winner, loser) {
+  const code = winner.room.code;
   const side = (c) => (c.room.seats.x === c.me.id ? 1 : 2);
   let i = 0, j = 0;
-  while (!winner.room.winner) {
+  // Dừng khi ván kết thúc hoặc khi máy chủ đã chuyển người chơi sang phòng trận kế tiếp (giải đấu)
+  while (winner.room.code === code && !winner.room.winner) {
     const turnC = side(winner) === winner.room.turn ? winner : loser;
     const other = turnC === winner ? loser : winner;
     const n = turnC.room.moves.length + 1;
-    const done = (m) => m.room && (m.room.moves.length >= n || !!m.room.winner);
+    const done = (m) => m.room && (m.room.code !== code || m.room.moves.length >= n || !!m.room.winner);
     const p = Promise.all([turnC.wait('room', done), other.wait('room', done)]);
     turnC.send(turnC === winner ? { t: 'move', x: i++, y: 0 } : { t: 'move', x: (j++) * 3, y: 5 });
     await p;
@@ -214,7 +216,7 @@ test('giải loại trực tiếp: duyệt, điểm danh, hạt giống theo Elo
   assert.deepStrictEqual(t.podium, [ps[1].me.uid, ps[3].me.uid, ps[2].me.uid]);
   const fin = await ps[0].req({ t: 'tourGet', id }, 'tour');
   assert.strictEqual(fin.tour.winner, ps[1].me.name);
-  assert.strictEqual(fin.tour.rounds[0][0].games.length, 1, 'ván đã chơi có link xem lại');
+  assert.strictEqual(fin.tour.stageViews[0].rounds[0][0].games.length, 1, 'ván đã chơi có link xem lại');
   [org, late, ...ps].forEach((c) => c.close());
 });
 
@@ -227,7 +229,7 @@ test('loại trực tiếp: 3 người (miễn đấu), Bo3, rời trận = thua
   await waitRoom(ps[1], (r) => r.tour && r.players.length === 2);
   await waitRoom(ps[2], (r) => r.tour && r.players.length === 2);
   const t = app.hub.tours.get(id);
-  assert.ok(t.rounds[0].some((m) => m.bye && m.winner === ps[0].me.uid), 'hạt giống 1 được miễn đấu');
+  assert.ok(Object.values(t.st[0].matches).some((m) => m.bye && m.winner === ps[0].me.uid), 'hạt giống 1 được miễn đấu');
   // Hạt giống 2 thắng ván 1 rồi hạt giống 3 rời phòng giữa 2 ván -> thua cả trận
   await playOut(ps[1], ps[2]);
   assert.strictEqual(ps[1].room.seriesWinner, null);
@@ -236,7 +238,7 @@ test('loại trực tiếp: 3 người (miễn đấu), Bo3, rời trận = thua
   ps[0].close();
   await until(() => t.status === 'finished');
   assert.strictEqual(t.podium[0], ps[1].me.uid);
-  assert.ok(t.rounds[1][0].walkover);
+  assert.ok(t.st[0].matches[t.st[0].rounds[1][0]].walkover);
   [ps[1], ps[2]].forEach((c) => c.close());
 });
 
@@ -297,12 +299,102 @@ test('đang ở Arena mà trận loại trực tiếp (giải khác) tới lư�
   B.send({ t: 'tourStart', id: ko.id });
   await sleep(100);
   // a đang đánh ván Arena: trận loại trực tiếp chờ; xong ván Arena thì vào ngay trận loại trực tiếp
-  assert.ok(!app.hub.tours.get(ko.id).rounds[0][0].room);
+  const kst = app.hub.tours.get(ko.id).st[0];
+  assert.ok(!kst.matches[kst.rounds[0][0]].room);
   await waitRoom(b, (r) => r.tour && r.tour.id === ar.id);
   await playOut(a, b);
   await waitRoom(a, (r) => r.tour && r.tour.id === ko.id && !r.winner);
   await waitRoom(c, (r) => r.tour && r.tour.id === ko.id && !r.winner);
   [a, b, c].forEach((x) => x.close());
+});
+
+/** Đánh hết các trận của giải: decide(a, b) trả về client thắng (null = hoà) cho mỗi trận đang mở. */
+async function autoPlay(t, clients, decide, ms = 20000) {
+  const t0 = Date.now();
+  while (t.status === 'running') {
+    if (Date.now() - t0 > ms) throw new Error('autoPlay quá giờ');
+    // Lấy trận đang mở từ máy chủ (trạng thái chuẩn), rồi chờ cả hai client nhận đúng phòng đó
+    const r = [...app.hub.rooms.values()].find((x) => x.tour && x.tour.id === t.id && x.active && x.full);
+    if (!r) { await sleep(30); continue; }
+    const [c, other] = r.players.map((p) => clients.find((x) => x.me.id === p.id));
+    const fresh = (rr) => rr.code === r.code && rr.players.length === 2 && !rr.winner;
+    await waitRoom(c, fresh);
+    await waitRoom(other, fresh);
+    const w = decide(c, other);
+    if (w === null) {
+      const seen = waitRoom(c, (rr) => rr.code === r.code && rr.winner === 3);
+      await c.req({ t: 'drawOffer' }, 'room', (m) => !!m.room.drawOffer);
+      await other.req({ t: 'drawAnswer', accept: true }, 'room', (m) => m.room.winner === 3);
+      await seen; // cả hai đã thấy ván hoà
+    } else await playOut(w, w === c ? other : c);
+  }
+}
+
+test('nhiều vòng: vòng bảng (vòng tròn 2 bảng) -> playoff loại trực tiếp; nhất bảng gặp nhì bảng kia', async () => {
+  const B = await admin();
+  const ps = [];
+  for (let i = 0; i < 6; i++) ps.push(await account('g', 1800 - i * 50));
+  const { id } = await B.req({ t: 'tourCreate', name: 'Bảng + Playoff', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
+    stages: [{ type: 'roundrobin', groups: 2, bestOf: 1, advance: 2, points: { w: 3, d: 1, l: 0 } }, { type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  for (const p of ps) await p.req({ t: 'tourJoin', id }, 'toast');
+  B.send({ t: 'tourStart', id });
+  const t = app.hub.tours.get(id);
+  await until(() => t.status === 'running');
+  assert.deepStrictEqual(t.st[0].groups.map((g) => g.players.length), [3, 3]);
+  // Hạt giống cao hơn luôn thắng (trừ một trận hoà ở bảng B)
+  const seed = (c) => t.players.find((p) => p.uid === c.me.uid).seed;
+  await autoPlay(t, ps, (a, b) => {
+    if (t.stage === 0 && [seed(a), seed(b)].sort().join() === '3,6') return null;
+    return seed(a) < seed(b) ? a : b;
+  }, 60000);
+  assert.strictEqual(t.status, 'finished');
+  assert.strictEqual(t.st.length, 2);
+  // Bảng A: 1, 4, 5; bảng B: 2, 3, 6 -> vào bán kết 1, 4 (A) và 2, 3 (B); bán kết không gặp người cùng bảng
+  const semis = t.st[1].rounds[0].map((mid) => t.st[1].matches[mid]);
+  const grp = (u) => t.st[0].groups.findIndex((g) => g.players.includes(u));
+  for (const m of semis) assert.notStrictEqual(grp(m.a), grp(m.b));
+  assert.strictEqual(t.podium[0], ps[0].me.uid);
+  const v = await ps[5].req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(v.tour.stageViews.length, 2);
+  assert.strictEqual(v.tour.stageViews[0].groups[1].table.find((r) => r.uid === ps[2].me.uid).d, 1, 'hạt giống 3 có 1 trận hoà');
+  assert.ok(v.tour.players.find((p) => p.uid === ps[5].me.uid).out === 'not_advanced');
+  ps.forEach((c) => c.close());
+});
+
+test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh thắng-thua 3 người', async () => {
+  const B = await admin();
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('sw', 1700 - i * 10));
+  const sw = await B.req({ t: 'tourCreate', name: 'Thụy Sĩ', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
+    stages: [{ type: 'swiss', rounds: 3, bestOf: 1, points: { w: 2, d: 1, l: 0 } }] }, 'tourCreated');
+  for (const p of ps) await p.req({ t: 'tourJoin', id: sw.id }, 'toast');
+  B.send({ t: 'tourStart', id: sw.id });
+  const t = app.hub.tours.get(sw.id);
+  await until(() => t.status === 'running');
+  let n = 0;
+  await autoPlay(t, ps, (a, b) => (++n === 2 ? null : a), 60000);
+  assert.strictEqual(t.status, 'finished');
+  const pairs = Object.values(t.st[0].matches).map((m) => [m.a, m.b].sort().join());
+  assert.strictEqual(new Set(pairs).size, pairs.length, 'không gặp lại');
+  assert.strictEqual(t.st[0].rounds.length, 3);
+  assert.strictEqual(t.podium.length, 3);
+  // Nhánh thắng-thua 3 người: ai cũng phải thua 2 trận mới bị loại (trừ vô địch)
+  const de = await B.req({ t: 'tourCreate', name: 'Thắng thua', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
+    stages: [{ type: 'double', bestOf: 1, reset: true }] }, 'tourCreated');
+  for (const p of ps.slice(0, 3)) await p.req({ t: 'tourJoin', id: de.id }, 'toast');
+  B.send({ t: 'tourStart', id: de.id });
+  const d = app.hub.tours.get(de.id);
+  await until(() => d.status === 'running');
+  const sd = (c) => d.players.find((p) => p.uid === c.me.uid).seed;
+  await autoPlay(d, ps.slice(0, 3), (a, b) => (sd(a) < sd(b) ? a : b), 60000);
+  assert.strictEqual(d.status, 'finished');
+  // (Elo đã đổi sau giải Thụy Sĩ nên xét theo hạt giống thực tế)
+  const bySeed = d.players.filter((p) => p.seed).sort((a, b) => a.seed - b.seed).map((p) => p.uid);
+  assert.deepStrictEqual(d.podium, bySeed);
+  const losses = (u) => Object.values(d.st[0].matches).filter((m) => m.done && m.loser === u).length;
+  assert.strictEqual(losses(bySeed[2]), 2);
+  assert.strictEqual(losses(bySeed[0]), 0);
+  ps.forEach((c) => c.close());
 });
 
 test('giải của câu lạc bộ: chỉ quản lý tạo được, chỉ thành viên đăng ký được, danh sách theo quyền', async () => {

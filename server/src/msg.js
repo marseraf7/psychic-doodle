@@ -125,6 +125,8 @@ const VI = {
   tour_kicked: 'Bạn đã bị ban tổ chức loại khỏi giải {name}',
   tour_cancelled: 'Giải {name} đã bị huỷ',
   tour_finished: 'Giải {name} đã kết thúc – vô địch: {winner}',
+  tour_advanced: 'Bạn đã vào vòng {n} của giải {name}',
+  tour_not_advanced: 'Bạn đã dừng bước ở giải {name}',
 };
 
 function fmt(code, args = {}) {
