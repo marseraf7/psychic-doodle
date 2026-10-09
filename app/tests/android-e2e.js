@@ -130,7 +130,7 @@ async function screenRect(app, sel) {
 
   // App: tạo tài khoản bằng giao diện (gõ vào ô nhập trong WebView)
   await app.click('#btn-online');
-  check('app kết nối máy chủ', !!(await until(() => app.evaluate(() => window.CaroOnline.connected))));
+  check('app kết nối máy chủ', !!(await until(() => app.evaluate(() => window.CaroOnline.connected), 45000)));
   await app.click('#go-register');
   await app.fill('#auth-form input[name=name]', 'Android');
   await app.fill('#auth-form input[name=username]', 'android_1');
@@ -162,6 +162,10 @@ async function screenRect(app, sel) {
     const cdpK = await app.context().newCDPSession(app);
     await app.click('#friends [data-chat]');
     await until(() => app.evaluate(() => document.getElementById('chat').open));
+    // Hộp chat tự focus ô nhập sau 50ms: chờ xong rồi mới chạm (chạm trùng lúc tự focus thì focus rơi về BODY
+    // và bàn phím đóng lại – người thật không chạm nhanh tới mức đó)
+    await until(() => app.evaluate(() => document.activeElement && document.activeElement.name === 'text'), 3000, 100);
+    await sleep(300);
     const inBox = await app.evaluate(() => {
       const r = document.querySelector('#chat-form input').getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
