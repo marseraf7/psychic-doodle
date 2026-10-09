@@ -237,3 +237,19 @@ test('vòng bảng: ban tổ chức tự xếp bảng; người mới vào bản
   // Không có kế hoạch: chia kiểu rắn như cũ
   assert.deepStrictEqual(S.drawGroups(cfg, players(4)), [['p1', 'p4'], ['p2', 'p3']]);
 });
+
+test('vòng tròn: danh sách trận đấu được (cách tính nhanh) khớp định nghĩa gốc ở mọi thời điểm', () => {
+  // Định nghĩa gốc: trận đấu được khi cả hai không còn trận nào chưa xong ở vòng sớm hơn trong bảng
+  const slow = (st) => Object.values(st.matches).filter((m) => !m.done && S.real(m.a) && S.real(m.b) &&
+    !Object.values(st.matches).some((x) => !x.done && x.round < m.round && x.group === m.group &&
+      (x.a === m.a || x.b === m.a || x.a === m.b || x.b === m.b))).map((m) => m.id).sort();
+  for (const [n, groups, meetings] of [[7, 1, 1], [9, 2, 2], [16, 3, 1]]) {
+    const st = S.buildStage(S.normalizeStages([{ type: 'roundrobin', groups, meetings }])[0], 0, players(n));
+    while (!st.done) {
+      assert.deepStrictEqual(S.playable(st).map((m) => m.id).sort(), slow(st));
+      const ready = S.playable(st);
+      const m = ready[Math.floor(rnd() * ready.length)]; // xong từng trận một, thứ tự ngẫu nhiên
+      S.recordResult(st, m, rnd() < 0.3 ? null : m.a, { seedOf });
+    }
+  }
+});

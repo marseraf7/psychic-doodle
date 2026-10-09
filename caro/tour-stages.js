@@ -60,12 +60,19 @@
     return `<li class="mrow" data-mid="${esc(m.id)}">${nm(m.a, m.winner && m.a && m.winner === m.a.uid)}<span class="sc">${mid}</span>${nm(m.b, m.winner && m.b && m.winner === m.b.uid)}${tags.length ? `<small>${tags.join(' ')}</small>` : ''}</li>`;
   }
   /** Khối có thể thu gọn, nhớ trạng thái mở / đóng qua các lần vẽ lại. */
+  /**
+   * Khối có thể thu gọn, nhớ trạng thái mở / đóng qua các lần vẽ lại. body có thể là hàm: chỉ dựng khi khối đang mở
+   * (giải 512 người có hàng nghìn trận – dựng hết mỗi lần cập nhật thì điện thoại bị giật); mở ra thì vẽ lại trang.
+   */
   function fold(key, title, body, openByDefault) {
     const isOpen = key in D.open ? D.open[key] : openByDefault;
-    return `<details class="fold" data-k="${esc(key)}" ${isOpen ? 'open' : ''}><summary>${title}</summary>${body}</details>`;
+    const lazy = typeof body === 'function';
+    return `<details class="fold" data-k="${esc(key)}" ${isOpen ? 'open' : ''} ${lazy && !isOpen ? 'data-lazy="1"' : ''}><summary>${title}</summary>${
+      lazy ? (isOpen ? body() : '') : body}</details>`;
   }
+  const roundsHtml = (list, label) => list.map(({ r, i }) => `<h6>${esc(label(i))}</h6><ul class="mlist">${r.map(matchRow).join('')}</ul>`).join('');
   function roundsList(key, rounds, label, openLast) {
-    return fold(key, esc(T('matches')), rounds.map((r, i) => `<h6>${esc(label(i))}</h6><ul class="mlist">${r.map(matchRow).join('')}</ul>`).join(''), openLast);
+    return fold(key, esc(T('matches')), () => roundsHtml(rounds.map((r, i) => ({ r, i })), label), openLast);
   }
   /** Bảng xếp hạng của vòng tròn / Thụy Sĩ. */
   function table(rows, swiss) {
@@ -88,18 +95,27 @@
         <h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`;
     }
     if (v.type === 'roundrobin') {
+      // Nhiều bảng (> 4): mỗi bảng thu gọn được, mặc định chỉ mở bảng của mình
+      const many = v.groups.length > 4;
       return v.groups.map((g, gi) => {
-        const head = v.groups.length > 1 ? `<h5>${esc(T('group_name', { name: g.name }))}</h5>` : '';
         const cur = g.rounds.findIndex((r) => r.some((m) => !m.done));
-        return head + table(g.table, false) + roundsList(key + ':g' + gi, g.rounds, (i) => T('r_round', { n: i + 1 }), !v.done && cur >= 0);
+        const inner = () => table(g.table, false) + roundsList(key + ':g' + gi, g.rounds, (i) => T('r_round', { n: i + 1 }), !v.done && cur >= 0 && !many);
+        const name = esc(T('group_name', { name: g.name }));
+        if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
+        const mine = g.table.some((x) => x.uid === uidMe());
+        return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? ' ★' : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);
       }).join('') + `<p class="hint">${esc(T('tb_note_rr'))}</p>`;
     }
     // Thụy Sĩ: vòng mới nhất lên đầu
     const rounds = v.rounds.map((r, i) => ({ r, i })).reverse();
     const want = (t.stages[v.index] || {}).rounds;
     const capped = want > v.totalRounds ? `<p class="hint">${esc(T('swiss_capped', { n: v.totalRounds, m: v.table.length }))}</p>` : '';
+    const label = (i) => T('swiss_round', { n: i + 1, m: v.totalRounds });
+    // Vòng mới nhất hiện sẵn; các vòng trước nằm trong khối riêng (chỉ dựng khi mở)
+    const older = rounds.slice(1);
     return capped + table(v.table, true)
-      + fold(key + ':r', esc(T('matches')), rounds.map(({ r, i }) => `<h6>${esc(T('swiss_round', { n: i + 1, m: v.totalRounds }))}</h6><ul class="mlist">${r.map(matchRow).join('')}</ul>`).join(''), !v.done)
+      + fold(key + ':r', esc(T('matches')), () => roundsHtml(rounds.slice(0, 1), label)
+        + (older.length ? fold(key + ':ro', esc(T('earlier_rounds', { n: older.length })), () => roundsHtml(older, label), false) : ''), !v.done)
       + `<p class="hint">${esc(T('tb_note_swiss'))}</p>`;
   }
   /** Tất cả giai đoạn của giải (giai đoạn chưa tới thì chỉ ghi cấu hình). */

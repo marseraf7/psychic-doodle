@@ -128,7 +128,12 @@ function start({ port = PORT, dataFile = path.join(DATA_DIR, 'caro.db'), googleC
   const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
   const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, ...(timers ? { timers } : {}) });
   const server = http.createServer((req, res) => serveStatic(store, req, res));
-  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
+  // Nén tin lớn (trang giải, danh sách…) – JSON nén còn khoảng 1/10. Tin nhỏ (nước đi) không nén cho nhanh.
+  // Không giữ ngữ cảnh nén giữa các tin để mỗi kết nối không chiếm thêm bộ nhớ (hàng trăm người xem một giải).
+  const wss = new WebSocketServer({
+    server, path: '/ws', maxPayload: 16 * 1024,
+    perMessageDeflate: { threshold: 1024, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: true, clientNoContextTakeover: true },
+  });
   const perIp = new Map();
 
   wss.on('connection', (ws, req) => {
@@ -139,6 +144,8 @@ function start({ port = PORT, dataFile = path.join(DATA_DIR, 'caro.db'), googleC
     const conn = {
       ip,
       send: (obj) => { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); },
+      // Tin đã chuyển JSON sẵn (trang giải: phần chung dựng một lần cho mọi người xem)
+      sendRaw: (str) => { if (ws.readyState === 1) ws.send(str); },
     };
     hub.connect(conn);
     ws.isAlive = true;

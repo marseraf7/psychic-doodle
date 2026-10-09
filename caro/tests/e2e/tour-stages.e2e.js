@@ -107,6 +107,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   await shot(B, 'p4-groups-en-mobile.png');
   // Người bị loại ở vòng bảng thấy "Không vào vòng sau"
   ok((await boss.textContent('#tour-body')).includes('Không vào vòng sau'), 'Danh sách người chơi: "Không vào vòng sau"');
+  ok(boss.patches > 10, `Trang giải cập nhật bằng bản vá (chỉ phần đổi): ${boss.patches} bản vá`);
 
   // ---------------- Giải 2: Thụy Sĩ 3 vòng (top 4) -> nhánh thắng-thua
   await create('Swiss Masters', 'swiss_single', async () => {

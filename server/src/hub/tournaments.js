@@ -22,6 +22,7 @@ const ARENA_MINUTES = [15, 20, 30, 45, 60, 90, 120];
 const ACCESS = ['public', 'link', 'club'];
 const MAX_ACTIVE_TOURS_PER_USER = 3;
 const MAX_START_DAYS = 30;
+const MAX_PLAYERS = 512; // tối đa người mỗi giải (mọi thể thức)
 
 class Tournaments {
   loadTours() {
@@ -95,8 +96,11 @@ class Tournaments {
     };
   }
 
-  tourView(t, uid) {
-    const me = uid && this.player(t, uid);
+  /**
+   * Phần chung của trang giải: giống nhau với mọi người xem, nên khi cập nhật chỉ dựng (và chuyển JSON) một lần
+   * cho cả giải. Giải 512 người có thể có hàng nghìn trận – dựng riêng cho từng người xem thì máy chủ nhỏ không kham nổi.
+   */
+  tourShared(t) {
     const live = new Set();
     for (const r of this.rooms.values()) {
       if (r.tour && r.tour.id === t.id && r.active) for (const p of r.players) live.add(uidOf(p.id));
@@ -108,20 +112,15 @@ class Tournaments {
       online: this.isOnline(userPid(p.uid)), playing: live.has(p.uid),
     };
     const side = (u) => this.tourSide(t, u);
-    let players = t.players.filter((p) => !p.withdrawn || p.games).map(pv);
+    const players = t.players.filter((p) => !p.withdrawn || p.games).map(pv);
     if (t.format === 'arena') players.sort((a, b) => b.score - a.score || b.wins - a.wins || b.rating - a.rating);
     else players.sort((a, b) => (a.seed || 999) - (b.seed || 999) || b.rating - a.rating);
-    const myMatch = me ? this.myMatch(t, uid) : null;
     return {
-      ...this.tourSummary(t, uid),
+      ...this.tourSummary(t, null),
       desc: t.desc, seeding: t.seeding, checkinEnabled: !!t.checkin,
       checkinAt: t.checkin ? t.startsAt - this.T.TOUR_CHECKIN_MS : null, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
-      reviewNote: t.creator === uid || this.isAdmin(uid) ? t.reviewNote || '' : '', cancelReason: t.cancelReason || '',
-      canManage: this.canManageTour(t, uid), canJoin: this.canJoinTour(t, uid),
-      me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
+      cancelReason: t.cancelReason || '',
       players, stageViews: this.stageViews(t),
-      groupDraft: this.canManageTour(t, uid) ? this.groupDraft(t) : null,
-      myMatch: myMatch ? this.matchView(t, myMatch) : null,
       podium: (t.podium || []).map((u) => side(u)),
       games: t.format === 'arena' ? t.games.slice(-30).reverse().map((g) => ({
         x: side(g.x), o: side(g.o), w: g.w, px: g.px, po: g.po, share: g.share || null,
@@ -130,32 +129,29 @@ class Tournaments {
     };
   }
 
+  /** Phần riêng của từng người xem (nhỏ): đã đăng ký chưa, quyền ban tổ chức, trận của mình… */
+  tourMine(t, uid) {
+    const me = uid && this.player(t, uid);
+    const manage = this.canManageTour(t, uid);
+    const myMatch = me ? this.myMatch(t, uid) : null;
+    return {
+      joined: !!(me && !me.withdrawn),
+      reviewNote: t.creator === uid || this.isAdmin(uid) ? t.reviewNote || '' : '',
+      canManage: manage, canJoin: this.canJoinTour(t, uid),
+      me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
+      groupDraft: manage ? this.groupDraft(t) : null,
+      myMatch: myMatch ? this.matchView(t, myMatch) : null,
+    };
+  }
+
+  tourView(t, uid) {
+    return { ...this.tourShared(t), ...this.tourMine(t, uid) };
+  }
+
   /** Tên + hạt giống của một người trong giải (gửi cho client). */
   tourSide(t, u) {
     const p = u && this.player(t, u);
     return u ? { uid: u, name: p?.name || '?', seed: p?.seed || null } : null;
-  }
-
-  /** Người đang mở trang giải nhận bản mới (gom thay đổi ~300ms). */
-  pushTour(t) {
-    if (!this.tourPushes) this.tourPushes = new Set();
-    this.tourPushes.add(t.id);
-    if (this.tourPushTimer || this.closed) return;
-    this.tourPushTimer = setTimeout(() => {
-      this.tourPushTimer = null;
-      if (this.closed) return;
-      const ids = this.tourPushes;
-      this.tourPushes = new Set();
-      for (const set of this.byPid.values()) {
-        for (const conn of set) {
-          if (!conn.watchTour || !ids.has(conn.watchTour)) continue;
-          const tt = this.tours.get(conn.watchTour);
-          const uid = uidOf(conn.pid);
-          conn.send({ t: 'tour', id: conn.watchTour, tour: tt && this.canSeeTour(tt, uid) ? this.tourView(tt, uid) : null });
-        }
-      }
-    }, this.T.TOUR_PUSH_MS);
-    this.tourPushTimer.unref?.();
   }
 
   notifyPlayers(t, code, args = {}, filter = () => true) {
@@ -185,7 +181,7 @@ class Tournaments {
     const legacyKo = o.format === 'knockout';
     const ko = format === 'bracket' || legacyKo;
     const stages = ko ? ST.normalizeStages(legacyKo ? [{ type: 'single', bestOf: o.bestOf, thirdPlace: o.thirdPlace }] : o.stages) : null;
-    const maxPlayers = Math.max(ko ? 3 : 2, Math.min(ko ? 128 : 200, Math.floor(Number(o.maxPlayers)) || (ko ? 16 : 100)));
+    const maxPlayers = Math.max(ko ? 3 : 2, Math.min(MAX_PLAYERS, Math.floor(Number(o.maxPlayers)) || (ko ? 16 : 100)));
     const admin = this.isAdmin(me.id);
     const t = {
       id: crypto.randomBytes(5).toString('hex'), name, desc: cleanText(o.desc, 1000), format: ko ? 'bracket' : 'arena', creator: me.id,
@@ -221,8 +217,7 @@ class Tournaments {
   on_tourGet(conn, { id }) {
     const uid = uidOf(conn.pid);
     const t = this.findTour(id, uid);
-    conn.watchTour = t.id;
-    conn.send({ t: 'tour', id: t.id, tour: this.tourView(t, uid) });
+    this.watchTour(conn, t, uid);
   }
 
   on_tourUnwatch(conn) {

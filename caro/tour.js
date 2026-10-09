@@ -292,7 +292,12 @@
         O.send({ t: 'adminReview', kind: b.dataset.kind, id: b.dataset.id, approve, note });
       }
     };
-    body.querySelectorAll('details.fold').forEach((d) => { d.ontoggle = () => { D.open[d.dataset.k] = d.open; }; });
+    body.querySelectorAll('details.fold').forEach((d) => {
+      d.ontoggle = () => {
+        D.open[d.dataset.k] = d.open;
+        if (d.open && d.dataset.lazy) render(true); // khối chỉ dựng nội dung khi mở
+      };
+    });
     for (const f of K.binders) f(body);
   }
 
@@ -301,9 +306,18 @@
   O.on('tourList', (m) => { D.tours = m.items; D.skew = m.now - Date.now(); if (isOpen() && V.page === 'tours') render(); });
   O.on('tour', (m) => {
     if (m.id !== V.id) return;
-    D.tour = m.tour;
+    // Bản cập nhật gồm phần chung (giống mọi người xem) + phần riêng của mình (mine)
+    D.tour = m.tour && m.mine ? { ...m.tour, ...m.mine } : m.tour;
     if (m.tour) D.skew = m.tour.now - Date.now();
     if (!m.tour && isOpen() && V.page === 'tour') { O.toast(T('srv_tour_not_found')); back() || top('tours'); return; }
+    if (isOpen() && V.page === 'tour') render();
+  });
+  // Bản vá (chỉ phần đổi) cho trang giải đang xem; thiếu dữ liệu thì tải lại cả trang
+  O.on('tourPatch', (m) => {
+    if (m.id !== V.id || !D.tour || D.tour.id !== m.id) return;
+    if (!window.CaroTourPatch.apply(D.tour, m.patch)) { O.send({ t: 'tourGet', id: m.id }); return; }
+    Object.assign(D.tour, m.mine);
+    D.skew = D.tour.now - Date.now();
     if (isOpen() && V.page === 'tour') render();
   });
   O.on('tourCreated', (m) => {

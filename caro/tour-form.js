@@ -89,7 +89,7 @@
       <fieldset class="only-ko" hidden><legend>${esc(T('seeding'))}</legend>${radio('seeding', [['rating', T('seed_rating')], ['random', T('seed_random')]], 'rating')}</fieldset>
       <label class="check only-ko" hidden><input type="checkbox" name="checkin" checked> <span>${esc(T('checkin_opt'))}</span></label>
       <label class="check"><input type="checkbox" name="rated" checked> <span>${esc(T('rated_opt'))}</span></label>
-      <label class="field short"><span>${esc(T('max_players'))}</span><input name="max" type="number" min="2" max="200" value="32"></label>
+      <label class="field short"><span>${esc(T('max_players'))}</span><input name="max" type="number" min="2" max="512" value="32"></label>
       <fieldset><legend>${esc(T('access'))}</legend>${radio('access', [['public', T('acc_public')], ['link', T('acc_link')], ...(officerClubs.length ? [['club', T('acc_club')]] : [])], preClub ? 'club' : 'public')}</fieldset>
       ${officerClubs.length ? `<label class="field only-club" ${preClub ? '' : 'hidden'}><span>${esc(T('club'))}</span><select name="club">${officerClubs.map((c) => `<option value="${esc(c.id)}" ${c.id === preClub ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : ''}
       <p class="err" id="tf-err"></p>
@@ -112,9 +112,8 @@
         tf.querySelectorAll('.only-arena').forEach((x) => { x.hidden = ko; });
         tf.querySelectorAll('.only-club').forEach((x) => { x.hidden = tf.access.value !== 'club'; });
         $('tf-fmt-hint').textContent = T('hint_' + F.preset);
-        tf.max.max = ko ? 128 : 200;
+        tf.max.max = 512;
         tf.max.min = ko ? 3 : 2;
-        if (ko && Number(tf.max.value) > 128) tf.max.value = 32;
       };
       if (F.stages) drawStages();
       tf.preset.onchange = () => {

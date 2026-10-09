@@ -40,6 +40,9 @@ async function setup(port) {
     p.on('pageerror', (e) => errors.push(name + ': ' + e.message));
     p.on('console', (m) => { if (m.type() === 'error') errors.push(name + ' console: ' + m.text()); });
     p.on('dialog', (d) => d.accept(d.type() === 'prompt' ? 'Tên chưa phù hợp' : undefined));
+    // Đếm số bản vá trang giải nhận được (cập nhật chỉ gửi phần đổi)
+    p.patches = 0;
+    p.on('websocket', (ws) => ws.on('framereceived', (f) => { if (typeof f.payload === 'string' && f.payload.startsWith('{"t":"tourPatch"')) p.patches++; }));
     await p.goto(`http://localhost:${port}/`);
     await sleep(400);
     await p.click('#btn-online');

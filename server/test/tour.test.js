@@ -8,6 +8,7 @@ const path = require('path');
 const WebSocket = require('ws');
 const crypto = require('crypto');
 const { start } = require('../server.js');
+const TourPatch = require('../../caro/tour-patch.js');
 
 const TIMERS = {
   NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 400, INVITE_TTL_MS: 500, SECOND_MS: 300, DRAW_COOLDOWN_MS: 300,
@@ -24,12 +25,21 @@ test.before(async () => {
 test.after(() => app.stop());
 
 class Client {
-  constructor() { this.msgs = []; this.waiters = []; }
+  constructor() { this.msgs = []; this.waiters = []; this.tours = {}; this.patches = 0; }
   static async open(u = url) {
     const c = new Client();
     c.ws = new WebSocket(u);
     c.ws.on('message', (d) => {
-      const m = JSON.parse(d);
+      let m = JSON.parse(d);
+      // Bản vá trang giải: áp như client thật (caro/tour-patch.js), rồi coi như nhận bản đầy đủ
+      if (m.t === 'tour' && m.tour) c.tours[m.id] = structuredClone(m.tour);
+      if (m.t === 'tourPatch') {
+        const cur = c.tours[m.id];
+        assert.ok(cur, 'nhận bản vá khi chưa có bản đầy đủ');
+        assert.ok(TourPatch.apply(cur, structuredClone(m.patch)), 'áp bản vá được');
+        c.patches++;
+        m = { t: 'tour', id: m.id, tour: structuredClone(cur), mine: m.mine, patched: true };
+      }
       c.msgs.push(m);
       if (m.t === 'room') c.room = m.room;
       if (m.t === 'welcome') { c.me = m.me; c.room = m.room; }
@@ -274,7 +284,7 @@ test('Arena: tự ghép ván, thắng 2 điểm, chuỗi thắng 🔥 được 4
   assert.strictEqual(P(a).streak, 0);
   // Tạm nghỉ: không được ghép thêm
   await b.req({ t: 'tourGet', id }, 'tour');
-  await b.req({ t: 'tourPause', id, paused: true }, 'tour', (m) => m.tour.me.paused);
+  await b.req({ t: 'tourPause', id, paused: true }, 'tour', (m) => m.mine && m.mine.me.paused); // phần riêng của mình nằm trong mine
   await sleep(300);
   assert.ok(a.room.winner, 'không có ván mới khi đối thủ đang nghỉ');
   // Hết giờ -> kết thúc, a vô địch
@@ -408,6 +418,39 @@ test('xếp bảng như Challonge: chỉ ban tổ chức, trước khi bắt đ�
   assert.strictEqual(old.cancelReason, 'upgrade');
   assert.strictEqual(old.stages[0].type, 'single');
   ps.forEach((c) => c.close());
+});
+
+test('cập nhật trang giải: phần chung dựng một lần, phần riêng từng người; nén tin lớn; tối đa 512 người', async () => {
+  const B = await admin();
+  const [p1, p2] = [await account('pu'), await account('pu')];
+  // Tối đa 512 người mỗi giải
+  const big = await B.req({ t: 'tourCreate', name: 'Giải lớn', format: 'arena', startsAt: soon(), timeLimit: 30, maxPlayers: 9999 }, 'tourCreated');
+  assert.strictEqual(app.hub.tours.get(big.id).maxPlayers, 512);
+  B.send({ t: 'tourCancel', id: big.id });
+  const { id } = await B.req({ t: 'tourCreate', name: 'Cập nhật', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
+    stages: [{ type: 'roundrobin', groups: 1, bestOf: 1, advance: 1 }, { type: 'single', bestOf: 1 }] }, 'tourCreated');
+  await B.req({ t: 'tourGet', id }, 'tour', (m) => m.id === id);
+  await p1.req({ t: 'tourGet', id }, 'tour', (m) => m.id === id);
+  // p2 đăng ký -> người đang xem nhận bản cập nhật
+  const gotB = B.wait('tour', (m) => m.id === id && m.mine && m.tour.count === 1);
+  const got1 = p1.wait('tour', (m) => m.id === id && m.mine && m.tour.count === 1);
+  await p2.req({ t: 'tourJoin', id }, 'toast');
+  const [mb, m1] = await Promise.all([gotB, got1]);
+  assert.deepStrictEqual(mb.tour, m1.tour, 'phần chung giống hệt nhau');
+  for (const k of ['groupDraft', 'reviewNote', 'canManage', 'me', 'myMatch']) assert.ok(!(k in mb.tour), 'phần chung không có ' + k);
+  assert.strictEqual(mb.mine.canManage, true);
+  assert.strictEqual(mb.mine.groupDraft.groups.flat().length, 1, 'ban tổ chức thấy bảng dự kiến');
+  assert.strictEqual(m1.mine.canManage, false);
+  assert.strictEqual(m1.mine.groupDraft, null, 'người khác không thấy bảng dự kiến');
+  // Giải đông người: giãn nhịp cập nhật tới 2 giây
+  const fake = (n) => ({ players: Array.from({ length: n }, () => ({})) });
+  assert.strictEqual(app.hub.pushDelay(fake(3)), app.hub.T.TOUR_PUSH_MS);
+  assert.strictEqual(app.hub.pushDelay(fake(128)), 512);
+  assert.strictEqual(app.hub.pushDelay(fake(512)), 2000);
+  // Kết nối WebSocket có nén (permessage-deflate)
+  assert.match(B.ws.extensions, /permessage-deflate/);
+  B.send({ t: 'tourCancel', id });
+  [p1, p2].forEach((c) => c.close());
 });
 
 test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh thắng-thua 3 người', async () => {

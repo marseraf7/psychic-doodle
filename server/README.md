@@ -58,6 +58,11 @@ chơi online qua WebSocket (`/ws`):
     thực có giới hạn mỗi nước (10/20/30 giây), tuỳ chọn tính / không tính Elo, mở cho mọi người / ai có link /
     thành viên CLB. Link mời `https://…/?t=<mã>`, CLB `https://…/?club=<mã>`. Lưu trong SQLite: máy chủ khởi
     động lại thì giải vẫn chạy tiếp (ván đang dở được đấu lại).
+  - Tối đa 512 người mỗi giải. Để chạy được trên VPS nhỏ (1 vCPU, 1 GB RAM), trang giải chỉ gửi **phần đổi**
+    so với lần trước (trận / dòng bảng xếp hạng vừa đổi), phần chung dựng một lần cho mọi người xem, các
+    thay đổi được gom (0,3 giây với giải nhỏ, tới 2 giây với giải 512 người), tin lớn được nén
+    (permessage-deflate). Đo với giải vòng bảng 512 người, 512 người cùng xem: mỗi lần cập nhật khoảng
+    0,1 giây CPU và 0,5 MB dữ liệu gửi đi (trước đó: vài giây CPU và ~40 MB).
 - **Nhắn tin bạn bè**: lưu 100 tin gần nhất mỗi cặp, báo số tin chưa đọc; **chặn** (huỷ kết bạn,
   không nhắn / thách đấu / chat nhanh được nữa) và **báo cáo** (máy chủ tự đính kèm tin nhắn gần nhất).
 - **Xoá tài khoản** ngay trong game (Online → Tài khoản → Xoá tài khoản): xoá phiên đăng nhập, bạn bè,
@@ -87,7 +92,7 @@ Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/ro
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
 `stages.js` (logic thuần các thể thức: loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ),
-`admin.js` (quản trị viên duyệt).
+`tourpush.js` (gửi cập nhật trang giải: gom, chỉ gửi phần đổi), `admin.js` (quản trị viên duyệt).
 Tin nhắn loại `X` do phương thức `on_X` xử lý.
 
 Cần **Node.js 22.13 trở lên** (dùng SQLite có sẵn trong Node, không phải cài thêm CSDL).

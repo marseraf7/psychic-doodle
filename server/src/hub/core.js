@@ -48,7 +48,7 @@ class Hub {
     this.stopMatching();
     clearTimeout(this.lobbyTimer);
     clearInterval(this.tourTimer);
-    clearTimeout(this.tourPushTimer);
+    for (const timer of (this.tourPushTimers || new Map()).values()) clearTimeout(timer);
   }
 
   connect(conn) {

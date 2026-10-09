@@ -456,14 +456,21 @@ function buildStage(cfg, index, seeds, opts = {}) {
 
 /** Trận đã sẵn sàng đấu (đủ 2 người thật, chưa xong; vòng tròn: đã xong các vòng trước của 2 người). */
 function playable(st) {
-  const out = [];
-  for (const m of Object.values(st.matches)) {
-    if (m.done || !real(m.a) || !real(m.b)) continue;
-    if (st.type === 'roundrobin') {
-      const earlier = Object.values(st.matches).some((x) => !x.done && x.round < m.round && x.group === m.group &&
-        (x.a === m.a || x.b === m.a || x.a === m.b || x.b === m.b));
-      if (earlier) continue;
+  const all = Object.values(st.matches);
+  // Vòng tròn: vòng sớm nhất còn trận chưa xong của từng người (mỗi người chỉ ở một bảng).
+  // Tính một lượt cho cả vòng (O(số trận)) – giải 512 người có tới 3840 trận.
+  let first = null;
+  if (st.type === 'roundrobin') {
+    first = new Map();
+    for (const x of all) {
+      if (x.done) continue;
+      for (const u of [x.a, x.b]) if (!first.has(u) || x.round < first.get(u)) first.set(u, x.round);
     }
+  }
+  const out = [];
+  for (const m of all) {
+    if (m.done || !real(m.a) || !real(m.b)) continue;
+    if (first && (first.get(m.a) < m.round || first.get(m.b) < m.round)) continue;
     out.push(m);
   }
   return out;
