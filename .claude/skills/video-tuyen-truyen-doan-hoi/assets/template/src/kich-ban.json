@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "tieuDe": "Bản mẫu – Tuổi trẻ Việt Nam tại LB Nga",
+    "fps": 30,
+    "rong": 1920,
+    "cao": 1080
+  },
+  "canh": [
+    { "loai": "mo-dau", "giay": 6, "tieuDe": "TUỔI TRẺ VIỆT NAM", "phuDe": "TẠI LIÊN BANG NGA" },
+    { "loai": "footage", "giay": 2, "chuyen": "loe-sang", "chuyenDong": "zoom-ra", "ghiChu": "Flycam Moskva / Quảng trường Đỏ" },
+    { "loai": "footage", "giay": 1.8, "chuyenDong": "lia-trai", "ghiChu": "Trụ sở Đại sứ quán" },
+    { "loai": "footage", "giay": 1.8, "chuyenDong": "zoom-vao", "ghiChu": "Cờ Đoàn tung bay" },
+    {
+      "loai": "van-ban",
+      "giay": 9,
+      "chuyen": "zoom-mo",
+      "tieuDe": "Ban Cán sự Đoàn tại Liên bang Nga",
+      "dong": [
+        "Ban Cán sự Đoàn TNCS Hồ Chí Minh tại Liên bang Nga được thành lập ngày 09/01/2001.",
+        "Nhiệm vụ: tập hợp, đoàn kết đoàn viên, thanh niên, sinh viên Việt Nam đang học tập, làm việc tại Liên bang Nga.",
+        "Phối hợp chặt chẽ với Hội Sinh viên Việt Nam tại Nga trong các hoạt động học thuật, văn hóa, thể thao và hỗ trợ cộng đồng.",
+        "(Nội dung minh họa — thay bằng trích đoạn văn bản chính thức.)"
+      ],
+      "toSang": [1]
+    },
+    {
+      "loai": "tu-khoa",
+      "giay": 6,
+      "bangRon": "THANH NIÊN VIỆT NAM",
+      "tuKhoa": ["Kết nối tri thức", "Lan tỏa văn hóa", "Kiến tạo tương lai"]
+    },
+    { "loai": "so-lieu", "giay": 5, "chuyen": "zoom-mo", "nam": "2026", "so": 25, "donVi": " NĂM", "chuThich": "Ban Cán sự Đoàn tại Liên bang Nga (2001 – 2026)" },
+    { "loai": "so-lieu", "giay": 5, "nam": "2026", "so": 3000, "donVi": "+", "chuThich": "Sinh viên Việt Nam tại hơn 25 thành phố" },
+    { "loai": "chuong", "giay": 3.5, "chu": "Hoạt động tiêu biểu" },
+    { "loai": "luoi-anh", "giay": 3, "anh": ["", "", "", ""] },
+    { "loai": "footage", "giay": 2, "chuyenDong": "zoom-vao", "ghiChu": "Giải bóng đá sinh viên" },
+    { "loai": "tuong-anh", "giay": 6, "anh": [] },
+    { "loai": "ket", "giay": 5, "chuyen": "loe-sang", "khauHieu": "Vững lý tưởng – Giàu khát vọng – Trách nhiệm – Cống hiến" }
+  ]
+}
