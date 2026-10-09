@@ -120,6 +120,7 @@ class Tournaments {
       canManage: this.canManageTour(t, uid), canJoin: this.canJoinTour(t, uid),
       me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
       players, stageViews: this.stageViews(t),
+      groupDraft: this.canManageTour(t, uid) ? this.groupDraft(t) : null,
       myMatch: myMatch ? this.matchView(t, myMatch) : null,
       podium: (t.podium || []).map((u) => side(u)),
       games: t.format === 'arena' ? t.games.slice(-30).reverse().map((g) => ({

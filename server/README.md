@@ -38,10 +38,12 @@ chơi online qua WebSocket (`/ws`):
   - *Nhánh đấu / vòng bảng*: ghép tự do 1–3 giai đoạn, mỗi giai đoạn một thể thức:
     - **loại trực tiếp** (tuỳ chọn tranh hạng 3),
     - **nhánh thắng – thua** (double elimination: thua 2 trận mới bị loại, chung kết tổng có thể "reset"),
-    - **vòng tròn** (chia 1–16 bảng kiểu rắn, gặp nhau 1 hoặc 2 lượt, điểm thắng / hoà / thua tự đặt;
-      bằng điểm xét đối đầu rồi hiệu số ván),
+    - **vòng tròn** (chia theo số bảng hoặc theo số người mỗi bảng như Challonge, tối đa 16 người/bảng – bảng
+      lớn hơn tự chia thêm; chia kiểu rắn theo hạt giống, hoặc ban tổ chức tự xếp bảng trước khi bắt đầu;
+      gặp nhau 1 hoặc 2 lượt, điểm thắng / hoà / thua tự đặt; bằng điểm xét đối đầu rồi hiệu số ván),
     - **hệ Thụy Sĩ** (1–15 vòng, ghép người cùng điểm chưa gặp nhau, miễn đấu cho người thấp nhất chưa
-      được miễn; bằng điểm xét Buchholz rồi Sonneborn–Berger).
+      được miễn; bằng điểm xét Buchholz rồi Sonneborn–Berger). Số vòng tự giảm còn khoảng nửa số người
+      (3–4 người: đủ vòng) vì đánh gần hết n−1 vòng thì thường không còn cách ghép nào tránh gặp lại.
 
     Giai đoạn trước giai đoạn cuối phải là vòng tròn / Thụy Sĩ và có "số người đi tiếp", ví dụ vòng bảng
     (4 bảng, nhì bảng trở lên đi tiếp) → playoff loại trực tiếp hoặc nhánh thắng – thua. Người đi tiếp được

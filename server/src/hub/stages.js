@@ -18,6 +18,8 @@
 const TYPES = ['single', 'double', 'roundrobin', 'swiss'];
 const GROUP_TYPES = ['roundrobin', 'swiss']; // được dùng làm vòng trước (có người đi tiếp)
 const BYE = '-';
+const MAX_GROUP = 16; // tối đa người mỗi bảng vòng tròn (bảng lớn hơn: quá nhiều vòng, dữ liệu quá nặng)
+const MAX_GROUPS = 64;
 
 function seedOrder(size) {
   let o = [1];
@@ -44,7 +46,12 @@ function normalizeStage(c, last) {
   const out = { type, bestOf: [1, 3, 5].includes(Number(c.bestOf)) ? Number(c.bestOf) : (isElim(type) ? 3 : 1) };
   if (type === 'single') out.thirdPlace = c.thirdPlace !== false;
   if (type === 'double') out.reset = c.reset !== false;
-  if (type === 'roundrobin') { out.groups = int(c.groups, 1, 16, 1); out.meetings = Number(c.meetings) === 2 ? 2 : 1; }
+  if (type === 'roundrobin') {
+    // Chia bảng theo số bảng, hoặc (như Challonge) theo số người mỗi bảng
+    if (c.groupSize != null && c.groupSize !== '') out.groupSize = int(c.groupSize, 2, MAX_GROUP, 4);
+    else out.groups = int(c.groups, 1, MAX_GROUPS, 1);
+    out.meetings = Number(c.meetings) === 2 ? 2 : 1;
+  }
   if (type === 'swiss') out.rounds = int(c.rounds, 1, 15, 5);
   if (!isElim(type)) {
     out.points = { w: int(c.points && c.points.w, 0, 10, 3), d: int(c.points && c.points.d, 0, 10, 1), l: int(c.points && c.points.l, 0, 10, 0) };
@@ -208,14 +215,50 @@ function buildDouble(st, seeds, groupOf) {
 }
 
 // ------------------------------------------------------------ Vòng tròn
-function buildRoundRobin(st, seeds) {
-  const G = Math.max(1, Math.min(st.cfg.groups, Math.floor(seeds.length / 2)));
-  st.groups = Array.from({ length: G }, (_, g) => ({ name: String.fromCharCode(65 + g), players: [], rounds: [] }));
-  // Chia bảng kiểu "rắn": hạt giống 1..G vào A..cuối, rồi đảo chiều
-  seeds.forEach((uid, i) => {
-    const row = Math.floor(i / G), col = i % G;
-    st.groups[row % 2 ? G - 1 - col : col].players.push(uid);
-  });
+/** Tên bảng: A..Z, rồi AA, AB… */
+const groupName = (g) => (g < 26 ? '' : String.fromCharCode(64 + Math.floor(g / 26))) + String.fromCharCode(65 + (g % 26));
+
+/** Số bảng cho n người: theo cấu hình, nhưng không bảng nào quá MAX_GROUP người và mỗi bảng ít nhất 2 người. */
+function groupCount(cfg, n) {
+  let G = cfg.groupSize ? Math.ceil(n / cfg.groupSize) : cfg.groups || 1;
+  G = Math.max(G, Math.ceil(n / MAX_GROUP));
+  return Math.max(1, Math.min(G, Math.floor(n / 2), MAX_GROUPS));
+}
+
+/**
+ * Chia người vào các bảng (mảng các mảng mã người chơi).
+ * Không có plan: chia kiểu "rắn" theo hạt giống (1..G vào A..cuối, rồi đảo chiều).
+ * plan: ban tổ chức tự xếp (mảng các bảng). Người không còn trong giải bị bỏ ra; người chưa được xếp vào
+ * bảng ít người nhất (theo thứ tự hạt giống); bảng chỉ còn 0–1 người bị gộp vào bảng khác.
+ */
+function drawGroups(cfg, seeds, plan) {
+  if (!Array.isArray(plan) || !plan.length) {
+    const G = groupCount(cfg, seeds.length);
+    const groups = Array.from({ length: G }, () => []);
+    seeds.forEach((uid, i) => {
+      const row = Math.floor(i / G), col = i % G;
+      groups[row % 2 ? G - 1 - col : col].push(uid);
+    });
+    return groups;
+  }
+  const inTour = new Set(seeds);
+  const seen = new Set();
+  let groups = plan.slice(0, MAX_GROUPS).map((g) => (Array.isArray(g) ? g : []).filter((u) => inTour.has(u) && !seen.has(u) && seen.add(u)));
+  const smallest = () => groups.reduce((best, g) => (g.length < best.length ? g : best), groups[0]);
+  for (const uid of seeds) if (!seen.has(uid)) smallest().push(uid);
+  // Bảng quá ít người: dồn sang bảng khác (giữ thứ tự hạt giống)
+  for (;;) {
+    const small = groups.find((g) => g.length < 2);
+    if (!small || groups.length < 2) break;
+    groups = groups.filter((g) => g !== small);
+    for (const uid of small) smallest().push(uid);
+  }
+  const rank = new Map(seeds.map((u, i) => [u, i]));
+  return groups.filter((g) => g.length).map((g) => g.sort((x, y) => rank.get(x) - rank.get(y)));
+}
+
+function buildRoundRobin(st, seeds, plan) {
+  st.groups = drawGroups(st.cfg, seeds, plan).map((players, g) => ({ name: groupName(g), players, rounds: [] }));
   st.groups.forEach((grp, g) => {
     const arr = [...grp.players];
     if (arr.length % 2) arr.push(BYE);
@@ -256,20 +299,25 @@ function swissPairs(order, played, byes) {
     list.splice(list.indexOf(bye), 1);
   }
   const key = (x, y) => (x < y ? x + '|' + y : y + '|' + x);
-  let budget = 50000;
-  const dfs = (rest) => {
+  // Giới hạn số bước tìm (mô phỏng 30–36 người, 15 vòng: cần tới ~10⁶ bước, chậm nhất ~0,1 giây)
+  let budget = 1000000;
+  // Ghép từ trên xuống, ưu tiên người gần điểm nhất; allow = số cặp gặp lại còn được phép
+  const dfs = (rest, allow) => {
     if (!rest.length) return [];
     if (--budget < 0) return null;
     const [a, ...others] = rest;
     for (let i = 0; i < others.length; i++) {
-      if (played.has(key(a, others[i]))) continue;
-      const sub = dfs(others.filter((_, j) => j !== i));
+      const again = played.has(key(a, others[i]));
+      if (again && !allow) continue;
+      const sub = dfs(others.filter((_, j) => j !== i), allow - (again ? 1 : 0));
       if (sub) return [[a, others[i]], ...sub];
     }
     return null;
   };
-  let pairs = dfs(list);
-  if (!pairs) { // không tránh được gặp lại: ghép lần lượt theo thứ hạng
+  let pairs = dfs(list, 0);
+  // Không tránh được gặp lại: cho phép ít cặp gặp lại nhất có thể (1, 2, …)
+  for (let allow = 1; !pairs && allow <= list.length / 2; allow++) { budget = 20000; pairs = dfs(list, allow); }
+  if (!pairs) { // hết thời gian tìm: ghép lần lượt theo thứ hạng
     pairs = [];
     for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]]);
   }
@@ -381,16 +429,26 @@ function advancers(st, seedOf) {
   return { seeds: seeds.length >= 2 ? seeds : tables.flatMap((t) => t.list).slice(0, 2), groupOf };
 }
 
+/**
+ * Số vòng Thụy Sĩ tối đa cho n người. Đánh gần hết n-1 vòng thì thường không còn cách ghép nào tránh gặp lại
+ * (mô phỏng: 5–6 người gặp lại từ vòng 4, 8 người từ vòng 6), nên giới hạn khoảng một nửa số người.
+ * Riêng 3–4 người thì đánh đủ (mọi người gặp nhau) luôn ghép được.
+ */
+function swissMaxRounds(n) {
+  if (n <= 4) return Math.max(1, n % 2 ? n : n - 1);
+  return Math.ceil(n / 2);
+}
+
 // ------------------------------------------------------------ Khởi tạo / tiến trình
 /** Tạo vòng mới với danh sách hạt giống (thứ tự = hạt giống 1, 2, …). */
 function buildStage(cfg, index, seeds, opts = {}) {
   const st = { type: cfg.type, cfg, index, key: `s${index}`, entrants: [...seeds], matches: {}, done: false };
   if (cfg.type === 'single') buildSingle(st, seeds, opts.groupOf);
   else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf);
-  else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds);
+  else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups);
   else {
     st.rounds = [];
-    st.cfg = { ...cfg, rounds: Math.max(1, Math.min(cfg.rounds, seeds.length % 2 ? seeds.length : seeds.length - 1)) };
+    st.cfg = { ...cfg, rounds: Math.min(cfg.rounds, swissMaxRounds(seeds.length)) };
     swissNextRound(st, opts.seedOf || ((u) => seeds.indexOf(u)), opts.isActive);
   }
   return st;
@@ -463,5 +521,5 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  tally, eliminated, isElim, real, swissPairs,
+  tally, eliminated, isElim, real, swissPairs, swissMaxRounds, drawGroups, groupCount, MAX_GROUP, MAX_GROUPS,
 };

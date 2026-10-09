@@ -689,3 +689,16 @@ table.stand tr.me td { background: color-mix(in srgb, var(--accent) 10%, transpa
 .sc-body input[type="number"], .sc-body select { height: 40px; padding: 6px 8px; font-size: var(--fs-sm); }
 .sc-body .field:has(.pts3) { grid-column: span 2; }
 .pts3 input { flex: 1; text-align: center; }
+
+/* ---- Xếp bảng (ban tổ chức, trước khi bắt đầu) */
+.grp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin: 6px 0; }
+.grp-card { border: 1px solid var(--panel-border); border-radius: 12px; padding: 6px 8px; min-height: 60px; }
+.grp-card h5 { margin: 2px 0 4px; }
+.grp-card.bad { border-color: #e5392f; }
+.grp-card.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.grp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.grp-list li { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); padding: 3px 2px; border-radius: 8px; }
+.grp-list li[draggable] { cursor: grab; }
+.grp-list li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grp-list .grip { color: var(--muted); font-size: 11px; letter-spacing: -2px; }
+.tour-body select.grp-move { width: auto; max-width: 92px; padding: 3px 4px; font-size: var(--fs-xs); flex: none; }

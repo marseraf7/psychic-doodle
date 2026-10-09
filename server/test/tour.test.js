@@ -361,12 +361,62 @@ test('nhiều vòng: vòng bảng (vòng tròn 2 bảng) -> playoff loại trự
   ps.forEach((c) => c.close());
 });
 
+test('xếp bảng như Challonge: chỉ ban tổ chức, trước khi bắt đầu; bốc thăm theo bảng đã xếp', async () => {
+  const B = await admin();
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('xb', 1900 - i * 10));
+  const { id } = await B.req({ t: 'tourCreate', name: 'Xếp bảng', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
+    stages: [{ type: 'roundrobin', groupSize: 2, bestOf: 1, advance: 1 }, { type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  for (const p of ps) await p.req({ t: 'tourJoin', id }, 'toast');
+  const u = ps.map((c) => c.me.uid);
+  // Ban tổ chức thấy bảng dự kiến (chia kiểu rắn theo Elo: 1-4, 2-3); người chơi thì không
+  const draft = (await B.req({ t: 'tourGet', id }, 'tour', (m) => m.id === id)).tour.groupDraft;
+  assert.deepStrictEqual(draft.groups.map((g) => g.map((x) => x.uid)), [[u[0], u[3]], [u[1], u[2]]]);
+  assert.strictEqual(draft.manual, false);
+  assert.strictEqual((await ps[0].req({ t: 'tourGet', id }, 'tour', (m) => m.id === id)).tour.groupDraft, null);
+  // Chỉ ban tổ chức được xếp; dữ liệu sai bị từ chối
+  assert.strictEqual((await ps[0].req({ t: 'tourGroups', id, groups: [u] }, 'error')).code, 'tour_managers_only');
+  assert.strictEqual((await B.req({ t: 'tourGroups', id, groups: [[u[0], u[0]], [u[1]]] }, 'error')).code, 'tour_groups_bad');
+  assert.strictEqual((await B.req({ t: 'tourGroups', id, groups: [['u_khong_co']] }, 'error')).code, 'tour_groups_bad');
+  assert.strictEqual((await B.req({ t: 'tourGroups', id, groups: 'x' }, 'error')).code, 'tour_groups_bad');
+  // Xếp tay: 1-2 cùng bảng, 3-4 cùng bảng
+  const t = app.hub.tours.get(id);
+  B.send({ t: 'tourGroups', id, groups: [[u[0], u[1]], [u[2], u[3]]] });
+  await until(() => !!t.groupPlan);
+  const d2 = (await B.req({ t: 'tourGet', id }, 'tour', (m) => m.id === id)).tour.groupDraft;
+  assert.strictEqual(d2.manual, true);
+  assert.deepStrictEqual(d2.groups.map((g) => g.map((x) => x.uid)), [[u[0], u[1]], [u[2], u[3]]]);
+  // Trả về chia tự động rồi xếp lại
+  B.send({ t: 'tourGroups', id, groups: null });
+  await until(() => t.groupPlan === null);
+  B.send({ t: 'tourGroups', id, groups: [[u[0], u[1]], [u[2], u[3]]] });
+  await until(() => !!t.groupPlan);
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  assert.deepStrictEqual(t.st[0].groups.map((g) => g.players), [[u[0], u[1]], [u[2], u[3]]]);
+  assert.strictEqual((await B.req({ t: 'tourGroups', id, groups: null }, 'error')).code, 'tour_groups_closed');
+  B.send({ t: 'tourCancel', id });
+  await until(() => t.status === 'cancelled');
+  // Giải không có vòng bảng
+  const ko = await B.req({ t: 'tourCreate', name: 'Không bảng', format: 'bracket', startsAt: soon(), timeLimit: 30, stages: [{ type: 'single' }] }, 'tourCreated');
+  assert.strictEqual((await B.req({ t: 'tourGroups', id: ko.id, groups: null }, 'error')).code, 'tour_no_groups');
+  // Giải loại trực tiếp kiểu cũ đang chạy dở khi nâng cấp: huỷ với lý do riêng
+  const old = { format: 'knockout', status: 'running', bestOf: 3, thirdPlace: true };
+  app.hub.upgradeTour(old);
+  assert.strictEqual(old.format, 'bracket');
+  assert.strictEqual(old.status, 'cancelled');
+  assert.strictEqual(old.cancelReason, 'upgrade');
+  assert.strictEqual(old.stages[0].type, 'single');
+  ps.forEach((c) => c.close());
+});
+
 test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh thắng-thua 3 người', async () => {
   const B = await admin();
   const ps = [];
   for (let i = 0; i < 4; i++) ps.push(await account('sw', 1700 - i * 10));
   const sw = await B.req({ t: 'tourCreate', name: 'Thụy Sĩ', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
     stages: [{ type: 'swiss', rounds: 3, bestOf: 1, points: { w: 2, d: 1, l: 0 } }] }, 'tourCreated');
+  // (4 người: đánh đủ 3 vòng vẫn luôn ghép được mà không ai gặp lại)
   for (const p of ps) await p.req({ t: 'tourJoin', id: sw.id }, 'toast');
   B.send({ t: 'tourStart', id: sw.id });
   const t = app.hub.tours.get(sw.id);

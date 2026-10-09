@@ -12,7 +12,8 @@
   /** Tên ngắn của một giai đoạn: "Vòng tròn (4 bảng)", "Thụy Sĩ (5 vòng)"… */
   function stageName(c) {
     const x = [];
-    if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
+    if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));
+    else if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
     if (c.type === 'swiss') x.push(T('rounds_n', { n: c.rounds }));
     return T('fmt_' + c.type) + (x.length ? ` (${x.join(', ')})` : '');
   }
@@ -95,7 +96,9 @@
     }
     // Thụy Sĩ: vòng mới nhất lên đầu
     const rounds = v.rounds.map((r, i) => ({ r, i })).reverse();
-    return table(v.table, true)
+    const want = (t.stages[v.index] || {}).rounds;
+    const capped = want > v.totalRounds ? `<p class="hint">${esc(T('swiss_capped', { n: v.totalRounds, m: v.table.length }))}</p>` : '';
+    return capped + table(v.table, true)
       + fold(key + ':r', esc(T('matches')), rounds.map(({ r, i }) => `<h6>${esc(T('swiss_round', { n: i + 1, m: v.totalRounds }))}</h6><ul class="mlist">${r.map(matchRow).join('')}</ul>`).join(''), !v.done)
       + `<p class="hint">${esc(T('tb_note_swiss'))}</p>`;
   }
@@ -115,5 +118,5 @@
     }).join('');
   }
 
-  Object.assign(K, { stageName, advText, stagesHtml });
+  Object.assign(K, { stageName, advText, stagesHtml, fold });
 })();

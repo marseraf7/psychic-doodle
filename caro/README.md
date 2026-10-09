@@ -56,6 +56,14 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 node caro/tests/rules.test.js
 ```
 
+Kiểm thử trình duyệt cho giải đấu (cần Playwright + Chromium; mỗi kịch bản tự bật máy chủ trên dữ liệu tạm,
+ảnh chụp màn hình lưu ở `E2E_OUT` hoặc thư mục tạm):
+
+```bash
+node caro/tests/e2e/tour-basic.e2e.js    # câu lạc bộ, Arena, loại trực tiếp
+node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → playoff, Thụy Sĩ → nhánh thắng – thua
+```
+
 ## Cấu trúc
 
 | File | Nội dung |
@@ -71,6 +79,7 @@ node caro/tests/rules.test.js
 | `tour.js` | Giải đấu – phần lõi: điều hướng trong hộp thoại, danh sách giải, trang giải (thông tin, nút thao tác, người chơi, bảng xếp hạng Arena), trang duyệt của quản trị viên. Các file dưới cắm vào `window.CaroTourKit` |
 | `tour-stages.js` | Vẽ các giai đoạn của giải: nhánh loại trực tiếp, nhánh thắng – thua + chung kết tổng, bảng vòng tròn, bảng Thụy Sĩ, danh sách trận |
 | `tour-form.js` | Form tạo giải: mẫu có sẵn và trình ghép tối đa 3 giai đoạn |
+| `tour-groups.js` | Xếp bảng (ban tổ chức, trước khi bắt đầu): kéo thả hoặc chọn bảng cho từng người, lưu / chia tự động |
 | `club.js` | Câu lạc bộ: danh sách, trang CLB, tạo CLB, quản lý thành viên |
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `index.html`, `style.css` | Giao diện |

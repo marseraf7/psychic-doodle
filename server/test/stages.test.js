@@ -131,7 +131,7 @@ test('Thụy Sĩ: không gặp lại, miễn đấu cho người thấp nhất c
     const cfg = S.normalizeStages([{ type: 'swiss', rounds: 5, points: { w: 1, d: 0, l: 0 } }])[0];
     const st = S.buildStage(cfg, 0, players(n), { seedOf });
     playOut(st, (m) => (rnd() < 0.15 ? null : rnd() < 0.5 ? m.a : m.b));
-    const expRounds = Math.min(5, n % 2 ? n : n - 1);
+    const expRounds = Math.min(5, S.swissMaxRounds(n));
     assert.strictEqual(st.rounds.length, expRounds, 'n=' + n);
     const seen = new Set();
     for (const m of Object.values(st.matches)) {
@@ -178,4 +178,62 @@ test('vắng cả hai (vòng tròn): cả hai đều thua, không ai được đ
   assert.strictEqual(tab.stats.p1.pts, 0);
   assert.strictEqual(tab.stats.p1.l, 1);
   assert.ok(st.done);
+});
+
+test('Thụy Sĩ: số vòng giới hạn theo số người, không ai gặp lại (mô phỏng 3..24 người, có hoà)', () => {
+  for (let n = 3; n <= 24; n++) {
+    const max = n <= 4 ? (n % 2 ? n : n - 1) : Math.ceil(n / 2);
+    assert.strictEqual(S.swissMaxRounds(n), max);
+    for (let k = 0; k < 40; k++) {
+      const cfg = S.normalizeStages([{ type: 'swiss', rounds: 15 }])[0];
+      const st = playOut(S.buildStage(cfg, 0, players(n), { seedOf }), (m) => (rnd() < 0.25 ? null : rnd() < 0.5 ? m.a : m.b));
+      assert.strictEqual(st.rounds.length, Math.min(15, max), 'n=' + n);
+      const seen = new Set();
+      for (const m of Object.values(st.matches)) {
+        if (m.bye) continue;
+        const key = [m.a, m.b].sort().join();
+        assert.ok(!seen.has(key), `gặp lại ${key} (n=${n})`);
+        seen.add(key);
+      }
+    }
+  }
+});
+
+test('Thụy Sĩ: buộc phải gặp lại thì chọn cách ghép ít cặp gặp lại nhất', () => {
+  // 4 người, p1-p2 và p3-p4 đã gặp nhau, p1-p3 cũng đã gặp: còn p1-p4 / p2-p3 không ai gặp lại
+  const played = new Set(['p1|p2', 'p3|p4', 'p1|p3']);
+  assert.deepStrictEqual(S.swissPairs(['p1', 'p2', 'p3', 'p4'], played, {}).pairs, [['p1', 'p4'], ['p2', 'p3']]);
+  // Mọi cặp đều đã gặp: vẫn ghép đủ người
+  const all = new Set(['p1|p2', 'p1|p3', 'p1|p4', 'p2|p3', 'p2|p4', 'p3|p4']);
+  assert.strictEqual(S.swissPairs(['p1', 'p2', 'p3', 'p4'], all, {}).pairs.length, 2);
+});
+
+test('vòng bảng: chia theo số người mỗi bảng (như Challonge), không bảng nào quá 16 người', () => {
+  const sizes = (cfg, n) => S.buildStage(S.normalizeStages([cfg])[0], 0, players(n)).groups.map((g) => g.players.length);
+  assert.deepStrictEqual(sizes({ type: 'roundrobin', groupSize: 4 }, 10), [3, 3, 4]); // chia kiểu rắn: người dư vào bảng cuối
+  assert.deepStrictEqual(sizes({ type: 'roundrobin', groupSize: 4 }, 16), [4, 4, 4, 4]);
+  assert.deepStrictEqual(sizes({ type: 'roundrobin', groupSize: 99 }, 20), [10, 10], 'tối đa 16 người/bảng');
+  assert.deepStrictEqual(sizes({ type: 'roundrobin', groups: 1 }, 40), [13, 13, 14], '1 bảng 40 người -> tự chia 3 bảng');
+  assert.ok(sizes({ type: 'roundrobin', groups: 1 }, 128).every((x) => x <= 16));
+  const cfg = S.normalizeStages([{ type: 'roundrobin', groupSize: 3 }])[0];
+  assert.strictEqual(cfg.groupSize, 3);
+  assert.strictEqual(cfg.groups, undefined);
+  // 30 bảng: tên A..Z rồi AA, AB…
+  const many = S.buildStage(S.normalizeStages([{ type: 'roundrobin', groups: 30 }])[0], 0, players(60));
+  assert.deepStrictEqual(many.groups.slice(24, 28).map((g) => g.name), ['Y', 'Z', 'AA', 'AB']);
+});
+
+test('vòng bảng: ban tổ chức tự xếp bảng; người mới vào bảng ít người nhất; bảng 1 người được gộp', () => {
+  const cfg = S.normalizeStages([{ type: 'roundrobin', groups: 2 }])[0];
+  // p9 không còn trong giải -> bảng C trống; p6, p7 chưa được xếp -> lần lượt vào bảng ít người nhất
+  const plan = [['p1', 'p2', 'p3'], ['p4', 'p5'], ['p9']];
+  const st = S.buildStage(cfg, 0, players(7), { groups: plan });
+  assert.deepStrictEqual(st.groups.map((g) => g.players), [['p1', 'p2', 'p3'], ['p4', 'p5'], ['p6', 'p7']]);
+  playOut(st);
+  assert.ok(st.done);
+  // Bảng chỉ còn 1 người -> dồn sang bảng khác
+  const st2 = S.buildStage(cfg, 0, players(5), { groups: [['p1', 'p2', 'p3', 'p4'], ['p5']] });
+  assert.deepStrictEqual(st2.groups.map((g) => g.players), [['p1', 'p2', 'p3', 'p4', 'p5']]);
+  // Không có kế hoạch: chia kiểu rắn như cũ
+  assert.deepStrictEqual(S.drawGroups(cfg, players(4)), [['p1', 'p4'], ['p2', 'p3']]);
 });

@@ -9,7 +9,7 @@
  */
 'use strict';
 const crypto = require('crypto');
-const { note } = require('../msg.js');
+const { E, note } = require('../msg.js');
 const { userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
 
@@ -32,7 +32,7 @@ class Bracket {
     entrants.forEach((p, i) => { p.seed = i + 1; });
     t.status = 'running';
     t.stage = 0;
-    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u) })];
+    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan })];
     this.saveTour(t);
     this.notifyPlayers(t, 'tour_started', {}, (p) => !p.out);
     this.notifyPlayers(t, 'tour_no_checkin', {}, (p) => p.out === 'no_checkin');
@@ -45,7 +45,8 @@ class Bracket {
     if (t.format !== 'knockout') return;
     t.format = 'bracket';
     t.stages = ST.normalizeStages([{ type: 'single', bestOf: t.bestOf, thirdPlace: t.thirdPlace }]);
-    if (t.status === 'running') { t.status = 'cancelled'; t.cancelReason = 'organizer'; }
+    // Đang chạy dở theo cách cũ thì không tiếp tục được: huỷ, ghi rõ lý do (trang giải hiện "nâng cấp hệ thống")
+    if (t.status === 'running') { t.status = 'cancelled'; t.cancelReason = 'upgrade'; t.finishedAt = Date.now(); }
   }
 
   allMatches(t) {
@@ -156,6 +157,54 @@ class Bracket {
       for (const m of ST.playable(this.curStage(t))) if (!m.room) { s.add(m.a); s.add(m.b); }
     }
     return s;
+  }
+
+  // ------------------------------------------------------------ Xếp bảng (như Challonge)
+  /** Giai đoạn đầu là vòng tròn thì ban tổ chức được tự xếp người vào bảng trước khi giải bắt đầu. */
+  hasGroups(t) {
+    return t.format === 'bracket' && t.stages && t.stages[0].type === 'roundrobin';
+  }
+
+  /** Người sẽ vào giải nếu bắt đầu lúc này, theo thứ tự hạt giống (Elo). */
+  draftSeeds(t) {
+    return this.activePlayers(t).map((p) => ({ uid: p.uid, r: this.store.users.get(p.uid)?.rating || p.rating }))
+      .sort((a, b) => b.r - a.r).map((x) => x.uid);
+  }
+
+  /** Các bảng dự kiến (ban tổ chức xem / sửa trước khi bắt đầu). */
+  groupDraft(t) {
+    if (!this.hasGroups(t) || !['pending', 'scheduled'].includes(t.status)) return null;
+    const groups = ST.drawGroups(t.stages[0], this.draftSeeds(t), t.groupPlan);
+    return { manual: !!t.groupPlan, max: ST.MAX_GROUP, groups: groups.map((g) => g.map((u) => this.tourSide(t, u))) };
+  }
+
+  /**
+   * Ban tổ chức xếp bảng: groups = mảng các bảng (mảng mã người chơi), null = trả về chia tự động.
+   * Người đăng ký sau / chưa được xếp sẽ tự vào bảng ít người nhất khi bốc thăm.
+   */
+  on_tourGroups(conn, { id, groups }) {
+    const t = this.requireManager(conn, id);
+    if (!this.hasGroups(t)) throw E('tour_no_groups');
+    if (!['pending', 'scheduled'].includes(t.status)) throw E('tour_groups_closed');
+    if (groups == null) t.groupPlan = null;
+    else {
+      if (!Array.isArray(groups) || groups.length < 1 || groups.length > ST.MAX_GROUPS) throw E('tour_groups_bad');
+      const seen = new Set();
+      const plan = groups.map((g) => {
+        if (!Array.isArray(g)) throw E('tour_groups_bad');
+        if (g.length > ST.MAX_GROUP) throw E('tour_group_too_big', { n: ST.MAX_GROUP });
+        return g.map((u) => {
+          const p = this.player(t, String(u));
+          if (!p || p.withdrawn || seen.has(p.uid)) throw E('tour_groups_bad');
+          seen.add(p.uid);
+          return p.uid;
+        });
+      }).filter((g) => g.length);
+      if (!plan.length) throw E('tour_groups_bad');
+      t.groupPlan = plan;
+    }
+    this.saveTour(t);
+    this.pushTour(t);
   }
 
   /** Trận chưa xong của người này ở giai đoạn hiện tại. */

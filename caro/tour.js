@@ -178,7 +178,7 @@
     if (t.podium && t.podium.length && t.status === 'finished') {
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${['🥇', '🥈', '🥉'][i]}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
-    if (t.format === 'bracket') html += K.stagesHtml(t);
+    if (t.format === 'bracket') html += (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
     html += t.format === 'arena' ? standings(t) : playerList(t);
     if (t.format === 'arena' && t.games && t.games.length) html += recentGames(t);
     return html;

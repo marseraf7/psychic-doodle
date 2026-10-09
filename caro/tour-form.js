@@ -17,6 +17,8 @@
     roundrobin: () => ({ type: 'roundrobin', bestOf: 1, groups: 1, meetings: 1, points: { ...PT }, advance: 2 }),
     swiss: () => ({ type: 'swiss', bestOf: 1, rounds: 5, points: { w: 2, d: 1, l: 0 }, advance: 4 }),
   };
+  /** Vòng bảng chia theo số người mỗi bảng (số bảng tuỳ số người đăng ký). */
+  const groupsOf = (size) => { const c = STAGE_DEFAULT.roundrobin(); delete c.groups; c.groupSize = size; return c; };
   const PRESETS = {
     arena: null,
     single: () => [STAGE_DEFAULT.single()],
@@ -24,7 +26,7 @@
     roundrobin: () => [STAGE_DEFAULT.roundrobin()],
     swiss: () => [STAGE_DEFAULT.swiss()],
     groups_single: () => [{ ...STAGE_DEFAULT.roundrobin(), groups: 4 }, STAGE_DEFAULT.single()],
-    groups_double: () => [{ ...STAGE_DEFAULT.roundrobin(), groups: 2 }, STAGE_DEFAULT.double()],
+    groups_double: () => [groupsOf(4), STAGE_DEFAULT.double()], // chia theo số người mỗi bảng
     swiss_single: () => [{ ...STAGE_DEFAULT.swiss(), advance: 8 }, { ...STAGE_DEFAULT.single(), thirdPlace: false }],
     custom: null,
   };
@@ -45,7 +47,10 @@
       if (c.type === 'single') f.push(chk(i, 'thirdPlace', c.thirdPlace, T('third_place_opt')));
       if (c.type === 'double') f.push(chk(i, 'reset', c.reset, T('opt_reset')));
       if (c.type === 'roundrobin') {
-        f.push(field(T('opt_groups'), num(i, 'groups', c.groups, 1, 16)));
+        // Chia theo số bảng, hoặc theo số người mỗi bảng (như Challonge)
+        const bySize = c.groupSize != null;
+        f.push(field(T('gmode'), sel(i, 'gmode', [['count', T('gmode_count')], ['size', T('gmode_size')]], bySize ? 'size' : 'count')));
+        f.push(bySize ? field(T('gmode_size'), num(i, 'groupSize', c.groupSize, 2, 16)) : field(T('opt_groups'), num(i, 'groups', c.groups, 1, 64)));
         f.push(field(T('opt_meetings'), sel(i, 'meetings', [[1, T('meet_1')], [2, T('meet_2')]], c.meetings)));
       }
       if (c.type === 'swiss') f.push(field(T('opt_rounds'), num(i, 'rounds', c.rounds, 1, 15)));
@@ -131,6 +136,8 @@
           const nc = STAGE_DEFAULT[el.value]();
           nc.bestOf = c.bestOf;
           F.stages[i] = nc;
+        } else if (k === 'gmode') {
+          if (el.value === 'size') { delete c.groups; c.groupSize = 4; } else { delete c.groupSize; c.groups = 2; }
         } else if (el.type === 'checkbox') c[k] = el.checked;
         else if (k === 'pw' || k === 'pd' || k === 'pl') c.points[k[1]] = Math.max(0, Math.min(10, Math.floor(n) || 0));
         else if (el.tagName === 'SELECT') c[k] = n;
