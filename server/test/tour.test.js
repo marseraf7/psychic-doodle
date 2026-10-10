@@ -192,7 +192,7 @@ test('câu lạc bộ: vào tự do / gửi yêu cầu / mã mời, vai trò, m�
 });
 
 test('giải loại trực tiếp: duyệt, điểm danh, hạt giống theo Elo, miễn đấu, tranh hạng 3, vô địch', async () => {
-  const B = await admin();
+  const B = await organizer();
   // 5 người đăng ký, 1 người không điểm danh -> 4 người (không cần miễn đấu); thêm 1 người rút trước giờ
   const org = await account('org');
   const ps = [await account('p', 1600), await account('p', 1500), await account('p', 1400), await account('p', 1300), await account('p', 1250)];
@@ -241,7 +241,7 @@ test('giải loại trực tiếp: duyệt, điểm danh, hạt giống theo Elo
 });
 
 test('loại trực tiếp: 3 người (miễn đấu), Bo3, rời trận = thua cả trận, vắng mặt thì bị xử thua', async () => {
-  const B = await admin();
+  const B = await organizer();
   const ps = [await account('k', 1700), await account('k', 1600), await account('k', 1500)];
   const { id } = await B.req({ t: 'tourCreate', name: 'Bo3 nhỏ', format: 'knockout', startsAt: soon(), timeLimit: 30, bestOf: 3, thirdPlace: false, checkin: false }, 'tourCreated');
   for (const p of ps) await p.req({ t: 'tourJoin', id }, 'toast');
@@ -263,7 +263,7 @@ test('loại trực tiếp: 3 người (miễn đấu), Bo3, rời trận = thua
 });
 
 test('Arena: tự ghép ván, thắng 2 điểm, chuỗi thắng 🔥 được 4 điểm, hoà sớm 0 điểm, tạm nghỉ, kết thúc theo giờ', async () => {
-  const B = await admin();
+  const B = await organizer();
   const [a, b] = [await account('ar', 1500), await account('ar', 1490)];
   const { id } = await B.req({ t: 'tourCreate', name: 'Arena tối', format: 'arena', startsAt: soon(), timeLimit: 30, minutes: 30, rated: false }, 'tourCreated');
   await a.req({ t: 'tourJoin', id }, 'toast');
@@ -308,7 +308,7 @@ test('Arena: tự ghép ván, thắng 2 điểm, chuỗi thắng 🔥 được 4
 });
 
 test('đang ở Arena mà trận loại trực tiếp (giải khác) tới lượt: ưu tiên trận loại trực tiếp', async () => {
-  const B = await admin();
+  const B = await organizer();
   const [a, b, c] = [await account('pr', 1500), await account('pr', 1500), await account('pr', 1500)];
   const ar = await B.req({ t: 'tourCreate', name: 'Arena song song', format: 'arena', startsAt: soon(), timeLimit: 30, minutes: 60 }, 'tourCreated');
   const ko = await B.req({ t: 'tourCreate', name: 'KO song song', format: 'knockout', startsAt: soon(), timeLimit: 30, bestOf: 1, checkin: false }, 'tourCreated');
@@ -351,7 +351,7 @@ async function autoPlay(t, clients, decide, ms = 20000) {
 }
 
 test('nhiều vòng: vòng bảng (vòng tròn 2 bảng) -> playoff loại trực tiếp; nhất bảng gặp nhì bảng kia', async () => {
-  const B = await admin();
+  const B = await organizer();
   const ps = [];
   for (let i = 0; i < 6; i++) ps.push(await account('g', 1800 - i * 50));
   const { id } = await B.req({ t: 'tourCreate', name: 'Bảng + Playoff', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
@@ -382,7 +382,7 @@ test('nhiều vòng: vòng bảng (vòng tròn 2 bảng) -> playoff loại trự
 });
 
 test('xếp bảng như Challonge: chỉ ban tổ chức, trước khi bắt đầu; bốc thăm theo bảng đã xếp', async () => {
-  const B = await admin();
+  const B = await organizer();
   const ps = [];
   for (let i = 0; i < 4; i++) ps.push(await account('xb', 1900 - i * 10));
   const { id } = await B.req({ t: 'tourCreate', name: 'Xếp bảng', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
@@ -431,7 +431,7 @@ test('xếp bảng như Challonge: chỉ ban tổ chức, trước khi bắt đ�
 });
 
 test('cập nhật trang giải: phần chung dựng một lần, phần riêng từng người; nén tin lớn; tối đa 512 người', async () => {
-  const B = await admin();
+  const B = await organizer();
   const [p1, p2] = [await account('pu'), await account('pu')];
   // Tối đa 512 người mỗi giải
   const big = await B.req({ t: 'tourCreate', name: 'Giải lớn', format: 'arena', startsAt: soon(), timeLimit: 30, maxPlayers: 9999 }, 'tourCreated');
@@ -465,7 +465,7 @@ test('cập nhật trang giải: phần chung dựng một lần, phần riêng 
 });
 
 test('chống spam mở trang giải: dùng lại phần chung đã lưu, giới hạn lượt theo IP, hết lượt thì nhận ở nhịp sau', async () => {
-  const B = await admin();
+  const B = await organizer();
   const { id } = await B.req({ t: 'tourCreate', name: 'Chống spam', format: 'bracket', startsAt: soon(), timeLimit: 30, stages: [{ type: 'single' }] }, 'tourCreated');
   const t = app.hub.tours.get(id);
   // Phần chung chỉ dựng lại khi giải đổi
@@ -507,7 +507,8 @@ test('chống spam mở trang giải: dùng lại phần chung đã lưu, giới
   }
 });
 
-/** Ban tổ chức riêng cho từng bài (mỗi người chỉ có tối đa 3 giải chưa kết thúc). */
+/** Ban tổ chức (quản trị viên) riêng cho từng bài: mỗi người chỉ có tối đa 3 giải chưa kết thúc, dùng chung một
+ *  người thì bài sau phụ thuộc vào việc giải của bài trước đã kết thúc kịp hay chưa. */
 async function organizer() {
   const o = await account('org');
   app.hub.admins.add(o.me.username);
@@ -603,7 +604,7 @@ test('Arena: mất kết nối -> điểm tính ngay; ban tổ chức cho đấu
 });
 
 test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh thắng-thua 3 người', async () => {
-  const B = await admin();
+  const B = await organizer();
   const ps = [];
   for (let i = 0; i < 4; i++) ps.push(await account('sw', 1700 - i * 10));
   const sw = await B.req({ t: 'tourCreate', name: 'Thụy Sĩ', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
