@@ -1,7 +1,8 @@
 /*
  * Giả lập hành trình người chơi từ đầu đến cuối, tìm lỗi ảnh hưởng trải nghiệm:
  *  - Quét mọi màn hình / hộp thoại ở 4 ngôn ngữ × 2 cỡ màn hình (360 và 1280 px):
- *    khoá i18n chưa dịch hiện ra, tràn ngang, hộp thoại không đóng được bằng Esc.
+ *    khoá i18n chưa dịch hiện ra, tràn ngang, chữ bị cắt trong ô chọn / tràn khỏi nút, hộp thoại không đóng được bằng Esc;
+ *    cả form tạo giải đấu với mọi thể thức.
  *  - Học chơi: giải thích luật Swap2 và Renju từng bước, nút Back (Android) lùi một bước.
  *  - Chơi với máy tới hết ván, đi lại, ván mới.
  *  - Trang chính sách quyền riêng tư cuộn được bằng chuột (lăn và bấm giữ kéo).
@@ -46,7 +47,26 @@ const { setup } = require('./helpers');
         wide.push((el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + el.className) + ' ' + Math.round(r.right) + '>' + vw);
       }
     });
-    return { raw: [...new Set(raw)], wide: [...new Set(wide)].slice(0, 6), docW: document.documentElement.scrollWidth, vw };
+    // Chữ bị cắt / tràn: ô chọn hẹp hơn lựa chọn dài nhất, chữ trong nút / nhãn tràn ra ngoài viền
+    const clip = [];
+    const cv = document.createElement('canvas').getContext('2d');
+    const vis = (el) => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+    document.querySelectorAll('dialog[open] select').forEach((sel) => {
+      if (!vis(sel)) return;
+      const cs = getComputedStyle(sel);
+      cv.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      const avail = sel.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 22; // mũi tên
+      for (const o of sel.options) if (cv.measureText(o.textContent).width > avail + 1) clip.push(`ô chọn "${o.textContent}"`);
+    });
+    document.querySelectorAll('dialog[open] label, dialog[open] button').forEach((el) => {
+      if (!vis(el)) return;
+      const r = el.getBoundingClientRect();
+      for (const c of el.querySelectorAll('*')) {
+        const q = c.getBoundingClientRect();
+        if (vis(c) && (q.right > r.right + 1 || q.left < r.left - 1)) { clip.push(`tràn "${el.textContent.trim().slice(0, 30)}"`); break; }
+      }
+    });
+    return { raw: [...new Set(raw)], wide: [...new Set(wide)].slice(0, 6), clip: [...new Set(clip)], docW: document.documentElement.scrollWidth, vw };
   });
 
   // ---------------------------------------------------------------- 1. Quét mọi hộp thoại: 4 ngôn ngữ × 2 cỡ
@@ -65,6 +85,7 @@ const { setup } = require('./helpers');
         a = await audit(p);
         if (a.raw.length) bad.push(`#${id}: khoá chưa dịch ${a.raw.join(', ')}`);
         if (a.wide.length) bad.push(`#${id}: tràn ngang ${a.wide.join(' ')}`);
+        if (a.clip.length) bad.push(`#${id}: chữ bị cắt / tràn ${a.clip.join(', ')}`);
         if (width === 360) await shot(p, `journey-${lang}-${id}-360.png`);
         await p.keyboard.press('Escape');
         await sleep(120);
@@ -72,6 +93,16 @@ const { setup } = require('./helpers');
           bad.push(`#${id}: Esc không đóng`);
           await p.evaluate((id) => document.getElementById(id).close(), id);
         }
+      }
+      // Form tạo giải đấu: dựng bằng JS, mỗi thể thức một bộ ô khác nhau
+      await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
+      await p.click('#btn-online'); await sleep(300);
+      await p.click('#open-tours'); await sleep(300);
+      await p.click('[data-act="tourNew"]'); await sleep(300);
+      for (const pr of await p.$$eval('#tf select[name=preset] option', (o) => o.map((x) => x.value))) {
+        await p.selectOption('#tf select[name=preset]', pr); await sleep(120);
+        a = await audit(p);
+        if (a.clip.length) bad.push(`form giải (${pr}): chữ bị cắt / tràn ${a.clip.join(', ')}`);
       }
       ok(!bad.length, `${lang} ${width}px: ${ids.length} hộp thoại sạch` + (bad.length ? '\n    ' + bad.join('\n    ') : ''));
       await p.context().close();

@@ -474,6 +474,8 @@
     const side = document.querySelector('input[name="room-side"]:checked').value;
     send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, public: $('room-public').checked });
   };
+  // Chọn Swap2 thì hiện lời giải thích luật ngay dưới (ô chọn chỉ ghi ngắn "Swap2" để không bị cắt chữ)
+  $('room-opening').onchange = () => { $('room-opening-hint').hidden = $('room-opening').value !== 'swap2'; };
   $('open-join').onclick = () => openJoin('');
 
   function openJoin(code) {

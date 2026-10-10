@@ -1143,3 +1143,20 @@ fieldset > .select { width: 100%; }
 
 /* Giải đố: ô "Độ khó" cùng kiểu với các ô chọn khác, rộng hết hàng */
 .pz-diff .select { width: 100%; min-width: 0; margin-top: 2px; }
+
+/* ============================ Ô chọn không bị cắt chữ
+ * Hộp thoại rộng tối đa 420px: 2 ô chọn đặt cạnh nhau chỉ còn ~105–130px mỗi ô, không đủ cho "Giấy (theo giao diện)",
+ * "Без ограничения"… → trong hộp thoại mỗi ô chọn chiếm trọn một hàng. */
+dialog .row.opts { flex-direction: column; align-items: stretch; gap: 10px; }
+dialog .row.opts > .opt { flex: none; width: 100%; }
+/* Lưới an toàn: chữ vẫn dài hơn ô thì hiện "…" thay vì cắt ngang giữa chữ */
+.select { max-width: 100%; text-overflow: ellipsis; }
+
+/* Giai đoạn giải đấu: ô chọn chữ dài (thể thức, cách chia bảng, số lượt gặp) chiếm trọn hàng để không bị cắt chữ;
+ * ô ngắn (Bo1/3/5, ô nhập số) xếp 2 ô một hàng */
+.sc-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sc-body .field:has(select:not([data-k="bestOf"])), .sc-body .field:has(.pts3) { grid-column: 1 / -1; }
+
+/* Nút phân đoạn: cột không hẹp hơn từ dài nhất của nó ("ограничения", "Unlimited"…) – từ dài không tràn ra ngoài viền */
+.seg { grid-auto-columns: minmax(min-content, 1fr); }
+.seg label { overflow-wrap: normal; }
