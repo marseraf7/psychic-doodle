@@ -24,11 +24,11 @@ jobs:
       CARO_SERVER_URL: ${{ vars.CARO_SERVER_URL }}
       CARO_VERSION_CODE: ${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
@@ -63,7 +63,7 @@ jobs:
           "$AAPT" dump badging "$APK" | grep -E "^(package|sdkVersion|targetSdkVersion|application-label):"
           unzip -l "$APK" | grep -E "assets/public/(index.html|config.js|native.js|vendor/capacitor.js)"
           unzip -p "$APK" assets/public/config.js
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: caro-android
           path: |
@@ -82,11 +82,11 @@ jobs:
       matrix:
         api: [34, 35]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
@@ -134,7 +134,7 @@ jobs:
       - name: Nhật ký máy chủ
         if: always()
         run: cat "$RUNNER_TEMP/server.log" || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: android-${{ matrix.api }}-e2e-screenshots
@@ -148,8 +148,8 @@ jobs:
     env:
       CARO_SERVER_URL: ${{ vars.CARO_SERVER_URL }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Cài thư viện, dựng giao diện, đồng bộ iOS
@@ -184,7 +184,7 @@ jobs:
           xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/ios-launch.png"
           # App phải vẫn đang chạy (không bị thoát do lỗi)
           xcrun simctl spawn "$UDID" launchctl list | grep io.github.marseraf7.caro
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: caro-ios-simulator
