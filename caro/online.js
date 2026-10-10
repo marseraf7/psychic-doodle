@@ -646,7 +646,7 @@
       const d = r.delta[me];
       sub = (sub ? sub + ' · ' : '') + T('rating_delta', { d: (d >= 0 ? '+' : '') + d, pool: T('pool_' + (r.pool || 'rapid')) });
     }
-    if (!opp) { sub = T('opp_left'); rematch = false; }
+    if (!opp && !r.tour) { sub = T('opp_left'); rematch = false; } // giải: đối thủ đã sang trận khác, vẫn hiện kết quả
     // Ván của giải đấu: không tái đấu; Arena tự ghép ván sau
     if (r.tour) {
       rematch = false;

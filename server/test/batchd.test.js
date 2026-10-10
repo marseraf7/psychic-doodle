@@ -159,6 +159,21 @@ test('phòng: thêm giờ, xin đi lại (chỉ phòng riêng), Berserk (chỉ g
   assert.throws(() => a.goBerserk('A'), (e) => e.code === 'cannot_berserk', 'đã đi rồi thì không Berserk được');
 });
 
+test('phòng của giải: đối thủ sang trận khác thì người ở lại vẫn thấy ván vừa xong (phòng thường thì làm mới)', () => {
+  const t = room2({});
+  t.tour = { id: 't1' };
+  t.move('A', 0, 0); t.move('B', 5, 5);
+  t.resign('B');
+  t.removePlayer('A'); // A được giải chuyển sang trận kế tiếp
+  const v = t.view();
+  assert.deepStrictEqual([v.winner, v.reason, v.moves.length, v.seats.x, v.seats.o, v.players.length], [1, 'resign', 2, 'A', 'B', 1]);
+  const r = room2({});
+  r.move('A', 0, 0); r.move('B', 5, 5);
+  r.resign('B');
+  r.removePlayer('A');
+  assert.deepStrictEqual([r.winner, r.board.moves.length, r.seats[1]], [null, 0, null], 'phòng thường: chờ đối thủ mới');
+});
+
 test('ảnh PNG: đúng định dạng, đúng kích thước', () => {
   const png = boardPng([[0, 0], [1, 1], [1, 0]]);
   assert.deepStrictEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);

@@ -102,16 +102,19 @@ async function admin() {
 }
 const soon = () => Date.now() + 5 * 60 * 1000;
 
-/** Người đến lượt đánh nước thắng: X ở hàng 0, O rải rác ở hàng 5 (chờ cả hai nhận trạng thái mới). */
+/**
+ * Người thắng xếp 5 quân ở hàng 0, người thua đánh rải rác ở hàng 5 (chờ cả hai nhận trạng thái mới).
+ * Ván xong chưa / tới lượt ai: xem trên máy chủ (trạng thái chuẩn), không dựa vào phòng client đang nhớ – client có thể
+ * vừa nhận tin của trận khác (giải tự chuyển người chơi sang trận kế tiếp ngay khi ván xong).
+ */
 async function playOut(winner, loser) {
   const code = winner.room.code;
-  const side = (c) => (c.room.seats.x === c.me.id ? 1 : 2);
+  const srv = app.hub.rooms.get(code);
   let i = 0, j = 0;
-  // Dừng khi ván kết thúc hoặc khi máy chủ đã chuyển người chơi sang phòng trận kế tiếp (giải đấu)
-  while (winner.room.code === code && !winner.room.winner) {
-    const turnC = side(winner) === winner.room.turn ? winner : loser;
+  while (srv && app.hub.rooms.get(code) === srv && srv.active) {
+    const turnC = srv.actor() === winner.me.id ? winner : loser;
     const other = turnC === winner ? loser : winner;
-    const n = turnC.room.moves.length + 1;
+    const n = srv.board.moves.length + 1;
     const done = (m) => m.room && (m.room.code !== code || m.room.moves.length >= n || !!m.room.winner);
     const p = Promise.all([turnC.wait('room', done), other.wait('room', done)]);
     turnC.send(turnC === winner ? { t: 'move', x: i++, y: 0 } : { t: 'move', x: (j++) * 3, y: 5 });
@@ -119,7 +122,8 @@ async function playOut(winner, loser) {
       // Hết giờ chờ: in thêm lỗi của cả hai người và trạng thái phòng để biết nguyên nhân
       const info = (c) => ({ me: c.me.id, errors: c.msgs.filter((m) => m.t === 'error').slice(-3),
         room: c.room && { code: c.room.code, turn: c.room.turn, moves: c.room.moves.length, winner: c.room.winner, seats: c.room.seats } });
-      e.message += ' | người đi: ' + JSON.stringify(info(turnC)) + ' | người kia: ' + JSON.stringify(info(other));
+      e.message += ' | người đi: ' + JSON.stringify(info(turnC)) + ' | người kia: ' + JSON.stringify(info(other))
+        + ' | máy chủ: ' + JSON.stringify({ code, active: srv.active, moves: srv.board.moves.length, actor: srv.actor() });
       throw e;
     }
   }

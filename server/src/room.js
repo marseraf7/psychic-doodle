@@ -126,8 +126,11 @@ class Room {
     // Rời phòng khi đang đánh = xử thua.
     if (this.inProgress && opp) this.finish(this.sideOf(opp.id), 'leave');
     this.players = this.players.filter((p) => p.id !== id);
-    this.seats[this.sideOf(id)] = null;
     this.rematch.clear();
+    // Phòng của giải: không ai vào thêm được, nên người ở lại vẫn thấy ván vừa xong (bàn cờ, kết quả, tỉ số) trong lúc
+    // chờ trận sau – đối thủ được chuyển sang trận khác không làm mất kết quả của mình
+    if (this.tour) { this.touch(); return; }
+    this.seats[this.sideOf(id)] = null;
     // Người ở lại chờ đối thủ mới: làm mới bàn cờ và tỉ số.
     this.score = {};
     for (const p of this.players) this.score[p.id] = 0;
