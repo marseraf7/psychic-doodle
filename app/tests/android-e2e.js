@@ -27,6 +27,20 @@ async function until(fn, ms = 15000, step = 250) {
 const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
 const API = Number(adb('shell', 'getprop', 'ro.build.version.sdk').trim());
 const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/api${API}-${name}.png`]);
+/** ĐIỀU TRA (tạm thời): màn hình đang hiện gì – activity trên cùng, cửa sổ giữ focus, các gói / chữ trên màn hình. */
+function screenState() {
+  const out = [];
+  try { out.push((adb('shell', 'dumpsys', 'activity', 'activities').match(/topResumedActivity[^\n]*/) || [''])[0].trim()); } catch (e) { /* bỏ qua */ }
+  try { out.push(...(adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*|mFocusedApp=[^\n]*/g) || []).map((x) => x.trim())); } catch (e) { /* bỏ qua */ }
+  try {
+    adb('shell', 'uiautomator', 'dump', '/sdcard/kb.xml');
+    const xml = adb('shell', 'cat', '/sdcard/kb.xml');
+    const pk = [...new Set([...xml.matchAll(/package="([^"]+)"/g)].map((m) => m[1]))];
+    const tx = [...new Set([...xml.matchAll(/text="([^"]{2,60})"/g)].map((m) => m[1]))].slice(0, 25);
+    out.push('gói trên màn hình: ' + pk.join(', '), 'chữ: ' + tx.join(' | '));
+  } catch (e) { out.push('uiautomator lỗi: ' + e.message.slice(0, 120)); }
+  return out.join('\n  ');
+}
 /** ĐIỀU TRA (tạm thời): in nhật ký hệ thống Android liên quan tới app / WebView / bàn phím / cửa sổ. */
 function dumpLogcat(reason) {
   try {
@@ -227,6 +241,7 @@ async function screenRect(app, sel) {
     try { imeShown = (adb('shell', 'dumpsys', 'input_method').match(/mInputShown=\w+|mIsInputViewShown=\w+/g) || []).join(' '); } catch (e) { /* bỏ qua */ }
     console.log('Chạm ô nhập:', JSON.stringify(inBox), JSON.stringify(diag), imeShown);
     console.log('Mất focus:', JSON.stringify(await app.evaluate(() => ({ now: Math.round(performance.now()), hasFocus: document.hasFocus(), ev: window.__blur.slice(-6) }))));
+    if (!ime) { console.log('MÀN HÌNH lúc bàn phím không hiện:\n  ' + screenState()); dumpLogcat('bàn phím không hiện'); }
     check('bàn phím hiện khi chạm ô nhập tin nhắn', !!ime);
     if (ime) {
       // Chờ WebView co lại theo bàn phím (máy ảo chậm có thể mất vài giây), đo lại tới khi ổn định
@@ -262,7 +277,6 @@ async function screenRect(app, sel) {
   // xen kẽ A = ô nhập đã được focus bằng code (như hiện tại) và B = bỏ focus trước khi chạm. Chỉ ghi log (KB-DIAG).
   {
     const KB_N = 20;
-    try { adb('logcat', '-c'); } catch (e) { /* bỏ qua */ }
     const screen = adb('shell', 'wm', 'size').trim();
     const step = (k, what) => console.log(`KB-STEP ${k} ${new Date().toISOString().slice(11, 23)} ${what}`);
     const proc = () => {
@@ -326,6 +340,7 @@ async function screenRect(app, sel) {
       rec.backs = backs;
       rec.closed = await app.evaluate(() => !document.getElementById('chat').open);
       if (!rec.closed) { st.back++; await app.evaluate(() => document.getElementById('chat').close()); }
+      if (!ime || !rec.closed) console.log('MÀN HÌNH:\n  ' + screenState());
       if (!ime || !rec.closed) rec.ime_dump = (adb('shell', 'dumpsys', 'input_method').match(/mInputShown=\w+|mIsInputViewShown=\w+|mServedView=[^\n]{0,80}|mCurClient=[^\n]{0,60}/g) || []).join(' | ');
       console.log('KB-DIAG ' + JSON.stringify(rec));
       await sleep(300);
