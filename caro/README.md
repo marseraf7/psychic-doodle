@@ -78,7 +78,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   thống kê, chuỗi thắng, giải đấu, ván gần đây.
 - **Xem trực tiếp** (`watch.js`): mục "Đang diễn ra" trong bảng Online, nút "Xem" cạnh bạn bè đang chơi, nhãn "● Đang đấu"
   và biểu tượng mắt trong trang giải. Chế độ xem chỉ đọc, có nút "Ván khác" / "Thôi xem".
-- **Học chơi** (`learn.js`): 6 bài tương tác (năm quân, chặn hai đầu, bốn mở, ba mở, thắng kép, chuỗi ép).
+- **Học chơi** (`learn.js`): 6 bài tương tác (năm quân, chặn hai đầu, bốn mở, ba mở, thắng kép, chuỗi ép). Thêm phần **giải thích luật** từng bước có hình minh hoạ: Swap2 (khai cuộc công bằng, như trong trò chơi) và Renju (luật quốc tế: nước cấm ba-ba, bốn-bốn, quá năm cho X – trò chơi chưa có chế độ Renju, bước cuối so sánh với luật Caro của trò chơi).
   Mở game lần đầu: thẻ "Bạn chơi Caro tới đâu?" để chọn bài học / đối thủ phù hợp (không chặn bàn cờ).
 - **Thành tích** (`habits.js`): chuỗi ngày chơi liên tiếp (lịch 14 ngày) và 19 huy hiệu (thắng từng nhân vật máy,
   giải đố, học xong, online, điểm, vô địch giải). Lưu trên máy; huy hiệu online dựa vào thống kê tài khoản.
@@ -131,6 +131,7 @@ node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → p
 node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + Thử lại, giải đố (3 chế độ)
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
 node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, ván giải mất kết nối, Storm, ảnh og
+node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
 ```
 
 ## Cấu trúc
@@ -146,7 +147,7 @@ node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại
 | `swap.js` | Luật Swap2: thẻ hướng dẫn đặt quân, nút chọn bên |
 | `watch.js` | Xem trực tiếp: danh sách "Đang diễn ra", nút Xem (bạn bè, trận trong giải), chế độ người xem |
 | `profile.js` | Hồ sơ người chơi: điểm từng loại + biểu đồ, thống kê, ván gần đây |
-| `learn.js`, `habits.js` | Học chơi (6 bài) + thẻ chào người mới; chuỗi ngày chơi + huy hiệu |
+| `learn.js`, `habits.js` | Học chơi (6 bài + giải thích luật Swap2, Renju) + thẻ chào người mới; chuỗi ngày chơi + huy hiệu |
 | `share.js` | Ảnh PNG / GIF động của ván để chia sẻ |
 | `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |
 | `puzzles.json` | 300 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải) |

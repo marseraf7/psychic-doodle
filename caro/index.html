@@ -596,6 +596,25 @@
       </div>
       <p class="hint" id="learn-progress"></p>
       <ul class="people learn-list" id="learn-list"></ul>
+      <h3 data-i18n="rules_title"></h3>
+      <ul class="people learn-list" id="rules-list"></ul>
+    </div>
+  </dialog>
+
+  <!-- Giải thích luật (Swap2, Renju): từng bước có hình bàn cờ -->
+  <dialog id="rule-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span id="rule-name"></span></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <p class="hint" id="rule-step"></p>
+      <div class="rule-board" id="rule-board"></div>
+      <p class="rule-text" id="rule-text"></p>
+      <div class="row rule-nav">
+        <button type="button" class="ghost" id="rule-prev" data-i18n="rule_prev"></button>
+        <button type="button" class="primary" id="rule-next" data-i18n="rule_next"></button>
+      </div>
     </div>
   </dialog>
 

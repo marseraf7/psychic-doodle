@@ -1232,6 +1232,8 @@
     fitView,
     seek: (i) => { stopReplay(); seekReplay(i, true); },
     get board() { return state.board; },
+    /** Toạ độ màn hình của ô (x, y) – dùng cho kiểm thử bấm bàn cờ thật. */
+    screenOf: (x, y) => [(x - cam.x) * cam.size + W / 2, (y - cam.y) * cam.size + H / 2],
     /** Chọn nhân vật máy (nếu đã mở khoá); unlockTo: mở khoá tới nhân vật thứ n (người chơi tự nhận là đã giỏi). */
     setBot(id, unlockTo) {
       if (unlockTo && unlockTo > unlockedCount()) try { localStorage.setItem(BOT_STORE, JSON.stringify({ unlocked: Math.min(Bots.BOTS.length, unlockTo) })); } catch (e) { /* riêng tư */ }

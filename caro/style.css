@@ -1075,3 +1075,18 @@ body.watching .turn .name { max-width: 9em; overflow: hidden; text-overflow: ell
 .disputes .count { background: #e05545; color: #fff; border-radius: 999px; padding: 0 7px; font-size: var(--fs-xs); }
 .disputes li.dispute .row { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
 .pill.held { background: rgba(224, 160, 40, 0.18); color: #a86b00; }
+
+/* ============================ Học: giải thích luật (Swap2, Renju) */
+.rule-board { display: flex; justify-content: center; margin: 4px 0 8px; }
+.rule-board svg { width: min(100%, 300px); height: auto; background: var(--board, #f4ecd8); border-radius: 10px; }
+.rule-board .rgrid line { stroke: rgba(120, 100, 70, 0.35); stroke-width: 1; }
+.rule-board .rx line { stroke: #d33a2c; stroke-width: 3; stroke-linecap: round; }
+.rule-board .ro { fill: none; stroke: #2a6fdb; stroke-width: 3; }
+.rule-board .rn { font-size: 11px; font-weight: 700; fill: #555; }
+.rule-board .rbad rect { fill: rgba(224, 85, 69, 0.18); stroke: #e05545; stroke-width: 2; }
+.rule-board .rbad line { stroke: #e05545; stroke-width: 3; stroke-linecap: round; }
+.rule-board .rgood rect { fill: rgba(47, 154, 76, 0.18); stroke: #2f9a4c; stroke-width: 2; }
+.rule-board .rgood path { fill: none; stroke: #2f9a4c; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.rule-text { white-space: pre-line; line-height: 1.5; min-height: 6em; }
+.rule-nav { justify-content: space-between; }
+#learn-dlg h3 { margin: 14px 0 6px; font-size: var(--fs-sm); color: var(--muted); }

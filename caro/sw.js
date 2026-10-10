@@ -1,5 +1,5 @@
 // Lưu toàn bộ game vào bộ nhớ đệm để chơi được cả khi mất mạng.
-const CACHE = 'caro-v26';
+const CACHE = 'caro-v27';
 const FILES = ['./', 'index.html', 'style.css', 'config.js', 'theme.js', 'boardstyle.js', 'i18n.js', 'sound.js', 'rules.js', 'bots.js', 'analysis.js', 'ai-worker.js', 'app.js', 'online.js', 'social.js', 'match.js', 'gamex.js', 'tour-patch.js', 'tour.js', 'tour-stages.js', 'tour-form.js', 'tour-groups.js', 'tour-disputes.js', 'club.js', 'study.js', 'storm.js', 'share.js', 'swap.js', 'watch.js', 'profile.js', 'learn.js', 'habits.js', 'puzzles.json', 'native.js', 'privacy.html', 'icon.svg', 'manifest.webmanifest',
   // Phông cho 4 ngôn ngữ của game; phần chữ hiếm (latin-ext, cyrillic-ext) tự được lưu khi cần
   'fonts/noto-sans-latin-wght-normal.woff2', 'fonts/noto-sans-vietnamese-wght-normal.woff2', 'fonts/noto-sans-cyrillic-wght-normal.woff2'];
