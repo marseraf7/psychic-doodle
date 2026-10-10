@@ -27,6 +27,15 @@ async function until(fn, ms = 15000, step = 250) {
 const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
 const API = Number(adb('shell', 'getprop', 'ro.build.version.sdk').trim());
 const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/api${API}-${name}.png`]);
+/** ĐIỀU TRA (tạm thời): in nhật ký hệ thống Android liên quan tới app / WebView / bàn phím / cửa sổ. */
+function dumpLogcat(reason) {
+  try {
+    const re = /caro|chromium|cr_|AndroidRuntime|ActivityManager|ActivityTaskManager|WindowManager|InputMethod|ImeTracker|InputDispatcher|DEBUG|libc|WebView|died|ANR|lowmemory|lmkd|Capacitor/i;
+    const lines = adb('logcat', '-d', '-v', 'time').split('\n').filter((l) => re.test(l));
+    console.log(`LOGCAT (${reason}) – ${lines.length} dòng liên quan, 200 dòng cuối:`);
+    for (const l of lines.slice(-200)) console.log('  ' + l);
+  } catch (e) { console.log('LOGCAT lỗi: ' + e.message); }
+}
 
 /** Vị trí thanh hệ thống / bàn phím trên màn hình (pixel), đọc từ dumpsys window. */
 function systemBars() {
@@ -235,6 +244,9 @@ async function screenRect(app, sel) {
   // xen kẽ A = ô nhập đã được focus bằng code (như hiện tại) và B = bỏ focus trước khi chạm. Chỉ ghi log (KB-DIAG).
   {
     const KB_N = 20;
+    try { adb('logcat', '-c'); } catch (e) { /* bỏ qua */ }
+    const screen = adb('shell', 'wm', 'size').trim();
+    const step = (k, what) => console.log(`KB-STEP ${k} ${new Date().toISOString().slice(11, 23)} ${what}`);
     await app.evaluate(() => {
       window.__taps = [];
       for (const ev of ['pointerdown', 'touchstart', 'click']) {
@@ -248,6 +260,7 @@ async function screenRect(app, sel) {
       const mode = k % 2 ? 'B' : 'A';
       const st = stats[mode];
       st.n++;
+      step(k, 'mở Online + chat (' + mode + ')');
       await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
       await until(() => app.$('#friends [data-chat]'), 5000);
       await app.click('#friends [data-chat]');
@@ -261,6 +274,7 @@ async function screenRect(app, sel) {
       const tap = () => adb('shell', 'input', 'tap', String(Math.round(wv.l + box.x * dpr)), String(Math.round(wv.t + box.y * dpr)));
       const t0 = await app.evaluate(() => performance.now());
       const winBefore = focusWin();
+      step(k, `chạm (${Math.round(wv.l + box.x * dpr)}, ${Math.round(wv.t + box.y * dpr)}) · WebView ${JSON.stringify(wv)} · dpr ${dpr} · ${screen}`);
       tap();
       let ime = await until(imeNow, 6000, 300);
       let taps = 1;
@@ -272,6 +286,7 @@ async function screenRect(app, sel) {
       const rec = { k, mode, ime: !!ime, taps, seen, focus, winBefore, winAfter: focusWin() };
       // Đóng: Back tối đa 3 lần (lần đầu có thể chỉ ẩn bàn phím)
       let backs = 0;
+      step(k, 'Back để đóng chat');
       for (; backs < 3 && await app.evaluate(() => document.getElementById('chat').open); backs++) {
         adb('shell', 'input', 'keyevent', '4');
         await until(() => app.evaluate(() => !document.getElementById('chat').open), 2500);
@@ -436,4 +451,4 @@ async function screenRect(app, sel) {
   await device.close();
   console.log(failed ? `✗ ${failed} kiểm tra thất bại` : '✓ Tất cả kiểm tra đều đạt');
   process.exit(failed ? 1 : 0);
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch((e) => { console.error(e); dumpLogcat('lỗi dừng test'); process.exit(1); });
