@@ -766,6 +766,13 @@
       ctx.fill();
     }
 
+    // Ván thắng: các quân không thuộc đường thắng mờ dần (cùng nhịp với đường thắng) để 5 quân thắng nổi bật
+    let winSet = null, dim = 1;
+    if (state.winCells) {
+      winSet = new Set(state.winCells.map(([x, y]) => x + ',' + y));
+      const t = Math.min(1, (now - (state.winAt || 0)) / 450);
+      dim = 1 - 0.55 * (1 - Math.pow(1 - t, 3));
+    }
     // Quân cờ (chỉ vẽ các quân trong khung nhìn).
     for (let i = 0; i < moves.length; i++) {
       const m = moves[i];
@@ -777,7 +784,7 @@
         if (t < 1) again = true;
         scale = 0.5 + 0.5 * (1 - Math.pow(1 - t, 3));
       }
-      drawStone(m.p, sx, sy, s * scale, 1);
+      drawStone(m.p, sx, sy, s * scale, winSet && !winSet.has(m.x + ',' + m.y) ? dim : 1);
     }
 
     if (state.marks) drawMarks(s, x0, x1, y0, y1);
