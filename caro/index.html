@@ -112,13 +112,25 @@
   <!-- Về giữa: nút tròn nổi (thanh dưới nhường chỗ cho "Giải đố") -->
   <button type="button" class="fab-center" id="btn-center" data-i18n-aria="btn_center" data-i18n-title="btn_center"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg></button>
 
-  <!-- Bảng phân tích ván (hiện trong chế độ xem lại) -->
-  <section class="an-panel" id="an-panel" hidden aria-live="polite">
+  <!-- Bảng phân tích ván (chế độ xem lại), bố cục như Lichess: máy tính – cột bên phải bàn cờ; điện thoại – dưới bàn cờ.
+       Bàn cờ thu nhỏ nhường chỗ, không bị bảng che. -->
+  <section class="an-panel" id="an-panel" hidden>
     <div class="an-head">
-      <button type="button" class="an-toggle" id="an-toggle"><svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg> <b data-i18n="an_title"></b> <span class="an-acc-mini" id="an-acc-mini"></span></button>
-      <button type="button" class="x-close" id="an-close" data-i18n-aria="close">✕</button>
+      <svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg> <b data-i18n="an_title"></b>
+      <button type="button" class="x-close" id="an-close" data-i18n-aria="close" data-i18n-title="close">✕</button>
     </div>
     <div class="an-body" id="an-body"></div>
+    <!-- Máy tính: nút điều khiển ngay dưới danh sách nước đi (điện thoại dùng thanh dưới) -->
+    <nav class="an-nav" id="an-nav">
+      <button type="button" data-nav="first" data-i18n-aria="rp_first" data-i18n-title="rp_first"><svg class="ico" aria-hidden="true"><use href="#i-first"/></svg></button>
+      <button type="button" data-nav="prev" data-i18n-aria="rp_prev" data-i18n-title="rp_prev"><svg class="ico" aria-hidden="true"><use href="#i-prev"/></svg></button>
+      <button type="button" data-nav="play" data-i18n-aria="rp_play" data-i18n-title="rp_play"><svg class="ico" id="an-play-ico" aria-hidden="true"><use href="#i-play"/></svg></button>
+      <button type="button" data-nav="next" data-i18n-aria="rp_next" data-i18n-title="rp_next"><svg class="ico" aria-hidden="true"><use href="#i-next"/></svg></button>
+      <button type="button" data-nav="last" data-i18n-aria="rp_last" data-i18n-title="rp_last"><svg class="ico flip" aria-hidden="true"><use href="#i-first"/></svg></button>
+      <span class="an-nav-gap"></span>
+      <button type="button" data-nav="share" data-i18n-aria="share_game" data-i18n-title="share_game"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg></button>
+      <button type="button" data-nav="close" data-i18n-aria="rp_close" data-i18n-title="rp_close"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg></button>
+    </nav>
   </section>
 
   <!-- Chat nhanh trong phòng -->

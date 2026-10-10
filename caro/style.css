@@ -819,47 +819,103 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .score .down { color: #d2382f; font-weight: var(--fw-semibold); }
 .bot-tag { color: var(--muted); font-weight: var(--fw-regular); }
 
-/* ============================ Bảng phân tích ván */
-.an-panel {
-  position: fixed; left: 50%; transform: translateX(-50%); z-index: 11;
-  bottom: calc(80px + env(safe-area-inset-bottom));
-  width: min(560px, calc(100% - 16px)); max-height: min(46vh, 380px); overflow: auto;
-  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow);
-  padding: 6px 10px 10px; animation: pop 0.2s ease-out; font-size: var(--fs-sm);
-}
+/* ============================ Bảng phân tích ván – bố cục như Lichess
+ * Máy tính (≥ 860px): bàn cờ bên trái, cột phân tích cố định bên phải (người chơi + độ chính xác, biểu đồ lợi thế,
+ * danh sách nước đi 2 cột, nhận xét, nút điều khiển). Điện thoại: bàn cờ ở trên, bảng ở dưới ngay trên thanh điều khiển.
+ * Bàn cờ (canvas) thu nhỏ nhường chỗ nên bảng không bao giờ che bàn cờ. */
+:root { --an-w: clamp(320px, 30vw, 400px); --an-h: min(38vh, 268px); }
 .an-panel[hidden] { display: none; }
-.an-head { display: flex; align-items: center; gap: 6px; position: sticky; top: -6px; background: var(--panel); z-index: 1; }
-.an-toggle { display: flex; align-items: center; gap: 4px; padding: 6px 4px; font-size: var(--fs-md); flex: 1; text-align: left; min-width: 0; }
-.an-acc-mini { margin-inline-start: auto; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
-.an-panel:not(.collapsed) .an-acc-mini { display: none; }
-.an-panel.collapsed .an-body { display: none; }
-.an-panel .x-close { margin-left: 0; width: 32px; height: 32px; }
+.an-panel {
+  position: fixed; z-index: 11; display: flex; flex-direction: column; gap: 10px;
+  background: var(--panel); color: var(--text); font-size: var(--fs-sm); overflow: hidden;
+}
+.an-head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-md); flex: none; }
+.an-head .ico { color: var(--accent); }
+.an-head .x-close { margin-left: auto; width: 32px; height: 32px; }
+.an-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
 .an-prog { height: 6px; border-radius: 3px; background: rgba(127, 127, 127, 0.18); overflow: hidden; margin: 8px 0 6px; }
 .an-prog i { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
-.an-players { display: grid; gap: 4px; margin: 2px 0 8px; }
-.an-player { display: flex; align-items: center; gap: 8px; min-width: 0; }
+
+/* Người chơi: tên · số lỗi theo loại (bấm để nhảy tới) · độ chính xác */
+.an-players { display: grid; gap: 4px; flex: none; }
+.an-player { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px; }
 .an-player .dot { font-size: var(--fs-md); font-weight: var(--fw-bold); }
-.an-player .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-medium); }
-.an-acc { font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
-.an-chips { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-.an-chip { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
+.an-player .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-semibold); }
+.an-acc { font-size: var(--fs-md); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.an-chips { display: flex; gap: 4px; }
+.an-chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 5px 2px 2px; border-radius: 999px; font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text); }
+@media (hover: hover) { .an-chip:hover { background: rgba(127, 127, 127, 0.14); } }
 .an-chip i, .an-badge {
   display: inline-flex; align-items: center; justify-content: center; min-width: 1.45em; height: 1.45em; padding: 0 3px;
   border-radius: 999px; background: var(--c); color: #fff; font-style: normal; font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 1;
 }
-.an-timeline { display: flex; gap: 2px; overflow-x: auto; padding: 4px 0 6px; scrollbar-width: thin; }
-.an-tl { flex: 0 0 auto; width: 10px; height: 22px; border-radius: 3px; padding: 0; background: var(--c); opacity: 0.55; }
-.an-tl.cur { opacity: 1; outline: 2px solid var(--text); outline-offset: 1px; }
-@media (hover: hover) { .an-tl:hover { opacity: 1; } }
-.an-now { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 0; line-height: 1.35; }
+
+/* Biểu đồ lợi thế */
+.an-gwrap { flex: none; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.an-graph { display: block; width: 100%; height: 96px; cursor: pointer; }
+.an-ga-x { fill: color-mix(in srgb, var(--x) 30%, transparent); }
+.an-ga-o { fill: color-mix(in srgb, var(--o) 30%, transparent); }
+.an-gl { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.an-mid { stroke: var(--grid-strong); stroke-width: 1; }
+.an-cur { stroke: var(--accent); stroke-width: 2; }
+
+/* Danh sách nước đi: 2 cột (X | O) với số thứ tự, nước đang xem tô nền màu nhấn */
+.an-moves {
+  display: grid; grid-template-columns: 2.6em 1fr 1fr; align-content: start; flex: 1; min-height: 0; overflow-y: auto;
+  border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); scrollbar-width: thin;
+  font-variant-numeric: tabular-nums;
+}
+.an-no { padding: 5px 6px; color: var(--muted); text-align: right; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.an-mv { display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 0; text-align: left; font-weight: var(--fw-medium); min-height: 30px; }
+.an-mv b { font-weight: var(--fw-bold); }
+@media (hover: hover) { .an-mv:not(.empty):hover { background: rgba(127, 127, 127, 0.14); } }
+.an-mv.cur { background: var(--accent); color: #fff; }
+.an-mv.cur b { color: #fff !important; }
+
+/* Nhận xét nước đang xem */
+.an-now { display: flex; align-items: center; gap: 8px; min-height: 40px; line-height: 1.35; flex: none; }
 .an-now > span:nth-child(2) { flex: 1; min-width: 0; }
 .an-now .dot { font-weight: var(--fw-bold); }
+
+/* Nút điều khiển trong bảng (máy tính) */
+.an-nav { display: flex; align-items: center; gap: 2px; flex: none; }
+.an-nav button { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 40px; border-radius: 10px; color: var(--text); }
+@media (hover: hover) { .an-nav button:hover { background: rgba(127, 127, 127, 0.14); } }
+.an-nav .ico { width: 22px; height: 22px; }
+.an-nav-gap { flex: 1; }
+.ico.flip { transform: scaleX(-1); }
+
+/* ---- Máy tính: cột bên phải, bàn cờ chiếm phần còn lại */
+@media (min-width: 860px) {
+  .an-panel { top: 0; right: 0; bottom: 0; width: var(--an-w); padding: 14px 14px calc(10px + env(safe-area-inset-bottom)); border-left: 1px solid var(--panel-border); box-shadow: -6px 0 24px rgba(0, 0, 0, 0.06); }
+  body.analysis:not(.ext) #board { width: calc(100% - var(--an-w)); }
+  body.analysis:not(.ext) .bar.top { left: calc((100% - var(--an-w)) / 2); max-width: calc(100% - var(--an-w) - 2 * var(--edge)); }
+  body.analysis:not(.ext) .bar.bottom.replay-only { display: none !important; }
+}
+/* ---- Điện thoại / màn hẹp: bảng dưới bàn cờ, ngay trên thanh điều khiển; danh sách nước đi cuộn ngang */
+@media (max-width: 859px) {
+  .an-panel {
+    left: max(var(--edge), env(safe-area-inset-left)); right: max(var(--edge), env(safe-area-inset-right));
+    bottom: calc(84px + env(safe-area-inset-bottom)); height: var(--an-h); padding: 10px 12px;
+    border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow); gap: 8px;
+  }
+  body.analysis:not(.ext) #board { height: calc(100% - var(--an-h) - 92px - env(safe-area-inset-bottom)); }
+  .an-nav { display: none; }
+  .an-head { font-size: var(--fs-sm); }
+  .an-head .x-close { width: 28px; height: 28px; }
+  .an-body { gap: 8px; overflow-y: auto; }
+  .an-gwrap { order: 1; }
+  .an-graph { height: 56px; }
+  .an-now { order: 2; min-height: 0; }
+  .an-moves { order: 3; display: flex; flex: none; overflow-x: auto; overflow-y: hidden; white-space: nowrap; min-height: 38px; }
+  .an-no { display: flex; align-items: center; background: none; padding: 5px 2px 5px 8px; }
+  .an-mv { border-radius: 8px; padding: 5px 7px; flex: none; }
+  .an-mv.empty { display: none; }
+  .an-players { order: 4; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .an-player { gap: 6px; }
+  .an-player .an-chips { display: none; }
+}
 .primary.sm { padding: 7px 12px; font-size: var(--fs-sm); border-radius: 10px; white-space: nowrap; display: inline-flex; align-items: center; }
-.an-keys summary { cursor: pointer; font-weight: var(--fw-semibold); padding: 4px 0; }
-.an-keys ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
-.an-keys li { display: flex; align-items: center; gap: 8px; }
-.an-keys li > span:nth-child(2) { flex: 1; min-width: 0; }
-.an-keys .link { align-self: center; padding: 4px 6px; }
 
 /* ============================ Chọn nhân vật máy */
 .bot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
@@ -1160,3 +1216,10 @@ dialog .row.opts > .opt { flex: none; width: 100%; }
 /* Nút phân đoạn: cột không hẹp hơn từ dài nhất của nó ("ограничения", "Unlimited"…) – từ dài không tràn ra ngoài viền */
 .seg { grid-auto-columns: minmax(min-content, 1fr); }
 .seg label { overflow-wrap: normal; }
+
+/* Thanh xem lại có 6–7 nút: màn hẹp chỉ hiện biểu tượng (như Lichess), chữ vẫn còn cho trình đọc màn hình */
+@media (max-width: 599px) { .bar.bottom.replay-only button { min-width: 0; } } /* thanh trải hết bề ngang: nút chia đều, không tràn */
+@media (max-width: 480px) {
+  .bar.bottom.replay-only button { min-height: 46px; padding: 6px 2px; }
+  .bar.bottom.replay-only button span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}

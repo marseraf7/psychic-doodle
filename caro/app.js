@@ -555,14 +555,21 @@
     hideBanner();
     document.body.classList.add('replay');
     seekReplay(data.moves.length, true);
-    // Khung nhìn vừa đủ toàn bộ quân cờ
-    const xs = data.moves.map((m) => m[0]), ys = data.moves.map((m) => m[1]);
-    if (xs.length) {
-      const w = Math.max(...xs) - Math.min(...xs) + 4, h = Math.max(...ys) - Math.min(...ys) + 4;
-      const size = Math.max(MIN_SIZE, Math.min(48, (W - 24) / w, (H - 160) / h));
-      animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2, size);
-    }
+    fitReplayView();
     return true;
+  }
+
+  /** Khung nhìn vừa đủ toàn bộ quân của ván đang xem lại (gọi lại khi bàn cờ đổi kích thước, vd. mở bảng phân tích). */
+  function fitReplayView() {
+    const r = state.replay;
+    if (!r) return;
+    const xs = r.data.moves.map((m) => m[0]), ys = r.data.moves.map((m) => m[1]);
+    if (!xs.length) return;
+    // Phân tích: thanh dưới nằm trong bảng (máy tính) hoặc ngoài bàn cờ (điện thoại) nên chỉ chừa chỗ cho thanh trên
+    const padY = document.body.classList.contains('analysis') ? 110 : 160;
+    const w = Math.max(...xs) - Math.min(...xs) + 4, h = Math.max(...ys) - Math.min(...ys) + 4;
+    const size = Math.max(MIN_SIZE, Math.min(48, (W - 24) / w, (H - padY) / h));
+    animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2 + (padY === 110 ? 20 / size : 0), size);
   }
 
   function seekReplay(i, quiet) {
@@ -620,6 +627,7 @@
     stopReplay();
     state.replay = null;
     state.marks = null;
+    state.coords = null;
     document.body.classList.remove('replay');
     window.dispatchEvent(new CustomEvent('caro:replayclose'));
     if (silent) return; // sắp vào phòng online: không cần dựng lại ván cục bộ
@@ -697,8 +705,9 @@
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 3);
-    W = window.innerWidth;
-    H = window.innerHeight;
+    // Kích thước thật của bàn cờ: thường là cả màn hình; khi phân tích ván, bàn cờ nhường chỗ cho bảng phân tích
+    W = canvas.clientWidth || window.innerWidth;
+    H = canvas.clientHeight || window.innerHeight;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     requestDraw();
@@ -820,12 +829,25 @@
       ctx.stroke();
     }
 
+    // Toạ độ khi phân tích (như bàn cờ Lichess): chữ cái theo cột ở mép dưới, số theo hàng ở mép trái
+    if (state.coords && s >= 14) {
+      const { minX, maxX, minY, maxY } = state.coords;
+      ctx.font = `600 ${Math.round(Math.min(13, s * 0.36))}px ${fontFamily || (fontFamily = getComputedStyle(document.body).fontFamily)}`;
+      ctx.fillStyle = colors.muted;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      for (let x = Math.max(x0, minX); x <= Math.min(x1, maxX); x++) ctx.fillText(colName(x - minX), toScreen(x, 0)[0], H - 3);
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      for (let y = Math.max(y0, minY); y <= Math.min(y1, maxY); y++) ctx.fillText(String(maxY - y + 1), 4, toScreen(0, y)[1]);
+    }
+
     if (camAnim || inertia) again = true;
     if (again) requestDraw();
     stepAnimations(now);
   }
 
   /** Đánh dấu của phân tích / giải đố: huy hiệu loại nước, nước gợi ý (vòng nét đứt), nước sai. */
+  /** Tên cột: a…z, rồi aa, ab… (bàn cờ vô hạn nên chỉ đặt tên trong phạm vi ván đang phân tích). */
+  const colName = (c) => (c < 26 ? String.fromCharCode(97 + c) : String.fromCharCode(96 + Math.floor(c / 26)) + String.fromCharCode(97 + (c % 26)));
   let fontFamily = ''; // phông chữ của trang (đọc 1 lần, không gọi getComputedStyle mỗi khung hình)
   function drawMarks(s, x0, x1, y0, y1) {
     for (const m of state.marks) {
@@ -1255,6 +1277,14 @@
     else restoreLocal();
   }
   function setMarks(marks) { state.marks = marks && marks.length ? marks : null; requestDraw(); }
+  /** Bật / tắt toạ độ trên bàn: { minX, maxX, minY, maxY } của ván (null: tắt). */
+  function setCoords(c) { state.coords = c || null; requestDraw(); }
+  /** Tên ô theo toạ độ đang bật, vd. "e7" (cột chữ cái, hàng số đếm từ dưới lên như cờ vua). */
+  const cellName = (x, y) => {
+    const c = state.coords;
+    if (!c || x < c.minX || x > c.maxX || y < c.minY || y > c.maxY) return `${x},${y}`;
+    return colName(x - c.minX) + (c.maxY - y + 1);
+  };
   /** Khung nhìn vừa đủ các quân. */
   function fitView(moves) {
     if (!moves.length) return animateCamera(0, 0, 36);
@@ -1281,6 +1311,10 @@
     extSet,
     extPlace,
     setMarks,
+    setCoords,
+    cellName,
+    fitReplayView,
+    resize,
     fitView,
     seek: (i) => { stopReplay(); seekReplay(i, true); },
     get board() { return state.board; },
@@ -1317,6 +1351,7 @@
     if (!$('banner').hidden) showBanner();
   });
   window.addEventListener('resize', resize);
+  if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(canvas);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
   window.I18N.apply();

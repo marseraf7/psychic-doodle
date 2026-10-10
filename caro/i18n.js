@@ -1038,6 +1038,10 @@
       set_g_game: "Ván chơi",
       set_g_display: "Hiển thị",
       set_g_sound: "Âm thanh & thao tác",
+      rp_last: "Cuối",
+      an_moves: "Nước đi",
+      an_graph: "Biểu đồ lợi thế: phía trên là X đang hơn, phía dưới là O. Bấm để nhảy tới nước đó.",
+      an_jump: "Bấm để xem nước tiếp theo loại này",
     },
 
     en: {
@@ -2063,6 +2067,10 @@
       set_g_game: "Game",
       set_g_display: "Display",
       set_g_sound: "Sound & controls",
+      rp_last: "Last",
+      an_moves: "Moves",
+      an_graph: "Advantage chart: above the line X is better, below O. Click to jump to that move.",
+      an_jump: "Click to see the next move of this kind",
     },
 
     ru: {
@@ -3088,6 +3096,10 @@
       set_g_game: "Партия",
       set_g_display: "Внешний вид",
       set_g_sound: "Звук и управление",
+      rp_last: "В конец",
+      an_moves: "Ходы",
+      an_graph: "График преимущества: выше линии лучше у X, ниже — у O. Нажмите, чтобы перейти к ходу.",
+      an_jump: "Нажмите, чтобы перейти к следующему такому ходу",
     },
 
     zh: {
@@ -4113,6 +4125,10 @@
       set_g_game: "对局",
       set_g_display: "显示",
       set_g_sound: "声音与操作",
+      rp_last: "最后",
+      an_moves: "着法",
+      an_graph: "优势图：线上方 X 占优，下方 O 占优。点击跳到该手。",
+      an_jump: "点击查看下一手此类着法",
     },
   };
 
