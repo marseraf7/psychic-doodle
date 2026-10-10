@@ -6,8 +6,9 @@
   const T = window.I18N.t;
   /** Dịch thông báo của máy chủ theo mã; chưa có bản dịch thì dùng chữ máy chủ gửi. */
   const srv = (m) => (m.code && T('srv_' + m.code) !== 'srv_' + m.code ? T('srv_' + m.code, m.args || {}) : m.msg || '');
-  const secs = (n) => T('per_move', { n });
   const $ = (id) => document.getElementById(id);
+  /** Giá trị ô chọn thời gian: 't20' (20 giây mỗi nước) / 'c3+2' (đồng hồ tổng). */
+  const parseTc = (v) => (String(v)[0] === 'c' ? { timeLimit: 0, clock: String(v).slice(1) } : { timeLimit: Number(String(v).slice(1)) || 0, clock: null });
 
   const LS = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -39,9 +40,10 @@
   // ------------------------------------------------------------ Kết nối
   let ws = null, retry = 0, retryTimer = 0;
   let noServer = false; // true khi chạy trên hosting tĩnh, không có máy chủ game
+  let outdated = null; // app điện thoại quá cũ: { min, url } – không kết nối online nữa, vẫn chơi offline
 
   function connect() {
-    if (!wsUrl || noServer || (ws && ws.readyState <= 1)) return;
+    if (!wsUrl || noServer || outdated || (ws && ws.readyState <= 1)) return;
     clearTimeout(retryTimer);
     S.status = 'connecting';
     render();
@@ -50,7 +52,9 @@
       retry = 0;
       // Tên khách mặc định theo ngôn ngữ đang chọn (vd. "Guest-3F2A"), nếu chưa tự đặt tên.
       const guestName = LS.get('caro.guestName') || `${T('guest')}-${guestKey.slice(0, 4).toUpperCase()}`;
-      ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName }));
+      // Bản app điện thoại gửi kèm phiên bản để máy chủ báo khi cần cập nhật
+      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null, tz: -new Date().getTimezoneOffset() };
+      ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName, client }));
     };
     ws.onmessage = (e) => {
       let m;
@@ -61,6 +65,7 @@
     ws.onclose = () => {
       ws = null;
       S.status = 'offline';
+      for (const fn of hooks.close || []) fn();
       render();
       scheduleRetry();
     };
@@ -108,9 +113,26 @@
       S.invites.clear();
       if (ws) ws.close(); // kết nối lại với tư cách khách
     },
+    accountDeleted() {
+      handlers.loggedOut();
+      S.friends = { friends: [], incoming: [], outgoing: [] };
+      ['account-dlg', 'chat', 'history', 'report'].forEach(closeDlg);
+      toast(T('account_deleted'), 5000);
+    },
+    updateRequired(m) {
+      outdated = { min: m.min, url: m.url || '' };
+      S.status = 'offline';
+      if (ws) ws.close();
+      render();
+      toast(T('update_required'), 6000);
+    },
     me(m) { S.me = m.me; render(); },
     friends(m) { S.friends = m; render(); },
-    room(m) { setRoom(m.room); },
+    room(m) {
+      if (m.watch) return; // phòng đang xem: watch.js xử lý
+      probing = null;
+      setRoom(m.room);
+    },
     invite(m) { S.invites.set(m.invite.id, m.invite); navigator.vibrate?.(60); renderInvites(); render(); },
     inviteSent(m) { S.sent = m.invite; closeDlg('challenge'); renderInvites(); },
     inviteGone(m) {
@@ -122,9 +144,16 @@
     toast(m) { toast(srv(m)); },
     error(m) {
       if (m.ctx === 'move') App.resync();
+      if (m.code === 'too_fast' && ['watch', 'profile'].includes(m.ctx)) return; // bấm dồn: bỏ qua lần thừa
+      // Mở bằng link mời: phòng công khai vào thẳng, phòng riêng (sai/thiếu mật khẩu) thì hỏi mật khẩu
+      if (m.ctx === 'joinRoom' && probing) {
+        const code = probing;
+        probing = null;
+        if (m.code === 'wrong_room_password') return openJoin(code);
+      }
       const target = m.ctx === 'joinRoom' && isOpen('join') ? 'join-err'
         : ['login', 'register'].includes(m.ctx) && isOpen('auth') ? 'auth-err'
-          : (window.CaroSocial && window.CaroSocial.errorTarget(m.ctx)) || null;
+          : (window.CaroSocial && window.CaroSocial.errorTarget(m.ctx)) || (window.CaroTour && window.CaroTour.errorTarget(m.ctx)) || null;
       if (target) $(target).textContent = srv(m);
       else toast(srv(m));
     },
@@ -184,7 +213,9 @@
     $('online-badge').hidden = !(S.invites.size || S.friends.incoming.length || unread);
     const conn = $('conn');
     conn.className = 'conn ' + S.status;
-    conn.textContent = T(!wsUrl ? 'conn_none' : 'conn_' + S.status);
+    conn.textContent = T(!wsUrl ? 'conn_none' : outdated ? 'conn_outdated' : 'conn_' + S.status);
+    $('create-room').disabled = $('open-join').disabled = !!outdated;
+    document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => { b.disabled = !!outdated; });
     renderAccount();
     renderFriends();
   }
@@ -194,6 +225,11 @@
     const me = S.me;
     if (!wsUrl) {
       el.innerHTML = `<p class="hint">${esc(T('no_server_hint'))}</p>`;
+      return;
+    }
+    if (outdated) {
+      el.innerHTML = `<p class="hint">${esc(T('update_required'))}</p>` +
+        (outdated.url ? `<a class="primary btn-link" href="${esc(outdated.url)}" target="_blank" rel="noopener">${esc(T('update_btn'))}</a>` : '');
       return;
     }
     if (!me) { el.innerHTML = `<p class="hint">${esc(T('connecting_hint'))}</p>`; return; }
@@ -212,14 +248,15 @@
     } else {
       const st = me.stats || { wins: 0, losses: 0, draws: 0 };
       el.innerHTML = `
-        <div class="who">${avatar}<div><b>${esc(me.name)} <span class="rating">${esc(T('rating_short', { n: me.rating || 1200 }))}</span></b><small>@${esc(me.username)} · ${esc(T('stats3', { w: st.wins, l: st.losses, d: st.draws || 0 }))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
+        <div class="who">${avatar}<div><b><a href="#" class="plink" data-profile="${esc(me.uid)}">${esc(me.name)}</a> <span class="rating">${esc(T('rating_short', { n: me.rating || 1200 }))}</span></b><small>@${esc(me.username)} · ${esc(T('stats3', { w: st.wins, l: st.losses, d: st.draws || 0 }))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
         <div class="row">
+          <button type="button" class="ghost sm" data-profile="${esc(me.uid)}">${esc(T('profile'))}</button>
           <button type="button" class="ghost sm" data-social="history">🕘 ${esc(T('history'))}</button>
           <button type="button" class="ghost sm" data-social="leaderboard">🏆 ${esc(T('leaderboard'))}</button>
           <button type="button" class="ghost sm" data-social="account">⚙ ${esc(T('account_settings'))}</button>
         </div>
         <div class="row">
-          ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : S.googleClientId ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
+          ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : googleAvailable() ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
           <button type="button" class="ghost" id="logout">${esc(T('logout'))}</button>
         </div>
         <div id="google-link-btn"></div>`;
@@ -255,7 +292,7 @@
         ? ` · <span title="${esc(T('h2h_title'))}">${p.h2h.wins}–${p.h2h.losses}–${p.h2h.draws}</span>` : '';
       return `
       <li><span class="st ${p.status}" title="${esc(statusText(p.status))}"></span>
-        <div class="pn"><b>${esc(p.name)}${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>@${esc(p.username)} · ${esc(statusText(p.status))}${h}</small></div>${extra}</li>`;
+        <div class="pn"><b><a href="#" class="plink" data-profile="${esc(p.id)}">${esc(p.name)}</a>${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>@${esc(p.username)} · ${esc(statusText(p.status))}${h}</small></div>${extra}</li>`;
     };
     const onlineCount = f.friends.filter((p) => p.status !== 'offline').length;
     el.innerHTML = `
@@ -268,7 +305,7 @@
         `<button type="button" class="ghost sm" data-deny="${esc(p.id)}">${esc(T('decline'))}</button><button type="button" class="primary sm" data-accept="${esc(p.id)}">${esc(T('accept'))}</button>`)).join('')}</ul>` : ''}
       <ul class="people">${list.map((p) => person(p,
         `<button type="button" class="ghost sm icon chat-btn" data-chat="${esc(p.id)}" title="${esc(T('chat'))}" aria-label="${esc(T('chat'))}">💬${p.unread ? `<i class="count">${p.unread > 99 ? '99+' : p.unread}</i>` : ''}</button>
-         <button type="button" class="primary sm" data-challenge="${esc(p.id)}" ${p.status === 'online' ? '' : 'disabled'}>${esc(T('challenge'))}</button>
+         ${p.status === 'playing' ? `<button type="button" class="ghost sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>` : `<button type="button" class="primary sm" data-challenge="${esc(p.id)}" ${p.status === 'online' ? '' : 'disabled'}>${esc(T('challenge'))}</button>`}
          <button type="button" class="ghost sm icon" data-remove="${esc(p.id)}" title="${esc(T('unfriend'))}">✕</button>`)).join('') ||
         `<li class="empty">${esc(T('no_friends'))}</li>`}</ul>
       ${f.outgoing.length ? `<p class="hint">${esc(T('pending_friends', { names: f.outgoing.map((p) => p.name).join(', ') }))}</p>` : ''}`;
@@ -301,7 +338,7 @@
   $('challenge-form').onsubmit = (e) => {
     e.preventDefault();
     const f = e.target;
-    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value, timeLimit: Number(f.time.value) });
+    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value, ...parseTc(f.tc.value), opening: f.opening.value });
   };
 
   // ------------------------------------------------------------ Lời thách đấu
@@ -314,7 +351,8 @@
       document.body.appendChild(box);
     }
     // Thông tin trận: Bo3 · ai đi trước · thời gian mỗi nước
-    const details = (inv, first) => [`Bo${inv.bestOf}`, first, inv.timeLimit ? '⏱ ' + secs(inv.timeLimit) : ''].filter(Boolean).join(' · ');
+    const details = (inv, first) => [`Bo${inv.bestOf}`, first, inv.timeLimit || inv.clock ? '⏱ ' + window.I18N.tc(inv.timeLimit, inv.clock) : '',
+      inv.opening === 'swap2' ? 'Swap2' : ''].filter(Boolean).join(' · ');
     let html = '';
     for (const inv of S.invites.values()) {
       const first = inv.first === 'random' ? T('first_random') : inv.first === 'me' ? T('first_name', { name: inv.from.name }) : T('first_you');
@@ -337,7 +375,7 @@
     }
     // Hiện cả trong bảng Online (hộp thoại đang mở che mất thẻ lời mời phía dưới)
     const inner = $('dlg-invites');
-    box.innerHTML = html;
+    box.innerHTML = html + ((window.CaroGameX && window.CaroGameX.floatHtml()) || '') + ((window.CaroMatch && window.CaroMatch.floatHtml()) || '');
     inner.innerHTML = html;
     inner.hidden = !html;
     const all = (sel) => [...box.querySelectorAll(sel), ...inner.querySelectorAll(sel)];
@@ -351,6 +389,8 @@
     all('[data-no]').forEach((b) => {
       b.onclick = () => { send({ t: 'challengeRespond', id: b.dataset.no, accept: false }); S.invites.delete(b.dataset.no); renderInvites(); render(); };
     });
+    box.querySelectorAll('[data-qm-cancel]').forEach((b) => { b.onclick = () => send({ t: 'quickCancel' }); });
+    box.querySelectorAll('[data-qm-open]').forEach((b) => { b.onclick = () => $('btn-online').click(); });
     all('[data-cancel-sent]').forEach((c) => { c.onclick = () => { send({ t: 'challengeCancel', id: S.sent.id }); S.sent = null; renderInvites(); }; });
   }
 
@@ -366,8 +406,8 @@
     f.password.minLength = tab === 'login' ? 1 : 6;
     $('auth-err').textContent = '';
     const gb = $('google-box');
-    gb.hidden = !S.googleClientId;
-    if (S.googleClientId) mountGoogle($('google-btn'));
+    gb.hidden = !googleAvailable();
+    if (googleAvailable()) mountGoogle($('google-btn'));
     openDlg('auth');
   }
   $('auth-form').querySelectorAll('[data-tab]').forEach((b) => { b.onclick = () => openAuth(b.dataset.tab); });
@@ -401,19 +441,38 @@
     }
     return gisPromise;
   }
+  // Trong ứng dụng điện thoại: Google chặn đăng nhập trong WebView, nên dùng tài khoản Google
+  // trên máy (native.js) – vẫn gửi đúng ID token như bản web, máy chủ xác minh y hệt.
+  const nativeApp = !!window.CaroNative;
+  const googleAvailable = () => !!S.googleClientId && (!nativeApp || !!window.CaroNative.google);
   function mountGoogle(el) {
+    if (nativeApp) return mountNativeGoogle(el);
     loadGoogle().then((g) => {
       el.innerHTML = '';
       g.accounts.id.renderButton(el, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'pill', locale: window.I18N.googleLocale, width: 260 });
     }).catch(() => { el.innerHTML = `<p class="hint">${esc(T('google_load_fail'))}</p>`; });
   }
+  function mountNativeGoogle(el) {
+    el.innerHTML = `<button type="button" class="ghost google-native"><span class="g">G</span> ${esc(T('google_continue'))}</button>`;
+    const b = el.querySelector('button');
+    b.onclick = async () => {
+      b.disabled = true;
+      try {
+        const credential = await window.CaroNative.google.signIn(S.googleClientId);
+        send({ t: 'google', credential });
+      } catch (e) {
+        // Người dùng tự huỷ thì im lặng; lỗi khác thì báo
+        if (!/cancel/i.test(String(e && (e.message || e.code) || e))) toast(T('google_load_fail'));
+      } finally { b.disabled = false; }
+    };
+  }
+
 
   // ------------------------------------------------------------ Phòng
   $('btn-online').onclick = () => { connect(); render(); openDlg('online'); };
   $('create-room').onclick = () => {
     const side = document.querySelector('input[name="room-side"]:checked').value;
-    const timeLimit = Number(document.querySelector('input[name="room-time"]:checked').value);
-    send({ t: 'createRoom', side, timeLimit });
+    send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, public: $('room-public').checked });
   };
   $('open-join').onclick = () => openJoin('');
 
@@ -446,8 +505,10 @@
     url.searchParams.delete('room');
     history.replaceState(null, '', url);
     if (S.room && S.room.code === code) return;
-    openJoin(code);
+    probing = code;
+    send({ t: 'joinRoom', code }); // không gửi mật khẩu: phòng công khai thì vào luôn
   }
+  let probing = null;
 
   function inviteLink(code) {
     const u = new URL(base ? base + '/' : location.href);
@@ -459,13 +520,20 @@
   function fillRoomInfo() {
     const r = S.room;
     if (!r) return;
-    $('room-title').textContent = r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title');
-    $('ri-time').textContent = '⏱ ' + (r.timeLimit ? secs(r.timeLimit) : T('time_off'));
+    $('room-title').innerHTML = r.tour ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-trophy"/></svg>' + esc(r.tour.name)
+      : esc(r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title'));
+    // Phòng của giải đấu: không có mã / mật khẩu / link mời
+    document.querySelector('#room-info .codes').hidden = !!r.tour;
+    $('ri-time').textContent = '⏱ ' + window.I18N.tc(r.timeLimit, r.clock) + (r.opening === 'swap2' ? ' · ' + T('opening_swap2') : '');
     $('ri-code').textContent = r.code;
     $('ri-pass').textContent = r.password;
+    $('ri-hint').textContent = r.tour ? T('room_info_hint_tour') : T(r.public ? 'room_info_hint_public' : 'room_info_hint');
+    $('ri-pass').parentElement.hidden = !!r.public; // phòng công khai: vào không cần mật khẩu
+    if (r.public) $('ri-time').textContent += ' · 🌐 ' + T('public_tag');
     $('ri-link').value = inviteLink(r.code);
-    $('ri-link').closest('.link-row').hidden = r.kind === 'series';
-    $('ri-share').hidden = r.kind === 'series' || !navigator.share;
+    $('ri-link').closest('.link-row').hidden = r.kind === 'series' || !!r.tour;
+    $('ri-share').hidden = r.kind === 'series' || !!r.tour || !navigator.share;
+    $('ri-tour').hidden = !r.tour;
     const friendIds = new Set(S.friends.friends.map((f) => 'u_' + f.id));
     const pending = new Set(S.friends.outgoing.map((f) => 'u_' + f.id));
     $('ri-players').innerHTML = r.players.map((p) => {
@@ -473,7 +541,7 @@
       const you = p.id === S.me.id;
       const canFriend = !you && !S.me.guest && p.id.startsWith('u_') && !friendIds.has(p.id);
       return `<li><span class="st ${p.online ? 'online' : 'offline'}"></span>${side}
-        <div class="pn"><b>${esc(p.name)}${you ? ' ' + esc(T('you_tag')) : ''}${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>${esc(T('won_games', { n: r.score[p.id] || 0 }))}${r.rematch.includes(p.id) ? ' · ' + esc(T('wants_rematch_tag')) : ''}</small></div>
+        <div class="pn"><b>${p.id.startsWith('u_') ? `<a href="#" class="plink" data-profile="${esc(p.id)}">${esc(p.name)}</a>` : esc(p.name)}${you ? ' ' + esc(T('you_tag')) : ''}${p.rating ? ` <span class="rating">${esc(String(p.rating))}${p.prov ? '?' : ''}</span>` : ''}</b><small>${esc(T('won_games', { n: r.score[p.id] || 0 }))}${r.rematch.includes(p.id) ? ' · ' + esc(T('wants_rematch_tag')) : ''}</small></div>
         ${canFriend ? (pending.has(p.id) ? `<small>${esc(T('friend_sent'))}</small>` : `<button type="button" class="ghost sm" data-add="${esc(p.id)}">${esc(T('add_friend'))}</button>`) : ''}
         ${!you && !S.me.guest && p.id.startsWith('u_') ? `<button type="button" class="ghost sm icon" data-report="${esc(p.id)}" title="${esc(T('report'))}" aria-label="${esc(T('report'))}">⚠</button>` : ''}</li>`;
     }).join('') + (r.players.length < 2 ? `<li class="empty">${esc(T('waiting_join'))}</li>` : '');
@@ -500,10 +568,13 @@
   };
 
   $('btn-room').onclick = openRoomInfo;
+  // Phòng của giải: mở trang giải (bảng xếp hạng / nhánh đấu) ngay trong lúc chơi
+  $('ri-tour').onclick = () => { if (S.room && S.room.tour && window.CaroTour) { closeDlg('room-info'); window.CaroTour.open(S.room.tour.id); } };
   $('btn-center2').onclick = () => $('btn-center').click();
   $('btn-resign').onclick = () => {
     const r = S.room;
     if (!r || r.players.length < 2 || r.winner) return toast(T('no_game'));
+    if (r.abortable) return send({ t: 'abort' }); // chưa quá 1 nước: huỷ ván (không thắng thua)
     if (confirm(T('confirm_resign'))) send({ t: 'resign' });
   };
   // Xin hoà: chỉ khi ván đang diễn ra; đã xin thì chờ đối thủ trả lời.
@@ -514,6 +585,9 @@
     const mine = live && r.drawOffer === S.me.id;
     b.disabled = !live || mine;
     $('btn-draw-label').textContent = T(mine ? 'draw_sent' : 'btn_draw');
+    // Ván chưa quá 1 nước: nút đầu hàng thành nút huỷ ván
+    $('btn-resign-label').textContent = T(live && r.abortable ? 'btn_abort' : 'btn_resign');
+    window.CaroGameX?.render();
   }
   $('btn-draw').onclick = () => {
     const r = S.room;
@@ -552,7 +626,8 @@
     let title = T(draw ? 'draw_title' : won ? 'you_win' : 'lost');
     let sub = '';
     // Lý do kết thúc khác (đầu hàng, rời phòng, mất kết nối, hết giờ): nói ai là người thua.
-    if (draw) sub = T('r_draw');
+    if (r.reason === 'abort') { title = T('aborted_title'); sub = ''; } // ván bị huỷ: không ai thắng
+    else if (draw) sub = T('r_draw');
     else if (r.reason && r.reason !== 'win') sub = won ? T(`r_${r.reason}_opp`, { name: oppName }) : T(`r_${r.reason}_you`);
     const score = `${r.score[me] || 0} – ${opp ? r.score[opp.id] || 0 : 0}`;
     let rematch = true;
@@ -567,7 +642,17 @@
       sub = (sub ? sub + ' · ' : '') + T('score_is', { score });
     }
     if (r.unrated) sub = (sub ? sub + ' · ' : '') + T('unrated');
-    if (!opp) { sub = T('opp_left'); rematch = false; }
+    if (r.delta && typeof r.delta[me] === 'number') {
+      const d = r.delta[me];
+      sub = (sub ? sub + ' · ' : '') + T('rating_delta', { d: (d >= 0 ? '+' : '') + d, pool: T('pool_' + (r.pool || 'rapid')) });
+    }
+    if (!opp && !r.tour) { sub = T('opp_left'); rematch = false; } // giải: đối thủ đã sang trận khác, vẫn hiện kết quả
+    // Ván của giải đấu: không tái đấu; Arena tự ghép ván sau
+    if (r.tour) {
+      rematch = false;
+      if (r.tour.arena) sub = (sub ? sub + ' · ' : '') + T('tour_next_auto');
+    }
+    $('banner-tour').hidden = !r.tour;
     $('banner-title').textContent = title;
     $('banner-sub').textContent = sub;
     const btn = $('banner-rematch');
@@ -576,8 +661,10 @@
     btn.disabled = mine;
     btn.textContent = T(mine ? 'waiting_rematch' : theirs ? 'accept_rematch' : 'rematch');
     $('banner-share').hidden = !r.share;
+    $('banner-quick').hidden = !r.quick; // phòng do tìm trận nhanh: tìm đối thủ mới ngay
     $('banner').hidden = false;
   }
+  $('banner-tour').onclick = () => { if (S.room && S.room.tour && window.CaroTour) { $('banner').hidden = true; window.CaroTour.open(S.room.tour.id); } };
   $('banner-share').onclick = () => {
     const r = S.room;
     if (!r || !r.share) return;
@@ -596,7 +683,7 @@
   async function shareReplay(g) {
     const url = replayLink(g.share);
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-      return navigator.share({ title: T('app_title'), text: T('replay_share_text', { x: g.x, o: g.o }), url }).catch(() => {});
+      return navigator.share({ title: T('app_title'), text: T('replay_share_text', { x: g.x || T('deleted_player'), o: g.o || T('deleted_player') }), url }).catch(() => {});
     }
     try { await navigator.clipboard.writeText(url); } catch (e) { prompt(T('share_game'), url); return; }
     toast(T('replay_copied'));
@@ -617,8 +704,12 @@
     App.openReplay(data);
   }
 
+  // Chính sách quyền riêng tư: trong app mở trang trên máy chủ (trình duyệt), trên web mở trang cùng thư mục
+  const privacyUrl = window.CaroNative && base ? base + '/privacy.html' : 'privacy.html';
+  document.querySelectorAll('.privacy-link').forEach((a) => { a.href = privacyUrl; });
+
   window.CaroOnline = {
-    send, showBanner, shareReplay, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
+    send, showBanner, shareReplay, renderInvites, roomActive, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
     get connected() { return S.status === 'online'; },
   };
 
@@ -647,7 +738,8 @@
 
   // Kết nối sẵn khi có tài khoản (để bạn bè thấy mình online), đang ở trong phòng, hoặc mở bằng link mời.
   function start() {
-    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink)) connect();
+    // (?t= / ?club=: link giải đấu / câu lạc bộ)
+    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club)=/.test(location.search))) connect();
     render();
     checkReplayLink();
   }

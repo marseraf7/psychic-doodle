@@ -28,9 +28,32 @@
     o.stop(t + dur + 0.02);
   }
 
+  // Kiểu âm thanh đặt quân: classic (tiếng "bíp" nhẹ), wood (tiếng gõ gỗ), soft (rất nhỏ)
+  const STYLES = ['classic', 'wood', 'soft'];
+  let style = 'classic';
+  try { const v = localStorage.getItem(KEY + 'Style'); if (STYLES.includes(v)) style = v; } catch (e) { /* riêng tư */ }
+  /** Tiếng gõ gỗ: tiếng ồn ngắn qua bộ lọc + âm trầm tắt nhanh. */
+  function knock(freq) {
+    const t = ctx.currentTime;
+    const len = Math.floor(ctx.sampleRate * 0.05);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = freq * 3; f.Q.value = 1.2;
+    const g = ctx.createGain();
+    g.gain.value = 0.5;
+    src.connect(f).connect(g).connect(ctx.destination);
+    src.start(t);
+    tone(freq, 0, 0.06, 'sine', 0.16);
+  }
+  const place = (f) => (style === 'wood' ? knock(f * 0.35) : style === 'soft' ? tone(f * 0.8, 0, 0.07, 'sine', 0.05) : tone(f, 0, 0.09, 'triangle', 0.14));
+
   const SOUNDS = {
-    placeX: () => tone(660, 0, 0.09, 'triangle', 0.14),
-    placeO: () => tone(520, 0, 0.09, 'triangle', 0.14),
+    placeX: () => place(660),
+    placeO: () => place(520),
     win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.09, 0.22, 'triangle', 0.13)),
     lose: () => [392, 330, 262].forEach((f, i) => tone(f, i * 0.12, 0.25, 'sine', 0.12)),
     draw: () => [523, 523].forEach((f, i) => tone(f, i * 0.15, 0.18, 'sine', 0.1)),
@@ -45,6 +68,12 @@
       try { if (ctx.state === 'suspended') ctx.resume(); SOUNDS[name](); } catch (e) { /* bỏ qua */ }
     },
     get enabled() { return enabled; },
+    get style() { return style; },
+    set style(v) {
+      if (!STYLES.includes(v)) return;
+      style = v;
+      try { localStorage.setItem(KEY + 'Style', v); } catch (e) { /* riêng tư */ }
+    },
     set enabled(v) {
       enabled = !!v;
       try { localStorage.setItem(KEY, enabled ? 'on' : 'off'); } catch (e) { /* riêng tư */ }

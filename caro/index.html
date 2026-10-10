@@ -14,47 +14,132 @@
   <link rel="stylesheet" href="style.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="theme.js"></script>
+  <script src="boardstyle.js"></script>
 </head>
 <body>
+  <!-- Bộ biểu tượng (nét 2px, cùng một kiểu) – dùng: <svg class="ico"><use href="#i-..."/></svg> -->
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-center" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.13 10.03 L21.47 10.45 L21.47 13.55 L19.13 13.97 L18.44 15.65 L19.79 17.60 L17.60 19.79 L15.65 18.44 L13.97 19.13 L13.55 21.47 L10.45 21.47 L10.03 19.13 L8.35 18.44 L6.40 19.79 L4.21 17.60 L5.56 15.65 L4.87 13.97 L2.53 13.55 L2.53 10.45 L4.87 10.03 L5.56 8.35 L4.21 6.40 L6.40 4.21 L8.35 5.56 L10.03 4.87 L10.45 2.53 L13.55 2.53 L13.97 4.87 L15.65 5.56 L17.60 4.21 L19.79 6.40 L18.44 8.35Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
+    <symbol id="i-draw" viewBox="0 0 24 24"><text x="12" y="19" text-anchor="middle" font-size="21" font-weight="700" fill="currentColor" stroke="none">½</text></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></symbol>
+    <symbol id="i-exit" viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M9 17l-5-5 5-5M4 12h11"/></symbol>
+    <symbol id="i-first" viewBox="0 0 24 24"><path d="M18 6l-7 6 7 6M6 6v12"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H10l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+    <!-- Giải đấu, câu lạc bộ -->
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 16v5M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4.5a2.5 2.5 0 0 0 2.6 4.5M17 6h2.5a2.5 2.5 0 0 1-2.6 4.5"/></symbol>
+    <symbol id="i-swords" viewBox="0 0 24 24"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M9.5 6.5 13 3h3v3l-3.5 3.5M11 13l-4 4M5 14l4 4M3 19l2 2"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 9.5 17 19 7"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+    <symbol id="i-medal" viewBox="0 0 24 24"><path d="M7.5 2.5 10.5 9M16.5 2.5 13.5 9" /><circle cx="12" cy="15" r="6" fill="currentColor" stroke="none"/><circle cx="12" cy="15" r="3.2" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.4"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 16v6M9 3h6l-1 6 3 3.5H7L10 9z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
+    <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 22c4.1 0 7-2.9 7-7 0-3.2-2-5.6-4-7.6-.2 2.1-1.2 3.6-2.6 4.2C12.6 8.3 11 5 8.4 2.5 8.6 6.4 5 8.8 5 14.6 5 18.9 7.9 22 12 22z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <!-- Phân tích, giải đố, nhân vật máy -->
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M10 3h4v2.5a1.5 1.5 0 0 0 3 0V5h2a2 2 0 0 1 2 2v3h-1.5a1.5 1.5 0 0 0 0 3H21v6a2 2 0 0 1-2 2h-5v-1.5a1.5 1.5 0 0 0-3 0V21H5a2 2 0 0 1-2-2v-5h1.5a1.5 1.5 0 0 0 0-3H3V7a2 2 0 0 1 2-2h5z"/></symbol>
+    <symbol id="i-analyze" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 12l2-2.5 2 1.5 2-3"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.8.6 1.1 1.3 1.1 2.2h5c0-.9.3-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="i-medal2" viewBox="0 0 24 24"><circle cx="12" cy="14" r="6"/><path d="M8.5 3.5 11 8.5M15.5 3.5 13 8.5M12 11.5l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  </svg>
+
   <canvas id="board" data-i18n-aria="board_aria"></canvas>
 
   <header class="bar top">
     <div class="turn" id="turn" aria-live="polite"></div>
-    <div class="clock" id="clock" hidden><span class="clock-ico">⏱</span><span id="clock-n"></span></div>
+    <div class="clock" id="clock" hidden><svg class="ico clock-ico" aria-hidden="true"><use href="#i-clock"/></svg><span id="clock-n"></span></div>
+    <div class="clocks" id="clocks" hidden><span class="ck x" id="ck-x"></span><span class="ck o" id="ck-o"></span></div>
     <div class="score" id="score" data-i18n-title="score_title"></div>
   </header>
 
   <nav class="bar bottom local-only">
-    <button id="btn-new" type="button"><span class="ico">＋</span><span data-i18n="btn_new"></span></button>
-    <button id="btn-undo" type="button"><span class="ico">↶</span><span data-i18n="btn_undo"></span></button>
-    <button id="btn-center" type="button"><span class="ico">◎</span><span data-i18n="btn_center"></span></button>
-    <button id="btn-online" type="button"><span class="ico">🌐</span><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
-    <button id="btn-settings" type="button"><span class="ico">⚙</span><span data-i18n="btn_settings"></span></button>
+    <button id="btn-new" type="button"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="btn_new"></span></button>
+    <button id="btn-undo" type="button"><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg><span data-i18n="btn_undo"></span></button>
+    <button id="btn-puzzle" type="button"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span data-i18n="btn_puzzle"></span></button>
+    <button id="btn-online" type="button"><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
+    <button id="btn-settings" type="button"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span data-i18n="btn_settings"></span></button>
   </nav>
 
   <nav class="bar bottom online-only">
-    <button id="btn-room" type="button"><span class="ico">ℹ</span><span data-i18n="btn_room"></span></button>
-    <button id="btn-center2" type="button"><span class="ico">◎</span><span data-i18n="btn_center"></span></button>
-    <button id="btn-draw" type="button"><span class="ico">½</span><span id="btn-draw-label" data-i18n="btn_draw"></span></button>
-    <button id="btn-resign" type="button"><span class="ico">⚑</span><span data-i18n="btn_resign"></span></button>
-    <button id="btn-leave" type="button"><span class="ico">⎋</span><span data-i18n="btn_leave"></span></button>
+    <button id="btn-room" type="button"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span data-i18n="btn_room"></span></button>
+    <button id="btn-center2" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
+    <button id="btn-draw" type="button"><svg class="ico" aria-hidden="true"><use href="#i-draw"/></svg><span id="btn-draw-label" data-i18n="btn_draw"></span></button>
+    <button id="btn-resign" type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span id="btn-resign-label" data-i18n="btn_resign"></span></button>
+    <button id="btn-leave" type="button"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg><span data-i18n="btn_leave"></span></button>
+  </nav>
+
+  <!-- Đang xem ván của người khác -->
+  <nav class="bar bottom watch-only">
+    <button id="wt-tv" type="button"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg><span data-i18n="tv_other"></span></button>
+    <button id="wt-center" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
+    <button id="wt-leave" type="button"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg><span data-i18n="watch_stop"></span></button>
   </nav>
 
   <!-- Xem lại ván đã lưu -->
   <nav class="bar bottom replay-only">
-    <button id="rp-first" type="button"><span class="ico">⏮</span><span data-i18n="rp_first"></span></button>
-    <button id="rp-prev" type="button"><span class="ico">◀</span><span data-i18n="rp_prev"></span></button>
-    <button id="rp-play" type="button"><span class="ico" id="rp-play-ico">▶</span><span id="rp-play-label" data-i18n="rp_play"></span></button>
-    <button id="rp-next" type="button"><span class="ico">▶︎|</span><span data-i18n="rp_next"></span></button>
-    <button id="rp-share" type="button"><span class="ico">↗</span><span data-i18n="share_game"></span></button>
-    <button id="rp-close" type="button"><span class="ico">✕</span><span data-i18n="rp_close"></span></button>
+    <button id="rp-first" type="button"><svg class="ico" aria-hidden="true"><use href="#i-first"/></svg><span data-i18n="rp_first"></span></button>
+    <button id="rp-prev" type="button"><svg class="ico" aria-hidden="true"><use href="#i-prev"/></svg><span data-i18n="rp_prev"></span></button>
+    <button id="rp-play" type="button"><svg class="ico" id="rp-play-ico" aria-hidden="true"><use href="#i-play"/></svg><span id="rp-play-label" data-i18n="rp_play"></span></button>
+    <button id="rp-next" type="button"><svg class="ico" aria-hidden="true"><use href="#i-next"/></svg><span data-i18n="rp_next"></span></button>
+    <button id="rp-analyze" type="button"><svg class="ico" aria-hidden="true"><use href="#i-analyze"/></svg><span data-i18n="an_btn"></span></button>
+    <button id="rp-share" type="button"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg><span data-i18n="share_game"></span></button>
+    <button id="rp-close" type="button"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg><span data-i18n="rp_close"></span></button>
   </nav>
 
+  <!-- Giải đố / thử lại: nút do study.js điền -->
+  <nav class="bar bottom ext-only" id="ext-bar"></nav>
+
+  <!-- Về giữa: nút tròn nổi (thanh dưới nhường chỗ cho "Giải đố") -->
+  <button type="button" class="fab-center" id="btn-center" data-i18n-aria="btn_center" data-i18n-title="btn_center"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg></button>
+
+  <!-- Bảng phân tích ván (hiện trong chế độ xem lại) -->
+  <section class="an-panel" id="an-panel" hidden aria-live="polite">
+    <div class="an-head">
+      <button type="button" class="an-toggle" id="an-toggle"><svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg> <b data-i18n="an_title"></b> <span class="an-acc-mini" id="an-acc-mini"></span></button>
+      <button type="button" class="x-close" id="an-close" data-i18n-aria="close">✕</button>
+    </div>
+    <div class="an-body" id="an-body"></div>
+  </section>
+
   <!-- Chat nhanh trong phòng -->
-  <button type="button" class="fab online-only" id="quick-btn" data-i18n-aria="quick_chat" data-i18n-title="quick_chat">💬</button>
+  <button type="button" class="fab online-only" id="quick-btn" data-i18n-aria="quick_chat" data-i18n-title="quick_chat"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></button>
   <div class="quick-menu" id="quick-menu" hidden></div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <!-- Luật Swap2: chọn bên sau khi đặt quân khai cuộc -->
+  <div class="swap-card" id="swap-card" hidden></div>
+  <!-- Lần đầu mở game: chọn trình độ (không chặn bàn cờ) -->
+  <div class="welcome-card" id="welcome-card" hidden>
+    <b data-i18n="welcome_title"></b>
+    <div class="row">
+      <button type="button" class="ghost sm" data-level="new" data-i18n="welcome_new"></button>
+      <button type="button" class="ghost sm" data-level="know" data-i18n="welcome_know"></button>
+      <button type="button" class="ghost sm" data-level="good" data-i18n="welcome_good"></button>
+    </div>
+  </div>
+  <!-- Bài học: giải thích phía trên bàn cờ -->
+  <div class="swap-card lesson-card" id="lesson-card" hidden></div>
 
   <div class="banner" id="banner" hidden>
     <div class="banner-card">
@@ -63,8 +148,11 @@
       <div class="banner-actions">
         <button id="banner-view" type="button" class="ghost" data-i18n="banner_view"></button>
         <button id="banner-leave" type="button" class="ghost online-only" data-i18n="btn_leave"></button>
+        <button id="banner-analyze" type="button" class="ghost local-only" hidden><svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg> <span data-i18n="an_btn"></span></button>
         <button id="banner-new" type="button" class="primary local-only" data-i18n="btn_new"></button>
         <button id="banner-share" type="button" class="ghost online-only" data-i18n="share_game" hidden></button>
+        <button id="banner-quick" type="button" class="ghost online-only" data-i18n="qm_again" hidden></button>
+        <button id="banner-tour" type="button" class="primary online-only" data-i18n="tour_view" hidden></button>
         <button id="banner-rematch" type="button" class="primary online-only" data-i18n="rematch"></button>
       </div>
     </div>
@@ -73,51 +161,91 @@
   <dialog id="settings">
     <form method="dialog" id="settings-form">
       <h2 data-i18n="settings" tabindex="-1" autofocus></h2>
+      <div class="row set-links">
+        <button type="button" class="ghost sm" data-open="habits"><svg class="ico i-in" aria-hidden="true"><use href="#i-medal2"/></svg><span data-i18n="habits_title"></span></button>
+        <button type="button" class="ghost sm" data-open="learn"><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="learn_title"></span></button>
+      </div>
 
       <fieldset>
         <legend data-i18n="mode"></legend>
-        <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
-        <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
+          <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
+        </div>
       </fieldset>
 
       <fieldset class="ai-only">
         <legend data-i18n="you_play"></legend>
-        <label><input type="radio" name="human" value="1"> <b class="x">X</b> – <span data-i18n="goes_first"></span></label>
-        <label><input type="radio" name="human" value="2"> <b class="o">O</b> – <span data-i18n="goes_second"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="human" value="1"> <b class="x">X</b> – <span data-i18n="goes_first"></span></label>
+          <label><input type="radio" name="human" value="2"> <b class="o">O</b> – <span data-i18n="goes_second"></span></label>
+        </div>
       </fieldset>
 
       <fieldset class="ai-only">
-        <legend data-i18n="level"></legend>
-        <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
-        <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
-        <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
+        <legend data-i18n="opponent"></legend>
+        <select name="bot" class="select" data-i18n-aria="opponent"></select>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="time_limit"></legend>
-        <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
-        <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
-        <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
-        <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
+          <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
+          <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
+          <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="allow_undo"></legend>
-        <label><input type="radio" name="allowUndo" value="yes"> <span data-i18n="yes"></span></label>
-        <label><input type="radio" name="allowUndo" value="no"> <span data-i18n="no"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="allowUndo" value="yes"> <span data-i18n="yes"></span></label>
+          <label><input type="radio" name="allowUndo" value="no"> <span data-i18n="no"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="sound"></legend>
-        <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
-        <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
+          <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend data-i18n="theme"></legend>
-        <label><input type="radio" name="theme" value="light"> <span data-i18n="theme_light"></span></label>
-        <label><input type="radio" name="theme" value="dark"> <span data-i18n="theme_dark"></span></label>
-        <label><input type="radio" name="theme" value="system"> <span data-i18n="theme_system"></span></label>
+        <div class="seg">
+          <label><input type="radio" name="theme" value="light"> <span data-i18n="theme_light"></span></label>
+          <label><input type="radio" name="theme" value="dark"> <span data-i18n="theme_dark"></span></label>
+          <label><input type="radio" name="theme" value="system"> <span data-i18n="theme_system"></span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="board_style"></legend>
+        <div class="row opts">
+          <label class="opt"><span data-i18n="board_color"></span>
+            <select name="board" class="select">
+              <option value="paper" data-i18n="board_paper"></option>
+              <option value="wood" data-i18n="board_wood"></option>
+              <option value="green" data-i18n="board_green"></option>
+              <option value="blue" data-i18n="board_blue"></option>
+              <option value="night" data-i18n="board_night"></option>
+            </select></label>
+          <label class="opt"><span data-i18n="piece_style"></span>
+            <select name="pieces" class="select">
+              <option value="classic" data-i18n="pieces_classic"></option>
+              <option value="bold" data-i18n="pieces_bold"></option>
+              <option value="stones" data-i18n="pieces_stones"></option>
+            </select></label>
+          <label class="opt"><span data-i18n="sound_style"></span>
+            <select name="soundStyle" class="select">
+              <option value="classic" data-i18n="sound_classic"></option>
+              <option value="wood" data-i18n="sound_wood"></option>
+              <option value="soft" data-i18n="sound_soft"></option>
+            </select></label>
+        </div>
       </fieldset>
 
       <fieldset>
@@ -146,6 +274,7 @@
         <button value="ok" class="primary" data-i18n="done"></button>
       </div>
 
+      <p class="privacy-row"><a class="link privacy-link" target="_blank" rel="noopener" data-i18n="privacy"></a></p>
       <p class="credit"><span class="credit-mark" aria-hidden="true">✦</span> Designed by <span class="credit-name">Dawn</span> <span class="credit-mark" aria-hidden="true">✦</span></p>
     </form>
   </dialog>
@@ -172,12 +301,9 @@
         </div>
       </fieldset>
       <fieldset class="ai-only">
-        <legend data-i18n="level"></legend>
-        <div class="seg">
-          <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
-          <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
-          <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
-        </div>
+        <legend data-i18n="opponent"></legend>
+        <div class="bot-grid" id="ng-bots"></div>
+        <p class="bot-say" id="ng-bot-say"></p>
       </fieldset>
       <fieldset>
         <legend data-i18n="time_limit"></legend>
@@ -192,6 +318,30 @@
     </form>
   </dialog>
 
+  <!-- Giải đố -->
+  <dialog id="puzzle-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-puzzle"/></svg> <span data-i18n="pz_title"></span></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div class="pz-stats" id="pz-stats"></div>
+      <label class="field pz-diff"><span data-i18n="pz_diff"></span>
+        <select id="pz-diff">
+          <option value="-600" data-i18n="pz_diff_-600"></option><option value="-300" data-i18n="pz_diff_-300"></option>
+          <option value="0" data-i18n="pz_diff_0"></option><option value="300" data-i18n="pz_diff_300"></option><option value="600" data-i18n="pz_diff_600"></option>
+        </select></label>
+      <div class="pz-modes">
+        <button type="button" class="pz-mode" data-open="learn"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span><b data-i18n="learn_title"></b><small data-i18n="learn_sub"></small></span></button>
+        <button type="button" class="pz-mode" data-pz="rated"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span><b data-i18n="pz_rated"></b><small data-i18n="pz_rated_d"></small></span></button>
+        <button type="button" class="pz-mode" data-storm><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg><span><b data-i18n="storm_title"></b><small id="storm-sub" data-i18n="storm_d"></small></span></button>
+        <button type="button" class="pz-mode" data-pz="streak"><svg class="ico" aria-hidden="true"><use href="#i-fire"/></svg><span><b data-i18n="pz_streak"></b><small data-i18n="pz_streak_d"></small></span></button>
+        <button type="button" class="pz-mode" data-open="habits"><svg class="ico" aria-hidden="true"><use href="#i-medal2"/></svg><span><b data-i18n="habits_title"></b><small data-i18n="habits_sub"></small></span></button>
+        <button type="button" class="pz-mode" data-pz="daily"><svg class="ico" aria-hidden="true"><use href="#i-cal"/></svg><span><b data-i18n="pz_daily"></b><small id="pz-daily-sub" data-i18n="pz_daily_d"></small></span></button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- ============================ Online ============================ -->
   <dialog id="online">
     <div class="dlg">
@@ -202,23 +352,72 @@
       </div>
       <div class="dlg-invites" id="dlg-invites" hidden></div>
       <section class="card" id="account"></section>
+      <section class="card" id="quick-card">
+        <h3 data-i18n="quick_title"></h3>
+        <!-- Như Lichess: bấm một ô là tìm trận ngay với thời gian đó -->
+        <div class="qm-grid" id="qm-grid" role="group" data-i18n-aria="time_limit">
+          <!-- Đồng hồ tổng (phút + giây cộng mỗi nước) như Lichess -->
+          <button type="button" class="qm-tile" data-time="0" data-clock="1+1"><b>1+1</b><small data-i18n="pool_bullet"></small></button>
+          <button type="button" class="qm-tile" data-time="0" data-clock="3+2"><b>3+2</b><small data-i18n="pool_blitz"></small></button>
+          <button type="button" class="qm-tile" data-time="0" data-clock="5+3"><b>5+3</b><small data-i18n="pool_blitz"></small></button>
+          <button type="button" class="qm-tile" data-time="0" data-clock="10+5"><b>10+5</b><small data-i18n="pool_rapid"></small></button>
+          <!-- Giới hạn mỗi nước -->
+          <button type="button" class="qm-tile" data-time="10"><b>10</b><small data-i18n="qm_unit"></small></button>
+          <button type="button" class="qm-tile" data-time="20"><b>20</b><small data-i18n="qm_unit"></small></button>
+          <button type="button" class="qm-tile" data-time="30"><b>30</b><small data-i18n="qm_unit"></small></button>
+          <button type="button" class="qm-tile" data-time="0"><b>∞</b><small data-i18n="time_off"></small></button>
+          <button type="button" class="qm-tile wide2" data-time="-1" id="qm-start"><b data-i18n="qm_any"></b><small data-i18n="qm_any_sub"></small></button>
+        </div>
+        <div class="row qm-search" id="qm-search" hidden>
+          <span class="spinner" aria-hidden="true"></span>
+          <span class="qm-status" id="qm-status" role="status"></span>
+          <button type="button" class="ghost" id="qm-cancel" data-i18n="cancel"></button>
+        </div>
+        <p class="hint" data-i18n="qm_hint"></p>
+      </section>
+      <section class="card" id="tour-card">
+        <h3 data-i18n="tours_clubs"></h3>
+        <div class="row">
+          <button type="button" class="primary" id="open-tours"><svg class="ico i-in" aria-hidden="true"><use href="#i-trophy"/></svg><span data-i18n="tours_title"></span> <i class="count" id="tour-badge" hidden></i></button>
+          <button type="button" class="ghost" id="open-clubs"><svg class="ico i-in" aria-hidden="true"><use href="#i-users"/></svg><span data-i18n="clubs_title"></span></button>
+        </div>
+        <p class="hint" data-i18n="tours_card_hint"></p>
+      </section>
       <section class="card">
         <h3 data-i18n="create_room"></h3>
         <div class="seg">
           <label><input type="radio" name="room-side" value="first" checked> <span data-i18n="me_first"></span></label>
           <label><input type="radio" name="room-side" value="second"> <span data-i18n="me_second"></span></label>
         </div>
-        <div class="seg" role="group" data-i18n-aria="time_limit">
-          <label><input type="radio" name="room-time" value="0" checked> <span data-i18n="time_off"></span></label>
-          <label><input type="radio" name="room-time" value="10"> <span data-i18n-n="10"></span></label>
-          <label><input type="radio" name="room-time" value="20"> <span data-i18n-n="20"></span></label>
-          <label><input type="radio" name="room-time" value="30"> <span data-i18n-n="30"></span></label>
+        <div class="row opts">
+          <label class="opt"><span data-i18n="time_limit"></span>
+            <select class="select" id="room-tc">
+          <option value="t0" data-i18n="time_off"></option>
+          <option value="t10" data-i18n-tc="t10"></option>
+          <option value="t20" data-i18n-tc="t20"></option>
+          <option value="t30" data-i18n-tc="t30"></option>
+          <option value="c1+1" data-i18n-tc="c1+1"></option>
+          <option value="c3+2" data-i18n-tc="c3+2"></option>
+          <option value="c5+3" data-i18n-tc="c5+3"></option>
+          <option value="c10+5" data-i18n-tc="c10+5"></option>
+            </select></label>
+          <label class="opt"><span data-i18n="opening"></span>
+            <select class="select" id="room-opening"><option value="free" data-i18n="opening_free"></option><option value="swap2" data-i18n="opening_swap2"></option></select></label>
         </div>
+        <label class="check"><input type="checkbox" id="room-public"> <span data-i18n="room_public"></span></label>
         <div class="row">
           <button type="button" class="primary" id="create-room" data-i18n="create_room"></button>
           <button type="button" class="ghost" id="open-join" data-i18n="join_by_code"></button>
         </div>
         <p class="hint" data-i18n="room_hint"></p>
+      </section>
+      <section class="card" id="tv-card">
+        <h3><svg class="ico i-in" aria-hidden="true"><use href="#i-eye"/></svg><span data-i18n="tv_title"></span> <button type="button" class="ghost sm" id="tv-refresh" data-i18n="refresh"></button></h3>
+        <ul class="people" id="tv-list"></ul>
+      </section>
+      <section class="card" id="lobby-card">
+        <h3 data-i18n="lobby_title"></h3>
+        <ul class="people" id="lobby-list"></ul>
       </section>
       <section class="card" id="friends"></section>
     </div>
@@ -277,9 +476,26 @@
         <button type="button" class="primary" id="ri-copy" data-i18n="copy"></button>
       </div>
       <button type="button" class="ghost wide" id="ri-share" hidden data-i18n="share"></button>
-      <p class="hint" data-i18n="room_info_hint"></p>
+      <button type="button" class="primary wide" id="ri-tour" hidden><svg class="ico i-in" aria-hidden="true"><use href="#i-trophy"/></svg><span data-i18n="tour_view"></span></button>
+      <p class="hint" id="ri-hint"></p>
       <ul class="players" id="ri-players"></ul>
       <p class="hint" id="ri-h2h"></p>
+    </div>
+  </dialog>
+
+  <dialog id="tour-dlg">
+    <div class="dlg tour-dlg">
+      <div class="dlg-head">
+        <button type="button" class="ghost sm icon" id="tour-back" hidden data-i18n-aria="back"><svg class="ico" aria-hidden="true"><use href="#i-back"/></svg></button>
+        <h2 id="tour-title" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div class="tabs tour-tabs" id="tour-tabs">
+        <button type="button" data-ttab="tours" data-i18n="tours_title"></button>
+        <button type="button" data-ttab="clubs" data-i18n="clubs_title"></button>
+        <button type="button" data-ttab="admin" hidden></button>
+      </div>
+      <div class="tour-body" id="tour-body"></div>
     </div>
   </dialog>
 
@@ -305,15 +521,22 @@
           <label><input type="radio" name="first" value="random"> <span data-i18n="random"></span></label>
         </div>
       </fieldset>
-      <fieldset>
-        <legend data-i18n="time_limit"></legend>
-        <div class="seg">
-          <label><input type="radio" name="time" value="0" checked> <span data-i18n="time_off"></span></label>
-          <label><input type="radio" name="time" value="10"> <span data-i18n-n="10"></span></label>
-          <label><input type="radio" name="time" value="20"> <span data-i18n-n="20"></span></label>
-          <label><input type="radio" name="time" value="30"> <span data-i18n-n="30"></span></label>
-        </div>
+      <fieldset class="row opts">
+        <label class="opt"><span data-i18n="time_limit"></span>
+          <select class="select" name="tc">
+          <option value="t0" data-i18n="time_off"></option>
+          <option value="t10" data-i18n-tc="t10"></option>
+          <option value="t20" data-i18n-tc="t20"></option>
+          <option value="t30" data-i18n-tc="t30"></option>
+          <option value="c1+1" data-i18n-tc="c1+1"></option>
+          <option value="c3+2" data-i18n-tc="c3+2"></option>
+          <option value="c5+3" data-i18n-tc="c5+3"></option>
+          <option value="c10+5" data-i18n-tc="c10+5"></option>
+          </select></label>
+        <label class="opt"><span data-i18n="opening"></span>
+          <select class="select" name="opening"><option value="free" data-i18n="opening_free"></option><option value="swap2" data-i18n="opening_swap2"></option></select></label>
       </fieldset>
+      <p class="hint" data-i18n="opening_hint"></p>
       <p class="hint" data-i18n="challenge_hint"></p>
       <button class="primary wide" data-i18n="send_challenge"></button>
     </form>
@@ -335,9 +558,85 @@
         <h2 data-i18n="lb_title" tabindex="-1" autofocus></h2>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
+      <div class="seg lb-tabs" id="lb-tabs" role="tablist">
+        <label><input type="radio" name="lb-pool" value="" checked> <span data-i18n="pool_all"></span></label>
+        <label><input type="radio" name="lb-pool" value="bullet"> <span data-i18n="pool_bullet"></span></label>
+        <label><input type="radio" name="lb-pool" value="blitz"> <span data-i18n="pool_blitz"></span></label>
+        <label><input type="radio" name="lb-pool" value="rapid"> <span data-i18n="pool_rapid"></span></label>
+        <label><input type="radio" name="lb-pool" value="classical"> <span data-i18n="pool_classical"></span></label>
+      </div>
       <p class="hint" id="lb-me"></p>
       <ol class="ranks" id="lb-list"></ol>
       <p class="hint" data-i18n="lb_hint"></p>
+    </div>
+  </dialog>
+
+  <!-- Chia sẻ ván: link / ảnh / GIF -->
+  <dialog id="share-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 data-i18n="share_title" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div class="pz-modes">
+        <button type="button" class="pz-mode" id="sh-png"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg><span><b data-i18n="share_png"></b><small data-i18n="share_png_d"></small></span></button>
+        <button type="button" class="pz-mode" id="sh-gif"><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg><span><b data-i18n="share_gif"></b><small data-i18n="share_gif_d"></small></span></button>
+        <button type="button" class="pz-mode" id="sh-link"><svg class="ico" aria-hidden="true"><use href="#i-link"/></svg><span><b data-i18n="share_link"></b><small data-i18n="share_link_d"></small></span></button>
+      </div>
+      <p class="err" id="sh-err"></p>
+    </div>
+  </dialog>
+
+  <!-- Học chơi -->
+  <dialog id="learn-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="learn_title"></span></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <p class="hint" id="learn-progress"></p>
+      <ul class="people learn-list" id="learn-list"></ul>
+      <h3 data-i18n="rules_title"></h3>
+      <ul class="people learn-list" id="rules-list"></ul>
+    </div>
+  </dialog>
+
+  <!-- Giải thích luật (Swap2, Renju): từng bước có hình bàn cờ -->
+  <dialog id="rule-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span id="rule-name"></span></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <p class="hint" id="rule-step"></p>
+      <div class="rule-board" id="rule-board"></div>
+      <p class="rule-text" id="rule-text"></p>
+      <div class="row rule-nav">
+        <button type="button" class="ghost" id="rule-prev" data-i18n="rule_prev"></button>
+        <button type="button" class="primary" id="rule-next" data-i18n="rule_next"></button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Thành tích: chuỗi ngày + huy hiệu -->
+  <dialog id="habits-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-medal2"/></svg><span data-i18n="habits_title"></span></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div id="habits-body"></div>
+    </div>
+  </dialog>
+
+  <!-- Hồ sơ người chơi -->
+  <dialog id="profile-dlg" class="wide-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 data-i18n="profile" tabindex="-1" autofocus></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div id="profile-body"></div>
     </div>
   </dialog>
 
@@ -410,6 +709,14 @@
         <h3 data-i18n="blocked_list"></h3>
         <ul class="people" id="blocked-list"></ul>
       </section>
+      <form class="card danger" id="delete-form">
+        <h3 data-i18n="delete_account"></h3>
+        <p class="hint" data-i18n="delete_hint"></p>
+        <label class="field"><span id="delete-label"></span><input name="secret" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
+        <p class="err" id="delete-err"></p>
+        <button class="danger-btn" data-i18n="delete_btn"></button>
+      </form>
+      <a class="link privacy-link" target="_blank" rel="noopener" data-i18n="privacy"></a>
     </div>
   </dialog>
 
@@ -431,11 +738,31 @@
   </dialog>
 
   <script src="config.js"></script>
+  <script src="native.js"></script>
   <script src="i18n.js"></script>
   <script src="sound.js"></script>
   <script src="rules.js"></script>
+  <script src="bots.js"></script>
+  <script src="analysis.js"></script>
   <script src="app.js"></script>
   <script src="online.js"></script>
   <script src="social.js"></script>
+  <script src="match.js"></script>
+  <script src="gamex.js"></script>
+  <script src="tour-patch.js"></script>
+  <script src="tour.js"></script>
+  <script src="tour-stages.js"></script>
+  <script src="tour-form.js"></script>
+  <script src="tour-groups.js"></script>
+  <script src="tour-disputes.js"></script>
+  <script src="club.js"></script>
+  <script src="study.js"></script>
+  <script src="storm.js"></script>
+  <script src="share.js"></script>
+  <script src="swap.js"></script>
+  <script src="watch.js"></script>
+  <script src="profile.js"></script>
+  <script src="learn.js"></script>
+  <script src="habits.js"></script>
 </body>
 </html>

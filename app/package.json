@@ -1,0 +1,27 @@
+{
+  "name": "caro-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ứng dụng Cờ Caro cho Android và iOS (Capacitor) – dùng chung giao diện web trong ../caro và chung máy chủ online",
+  "scripts": {
+    "build:web": "node scripts/build-web.js",
+    "sync": "npm run build:web && cap sync"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/clipboard": "8.0.1",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/filesystem": "8.1.3",
+    "@capacitor/haptics": "8.0.2",
+    "@capacitor/ios": "8.5.2",
+    "@capacitor/share": "8.0.2",
+    "@capgo/capacitor-social-login": "8.5.11"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.2"
+  }
+}

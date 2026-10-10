@@ -20,7 +20,7 @@ test.before(async () => {
     },
     sendMail: async (to, subject, text) => { mails.push({ to, subject, text }); },
     msgRate: 2000, // test đánh rất nhanh; phần chặn spam vẫn kiểm tra bằng tin gửi dồn
-    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500, SECOND_MS: 20, DRAW_COOLDOWN_MS: 300 }, // 1 "giây" = 20ms
+    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 200, INVITE_TTL_MS: 500, SECOND_MS: 20, DRAW_COOLDOWN_MS: 300, MATCH_TICK_MS: 50, LOBBY_DEBOUNCE_MS: 30 }, // 1 "giây" = 20ms
   });
   await new Promise((r) => app.server.on('listening', r));
   url = `ws://127.0.0.1:${app.server.address().port}/ws`;
@@ -74,13 +74,13 @@ async function move(who, other, x, y) {
   await p;
 }
 
-async function playWin(winner, loser) {
-  // Người thắng đánh 4 quân ngang không bị chặn ở hàng 0, người thua đánh rải rác ở hàng 5.
+async function playWin(winner, loser, row = 0) {
+  // Người thắng đánh 4 quân ngang không bị chặn ở hàng row, người thua đánh rải rác ở hàng row + 5.
   let turnOf = side(winner.room, winner.me.id) === winner.room.turn ? winner : loser;
   let i = 0, j = 0;
   while (!winner.room.winner) {
-    if (turnOf === winner) await move(winner, loser, i++, 0);
-    else await move(loser, winner, (j++) * 3, 5);
+    if (turnOf === winner) await move(winner, loser, i++, row);
+    else await move(loser, winner, (j++) * 3, row + 5);
     turnOf = turnOf === winner ? loser : winner;
   }
 }
@@ -156,13 +156,13 @@ test('mất kết nối khi đang đánh: kết nối lại vẫn ở trong phò
 
 test('tài khoản, kết bạn, trạng thái online, thách đấu Bo3 đổi bên mỗi ván', async () => {
   const a = await Client.open();
-  await a.req({ t: 'register', username: 'an_test', password: '123456', name: 'An' }, 'welcome');
+  await a.req({ t: 'register', username: 'an_test', password: 'caro-pass1', name: 'An' }, 'welcome');
   assert.strictEqual(a.me.username, 'an_test');
-  const dup = await a.req({ t: 'register', username: 'an_test', password: '123456' }, 'error');
+  const dup = await a.req({ t: 'register', username: 'an_test', password: 'caro-pass1' }, 'error');
   assert.match(dup.msg, /đã có/);
 
   const b = await Client.open();
-  await b.req({ t: 'register', username: 'binh_test', password: 'abcdef', name: 'Bình' }, 'welcome');
+  await b.req({ t: 'register', username: 'binh_test', password: 'pass-abc2', name: 'Bình' }, 'welcome');
 
   // Đăng nhập lại bằng token.
   const a2 = await Client.open({ token: a.token });
@@ -219,9 +219,9 @@ test('tài khoản, kết bạn, trạng thái online, thách đấu Bo3 đổi 
 
 test('thách đấu ngẫu nhiên / đối thủ đi trước, từ chối và hết hạn', async () => {
   const a = await Client.open();
-  await a.req({ t: 'register', username: 'c_test', password: '123456' }, 'welcome');
+  await a.req({ t: 'register', username: 'c_test', password: 'caro-pass1' }, 'welcome');
   const b = await Client.open();
-  await b.req({ t: 'register', username: 'd_test', password: '123456' }, 'welcome');
+  await b.req({ t: 'register', username: 'd_test', password: 'caro-pass1' }, 'welcome');
   await a.req({ t: 'friendAdd', username: 'd_test' }, 'friends', (m) => m.outgoing.length === 1);
   await b.req({ t: 'friendAdd', username: 'c_test' }, 'friends', (m) => m.friends.length === 1); // tự chấp nhận
 
@@ -256,7 +256,7 @@ test('đăng nhập / liên kết Google', async () => {
   assert.strictEqual(again.me.uid, g.me.uid, 'cùng tài khoản Google -> cùng tài khoản');
 
   const u = await Client.open();
-  await u.req({ t: 'register', username: 'link_test', password: '123456' }, 'welcome');
+  await u.req({ t: 'register', username: 'link_test', password: 'caro-pass1' }, 'welcome');
   await u.req({ t: 'google', credential: 'ok:sub2:x@gmail.com:X' }, 'me');
   assert.strictEqual(u.me.google, true);
   const taken = await u.req({ t: 'google', credential: 'ok:sub1:gia.bao@gmail.com:G' }, 'error');
@@ -271,7 +271,7 @@ test('khách đang trong phòng rồi đăng nhập vẫn giữ chỗ', async ()
   const b = await Client.open();
   await a.req({ t: 'createRoom', side: 'first' }, 'room');
   await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
-  await a.req({ t: 'register', username: 'mig_test', password: '123456' }, 'welcome');
+  await a.req({ t: 'register', username: 'mig_test', password: 'caro-pass1' }, 'welcome');
   assert.ok(a.room && a.room.players.some((p) => p.id === a.me.id));
   assert.strictEqual(side(a.room, a.me.id), 1);
   a.close(); b.close();
@@ -286,7 +286,7 @@ test('bảo mật: header an toàn, chặn spam tin nhắn, token không lưu d�
   assert.strictEqual((await fetch(`http://127.0.0.1:${port}/..%2fserver%2fserver.js`)).status, 404);
 
   const u = await Client.open();
-  await u.req({ t: 'register', username: 'sec_test', password: '123456' }, 'welcome');
+  await u.req({ t: 'register', username: 'sec_test', password: 'caro-pass1' }, 'welcome');
   const raw = app.store.db.prepare('SELECT hash FROM sessions').all().map((r) => r.hash);
   assert.ok(raw.length && !raw.includes(u.token), 'không lưu token gốc');
   const again = await Client.open({ token: u.token });
@@ -316,12 +316,12 @@ test('giới hạn thử sai theo từng phòng / tài khoản, không khoá c�
   assert.strictEqual(c.room.code, b.room.code);
 
   const u = await Client.open();
-  await u.req({ t: 'register', username: 'rl_one', password: '123456' }, 'welcome');
-  await u.req({ t: 'register', username: 'rl_two', password: '123456' }, 'welcome');
+  await u.req({ t: 'register', username: 'rl_one', password: 'caro-pass1' }, 'welcome');
+  await u.req({ t: 'register', username: 'rl_two', password: 'caro-pass1' }, 'welcome');
   const d = await Client.open();
   for (let i = 0; i < 8; i++) await d.req({ t: 'login', username: 'rl_one', password: 'sai' }, 'error');
-  assert.match((await d.req({ t: 'login', username: 'rl_one', password: '123456' }, 'error')).msg, /quá nhiều/);
-  await d.req({ t: 'login', username: 'rl_two', password: '123456' }, 'welcome', (m) => !m.me.guest);
+  assert.match((await d.req({ t: 'login', username: 'rl_one', password: 'caro-pass1' }, 'error')).msg, /quá nhiều/);
+  await d.req({ t: 'login', username: 'rl_two', password: 'caro-pass1' }, 'welcome', (m) => !m.me.guest);
   [a, b, c, u, d].forEach((x) => x.close());
 });
 
@@ -338,9 +338,9 @@ test('mất kết nối trước nước đầu tiên vẫn bị xử thua', asy
 
 test('Bo3: rớt mạng giữa 2 ván thì ván sau vẫn bị xử thua, không treo', async () => {
   const a = await Client.open();
-  await a.req({ t: 'register', username: 'gap_a', password: '123456' }, 'welcome');
+  await a.req({ t: 'register', username: 'gap_a', password: 'caro-pass1' }, 'welcome');
   const b = await Client.open();
-  await b.req({ t: 'register', username: 'gap_b', password: '123456' }, 'welcome');
+  await b.req({ t: 'register', username: 'gap_b', password: 'caro-pass1' }, 'welcome');
   await a.req({ t: 'friendAdd', username: 'gap_b' }, 'friends', (m) => m.outgoing.length === 1);
   await b.req({ t: 'friendAdd', username: 'gap_a' }, 'friends', (m) => m.friends.length === 1);
   const inv = b.wait('invite');
@@ -359,7 +359,7 @@ test('Bo3: rớt mạng giữa 2 ván thì ván sau vẫn bị xử thua, không
 
 test('đăng xuất khi đang trong phòng thì rời phòng luôn', async () => {
   const a = await Client.open();
-  await a.req({ t: 'register', username: 'out_a', password: '123456' }, 'welcome');
+  await a.req({ t: 'register', username: 'out_a', password: 'caro-pass1' }, 'welcome');
   const b = await Client.open();
   await a.req({ t: 'createRoom', side: 'first' }, 'room');
   await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
@@ -374,9 +374,9 @@ test('đăng xuất khi đang trong phòng thì rời phòng luôn', async () =>
 
 test('thách đấu: vào phòng khác thì lời mời bị huỷ; đang đánh thì không gửi được', async () => {
   const a = await Client.open();
-  await a.req({ t: 'register', username: 'inv_a', password: '123456' }, 'welcome');
+  await a.req({ t: 'register', username: 'inv_a', password: 'caro-pass1' }, 'welcome');
   const b = await Client.open();
-  await b.req({ t: 'register', username: 'inv_b', password: '123456' }, 'welcome');
+  await b.req({ t: 'register', username: 'inv_b', password: 'caro-pass1' }, 'welcome');
   await a.req({ t: 'friendAdd', username: 'inv_b' }, 'friends', (m) => m.outgoing.length === 1);
   await b.req({ t: 'friendAdd', username: 'inv_a' }, 'friends', (m) => m.friends.length === 1);
   const inv = b.wait('invite');
@@ -421,9 +421,9 @@ test('đồng hồ mỗi nước: hết giờ thì người đang tới lượt 
 
 test('lỗi và thông báo có mã để giao diện tự dịch; thách đấu mang theo thời gian mỗi nước', async () => {
   const a = await Client.open();
-  await a.req({ t: 'register', username: 'code_a', password: '123456' }, 'welcome');
+  await a.req({ t: 'register', username: 'code_a', password: 'caro-pass1' }, 'welcome');
   const b = await Client.open();
-  await b.req({ t: 'register', username: 'code_b', password: '123456' }, 'welcome');
+  await b.req({ t: 'register', username: 'code_b', password: 'caro-pass1' }, 'welcome');
   const e = await b.req({ t: 'joinRoom', code: '999999', password: '000' }, 'error');
   assert.strictEqual(e.code, 'room_not_found');
   assert.deepStrictEqual(e.args, { code: '999999' });
@@ -453,8 +453,10 @@ async function mailCode(to) {
   throw new Error('Không thấy thư gửi tới ' + to);
 }
 async function account(username, name) {
+  // Mọi client test cùng 1 IP: bỏ đếm giới hạn "30 tài khoản / IP / 10 phút" giữa các bài test
+  for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
   const c = await Client.open();
-  await c.req({ t: 'register', username, password: '123456', name: name || username }, 'welcome');
+  await c.req({ t: 'register', username, password: 'caro-pass1', name: name || username }, 'welcome');
   return c;
 }
 async function befriend(a, b) {
@@ -541,7 +543,7 @@ test('lịch sử 10 trận, xem lại qua link chia sẻ, đối đầu, Elo v�
   g.close();
   await roomOf(a, b);
   for (let i = 0; i < 11; i++) {
-    await playWin(i % 2 ? b : a, i % 2 ? a : b);
+    await playWin(i % 2 ? b : a, i % 2 ? a : b, i * 20); // mỗi ván một khác (ván lặp lại y hệt thì không tính điểm)
     await a.req({ t: 'rematch' }, 'room', (m) => m.room.rematch.length === 1);
     await b.req({ t: 'rematch' }, 'room', (m) => m.room.gameNo === i + 2);
     if (a.room.gameNo !== i + 2) await a.wait('room', (m) => m.room.gameNo === i + 2);
@@ -563,7 +565,11 @@ test('lịch sử 10 trận, xem lại qua link chia sẻ, đối đầu, Elo v�
   // Đối đầu
   const hh = await a.req({ t: 'h2h', id: b.me.uid }, 'h2h');
   assert.deepStrictEqual(hh.record, { wins: 6, losses: 5, draws: 0 });
-  // Elo: A thắng nhiều hơn -> điểm cao hơn B; tổng gần như không đổi
+  // Elo: A thắng nhiều hơn -> điểm cao hơn B; tổng gần như không đổi.
+  // Bảng xếp hạng chỉ có người điểm đã chắc chắn (rd ≤ 75): 5 ván chưa đủ
+  assert.strictEqual((await a.req({ t: 'leaderboard' }, 'leaderboard')).me, null);
+  for (const c of [a, b]) for (const p of Object.values(app.store.users.get(c.me.uid).pools)) p.rd = Math.min(p.rd, 70);
+  app.hub.ratingsChanged();
   const lb = await a.req({ t: 'leaderboard' }, 'leaderboard');
   const ra = lb.top.find((u) => u.username === 'hist_a'), rb = lb.top.find((u) => u.username === 'hist_b');
   assert.ok(ra.rating > rb.rating, JSON.stringify(lb.top));
@@ -621,8 +627,8 @@ test('đổi mật khẩu (đăng xuất thiết bị khác), email, quên mật
   const other = await Client.open({ token: a.token });
   assert.strictEqual(other.me.username, 'pw_a');
   assert.strictEqual((await a.req({ t: 'changePassword', current: 'sai', next: 'moi123' }, 'error')).code, 'wrong_password');
-  assert.strictEqual((await a.req({ t: 'changePassword', current: '123456', next: '123' }, 'error')).code, 'short_password');
-  await a.req({ t: 'changePassword', current: '123456', next: 'moi123' }, 'toast', (m) => m.code === 'password_changed');
+  assert.strictEqual((await a.req({ t: 'changePassword', current: 'caro-pass1', next: '123' }, 'error')).code, 'short_password');
+  await a.req({ t: 'changePassword', current: 'caro-pass1', next: 'moi123' }, 'toast', (m) => m.code === 'password_changed');
   const old = await Client.open({ token: other.token || a.token });
   // token của a vẫn dùng được (thiết bị hiện tại); token cũ trên thiết bị khác thì không
   assert.strictEqual(old.me.username, 'pw_a');
@@ -647,9 +653,9 @@ test('đổi mật khẩu (đăng xuất thiết bị khác), email, quên mật
   await a.req({ t: 'verifyEmail', code: vcode }, 'me', (m) => m.me.email === 'a@x.com' && !m.me.pendingEmail);
   assert.strictEqual((await a.req({ t: 'verifyEmail', code: vcode }, 'error')).code, 'email_bad_code', 'mã chỉ dùng 1 lần');
   const b = await account('pw_b');
-  assert.strictEqual((await b.req({ t: 'setEmail', email: 'a@x.com', password: '123456' }, 'error')).code, 'email_taken');
+  assert.strictEqual((await b.req({ t: 'setEmail', email: 'a@x.com', password: 'caro-pass1' }, 'error')).code, 'email_taken');
   // Nhập email người khác mà không xác minh: thư khôi phục mật khẩu không gửi tới đó
-  await b.req({ t: 'setEmail', email: 'nan-nhan@x.com', password: '123456' }, 'me', (m) => m.me.pendingEmail === 'nan-nhan@x.com');
+  await b.req({ t: 'setEmail', email: 'nan-nhan@x.com', password: 'caro-pass1' }, 'me', (m) => m.me.pendingEmail === 'nan-nhan@x.com');
   await new Promise((r) => setTimeout(r, 30));
   const sentBefore = mails.length;
   await (await Client.open()).req({ t: 'forgot', login: 'pw_b' }, 'forgotSent');
@@ -691,8 +697,13 @@ test('Elo: đầu hàng / hoà quá sớm không tính điểm; thắng thật t
   await playWin(a, b);
   assert.strictEqual(a.room.unrated, false);
   if (a.me.rating === 1200) await a.wait('me', (m) => m.me.rating !== 1200);
-  assert.strictEqual(a.me.rating, 1220);
+  // Glicko-2: người mới (rd 350) lên nhiều sau ván thắng đầu tiên; ván không giới hạn thời gian = loại classical
+  assert.ok(a.me.rating > 1300 && a.me.rating < 1450, String(a.me.rating));
   assert.strictEqual(a.me.rated, 1);
+  assert.strictEqual(a.me.pools.classical.r, a.me.rating);
+  assert.strictEqual(a.me.pools.classical.prov, true, 'mới 1 ván: điểm còn tạm');
+  assert.strictEqual(a.me.pools.blitz.r, 1200, 'loại thời gian khác không đổi');
+  assert.ok(b.room.delta && b.room.delta[b.me.id] < 0, 'người thua thấy điểm bị trừ');
   [a, b].forEach((c) => c.close());
 });
 
@@ -714,4 +725,222 @@ test('email: giới hạn số lần lưu (chống dò email đã đăng ký); q
   assert.ok(Date.now() - t0 < 500);
   app.hub.sendMail = hang;
   [g, c].forEach((x) => x.close());
+});
+
+test('xoá tài khoản: cần mật khẩu, xoá dữ liệu cá nhân, bạn bè và lịch sử của người khác được dọn đúng', async () => {
+  const a = await account('del_a', 'Sẽ xoá'), b = await account('del_b', 'Bạn');
+  await befriend(a, b);
+  await a.req({ t: 'dmSend', to: b.me.uid, text: 'tin riêng' }, 'dm');
+  await roomOf(a, b);
+  await playWin(a, b);
+  const aUid = a.me.uid;
+  assert.strictEqual((await a.req({ t: 'deleteAccount', password: 'sai' }, 'error')).code, 'wrong_password');
+  const bFriends = b.wait('friends', (m) => m.friends.length === 0);
+  const other = await Client.open({ token: a.token }); // thiết bị thứ 2 của A
+  const gone2 = other.wait('accountDeleted');
+  await a.req({ t: 'deleteAccount', password: 'caro-pass1' }, 'accountDeleted');
+  await gone2;
+  await bFriends;
+  // Tài khoản không còn: token hết hiệu lực, không đăng nhập được, tên đăng nhập dùng lại được
+  assert.ok((await Client.open({ token: a.token })).me.guest);
+  assert.strictEqual((await (await Client.open()).req({ t: 'login', username: 'del_a', password: 'caro-pass1' }, 'error')).code, 'bad_login');
+  assert.ok(!app.store.users.has(aUid));
+  assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM dm WHERE a = ? OR b = ?').get(aUid, aUid).n, 0);
+  assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM sessions WHERE uid = ?').get(aUid).n, 0);
+  assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM games WHERE x_id = ? OR o_id = ? OR x_name = ? OR o_name = ?').get(aUid, aUid, 'Sẽ xoá', 'Sẽ xoá').n, 0);
+  // B vẫn giữ ván đã chơi, nhưng không còn tên / id của người đã xoá
+  const h = await b.req({ t: 'history' }, 'history');
+  assert.strictEqual(h.games.length, 1);
+  assert.strictEqual(h.games[0].opponent, '');
+  const rep = await (await fetch(base + '/api/replay/' + h.games[0].share)).json();
+  assert.ok([rep.x, rep.o].includes('') && [rep.x, rep.o].includes('Bạn'));
+  const again = await Client.open();
+  for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
+  await again.req({ t: 'register', username: 'del_a', password: 'pass-abc2' }, 'welcome');
+  assert.notStrictEqual(again.me.uid, aUid);
+  [a, b, other, again].forEach((c) => c.close());
+});
+
+test('xoá tài khoản chỉ có Google: gõ lại tên đăng nhập để xác nhận', async () => {
+  const g = await Client.open();
+  await g.req({ t: 'google', credential: 'ok:sub-del:del@x.com:Del' }, 'welcome');
+  assert.strictEqual((await g.req({ t: 'deleteAccount', confirm: 'nham' }, 'error')).code, 'confirm_username');
+  await g.req({ t: 'deleteAccount', confirm: g.me.username.toUpperCase() }, 'accountDeleted');
+  // Đăng nhập lại cùng Google = tài khoản mới
+  const g2 = await Client.open();
+  await g2.req({ t: 'google', credential: 'ok:sub-del:del@x.com:Del' }, 'welcome');
+  assert.notStrictEqual(g2.me.uid, g.me.uid);
+  [g, g2].forEach((c) => c.close());
+});
+
+test('app điện thoại quá cũ được yêu cầu cập nhật; web và app mới vào bình thường', async () => {
+  app.hub.minAppVersion = '1.2.0';
+  app.hub.updateUrls = { android: 'https://play.google.com/store/apps/details?id=io.github.marseraf7.caro', ios: '' };
+  try {
+    const c = new Client();
+    c.ws = new WebSocket(url);
+    c.ws.on('message', (d) => { const m = JSON.parse(d); c.msgs.push(m); c.waiters = c.waiters.filter((w) => !w(m)); });
+    await new Promise((r) => c.ws.on('open', r));
+    const up = await c.req({ t: 'hello', guestKey: crypto.randomBytes(16).toString('hex'), client: { platform: 'android', version: '1.1.9' } }, 'updateRequired');
+    assert.strictEqual(up.min, '1.2.0');
+    assert.match(up.url, /play\.google\.com/);
+    const bad = await c.req({ t: 'createRoom' }, 'error');
+    assert.strictEqual(bad.code, 'no_hello', 'chưa vào được online');
+    c.close();
+    const ok = await Client.open({ client: { platform: 'android', version: '1.2.0' } });
+    assert.ok(ok.me.guest);
+    const ios = await Client.open({ client: { platform: 'ios', version: '1.10.0' } }); // 1.10 > 1.2
+    assert.ok(ios.me);
+    const web = await Client.open({ client: { platform: 'web', version: null } });
+    assert.ok(web.me);
+    [ok, ios, web].forEach((x) => x.close());
+  } finally {
+    app.hub.minAppVersion = '';
+  }
+});
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+test('tìm trận nhanh: hợp thời gian mới ghép, chọn Elo gần nhất, không ghép người đã chặn nhau', async () => {
+  const a = await Client.open({ guestName: 'Nhanh A' });
+  const b = await Client.open({ guestName: 'Nhanh B' });
+  const q = await a.req({ t: 'quickMatch', timeLimit: 10 }, 'queue');
+  assert.strictEqual(q.state, 'searching');
+  assert.strictEqual(q.timeLimit, 10);
+  await b.req({ t: 'quickMatch', timeLimit: 20 }, 'queue', (m) => m.state === 'searching');
+  await sleep(150);
+  assert.ok(!a.room && !b.room, 'khác thời gian mỗi nước: không ghép');
+  await b.req({ t: 'quickCancel' }, 'queue', (m) => m.state === 'idle');
+  assert.ok(!app.hub.queue.has(b.me.id));
+
+  // "Sao cũng được" ghép với người chọn 10 giây -> phòng 10 giây, đi trước ngẫu nhiên
+  const c = await Client.open({ guestName: 'Nhanh C' });
+  const found = a.wait('toast', (m) => m.code === 'match_found');
+  const room = a.wait('room', (m) => m.room && m.room.players.length === 2);
+  c.send({ t: 'quickMatch', timeLimit: 'any' });
+  assert.strictEqual((await found).args.name, 'Nhanh C');
+  const r = (await room).room;
+  assert.ok(r.quick && !r.public);
+  assert.strictEqual(r.timeLimit, 10);
+  assert.deepStrictEqual(new Set([r.seats.x, r.seats.o]), new Set([a.me.id, c.me.id]));
+  await c.wait('room', (m) => m.room && m.room.players.length === 2);
+  assert.strictEqual(app.hub.queue.size, 0);
+
+  [a, c].forEach((x) => x.close()); // (phòng 10 "giây" = 200ms trong test: hết giờ rất nhanh)
+
+  // Đang trong ván thì không tìm trận được; vào phòng khác / mất kết nối thì ra khỏi hàng chờ
+  const d = await Client.open(), e = await Client.open();
+  await d.req({ t: 'quickMatch' }, 'queue');
+  await e.req({ t: 'quickMatch' }, 'room', (m) => m.room && m.room.players.length === 2);
+  assert.strictEqual(e.room.timeLimit, 0, 'cả hai "sao cũng được": không giới hạn thời gian');
+  const busy = await d.req({ t: 'quickMatch' }, 'error');
+  assert.strictEqual(busy.code, 'busy_in_game');
+  [d, e].forEach((x) => x.close());
+  await b.req({ t: 'quickMatch' }, 'queue', (m) => m.state === 'searching');
+  await b.req({ t: 'createRoom' }, 'queue', (m) => m.state === 'idle');
+  b.send({ t: 'leaveRoom' });
+  await b.req({ t: 'quickMatch' }, 'queue', (m) => m.state === 'searching');
+  b.close();
+  await sleep(50);
+  assert.strictEqual(app.hub.queue.size, 0, 'mất kết nối: bỏ khỏi hàng chờ');
+
+  // Elo: người 1500 được ghép với 1520 chứ không với 2400
+  const p = await account('qm_p'), hi = await account('qm_hi'), near = await account('qm_near');
+  const setR = (uid, r) => { for (const pool of Object.values(app.hub.store.users.get(uid).pools)) pool.r = r; };
+  setR(p.me.uid, 1500);
+  setR(hi.me.uid, 2400);
+  setR(near.me.uid, 1520);
+  await p.req({ t: 'quickMatch' }, 'queue');
+  await hi.req({ t: 'quickMatch' }, 'queue');
+  const pr = p.wait('room', (m) => m.room && m.room.players.length === 2);
+  near.send({ t: 'quickMatch' });
+  const pair = (await pr).room;
+  assert.deepStrictEqual(new Set(pair.players.map((x) => x.id)), new Set([p.me.id, near.me.id]));
+  assert.ok(app.hub.queue.has(hi.me.id), 'người Elo xa vẫn chờ');
+  // Chờ lâu thì khoảng chênh được nới ra: 2400 ghép được với người 1200
+  const g = await Client.open();
+  const hr = hi.wait('room', (m) => m.room && m.room.players.length === 2, 3000);
+  g.send({ t: 'quickMatch' });
+  assert.ok((await hr).room.quick);
+  // Đang chờ trận mới mà cùng đối thủ cũ tái đấu: thôi tìm trận
+  await p.req({ t: 'resign' }, 'room', (m) => !!m.room.winner);
+  await p.req({ t: 'quickMatch' }, 'queue', (m) => m.state === 'searching');
+  await near.req({ t: 'rematch' }, 'room');
+  const idle = p.wait('queue', (m) => m.state === 'idle');
+  await p.req({ t: 'rematch' }, 'room', (m) => m.room.gameNo === 2);
+  await idle;
+
+  // Đã chặn nhau thì không bao giờ ghép
+  const x = await account('qm_x'), y = await account('qm_y');
+  await x.req({ t: 'block', id: y.me.uid }, 'me', (m) => m.me.blocked.length === 1);
+  await x.req({ t: 'quickMatch' }, 'queue');
+  await y.req({ t: 'quickMatch' }, 'queue');
+  await sleep(300);
+  assert.ok(!x.room && !y.room);
+  await y.req({ t: 'logout' }, 'loggedOut');
+  assert.ok(!app.hub.queue.has(y.me.id), 'đăng xuất: bỏ khỏi hàng chờ');
+  await x.req({ t: 'quickCancel' }, 'queue', (m) => m.state === 'idle');
+  [p, hi, near, g, x, y].forEach((k) => k.close());
+});
+
+test('phòng công khai: hiện trong sảnh, vào không cần mật khẩu, đầy / chủ phòng offline thì ẩn', async () => {
+  const w = await Client.open({ guestName: 'Xem sảnh' });
+  const first = await w.req({ t: 'lobbyWatch', on: true }, 'lobby');
+  assert.deepStrictEqual(first.rooms, []);
+  const h = await Client.open({ guestName: 'Chủ phòng' });
+  const listed = w.wait('lobby', (m) => m.rooms.length === 1);
+  await h.req({ t: 'createRoom', timeLimit: 20, public: true }, 'room');
+  assert.ok(h.room.public);
+  const entry = (await listed).rooms[0];
+  assert.strictEqual(entry.code, h.room.code);
+  assert.strictEqual(entry.timeLimit, 20);
+  assert.strictEqual(entry.host.name, 'Chủ phòng');
+  assert.strictEqual(entry.password, undefined, 'sảnh không lộ mật khẩu');
+  assert.deepStrictEqual((await h.req({ t: 'lobby' }, 'lobby')).rooms, [], 'không thấy phòng của chính mình');
+
+  // Phòng riêng không hiện trong sảnh
+  const priv = await Client.open();
+  await priv.req({ t: 'createRoom' }, 'room');
+  await sleep(80);
+  assert.strictEqual(w.msgs.filter((m) => m.t === 'lobby').pop().rooms.length, 1);
+
+  // Vào không cần mật khẩu -> đầy -> biến khỏi sảnh; đối thủ rời -> hiện lại
+  const j = await Client.open({ guestName: 'Khách vào' });
+  const gone = w.wait('lobby', (m) => m.rooms.length === 0);
+  await j.req({ t: 'joinRoom', code: entry.code }, 'room', (m) => m.room.players.length === 2);
+  await gone;
+  const back = w.wait('lobby', (m) => m.rooms.length === 1);
+  j.send({ t: 'leaveRoom' });
+  await back;
+
+  // Chủ phòng chặn người xem: người đó không thấy phòng và không vào được
+  const ha = await account('lob_host'), va = await account('lob_view');
+  await ha.req({ t: 'block', id: va.me.uid }, 'me', (m) => m.me.blocked.length === 1);
+  await ha.req({ t: 'createRoom', public: true }, 'room');
+  const seen = (await va.req({ t: 'lobby' }, 'lobby')).rooms.map((r) => r.code);
+  assert.ok(seen.includes(entry.code) && !seen.includes(ha.room.code));
+  const blk = await va.req({ t: 'joinRoom', code: ha.room.code }, 'error');
+  assert.strictEqual(blk.code, 'blocked');
+
+  // Chủ phòng mất kết nối -> ẩn; tắt xem sảnh thì không nhận nữa
+  const hidden = w.wait('lobby', (m) => !m.rooms.some((r) => r.code === entry.code));
+  h.close();
+  await hidden;
+  w.send({ t: 'lobbyWatch', on: false });
+  await sleep(30);
+  const n = w.msgs.length;
+  ha.send({ t: 'leaveRoom' });
+  await sleep(120);
+  assert.strictEqual(w.msgs.filter((m) => m.t === 'lobby').length, w.msgs.slice(0, n).filter((m) => m.t === 'lobby').length);
+  [w, priv, j, ha, va].forEach((k) => k.close());
+});
+
+test('chỉ tin X-Forwarded-For khi kết nối đến từ proxy (chính máy chủ / mạng nội bộ), không tin IP Internet', () => {
+  const { fromProxy } = require('../server.js');
+  for (const a of ['127.0.0.1', '::1', '::ffff:127.0.0.1', '10.0.0.4', '172.17.0.1', '172.31.255.1', '192.168.1.2', 'fd00::1', 'fc12:3::1']) {
+    assert.strictEqual(fromProxy(a), true, a);
+  }
+  for (const a of ['8.8.8.8', '::ffff:20.1.2.3', '172.32.0.1', '172.15.0.1', '11.0.0.1', '2001:db8::1', 'fe80::1', '', undefined]) {
+    assert.strictEqual(fromProxy(a), false, String(a));
+  }
 });

@@ -14,9 +14,11 @@ const crypto = require('crypto');
 // node:sqlite còn gắn nhãn "experimental" trong Node 22 nên in 1 dòng cảnh báo khi khởi động.
 // Các lệnh chạy (npm start, Dockerfile, caro.service) dùng --disable-warning=ExperimentalWarning để ẩn.
 const { DatabaseSync } = require('node:sqlite');
+const { upgradePools } = require('./rating.js');
 
 const SESSION_TTL = 180 * 24 * 3600 * 1000;
 const HISTORY_PER_USER = 10;
+const RATING_POINTS_PER_USER = 400; // điểm vẽ biểu đồ trên trang hồ sơ
 const DM_PER_PAIR = 100;
 // Chỉ lưu mã băm của token: lộ file dữ liệu cũng không dùng được để đăng nhập.
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -45,7 +47,16 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, reporter TEXT, target TEXT, reason TEXT,
     context TEXT, created INTEGER);
   CREATE TABLE IF NOT EXISTS resets (uid TEXT PRIMARY KEY, code_hash TEXT NOT NULL, expires INTEGER NOT NULL, tries INTEGER DEFAULT 0);
+  CREATE TABLE IF NOT EXISTS clubs (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS tours (id TEXT PRIMARY KEY, status TEXT NOT NULL, created INTEGER NOT NULL, data TEXT NOT NULL);
+  CREATE INDEX IF NOT EXISTS tours_status ON tours (status, created);
+  CREATE TABLE IF NOT EXISTS rating_hist (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT NOT NULL, pool TEXT NOT NULL,
+    at INTEGER NOT NULL, r INTEGER NOT NULL);
+  CREATE INDEX IF NOT EXISTS rating_hist_uid ON rating_hist (uid, id);
+  CREATE INDEX IF NOT EXISTS games_pair ON games (x_id, o_id, id);
 `;
+// Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
+const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT']];
 
 class Store {
   /**
@@ -56,11 +67,16 @@ class Store {
     if (file) fs.mkdirSync(path.dirname(file), { recursive: true });
     this.db = new DatabaseSync(file || ':memory:');
     this.db.exec(SCHEMA);
+    for (const [table, col, type] of ADD_COLUMNS) {
+      const has = this.db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+      if (!has) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+    }
     this.users = new Map(); // id -> user
     this.byUsername = new Map();
     this.byGoogle = new Map();
     this.byEmail = new Map();
     this.dirty = new Set();
+    this.dirtyDocs = new Map(); // 'club:id' / 'tour:id' -> bản ghi câu lạc bộ / giải đấu cần ghi
     this.timer = null;
     const q = (sql) => this.db.prepare(sql);
     this.q = {
@@ -69,15 +85,17 @@ class Store {
       getSession: q('SELECT uid, created FROM sessions WHERE hash = ?'),
       dropSession: q('DELETE FROM sessions WHERE hash = ?'),
       dropUserSessions: q('DELETE FROM sessions WHERE uid = ? AND hash <> ?'),
-      addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves) VALUES (?,?,?,?,?,?,?,?,?,?,?)'),
+      addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves, clock, opening) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'),
       linkGame: q('INSERT OR IGNORE INTO user_games (uid, game_id) VALUES (?, ?)'),
       oldGames: q('SELECT game_id FROM user_games WHERE uid = ? ORDER BY game_id DESC LIMIT -1 OFFSET ?'),
       unlinkGame: q('DELETE FROM user_games WHERE uid = ? AND game_id = ?'),
       gameRefs: q('SELECT COUNT(*) AS n FROM user_games WHERE game_id = ?'),
       dropGame: q('DELETE FROM games WHERE id = ?'),
-      history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
+      history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.clock, g.opening, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
         json_array_length(g.moves) AS moves FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? ORDER BY g.id DESC LIMIT ?`),
       gameByShare: q('SELECT * FROM games WHERE share = ?'),
+      pairGames: q(`SELECT * FROM (SELECT id, x_id, o_id, winner, moves FROM games WHERE x_id = ? AND o_id = ?
+        UNION ALL SELECT id, x_id, o_id, winner, moves FROM games WHERE x_id = ? AND o_id = ?) ORDER BY id DESC LIMIT ?`),
       getH2h: q('SELECT a_wins, b_wins, draws FROM h2h WHERE a = ? AND b = ?'),
       addH2h: q(`INSERT INTO h2h (a, b, a_wins, b_wins, draws) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(a, b) DO UPDATE SET a_wins = a_wins + excluded.a_wins, b_wins = b_wins + excluded.b_wins, draws = draws + excluded.draws`),
@@ -102,6 +120,12 @@ class Store {
       getReset: q('SELECT code_hash, expires, tries FROM resets WHERE uid = ?'),
       bumpReset: q('UPDATE resets SET tries = tries + 1 WHERE uid = ?'),
       dropReset: q('DELETE FROM resets WHERE uid = ?'),
+      upsertClub: q('INSERT INTO clubs (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data'),
+      dropClub: q('DELETE FROM clubs WHERE id = ?'),
+      addPoint: q('INSERT INTO rating_hist (uid, pool, at, r) VALUES (?, ?, ?, ?)'),
+      prunePoints: q('DELETE FROM rating_hist WHERE uid = ? AND id <= (SELECT id FROM rating_hist WHERE uid = ? ORDER BY id DESC LIMIT 1 OFFSET ?)'),
+      points: q('SELECT pool, at, r FROM rating_hist WHERE uid = ? ORDER BY id'),
+      upsertTour: q('INSERT INTO tours (id, status, created, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data'),
     };
     for (const row of this.db.prepare('SELECT data FROM users').all()) this.index(this.upgrade(JSON.parse(row.data)));
     this.db.prepare('DELETE FROM sessions WHERE created < ?').run(Date.now() - SESSION_TTL);
@@ -118,6 +142,9 @@ class Store {
     if (typeof u.rating !== 'number') u.rating = 1200;
     if (typeof u.rated !== 'number') u.rated = 0; // số trận đã tính Elo
     u.email = u.email || '';
+    upgradePools(u); // điểm Glicko-2 theo loại thời gian (tài khoản cũ: bắt đầu từ Elo cũ)
+    u.wstreak = { cur: 0, best: 0, ...(u.wstreak || {}) }; // chuỗi thắng
+    u.tours = { played: 0, won: 0, podium: 0, ...(u.tours || {}) }; // thành tích giải đấu
     return u;
   }
 
@@ -153,6 +180,10 @@ class Store {
   /** Đánh dấu tài khoản đã thay đổi; ghi xuống đĩa sau ~300ms (gom nhiều thay đổi một lần). */
   touch(...users) {
     for (const u of users) if (u) this.dirty.add(u);
+    this.schedule();
+  }
+
+  schedule() {
     if (!this.timer) {
       this.timer = setTimeout(() => this.flush(), 300);
       this.timer.unref?.();
@@ -162,17 +193,58 @@ class Store {
   flush() {
     clearTimeout(this.timer);
     this.timer = null;
-    if (!this.dirty.size) return;
+    if (!this.dirty.size && !this.dirtyDocs.size) return;
     const list = [...this.dirty];
+    const docs = [...this.dirtyDocs.entries()];
     this.dirty.clear();
+    this.dirtyDocs.clear();
     this.db.exec('BEGIN');
     try {
       for (const u of list) this.q.upsertUser.run(u.id, u.username, JSON.stringify(u));
+      for (const [key, d] of docs) {
+        if (key.startsWith('club:')) this.q.upsertClub.run(d.id, JSON.stringify(d));
+        else this.q.upsertTour.run(d.id, d.status, d.created, JSON.stringify(d));
+      }
       this.db.exec('COMMIT');
     } catch (e) {
       this.db.exec('ROLLBACK');
       throw e;
     }
+  }
+
+  /**
+   * Xoá hẳn một tài khoản và dữ liệu cá nhân: phiên đăng nhập, tin nhắn, đối đầu, mã khôi phục…
+   * Ván đã chơi với người khác vẫn còn trong lịch sử của họ nhưng bỏ tên và id của người bị xoá.
+   * Báo cáo người khác gửi VỀ tài khoản này được giữ lại cho quản trị viên (ghi trong chính sách).
+   */
+  deleteUser(u) {
+    const id = u.id;
+    this.dirty.delete(u);
+    this.db.exec('BEGIN');
+    try {
+      const run = (sql, ...args) => this.db.prepare(sql).run(...args);
+      run('DELETE FROM users WHERE id = ?', id);
+      run('DELETE FROM sessions WHERE uid = ?', id);
+      run("UPDATE games SET x_id = NULL, x_name = '' WHERE x_id = ?", id);
+      run("UPDATE games SET o_id = NULL, o_name = '' WHERE o_id = ?", id);
+      run('DELETE FROM user_games WHERE uid = ?', id);
+      run('DELETE FROM games WHERE id NOT IN (SELECT game_id FROM user_games)');
+      run('DELETE FROM h2h WHERE a = ? OR b = ?', id, id);
+      run('DELETE FROM dm WHERE a = ? OR b = ?', id, id);
+      run('DELETE FROM dm_read WHERE uid = ? OR peer = ?', id, id);
+      run('DELETE FROM resets WHERE uid = ?', id);
+      run('DELETE FROM rated_pairs WHERE a = ? OR b = ?', id, id);
+      run('DELETE FROM rating_hist WHERE uid = ?', id);
+      run('DELETE FROM reports WHERE reporter = ?', id);
+      this.db.exec('COMMIT');
+    } catch (e) {
+      this.db.exec('ROLLBACK');
+      throw e;
+    }
+    this.users.delete(id);
+    if (this.byUsername.get(u.username) === u) this.byUsername.delete(u.username);
+    if (u.google && this.byGoogle.get(u.google.sub) === u) this.byGoogle.delete(u.google.sub);
+    if (u.email && this.byEmail.get(u.email) === u) this.byEmail.delete(u.email);
   }
 
   close() {
@@ -239,11 +311,11 @@ class Store {
 
   // ------------------------------------------------------------ Trận đấu
   /** Lưu một ván đã kết thúc; xId/oId là id tài khoản (null nếu là khách). Trả về mã chia sẻ. */
-  recordGame({ kind, timeLimit, xId, oId, xName, oName, winner, reason, moves }) {
+  recordGame({ kind, timeLimit, clock = null, opening = 'free', xId, oId, xName, oName, winner, reason, moves }) {
     if (!xId && !oId) return null;
     const share = crypto.randomBytes(8).toString('base64url');
     const { lastInsertRowid } = this.q.addGame.run(share, Date.now(), kind, timeLimit || 0, xId || null, oId || null,
-      xName, oName, winner, reason, JSON.stringify(moves));
+      xName, oName, winner, reason, JSON.stringify(moves), clock || null, opening || 'free');
     const id = Number(lastInsertRowid);
     for (const uid of new Set([xId, oId].filter(Boolean))) {
       this.q.linkGame.run(uid, id);
@@ -265,6 +337,26 @@ class Store {
     const g = this.q.gameByShare.get(share);
     if (!g) return null;
     return { ...g, moves: JSON.parse(g.moves) };
+  }
+
+  /** n ván gần nhất giữa 2 tài khoản (mới nhất trước): [{ winnerId, moves }] – chống cày điểm bằng ván lặp lại. */
+  pairGames(a, b, n = 2) {
+    return this.q.pairGames.all(a, b, b, a, n).map((g) => ({
+      winnerId: g.winner === 1 ? g.x_id : g.winner === 2 ? g.o_id : null, moves: JSON.parse(g.moves),
+    }));
+  }
+
+  // ------------------------------------------------------------ Biểu đồ điểm
+  addRatingPoint(uid, pool, r, at = Date.now()) {
+    this.q.addPoint.run(uid, pool, at, Math.round(r));
+    this.q.prunePoints.run(uid, uid, RATING_POINTS_PER_USER);
+  }
+
+  /** { pool: [[thời điểm, điểm], ...] } */
+  ratingPoints(uid) {
+    const out = {};
+    for (const p of this.q.points.all(uid)) (out[p.pool] = out[p.pool] || []).push([p.at, p.r]);
+    return out;
   }
 
   // ------------------------------------------------------------ Đối đầu
@@ -326,6 +418,34 @@ class Store {
 
   reports(limit = 100) {
     return this.q.listReports.all(limit);
+  }
+
+  // ------------------------------------------------------------ Câu lạc bộ & giải đấu
+  /** Mọi câu lạc bộ (số lượng nhỏ, giữ trong bộ nhớ). */
+  loadClubs() {
+    return this.db.prepare('SELECT data FROM clubs').all().map((r) => JSON.parse(r.data));
+  }
+
+  saveClub(c) {
+    this.dirtyDocs.set('club:' + c.id, c);
+    this.schedule();
+  }
+
+  dropClub(id) {
+    this.dirtyDocs.delete('club:' + id);
+    this.q.dropClub.run(id);
+  }
+
+  /** Giải chưa kết thúc + các giải đã xong gần đây nhất. */
+  loadTours(recentDone = 100) {
+    const active = this.db.prepare("SELECT data FROM tours WHERE status IN ('pending', 'scheduled', 'running')").all();
+    const done = this.db.prepare("SELECT data FROM tours WHERE status NOT IN ('pending', 'scheduled', 'running') ORDER BY created DESC LIMIT ?").all(recentDone);
+    return [...active, ...done].map((r) => JSON.parse(r.data));
+  }
+
+  saveTour(t) {
+    this.dirtyDocs.set('tour:' + t.id, t);
+    this.schedule();
   }
 
   // ------------------------------------------------------------ Đặt lại mật khẩu

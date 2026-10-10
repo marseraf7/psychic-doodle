@@ -1,26 +1,64 @@
-# Chép vào /etc/systemd/system/caro.service rồi: systemctl enable --now caro
+# Dịch vụ Cờ Caro (systemd). install.sh tự cài file này; cài tay thì:
+#   chép vào /etc/systemd/system/caro.service, tạo /etc/caro/caro.env (xem caro.env.example), rồi
+#   systemctl daemon-reload && systemctl enable --now caro
+# Kiểm tra mức cách ly: systemd-analyze security caro
 [Unit]
 Description=Co Caro online
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=caro
+Group=caro
 WorkingDirectory=/opt/caro/server
-ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning server.js
+# Giới hạn bộ nhớ heap của Node (đo thực tế: ~130 MB với 3 giải 512 người cùng 512 người xem)
+ExecStart=/usr/bin/node --disable-warning=ExperimentalWarning --max-old-space-size=384 server.js
 Restart=always
 RestartSec=3
 Environment=PORT=8080
+# Chỉ nghe trong máy: người ngoài phải đi qua Caddy (HTTPS), không gọi thẳng được cổng 8080
+Environment=HOST=127.0.0.1
 Environment=DATA_DIR=/var/lib/caro
 Environment=TRUST_PROXY=1
-# Bỏ dấu # và điền Client ID nếu bật đăng nhập Google:
-#Environment=GOOGLE_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
+# Cấu hình riêng + bí mật (ADMIN_USERNAMES, GOOGLE_CLIENT_ID, SMTP_URL…): chỉ root đọc được (chmod 600).
+# Không ghi bí mật vào file này – file dịch vụ ai trên máy cũng đọc được.
+EnvironmentFile=-/etc/caro/caro.env
 
-# Giới hạn quyền của tiến trình
+# ---- Tài nguyên: để máy 1 GB RAM không bị treo nếu có sự cố
+MemoryMax=600M
+TasksMax=128
+LimitNOFILE=65536
+
+# ---- Cách ly tiến trình: chỉ được ghi vào thư mục dữ liệu, không có quyền đặc biệt nào
+ReadWritePaths=/var/lib/caro
+UMask=0077
 NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/var/lib/caro
+PrivateDevices=true
+PrivateUsers=true
+ProtectProc=invisible
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+# Chỉ mạng IPv4/IPv6 (và socket cục bộ). Cần ra ngoài cho đăng nhập Google / gửi email nên không chặn IP.
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallErrorNumber=EPERM
+# Không dùng MemoryDenyWriteExecute: Node (V8) cần sinh mã máy lúc chạy.
 
 [Install]
 WantedBy=multi-user.target

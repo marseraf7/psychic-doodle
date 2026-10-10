@@ -1,0 +1,192 @@
+# Dựng ứng dụng Cờ Caro cho Android và iOS, và kiểm thử chơi chéo app ⟷ web trên máy ảo Android thật.
+#
+# Tuỳ chọn trong Settings → Secrets and variables → Actions (xem app/README.md):
+#   Variables: CARO_SERVER_URL (mặc định https://caroxo.duckdns.org)
+#   Secrets:   CARO_KEYSTORE_BASE64, CARO_KEYSTORE_PASSWORD, CARO_KEY_ALIAS, CARO_KEY_PASSWORD (ký bản Android phát hành)
+name: App Caro (Android / iOS)
+
+on:
+  push:
+    paths: ['app/**', 'caro/**', 'server/**', '.github/workflows/app.yml']
+  pull_request:
+    paths: ['app/**', 'caro/**', 'server/**', '.github/workflows/app.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android – dựng APK / AAB
+    runs-on: ubuntu-latest
+    env:
+      CARO_SERVER_URL: ${{ vars.CARO_SERVER_URL }}
+      CARO_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Cài thư viện, dựng giao diện, đồng bộ Android
+        working-directory: app
+        run: |
+          npm ci
+          npm run build:web
+          npx cap sync android
+      - name: Chuẩn bị khoá ký (nếu có)
+        env:
+          KEYSTORE_BASE64: ${{ secrets.CARO_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/caro.jks"
+            echo "CARO_KEYSTORE_FILE=$RUNNER_TEMP/caro.jks" >> "$GITHUB_ENV"
+          else
+            echo "Chưa có khoá ký: bản release sẽ chưa ký (chỉ dùng bản debug để cài thử)."
+          fi
+      - name: Dựng APK debug + APK/AAB release
+        working-directory: app/android
+        env:
+          CARO_KEYSTORE_PASSWORD: ${{ secrets.CARO_KEYSTORE_PASSWORD }}
+          CARO_KEY_ALIAS: ${{ secrets.CARO_KEY_ALIAS }}
+          CARO_KEY_PASSWORD: ${{ secrets.CARO_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease
+      - name: Kiểm tra gói APK
+        run: |
+          APK=app/android/app/build/outputs/apk/debug/app-debug.apk
+          ls -la app/android/app/build/outputs/apk/*/ app/android/app/build/outputs/bundle/release/
+          AAPT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt"
+          "$AAPT" dump badging "$APK" | grep -E "^(package|sdkVersion|targetSdkVersion|application-label):"
+          unzip -l "$APK" | grep -E "assets/public/(index.html|config.js|native.js|vendor/capacitor.js)"
+          unzip -p "$APK" assets/public/config.js
+      - uses: actions/upload-artifact@v7
+        with:
+          name: caro-android
+          path: |
+            app/android/app/build/outputs/apk/debug/app-debug.apk
+            app/android/app/build/outputs/apk/release/*.apk
+            app/android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
+
+  android-e2e:
+    # Android 14 (API 34) và Android 15 (API 35 – bắt buộc tràn viền): kiểm tra thanh hệ thống, bàn phím
+    name: Android ${{ matrix.api }} – chơi chéo app ⟷ web trên máy ảo
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [34, 35]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Dựng bản thử nghiệm (máy chủ http://10.0.2.2:8790 = máy chạy CI nhìn từ máy ảo)
+        working-directory: app
+        env:
+          CARO_APP_TEST: '1'
+          CARO_SERVER_URL: http://10.0.2.2:8790
+        run: |
+          npm ci
+          npm run build:web
+          npx cap sync android
+          cd android && ./gradlew --no-daemon assembleDebug
+      - name: Chạy máy chủ game
+        run: |
+          cd server && npm ci
+          mkdir -p "$RUNNER_TEMP/caro-data"
+          PORT=8790 DATA_DIR="$RUNNER_TEMP/caro-data" ADMIN_USERNAMES=web_1 nohup node --disable-warning=ExperimentalWarning server.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:8790/healthz && break; sleep 1; done
+      - name: Cài Playwright
+        working-directory: app
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Bật KVM cho máy ảo
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Máy ảo Android + kiểm thử
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          SHOTS_DIR: ${{ runner.temp }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: app
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            node tests/android-e2e.js
+      - name: Nhật ký máy chủ
+        if: always()
+        run: cat "$RUNNER_TEMP/server.log" || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: android-${{ matrix.api }}-e2e-screenshots
+          path: ${{ runner.temp }}/*.png
+          if-no-files-found: ignore
+
+  ios:
+    name: iOS – dựng cho máy ảo + mở thử
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      CARO_SERVER_URL: ${{ vars.CARO_SERVER_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Cài thư viện, dựng giao diện, đồng bộ iOS
+        working-directory: app
+        run: |
+          npm ci
+          npm run build:web
+          npx cap sync ios
+      - name: Dựng app cho iOS Simulator (không cần tài khoản Apple)
+        working-directory: app/ios/App
+        run: |
+          xcodebuild -version
+          xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -30
+          test -d build/Build/Products/Debug-iphonesimulator/App.app
+      - name: Mở app trên iPhone ảo và chụp màn hình
+        working-directory: app/ios/App
+        timeout-minutes: 12
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in d.items() if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          echo "Simulator: $UDID"
+          xcrun simctl boot "$UDID" || true
+          # Chờ máy ảo khởi động xong (tối đa ~4 phút), không dùng bootstatus vì có thể treo
+          for i in $(seq 1 120); do
+            if xcrun simctl list devices | grep "$UDID" | grep -q Booted; then echo "Booted sau ${i}x2 giây"; break; fi
+            sleep 2
+          done
+          xcrun simctl list devices | grep "$UDID"
+          xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl launch "$UDID" io.github.marseraf7.caro
+          sleep 25
+          xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/ios-launch.png"
+          # App phải vẫn đang chạy (không bị thoát do lỗi)
+          xcrun simctl spawn "$UDID" launchctl list | grep io.github.marseraf7.caro
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: caro-ios-simulator
+          path: |
+            ${{ runner.temp }}/ios-launch.png

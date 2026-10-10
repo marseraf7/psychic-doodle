@@ -39,13 +39,16 @@
       const how = g.reason && !['win', 'draw'].includes(g.reason) ? ' · ' + T('end_' + g.reason) : '';
       return `<li>
         <span class="res ${g.result}">${esc(T('res_' + g.result))}</span>
-        <div class="pn"><b>${esc(T('vs', { name: g.opponent }))}</b>
+        <div class="pn"><b>${esc(T('vs', { name: g.opponent || T('deleted_player') }))}</b>
           <small>${esc(when(g.created))} · ${esc(T('n_moves', { n: g.moves }))}${esc(how)}</small></div>
         <button type="button" class="ghost sm icon" data-share="${i}" title="${esc(T('share_game'))}" aria-label="${esc(T('share_game'))}">↗</button>
         <button type="button" class="primary sm" data-replay="${i}">▶ ${esc(T('replay'))}</button>
       </li>`;
     }).join('');
-    const names = (g) => (g.mySide === 1 ? { x: S.me.name, o: g.opponent } : { x: g.opponent, o: S.me.name });
+    const names = (g) => {
+    const opp = g.opponent || T('deleted_player');
+    return g.mySide === 1 ? { x: S.me.name, o: opp } : { x: opp, o: S.me.name };
+  };
     el.querySelectorAll('[data-replay]').forEach((b) => { b.onclick = () => N.openReplay(games[b.dataset.replay].share); });
     el.querySelectorAll('[data-share]').forEach((b) => {
       b.onclick = () => { const g = games[b.dataset.share]; N.shareReplay({ share: g.share, ...names(g) }); };
@@ -55,25 +58,30 @@
 
   // ------------------------------------------------------------ Bảng xếp hạng
   let board = null;
+  const lbPool = () => (document.querySelector('input[name="lb-pool"]:checked') || {}).value || '';
   function openLeaderboard() {
     board = null;
     renderLeaderboard();
     N.openDlg('leaderboard');
-    N.send({ t: 'leaderboard' });
+    N.send({ t: 'leaderboard', pool: lbPool() || undefined });
   }
+  // Chọn loại thời gian (Siêu chớp / Chớp / Nhanh / Chậm) như Lichess
+  document.querySelectorAll('input[name="lb-pool"]').forEach((r) => {
+    r.onchange = () => { board = null; renderLeaderboard(); N.send({ t: 'leaderboard', pool: lbPool() || undefined }); };
+  });
   function renderLeaderboard() {
     const el = $('lb-list');
     const meUid = S.me && S.me.uid;
-    $('lb-me').textContent = board && board.me ? T('lb_you', board.me) : '';
+    $('lb-me').textContent = board && board.me ? T('lb_you', board.me) : board && board.unranked ? T('lb_unranked', board.unranked) : '';
     if (!board) { el.innerHTML = `<li class="empty">…</li>`; return; }
     if (!board.top.length) { el.innerHTML = `<li class="empty">${esc(T('lb_empty'))}</li>`; return; }
     const medal = ['🥇', '🥈', '🥉'];
     el.innerHTML = board.top.map((u) => `<li class="${u.id === meUid ? 'me' : ''}">
         <span class="rank">${u.rank <= 3 ? medal[u.rank - 1] : '#' + u.rank}</span>
-        <div class="pn"><b>${esc(u.name)}</b><small>@${esc(u.username)} · ${esc(T('lb_games', { n: u.games }))}</small></div>
+        <div class="pn"><b><a href="#" class="plink" data-profile="${esc(u.id)}">${esc(u.name)}</a></b><small>@${esc(u.username)} · ${esc(T('lb_games', { n: u.games }))}</small></div>
         <b class="pts">${u.rating}</b></li>`).join('');
   }
-  N.on('leaderboard', (m) => { board = m; renderLeaderboard(); });
+  N.on('leaderboard', (m) => { if ((m.pool || '') === lbPool()) { board = m; renderLeaderboard(); } });
 
   // ------------------------------------------------------------ Nhắn tin bạn bè
   const chat = { peer: null, msgs: [], more: false };
@@ -192,6 +200,8 @@
     fillAccount();
     ['pw-err', 'email-err'].forEach((id) => { $(id).textContent = ''; });
     $('pw-form').reset();
+    $('delete-form').reset();
+    $('delete-err').textContent = '';
     $('email-form').email.value = (S.me && S.me.email) || '';
     $('email-form').password.value = '';
     N.openDlg('account-dlg');
@@ -215,7 +225,21 @@
       ? list.map((b) => `<li><div class="pn"><b>${esc(b.name)}</b></div><button type="button" class="ghost sm" data-unblock="${esc(b.id)}">${esc(T('unblock'))}</button></li>`).join('')
       : `<li class="empty">${esc(T('no_blocked'))}</li>`;
     $('blocked-list').querySelectorAll('[data-unblock]').forEach((b) => { b.onclick = () => N.send({ t: 'unblock', id: b.dataset.unblock }); });
+    // Xoá tài khoản: có mật khẩu thì nhập mật khẩu, chỉ có Google thì gõ lại tên đăng nhập
+    const secret = $('delete-form').secret;
+    $('delete-label').textContent = has ? T('current_password') : T('delete_label_user', { username: me.username });
+    secret.type = has ? 'password' : 'text';
+    secret.autocomplete = has ? 'current-password' : 'off';
   }
+  $('delete-form').onsubmit = (e) => {
+    e.preventDefault();
+    const me = S.me;
+    if (!me || me.guest) return;
+    $('delete-err').textContent = '';
+    if (!confirm(T('delete_confirm_q'))) return;
+    const v = e.target.secret.value;
+    N.send(me.hasPassword ? { t: 'deleteAccount', password: v } : { t: 'deleteAccount', confirm: v });
+  };
   $('pw-form').onsubmit = (e) => {
     e.preventDefault();
     const f = e.target;
@@ -330,6 +354,7 @@
       changePassword: ['account-dlg', 'pw-err'],
       setEmail: ['account-dlg', 'email-err'],
       verifyEmail: ['account-dlg', 'email-err'],
+      deleteAccount: ['account-dlg', 'delete-err'],
       forgot: ['forgot', 'forgot-err'],
       reset: ['forgot', 'forgot-err'],
     };

@@ -240,11 +240,23 @@
    * Tìm nước đầu của một chuỗi ép thắng cho p (giả sử đối thủ không có nước thắng ngay).
    * depth: số nước tấn công tối đa. ctx.deadline: hết giờ thì bỏ cuộc (trả null).
    */
+  // Lọc nhanh: đánh vào (x,y) chỉ có thể tạo đe doạ nếu trên 1 đường có ≥ 2 quân p trong 4 ô mỗi bên (chưa bị chặn).
+  function couldThreat(board, x, y, p) {
+    for (const [dx, dy] of DIRS) {
+      let n = 0;
+      for (let k = 1; k <= 4; k++) { const v = board.get(x + k * dx, y + k * dy); if (v === p) n++; else if (v !== EMPTY) break; }
+      for (let k = 1; k <= 4; k++) { const v = board.get(x - k * dx, y - k * dy); if (v === p) n++; else if (v !== EMPTY) break; }
+      if (n >= 2) return true;
+    }
+    return false;
+  }
+
   function vcf(board, p, depth, ctx) {
     if (depth <= 0 || Date.now() > ctx.deadline) return null;
     const opp = other(p);
     const threats = [];
     for (const [x, y] of candidates(board, 2)) {
+      if (!couldThreat(board, x, y, p)) continue;
       board.put(x, y, p);
       const W = winCellsAround(board, x, y, p);
       board.remove(x, y);
@@ -274,9 +286,12 @@
   /**
    * Chọn nước đi cho p.
    * level: 1 = Dễ, 2 = Vừa, 3 = Khó.
+   * opts (mức Khó): vcfDepth / vcfMs – độ sâu và thời gian tìm chuỗi ép của mình,
+   *                 defDepth / defMs – của đối thủ (để phá). Mặc định như trước: 5 / 450ms, 4 / 250ms.
    */
-  function chooseMove(board, p, level, rng) {
+  function chooseMove(board, p, level, rng, opts) {
     rng = rng || Math.random;
+    const o = { vcfDepth: 5, vcfMs: 450, defDepth: 4, defMs: 250, ...(opts || {}) };
     const opp = other(p);
     const cands = candidates(board, 2);
     if (board.moves.length === 0) return [0, 0];
@@ -317,10 +332,10 @@
 
     // 4. Khó: tìm chuỗi nước ép sâu hơn cho mình, và phá chuỗi ép của đối thủ.
     if (level >= 3) {
-      const ctx = { deadline: Date.now() + 450 };
-      const mine = vcf(board, p, 5, ctx);
+      const ctx = { deadline: Date.now() + o.vcfMs };
+      const mine = vcf(board, p, o.vcfDepth, ctx);
       if (mine) return mine;
-      const theirs = vcf(board, opp, 4, { deadline: Date.now() + 250 });
+      const theirs = vcf(board, opp, o.defDepth, { deadline: Date.now() + o.defMs });
       if (theirs) {
         // Thử các nước tốt nhất + ô mở đầu chuỗi của đối thủ; chọn nước làm chuỗi ép của họ không còn.
         const tries = [theirs, ...scored.slice(0, 10).map((o) => o.c)];
@@ -328,7 +343,7 @@
         for (const c of tries) {
           if (board.get(c[0], c[1]) !== EMPTY) continue;
           board.put(c[0], c[1], p);
-          const still = Date.now() < budget && vcf(board, opp, 4, { deadline: Math.min(budget, Date.now() + 80) });
+          const still = Date.now() < budget && vcf(board, opp, o.defDepth, { deadline: Math.min(budget, Date.now() + 80) });
           board.remove(c[0], c[1]);
           if (!still) return c;
         }
@@ -349,7 +364,10 @@
     return scored[0].c;
   }
 
-  const Caro = { EMPTY, X, O, DIRS, Board, key, other, lineWin, checkWin, winsIfPlaced, candidates, cellScore, forcesWin, vcf, chooseMove };
+  const Caro = {
+    EMPTY, X, O, DIRS, Board, key, other, lineWin, checkWin, winsIfPlaced, candidates, cellScore, forcesWin, vcf, chooseMove,
+    winCellsAround, blockingReplies,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = Caro;
   else global.Caro = Caro;
 })(typeof window !== 'undefined' ? window : globalThis);
