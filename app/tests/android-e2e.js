@@ -181,13 +181,15 @@ async function screenRect(app, sel) {
     });
     // Chạm thật của Android (adb input tap) vào giữa ô nhập: chạm giả lập qua DevTools đôi khi không
     // mở được bàn phím trên Android 15 (WebView bỏ qua hoặc chỉ làm mất focus), người dùng thật thì không gặp
-    {
-      const wv = webViewBounds();
-      const dpr = await app.evaluate(() => window.devicePixelRatio);
-      adb('shell', 'input', 'tap', String(Math.round(wv.l + inBox.x * dpr)), String(Math.round(wv.t + inBox.y * dpr)));
-    }
+    const wv = webViewBounds();
+    const dpr = await app.evaluate(() => window.devicePixelRatio);
+    const tapInput = () => adb('shell', 'input', 'tap', String(Math.round(wv.l + inBox.x * dpr)), String(Math.round(wv.t + inBox.y * dpr)));
     // Bàn phím thật sự đang hiện (mInputShown=true) – khung "ime" trong dumpsys window có thể là số liệu cũ
-    const ime = await until(() => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')) && systemBars().ime, 8000, 400);
+    const imeShownNow = () => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')) && systemBars().ime;
+    tapInput();
+    let ime = await until(imeShownNow, 8000, 400);
+    // Máy ảo Android 15 đôi khi bỏ qua lần chạm đầu (người dùng thật chạm lại): thử chạm thêm 1 lần
+    if (!ime) { console.log('Bàn phím chưa hiện sau lần chạm đầu – chạm lại'); tapInput(); ime = await until(imeShownNow, 8000, 400); }
     // Chẩn đoán: phần tử dưới điểm chạm, phần tử đang focus, Android có đang hiện bàn phím không
     const diag = await app.evaluate((p) => {
       const e = document.elementFromPoint(p.x, p.y), a = document.activeElement;
@@ -219,7 +221,12 @@ async function screenRect(app, sel) {
       adb('shell', 'input', 'keyevent', '4'); // Back lần 1: ẩn bàn phím
       await sleep(600);
     }
-    if (await app.evaluate(() => document.getElementById('chat').open)) adb('shell', 'input', 'keyevent', '4'); // Back: đóng hộp chat
+    // Back: đóng hộp chat. Bàn phím có thể hiện muộn (máy ảo Android 15 chậm) – khi đó lần Back đầu chỉ ẩn bàn phím,
+    // nên bấm lại tối đa 3 lần tới khi hộp chat đóng (người dùng thật cũng bấm Back lần nữa)
+    for (let k = 0; k < 3 && await app.evaluate(() => document.getElementById('chat').open); k++) {
+      adb('shell', 'input', 'keyevent', '4');
+      await until(() => app.evaluate(() => !document.getElementById('chat').open), 2500);
+    }
     check('Back đóng hộp chat', !!(await until(() => app.evaluate(() => !document.getElementById('chat').open), 5000)));
     await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
   }
