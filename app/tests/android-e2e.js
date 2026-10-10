@@ -27,7 +27,39 @@ async function until(fn, ms = 15000, step = 250) {
 const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
 const API = Number(adb('shell', 'getprop', 'ro.build.version.sdk').trim());
 const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/api${API}-${name}.png`]);
-/** ĐIỀU TRA (tạm thời): màn hình đang hiện gì – activity trên cùng, cửa sổ giữ focus, các gói / chữ trên màn hình. */
+/**
+ * Máy ảo trên CI rất yếu: ngay sau khi khởi động, màn hình chính (Pixel Launcher) có lúc bị treo và Android hiện hộp
+ * thoại "… isn't responding" đè lên app. Khi đó chạm / Back thật (adb input) rơi vào hộp thoại chứ không tới app
+ * (bàn phím không hiện, Back không đóng được hộp thoại của app…). Trước mỗi thao tác thật: bấm "Wait" để dẹp hộp thoại.
+ */
+const SYS_DIALOG = /Application Not Responding|isn't responding|has stopped|keeps stopping/;
+function systemDialog() {
+  try { return (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/) || [''])[0].match(SYS_DIALOG) ? true : false; } catch (e) { return false; }
+}
+function dismissSystemDialogs() {
+  for (let i = 0; i < 5 && systemDialog(); i++) {
+    console.log('Dẹp hộp thoại hệ thống: ' + (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/) || [''])[0].trim());
+    let done = false;
+    try {
+      adb('shell', 'uiautomator', 'dump', '/sdcard/sys.xml');
+      const xml = adb('shell', 'cat', '/sdcard/sys.xml');
+      // "Wait" giữ ứng dụng bị treo lại (không đóng Launcher); không có thì "Close app" / "OK"
+      const node = ['Wait', 'Close app', 'OK'].map((t) => xml.match(new RegExp(`text="${t}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`))).find(Boolean);
+      if (node) {
+        const [, l, t, r, b] = node.map(Number);
+        adb('shell', 'input', 'tap', String((l + r) >> 1), String((t + b) >> 1));
+        done = true;
+      }
+    } catch (e) { /* thử cách khác */ }
+    if (!done) adb('shell', 'input', 'keyevent', '4'); // không gọi pressBack(): tránh gọi lại chính hàm này
+    execFileSync('sleep', ['1']);
+  }
+}
+/** Chạm thật (màn hình máy ảo) – dẹp hộp thoại hệ thống trước. */
+function realTap(x, y) { dismissSystemDialogs(); adb('shell', 'input', 'tap', String(x), String(y)); }
+/** Nút Back thật – dẹp hộp thoại hệ thống trước (không thì Back chỉ đóng hộp thoại đó). */
+function pressBack() { dismissSystemDialogs(); adb('shell', 'input', 'keyevent', '4'); }
+/** Màn hình đang hiện gì – activity trên cùng, cửa sổ giữ focus, các gói / chữ trên màn hình (in khi kiểm tra thất bại). */
 function screenState() {
   const out = [];
   try { out.push((adb('shell', 'dumpsys', 'activity', 'activities').match(/topResumedActivity[^\n]*/) || [''])[0].trim()); } catch (e) { /* bỏ qua */ }
@@ -41,7 +73,7 @@ function screenState() {
   } catch (e) { out.push('uiautomator lỗi: ' + e.message.slice(0, 120)); }
   return out.join('\n  ');
 }
-/** ĐIỀU TRA (tạm thời): in nhật ký hệ thống Android liên quan tới app / WebView / bàn phím / cửa sổ. */
+/** In nhật ký hệ thống Android liên quan tới app / WebView / bàn phím / cửa sổ (khi test dừng vì lỗi). */
 function dumpLogcat(reason) {
   try {
     const re = /caro|chromium|cr_|AndroidRuntime|ActivityManager|ActivityTaskManager|WindowManager|InputMethod|ImeTracker|InputDispatcher|DEBUG|libc|WebView|died|ANR|lowmemory|lmkd|Capacitor/i;
@@ -136,8 +168,17 @@ async function screenRect(app, sel) {
   const [device] = await android.devices();
   if (!device) throw new Error('Không thấy máy ảo Android');
   console.log('Thiết bị:', device.model(), device.serial());
-  await device.shell(`am force-stop ${PKG}`);
-  await device.shell(`monkey -p ${PKG} -c android.intent.category.LAUNCHER 1`);
+  // Không để hộp thoại báo lỗi / "không phản hồi" của hệ thống che app (máy ảo CI chậm, vừa khởi động xong)
+  try { adb('shell', 'settings', 'put', 'global', 'hide_error_dialogs', '1'); } catch (e) { /* bản Android cũ */ }
+  // Mở app: dẹp hộp thoại hệ thống, mở, kiểm tra app đã lên trên cùng (thử tối đa 3 lần)
+  const onTop = () => { try { return adb('shell', 'dumpsys', 'activity', 'activities').match(/topResumedActivity[^\n]*/)?.[0].includes(PKG); } catch (e) { return false; } };
+  for (let i = 0; i < 3; i++) {
+    dismissSystemDialogs();
+    await device.shell(`am force-stop ${PKG}`);
+    await device.shell(`monkey -p ${PKG} -c android.intent.category.LAUNCHER 1`);
+    if (await until(() => onTop() && !systemDialog(), 20000, 500)) break;
+    console.log('App chưa lên màn hình – mở lại:\n  ' + screenState());
+  }
   const webview = await device.webView({ pkg: PKG }, { timeout: 60000 });
   const app = await webview.page();
   const errors = [];
@@ -224,12 +265,12 @@ async function screenRect(app, sel) {
     // mở được bàn phím trên Android 15 (WebView bỏ qua hoặc chỉ làm mất focus), người dùng thật thì không gặp
     const pt = await stableTapPoint(app, '#chat-form input');
     const inBox = pt.css;
-    const tapInput = () => adb('shell', 'input', 'tap', String(pt.x), String(pt.y));
+    const tapInput = () => realTap(pt.x, pt.y);
     // Bàn phím thật sự đang hiện (mInputShown=true) – khung "ime" trong dumpsys window có thể là số liệu cũ
     const imeShownNow = () => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')) && systemBars().ime;
     tapInput();
     let ime = await until(imeShownNow, 8000, 400);
-    // Máy ảo Android 15 đôi khi bỏ qua lần chạm đầu (người dùng thật chạm lại): thử chạm thêm 1 lần
+    // Chưa hiện thì chạm thêm 1 lần (người dùng thật cũng chạm lại)
     if (!ime) { console.log('Bàn phím chưa hiện sau lần chạm đầu – chạm lại'); tapInput(); ime = await until(imeShownNow, 8000, 400); }
     // Chẩn đoán: phần tử dưới điểm chạm, phần tử đang focus, Android có đang hiện bàn phím không
     const diag = await app.evaluate((p) => {
@@ -260,92 +301,16 @@ async function screenRect(app, sel) {
       await app.click('#chat-form button');
       check('gửi được tin nhắn khi bàn phím đang mở', !!(await until(() => web.evaluate(() =>
         [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Typed on Android'))))));
-      adb('shell', 'input', 'keyevent', '4'); // Back lần 1: ẩn bàn phím
+      pressBack(); // Back lần 1: ẩn bàn phím
       await sleep(600);
     }
     // Back: đóng hộp chat. Bàn phím có thể hiện muộn (máy ảo Android 15 chậm) – khi đó lần Back đầu chỉ ẩn bàn phím,
     // nên bấm lại tối đa 3 lần tới khi hộp chat đóng (người dùng thật cũng bấm Back lần nữa)
     for (let k = 0; k < 3 && await app.evaluate(() => document.getElementById('chat').open); k++) {
-      adb('shell', 'input', 'keyevent', '4');
+      pressBack();
       await until(() => app.evaluate(() => !document.getElementById('chat').open), 2500);
     }
     check('Back đóng hộp chat', !!(await until(() => app.evaluate(() => !document.getElementById('chat').open), 5000)));
-    await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
-  }
-
-  // ĐIỀU TRA (tạm thời) lỗi chập chờn "bàn phím không hiện": lặp lại cảnh mở chat → chạm ô nhập → Back nhiều lần,
-  // xen kẽ A = ô nhập đã được focus bằng code (như hiện tại) và B = bỏ focus trước khi chạm. Chỉ ghi log (KB-DIAG).
-  {
-    const KB_N = 20;
-    const screen = adb('shell', 'wm', 'size').trim();
-    const step = (k, what) => console.log(`KB-STEP ${k} ${new Date().toISOString().slice(11, 23)} ${what}`);
-    const proc = () => {
-      let pid = '', top = '';
-      try { pid = adb('shell', 'pidof', PKG).trim(); } catch (e) { pid = 'không có'; }
-      try { top = (adb('shell', 'dumpsys', 'activity', 'activities').match(/(topResumedActivity|mResumedActivity)[^\n]*/) || [''])[0].trim().slice(0, 140); } catch (e) { top = '?'; }
-      return `pid=${pid} · ${top} · ime=${imeNow()}`;
-    };
-    // Trong app: ghi lúc nút Back được xử lý, hộp thoại nào đang mở, trang có bị ẩn không (in qua console)
-    app.on('console', (m) => { if (m.text().startsWith('KBLOG')) console.log('  APP ' + m.text()); });
-    await app.evaluate(() => {
-      const P = window.Capacitor && window.Capacitor.Plugins;
-      if (P && P.App) P.App.addListener('backButton', () => console.log('KBLOG back · mở: ' + [...document.querySelectorAll('dialog[open]')].map((d) => d.id).join(',') + ' · focus: ' + (document.activeElement && document.activeElement.tagName)));
-      document.addEventListener('visibilitychange', () => console.log('KBLOG visibility ' + document.visibilityState));
-      window.addEventListener('pagehide', () => console.log('KBLOG pagehide'));
-    });
-    await app.evaluate(() => {
-      window.__taps = [];
-      for (const ev of ['pointerdown', 'touchstart', 'click']) {
-        document.addEventListener(ev, (e) => window.__taps.push({ t: Math.round(performance.now()), ev, at: e.target.tagName + (e.target.name ? '[' + e.target.name + ']' : '') }), true);
-      }
-    });
-    const focusWin = () => { try { return (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/) || [''])[0].trim(); } catch (e) { return '?'; } };
-    const imeNow = () => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')) && !!systemBars().ime;
-    const stats = { A: { n: 0, ok1: 0, ok2: 0, fail: 0, noTap: 0, back: 0 }, B: { n: 0, ok1: 0, ok2: 0, fail: 0, noTap: 0, back: 0 } };
-    for (let k = 0; k < KB_N; k++) {
-      const mode = k % 2 ? 'B' : 'A';
-      const st = stats[mode];
-      st.n++;
-      step(k, 'mở Online + chat (' + mode + ')');
-      await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
-      await until(() => app.$('#friends [data-chat]'), 5000);
-      await app.click('#friends [data-chat]');
-      await until(() => app.evaluate(() => document.getElementById('chat').open), 5000);
-      await until(() => app.evaluate(() => document.activeElement && document.activeElement.name === 'text'), 3000, 100);
-      await sleep(300);
-      if (mode === 'B') { await app.evaluate(() => document.activeElement && document.activeElement.blur()); await sleep(200); }
-      const pt = await stableTapPoint(app, '#chat-form input');
-      const tap = () => adb('shell', 'input', 'tap', String(pt.x), String(pt.y));
-      const t0 = await app.evaluate(() => performance.now());
-      const winBefore = focusWin();
-      step(k, `chạm (${pt.x}, ${pt.y})${pt.unstable ? ' CHƯA ỔN ĐỊNH' : ''} · css ${JSON.stringify(pt.css)} · WebView ${JSON.stringify(pt.wv)} · ${screen}`);
-      tap();
-      let ime = await until(imeNow, 6000, 300);
-      let taps = 1;
-      if (!ime) { tap(); taps = 2; ime = await until(imeNow, 6000, 300); }
-      const seen = await app.evaluate((t) => window.__taps.filter((x) => x.t >= t).map((x) => x.ev + '@' + x.at), t0);
-      const focus = await app.evaluate(() => { const a = document.activeElement; return a ? a.tagName + (a.name ? '[' + a.name + ']' : '') : null; });
-      if (ime && taps === 1) st.ok1++; else if (ime) st.ok2++; else st.fail++;
-      if (!seen.some((x) => x.startsWith('pointerdown'))) st.noTap++;
-      const rec = { k, mode, ime: !!ime, taps, seen, focus, winBefore, winAfter: focusWin() };
-      // Đóng: Back tối đa 3 lần (lần đầu có thể chỉ ẩn bàn phím)
-      let backs = 0;
-      step(k, 'Back để đóng chat');
-      for (; backs < 3 && await app.evaluate(() => document.getElementById('chat').open); backs++) {
-        step(k, `Back ${backs + 1} – trước: ${proc()}`);
-        adb('shell', 'input', 'keyevent', '4');
-        await until(() => app.evaluate(() => !document.getElementById('chat').open), 2500);
-        step(k, `Back ${backs + 1} – sau: ${proc()}`);
-      }
-      rec.backs = backs;
-      rec.closed = await app.evaluate(() => !document.getElementById('chat').open);
-      if (!rec.closed) { st.back++; await app.evaluate(() => document.getElementById('chat').close()); }
-      if (!ime || !rec.closed) console.log('MÀN HÌNH:\n  ' + screenState());
-      if (!ime || !rec.closed) rec.ime_dump = (adb('shell', 'dumpsys', 'input_method').match(/mInputShown=\w+|mIsInputViewShown=\w+|mServedView=[^\n]{0,80}|mCurClient=[^\n]{0,60}/g) || []).join(' | ');
-      console.log('KB-DIAG ' + JSON.stringify(rec));
-      await sleep(300);
-    }
-    console.log('KB-DIAG-SUMMARY ' + JSON.stringify(stats));
     await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
   }
 
@@ -360,7 +325,7 @@ async function screenRect(app, sel) {
   await app.click('#ri-copy');
   const clip = await until(() => app.evaluate(() => window.Capacitor.Plugins.Clipboard.read().then((r) => r.value)), 5000);
   check('sao chép link mời vào bộ nhớ tạm của máy', clip === `http://10.0.2.2:8790/?room=${room.code}`, String(clip));
-  adb('shell', 'input', 'keyevent', '4');
+  pressBack();
   await until(() => app.evaluate(() => !document.getElementById('room-info').open), 5000);
   await web.evaluate(([c, p]) => window.CaroOnline.send({ t: 'joinRoom', code: c, password: p }), [room.code, room.password]);
   check('web vào phòng của app', !!(await until(() => app.evaluate(() => window.CaroOnline.state.room.players.length === 2))));
@@ -407,11 +372,11 @@ async function screenRect(app, sel) {
   shot('win');
 
   // Nút Back thật của Android: đóng thẻ kết quả, mở Cài đặt rồi Back đóng Cài đặt
-  adb('shell', 'input', 'keyevent', '4');
+  pressBack();
   check('Back ẩn thẻ kết quả', !!(await until(() => app.evaluate(() => document.getElementById('banner').hidden))));
   await app.evaluate(() => window.CaroApp && document.getElementById('btn-room').click());
   check('mở thông tin phòng', !!(await until(() => app.evaluate(() => document.getElementById('room-info').open))));
-  adb('shell', 'input', 'keyevent', '4');
+  pressBack();
   check('Back đóng hộp thoại, app vẫn mở', !!(await until(() => app.evaluate(() => !document.getElementById('room-info').open))) &&
     adb('shell', 'dumpsys', 'activity', 'activities').includes(PKG));
 
@@ -452,7 +417,7 @@ async function screenRect(app, sel) {
   await app.locator('#qm-start').scrollIntoViewIfNeeded();
   await app.click('#qm-start');
   check('app đang tìm trận', !!(await until(() => app.isVisible('#qm-search'))));
-  adb('shell', 'input', 'keyevent', '4');
+  pressBack();
   check('Back đóng bảng, thẻ đang tìm hiện trên màn chơi', !!(await until(() => app.isVisible('.qm-float'))));
   shot('searching');
   await web.evaluate(() => window.CaroOnline.send({ t: 'quickMatch', timeLimit: -1 }));
