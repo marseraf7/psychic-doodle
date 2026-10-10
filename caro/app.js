@@ -483,6 +483,42 @@
   const glyph = (p) => (p === X ? '<b class="dot x">X</b>' : '<b class="dot o">O</b>');
 
   function updateUI() {
+    drawStatus();
+    turnCue();
+  }
+
+  /**
+   * Tới lượt mình: thanh trên viền màu nhấn + nảy nhẹ một lần (thấy ngay mà không cần đọc chữ).
+   * Trình đọc màn hình: chỉ đọc khi tới lượt mình và khi ván kết thúc (dòng "Lượt…" không tự đọc mỗi nước đi nữa).
+   */
+  let cueMine = false, cueKey = '';
+  function turnCue() {
+    const o = state.online;
+    let mine = false, over = false;
+    if (o && !o.watch) {
+      const r = o.room;
+      over = !!r.winner;
+      const opp = r.players.some((p) => p.id !== o.me);
+      mine = !over && opp && (r.actor !== undefined ? r.actor === o.me : r.turn === o.side);
+    } else if (o) {
+      over = !!o.room.winner;
+    } else if (!state.ext && !state.replay) {
+      over = !!state.winner;
+      mine = !over && !state.thinking && (state.mode === 'pvp' || state.turn === state.human);
+    }
+    // 2 người cùng máy: lượt nào cũng là "của mình" nên không tô (chỉ đọc cho trình đọc màn hình)
+    const show = mine && !(!o && state.mode === 'pvp');
+    const bar = document.querySelector('.bar.top');
+    bar.classList.toggle('my-turn', show);
+    if (show && !cueMine) { bar.classList.remove('turn-pulse'); void bar.offsetWidth; bar.classList.add('turn-pulse'); }
+    cueMine = show;
+    const n = o ? o.room.moves.length : state.board.moves.length;
+    const key = over ? 'end' + n : mine ? 'turn' + n : '';
+    if (key && key !== cueKey) $('sr-live').textContent = $('turn').textContent.replace(/\s+/g, ' ').trim();
+    cueKey = key;
+  }
+
+  function drawStatus() {
     const t = $('turn');
     if (state.online) return updateOnlineUI();
     if (state.ext) {
@@ -730,6 +766,13 @@
       ctx.fill();
     }
 
+    // Ván thắng: các quân không thuộc đường thắng mờ dần (cùng nhịp với đường thắng) để 5 quân thắng nổi bật
+    let winSet = null, dim = 1;
+    if (state.winCells) {
+      winSet = new Set(state.winCells.map(([x, y]) => x + ',' + y));
+      const t = Math.min(1, (now - (state.winAt || 0)) / 450);
+      dim = 1 - 0.55 * (1 - Math.pow(1 - t, 3));
+    }
     // Quân cờ (chỉ vẽ các quân trong khung nhìn).
     for (let i = 0; i < moves.length; i++) {
       const m = moves[i];
@@ -741,7 +784,7 @@
         if (t < 1) again = true;
         scale = 0.5 + 0.5 * (1 - Math.pow(1 - t, 3));
       }
-      drawStone(m.p, sx, sy, s * scale, 1);
+      drawStone(m.p, sx, sy, s * scale, winSet && !winSet.has(m.x + ',' + m.y) ? dim : 1);
     }
 
     if (state.marks) drawMarks(s, x0, x1, y0, y1);
@@ -898,11 +941,20 @@
   const pointers = new Map();
   let gesture = null;
 
-  function tap(sx, sy) {
+  /** Ô nhỏ hơn mức này (px) thì ngón tay dễ chạm nhầm ô bên cạnh: chạm lần đầu chỉ phóng to tới chỗ đó. */
+  const TOUCH_MIN = 26, TOUCH_ZOOM = 36;
+  function tap(sx, sy, mouse) {
     if (state.winner) { if (!state.ext) showBanner(); return; }
     if (!canPlaceNow()) return;
     const [x, y] = toCell(sx, sy);
     if (state.board.get(x, y) !== EMPTY) return;
+    if (!mouse && cam.size < TOUCH_MIN) {
+      animateCamera(x, y, TOUCH_ZOOM);
+      // Chế độ chạm 2 lần: ô vừa chạm thành ô chờ xác nhận, chạm lần nữa là đặt quân (không tốn thêm lượt chạm)
+      if (state.confirm) state.pending = [x, y];
+      vibrate(5);
+      return;
+    }
     if (state.confirm) {
       if (state.pending && state.pending[0] === x && state.pending[1] === y) play(x, y);
       else { state.pending = [x, y]; vibrate(5); requestDraw(); }
@@ -975,7 +1027,7 @@
     canvas.classList.remove('grabbing');
     if (!gesture) return;
     if (gesture.type === 'tap' && pointers.size === 0) {
-      if (e.type === 'pointerup' && (!gesture.mouse || gesture.button === 0)) tap(e.clientX, e.clientY);
+      if (e.type === 'pointerup' && (!gesture.mouse || gesture.button === 0)) tap(e.clientX, e.clientY, gesture.mouse);
       gesture = null;
     } else if (gesture.type === 'pan' && pointers.size === 0) {
       const idle = e.timeStamp - gesture.lt;

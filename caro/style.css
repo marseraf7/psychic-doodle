@@ -1116,3 +1116,47 @@ dialog { scrollbar-width: thin; scrollbar-color: var(--grid-strong) transparent;
 /* Ô chọn trong Cài đặt / tạo phòng: rộng hết hàng như các nút phân đoạn; nhãn căn trái như mọi tiêu đề khác */
 fieldset > .select { width: 100%; }
 .opt { align-items: stretch; }
+
+/* ============================ Tới lượt mình: thanh trên viền màu nhấn, nảy nhẹ một lần */
+.bar.top { transition: border-color 0.2s, box-shadow 0.2s; }
+.bar.top.my-turn { border-color: var(--accent); box-shadow: var(--shadow), 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.bar.top.turn-pulse { animation: turn-pulse 0.5s var(--ease); }
+@keyframes turn-pulse { 40% { transform: translateX(-50%) scale(1.06); } }
+/* Chỉ cho trình đọc màn hình */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ============================ Cài đặt: chia 3 nhóm (Ván chơi / Hiển thị / Âm thanh & thao tác) */
+.set-group {
+  margin: 22px 0 12px; padding-top: 16px; border-top: 1px solid var(--panel-border);
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+}
+.set-links + .set-group { margin-top: 4px; padding-top: 0; border-top: 0; }
+.set-sub { margin-top: 10px; }
+
+/* Lựa chọn đang bật trong nút phân đoạn: chữ màu nhấn + viền mảnh màu nhấn (rõ cả ngoài nắng / màn tối),
+ * không chỉ dựa vào nền sáng hơn một chút */
+.seg label:has(input:checked) {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent), 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+.seg label:has(input:checked) b.x, .seg label:has(input:checked) b.o { filter: none; }
+
+/* Giải đố: ô "Độ khó" cùng kiểu với các ô chọn khác, rộng hết hàng */
+.pz-diff .select { width: 100%; min-width: 0; margin-top: 2px; }
+
+/* ============================ Ô chọn không bị cắt chữ
+ * Hộp thoại rộng tối đa 420px: 2 ô chọn đặt cạnh nhau chỉ còn ~105–130px mỗi ô, không đủ cho "Giấy (theo giao diện)",
+ * "Без ограничения"… → trong hộp thoại mỗi ô chọn chiếm trọn một hàng. */
+dialog .row.opts { flex-direction: column; align-items: stretch; gap: 10px; }
+dialog .row.opts > .opt { flex: none; width: 100%; }
+/* Lưới an toàn: chữ vẫn dài hơn ô thì hiện "…" thay vì cắt ngang giữa chữ */
+.select { max-width: 100%; text-overflow: ellipsis; }
+
+/* Giai đoạn giải đấu: ô chọn chữ dài (thể thức, cách chia bảng, số lượt gặp) chiếm trọn hàng để không bị cắt chữ;
+ * ô ngắn (Bo1/3/5, ô nhập số) xếp 2 ô một hàng */
+.sc-body { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sc-body .field:has(select:not([data-k="bestOf"])), .sc-body .field:has(.pts3) { grid-column: 1 / -1; }
+
+/* Nút phân đoạn: cột không hẹp hơn từ dài nhất của nó ("ограничения", "Unlimited"…) – từ dài không tràn ra ngoài viền */
+.seg { grid-auto-columns: minmax(min-content, 1fr); }
+.seg label { overflow-wrap: normal; }
