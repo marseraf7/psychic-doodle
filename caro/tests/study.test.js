@@ -15,6 +15,20 @@ function board(moves) {
 function seeded(s) { return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }; }
 
 const tests = {
+  'analyzeGame: điểm lợi thế cho biểu đồ (giống Lichess) nằm trong [-1, 1], ±1 khi đã thắng chắc'() {
+    // X xếp 4 quân hàng 0, O đánh rải rác; nước 6 của O bỏ mặc thế 3 mở -> X thắng chắc
+    const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const r = A.analyzeGame(g);
+    assert.ok(r.moves.every((m) => typeof m.e === 'number' && m.e >= -1 && m.e <= 1), JSON.stringify(r.moves.map((m) => m.e)));
+    assert.strictEqual(r.moves[5].cls, 'blunder');
+    assert.strictEqual(r.moves[5].e, 1, 'O để thua -> X thắng chắc: +1');
+    assert.strictEqual(r.moves[6].e, 1, 'X thắng: +1');
+    assert.ok(Math.abs(r.moves[0].e) < 0.5, 'đầu ván còn cân');
+    // Đổi vai: O thắng chắc -> -1
+    const g2 = [[9, 9], [0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const r2 = A.analyzeGame(g2);
+    assert.strictEqual(r2.moves[r2.moves.length - 1].e, -1);
+  },
   'immediateWins: thấy ô thắng của 4 quân chặn 1 đầu'() {
     const b = board([[0, 0], [-1, 0], [1, 0], [9, 9], [2, 0], [9, 7], [3, 0]]);
     // X: 0..3 hàng 0, O chặn ở -1 -> X thắng ở (4,0)
