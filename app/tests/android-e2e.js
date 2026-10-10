@@ -231,6 +231,62 @@ async function screenRect(app, sel) {
     await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
   }
 
+  // ĐIỀU TRA (tạm thời) lỗi chập chờn "bàn phím không hiện": lặp lại cảnh mở chat → chạm ô nhập → Back nhiều lần,
+  // xen kẽ A = ô nhập đã được focus bằng code (như hiện tại) và B = bỏ focus trước khi chạm. Chỉ ghi log (KB-DIAG).
+  {
+    const KB_N = 20;
+    await app.evaluate(() => {
+      window.__taps = [];
+      for (const ev of ['pointerdown', 'touchstart', 'click']) {
+        document.addEventListener(ev, (e) => window.__taps.push({ t: Math.round(performance.now()), ev, at: e.target.tagName + (e.target.name ? '[' + e.target.name + ']' : '') }), true);
+      }
+    });
+    const focusWin = () => { try { return (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/) || [''])[0].trim(); } catch (e) { return '?'; } };
+    const imeNow = () => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')) && !!systemBars().ime;
+    const stats = { A: { n: 0, ok1: 0, ok2: 0, fail: 0, noTap: 0, back: 0 }, B: { n: 0, ok1: 0, ok2: 0, fail: 0, noTap: 0, back: 0 } };
+    for (let k = 0; k < KB_N; k++) {
+      const mode = k % 2 ? 'B' : 'A';
+      const st = stats[mode];
+      st.n++;
+      await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+      await until(() => app.$('#friends [data-chat]'), 5000);
+      await app.click('#friends [data-chat]');
+      await until(() => app.evaluate(() => document.getElementById('chat').open), 5000);
+      await until(() => app.evaluate(() => document.activeElement && document.activeElement.name === 'text'), 3000, 100);
+      await sleep(300);
+      if (mode === 'B') { await app.evaluate(() => document.activeElement && document.activeElement.blur()); await sleep(200); }
+      const box = await app.evaluate(() => { const r = document.querySelector('#chat-form input').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+      const wv = webViewBounds();
+      const dpr = await app.evaluate(() => window.devicePixelRatio);
+      const tap = () => adb('shell', 'input', 'tap', String(Math.round(wv.l + box.x * dpr)), String(Math.round(wv.t + box.y * dpr)));
+      const t0 = await app.evaluate(() => performance.now());
+      const winBefore = focusWin();
+      tap();
+      let ime = await until(imeNow, 6000, 300);
+      let taps = 1;
+      if (!ime) { tap(); taps = 2; ime = await until(imeNow, 6000, 300); }
+      const seen = await app.evaluate((t) => window.__taps.filter((x) => x.t >= t).map((x) => x.ev + '@' + x.at), t0);
+      const focus = await app.evaluate(() => { const a = document.activeElement; return a ? a.tagName + (a.name ? '[' + a.name + ']' : '') : null; });
+      if (ime && taps === 1) st.ok1++; else if (ime) st.ok2++; else st.fail++;
+      if (!seen.some((x) => x.startsWith('pointerdown'))) st.noTap++;
+      const rec = { k, mode, ime: !!ime, taps, seen, focus, winBefore, winAfter: focusWin() };
+      // Đóng: Back tối đa 3 lần (lần đầu có thể chỉ ẩn bàn phím)
+      let backs = 0;
+      for (; backs < 3 && await app.evaluate(() => document.getElementById('chat').open); backs++) {
+        adb('shell', 'input', 'keyevent', '4');
+        await until(() => app.evaluate(() => !document.getElementById('chat').open), 2500);
+      }
+      rec.backs = backs;
+      rec.closed = await app.evaluate(() => !document.getElementById('chat').open);
+      if (!rec.closed) { st.back++; await app.evaluate(() => document.getElementById('chat').close()); }
+      if (!ime || !rec.closed) rec.ime_dump = (adb('shell', 'dumpsys', 'input_method').match(/mInputShown=\w+|mIsInputViewShown=\w+|mServedView=[^\n]{0,80}|mCurClient=[^\n]{0,60}/g) || []).join(' | ');
+      console.log('KB-DIAG ' + JSON.stringify(rec));
+      await sleep(300);
+    }
+    console.log('KB-DIAG-SUMMARY ' + JSON.stringify(stats));
+    await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  }
+
   // App tạo phòng, đi trước; web vào bằng mã phòng
   await app.check('input[name="room-side"][value="first"]');
   await app.click('#create-room');
