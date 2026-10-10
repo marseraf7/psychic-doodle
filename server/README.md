@@ -99,11 +99,12 @@ npm test             # kiểm thử tự động (2 người chơi giả lập q
 npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu dưới 90% dòng / 80% nhánh / 85% hàm)
 ```
 
-Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/room.js` (một phòng chơi),
+Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/room.js` (một phòng chơi; đồng hồ ở
+`src/room-clock.js`, luật Swap2 ở `src/room-swap2.js`), `src/rating.js` (Glicko-2),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
-`auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, xếp hạng, lịch sử, chặn, tin nhắn),
+`auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),
 `rooms.js` (phòng, ván đấu, thách đấu, điểm, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
-`watch.js` (xem trực tiếp, danh sách ván hay), `src/rating.js` (Glicko-2 theo loại thời gian),
+`watch.js` (xem trực tiếp, danh sách ván hay),
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
 `stages.js` (logic thuần các thể thức: loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ),
@@ -234,6 +235,11 @@ Nếu muốn giữ giao diện trên GitHub Pages, sửa `caro/config.js`:
 Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời và Google hoạt động gọn hơn).
 
 ## Bảo mật đã có
+
+- **Chống quá tải khi xem trực tiếp / xếp hạng**: mỗi phòng tối đa 200 người xem, mỗi kết nối xem 1 phòng; trạng thái
+  gửi người xem chuyển JSON một lần cho tất cả; số người xem vào/ra dồn dập được gom (tối đa 1 lần/giây/phòng);
+  danh sách "Đang diễn ra" dựng chung mỗi 3 giây; bảng xếp hạng giữ kết quả tới ván tính điểm tiếp theo (tối đa 60 giây);
+  hồ sơ (truy vấn CSDL) và lệnh xem bị giới hạn tần suất theo kết nối. Kết nối không đọc dữ liệu (dồn quá 2 MB) bị ngắt.
 
 - Mật khẩu băm scrypt; token đăng nhập và mã đặt lại mật khẩu chỉ lưu dạng băm SHA-256.
 - Quên mật khẩu: luôn trả lời giống nhau dù tài khoản có tồn tại hay không; mã 6 số hết hạn sau
