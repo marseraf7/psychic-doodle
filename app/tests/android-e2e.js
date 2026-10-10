@@ -24,9 +24,21 @@ async function until(fn, ms = 15000, step = 250) {
     await sleep(step);
   }
 }
-const adb = (...args) => execFileSync('adb', args, { encoding: 'utf8' });
+/**
+ * Lệnh adb có giới hạn thời gian: trên máy ảo CI yếu, một lệnh (dumpsys, uiautomator…) có lúc treo mãi – lệnh đồng bộ
+ * treo thì chặn cả tiến trình Node (không hẹn giờ nào chạy được), job bị huỷ sau 45 phút mà không có thông tin gì.
+ * Quá 30 giây: thử lại 1 lần rồi báo lỗi.
+ */
+function adb(...args) {
+  for (let i = 0; ; i++) {
+    try { return execFileSync('adb', args, { encoding: 'utf8', timeout: 30000, maxBuffer: 64 << 20 }); } catch (e) {
+      if (e.code !== 'ETIMEDOUT' || i >= 1) throw e;
+      console.log('adb treo quá 30 giây, thử lại: adb ' + args.join(' '));
+    }
+  }
+}
 const API = Number(adb('shell', 'getprop', 'ro.build.version.sdk').trim());
-const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/api${API}-${name}.png`]);
+const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/api${API}-${name}.png`], { timeout: 30000 });
 /**
  * Máy ảo trên CI rất yếu: ngay sau khi khởi động, màn hình chính (Pixel Launcher) có lúc bị treo và Android hiện hộp
  * thoại "… isn't responding" đè lên app. Khi đó chạm / Back thật (adb input) rơi vào hộp thoại chứ không tới app
@@ -77,7 +89,7 @@ function screenState() {
 function dumpLogcat(reason) {
   try {
     const re = /caro|chromium|cr_|AndroidRuntime|ActivityManager|ActivityTaskManager|WindowManager|InputMethod|ImeTracker|InputDispatcher|DEBUG|libc|WebView|died|ANR|lowmemory|lmkd|Capacitor/i;
-    const lines = execFileSync('adb', ['logcat', '-d', '-v', 'time', '-t', '4000'], { encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter((l) => re.test(l));
+    const lines = adb('logcat', '-d', '-v', 'time', '-t', '4000').split('\n').filter((l) => re.test(l));
     console.log(`LOGCAT (${reason}) – ${lines.length} dòng liên quan, 200 dòng cuối:`);
     for (const l of lines.slice(-200)) console.log('  ' + l);
   } catch (e) { console.log('LOGCAT lỗi: ' + e.message); }
@@ -168,14 +180,20 @@ async function screenRect(app, sel) {
   const [device] = await android.devices();
   if (!device) throw new Error('Không thấy máy ảo Android');
   console.log('Thiết bị:', device.model(), device.serial());
+  // Lưới an toàn: cả bài thường xong trong ~10 phút; quá 30 phút thì in trạng thái màn hình rồi dừng (thay vì bị huỷ câm)
+  setTimeout(() => {
+    console.log('FAIL kiểm thử treo quá 30 phút:\n  ' + screenState());
+    process.exit(1);
+  }, 30 * 60000).unref();
   // Không để hộp thoại báo lỗi / "không phản hồi" của hệ thống che app (máy ảo CI chậm, vừa khởi động xong)
   try { adb('shell', 'settings', 'put', 'global', 'hide_error_dialogs', '1'); } catch (e) { /* bản Android cũ */ }
   // Mở app: dẹp hộp thoại hệ thống, mở, kiểm tra app đã lên trên cùng (thử tối đa 3 lần)
   const onTop = () => { try { return adb('shell', 'dumpsys', 'activity', 'activities').match(/topResumedActivity[^\n]*/)?.[0].includes(PKG); } catch (e) { return false; } };
   for (let i = 0; i < 3; i++) {
     dismissSystemDialogs();
-    await device.shell(`am force-stop ${PKG}`);
-    await device.shell(`monkey -p ${PKG} -c android.intent.category.LAUNCHER 1`);
+    console.log(`Mở app (lần ${i + 1})`);
+    adb('shell', 'am', 'force-stop', PKG);
+    adb('shell', 'monkey', '-p', PKG, '-c', 'android.intent.category.LAUNCHER', '1');
     if (await until(() => onTop() && !systemDialog(), 20000, 500)) break;
     console.log('App chưa lên màn hình – mở lại:\n  ' + screenState());
   }
