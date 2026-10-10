@@ -29,6 +29,10 @@ Mỗi lần đẩy code, GitHub Actions ([`.github/workflows/app.yml`](../.githu
   che (Android 15 bắt buộc tràn viền), bàn phím không che ô nhập tin nhắn, và sao chép link mời vào
   bộ nhớ tạm, vào phòng công khai từ danh sách và tìm trận nhanh (thẻ "đang tìm" vẫn hiện khi đóng bảng
   bằng nút Back) với bản web, và vào giải đấu Arena bằng giao diện app (tham gia → giải bắt đầu → tự vào ván). Ảnh chụp màn hình ở artifact `android-34-e2e-screenshots`, `android-35-e2e-screenshots`.
+  Máy ảo trên CI rất chậm: ngay sau khi khởi động, Android có thể hiện hộp thoại "Pixel Launcher isn't responding"
+  đè lên app, làm chạm / Back thật rơi vào hộp thoại. Test tắt hộp thoại báo lỗi (`hide_error_dialogs`), dẹp hộp
+  thoại hệ thống trước mỗi lần chạm / Back thật, và chỉ chạm khi khung WebView và bố cục trang đã khớp nhau
+  (sau khi bàn phím đóng / mở). Khi kiểm tra bàn phím thất bại, log in ra màn hình đang hiện gì và `logcat`.
 - Job **iOS** dựng app cho iPhone ảo và mở thử (ảnh ở artifact `caro-ios-simulator`).
 
 ## Máy chủ
