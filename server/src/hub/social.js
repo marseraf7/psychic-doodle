@@ -2,7 +2,8 @@
 'use strict';
 const { DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
-const { REPORT_REASONS, cleanText, userPid, uidOf } = require('./shared.js');
+const { REPORT_REASONS, cleanText, cleanPublicText, userPid, uidOf } = require('./shared.js');
+const { Flood } = require('../moderation.js');
 
 class Social {
   status(uid) {
@@ -166,10 +167,13 @@ class Social {
     const other = this.store.users.get(uidOf(to) || to);
     if (!other || !me.friends.includes(other.id)) throw E('not_friends');
     if (me.blocked.includes(other.id) || other.blocked.includes(me.id)) throw E('blocked');
-    text = cleanText(text, 500);
+    text = cleanPublicText(text, 500); // che từ tục
     if (!text) throw E('message_empty');
     const rules = [['dm:' + me.id, 60]]; // tối đa 60 tin / 10 phút
     this.limit(rules);
+    // Dồn dập (5 tin / 10 giây) hoặc lặp lại gần giống 2 tin trước thì từ chối (như Lichess Flood)
+    const flood = this.T.THROTTLE_SCALE ? (this.dmFlood ||= new Flood({ limit: 5, windowMs: 10000 })).check(me.id, text) : null;
+    if (flood) throw E(flood === 'duplicate' ? 'dm_duplicate' : 'too_fast');
     this.fail(rules);
     const msg = this.store.addDm(me.id, other.id, text);
     this.send(userPid(me.id), { t: 'dm', peer: other.id, msg });

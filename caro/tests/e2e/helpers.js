@@ -50,7 +50,7 @@ async function setup(port) {
     await p.click('#go-register');
     await sleep(150);
     await p.fill('#auth-form input[name=username]', name);
-    await p.fill('#auth-form input[name=password]', '123456');
+    await p.fill('#auth-form input[name=password]', 'caro-pass1');
     await p.click('#auth-submit');
     await sleep(700);
     p.uname = name;

@@ -4,7 +4,7 @@
  * Tìm trận nhanh: người chơi vào hàng chờ kèm thời gian mỗi nước mong muốn (-1 = sao cũng được).
  * Mỗi nhịp (T.MATCH_TICK_MS) ghép người chờ lâu nhất với người hợp thời gian có Elo gần nhất,
  * trong khoảng chênh lệch cho phép: 150 điểm, nới thêm 25 điểm mỗi giây chờ (của người chờ lâu hơn).
- * Không bao giờ ghép hai người đã chặn nhau. Khách được tìm trận (tính như 1200, ván không tính Elo).
+ * Không bao giờ ghép hai người đã chặn nhau. Người hay bỏ ván (playban.js) được ghép với nhau trước. Khách được tìm trận (tính như 1200, ván không tính Elo).
  *
  * Phòng công khai: phòng thường có cờ public, hiện trong sảnh để ai cũng vào được không cần mật khẩu.
  * Sảnh chỉ liệt kê phòng đang chờ (1 người, chủ phòng online); người đang mở sảnh được đẩy danh sách mới.
@@ -18,6 +18,7 @@ const ANY = -1; // thời gian mỗi nước: sao cũng được
 const MATCH_BASE = 150;
 const MATCH_STEP = 25; // điểm nới thêm mỗi giây chờ
 const LOBBY_MAX = 50;
+const SITTER_WAIT_S = 20;
 
 class Matchmaking {
   // ------------------------------------------------------------ tìm trận nhanh
@@ -36,13 +37,14 @@ class Matchmaking {
   on_quickMatch(conn, { timeLimit, clock }) {
     const room = this.roomFor(conn.pid);
     if (room && (room.active || room.awaitingNextGame)) throw E('busy_in_game');
+    this.checkPlayban(conn.pid); // bỏ ván nhiều: tạm thời không được tìm trận
     const ck = cleanTc({ clock }).clock;
     const tl = ck ? 0 : TIME_LIMITS.includes(Number(timeLimit)) && timeLimit !== null && timeLimit !== '' ? Number(timeLimit) : ANY;
     const key = ck ? 'c' + ck : String(tl);
     const old = this.queue.get(conn.pid);
     this.unwatch(conn);
     this.queue.set(conn.pid, { pid: conn.pid, timeLimit: tl, clock: ck, key, pool: tl === ANY ? null : R.poolOf({ timeLimit: tl, clock: ck }),
-      since: old && old.key === key ? old.since : Date.now() });
+      since: old && old.key === key ? old.since : Date.now(), sitter: this.isSitter(conn.pid) });
     this.send(conn.pid, this.queueMsg(conn.pid));
     this.matchTick();
     if (this.queue.size && !this.matchTimer) {
@@ -89,6 +91,8 @@ class Matchmaking {
         const anyA = a.timeLimit === ANY, anyB = b.timeLimit === ANY;
         if (!anyA && !anyB && a.key !== b.key) continue;
         if (this.isBlocked(a.pid, b.pid) || this.isBlocked(b.pid, a.pid)) continue;
+        // Người hay bỏ ván ghép với nhau; chỉ ghép với người khác khi đã chờ quá 20 giây
+        if (a.sitter !== b.sitter && now - Math.min(a.since, b.since) < SITTER_WAIT_S * this.T.SECOND_MS) continue;
         const pool = a.pool || b.pool; // so điểm trong loại thời gian sẽ chơi
         const diff = Math.abs(this.ratingOf(a.pid, pool) - this.ratingOf(b.pid, pool));
         if (diff > this.matchWindow(Math.min(a.since, b.since), now)) continue;
@@ -111,6 +115,7 @@ class Matchmaking {
     this.leave(b.pid);
     const room = this.makeRoom('room', 1, tl, { clock });
     room.quick = true;
+    room.firstMoveMs = this.T.FIRST_MOVE_MS; // gặp người lạ: quá hạn đi nước đầu thì ván tự huỷ
     const [first, second] = Math.random() < 0.5 ? [a.pid, b.pid] : [b.pid, a.pid];
     this.enter(room, first, 1);
     this.enter(room, second, 2);

@@ -22,7 +22,7 @@ class Hub {
     // SECOND_MS: độ dài 1 "giây" của đồng hồ mỗi nước (test đặt nhỏ để chạy nhanh).
     this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250,
       TOUR_TICK_MS: 1000, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 2 * 60 * 1000, TOUR_MIN_LEAD_MS: 5 * 60 * 1000, TOUR_PUSH_MS: 300,
-      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, ...timers };
+      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, FIRST_MOVE_MS: 30 * 1000, ...timers };
     // Quản trị viên: duyệt câu lạc bộ và giải đấu
     this.admins = new Set(admins.map((a) => String(a).trim().toLowerCase()).filter(Boolean));
     this.byPid = new Map(); // pid -> Set<conn>
@@ -54,10 +54,12 @@ class Hub {
 
   connect(conn) {
     conn.pid = null;
+    this.conns = (this.conns || 0) + 1;
   }
 
   disconnect(conn) {
     const pid = conn.pid;
+    this.conns = Math.max(0, (this.conns || 0) - 1);
     this.lobbyWatchers.delete(conn);
     if (this.closed) return;
     this.unwatch(conn);
@@ -78,13 +80,15 @@ class Hub {
     const fn = this['on_' + msg.t];
     if (!fn) return conn.send({ t: 'error', code: 'unsupported', msg: fmt('unsupported') });
     if (!conn.pid && msg.t !== 'hello') return conn.send({ t: 'error', code: 'no_hello', msg: fmt('no_hello') });
+    const t0 = performance.now();
     try {
       await fn.call(this, conn, msg);
     } catch (e) {
       // Lỗi có mã (GameError) để client dịch; lỗi bất ngờ thì báo chung chung.
       if (e.code) conn.send({ t: 'error', code: e.code, args: e.args, msg: e.message, ctx: msg.t });
-      else conn.send({ t: 'error', code: 'error', msg: fmt('error'), ctx: msg.t });
+      else { this.crashed(msg.t); conn.send({ t: 'error', code: 'error', msg: fmt('error'), ctx: msg.t }); }
     }
+    this.timed(msg.t, performance.now() - t0);
   }
 
   send(pid, obj) {
@@ -168,7 +172,7 @@ class Hub {
 
   meView(pid) {
     const uid = uidOf(pid);
-    if (!uid) return { id: pid, name: this.nameOf(pid), guest: true };
+    if (!uid) return { id: pid, name: this.nameOf(pid), guest: true, playban: this.playbanLeft(pid) };
     const u = this.store.users.get(uid);
     return {
       id: pid, uid, name: u.name, username: u.username, guest: false, google: !!u.google, hasPassword: !!u.pass,
@@ -177,6 +181,7 @@ class Hub {
       pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
       blocked: u.blocked.map((id) => ({ id, name: this.store.users.get(id)?.name || '?' })),
       admin: this.isAdmin(uid),
+      playban: this.playbanLeft(pid), // ms còn lại của lệnh cấm tìm trận (bỏ ván nhiều)
     };
   }
 

@@ -36,11 +36,13 @@ chơi online qua WebSocket (`/ws`):
   phút×60 + 40×giây cộng; giới hạn 10 giây/nước = Chớp, 20–30 = Nhanh, không giới hạn = Chậm). Bắt đầu 1200;
   người mới có điểm "tạm" (dấu ?) và lên xuống nhanh, chơi nhiều thì ổn định; lâu không chơi thì độ tin cậy giảm dần.
   Tài khoản cũ: mọi loại bắt đầu từ điểm Elo cũ. "Điểm chính" = loại chơi nhiều nhất. Bảng xếp hạng chung + từng loại
-  (từng loại chỉ xếp người không còn điểm tạm). Sau ván, thẻ kết quả hiện điểm thay đổi. Chỉ tính ván giữa hai tài khoản.
+  (như Lichess: chỉ xếp người có độ lệch rd ≤ 75; lâu không chơi thì rd tăng từ 60 lên 110 sau 1 năm; mỗi ván thay đổi
+  tối đa 700 điểm). Sau ván, thẻ kết quả hiện điểm thay đổi. Chỉ tính ván giữa hai tài khoản.
 - **Trang hồ sơ**: điểm từng loại + biểu đồ điểm theo thời gian (400 điểm gần nhất), thắng / thua / hoà,
   chuỗi thắng dài nhất, số giải vô địch / đã chơi, 10 ván gần đây, đối đầu với mình.
   Chống cày điểm: ván kết thúc sớm dưới 10 nước (đầu hàng, hoà, rời phòng, hết giờ…) không tính,
-  mỗi cặp chỉ tính tối đa 5 ván mỗi ngày.
+  mỗi cặp chỉ tính tối đa 5 ván mỗi ngày; ván lặp lại y hệt 20 nước đầu và cùng người thắng với 1 trong 2 ván trước giữa
+  hai người không tính; người thua là tài khoản dưới 7 ngày mà đầu hàng / bỏ ván / mất kết nối thì không tính.
 - **Câu lạc bộ** (giống Team của Lichess): ai có tài khoản cũng tạo được (tối đa 2 CLB mình làm chủ),
   quản trị viên duyệt mới hiện công khai. Vào tự do / gửi yêu cầu chờ duyệt / bằng mã mời; vai trò chủ –
   quản lý – thành viên (duyệt, mời ra, trao quyền chủ); thông báo ghim; thành viên xếp theo Elo, ai đang online;
@@ -84,6 +86,30 @@ chơi online qua WebSocket (`/ws`):
   Trang chính sách quyền riêng tư: `https://…/privacy.html` (4 ngôn ngữ, mục `#delete` hướng dẫn xoá tài khoản).
 - **Mật khẩu**: đổi mật khẩu (đăng xuất các thiết bị khác), đặt mật khẩu cho tài khoản Google,
   thêm email và **quên mật khẩu** qua mã 6 số gửi email (cần cấu hình SMTP).
+- **Học từ Lichess (đợt D)** – chỉ lấy ý tưởng, không chép mã (Lichess dùng giấy phép AGPL):
+  - *Huỷ ván*: khi ván chưa quá 1 nước, nút "Đầu hàng" thành "Huỷ ván"; ván bị huỷ không tính thống kê, điểm, không lưu.
+    Phòng gặp người lạ (tìm nhanh, phòng công khai) có **hạn đi nước đầu 30 giây** – quá hạn thì ván tự huỷ.
+  - *Chống bỏ ván* (`src/hub/playban.js`): ghi lại cư xử ở phòng gặp người lạ (huỷ / không đi nước đầu / bỏ đi giữa ván).
+    Bỏ ván nhiều thì **tạm cấm tìm trận và vào phòng công khai**: 10 phút, tái phạm trong 48 giờ thì ×3, tài khoản mới
+    (dưới 3 ngày) / khách ×2, tối đa 3 ngày. Người hay bỏ ván được ghép với nhau trước (trừ khi đã chờ quá 20 giây).
+  - *Trong ván*: **+15 giây** cho đối thủ (ván có đồng hồ tổng); **xin đi lại** chỉ ở phòng riêng / thách đấu bạn bè
+    (ván có đi lại không tính điểm); **Berserk** ở giải Arena có đồng hồ tổng (chia đôi thời gian, không cộng giờ,
+    thắng từ 10 nước thì +1 điểm giải).
+  - *Thống kê sâu trên hồ sơ*: điểm cao / thấp nhất (kèm ngày), 5 trận thắng đối thủ mạnh nhất, 5 trận thua đối thủ
+    yếu nhất, chuỗi thắng / thua dài nhất theo từng loại thời gian; nhật ký hoạt động 30 ngày (`src/perf.js`).
+- **Kiểm duyệt nội dung** (`src/moderation.js`, không gọi dịch vụ ngoài): lọc từ tục 4 thứ tiếng (Việt, Anh, Nga, Trung),
+  chống viết lách (`đ.ị.t`, `f*u*c*k`, `sh1t`, chữ Nga giả chữ Latin, chữ lặp). Tên người chơi / CLB / giải có từ tục thì
+  bị từ chối; tin nhắn, mô tả, thông báo thì bị che bằng dấu `*`. Tin nhắn bạn bè gửi dồn (5 tin / 10 giây) hoặc
+  lặp lại gần giống 2 tin trước thì bị từ chối. Chặn mật khẩu phổ biến (`123456`, `password`, `matkhau`…), mật khẩu
+  trùng tên đăng nhập hoặc một ký tự lặp lại.
+- **Ảnh xem trước + API công khai** (`src/web.js`, `src/png.js`):
+  - `GET /api/replay/<mã>.png` – ảnh bàn cờ 1200×630 vẽ ngay trên máy chủ (không cần thư viện), giữ 300 ảnh gần nhất.
+  - Link `https://…/?replay=<mã>` có thẻ `og:title` / `og:image` nên Facebook, Zalo, Telegram… hiện ảnh ván cờ.
+    Đặt `PUBLIC_URL=https://ten-mien-cua-ban` để đường dẫn ảnh luôn đúng.
+  - API chỉ đọc (gọi được từ trang khác – CORS): `GET /api/player/<tên đăng nhập>` (điểm từng loại, số ván, không có
+    email / bạn bè), `GET /api/leaderboard?pool=blitz` (50 người đầu). Giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
+- **Số liệu máy chủ cho quản trị viên** (Giải đấu → tab Duyệt): số kết nối, người online, phòng, người xem, hàng chờ,
+  RAM, các lệnh xử lý chậm (≥ 50 ms, 50 lệnh gần nhất), số lệnh theo loại và số lỗi bất ngờ.
 - Máy chủ kiểm tra mọi nước đi bằng chính `caro/rules.js` (không gian lận được từ client).
 - Mất mạng giữa ván: tự kết nối lại và vào lại phòng; mất kết nối quá 90 giây → xử thua.
   Rời phòng khi đang đánh → xử thua. Giới hạn số lần nhập sai mật khẩu/đăng nhập.
@@ -99,12 +125,14 @@ npm test             # kiểm thử tự động (2 người chơi giả lập q
 npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu dưới 90% dòng / 80% nhánh / 85% hàm)
 ```
 
-Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/room.js` (một phòng chơi; đồng hồ ở
-`src/room-clock.js`, luật Swap2 ở `src/room-swap2.js`), `src/rating.js` (Glicko-2),
+Mã máy chủ: `server.js` (WebSocket), `src/web.js` (HTTP: file tĩnh, ảnh xem trước, thẻ og, API công khai),
+`src/png.js` (vẽ ảnh PNG), `src/store.js` (SQLite), `src/room.js` (một phòng chơi; đồng hồ ở
+`src/room-clock.js`, luật Swap2 ở `src/room-swap2.js`, huỷ ván / thêm giờ / đi lại / Berserk ở `src/room-extras.js`),
+`src/rating.js` (Glicko-2), `src/perf.js` (thống kê sâu, hoạt động), `src/moderation.js` (kiểm duyệt nội dung),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),
 `rooms.js` (phòng, ván đấu, thách đấu, điểm, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
-`watch.js` (xem trực tiếp, danh sách ván hay),
+`watch.js` (xem trực tiếp, danh sách ván hay), `playban.js` (chống bỏ ván), `api.js` (số liệu quản trị, API công khai),
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
 `stages.js` (logic thuần các thể thức: loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ),
@@ -273,5 +301,6 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
   Phòng chơi nằm trong bộ nhớ – khởi động lại máy chủ thì các ván đang đánh bị mất
   (tài khoản, bạn bè, lịch sử vẫn còn).
 - Chỉ chạy 1 tiến trình (không chia tải nhiều máy).
+- Chưa có kiểm tra mật khẩu bị lộ (HaveIBeenPwned) và captcha – cả hai cần gọi dịch vụ ngoài.
 - Báo cáo vi phạm được lưu trong bảng `reports` của `caro.db`, chưa có trang quản trị:
   xem bằng `sqlite3 caro.db "SELECT * FROM reports ORDER BY id DESC LIMIT 20"`.

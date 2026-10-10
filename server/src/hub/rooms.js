@@ -5,6 +5,10 @@ const { Room, DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
 const { MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, cleanTc, userPid, uidOf } = require('./shared.js');
 const R = require('../rating.js');
+const Perf = require('../perf.js');
+
+const FARM_MOVES = 20; // chống cày điểm: ván lặp lại y hệt 20 nước đầu, cùng người thắng với 1 trong 2 ván trước
+const NEW_ACCOUNT_MS = 7 * 24 * 3600 * 1000; // người thua là tài khoản dưới 7 ngày mà đầu hàng / bỏ ván: không tính điểm
 
 class Rooms {
   roomFor(pid) {
@@ -96,6 +100,10 @@ class Rooms {
     if (!room) return;
     if (this.tourLeft(room, pid)) {
       // Phòng của giải: rời đi khi trận chưa xong = xử thua (xem tournaments.js)
+    } else if (room.abortable && room.full) {
+      // Chưa quá 1 nước: rời phòng = huỷ ván (phòng gặp người lạ thì ghi là bỏ ván)
+      room.abort(pid);
+      this.settle(room, true);
     } else if (room.inProgress) {
       // Rời phòng khi đang đánh = xử thua (tính trước khi bàn cờ được làm mới).
       room.finish(3 - room.sideOf(pid), 'leave');
@@ -116,10 +124,12 @@ class Rooms {
   }
 
   on_createRoom(conn, { side, timeLimit, clock, opening, public: isPublic }) {
+    if (isPublic) this.checkPlayban(conn.pid); // đang bị cấm vì bỏ ván: không mở phòng công khai
     this.unwatch(conn);
     this.leave(conn.pid);
     const room = this.makeRoom('room', 1, timeLimit, { clock, opening });
     room.public = !!isPublic; // phòng công khai: hiện trong sảnh, vào không cần mật khẩu
+    if (room.public) room.firstMoveMs = this.T.FIRST_MOVE_MS; // gặp người lạ: có hạn đi nước đầu
     this.enter(room, conn.pid, side === 'second' ? 2 : 1);
     this.broadcastRoom(room);
   }
@@ -136,6 +146,7 @@ class Rooms {
     // Không gửi mật khẩu (mở link mời, thử vào thẳng phòng công khai) thì không tính là thử sai
     if (!room.public && pw !== room.password) { if (pw) this.fail(rules); throw E('wrong_room_password'); }
     if (room.full) throw E('room_full');
+    if (room.public) this.checkPlayban(conn.pid);
     this.unwatch(conn);
     const host = room.players[0];
     if (room.public && host && (this.isBlocked(host.id, conn.pid) || this.isBlocked(conn.pid, host.id))) throw E('blocked');
@@ -177,6 +188,49 @@ class Rooms {
     this.afterChange(room);
   }
 
+  /** Huỷ ván (chưa quá 1 nước). */
+  on_abort(conn) {
+    const room = this.inRoom(conn);
+    room.abort(conn.pid);
+    this.afterChange(room);
+  }
+
+  /** Cho đối thủ thêm 15 giây (ván có đồng hồ tổng). */
+  on_moretime(conn) {
+    const room = this.inRoom(conn);
+    this.throttle(conn, 'moretime', 1000);
+    const opp = room.moretime(conn.pid);
+    this.send(opp, note('moretime_given', { name: this.nameOf(conn.pid) }));
+    this.broadcastRoom(room);
+  }
+
+  /** Xin đi lại (phòng riêng / thách đấu bạn bè). */
+  on_takeback(conn) {
+    const room = this.inRoom(conn);
+    const res = room.offerTakeback(conn.pid);
+    if (res === 'pending') return;
+    if (res === 'offered') {
+      const opp = room.opponentOf(conn.pid);
+      if (opp) this.send(opp.id, note('takeback_offered', { name: this.nameOf(conn.pid) }));
+    }
+    this.broadcastRoom(room);
+  }
+
+  on_takebackAnswer(conn, { accept }) {
+    const room = this.inRoom(conn);
+    const offerer = room.takebackOffer;
+    room.answerTakeback(conn.pid, !!accept);
+    if (!accept && offerer) this.send(offerer, note('takeback_declined', { name: this.nameOf(conn.pid) }));
+    this.broadcastRoom(room);
+  }
+
+  /** Berserk (giải Arena có đồng hồ tổng). */
+  on_berserk(conn) {
+    const room = this.inRoom(conn);
+    room.goBerserk(conn.pid);
+    this.broadcastRoom(room);
+  }
+
   on_rematch(conn) {
     const room = this.inRoom(conn);
     if (room.tour) throw E('tour_no_rematch');
@@ -199,50 +253,91 @@ class Rooms {
     if (!room.winner || room.settled === room.gameNo + ':' + room.board.moves.length) return;
     room.settled = room.gameNo + ':' + room.board.moves.length;
     room.lastDelta = null; // điểm thay đổi chỉ hiện cho ván vừa xong (ván với khách thì không có)
+    room.lastShare = null;
+    this.recordRoomOutcomes(room); // chống bỏ ván (playban.js)
+    room.lastUnrated = false;
+    if (room.reason === 'abort') return this.afterSettle(room, leaving); // ván bị huỷ: không tính gì, không lưu
     const draw = room.winner === DRAW;
     const xPid = room.seats[1], oPid = room.seats[2];
     const U = (pid) => (uidOf(pid) && this.store.users.get(uidOf(pid))) || null;
     const ux = U(xPid), uo = U(oPid);
+    const moves = room.board.moves.map((m) => [m.x, m.y]);
+    const resultOf = (side) => (draw ? 'draw' : room.winner === side ? 'win' : 'loss');
     // Thống kê thắng / thua / hoà
     for (const [u, side] of [[ux, 1], [uo, 2]]) {
       if (!u) continue;
       u.stats[draw ? 'draws' : room.winner === side ? 'wins' : 'losses']++;
       this.store.touch(u);
     }
-    // Đối đầu + Elo: chỉ khi cả hai có tài khoản
-    room.lastUnrated = false;
+    // Đối đầu + điểm: chỉ khi cả hai có tài khoản
+    let rated = false;
     if (ux && uo && ux !== uo) {
       this.store.addH2h(ux.id, uo.id, draw ? null : room.winner === 1 ? ux.id : uo.id);
-      const tooShort = room.reason !== 'win' && room.board.moves.length < MIN_RATED_MOVES;
-      const tourUnrated = room.tour && (!room.tour.rated || room.tour.cancelled); // giải không tính Elo
-      if (tooShort || tourUnrated || this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) room.lastUnrated = true;
-      else {
-        const d = this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0, R.poolOf(room));
-        room.lastDelta = { [xPid]: d.a, [oPid]: d.b };
-        this.store.bumpRated(ux.id, uo.id);
-      }
+      rated = this.isRatable(room, ux, uo, moves);
+      room.lastUnrated = !rated;
+    }
+    // Lưu ván để xem lại (bỏ qua ván chưa có nước nào)
+    if (moves.length) {
+      const name = (pid) => room.players.find((p) => p.id === pid)?.name || this.nameOf(pid);
+      room.lastShare = this.store.recordGame({
+        kind: room.kind, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening,
+        xId: ux && ux.id, oId: uo && uo.id, xName: name(xPid), oName: name(oPid),
+        winner: room.winner, reason: room.reason, moves,
+      });
+    }
+    const pool = R.poolOf(room);
+    let d = null;
+    if (rated) {
+      const before = { x: R.ratingIn(ux, pool).r, o: R.ratingIn(uo, pool).r };
+      d = this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0, pool);
+      room.lastDelta = { [xPid]: d.a, [oPid]: d.b };
+      this.store.bumpRated(ux.id, uo.id);
+      // Thống kê sâu theo loại thời gian (điểm cao / thấp nhất, thắng đẹp nhất, thua tệ nhất, chuỗi)
+      const at = Date.now();
+      Perf.addRated(ux, pool, { result: resultOf(1), r: ux.pools[pool].r, opp: { name: uo.name, r: before.o }, share: room.lastShare, at });
+      Perf.addRated(uo, pool, { result: resultOf(2), r: uo.pools[pool].r, opp: { name: ux.name, r: before.x }, share: room.lastShare, at });
+    }
+    if (ux && uo && ux !== uo) {
       // Chuỗi thắng (ván giữa 2 tài khoản)
       for (const [u, side] of [[ux, 1], [uo, 2]]) {
         if (draw || room.winner !== side) u.wstreak.cur = 0;
         else { u.wstreak.cur++; u.wstreak.best = Math.max(u.wstreak.best, u.wstreak.cur); }
       }
     }
-    // Lưu ván để xem lại (bỏ qua ván chưa có nước nào)
-    if (room.board.moves.length) {
-      const name = (pid) => room.players.find((p) => p.id === pid)?.name || this.nameOf(pid);
-      room.lastShare = this.store.recordGame({
-        kind: room.kind, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening,
-        xId: ux && ux.id, oId: uo && uo.id, xName: name(xPid), oName: name(oPid),
-        winner: room.winner, reason: room.reason,
-        moves: room.board.moves.map((m) => [m.x, m.y]),
-      });
-    }
+    // Nhật ký hoạt động 30 ngày
+    if (ux) Perf.addActivity(ux, resultOf(1), pool, d ? d.a : null);
+    if (uo && uo !== ux) Perf.addActivity(uo, resultOf(2), pool, d ? d.b : null);
     // Thống kê / điểm mới cho người chơi đang online (bạn bè thấy điểm mới trong danh sách)
     for (const u of new Set([ux, uo].filter(Boolean))) {
       const pid = userPid(u.id);
       this.send(pid, { t: 'me', me: this.meView(pid) });
       if (ux && uo) this.sendFriends(u.id);
     }
+    this.afterSettle(room, leaving);
+  }
+
+  /**
+   * Ván giữa 2 tài khoản có tính điểm không. Không tính khi: kết thúc sớm dưới 10 nước (không phải thắng 5 quân),
+   * giải không tính điểm, quá 5 ván / cặp / ngày, có đi lại, ván lặp lại y hệt 20 nước đầu và cùng người thắng với
+   * 1 trong 2 ván trước giữa hai người, hoặc người thua là tài khoản dưới 7 ngày mà đầu hàng / bỏ ván (chống cày điểm).
+   */
+  isRatable(room, ux, uo, moves) {
+    if (room.reason !== 'win' && moves.length < MIN_RATED_MOVES) return false;
+    if (room.tour && (!room.tour.rated || room.tour.cancelled)) return false;
+    if (room.takebacks) return false;
+    if (this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) return false;
+    const draw = room.winner === DRAW;
+    const winnerId = draw ? null : room.winner === 1 ? ux.id : uo.id;
+    if (!draw && ['resign', 'leave', 'timeout'].includes(room.reason)) {
+      const loser = room.winner === 1 ? uo : ux;
+      if (loser.created && Date.now() - loser.created < NEW_ACCOUNT_MS) return false;
+    }
+    const head = JSON.stringify(moves.slice(0, FARM_MOVES));
+    return !this.store.pairGames(ux.id, uo.id, 2).some((g) => g.winnerId === winnerId && JSON.stringify(g.moves.slice(0, FARM_MOVES)) === head);
+  }
+
+  /** Sau khi ghi kết quả: gửi thông tin mới, cập nhật giải, hẹn ván sau (Bo3/Bo5). */
+  afterSettle(room, leaving) {
     // Ván của giải đấu: cập nhật điểm / nhánh đấu (Arena và trận đã phân thắng thua thì không đánh tiếp)
     const tourStop = room.tour ? this.tourOnGame(room, leaving) : false;
     if (!leaving && !tourStop && room.awaitingNextGame) {

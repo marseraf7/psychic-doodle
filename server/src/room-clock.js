@@ -20,6 +20,12 @@ class ClockMixin {
       this.clockRun = { id: who, since: Date.now() };
       this.turnEndsAt = Date.now() + Math.max(0, this.clockLeft[who] ?? this.clock.base);
     } else this.turnEndsAt = this.timeLimit && who ? Date.now() + this.timeLimit * this.secondMs : null;
+    // Hạn đi nước đầu (phòng gặp người lạ): ván chưa quá 1 nước mà hết hạn thì tự huỷ
+    this.firstMoveAt = null;
+    if (this.firstMoveMs && who && this.board.moves.length < 2 && !this.tour) {
+      this.firstMoveAt = Date.now() + this.firstMoveMs;
+      if (!this.turnEndsAt || this.firstMoveAt < this.turnEndsAt) this.turnEndsAt = this.firstMoveAt;
+    }
   }
 
   /** Trừ thời gian đã nghĩ của người vừa hành động; cộng giờ (nếu còn giờ). Trả về false nếu đã hết giờ. */
@@ -28,14 +34,20 @@ class ClockMixin {
     const left = (this.clockLeft[id] ?? this.clock.base) - (Date.now() - this.clockRun.since);
     this.clockRun = null;
     if (left <= 0) { this.clockLeft[id] = 0; return false; }
-    this.clockLeft[id] = left + this.clock.inc;
+    this.clockLeft[id] = left + (this.berserk && this.berserk.has(id) ? 0 : this.clock.inc); // Berserk: không cộng giờ
     return true;
   }
 
-  /** Hết giờ: người phải hành động thua. */
+  /** Hết giờ: người phải hành động thua (chưa quá 1 nước ở phòng có hạn đi nước đầu: ván bị huỷ). */
   timeLoss() {
     const who = this.actor();
     if (!who) return;
+    if (this.firstMoveMs && !this.tour && this.board.moves.length < 2) {
+      this.abortedBy = who;
+      this.noPlay = true; // không đi nước đầu (khác với bấm huỷ)
+      this.finish(3, 'abort');
+      return;
+    }
     if (this.clock) this.clockLeft[who] = 0;
     this.finish(Caro.other(this.sideOf(who)), 'time');
   }

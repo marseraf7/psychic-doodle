@@ -88,6 +88,16 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 - **Tuỳ chỉnh bàn cờ** (`boardstyle.js`, Cài đặt → Bàn cờ): màu bàn Giấy / Gỗ / Xanh lá / Xanh dương / Đêm,
   kiểu quân X/O mảnh / đậm / quân đá đen trắng, kiểu âm thanh Mặc định / Gõ gỗ / Nhẹ.
 
+## Học từ Lichess (đợt D)
+
+- **Thao tác trong ván** (`gamex.js`, thẻ nổi trên thanh dưới): đếm ngược đi nước đầu ở phòng gặp người lạ,
+  "+15 giây cho đối thủ", "Xin đi lại" (phòng riêng / bạn bè) và trả lời lời xin đi lại, "Berserk" ở giải Arena.
+  Nút "Đầu hàng" thành "Huỷ ván" khi ván chưa quá 1 nước.
+- **Puzzle Storm** (`storm.js`): giải càng nhiều bài càng tốt trong 3 phút, bài khó dần; đi sai mất 10 giây,
+  chuỗi đúng 5 / 12 / 20 / 30 bài được cộng 3 / 5 / 7 / 10 giây; kỷ lục lưu trên máy.
+- **Độ khó bài đố tính điểm**: Dễ nhất / Dễ / Vừa sức / Khó / Khó nhất (lệch −600 … +600 so với điểm giải đố).
+- **Hồ sơ**: thống kê sâu theo loại thời gian và hoạt động 30 ngày; **trang Duyệt** của quản trị viên có số liệu máy chủ.
+
 ## Phím tắt (máy tính)
 
 `←↑→↓` di chuyển · `+`/`-` phóng to/thu nhỏ · `C` về giữa · `N` ván mới · `Ctrl+Z` đi lại
@@ -119,6 +129,7 @@ node caro/tests/e2e/tour-basic.e2e.js    # câu lạc bộ, Arena, loại trực
 node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → playoff, Thụy Sĩ → nhánh thắng – thua
 node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + Thử lại, giải đố (3 chế độ)
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
+node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, Storm, ảnh og
 ```
 
 ## Cấu trúc
@@ -143,6 +154,8 @@ node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực ti�
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
+| `gamex.js` | Thao tác phụ trong ván: đếm ngược nước đầu, +15 giây, xin đi lại, Berserk |
+| `storm.js` | Puzzle Storm (3 phút) |
 | `tour-patch.js` | Áp bản cập nhật trang giải (máy chủ chỉ gửi phần đổi); dùng chung với kiểm thử máy chủ |
 | `tour.js` | Giải đấu – phần lõi: điều hướng trong hộp thoại, danh sách giải, trang giải (thông tin, nút thao tác, người chơi, bảng xếp hạng Arena), trang duyệt của quản trị viên. Các file dưới cắm vào `window.CaroTourKit` |
 | `tour-stages.js` | Vẽ các giai đoạn của giải: nhánh loại trực tiếp, nhánh thắng – thua + chung kết tổng, bảng vòng tròn, bảng Thụy Sĩ, danh sách trận |

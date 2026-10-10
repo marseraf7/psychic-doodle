@@ -364,9 +364,9 @@
       const btn = (act, icon, key, cls) => `<button type="button" data-act="${act}"${cls ? ` class="${cls}"` : ''}><svg class="ico" aria-hidden="true"><use href="#i-${icon}"/></svg><span>${esc(T(key))}</span></button>`;
       const parts = [];
       const nextKey = typeof t.nextLabel === 'function' ? t.nextLabel() : t.nextLabel || 'tr_next';
-      if (t.status === 'play') parts.push(btn('hint', 'bulb', 'tr_hint'));
-      if (t.status === 'wrong') parts.push(btn('reset', 'retry', 'an_retry', 'hl'));
-      if (t.status !== 'solved') parts.push(btn('solution', 'eye', 'tr_solution'));
+      if (t.status === 'play' && !t.noHelp) parts.push(btn('hint', 'bulb', 'tr_hint'));
+      if (t.status === 'wrong' && !t.noHelp) parts.push(btn('reset', 'retry', 'an_retry', 'hl'));
+      if (t.status !== 'solved' && !t.noHelp) parts.push(btn('solution', 'eye', 'tr_solution'));
       if (t.status === 'solved' && t.next) parts.push(btn('next', 'next', nextKey, 'hl'));
       if (t.status === 'wrong' && t.next && t.nextOnFail) parts.push(btn('next', 'next', nextKey));
       if (t.status === 'solved' && !t.next) parts.push(btn('reset', 'retry', 'an_retry'));
@@ -387,6 +387,7 @@
 
     return {
       start: (o) => start({ ...o, left0: o.left, sol0: o.sol }),
+      exit: () => { if (t) exit(); },
       refresh,
       get active() { return !!t; },
       refreshCard: () => renderCard(),
@@ -395,6 +396,7 @@
 
   // ================================================================ Giải đố
   const PZ_STORE = 'caro.puzzles';
+  const DIFFS = [-600, -300, 0, 300, 600]; // độ khó bài đố tính điểm (như Lichess): lệch so với điểm của mình
   let puzzles = null;
   let pz = loadPz();
   let session = null; // { mode, streak, used:Set, current }
@@ -402,8 +404,9 @@
   function loadPz() {
     try {
       const s = JSON.parse(localStorage.getItem(PZ_STORE) || '{}');
-      return { r: +s.r || 1000, n: +s.n || 0, ok: +s.ok || 0, best: +s.best || 0, daily: s.daily || null, recent: Array.isArray(s.recent) ? s.recent.slice(-40) : [] };
-    } catch (e) { return { r: 1000, n: 0, ok: 0, best: 0, daily: null, recent: [] }; }
+      return { r: +s.r || 1000, n: +s.n || 0, ok: +s.ok || 0, best: +s.best || 0, daily: s.daily || null, recent: Array.isArray(s.recent) ? s.recent.slice(-40) : [],
+        diff: DIFFS.includes(+s.diff) ? +s.diff : 0 };
+    } catch (e) { return { r: 1000, n: 0, ok: 0, best: 0, daily: null, recent: [], diff: 0 }; }
   }
   function savePz() { try { localStorage.setItem(PZ_STORE, JSON.stringify(pz)); } catch (e) { /* riêng tư */ } }
 
@@ -440,7 +443,9 @@
       <div><b>${pz.ok}/${pz.n}</b><small>${esc(T('pz_solved'))}</small></div>
       <div><b>${pz.best}</b><small>${esc(T('pz_best'))}</small></div>`;
     $('pz-daily-sub').textContent = dailyDone ? T(pz.daily.ok ? 'pz_daily_done' : 'pz_daily_tried') : T('pz_daily_d');
+    $('pz-diff').value = String(pz.diff);
   }
+  $('pz-diff').onchange = () => { pz.diff = DIFFS.includes(+$('pz-diff').value) ? +$('pz-diff').value : 0; savePz(); };
 
   function openPuzzles() {
     if (App.online) return;
@@ -465,7 +470,7 @@
     let q;
     if (s.mode === 'daily') q = dailyPuzzle(list);
     else if (s.mode === 'streak') q = pickNear(list, 600 + s.streak * 70, s.used);
-    else q = pickNear(list, pz.r, new Set([...pz.recent, ...s.used]));
+    else q = pickNear(list, pz.r + pz.diff, new Set([...pz.recent, ...s.used]));
     s.used.add(q.id);
     s.current = q;
     s.delta = null;
@@ -523,5 +528,5 @@
   document.querySelectorAll('.pz-mode').forEach((b) => { b.onclick = () => startMode(b.dataset.pz); });
   window.addEventListener('langchange', () => { if (an.result) renderPanel(); if (Trainer.active) Trainer.refresh(); });
 
-  window.CaroStudy = { analyze, openPuzzles, startMode, Trainer, get puzzles() { return puzzles; } };
+  window.CaroStudy = { analyze, openPuzzles, startMode, Trainer, loadPuzzles, pickNear, get puzzles() { return puzzles; } };
 })();

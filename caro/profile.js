@@ -1,5 +1,6 @@
 /*
- * Hồ sơ người chơi: điểm Glicko-2 từng loại thời gian + biểu đồ, thắng/thua/hoà, chuỗi thắng, giải đấu, ván gần đây.
+ * Hồ sơ người chơi: điểm Glicko-2 từng loại thời gian + biểu đồ, thắng/thua/hoà, chuỗi thắng, giải đấu, ván gần đây,
+ * thống kê sâu theo loại (điểm cao / thấp nhất, thắng đẹp nhất, thua tệ nhất, chuỗi dài nhất) và hoạt động 30 ngày.
  * Máy chủ: server/src/hub/profile.js. Phần tử có data-profile="<id>" ở bất kỳ đâu mở hồ sơ người đó.
  */
 (function () {
@@ -80,6 +81,38 @@
     svg.addEventListener('pointerleave', () => { g.setAttribute('visibility', 'hidden'); tip.hidden = true; });
   }
 
+  /** Thống kê sâu của loại thời gian đang chọn (như trang "perf" của Lichess). */
+  function perfHtml(p) {
+    const f = p.perf && p.perf[chartPool];
+    if (!f || !f.hi) return '';
+    const line = (g) => `<li><b>${g.r}</b> <span>${esc(g.name || T('deleted_player'))}</span> <small>${esc(date(g.at))}</small>
+      ${g.share ? `<button type="button" class="ghost sm" data-replay="${esc(g.share)}">${esc(T('replay'))}</button>` : ''}</li>`;
+    return `<div class="pf-perf">
+      <div class="pf-stats">
+        <div><b class="win">${f.hi.r}</b><small>${esc(T('perf_hi'))} · ${esc(date(f.hi.at))}</small></div>
+        <div><b class="loss">${f.lo.r}</b><small>${esc(T('perf_lo'))} · ${esc(date(f.lo.at))}</small></div>
+        <div><b>${f.win.max}</b><small>${esc(T('perf_win_streak'))}${f.win.cur ? ' · ' + esc(T('perf_now', { n: f.win.cur })) : ''}</small></div>
+        <div><b>${f.loss.max}</b><small>${esc(T('perf_loss_streak'))}${f.loss.cur ? ' · ' + esc(T('perf_now', { n: f.loss.cur })) : ''}</small></div>
+      </div>
+      ${f.best.length ? `<h4>${esc(T('perf_best'))}</h4><ul class="pf-list">${f.best.map(line).join('')}</ul>` : ''}
+      ${f.worst.length ? `<h4>${esc(T('perf_worst'))}</h4><ul class="pf-list">${f.worst.map(line).join('')}</ul>` : ''}
+    </div>`;
+  }
+
+  /** Hoạt động 30 ngày gần nhất: mỗi ngày số ván thắng / thua / hoà và điểm thay đổi. */
+  function activityHtml(p) {
+    const act = p.activity || [];
+    if (!act.length) return '';
+    const rows = act.map((d) => {
+      const n = d.w + d.l + d.d;
+      const delta = Object.entries(d.r || {}).map(([k, v]) => `<span class="${v >= 0 ? 'up' : 'down'}">${esc(T('pool_' + k))} ${v >= 0 ? '+' : ''}${v}</span>`).join(' ');
+      const bar = ['w', 'd', 'l'].map((k) => (d[k] ? `<i class="${k}" style="flex:${d[k]}"></i>` : '')).join('');
+      return `<li><small>${esc(date(Date.parse(d.day + 'T12:00:00Z'), { day: '2-digit', month: '2-digit' }))}</small>
+        <span>${esc(T('act_games', { n, w: d.w, l: d.l, d: d.d }))}</span><span class="act-bar">${bar}</span><span class="act-d">${delta}</span></li>`;
+    }).join('');
+    return `<h3>${esc(T('act_title'))}</h3><ul class="pf-act-feed">${rows}</ul>`;
+  }
+
   function renderProfile() {
     const p = profile;
     if (!p) return;
@@ -116,6 +149,8 @@
         <div><b>${p.tours ? p.tours.won : 0}<span class="muted">/${p.tours ? p.tours.played : 0}</span></b><small>${esc(T('profile_tours'))}</small></div>
       </div>
       ${h && h.wins + h.losses + h.draws ? `<p class="hint">${esc(T('h2h_line', { w: h.wins, l: h.losses, d: h.draws }))}</p>` : ''}
+      ${perfHtml(p)}
+      ${activityHtml(p)}
       <h3>${esc(T('profile_recent'))}</h3>
       <ul class="games">${recent || `<li class="empty">${esc(T('no_history'))}</li>`}</ul>`;
     const body = $('profile-body');

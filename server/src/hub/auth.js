@@ -3,7 +3,8 @@
 const crypto = require('crypto');
 const { hashPassword, checkPassword } = require('../store.js');
 const { E, note } = require('../msg.js');
-const { USERNAME_RE, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanName, userPid, uidOf, compareVersions } = require('./shared.js');
+const { weakPassword, isOffensiveName } = require('../moderation.js');
+const { cleanPublicName, USERNAME_RE, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanName, userPid, uidOf, compareVersions } = require('./shared.js');
 
 class Auth {
   on_hello(conn, { token, guestKey, guestName, client }) {
@@ -22,7 +23,9 @@ class Auth {
       if (typeof guestKey !== 'string' || guestKey.length < 16 || guestKey.length > 128) throw E('no_guest_key');
       const pid = 'g_' + crypto.createHash('sha256').update(guestKey).digest('hex').slice(0, 16);
       conn.guestPid = pid;
-      if (!this.names.has(pid)) this.names.set(pid, cleanName(guestName) || 'Khách-' + pid.slice(2, 6).toUpperCase());
+      // Tên khách có từ tục: dùng tên mặc định
+      const gname = cleanName(guestName);
+      if (!this.names.has(pid)) this.names.set(pid, (gname && !isOffensiveName(gname) && gname) || 'Khách-' + pid.slice(2, 6).toUpperCase());
       this.attach(conn, pid);
     }
     this.welcome(conn);
@@ -33,10 +36,13 @@ class Auth {
     this.limit(rules);
     username = String(username || '').trim().toLowerCase();
     if (!USERNAME_RE.test(username)) throw E('bad_username');
+    if (isOffensiveName(username)) throw E('bad_name');
     if (typeof password !== 'string' || password.length < 6 || password.length > 100) throw E('short_password');
+    if (weakPassword(password, username)) throw E('weak_password');
+    name = cleanPublicName(name);
     if (this.store.byUsername.has(username)) throw E('username_taken');
     this.fail(rules); // giới hạn số tài khoản tạo từ 1 IP
-    const user = this.store.createUser({ username, name: cleanName(name) || username, pass: hashPassword(password) });
+    const user = this.store.createUser({ username, name: name || username, pass: hashPassword(password) });
     this.loginConn(conn, user);
   }
 
@@ -76,7 +82,7 @@ class Auth {
     }
     const user = owner || this.store.createUser({
       username: this.store.freeUsername((g.email || '').split('@')[0]),
-      name: cleanName(g.name) || 'Người chơi',
+      name: (cleanName(g.name) && !isOffensiveName(g.name) && cleanName(g.name)) || 'Người chơi',
       google,
     });
     this.loginConn(conn, user);
@@ -96,7 +102,7 @@ class Auth {
   }
 
   on_setName(conn, { name }) {
-    name = cleanName(name);
+    name = cleanPublicName(name);
     if (!name) throw E('empty_name');
     const pid = conn.pid;
     const uid = uidOf(pid);
@@ -114,6 +120,7 @@ class Auth {
   on_changePassword(conn, { current, next }) {
     const me = this.requireUser(conn);
     if (typeof next !== 'string' || next.length < 6 || next.length > 100) throw E('short_password');
+    if (weakPassword(next, me.username)) throw E('weak_password');
     if (me.pass) {
       const rules = [['pw:' + me.id, 8]];
       this.limit(rules);
@@ -216,6 +223,7 @@ class Auth {
     this.limit(rules);
     if (typeof password !== 'string' || password.length < 6 || password.length > 100) throw E('short_password');
     const u = this.findByLogin(login);
+    if (u && weakPassword(password, u.username)) throw E('weak_password');
     if (!u || !this.store.checkReset(u.id, String(code || '').trim())) { this.fail(rules); throw E('reset_bad_code'); }
     u.pass = hashPassword(password);
     this.store.touch(u);

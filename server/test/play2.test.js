@@ -35,8 +35,10 @@ test('Glicko-2: thắng lên, thua xuống; người mới thay đổi nhiều, 
 test('Glicko-2: điểm tạm, rd tăng dần khi lâu không chơi, loại thời gian theo đồng hồ', () => {
   const now = Date.now();
   const p = { r: 1600, rd: 60, vol: 0.06, n: 100, at: now - 365 * 86400000 };
-  assert.ok(Math.abs(R.decayedRd(p, now) - 350) < 1, 'sau 1 năm không chơi: rd ~350');
-  assert.strictEqual(R.provisional(p, now), true);
+  assert.ok(Math.abs(R.decayedRd(p, now) - 110) < 1, 'sau 1 năm không chơi: rd 60 -> ~110 (như Lichess)');
+  assert.strictEqual(R.provisional({ ...p, at: now - 2 * 365 * 86400000 }, now), true);
+  assert.strictEqual(R.rankable({ ...p, at: now - 30 * 86400000 }, now), true);
+  assert.strictEqual(R.rankable({ ...p, at: now - 200 * 86400000 }, now), false, 'rd > 75: không lên bảng xếp hạng');
   assert.strictEqual(R.provisional({ ...p, at: now }, now), false);
   assert.strictEqual(R.poolOf({ clock: '1+1' }), 'bullet');
   assert.strictEqual(R.poolOf({ clock: '3+2' }), 'blitz');
@@ -139,7 +141,7 @@ test('đồng hồ tổng: trừ thời gian nghĩ, cộng giờ sau mỗi nư�
 let app, url;
 test.before(async () => {
   app = start({ port: 0, dataFile: null, msgRate: 2000,
-    timers: { THROTTLE_SCALE: 0, NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 300, SECOND_MS: 20, MATCH_TICK_MS: 30, LOBBY_DEBOUNCE_MS: 20 } });
+    timers: { THROTTLE_SCALE: 0, NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 300, SECOND_MS: 20, MATCH_TICK_MS: 30, LOBBY_DEBOUNCE_MS: 20, FIRST_MOVE_MS: 1500 } });
   await new Promise((r) => app.server.on('listening', r));
   url = `ws://127.0.0.1:${app.server.address().port}/ws`;
 });
@@ -181,7 +183,7 @@ class Client {
 async function account(username) {
   for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
   const c = await Client.open();
-  await c.req({ t: 'register', username, password: '123456', name: username }, 'welcome');
+  await c.req({ t: 'register', username, password: 'caro-pass1', name: username }, 'welcome');
   return c;
 }
 const sideOf = (room, pid) => (room.seats.x === pid ? 1 : room.seats.o === pid ? 2 : 0);
@@ -210,7 +212,17 @@ test('tìm trận nhanh theo đồng hồ tổng: chỉ ghép cùng loại, phò
   assert.strictEqual(room.clock, '1+1');
   assert.strictEqual(room.pool, 'bullet');
   assert.ok(room.clocks && room.clocks.x > 0);
-  // Không ai đánh: người cầm X hết 1 phút (1,2 giây ở test) thì thua
+  assert.ok(room.abortable && room.firstMove > 0, 'phòng tìm nhanh: có hạn đi nước đầu');
+  // Không ai đánh nước đầu: ván tự huỷ (không ai thua, không lưu ván)
+  const ab = await a.wait('room', (m) => m.room.winner, 4000);
+  assert.strictEqual(ab.room.reason, 'abort');
+  assert.strictEqual(ab.room.share, null);
+  // Tái đấu, mỗi bên đi 1 nước rồi để hết giờ: người cầm X hết 1 phút (1,2 giây ở test) thì thua
+  b.send({ t: 'rematch' });
+  const re = await a.req({ t: 'rematch' }, 'room', (m) => !m.room.winner && m.room.gameNo === 2);
+  const [px, po] = re.room.seats.x === a.me.id ? [a, b] : [b, a];
+  await px.req({ t: 'move', x: 0, y: 0 }, 'room', (m) => m.room.moves.length === 1);
+  await po.req({ t: 'move', x: 5, y: 5 }, 'room', (m) => m.room.moves.length === 2);
   const end = await a.wait('room', (m) => m.room.winner, 4000);
   assert.strictEqual(end.room.reason, 'time');
   assert.strictEqual(end.room.winner, 2);
@@ -291,7 +303,7 @@ test('xem trực tiếp: xem ván công khai / tìm nhanh, không xem được p
   const lb = await v.req({ t: 'leaderboard', pool: 'blitz' }, 'leaderboard');
   assert.strictEqual(lb.pool, 'blitz');
   assert.ok(!lb.top.some((u) => u.username === 'tv_a'));
-  app.hub.store.users.get(a.me.uid).pools.blitz.rd = 80;
+  app.hub.store.users.get(a.me.uid).pools.blitz.rd = 70;
   app.hub.ratingsChanged(); // (đổi tay trong test: báo bảng xếp hạng dựng lại)
   const lb2 = await v.req({ t: 'leaderboard', pool: 'blitz' }, 'leaderboard');
   assert.ok(lb2.top.some((u) => u.username === 'tv_a'), 'hết tạm thì lên bảng blitz');

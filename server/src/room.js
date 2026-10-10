@@ -17,13 +17,14 @@ const { E } = require('./msg.js');
 const { parseClock } = require('./rating.js');
 const { ClockMixin } = require('./room-clock.js');
 const { Swap2Mixin } = require('./room-swap2.js');
+const { ExtrasMixin } = require('./room-extras.js');
 
 const { X, O } = Caro;
 const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
 const COORD_LIMIT = 1_000_000;
 
 class Room {
-  constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, clock = null, opening = 'free', secondMs = 1000, drawCooldownMs = 30000 }) {
+  constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, clock = null, opening = 'free', secondMs = 1000, drawCooldownMs = 30000, firstMoveMs = 0 }) {
     this.code = code;
     this.password = password;
     this.kind = kind;
@@ -41,6 +42,7 @@ class Room {
     this.secondMs = secondMs;
     this.drawCooldownMs = drawCooldownMs; // bị từ chối hoà thì phải chờ mới được xin lại
     this.turnEndsAt = null;
+    this.firstMoveMs = firstMoveMs; // > 0: hạn đi nước đầu (ms), quá hạn thì ván tự huỷ
     this.players = []; // [{ id, name }]
     this.seats = { [X]: null, [O]: null }; // quân -> id người chơi
     this.score = {}; // id -> số ván thắng
@@ -59,7 +61,7 @@ class Room {
     this.turn = X;
     this.winner = null; // X | O | DRAW
     this.winCells = null;
-    this.reason = null; // 'win' | 'resign' | 'leave' | 'timeout' (mất kết nối) | 'time' (hết giờ) | 'draw'
+    this.reason = null; // 'win' | 'resign' | 'leave' | 'timeout' (mất kết nối) | 'time' (hết giờ) | 'draw' | 'abort' (huỷ)
     this.turnEndsAt = null;
     this.drawOffer = null; // id người đang xin hoà
     this.drawWait = {}; // id -> thời điểm được xin hoà lại
@@ -69,6 +71,13 @@ class Room {
     this.clockRun = null;
     this.clockLeft = {};
     this.begun = false;
+    this.noPlay = false; // ván tự huỷ vì không đi nước đầu
+    this.abortedBy = null; // người huỷ ván / không đi nước đầu kịp
+    this.firstMoveAt = null; // hạn đi nước đầu (phòng gặp người lạ)
+    this.takebackOffer = null; // id người đang xin đi lại
+    this.takebacks = 0; // số lần đã đi lại trong ván (có đi lại = không tính điểm)
+    this.openingEnd = 0; // số quân khai cuộc Swap2 (không được đi lại qua)
+    this.berserk = new Set(); // id người đã Berserk (giải Arena)
   }
 
   /** Ván mới bắt đầu (đủ 2 người): ghi nhớ ai đặt quân khai cuộc, nạp đồng hồ tổng. */
@@ -149,6 +158,7 @@ class Room {
     else if (this.phase === 'place2' && this.board.moves.length >= 5) this.phase = 'choose2';
     // Đối thủ đánh tiếp thay vì trả lời = từ chối lời xin hoà.
     if (this.drawOffer && this.drawOffer !== id) this.declineDraw();
+    this.takebackOffer = null;
     this.touch();
     const cells = Caro.checkWin(this.board, x, y, side);
     if (cells) {
@@ -204,6 +214,7 @@ class Room {
     this.reason = reason;
     this.turnEndsAt = null;
     this.drawOffer = null;
+    this.takebackOffer = null;
     const wid = winnerSide === DRAW ? null : this.seats[winnerSide];
     if (wid) this.score[wid] = (this.score[wid] || 0) + 1;
     if (this.kind === 'series' && wid && this.score[wid] >= this.needWins) this.seriesWinner = wid;
@@ -268,14 +279,20 @@ class Room {
       rematch: [...this.rematch],
       seriesWinner: this.seriesWinner,
       drawOffer: this.drawOffer,
+      abortable: this.abortable,
+      firstMove: this.firstMoveLeft(), // ms còn lại để đi nước đầu (quá hạn thì ván tự huỷ)
+      takeback: this.takebackAllowed,
+      takebackOffer: this.takebackOffer,
+      takebacks: this.takebacks,
+      berserk: [...this.berserk],
       public: !!this.public, // phòng công khai (trong sảnh)
       quick: !!this.quick, // phòng do tìm trận nhanh tạo
     };
   }
 }
 
-// Đồng hồ (room-clock.js) và luật Swap2 (room-swap2.js) tách file riêng cho dễ sửa
-for (const part of [ClockMixin, Swap2Mixin]) {
+// Đồng hồ (room-clock.js), luật Swap2 (room-swap2.js), huỷ ván / thêm giờ / đi lại / Berserk (room-extras.js) tách file riêng
+for (const part of [ClockMixin, Swap2Mixin, ExtrasMixin]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name !== 'constructor') Object.defineProperty(Room.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
   }

@@ -88,7 +88,7 @@ async function account(prefix, rating) {
   for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
   const c = await Client.open();
   const username = (prefix + '_' + (++seq)).slice(0, 20);
-  await c.req({ t: 'register', username, password: '123456', name: prefix + seq }, 'welcome');
+  await c.req({ t: 'register', username, password: 'caro-pass1', name: prefix + seq }, 'welcome');
   if (rating) app.hub.store.users.get(c.me.uid).rating = rating;
   return c;
 }
@@ -97,7 +97,7 @@ async function admin() {
   if (boss) return boss;
   for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
   boss = await Client.open();
-  await boss.req({ t: 'register', username: 'boss', password: '123456', name: 'Boss' }, 'welcome');
+  await boss.req({ t: 'register', username: 'boss', password: 'caro-pass1', name: 'Boss' }, 'welcome');
   return boss;
 }
 const soon = () => Date.now() + 5 * 60 * 1000;
@@ -579,7 +579,7 @@ test('giải và câu lạc bộ được lưu: máy chủ khởi động lại 
   await new Promise((r) => srv.server.on('listening', r));
   let u = `ws://127.0.0.1:${srv.server.address().port}/ws`;
   const c = await Client.open(u);
-  await c.req({ t: 'register', username: 'boss', password: '123456', name: 'Boss' }, 'welcome');
+  await c.req({ t: 'register', username: 'boss', password: 'caro-pass1', name: 'Boss' }, 'welcome');
   const { id: club } = await c.req({ t: 'clubCreate', name: 'CLB Bền', join: 'open' }, 'clubCreated');
   const { id } = await c.req({ t: 'tourCreate', name: 'Giải Bền', format: 'knockout', startsAt: soon(), access: 'club', club }, 'tourCreated');
   c.close();
@@ -588,7 +588,7 @@ test('giải và câu lạc bộ được lưu: máy chủ khởi động lại 
   await new Promise((r) => srv.server.on('listening', r));
   u = `ws://127.0.0.1:${srv.server.address().port}/ws`;
   const d = await Client.open(u);
-  await d.req({ t: 'login', username: 'boss', password: '123456' }, 'welcome');
+  await d.req({ t: 'login', username: 'boss', password: 'caro-pass1' }, 'welcome');
   const v = await d.req({ t: 'tourGet', id }, 'tour');
   assert.strictEqual(v.tour.name, 'Giải Bền');
   assert.strictEqual(v.tour.club.name, 'CLB Bền');

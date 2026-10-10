@@ -8,7 +8,7 @@
 'use strict';
 const crypto = require('crypto');
 const { E, note } = require('../msg.js');
-const { cleanText, cleanName, userPid, uidOf } = require('./shared.js');
+const { cleanText, cleanPublicText, cleanPublicName, userPid, uidOf } = require('./shared.js');
 
 const CLUB_JOIN = ['open', 'request', 'code'];
 const MAX_OWNED_CLUBS = 2;
@@ -78,7 +78,7 @@ class Clubs {
 
   on_clubCreate(conn, { name, desc, join }) {
     const me = this.requireUser(conn);
-    name = cleanName(name).slice(0, 40);
+    name = cleanPublicName(name).slice(0, 40);
     if (name.length < 3) throw E('club_name_short');
     const owned = [...this.clubs.values()].filter((c) => c.owner === me.id && c.status !== 'rejected');
     if (owned.length >= MAX_OWNED_CLUBS) throw E('club_limit', { n: MAX_OWNED_CLUBS });
@@ -86,7 +86,7 @@ class Clubs {
     if ([...this.clubs.values()].some((c) => c.status !== 'rejected' && c.name.toLowerCase() === key)) throw E('club_name_taken');
     const admin = this.isAdmin(me.id);
     const c = {
-      id: crypto.randomBytes(5).toString('hex'), name, desc: cleanText(desc, 500), join: CLUB_JOIN.includes(join) ? join : 'open',
+      id: crypto.randomBytes(5).toString('hex'), name, desc: cleanPublicText(desc, 500), join: CLUB_JOIN.includes(join) ? join : 'open',
       code: newCode(), owner: me.id, members: { [me.id]: 'owner' }, requests: [], announcement: '',
       status: admin ? 'approved' : 'pending', created: Date.now(),
     };
@@ -206,8 +206,8 @@ class Clubs {
     const me = this.requireUser(conn);
     const c = this.findClub(id, me.id);
     if (!this.isOfficer(c, me.id)) throw E('club_officers_only');
-    if (typeof desc === 'string') c.desc = cleanText(desc, 500);
-    if (typeof announcement === 'string') c.announcement = cleanText(announcement, 300);
+    if (typeof desc === 'string') c.desc = cleanPublicText(desc, 500);
+    if (typeof announcement === 'string') c.announcement = cleanPublicText(announcement, 300);
     if (CLUB_JOIN.includes(join) && (c.owner === me.id || this.isAdmin(me.id))) c.join = join;
     this.saveClub(c);
     this.pushClub(c);

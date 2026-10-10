@@ -26,6 +26,7 @@ class Swap2Mixin {
     this.seats[X] = choice === 'x' ? id : other;
     this.seats[O] = choice === 'x' ? other : id;
     this.phase = null;
+    this.openingEnd = this.board.moves.length; // không được xin đi lại qua phần khai cuộc
     this.startClock();
     this.touch();
   }

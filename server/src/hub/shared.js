@@ -47,6 +47,15 @@ function cleanTc({ timeLimit, clock, opening } = {}, CLOCKS = require('../rating
 }
 const cleanText = (s, max) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
 
+const { isOffensiveName, mask } = require('../moderation.js');
+/** Chữ công khai (mô tả CLB / giải, thông báo): che từ tục. */
+const cleanPublicText = (s, max) => mask(cleanText(s, max));
+/** Tên người chơi / CLB / giải: có từ tục thì báo lỗi bad_name. */
+function cleanPublicName(s) {
+  const n = cleanName(s);
+  if (n && isOffensiveName(n)) throw require('../msg.js').E('bad_name');
+  return n;
+}
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
 const userPid = (uid) => 'u_' + uid;
 const uidOf = (pid) => (pid && pid.startsWith('u_') ? pid.slice(2) : null);
@@ -74,5 +83,5 @@ async function verifyGoogleToken(credential, clientId) {
 }
 
 module.exports = {
-  USERNAME_RE, OPENINGS, cleanTc, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
+  USERNAME_RE, OPENINGS, cleanTc, cleanPublicText, cleanPublicName, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
 };

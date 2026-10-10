@@ -8,6 +8,7 @@ const { DRAW } = require('../room.js');
 const { E } = require('../msg.js');
 const { uidOf } = require('./shared.js');
 const R = require('../rating.js');
+const Perf = require('../perf.js');
 
 const LB_TOP = 20;
 const LB_CACHE_MS = 60 * 1000;
@@ -21,10 +22,10 @@ class Profile {
     if (c && c.ver === this.ratingVer && now - c.at < LB_CACHE_MS) return c.list;
     const list = [];
     for (const u of this.store.users.values()) {
-      if (!pool) { if (u.rated > 0) list.push({ u, r: u.rating, n: u.rated }); continue; }
+      // Chỉ người đã chơi và điểm đủ chắc chắn (rd ≤ 75, như Lichess); điểm chính: theo loại chơi nhiều nhất
+      if (!pool) { if (u.rated > 0 && R.rankable(u.pools[R.mainPool(u)], now)) list.push({ u, r: u.rating, n: u.rated }); continue; }
       const p = u.pools[pool];
-      // Theo loại thời gian: chỉ người đã chơi loại đó và điểm không còn "tạm" (như Lichess)
-      if (p.n > 0 && !R.provisional(p, now)) list.push({ u, r: Math.round(p.r), n: p.n });
+      if (R.rankable(p, now)) list.push({ u, r: Math.round(p.r), n: p.n });
     }
     list.sort((a, b) => b.r - a.r || b.n - a.n);
     this.lbCache[key] = { ver: this.ratingVer, at: now, list };
@@ -74,6 +75,7 @@ class Profile {
         id: u.id, name: u.name, username: u.username, created: u.created || null, status: this.status(u.id),
         rating: u.rating, main: R.mainPool(u), pools, history: this.store.ratingPoints(u.id),
         stats: u.stats, rated: u.rated, streak: u.wstreak, tours: u.tours, recent,
+        perf: u.perf || {}, activity: Perf.activity(u), // thống kê sâu theo loại + hoạt động 30 ngày
         self: meUid === u.id, friend: !!(me && me.friends.includes(u.id)), h2h: me && me.id !== u.id ? this.store.h2h(me.id, u.id) : null,
       },
     });

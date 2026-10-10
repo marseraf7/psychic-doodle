@@ -134,7 +134,7 @@ async function screenRect(app, sel) {
   await app.click('#go-register');
   await app.fill('#auth-form input[name=name]', 'Android');
   await app.fill('#auth-form input[name=username]', 'android_1');
-  await app.fill('#auth-form input[name=password]', '123456');
+  await app.fill('#auth-form input[name=password]', 'caro-pass1');
   await app.click('#auth-submit');
   const appMe = await until(() => app.evaluate(() => { const m = window.CaroOnline.state.me; return m && !m.guest && m; }));
   check('app đăng ký tài khoản', !!appMe && appMe.username === 'android_1');
@@ -144,7 +144,7 @@ async function screenRect(app, sel) {
   await until(() => web.evaluate(() => window.CaroOnline.connected));
   await web.click('#go-register');
   await web.fill('#auth-form input[name=username]', 'web_1');
-  await web.fill('#auth-form input[name=password]', '123456');
+  await web.fill('#auth-form input[name=password]', 'caro-pass1');
   await web.click('#auth-submit');
   await until(() => web.evaluate(() => { const m = window.CaroOnline.state.me; return m && !m.guest; }));
   await web.fill('#add-friend input', 'android_1');
@@ -338,9 +338,11 @@ async function screenRect(app, sel) {
   check('Back đóng bảng, thẻ đang tìm hiện trên màn chơi', !!(await until(() => app.isVisible('.qm-float'))));
   shot('searching');
   await web.evaluate(() => window.CaroOnline.send({ t: 'quickMatch', timeLimit: -1 }));
+  // Web vừa rời phòng công khai trước nước đầu (= huỷ ván, bị ghi là bỏ ván) nên được ưu tiên ghép với người hay bỏ ván:
+  // ghép với app sau khi chờ quá 20 giây
   check('tìm trận nhanh ghép app với web', !!(await until(() => app.evaluate(() => {
     const r = window.CaroOnline.state.room; return !!(r && r.quick && r.players.length === 2);
-  }))));
+  }), 40000)));
   check('hết thẻ đang tìm sau khi ghép', !!(await until(() => app.isHidden('.qm-float'))));
   shot('matched');
 

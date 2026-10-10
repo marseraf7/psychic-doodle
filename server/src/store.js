@@ -53,6 +53,7 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS rating_hist (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT NOT NULL, pool TEXT NOT NULL,
     at INTEGER NOT NULL, r INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS rating_hist_uid ON rating_hist (uid, id);
+  CREATE INDEX IF NOT EXISTS games_pair ON games (x_id, o_id, id);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
 const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT']];
@@ -93,6 +94,8 @@ class Store {
       history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.clock, g.opening, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
         json_array_length(g.moves) AS moves FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? ORDER BY g.id DESC LIMIT ?`),
       gameByShare: q('SELECT * FROM games WHERE share = ?'),
+      pairGames: q(`SELECT * FROM (SELECT id, x_id, o_id, winner, moves FROM games WHERE x_id = ? AND o_id = ?
+        UNION ALL SELECT id, x_id, o_id, winner, moves FROM games WHERE x_id = ? AND o_id = ?) ORDER BY id DESC LIMIT ?`),
       getH2h: q('SELECT a_wins, b_wins, draws FROM h2h WHERE a = ? AND b = ?'),
       addH2h: q(`INSERT INTO h2h (a, b, a_wins, b_wins, draws) VALUES (?, ?, ?, ?, ?)
         ON CONFLICT(a, b) DO UPDATE SET a_wins = a_wins + excluded.a_wins, b_wins = b_wins + excluded.b_wins, draws = draws + excluded.draws`),
@@ -334,6 +337,13 @@ class Store {
     const g = this.q.gameByShare.get(share);
     if (!g) return null;
     return { ...g, moves: JSON.parse(g.moves) };
+  }
+
+  /** n ván gần nhất giữa 2 tài khoản (mới nhất trước): [{ winnerId, moves }] – chống cày điểm bằng ván lặp lại. */
+  pairGames(a, b, n = 2) {
+    return this.q.pairGames.all(a, b, b, a, n).map((g) => ({
+      winnerId: g.winner === 1 ? g.x_id : g.winner === 2 ? g.o_id : null, moves: JSON.parse(g.moves),
+    }));
   }
 
   // ------------------------------------------------------------ Biểu đồ điểm

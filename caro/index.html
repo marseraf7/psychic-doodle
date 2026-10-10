@@ -48,6 +48,7 @@
     <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 16v6M9 3h6l-1 6 3 3.5H7L10 9z"/></symbol>
     <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
     <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 22c4.1 0 7-2.9 7-7 0-3.2-2-5.6-4-7.6-.2 2.1-1.2 3.6-2.6 4.2C12.6 8.3 11 5 8.4 2.5 8.6 6.4 5 8.8 5 14.6 5 18.9 7.9 22 12 22z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
     <!-- Phân tích, giải đố, nhân vật máy -->
     <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
@@ -83,7 +84,7 @@
     <button id="btn-room" type="button"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span data-i18n="btn_room"></span></button>
     <button id="btn-center2" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
     <button id="btn-draw" type="button"><svg class="ico" aria-hidden="true"><use href="#i-draw"/></svg><span id="btn-draw-label" data-i18n="btn_draw"></span></button>
-    <button id="btn-resign" type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span data-i18n="btn_resign"></span></button>
+    <button id="btn-resign" type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span id="btn-resign-label" data-i18n="btn_resign"></span></button>
     <button id="btn-leave" type="button"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg><span data-i18n="btn_leave"></span></button>
   </nav>
 
@@ -325,9 +326,15 @@
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
       <div class="pz-stats" id="pz-stats"></div>
+      <label class="field pz-diff"><span data-i18n="pz_diff"></span>
+        <select id="pz-diff">
+          <option value="-600" data-i18n="pz_diff_-600"></option><option value="-300" data-i18n="pz_diff_-300"></option>
+          <option value="0" data-i18n="pz_diff_0"></option><option value="300" data-i18n="pz_diff_300"></option><option value="600" data-i18n="pz_diff_600"></option>
+        </select></label>
       <div class="pz-modes">
         <button type="button" class="pz-mode" data-open="learn"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span><b data-i18n="learn_title"></b><small data-i18n="learn_sub"></small></span></button>
         <button type="button" class="pz-mode" data-pz="rated"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span><b data-i18n="pz_rated"></b><small data-i18n="pz_rated_d"></small></span></button>
+        <button type="button" class="pz-mode" data-storm><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg><span><b data-i18n="storm_title"></b><small id="storm-sub" data-i18n="storm_d"></small></span></button>
         <button type="button" class="pz-mode" data-pz="streak"><svg class="ico" aria-hidden="true"><use href="#i-fire"/></svg><span><b data-i18n="pz_streak"></b><small data-i18n="pz_streak_d"></small></span></button>
         <button type="button" class="pz-mode" data-open="habits"><svg class="ico" aria-hidden="true"><use href="#i-medal2"/></svg><span><b data-i18n="habits_title"></b><small data-i18n="habits_sub"></small></span></button>
         <button type="button" class="pz-mode" data-pz="daily"><svg class="ico" aria-hidden="true"><use href="#i-cal"/></svg><span><b data-i18n="pz_daily"></b><small id="pz-daily-sub" data-i18n="pz_daily_d"></small></span></button>
@@ -722,6 +729,7 @@
   <script src="online.js"></script>
   <script src="social.js"></script>
   <script src="match.js"></script>
+  <script src="gamex.js"></script>
   <script src="tour-patch.js"></script>
   <script src="tour.js"></script>
   <script src="tour-stages.js"></script>
@@ -729,6 +737,7 @@
   <script src="tour-groups.js"></script>
   <script src="club.js"></script>
   <script src="study.js"></script>
+  <script src="storm.js"></script>
   <script src="share.js"></script>
   <script src="swap.js"></script>
   <script src="watch.js"></script>

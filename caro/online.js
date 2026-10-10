@@ -375,7 +375,7 @@
     }
     // Hiện cả trong bảng Online (hộp thoại đang mở che mất thẻ lời mời phía dưới)
     const inner = $('dlg-invites');
-    box.innerHTML = html + ((window.CaroMatch && window.CaroMatch.floatHtml()) || '');
+    box.innerHTML = html + ((window.CaroGameX && window.CaroGameX.floatHtml()) || '') + ((window.CaroMatch && window.CaroMatch.floatHtml()) || '');
     inner.innerHTML = html;
     inner.hidden = !html;
     const all = (sel) => [...box.querySelectorAll(sel), ...inner.querySelectorAll(sel)];
@@ -574,6 +574,7 @@
   $('btn-resign').onclick = () => {
     const r = S.room;
     if (!r || r.players.length < 2 || r.winner) return toast(T('no_game'));
+    if (r.abortable) return send({ t: 'abort' }); // chưa quá 1 nước: huỷ ván (không thắng thua)
     if (confirm(T('confirm_resign'))) send({ t: 'resign' });
   };
   // Xin hoà: chỉ khi ván đang diễn ra; đã xin thì chờ đối thủ trả lời.
@@ -584,6 +585,9 @@
     const mine = live && r.drawOffer === S.me.id;
     b.disabled = !live || mine;
     $('btn-draw-label').textContent = T(mine ? 'draw_sent' : 'btn_draw');
+    // Ván chưa quá 1 nước: nút đầu hàng thành nút huỷ ván
+    $('btn-resign-label').textContent = T(live && r.abortable ? 'btn_abort' : 'btn_resign');
+    window.CaroGameX?.render();
   }
   $('btn-draw').onclick = () => {
     const r = S.room;
@@ -622,7 +626,8 @@
     let title = T(draw ? 'draw_title' : won ? 'you_win' : 'lost');
     let sub = '';
     // Lý do kết thúc khác (đầu hàng, rời phòng, mất kết nối, hết giờ): nói ai là người thua.
-    if (draw) sub = T('r_draw');
+    if (r.reason === 'abort') { title = T('aborted_title'); sub = ''; } // ván bị huỷ: không ai thắng
+    else if (draw) sub = T('r_draw');
     else if (r.reason && r.reason !== 'win') sub = won ? T(`r_${r.reason}_opp`, { name: oppName }) : T(`r_${r.reason}_you`);
     const score = `${r.score[me] || 0} – ${opp ? r.score[opp.id] || 0 : 0}`;
     let rematch = true;

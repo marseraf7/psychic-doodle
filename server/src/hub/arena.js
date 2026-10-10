@@ -2,6 +2,7 @@
  * Giải Arena (học theo Lichess): chơi trong N phút, xong ván là tự được ghép ván mới với người đang chờ
  * có điểm gần mình. Thắng 2 điểm, hoà 1 điểm (hoà dưới 10 nước: 0 điểm), thua 0. Thắng 2 ván liền thì "🔥":
  * ván sau thắng được 4, hoà được 2, cho tới khi hoà hoặc thua. Vào giải muộn vẫn được, nghỉ tạm được.
+ * Berserk (giải có đồng hồ tổng): chia đôi thời gian của mình, không cộng giờ; thắng (từ 10 nước) thì thêm 1 điểm.
  * Phần chung của giải đấu (tạo, đăng ký, xem, huỷ…) nằm ở tournaments.js.
  */
 'use strict';
@@ -71,6 +72,7 @@ class Arena {
         p.streak = 0;
       } else if (winUid === uid) {
         gained = fire ? 4 : 2;
+        if (room.berserk.has(userPid(uid)) && room.board.moves.length >= MIN_RATED_MOVES) gained++; // Berserk thắng: +1
         p.wins++;
         p.streak++;
       } else {
@@ -84,7 +86,8 @@ class Arena {
       p.restUntil = now + this.T.ARENA_REST_MS; // nghỉ vài giây xem kết quả rồi mới ghép tiếp
       pts[uid] = gained;
     }
-    t.games.push({ x: xUid, o: oUid, w: winUid, px: pts[xUid] || 0, po: pts[oUid] || 0, share: room.lastShare || null, at: now });
+    t.games.push({ x: xUid, o: oUid, w: winUid, px: pts[xUid] || 0, po: pts[oUid] || 0, share: room.lastShare || null, at: now,
+      bx: room.berserk.has(userPid(xUid)) || undefined, bo: room.berserk.has(userPid(oUid)) || undefined });
     if (t.games.length > KEEP_GAMES) t.games.splice(0, t.games.length - KEEP_GAMES);
     this.saveTour(t);
     this.pushTour(t);

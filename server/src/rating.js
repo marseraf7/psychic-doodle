@@ -2,7 +2,8 @@
  * Điểm xếp hạng Glicko-2 (như Lichess), tách theo loại thời gian:
  *   bullet (siêu chớp) · blitz (chớp) · rapid (nhanh) · classical (chậm / không giới hạn).
  * Mỗi loại: r (điểm), rd (độ lệch – càng lớn càng chưa chắc), vol (độ biến động), n (số ván), at (lần tính gần nhất).
- * rd > 110: điểm "tạm" (hiện kèm dấu ?). Lâu không chơi thì rd tăng dần trở lại (tối đa 350 sau ~1 năm).
+ * rd > 110: điểm "tạm" (hiện kèm dấu ?). Lâu không chơi thì rd tăng dần trở lại: từ 60 lên 110 sau 1 năm (như Lichess).
+ * Bảng xếp hạng chỉ tính người có rd ≤ 75. Mỗi ván thay đổi tối đa 700 điểm.
  */
 'use strict';
 
@@ -13,8 +14,10 @@ const RD_MAX = 350, RD_MIN = 45, VOL = 0.06, TAU = 0.75;
 const PROVISIONAL_RD = 110;
 const SCALE = 173.7178;
 const DAY = 86400000;
-// rd tăng từ 60 lên 350 sau 365 ngày không chơi
-const C2 = (RD_MAX * RD_MAX - 60 * 60) / 365;
+const RANKABLE_RD = 75; // bảng xếp hạng: chỉ người có rd ≤ 75
+const MAX_DELTA = 700; // mỗi ván thay đổi tối đa 700 điểm
+// rd tăng từ 60 lên 110 sau 365 ngày không chơi
+const C2 = (110 * 110 - 60 * 60) / 365;
 
 /** '3+2' -> { base: 180000, inc: 2000 } (ms), hoặc null nếu không hợp lệ. */
 function parseClock(s) {
@@ -102,7 +105,7 @@ function rateGame(ua, ub, pool, sa, now = Date.now()) {
   const na = glicko(pa, pb, sa, now), nb = glicko(pb, pa, 1 - sa, now);
   const before = [Math.round(pa.r), Math.round(pb.r)];
   for (const [p, n] of [[pa, na], [pb, nb]]) {
-    p.r = Math.round(n.r * 10) / 10;
+    p.r = Math.round(Math.max(p.r - MAX_DELTA, Math.min(p.r + MAX_DELTA, n.r)) * 10) / 10;
     p.rd = Math.round(n.rd * 10) / 10;
     p.vol = Math.round(n.vol * 1e6) / 1e6;
     p.n++;
@@ -122,6 +125,7 @@ function mainPool(u) {
 const mainRating = (u) => Math.round(u.pools[mainPool(u)].r);
 
 const provisional = (p, now = Date.now()) => decayedRd(p, now) > PROVISIONAL_RD;
+const rankable = (p, now = Date.now()) => p.n > 0 && decayedRd(p, now) <= RANKABLE_RD;
 
 /** Điểm hiển thị của tài khoản trong một loại (hoặc điểm chính). */
 function ratingIn(u, pool, now = Date.now()) {
@@ -130,4 +134,4 @@ function ratingIn(u, pool, now = Date.now()) {
   return { r: Math.round(p.r), prov: provisional(p, now), n: p.n };
 }
 
-module.exports = { POOLS, CLOCKS, START, PROVISIONAL_RD, parseClock, poolOf, newPool, upgradePools, decayedRd, glicko, rateGame, mainPool, mainRating, provisional, ratingIn };
+module.exports = { POOLS, CLOCKS, START, PROVISIONAL_RD, RANKABLE_RD, MAX_DELTA, rankable, parseClock, poolOf, newPool, upgradePools, decayedRd, glicko, rateGame, mainPool, mainRating, provisional, ratingIn };

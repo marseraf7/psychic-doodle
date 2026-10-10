@@ -13,7 +13,7 @@
 const crypto = require('crypto');
 const { DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
-const { cleanText, cleanName, cleanTc, userPid, uidOf } = require('./shared.js');
+const { cleanPublicText, cleanPublicName, cleanTc, userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
 
 const FORMATS = ['arena', 'bracket'];
@@ -162,7 +162,7 @@ class Tournaments {
   // ------------------------------------------------------------ Tạo / xem / đăng ký
   on_tourCreate(conn, o) {
     const me = this.requireUser(conn);
-    const name = cleanName(o.name).slice(0, 60);
+    const name = cleanPublicName(o.name).slice(0, 60);
     if (name.length < 3) throw E('tour_name_short');
     const format = FORMATS.includes(o.format) ? o.format : 'arena';
     // Đồng hồ tổng (thay cho thời gian mỗi nước) và luật khai cuộc; giải luôn có giới hạn thời gian
@@ -187,7 +187,7 @@ class Tournaments {
     const maxPlayers = Math.max(ko ? 3 : 2, Math.min(MAX_PLAYERS, Math.floor(Number(o.maxPlayers)) || (ko ? 16 : 100)));
     const admin = this.isAdmin(me.id);
     const t = {
-      id: crypto.randomBytes(5).toString('hex'), name, desc: cleanText(o.desc, 1000), format: ko ? 'bracket' : 'arena', creator: me.id,
+      id: crypto.randomBytes(5).toString('hex'), name, desc: cleanPublicText(o.desc, 1000), format: ko ? 'bracket' : 'arena', creator: me.id,
       status: admin ? 'scheduled' : 'pending', created: now, startsAt, timeLimit, clock, opening, rated: o.rated !== false,
       access, club, maxPlayers,
       minutes: ko ? null : (ARENA_MINUTES.includes(Number(o.minutes)) ? Number(o.minutes) : 30),
