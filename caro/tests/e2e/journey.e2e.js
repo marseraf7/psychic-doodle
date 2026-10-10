@@ -4,6 +4,7 @@
  *    khoá i18n chưa dịch hiện ra, tràn ngang, hộp thoại không đóng được bằng Esc.
  *  - Học chơi: giải thích luật Swap2 và Renju từng bước, nút Back (Android) lùi một bước.
  *  - Chơi với máy tới hết ván, đi lại, ván mới.
+ *  - Trang chính sách quyền riêng tư cuộn được bằng chuột (lăn và bấm giữ kéo).
  *   node caro/tests/e2e/journey.e2e.js
  */
 'use strict';
@@ -277,6 +278,24 @@ const { setup } = require('./helpers');
     }
     ok(!errs.length, 'điện thoại: không lỗi JS ' + errs.join(' | '));
     for (const p of [a, b, w]) await p.context().close();
+  }
+
+  // ---------------------------------------------------------------- 5. Trang chính sách quyền riêng tư: cuộn bằng chuột
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const p = await ctx.newPage();
+    const perr = [];
+    p.on('console', (m) => { if (m.type() === 'error') perr.push(m.text()); });
+    await p.goto(`http://localhost:${PORT}/privacy.html`);
+    await sleep(400);
+    const y = () => p.evaluate(() => scrollY);
+    await p.mouse.move(640, 400); await p.mouse.wheel(0, 500); await sleep(300);
+    ok(await y() === 500, 'chính sách: lăn chuột cuộn được');
+    await p.evaluate(() => scrollTo(0, 0));
+    await p.mouse.move(640, 600); await p.mouse.down(); await p.mouse.move(640, 200, { steps: 10 }); await p.mouse.up();
+    ok(await y() === 400 && !(await p.evaluate(() => String(getSelection()))), 'chính sách: bấm giữ chuột kéo lên thì cuộn (không bôi đen chữ)');
+    ok(!perr.length, 'chính sách: không lỗi (CSP) ' + perr.join(' | '));
+    await ctx.close();
   }
 
   await host.context().close();
