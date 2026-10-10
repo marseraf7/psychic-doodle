@@ -53,7 +53,7 @@
       // Tên khách mặc định theo ngôn ngữ đang chọn (vd. "Guest-3F2A"), nếu chưa tự đặt tên.
       const guestName = LS.get('caro.guestName') || `${T('guest')}-${guestKey.slice(0, 4).toUpperCase()}`;
       // Bản app điện thoại gửi kèm phiên bản để máy chủ báo khi cần cập nhật
-      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null };
+      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null, tz: -new Date().getTimezoneOffset() };
       ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName, client }));
     };
     ws.onmessage = (e) => {

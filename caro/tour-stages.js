@@ -36,6 +36,7 @@
       : `<div class="b-p empty"><span class="seed"></span><span class="nm">${esc(p && p.bye ? T('bye') : '—')}</span><b></b></div>`;
     const extra = [];
     if (m.live) extra.push(m.room ? `<a href="#" class="pill live" data-watch="${esc(m.room)}" title="${esc(T('watch'))}">● ${esc(T('live'))} ${icon('eye')}</a>` : `<span class="pill live">● ${esc(T('live'))}</span>`);
+    if (m.held) extra.push(`<span class="pill held">⏸ ${esc(T('dispute_held'))}</span>`);
     if (m.walkover) extra.push(esc(T('walkover')));
     if (m.double) extra.push(esc(T('both_absent')));
     extra.push(...replays(m));
@@ -50,6 +51,7 @@
     let mid;
     if (m.bye) mid = '';
     else if (m.live) mid = m.room ? `<a href="#" class="pill live" data-watch="${esc(m.room)}" title="${esc(T('watch'))}">● ${m.wa}–${m.wb} ${icon('eye')}</a>` : `<span class="pill live">● ${m.wa}–${m.wb}</span>`;
+    else if (m.held) mid = `<span class="pill held" title="${esc(T('dispute_held'))}">⏸ ${m.wa}–${m.wb}</span>`;
     else if (m.done) mid = `<b>${m.wa}–${m.wb}</b>`;
     else mid = `<span class="muted">vs</span>`;
     const tags = [];

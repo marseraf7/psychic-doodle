@@ -16,7 +16,7 @@ const { encodePng, boardPng } = require('../src/png.js');
 // ---------------------------------------------------------------- Không cần máy chủ
 test('kiểm duyệt: từ tục 4 thứ tiếng (kể cả viết lách), không bắt nhầm từ thường', () => {
   assert.strictEqual(M.mask('đ.ị.t mày'), 'đ**** mày');
-  assert.strictEqual(M.mask('сука блять'), 'с*** б**ть');
+  assert.strictEqual(M.mask('сука блять'), 'с*** б****');
   assert.ok(M.mask('you f.u.c.k').includes('*'));
   assert.ok(M.mask('fuuuck you').includes('*'));
   assert.ok(M.mask('sh1t').includes('*'), 'leetspeak');
@@ -26,6 +26,11 @@ test('kiểm duyệt: từ tục 4 thứ tiếng (kể cả viết lách), khôn
   assert.strictEqual(M.isOffensiveName('fuck'), true);
   assert.strictEqual(M.isOffensiveName('Thằng chó'), true);
   assert.strictEqual(M.isOffensiveName('Bình'), false);
+  // Không bắt nhầm từ thường tiếng Nga / Trung; viết tắt "cl" chỉ che trong tin nhắn, không cấm làm tên
+  for (const ok of ['100 рубля', 'употребляя воду', 'Компания страхует дом', 'бляха', '我妈妈的生日', '他妈妈很好']) assert.strictEqual(M.mask(ok), ok);
+  assert.ok(M.mask('他妈的').includes('*') && M.mask('ты нахуй').includes('*') && M.mask('заебал').includes('*'));
+  assert.strictEqual(M.isOffensiveName('CL Hà Nội'), false);
+  assert.ok(M.mask('vãi cl').includes('*'));
 });
 
 test('kiểm duyệt: mật khẩu yếu, tin nhắn dồn dập / lặp lại', () => {
@@ -72,6 +77,10 @@ test('thống kê sâu: điểm cao / thấp nhất, thắng đẹp, thua tệ, 
   const act = Perf.activity(u);
   assert.strictEqual(act.length, 2);
   assert.deepStrictEqual(act[1], { day: '2026-01-10', w: 1, l: 1, d: 0, r: { blitz: 7 } });
+  // Ngày theo múi giờ người chơi: 20 giờ UTC = 3 giờ sáng hôm sau ở Việt Nam (UTC+7)
+  const vn = { tz: 420 };
+  Perf.addActivity(vn, 'win', null, null, Date.UTC(2026, 0, 10, 20));
+  assert.deepStrictEqual(Object.keys(vn.act), ['2026-01-11']);
 });
 
 function room2(opts) {
@@ -123,6 +132,17 @@ test('phòng: thêm giờ, xin đi lại (chỉ phòng riêng), Berserk (chỉ g
   assert.strictEqual(t.board.moves.length, 2);
   assert.strictEqual(t.actor(), 'A');
   assert.strictEqual(t.takebacks, 2);
+  // Bị từ chối thì phải chờ mới xin lại được (chống bấm liên tục)
+  const w = room2({ drawCooldownMs: 1000 });
+  w.move('A', 0, 0);
+  w.offerTakeback('A');
+  w.answerTakeback('B', false);
+  assert.throws(() => w.offerTakeback('A'), (e) => e.code === 'takeback_wait');
+  w.takebackWait.A = 0;
+  w.offerTakeback('A');
+  w.move('B', 5, 5); // đánh tiếp = từ chối
+  w.move('A', 1, 1);
+  assert.throws(() => w.offerTakeback('A'), (e) => e.code === 'takeback_wait');
   const pub = room2({}); pub.public = true;
   pub.move('A', 0, 0);
   assert.throws(() => pub.offerTakeback('A'), (e) => e.code === 'cannot_takeback');
@@ -305,6 +325,28 @@ test('bỏ ván nhiều thì bị cấm tìm trận tạm thời; người hay b
   [s, n1, n2].forEach((c) => c.close());
 });
 
+test('mất kết nối không bị tính là bỏ ván; bảng xếp hạng cho biết vì sao mình chưa có tên', async () => {
+  const a = await account('dd_net_a'), b = await account('dd_net_b');
+  await a.req({ t: 'quickMatch', timeLimit: 30 }, 'queue');
+  await b.req({ t: 'quickMatch', timeLimit: 30 }, 'room', (m) => m.room && m.room.players.length === 2);
+  if (!a.room || a.room.players.length !== 2) await a.wait('room', (m) => m.room && m.room.players.length === 2);
+  const [x, o] = a.room.seats.x === a.me.id ? [a, b] : [b, a];
+  await mv(x, o, 0, 0);
+  await mv(o, x, 5, 5);
+  const end = x.wait('room', (m) => m.room && m.room.winner, 3000);
+  o.close(); // rớt mạng quá hạn: thua ván
+  assert.strictEqual((await end).room.reason, 'timeout');
+  const rec = app.store.users.get(o.me.uid).play;
+  assert.ok(!rec || !/[anr]/.test(rec.o), 'mất kết nối không bị ghi là bỏ ván: ' + (rec && rec.o));
+  // Đã có ván tính điểm nhưng rd còn cao: bảng xếp hạng báo độ lệch hiện tại
+  const c = await account('dd_lb_c'), d = await account('dd_lb_d');
+  await privateRoom(c, d);
+  await playWin(c, d, 0);
+  const lb = await c.req({ t: 'leaderboard' }, 'leaderboard');
+  assert.ok(lb.me === null && lb.unranked && lb.unranked.rd > 75 && lb.unranked.need === 75 && lb.unranked.n === 1);
+  [x, c, d].forEach((k) => k.close());
+});
+
 test('chống cày điểm: ván lặp lại y hệt không tính; tài khoản mới đầu hàng không tính; có đi lại không tính', async () => {
   const a = await account('dd_f_a'), b = await account('dd_f_b');
   await privateRoom(a, b);
@@ -399,6 +441,13 @@ test('HTTP: ảnh xem trước ván, thẻ og cho link chia sẻ, API công khai
   const lb = await (await fetch(`${base}/api/leaderboard?pool=blitz`)).json();
   assert.strictEqual(lb.pool, 'blitz');
   assert.ok(Array.isArray(lb.players));
+  // Vẽ ảnh mới bị giới hạn theo IP (ảnh đã có sẵn thì không tính)
+  const shares = [];
+  for (let i = 0; i < 22; i++) shares.push(app.store.recordGame({ kind: 'room', xId: 'png' + i, oId: null, xName: 'a', oName: 'b', winner: 1, reason: 'win', moves: [[i, 0], [i, 1]] }));
+  const codes = [];
+  for (const sh of shares) { codes.push((await fetch(`${base}/api/replay/${sh}.png`)).status); await new Promise((r) => setTimeout(r, 130)); } // < 10 ảnh / giây
+  assert.ok(codes.filter((c) => c === 429).length >= 1 && codes.filter((c) => c === 200).length >= 18 && !codes.includes(404), codes.join(','));
+  assert.strictEqual((await fetch(`${base}/api/replay/${share}.png`)).status, 200, 'ảnh đã có sẵn vẫn trả về');
   const pre = await fetch(`${base}/api/leaderboard`, { method: 'OPTIONS' });
   assert.strictEqual(pre.status, 204);
   let last;

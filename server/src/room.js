@@ -75,6 +75,7 @@ class Room {
     this.abortedBy = null; // người huỷ ván / không đi nước đầu kịp
     this.firstMoveAt = null; // hạn đi nước đầu (phòng gặp người lạ)
     this.takebackOffer = null; // id người đang xin đi lại
+    this.takebackWait = {}; // id -> thời điểm được xin đi lại tiếp
     this.takebacks = 0; // số lần đã đi lại trong ván (có đi lại = không tính điểm)
     this.openingEnd = 0; // số quân khai cuộc Swap2 (không được đi lại qua)
     this.berserk = new Set(); // id người đã Berserk (giải Arena)
@@ -158,6 +159,7 @@ class Room {
     else if (this.phase === 'place2' && this.board.moves.length >= 5) this.phase = 'choose2';
     // Đối thủ đánh tiếp thay vì trả lời = từ chối lời xin hoà.
     if (this.drawOffer && this.drawOffer !== id) this.declineDraw();
+    if (this.takebackOffer && this.takebackOffer !== id) this.declineTakeback(); // đánh tiếp = từ chối
     this.takebackOffer = null;
     this.touch();
     const cells = Caro.checkWin(this.board, x, y, side);

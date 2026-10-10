@@ -123,8 +123,9 @@ class Tournaments {
       players, stageViews: this.stageViews(t),
       podium: (t.podium || []).map((u) => side(u)),
       games: t.format === 'arena' ? t.games.slice(-30).reverse().map((g) => ({
-        x: side(g.x), o: side(g.o), w: g.w, px: g.px, po: g.po, share: g.share || null,
+        x: side(g.x), o: side(g.o), w: g.w, px: g.px, po: g.po, share: g.share || null, dc: !!g.dc, annulled: !!g.annulled,
       })) : null,
+      disputes: this.disputeViews(t), // ván mất kết nối và cách ban tổ chức đã xử lý
       now: Date.now(),
     };
   }
@@ -362,6 +363,8 @@ class Tournaments {
         }
         if (now >= t.startsAt) this.startTour(t);
       } else if (t.status === 'running') {
+        if (t.disputes) this.tickDisputes(t, now);
+        if (t.status !== 'running') continue;
         if (t.format === 'arena') this.tickArena(t, now);
         else this.runBracket(t, now);
       }
@@ -384,7 +387,8 @@ class Tournaments {
   }
 
   /** Mở phòng cho một ván / trận của giải và đưa hai người vào (rời phòng cũ đã xong ván). */
-  openTourRoom(t, kind, bestOf, aUid, bUid, aFirst, extra) {
+  /** prep(room): chỉnh phòng trước khi gửi cho người chơi (vd. giữ tỉ số khi trận đánh tiếp). */
+  openTourRoom(t, kind, bestOf, aUid, bUid, aFirst, extra, prep) {
     const a = userPid(aUid), b = userPid(bUid);
     this.leave(a);
     this.leave(b);
@@ -392,6 +396,7 @@ class Tournaments {
     room.tour = { id: t.id, name: t.name, rated: t.rated, arena: t.format === 'arena', ...extra };
     this.enter(room, a, aFirst ? 1 : 2);
     this.enter(room, b, aFirst ? 2 : 1);
+    if (prep) prep(room);
     for (const p of room.players) this.armForfeit(room, p.id);
     this.broadcastRoom(room);
     this.send(a, note('tour_game_start', { name: t.name, opp: this.nameOf(b) }));
@@ -418,6 +423,7 @@ class Tournaments {
     if (t.status === 'finished') return;
     t.status = 'finished';
     t.finishedAt = Date.now();
+    this.tickDisputes(t, t.finishedAt); // giải xong: ván mất kết nối chưa xử lý được giữ nguyên kết quả
     t.podium = t.format === 'arena' ? this.arenaPodium(t) : this.bracketPodium(t);
     this.saveTour(t);
     this.pushTour(t);

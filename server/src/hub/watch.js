@@ -5,7 +5,7 @@
  *
  * Chống quá tải: mỗi phòng tối đa 200 người xem; mỗi kết nối chỉ xem 1 phòng; trạng thái gửi cho người xem
  * được chuyển JSON một lần cho tất cả; số người xem thay đổi (vào/ra dồn dập) được gom lại, tối đa 1 lần/giây;
- * danh sách "Đang diễn ra" dựng lại tối đa mỗi 3 giây cho mọi người.
+ * danh sách "Đang diễn ra" dựng lại tối đa mỗi 3 giây cho mọi người (có ván mới / phòng đóng thì dựng lại ngay).
  */
 'use strict';
 const { E } = require('../msg.js');

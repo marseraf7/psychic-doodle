@@ -37,7 +37,7 @@ chơi online qua WebSocket (`/ws`):
   người mới có điểm "tạm" (dấu ?) và lên xuống nhanh, chơi nhiều thì ổn định; lâu không chơi thì độ tin cậy giảm dần.
   Tài khoản cũ: mọi loại bắt đầu từ điểm Elo cũ. "Điểm chính" = loại chơi nhiều nhất. Bảng xếp hạng chung + từng loại
   (như Lichess: chỉ xếp người có độ lệch rd ≤ 75; lâu không chơi thì rd tăng từ 60 lên 110 sau 1 năm; mỗi ván thay đổi
-  tối đa 700 điểm). Sau ván, thẻ kết quả hiện điểm thay đổi. Chỉ tính ván giữa hai tài khoản.
+  tối đa 700 điểm; người chưa đủ điều kiện mở bảng xếp hạng sẽ thấy độ lệch hiện tại của mình). Sau ván, thẻ kết quả hiện điểm thay đổi. Chỉ tính ván giữa hai tài khoản.
 - **Trang hồ sơ**: điểm từng loại + biểu đồ điểm theo thời gian (400 điểm gần nhất), thắng / thua / hoà,
   chuỗi thắng dài nhất, số giải vô địch / đã chơi, 10 ván gần đây, đối đầu với mình.
   Chống cày điểm: ván kết thúc sớm dưới 10 nước (đầu hàng, hoà, rời phòng, hết giờ…) không tính,
@@ -89,21 +89,30 @@ chơi online qua WebSocket (`/ws`):
 - **Học từ Lichess (đợt D)** – chỉ lấy ý tưởng, không chép mã (Lichess dùng giấy phép AGPL):
   - *Huỷ ván*: khi ván chưa quá 1 nước, nút "Đầu hàng" thành "Huỷ ván"; ván bị huỷ không tính thống kê, điểm, không lưu.
     Phòng gặp người lạ (tìm nhanh, phòng công khai) có **hạn đi nước đầu 30 giây** – quá hạn thì ván tự huỷ.
-  - *Chống bỏ ván* (`src/hub/playban.js`): ghi lại cư xử ở phòng gặp người lạ (huỷ / không đi nước đầu / bỏ đi giữa ván).
+  - *Chống bỏ ván* (`src/hub/playban.js`): ghi lại cư xử ở phòng gặp người lạ (huỷ / không đi nước đầu / bấm rời phòng
+    giữa ván). **Mất kết nối không bị tính là bỏ ván.**
     Bỏ ván nhiều thì **tạm cấm tìm trận và vào phòng công khai**: 10 phút, tái phạm trong 48 giờ thì ×3, tài khoản mới
     (dưới 3 ngày) / khách ×2, tối đa 3 ngày. Người hay bỏ ván được ghép với nhau trước (trừ khi đã chờ quá 20 giây).
   - *Trong ván*: **+15 giây** cho đối thủ (ván có đồng hồ tổng); **xin đi lại** chỉ ở phòng riêng / thách đấu bạn bè
-    (ván có đi lại không tính điểm); **Berserk** ở giải Arena có đồng hồ tổng (chia đôi thời gian, không cộng giờ,
+    (ván có đi lại không tính điểm; bị từ chối thì 30 giây sau mới xin lại được); **Berserk** ở giải Arena có đồng hồ tổng (chia đôi thời gian, không cộng giờ,
     thắng từ 10 nước thì +1 điểm giải).
   - *Thống kê sâu trên hồ sơ*: điểm cao / thấp nhất (kèm ngày), 5 trận thắng đối thủ mạnh nhất, 5 trận thua đối thủ
-    yếu nhất, chuỗi thắng / thua dài nhất theo từng loại thời gian; nhật ký hoạt động 30 ngày (`src/perf.js`).
+    yếu nhất, chuỗi thắng / thua dài nhất theo từng loại thời gian; nhật ký hoạt động 30 ngày (`src/perf.js`, tính ngày
+    theo múi giờ máy của người chơi).
+  - *Ván giải đấu mất kết nối* (`src/hub/disputes.js`): ban tổ chức (người tạo giải, quản lý CLB, quản trị viên) thấy
+    danh sách trên trang giải và chọn **Công nhận** / **Huỷ kết quả** / **Cho đấu lại**.
+    Arena: điểm tính ngay, huỷ thì trả lại điểm, đấu lại thì ghép lại hai người ngay nếu cả hai đang rảnh; xử lý được tới
+    khi giải kết thúc. Nhánh đấu / vòng bảng: trận tạm dừng chờ quyết định – huỷ kết quả thì đấu tiếp từ tỉ số trước ván đó,
+    đấu lại thì đánh lại cả trận từ 0–0; quá 5 phút chưa ai xử lý thì tự công nhận để giải không bị treo.
 - **Kiểm duyệt nội dung** (`src/moderation.js`, không gọi dịch vụ ngoài): lọc từ tục 4 thứ tiếng (Việt, Anh, Nga, Trung),
   chống viết lách (`đ.ị.t`, `f*u*c*k`, `sh1t`, chữ Nga giả chữ Latin, chữ lặp). Tên người chơi / CLB / giải có từ tục thì
-  bị từ chối; tin nhắn, mô tả, thông báo thì bị che bằng dấu `*`. Tin nhắn bạn bè gửi dồn (5 tin / 10 giây) hoặc
+  bị từ chối; tin nhắn, mô tả, thông báo thì bị che bằng dấu `*`. Gốc từ tiếng Nga chỉ khớp ở đầu từ (không bắt nhầm
+  "рубля", "употребляя"); "妈妈" (mẹ) không bị coi là chửi; viết tắt "cl" chỉ che trong tin nhắn, vẫn đặt tên được. Tin nhắn bạn bè gửi dồn (5 tin / 10 giây) hoặc
   lặp lại gần giống 2 tin trước thì bị từ chối. Chặn mật khẩu phổ biến (`123456`, `password`, `matkhau`…), mật khẩu
   trùng tên đăng nhập hoặc một ký tự lặp lại.
 - **Ảnh xem trước + API công khai** (`src/web.js`, `src/png.js`):
-  - `GET /api/replay/<mã>.png` – ảnh bàn cờ 1200×630 vẽ ngay trên máy chủ (không cần thư viện), giữ 300 ảnh gần nhất.
+  - `GET /api/replay/<mã>.png` – ảnh bàn cờ 1200×630 vẽ ngay trên máy chủ (không cần thư viện, ~20–30 ms), giữ 300 ảnh
+    gần nhất; vẽ ảnh mới tối đa 20 ảnh / phút mỗi IP và 10 ảnh / giây cả máy chủ.
   - Link `https://…/?replay=<mã>` có thẻ `og:title` / `og:image` nên Facebook, Zalo, Telegram… hiện ảnh ván cờ.
     Đặt `PUBLIC_URL=https://ten-mien-cua-ban` để đường dẫn ảnh luôn đúng.
   - API chỉ đọc (gọi được từ trang khác – CORS): `GET /api/player/<tên đăng nhập>` (điểm từng loại, số ván, không có
@@ -132,7 +141,7 @@ Mã máy chủ: `server.js` (WebSocket), `src/web.js` (HTTP: file tĩnh, ảnh x
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),
 `rooms.js` (phòng, ván đấu, thách đấu, điểm, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
-`watch.js` (xem trực tiếp, danh sách ván hay), `playban.js` (chống bỏ ván), `api.js` (số liệu quản trị, API công khai),
+`watch.js` (xem trực tiếp, danh sách ván hay), `playban.js` (chống bỏ ván), `disputes.js` (ván giải đấu mất kết nối), `api.js` (số liệu quản trị, API công khai),
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
 `stages.js` (logic thuần các thể thức: loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ),
@@ -201,8 +210,11 @@ Repo riêng tư: clone bằng *deploy key* (khoá chỉ đọc, GitHub → Setti
 ```bash
 docker build -f server/Dockerfile -t caro .
 docker run -d --name caro --restart unless-stopped -p 127.0.0.1:8080:8080 -v caro-data:/data \
-  -e GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com -e TRUST_PROXY=1 caro
+  -e GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com -e TRUST_PROXY=1 -e PUBLIC_URL=https://caro.ten-mien.com caro
 ```
+
+`TRUST_PROXY=1` là bắt buộc khi chạy sau Caddy/nginx: không có nó, mọi người chơi đều mang IP của proxy và dùng chung
+một lượt giới hạn (API công khai, ảnh xem trước, thử sai mật khẩu…). Chỉ bật khi cổng chỉ mở cho máy này (như dòng trên).
 
 `-p 127.0.0.1:8080:8080`: chỉ mở cổng trong máy, người ngoài vào qua Caddy/nginx.
 

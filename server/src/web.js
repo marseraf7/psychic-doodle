@@ -2,7 +2,8 @@
  * Phần HTTP của máy chủ:
  *  - File tĩnh của trò chơi (../caro), kèm header bảo mật.
  *  - /api/replay/<mã>      : ván đã lưu (JSON) – dùng cho link xem lại.
- *  - /api/replay/<mã>.png  : ảnh xem trước bàn cờ (1200×630, giữ trong bộ nhớ 300 ảnh gần nhất).
+ *  - /api/replay/<mã>.png  : ảnh xem trước bàn cờ (1200×630, giữ trong bộ nhớ 300 ảnh gần nhất; vẽ ảnh mới bị
+ *    giới hạn 20 ảnh / phút mỗi IP và 10 ảnh / giây cả máy chủ để không ai làm treo máy chủ bằng cách xin ảnh liên tục).
  *  - /?replay=<mã>         : trang chính kèm thẻ og:* (tiêu đề, ảnh) để link chia sẻ hiện ảnh xem trước.
  *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz
  *    – cho phép gọi từ trang khác (CORS), giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
@@ -16,6 +17,9 @@ const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
 const API_RATE = 60; // lần / phút / IP
 const API_CACHE_MS = 60 * 1000;
+// Vẽ ảnh mới (chưa có trong bộ nhớ) tốn ~20–30 ms CPU: mỗi IP tối đa 20 ảnh / phút, cả máy chủ tối đa 10 ảnh / giây
+const PNG_PER_IP = 20;
+const PNG_GLOBAL_PER_S = 10;
 
 // Chính sách bảo mật nội dung: chỉ chạy script của chính trang (và Google khi bật đăng nhập Google).
 const CSP = [
@@ -91,6 +95,16 @@ function makeHandler({ store, hub }) {
   const pngCache = new Map(); // mã -> ảnh PNG (ván đã lưu không đổi)
   const apiCache = new Map(); // đường dẫn -> { at, body }
   const apiHits = new Map(); // ip -> { n, reset }
+  const pngHits = new Map(); // ip -> { n, reset }: số ảnh mới đã vẽ
+  const pngGlobal = { n: 0, reset: 0 };
+
+  /** Đếm theo cửa sổ cố định: còn lượt thì trả về 0, hết lượt trả về số giây phải chờ. */
+  function hit(map, key, limit, windowMs, now) {
+    let h = map.get(key);
+    if (!h || h.reset < now) { h = { n: 0, reset: now + windowMs }; map.set(key, h); }
+    if (map.size > 10000) for (const [k, v] of map) if (v.reset < now) map.delete(k);
+    return ++h.n > limit ? Math.ceil((h.reset - now) / 1000) : 0;
+  }
   let indexHtml = null; // { mtime, text }
 
   /** Ván đã lưu để xem lại qua đường link chia sẻ (không trả id tài khoản). */
@@ -108,6 +122,10 @@ function makeHandler({ store, hub }) {
     if (!png) {
       const g = store.gameByShare(share);
       if (!g) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('not found'); }
+      const now = Date.now();
+      if (pngGlobal.reset < now) { pngGlobal.n = 0; pngGlobal.reset = now + 1000; }
+      const wait = hit(pngHits, clientIp(req), PNG_PER_IP, 60000, now) || (++pngGlobal.n > PNG_GLOBAL_PER_S ? 1 : 0);
+      if (wait) { res.writeHead(429, { 'retry-after': String(wait), 'content-type': 'text/plain; charset=utf-8' }); return res.end('too many requests'); }
       png = boardPng(g.moves);
       pngCache.set(share, png);
       if (pngCache.size > PNG_CACHE) pngCache.delete(pngCache.keys().next().value);
@@ -138,7 +156,9 @@ function makeHandler({ store, hub }) {
         html = html.replace('<head>', `<head>\n  ${meta}\n  <meta name="twitter:card" content="summary_large_image">`);
       }
       const body = Buffer.from(html);
-      res.writeHead(200, { 'content-type': MIME['.html'], 'content-length': body.length, 'cache-control': 'no-cache' });
+      // Chưa đặt PUBLIC_URL thì đường dẫn ảnh lấy theo tên miền trình duyệt gửi lên: không cho bộ nhớ đệm dùng chung (CDN) giữ lại
+      res.writeHead(200, { 'content-type': MIME['.html'], 'content-length': body.length,
+        'cache-control': process.env.PUBLIC_URL ? 'no-cache' : 'private, no-store', vary: 'host' });
       res.end(req.method === 'HEAD' ? undefined : body);
     });
   }
@@ -146,11 +166,8 @@ function makeHandler({ store, hub }) {
   /** API công khai: giới hạn theo IP, giữ kết quả 60 giây. */
   function serveApi(url, query, req, res) {
     const now = Date.now();
-    const ip = clientIp(req);
-    let h = apiHits.get(ip);
-    if (!h || h.reset < now) { h = { n: 0, reset: now + 60000 }; apiHits.set(ip, h); }
-    if (++h.n > API_RATE) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(Math.ceil((h.reset - now) / 1000)) });
-    if (apiHits.size > 10000) for (const [k, v] of apiHits) if (v.reset < now) apiHits.delete(k);
+    const wait = hit(apiHits, clientIp(req), API_RATE, 60000, now);
+    if (wait) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });
     const key = url + '?' + (query.get('pool') || '');
     const c = apiCache.get(key);
     if (c && now - c.at < API_CACHE_MS) return json(res, c.status, c.body, { 'cache-control': 'public, max-age=60' });

@@ -13,6 +13,7 @@
  *   tourpush.js    – gửi cập nhật trang giải cho người đang xem (gom, chỉ gửi phần đổi)
  *   admin.js       – quản trị viên duyệt câu lạc bộ / giải đấu
  *   watch.js       – xem trực tiếp ván đang đấu, danh sách ván hay
+ *   disputes.js    – ván giải đấu mất kết nối: ban tổ chức công nhận / huỷ kết quả / cho đấu lại
  *   playban.js     – chống bỏ ván: ghi cư xử, cấm tìm trận tạm thời
  *   api.js         – số liệu máy chủ cho quản trị viên, API công khai chỉ đọc
  * Mỗi phần là một lớp chỉ chứa phương thức; ở đây gộp tất cả vào Hub.prototype.
@@ -34,10 +35,11 @@ const { Admin } = require('./admin.js');
 const { Watch } = require('./watch.js');
 const { Profile } = require('./profile.js');
 const { Playban } = require('./playban.js');
+const { Disputes } = require('./disputes.js');
 const { Api } = require('./api.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, Rooms, Matchmaking, Clubs, Tournaments, Arena, Bracket, TourPush, Admin, Watch, Profile, Playban, Api]) {
+for (const part of [Auth, Social, Rooms, Matchmaking, Clubs, Tournaments, Arena, Bracket, TourPush, Admin, Watch, Profile, Playban, Api, Disputes]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

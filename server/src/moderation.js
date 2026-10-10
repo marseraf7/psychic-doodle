@@ -29,13 +29,16 @@ function weakPassword(password, username) {
 
 // ---------------------------------------------------------------- Từ tục
 // Tiếng Việt: so trên chữ có dấu (tránh nhầm "lon" = cái lon, "chó" = con vật…)
-const VI = ['địt', 'đụ', 'lồn', 'cặc', 'buồi', 'đéo', 'đĩ', 'đmm', 'đcm', 'đkm', 'clgt', 'vãi lồn', 'vcl', 'vkl', 'cl', 'óc chó', 'súc vật', 'mặt lồn', 'con đĩ', 'thằng chó'];
+const VI = ['địt', 'đụ', 'lồn', 'cặc', 'buồi', 'đéo', 'đĩ', 'đmm', 'đcm', 'đkm', 'clgt', 'vãi lồn', 'vcl', 'vkl', 'óc chó', 'súc vật', 'mặt lồn', 'con đĩ', 'thằng chó'];
+// Viết tắt dễ trùng chữ thường ("CL Hà Nội", "lớp 12 cl"): chỉ che trong tin nhắn, không cấm làm tên
+const VI_SOFT = ['cl'];
 // Tiếng Anh: so trên chữ đã "latin hoá" (chống leetspeak)
 const EN = ['fuck', 'fucker', 'fucking', 'motherfucker', 'shit', 'bitch', 'cunt', 'nigger', 'nigga', 'faggot', 'retard', 'whore', 'slut', 'asshole', 'dickhead', 'bastard'];
-// Tiếng Nga: gốc từ (khớp trong từ)
-const RU = ['хуй', 'хуе', 'пизд', 'ебат', 'ебан', 'ёб', 'бля', 'сука', 'суки', 'мудак', 'пидор', 'пидар', 'шлюх', 'гандон'];
-// Tiếng Trung: khớp chuỗi
-const ZH = ['操你', '肏', '傻逼', '傻b', '妈的', '他妈', '你妈', '屌', '贱人', '婊子', '草泥马', '王八蛋', '狗日'];
+// Tiếng Nga (biểu thức chính quy): gốc từ, chỉ khớp ở ĐẦU từ (khớp giữa từ thì bắt nhầm: "рубля", "употребляя", "страхует")
+const RU = ['хуй', 'хуе', 'хуё', 'нахуй', 'похуй', 'пизд', 'распизд', 'ебат', 'ебан', 'ебал', 'заеб', 'выеб', 'отъеб', 'ёб',
+  'бля(?!\\p{L})', 'бляд', 'блят', 'сука', 'суки', 'сучк', 'мудак', 'мудил', 'пидор', 'пидар', 'шлюх', 'гандон'];
+// Tiếng Trung: khớp chuỗi (biểu thức chính quy); "妈的" / "他妈" / "你妈" không tính khi là "妈妈" (mẹ)
+const ZH = ['操你', '肏', '傻逼', '傻b', '(?<!妈)妈的', '他妈(?!妈)', '你妈(?!妈)', '屌', '贱人', '婊子', '草泥马', '王八蛋', '狗日'];
 
 const LEET = { '@': 'a', '4': 'a', '$': 's', '5': 's', '0': 'o', '1': 'i', '!': 'i', '3': 'e', '7': 't', '8': 'b',
   'а': 'a', 'е': 'e', 'о': 'o', 'с': 'c', 'х': 'x', 'у': 'y', 'к': 'k', 'р': 'p', 'ı': 'i' };
@@ -45,21 +48,22 @@ const esc = (w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const L = '[\\p{L}\\p{N}]';
 const wordRe = (words) => new RegExp(`(?<!${L})(?:${words.map(esc).join('|')})(?!${L})`, 'giu');
 const VI_RE = wordRe(VI);
+const VI_SOFT_RE = wordRe(VI_SOFT);
 const EN_RE = wordRe(EN);
-const RU_RE = new RegExp(`(?:${RU.map(esc).join('|')})`, 'giu');
-const ZH_RE = new RegExp(`(?:${ZH.map(esc).join('|')})`, 'giu');
+const RU_RE = new RegExp(`(?<!${L})(?:${RU.join('|')})\\p{L}*`, 'giu'); // gốc ở đầu từ, che cả từ
+const ZH_RE = new RegExp(`(?:${ZH.join('|')})`, 'giu');
 
 /** Bỏ ký tự chèn giữa các chữ để lách luật ("f.u.c.k", "đ_ị_t") và chữ lặp ("fuuuck"). */
 function squash(s) {
   return s.replace(/(?<=\p{L})[._\-*/\\|]+(?=\p{L})/gu, '').replace(/(\p{L})\1{2,}/gu, '$1');
 }
 
-/** Danh sách từ tục tìm thấy (rỗng = sạch). */
-function badWords(text) {
+/** Danh sách từ tục tìm thấy (rỗng = sạch). strict = false: bỏ qua viết tắt dễ trùng chữ thường (dùng cho tên). */
+function badWords(text, strict = true) {
   const raw = String(text || '').slice(0, 2000).toLowerCase().normalize('NFC');
   const s = squash(raw);
   const found = [];
-  for (const re of [VI_RE, RU_RE, ZH_RE]) for (const m of s.matchAll(re)) found.push(m[0]);
+  for (const re of strict ? [VI_RE, VI_SOFT_RE, RU_RE, ZH_RE] : [VI_RE, RU_RE, ZH_RE]) for (const m of s.matchAll(re)) found.push(m[0]);
   for (const m of latinify(s).matchAll(EN_RE)) found.push(m[0]);
   return found;
 }
@@ -69,7 +73,7 @@ function mask(text) {
   let out = String(text || '');
   if (!badWords(out).length) return out;
   const star = (w) => w[0] + '*'.repeat(Math.max(2, [...w].length - 1));
-  for (const re of [VI_RE, RU_RE, ZH_RE]) out = out.replace(re, star);
+  for (const re of [VI_RE, VI_SOFT_RE, RU_RE, ZH_RE]) out = out.replace(re, star);
   // Từ tiếng Anh viết lách: so vị trí trên bản latin hoá (cùng độ dài) rồi che ở bản gốc
   const lat = latinify(out.toLowerCase());
   const parts = [...out];
@@ -84,7 +88,7 @@ function mask(text) {
 }
 
 /** Tên (người chơi, câu lạc bộ, giải đấu) có từ tục không. */
-const isOffensiveName = (name) => badWords(name).length > 0;
+const isOffensiveName = (name) => badWords(name, false).length > 0;
 
 // ---------------------------------------------------------------- Chống tin nhắn dồn / lặp
 /** Khoảng cách Levenshtein có giới hạn (dừng sớm khi vượt max). */

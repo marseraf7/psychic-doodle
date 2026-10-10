@@ -89,6 +89,7 @@ class Rooms {
     for (const c of this.byPid.get(pid) || []) this.unwatch(c); // vào ván của mình: thôi xem ván khác
     room.addPlayer({ id: pid, name: this.nameOf(pid) }, side);
     this.roomOf.set(pid, room.code);
+    if (room.full) this.tvCache = null; // ván mới: danh sách "Đang diễn ra" dựng lại ngay
     for (const p of room.players) this.dequeue(p.id); // đã có ván (hoặc chờ ván): thôi tìm trận nhanh
     // Đã vào ván khác: huỷ lời thách đấu đang chờ để lúc bạn bè nhận lời không bị kéo khỏi ván này.
     for (const inv of [...this.invites.values()]) if (inv.from === pid) this.dropInvite(inv);
@@ -112,6 +113,7 @@ class Rooms {
     room.removePlayer(pid);
     if (!room.players.length) {
       this.rooms.delete(room.code);
+      this.tvCache = null;
       this.dropWatchers(room);
       if (room.public) this.lobbyChanged();
     }

@@ -4,6 +4,7 @@
  *    Phòng gặp người lạ (tìm nhanh, phòng công khai) có hạn đi nước đầu (firstMoveMs): quá hạn thì ván tự huỷ.
  *  - Thêm giờ (+15 giây) cho đối thủ (ván có đồng hồ tổng, không phải ván giải).
  *  - Xin đi lại (takeback): chỉ phòng riêng / thách đấu bạn bè; ván có đi lại thì không tính điểm.
+ *    Bị từ chối (hoặc đối thủ đánh tiếp thay vì trả lời) thì phải chờ như xin hoà (30 giây) mới xin lại được.
  *  - Berserk (giải Arena có đồng hồ tổng): trước nước đầu của mình, tự chia đôi thời gian, không được cộng giờ;
  *    thắng thì thêm 1 điểm giải (xem hub/arena.js).
  */
@@ -57,6 +58,8 @@ class ExtrasMixin {
     if (!this.sideOf(id) || !this.active || this.phase) throw E('cannot_takeback');
     if (this.takebackOffer === id) return 'pending';
     if (this.takebackOffer) { this.doTakeback(this.takebackOffer); return 'done'; }
+    const wait = ((this.takebackWait || {})[id] || 0) - Date.now();
+    if (wait > 0) throw E('takeback_wait', { n: Math.ceil(wait / 1000) });
     this.undoCount(id); // kiểm tra có nước để lùi không
     this.takebackOffer = id;
     return 'offered';
@@ -65,8 +68,15 @@ class ExtrasMixin {
   answerTakeback(id, accept) {
     if (!this.takebackOffer || this.takebackOffer === id || !this.active) throw E('no_takeback_offer');
     if (accept) this.doTakeback(this.takebackOffer);
-    else this.takebackOffer = null;
+    else this.declineTakeback();
     return accept;
+  }
+
+  /** Từ chối lời xin đi lại: người xin phải chờ mới được xin lại (chống bấm liên tục làm phiền đối thủ). */
+  declineTakeback() {
+    if (!this.takebackOffer) return;
+    (this.takebackWait || (this.takebackWait = {}))[this.takebackOffer] = Date.now() + this.drawCooldownMs;
+    this.takebackOffer = null;
   }
 
   /** Số nước cần lùi để tới lượt người xin: 1 nếu họ vừa đi, 2 nếu đối thủ đã đáp lại. */

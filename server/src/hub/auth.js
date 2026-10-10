@@ -10,6 +10,9 @@ class Auth {
   on_hello(conn, { token, guestKey, guestName, client }) {
     // App điện thoại quá cũ: không cho vào online (tránh lỗi khó hiểu khi giao thức đã đổi)
     const platform = client && typeof client.platform === 'string' ? client.platform : 'web';
+    // Múi giờ của máy (phút lệch so với UTC): nhật ký hoạt động trên hồ sơ tính ngày theo giờ của người chơi
+    const tz = client && Number(client.tz);
+    conn.tz = Number.isInteger(tz) && tz >= -720 && tz <= 840 ? tz : null;
     if ((platform === 'android' || platform === 'ios') && this.minAppVersion &&
         compareVersions(String(client.version || '0'), this.minAppVersion) < 0) {
       return conn.send({ t: 'updateRequired', min: this.minAppVersion, url: this.updateUrls[platform] || '' });

@@ -18,11 +18,11 @@ function loadPlaywright() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function setup(port) {
+async function setup(port, timers = {}) {
   const { start } = require('../../../server/server.js');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-e2e-'));
   const app = start({ port, dataFile: path.join(dir, 'caro.db'), admins: ['boss'],
-    timers: { TOUR_MIN_LEAD_MS: 0, ARENA_REST_MS: 1500, TOUR_NOSHOW_MS: 60000 } });
+    timers: { TOUR_MIN_LEAD_MS: 0, ARENA_REST_MS: 1500, TOUR_NOSHOW_MS: 60000, ...timers } });
   await new Promise((r) => (app.server.listening ? r() : app.server.once('listening', r)));
   const out = process.env.E2E_OUT || fs.mkdtempSync(path.join(os.tmpdir(), 'caro-e2e-shots-'));
   fs.mkdirSync(out, { recursive: true });

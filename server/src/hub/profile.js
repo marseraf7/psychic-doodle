@@ -42,10 +42,14 @@ class Profile {
     const list = this.ranked(pool);
     const uid = uidOf(conn.pid);
     const myRank = uid ? list.findIndex((e) => e.u.id === uid) + 1 : 0;
+    // Đã chơi nhưng điểm chưa đủ chắc chắn để lên bảng: cho biết độ lệch hiện tại (cần ≤ 75)
+    const u = uid && !myRank && this.store.users.get(uid);
+    const p = u && u.pools[pool || R.mainPool(u)];
+    const unranked = p && p.n > 0 ? { rd: Math.round(R.decayedRd(p, Date.now())), need: R.RANKABLE_RD, n: p.n } : null;
     conn.send({
       t: 'leaderboard', pool,
       top: list.slice(0, LB_TOP).map((e, i) => ({ rank: i + 1, id: e.u.id, name: e.u.name, username: e.u.username, rating: e.r, games: e.n })),
-      me: myRank ? { rank: myRank, rating: list[myRank - 1].r } : null,
+      me: myRank ? { rank: myRank, rating: list[myRank - 1].r } : null, unranked,
     });
   }
 

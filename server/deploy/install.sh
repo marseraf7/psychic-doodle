@@ -70,6 +70,12 @@ if [ ! -f /etc/caro/caro.env ]; then
 else
   chown root:root /etc/caro/caro.env && chmod 600 /etc/caro/caro.env
 fi
+# Địa chỉ công khai cho ảnh xem trước link chia sẻ (thẻ og:image) – không tin tên miền do trình duyệt gửi lên
+if grep -q '^PUBLIC_URL=$' /etc/caro/caro.env; then
+  sed -i "s#^PUBLIC_URL=\$#PUBLIC_URL=https://$DOMAIN#" /etc/caro/caro.env
+elif ! grep -q '^PUBLIC_URL=' /etc/caro/caro.env; then
+  echo "PUBLIC_URL=https://$DOMAIN" >> /etc/caro/caro.env
+fi
 # Mã nguồn thuộc root: dịch vụ chỉ đọc được, không sửa được chính nó
 chown -R root:root "$REPO"
 chmod -R go-w "$REPO"

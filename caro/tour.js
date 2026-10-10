@@ -184,6 +184,7 @@
     }
     html += `<div class="row tactions">${actions(t)}</div>`;
     html += myCard(t);
+    if (K.disputesHtml) html += K.disputesHtml(t); // ván mất kết nối (tour-disputes.js)
     if (t.podium && t.podium.length && t.status === 'finished') {
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
@@ -247,7 +248,8 @@
     return `<h4>${esc(T('recent_games'))}</h4><ul class="people tgames">${t.games.slice(0, 15).map((g) => {
       const x = g.x ? g.x.name : '?', o = g.o ? g.o.name : '?';
       const res = !g.w ? '½–½' : g.x && g.w === g.x.uid ? '1–0' : '0–1';
-      return `<li><div class="pn"><b>${esc(x)} <span class="muted">${res}</span> ${esc(o)}</b><small>+${g.px} / +${g.po}</small></div>${g.share ? `<a href="#" data-act="replay" data-share="${esc(g.share)}" aria-label="${esc(T('replay'))}">${icon('play')}</a>` : ''}</li>`;
+      const tag = g.annulled ? ` · ${esc(T('dispute_annulled'))}` : g.dc ? ` · ${esc(T('dispute_dc'))}` : '';
+      return `<li><div class="pn"><b>${esc(x)} <span class="muted">${res}</span> ${esc(o)}</b><small>+${g.px} / +${g.po}${tag}</small></div>${g.share ? `<a href="#" data-act="replay" data-share="${esc(g.share)}" aria-label="${esc(T('replay'))}">${icon('play')}</a>` : ''}</li>`;
     }).join('')}</ul>`;
   }
   // ---- Duyệt (quản trị viên)

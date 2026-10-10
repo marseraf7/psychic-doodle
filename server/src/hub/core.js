@@ -22,7 +22,7 @@ class Hub {
     // SECOND_MS: độ dài 1 "giây" của đồng hồ mỗi nước (test đặt nhỏ để chạy nhanh).
     this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250,
       TOUR_TICK_MS: 1000, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 2 * 60 * 1000, TOUR_MIN_LEAD_MS: 5 * 60 * 1000, TOUR_PUSH_MS: 300,
-      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, FIRST_MOVE_MS: 30 * 1000, ...timers };
+      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, FIRST_MOVE_MS: 30 * 1000, TOUR_DISPUTE_MS: 5 * 60 * 1000, ...timers };
     // Quản trị viên: duyệt câu lạc bộ và giải đấu
     this.admins = new Set(admins.map((a) => String(a).trim().toLowerCase()).filter(Boolean));
     this.byPid = new Map(); // pid -> Set<conn>
@@ -101,6 +101,8 @@ class Hub {
   attach(conn, pid) {
     if (conn.pid) this.detach(conn);
     conn.pid = pid;
+    const u = conn.tz != null && uidOf(pid) && this.store.users.get(uidOf(pid));
+    if (u && u.tz !== conn.tz) { u.tz = conn.tz; this.store.touch(u); } // múi giờ cho nhật ký hoạt động
     const first = !this.isOnline(pid);
     if (!this.byPid.has(pid)) this.byPid.set(pid, new Set());
     this.byPid.get(pid).add(conn);

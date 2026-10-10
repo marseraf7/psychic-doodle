@@ -2,7 +2,7 @@
  * Chống bỏ ván (học ý tưởng "playban" của Lichess, không chép mã):
  *  - Mỗi ván ở phòng gặp người lạ (tìm nhanh, phòng công khai) ghi lại kết quả "cư xử" của từng người:
  *      g = bình thường · a = bấm huỷ / rời phòng trước khi ván quá 1 nước · n = không đi nước đầu kịp
- *      r = bỏ đi giữa ván (rời phòng, mất kết nối quá lâu).
+ *      r = bỏ đi giữa ván (bấm rời phòng). Mất kết nối (rớt mạng, hết pin…) KHÔNG bị tính là bỏ ván.
  *  - Giữ 20 kết quả gần nhất. Điểm xấu: a, n = 0.8; r = 1. Điểm xấu ≥ max(3, 0.4 × số ván) thì bị cấm tìm trận
  *    (và vào phòng công khai) tạm thời: 10 phút, mỗi lần bị cấm trong 48 giờ trước đó thì × 3; tài khoản mới
  *    (dưới 3 ngày) hoặc khách thì × 2; tối đa 3 ngày. Bị cấm xong thì xoá danh sách kết quả để làm lại từ đầu.
@@ -91,7 +91,7 @@ class Playban {
     for (const p of room.players) {
       let code = 'g';
       if (room.reason === 'abort') code = room.abortedBy === p.id ? (room.noPlay ? 'n' : 'a') : null;
-      else if ((room.reason === 'leave' || room.reason === 'timeout') && room.seats[room.winner] !== p.id) code = 'r';
+      else if (room.reason === 'leave' && room.seats[room.winner] !== p.id) code = 'r'; // mất kết nối ('timeout') không tính
       if (code) this.recordOutcome(p.id, code);
     }
   }

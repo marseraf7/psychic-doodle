@@ -86,8 +86,15 @@ class Arena {
       p.restUntil = now + this.T.ARENA_REST_MS; // nghỉ vài giây xem kết quả rồi mới ghép tiếp
       pts[uid] = gained;
     }
-    t.games.push({ x: xUid, o: oUid, w: winUid, px: pts[xUid] || 0, po: pts[oUid] || 0, share: room.lastShare || null, at: now,
-      bx: room.berserk.has(userPid(xUid)) || undefined, bo: room.berserk.has(userPid(oUid)) || undefined });
+    const game = { x: xUid, o: oUid, w: winUid, px: pts[xUid] || 0, po: pts[oUid] || 0, share: room.lastShare || null, at: now,
+      bx: room.berserk.has(userPid(xUid)) || undefined, bo: room.berserk.has(userPid(oUid)) || undefined };
+    t.games.push(game);
+    // Thua vì mất kết nối: điểm tính ngay, ban tổ chức có thể huỷ kết quả / cho đấu lại (disputes.js)
+    if (room.reason === 'timeout' && winUid) {
+      game.gid = crypto.randomBytes(4).toString('hex');
+      game.dc = true;
+      this.openDispute(t, { kind: 'arena', gid: game.gid, w: winUid, l: winUid === xUid ? oUid : xUid, share: game.share, pts });
+    }
     if (t.games.length > KEEP_GAMES) t.games.splice(0, t.games.length - KEEP_GAMES);
     this.saveTour(t);
     this.pushTour(t);

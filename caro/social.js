@@ -72,7 +72,7 @@
   function renderLeaderboard() {
     const el = $('lb-list');
     const meUid = S.me && S.me.uid;
-    $('lb-me').textContent = board && board.me ? T('lb_you', board.me) : '';
+    $('lb-me').textContent = board && board.me ? T('lb_you', board.me) : board && board.unranked ? T('lb_unranked', board.unranked) : '';
     if (!board) { el.innerHTML = `<li class="empty">…</li>`; return; }
     if (!board.top.length) { el.innerHTML = `<li class="empty">${esc(T('lb_empty'))}</li>`; return; }
     const medal = ['🥇', '🥈', '🥉'];

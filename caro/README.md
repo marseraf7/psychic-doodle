@@ -97,6 +97,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   chuỗi đúng 5 / 12 / 20 / 30 bài được cộng 3 / 5 / 7 / 10 giây; kỷ lục lưu trên máy.
 - **Độ khó bài đố tính điểm**: Dễ nhất / Dễ / Vừa sức / Khó / Khó nhất (lệch −600 … +600 so với điểm giải đố).
 - **Hồ sơ**: thống kê sâu theo loại thời gian và hoạt động 30 ngày; **trang Duyệt** của quản trị viên có số liệu máy chủ.
+- **Trang giải**: mục "Ván mất kết nối" – ban tổ chức bấm Công nhận / Huỷ kết quả / Cho đấu lại (`tour-disputes.js`).
 
 ## Phím tắt (máy tính)
 
@@ -129,7 +130,7 @@ node caro/tests/e2e/tour-basic.e2e.js    # câu lạc bộ, Arena, loại trực
 node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → playoff, Thụy Sĩ → nhánh thắng – thua
 node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + Thử lại, giải đố (3 chế độ)
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
-node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, Storm, ảnh og
+node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, ván giải mất kết nối, Storm, ảnh og
 ```
 
 ## Cấu trúc
@@ -156,6 +157,7 @@ node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
 | `gamex.js` | Thao tác phụ trong ván: đếm ngược nước đầu, +15 giây, xin đi lại, Berserk |
 | `storm.js` | Puzzle Storm (3 phút) |
+| `tour-disputes.js` | Trang giải: ván mất kết nối, ban tổ chức công nhận / huỷ kết quả / cho đấu lại |
 | `tour-patch.js` | Áp bản cập nhật trang giải (máy chủ chỉ gửi phần đổi); dùng chung với kiểm thử máy chủ |
 | `tour.js` | Giải đấu – phần lõi: điều hướng trong hộp thoại, danh sách giải, trang giải (thông tin, nút thao tác, người chơi, bảng xếp hạng Arena), trang duyệt của quản trị viên. Các file dưới cắm vào `window.CaroTourKit` |
 | `tour-stages.js` | Vẽ các giai đoạn của giải: nhánh loại trực tiếp, nhánh thắng – thua + chung kết tổng, bảng vòng tròn, bảng Thụy Sĩ, danh sách trận |

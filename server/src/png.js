@@ -38,7 +38,7 @@ function encodePng(w, h, rgb) {
   return Buffer.concat([
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     chunk('IHDR', ihdr),
-    chunk('IDAT', zlib.deflateSync(raw, { level: 6 })),
+    chunk('IDAT', zlib.deflateSync(raw, { level: 3 })),
     chunk('IEND', Buffer.alloc(0)),
   ]);
 }
@@ -51,9 +51,13 @@ class Canvas {
     this.rect(0, 0, w, h, color);
   }
 
+  /** Tô hình chữ nhật: tô 1 hàng rồi chép sang các hàng còn lại (nhanh hơn tô từng điểm). */
   rect(x0, y0, w, h, c) {
-    const x1 = Math.min(this.w, x0 + w), y1 = Math.min(this.h, y0 + h);
-    for (let y = Math.max(0, y0); y < y1; y++) for (let x = Math.max(0, x0); x < x1; x++) this.set(x, y, c, 1);
+    const xa = Math.max(0, x0), xb = Math.min(this.w, x0 + w), ya = Math.max(0, y0), yb = Math.min(this.h, y0 + h);
+    if (xa >= xb || ya >= yb) return;
+    const row = (ya * this.w + xa) * 3;
+    for (let x = 0; x < xb - xa; x++) { this.px[row + x * 3] = c[0]; this.px[row + x * 3 + 1] = c[1]; this.px[row + x * 3 + 2] = c[2]; }
+    for (let y = ya + 1; y < yb; y++) this.px.copy(this.px, (y * this.w + xa) * 3, row, row + (xb - xa) * 3);
   }
 
   /** Trộn màu c vào điểm (x, y) với độ phủ a (0..1). */

@@ -14,7 +14,7 @@ const TIMERS = {
   NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 400, INVITE_TTL_MS: 500, SECOND_MS: 300, DRAW_COOLDOWN_MS: 300,
   MATCH_TICK_MS: 50, LOBBY_DEBOUNCE_MS: 30,
   TOUR_TICK_MS: 30, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 400, TOUR_MIN_LEAD_MS: 0, TOUR_PUSH_MS: 20,
-  ARENA_REST_MS: 50, ARENA_REPEAT_MS: 300,
+  ARENA_REST_MS: 50, ARENA_REPEAT_MS: 300, TOUR_DISPUTE_MS: 300,
 };
 let app, url;
 test.before(async () => {
@@ -505,6 +505,101 @@ test('chống spam mở trang giải: dùng lại phần chung đã lưu, giới
     app.hub.tourShared = orig;
     B.send({ t: 'tourCancel', id });
   }
+});
+
+/** Ban tổ chức riêng cho từng bài (mỗi người chỉ có tối đa 3 giải chưa kết thúc). */
+async function organizer() {
+  const o = await account('org');
+  app.hub.admins.add(o.me.username);
+  return o;
+}
+/** Người chơi mất kết nối rồi vào lại (đăng nhập ở kết nối mới). */
+async function reconnect(c) {
+  const n = await Client.open();
+  await n.req({ t: 'login', username: c.me.username, password: 'caro-pass1' }, 'welcome');
+  return n;
+}
+
+test('loại trực tiếp Bo3: mất kết nối thì trận tạm dừng; ban tổ chức huỷ kết quả -> đánh tiếp từ tỉ số trước', async () => {
+  const B = await organizer();
+  const keep = app.hub.T.TOUR_DISPUTE_MS;
+  app.hub.T.TOUR_DISPUTE_MS = 60000; // không tự công nhận trong lúc test
+  try {
+    const p1 = await account('dc', 1600);
+    let p2 = await account('dc', 1500);
+    const { id } = await B.req({ t: 'tourCreate', name: 'Mất mạng', format: 'knockout', startsAt: soon(), timeLimit: 30, bestOf: 3, thirdPlace: false, checkin: false }, 'tourCreated');
+    for (const p of [p1, p2]) await p.req({ t: 'tourJoin', id }, 'toast');
+    B.send({ t: 'tourStart', id });
+    await waitRoom(p1, (r) => r.tour && r.players.length === 2);
+    await waitRoom(p2, (r) => r.tour && r.players.length === 2);
+    const t = app.hub.tours.get(id);
+    const m = Object.values(t.st[0].matches)[0];
+    await playOut(p1, p2); // ván 1: p1 thắng
+    await waitRoom(p1, (r) => r.gameNo === 2 && !r.winner);
+    // Ván 2: p2 mất kết nối quá hạn -> thua ván, trận tạm dừng chờ ban tổ chức
+    p2.close();
+    await until(() => !!m.hold);
+    assert.strictEqual(m.done, false);
+    const d = t.disputes[t.disputes.length - 1];
+    assert.deepStrictEqual([d.kind, d.status, d.w, d.l], ['bracket', 'open', p1.me.uid, p2.me.uid]);
+    assert.strictEqual(m.wins[p1.me.uid], 1, 'ván mất kết nối chưa được tính');
+    const v = await B.req({ t: 'tourGet', id }, 'tour');
+    assert.ok(v.tour.disputes.some((x) => x.id === d.id && x.status === 'open'));
+    assert.ok(v.tour.stageViews[0].rounds[0].some((x) => x && x.held), 'trang giải: trận đang chờ quyết định');
+    // Người không phải ban tổ chức không xử lý được
+    assert.strictEqual((await p1.req({ t: 'tourDispute', id, dispute: d.id, action: 'confirm' }, 'error')).code, 'tour_managers_only');
+    // p2 vào lại; ban tổ chức huỷ kết quả ván đó -> trận mở lại với tỉ số 1–0, ván thứ 2
+    p2 = await reconnect(p2);
+    const back = waitRoom(p2, (r) => r.tour && r.players.length === 2 && !r.winner, 3000);
+    await B.req({ t: 'tourDispute', id, dispute: d.id, action: 'annul' }, 'toast', (x) => x.code === 'tour_dispute_saved');
+    const r = await back;
+    assert.strictEqual(d.status, 'annulled');
+    assert.strictEqual(r.gameNo, 2);
+    assert.strictEqual(r.score[p1.me.id], 1);
+    assert.strictEqual(r.score[p2.me.id], 0);
+    // Xử lý lại lần nữa: không được
+    assert.strictEqual((await B.req({ t: 'tourDispute', id, dispute: d.id, action: 'confirm' }, 'error')).code, 'dispute_gone');
+    await waitRoom(p1, (x) => x.code === r.code && !x.winner);
+    await playOut(p1, p2); // p1 thắng ván 2 -> 2–0, vô địch
+    await until(() => t.status === 'finished');
+    assert.strictEqual(t.podium[0], p1.me.uid);
+    [p1, p2, B].forEach((c) => c.close());
+  } finally { app.hub.T.TOUR_DISPUTE_MS = keep; }
+});
+
+test('Arena: mất kết nối -> điểm tính ngay; ban tổ chức cho đấu lại -> trả lại điểm, ghép lại hai người', async () => {
+  const B = await organizer();
+  const a = await account('ad', 1500);
+  let b = await account('ad', 1490);
+  const { id } = await B.req({ t: 'tourCreate', name: 'Arena mất mạng', format: 'arena', startsAt: soon(), timeLimit: 30, minutes: 30, rated: false }, 'tourCreated');
+  await a.req({ t: 'tourJoin', id }, 'toast');
+  await b.req({ t: 'tourJoin', id }, 'toast');
+  B.send({ t: 'tourStart', id });
+  const newGame = (r) => r.tour && r.tour.arena && !r.winner && r.players.length === 2;
+  await waitRoom(a, newGame);
+  const t = app.hub.tours.get(id);
+  const P = (uid) => t.players.find((p) => p.uid === uid);
+  b.close();
+  await until(() => P(a.me.uid).games === 1);
+  assert.strictEqual(P(a.me.uid).score, 2, 'thắng vì đối thủ mất kết nối: được điểm ngay');
+  const d = t.disputes[t.disputes.length - 1];
+  assert.deepStrictEqual([d.kind, d.status], ['arena', 'open']);
+  b = await reconnect(b);
+  await sleep(100);
+  const again = waitRoom(b, newGame, 3000);
+  await B.req({ t: 'tourDispute', id, dispute: d.id, action: 'replay' }, 'toast', (x) => x.code === 'tour_dispute_saved');
+  await again;
+  assert.strictEqual(P(a.me.uid).score, 0, 'điểm được trả lại');
+  assert.strictEqual(P(a.me.uid).games, 0);
+  assert.strictEqual(P(b.me.uid).losses, 0);
+  assert.ok(t.games.find((g) => g.gid === d.gid).annulled);
+  assert.strictEqual(d.status, 'replayed');
+  // Giải kết thúc: không đổi được nữa
+  t.endsAt = Date.now();
+  b.send({ t: 'resign' });
+  await until(() => t.status === 'finished');
+  assert.strictEqual((await B.req({ t: 'tourDispute', id, dispute: d.id, action: 'annul' }, 'error')).code, 'dispute_gone');
+  [a, b, B].forEach((c) => c.close());
 });
 
 test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh thắng-thua 3 người', async () => {

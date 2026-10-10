@@ -8,7 +8,8 @@ const { setup, play } = require('./helpers');
 
 (async () => {
   const PORT = 8098;
-  const { browser, user, ok, shot, sleep, finish } = await setup(PORT);
+  // Mất kết nối 2 giây thì bị xử thua (thật: 90 giây) để thử phần ban tổ chức xử lý ván mất kết nối
+  const { browser, user, ok, shot, sleep, finish } = await setup(PORT, { OFFLINE_FORFEIT_MS: 2000 });
   const room = (p) => p.evaluate(() => window.CaroOnline.state.room);
   const send = (p, m) => p.evaluate((m) => window.CaroOnline.send(m), m);
   const closeDialogs = (p) => p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
@@ -72,6 +73,7 @@ const { setup, play } = require('./helpers');
   await sleep(600);
   await play(a, b);
   await sleep(600);
+  const share = (await room(a)).share; // dùng ở phần ảnh xem trước
   await closeDialogs(b);
   await b.evaluate((id) => window.CaroProfile.open(id), a.uid.replace(/^u_/, ''));
   await sleep(800);
@@ -89,6 +91,31 @@ const { setup, play } = require('./helpers');
   const adm = await boss.textContent('#tour-dlg');
   ok(/Số liệu máy chủ/.test(adm) && /Kết nối/.test(adm) && /hello/.test(adm), 'quản trị viên thấy số liệu máy chủ');
   await shot(boss, 'batchd-admin-1200.png');
+
+  // ---------------------------------------------------------------- Giải đấu: ván mất kết nối, ban tổ chức huỷ kết quả
+  await send(a, { t: 'leaveRoom' }); await send(b, { t: 'leaveRoom' });
+  await sleep(400);
+  const tourId = await boss.evaluate(() => new Promise((resolve) => {
+    window.CaroOnline.on('tourCreated', (m) => resolve(m.id));
+    window.CaroOnline.send({ t: 'tourCreate', name: 'Cúp mất mạng', format: 'knockout', startsAt: Date.now() + 600000, timeLimit: 30, bestOf: 1, checkin: false });
+  }));
+  await send(a, { t: 'tourJoin', id: tourId });
+  await send(b, { t: 'tourJoin', id: tourId });
+  await sleep(400);
+  await send(boss, { t: 'tourStart', id: tourId });
+  await sleep(1000);
+  ok((await room(b))?.tour?.id === tourId, 'giải bắt đầu: hai người vào ván');
+  await b.close(); // b mất kết nối
+  await sleep(3500);
+  await boss.evaluate((id) => window.CaroTour.open(id), tourId);
+  await sleep(800);
+  ok(await boss.isVisible('.disputes [data-v="annul"]'), 'ban tổ chức thấy ván mất kết nối và các nút xử lý');
+  ok(/dd_binh mất kết nối, thua dd_an/.test(await boss.textContent('.disputes')), 'ghi rõ ai mất kết nối');
+  ok(await boss.isVisible('.pill.held'), 'nhánh đấu hiện trận đang chờ ban tổ chức');
+  await shot(boss, 'batchd-dispute-1200.png');
+  await boss.click('.disputes [data-v="annul"]');
+  await sleep(800);
+  ok(/Đã huỷ kết quả/.test(await boss.textContent('.disputes')), 'đã huỷ kết quả');
 
   // ---------------------------------------------------------------- Puzzle Storm + độ khó
   const p = await browser.newContext({ viewport: { width: 430, height: 900 } }).then(async (ctx) => {
@@ -114,7 +141,6 @@ const { setup, play } = require('./helpers');
   ok(!(await p.evaluate(() => window.CaroStorm.active)), 'dừng Storm');
 
   // ---------------------------------------------------------------- Ảnh xem trước link chia sẻ
-  const share = (await room(a)).share;
   const html = await (await fetch(`http://localhost:${PORT}/?replay=${share}`)).text();
   ok(html.includes('og:image') && html.includes(`/api/replay/${share}.png`), 'link chia sẻ có thẻ og:image');
   const img = await fetch(`http://localhost:${PORT}/api/replay/${share}.png`);

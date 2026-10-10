@@ -4,12 +4,13 @@
  *    best  : 5 trận thắng đối thủ điểm cao nhất · worst: 5 trận thua đối thủ điểm thấp nhất (chỉ ván tính điểm)
  *    win / loss: chuỗi thắng / thua liên tiếp hiện tại và dài nhất (ván tính điểm).
  *  u.act = { 'YYYY-MM-DD': { w, l, d, r: { pool: điểm thay đổi } } } – 30 ngày gần nhất, mọi ván (kể cả không tính điểm).
+ *    Ngày tính theo múi giờ máy của người chơi (u.tz: phút lệch so với UTC, client gửi khi kết nối; chưa có thì UTC).
  */
 'use strict';
 
 const TOP = 5;
 const ACT_DAYS = 30;
-const day = (at) => new Date(at).toISOString().slice(0, 10);
+const day = (at, tz = 0) => new Date(at + tz * 60000).toISOString().slice(0, 10);
 
 function emptyPerf() {
   return { hi: null, lo: null, best: [], worst: [], win: { cur: 0, max: 0 }, loss: { cur: 0, max: 0 } };
@@ -37,10 +38,12 @@ function addRated(u, pool, g) {
 /** Ghi một ván vào nhật ký hoạt động (delta: điểm thay đổi nếu ván tính điểm). */
 function addActivity(u, result, pool, delta, at = Date.now()) {
   const act = u.act || (u.act = {});
-  const d = act[day(at)] || (act[day(at)] = { w: 0, l: 0, d: 0, r: {} });
+  const tz = Number.isInteger(u.tz) ? u.tz : 0;
+  const key = day(at, tz);
+  const d = act[key] || (act[key] = { w: 0, l: 0, d: 0, r: {} });
   d[result === 'win' ? 'w' : result === 'loss' ? 'l' : 'd']++;
   if (pool && typeof delta === 'number') d.r[pool] = (d.r[pool] || 0) + delta;
-  const cut = day(at - ACT_DAYS * 86400000);
+  const cut = day(at - ACT_DAYS * 86400000, tz);
   for (const k of Object.keys(act)) if (k <= cut) delete act[k];
 }
 

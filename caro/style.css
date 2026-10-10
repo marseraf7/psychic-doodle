@@ -1068,3 +1068,10 @@ body.watching .turn .name { max-width: 9em; overflow: hidden; text-overflow: ell
 .adm-list { list-style: none; margin: 0; padding: 0; font-size: var(--fs-sm); }
 .adm-list li { padding: 2px 0; }
 .adm-count { columns: 2; }
+
+/* ============================ Giải đấu: ván mất kết nối */
+.disputes { margin: 10px 0; border: 1px solid var(--panel-border); border-radius: 12px; padding: 8px 12px; }
+.disputes summary { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.disputes .count { background: #e05545; color: #fff; border-radius: 999px; padding: 0 7px; font-size: var(--fs-xs); }
+.disputes li.dispute .row { margin-top: 6px; gap: 6px; flex-wrap: wrap; }
+.pill.held { background: rgba(224, 160, 40, 0.18); color: #a86b00; }
