@@ -31,7 +31,7 @@ const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${
 function dumpLogcat(reason) {
   try {
     const re = /caro|chromium|cr_|AndroidRuntime|ActivityManager|ActivityTaskManager|WindowManager|InputMethod|ImeTracker|InputDispatcher|DEBUG|libc|WebView|died|ANR|lowmemory|lmkd|Capacitor/i;
-    const lines = adb('logcat', '-d', '-v', 'time').split('\n').filter((l) => re.test(l));
+    const lines = execFileSync('adb', ['logcat', '-d', '-v', 'time', '-t', '4000'], { encoding: 'utf8', maxBuffer: 64 << 20 }).split('\n').filter((l) => re.test(l));
     console.log(`LOGCAT (${reason}) – ${lines.length} dòng liên quan, 200 dòng cuối:`);
     for (const l of lines.slice(-200)) console.log('  ' + l);
   } catch (e) { console.log('LOGCAT lỗi: ' + e.message); }
@@ -85,6 +85,28 @@ function webViewBounds() {
     execFileSync('sleep', ['1']);
   }
   throw new Error('Không đo được khung WebView (uiautomator và dumpsys activity top)');
+}
+/**
+ * Điểm chạm (pixel màn hình) vào giữa một phần tử, chỉ trả về khi hình học đã ổn định: chiều cao trang khớp khung
+ * WebView và vị trí phần tử không đổi giữa 2 lần đo liền nhau. Sau khi bàn phím mở / đóng, khung WebView co giãn
+ * và bố cục trang cập nhật lệch nhau một lúc – đo đúng lúc đó thì chạm trượt khỏi phần tử.
+ */
+async function stableTapPoint(app, sel, ms = 10000) {
+  const t0 = Date.now();
+  let prev = null, cur = null;
+  while (Date.now() - t0 < ms) {
+    const wv = webViewBounds();
+    const r = await app.evaluate((q) => {
+      const b = document.querySelector(q).getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2, ih: innerHeight, dpr: devicePixelRatio };
+    }, sel);
+    cur = { x: Math.round(wv.l + r.x * r.dpr), y: Math.round(wv.t + r.y * r.dpr), wv, css: { x: Math.round(r.x), y: Math.round(r.y), ih: r.ih } };
+    const fits = Math.abs(r.ih * r.dpr - (wv.b - wv.t)) <= 3 * r.dpr; // trang và khung WebView cùng kích thước
+    if (fits && prev && prev.x === cur.x && prev.y === cur.y) return cur;
+    prev = fits ? cur : null;
+    await sleep(300);
+  }
+  return { ...cur, unstable: true };
 }
 /** Toạ độ màn hình (pixel) của một phần tử trong app. */
 async function screenRect(app, sel) {
@@ -184,15 +206,11 @@ async function screenRect(app, sel) {
     // và bàn phím đóng lại – người thật không chạm nhanh tới mức đó)
     await until(() => app.evaluate(() => document.activeElement && document.activeElement.name === 'text'), 3000, 100);
     await sleep(300);
-    const inBox = await app.evaluate(() => {
-      const r = document.querySelector('#chat-form input').getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    });
     // Chạm thật của Android (adb input tap) vào giữa ô nhập: chạm giả lập qua DevTools đôi khi không
     // mở được bàn phím trên Android 15 (WebView bỏ qua hoặc chỉ làm mất focus), người dùng thật thì không gặp
-    const wv = webViewBounds();
-    const dpr = await app.evaluate(() => window.devicePixelRatio);
-    const tapInput = () => adb('shell', 'input', 'tap', String(Math.round(wv.l + inBox.x * dpr)), String(Math.round(wv.t + inBox.y * dpr)));
+    const pt = await stableTapPoint(app, '#chat-form input');
+    const inBox = pt.css;
+    const tapInput = () => adb('shell', 'input', 'tap', String(pt.x), String(pt.y));
     // Bàn phím thật sự đang hiện (mInputShown=true) – khung "ime" trong dumpsys window có thể là số liệu cũ
     const imeShownNow = () => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method')) && systemBars().ime;
     tapInput();
@@ -247,6 +265,20 @@ async function screenRect(app, sel) {
     try { adb('logcat', '-c'); } catch (e) { /* bỏ qua */ }
     const screen = adb('shell', 'wm', 'size').trim();
     const step = (k, what) => console.log(`KB-STEP ${k} ${new Date().toISOString().slice(11, 23)} ${what}`);
+    const proc = () => {
+      let pid = '', top = '';
+      try { pid = adb('shell', 'pidof', PKG).trim(); } catch (e) { pid = 'không có'; }
+      try { top = (adb('shell', 'dumpsys', 'activity', 'activities').match(/(topResumedActivity|mResumedActivity)[^\n]*/) || [''])[0].trim().slice(0, 140); } catch (e) { top = '?'; }
+      return `pid=${pid} · ${top} · ime=${imeNow()}`;
+    };
+    // Trong app: ghi lúc nút Back được xử lý, hộp thoại nào đang mở, trang có bị ẩn không (in qua console)
+    app.on('console', (m) => { if (m.text().startsWith('KBLOG')) console.log('  APP ' + m.text()); });
+    await app.evaluate(() => {
+      const P = window.Capacitor && window.Capacitor.Plugins;
+      if (P && P.App) P.App.addListener('backButton', () => console.log('KBLOG back · mở: ' + [...document.querySelectorAll('dialog[open]')].map((d) => d.id).join(',') + ' · focus: ' + (document.activeElement && document.activeElement.tagName)));
+      document.addEventListener('visibilitychange', () => console.log('KBLOG visibility ' + document.visibilityState));
+      window.addEventListener('pagehide', () => console.log('KBLOG pagehide'));
+    });
     await app.evaluate(() => {
       window.__taps = [];
       for (const ev of ['pointerdown', 'touchstart', 'click']) {
@@ -268,13 +300,11 @@ async function screenRect(app, sel) {
       await until(() => app.evaluate(() => document.activeElement && document.activeElement.name === 'text'), 3000, 100);
       await sleep(300);
       if (mode === 'B') { await app.evaluate(() => document.activeElement && document.activeElement.blur()); await sleep(200); }
-      const box = await app.evaluate(() => { const r = document.querySelector('#chat-form input').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
-      const wv = webViewBounds();
-      const dpr = await app.evaluate(() => window.devicePixelRatio);
-      const tap = () => adb('shell', 'input', 'tap', String(Math.round(wv.l + box.x * dpr)), String(Math.round(wv.t + box.y * dpr)));
+      const pt = await stableTapPoint(app, '#chat-form input');
+      const tap = () => adb('shell', 'input', 'tap', String(pt.x), String(pt.y));
       const t0 = await app.evaluate(() => performance.now());
       const winBefore = focusWin();
-      step(k, `chạm (${Math.round(wv.l + box.x * dpr)}, ${Math.round(wv.t + box.y * dpr)}) · WebView ${JSON.stringify(wv)} · dpr ${dpr} · ${screen}`);
+      step(k, `chạm (${pt.x}, ${pt.y})${pt.unstable ? ' CHƯA ỔN ĐỊNH' : ''} · css ${JSON.stringify(pt.css)} · WebView ${JSON.stringify(pt.wv)} · ${screen}`);
       tap();
       let ime = await until(imeNow, 6000, 300);
       let taps = 1;
@@ -288,8 +318,10 @@ async function screenRect(app, sel) {
       let backs = 0;
       step(k, 'Back để đóng chat');
       for (; backs < 3 && await app.evaluate(() => document.getElementById('chat').open); backs++) {
+        step(k, `Back ${backs + 1} – trước: ${proc()}`);
         adb('shell', 'input', 'keyevent', '4');
         await until(() => app.evaluate(() => !document.getElementById('chat').open), 2500);
+        step(k, `Back ${backs + 1} – sau: ${proc()}`);
       }
       rec.backs = backs;
       rec.closed = await app.evaluate(() => !document.getElementById('chat').open);
