@@ -139,7 +139,7 @@ test('đồng hồ tổng: trừ thời gian nghĩ, cộng giờ sau mỗi nư�
 let app, url;
 test.before(async () => {
   app = start({ port: 0, dataFile: null, msgRate: 2000,
-    timers: { NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 300, SECOND_MS: 20, MATCH_TICK_MS: 30, LOBBY_DEBOUNCE_MS: 20 } });
+    timers: { THROTTLE_SCALE: 0, NEXT_GAME_MS: 50, OFFLINE_FORFEIT_MS: 300, SECOND_MS: 20, MATCH_TICK_MS: 30, LOBBY_DEBOUNCE_MS: 20 } });
   await new Promise((r) => app.server.on('listening', r));
   url = `ws://127.0.0.1:${app.server.address().port}/ws`;
 });
@@ -292,6 +292,7 @@ test('xem trực tiếp: xem ván công khai / tìm nhanh, không xem được p
   assert.strictEqual(lb.pool, 'blitz');
   assert.ok(!lb.top.some((u) => u.username === 'tv_a'));
   app.hub.store.users.get(a.me.uid).pools.blitz.rd = 80;
+  app.hub.ratingsChanged(); // (đổi tay trong test: báo bảng xếp hạng dựng lại)
   const lb2 = await v.req({ t: 'leaderboard', pool: 'blitz' }, 'leaderboard');
   assert.ok(lb2.top.some((u) => u.username === 'tv_a'), 'hết tạm thì lên bảng blitz');
   const all = await v.req({ t: 'leaderboard' }, 'leaderboard');
@@ -310,4 +311,37 @@ test('thách đấu và giải đấu mang theo đồng hồ / luật khai cuộ
   assert.strictEqual(bad.opening, 'free');
   app.hub.rooms.delete(room.code);
   app.hub.rooms.delete(bad.code);
+});
+
+test('chống spam: lệnh tốn tài nguyên gọi dồn thì bị từ chối; số người xem gom lại', async () => {
+  const c = await Client.open({ guestName: 'Spam' });
+  app.hub.T.THROTTLE_SCALE = 1;
+  try {
+    // Hồ sơ: truy vấn CSDL – gọi dồn bị từ chối
+    await c.req({ t: 'profile', username: 'tv_a' }, 'profile');
+    const e = await c.req({ t: 'profile', username: 'tv_b' }, 'error');
+    assert.strictEqual(e.code, 'too_fast');
+    // Danh sách ván / bảng xếp hạng: dùng lại kết quả dựng sẵn
+    const t0 = Date.now();
+    for (let i = 0; i < 5; i++) await c.req({ t: 'tv' }, 'tv');
+    for (let i = 0; i < 5; i++) await c.req({ t: 'leaderboard', pool: 'blitz' }, 'leaderboard');
+    assert.ok(Date.now() - t0 < 1000);
+  } finally { app.hub.T.THROTTLE_SCALE = 0; }
+  c.close();
+});
+
+test('thách đấu bạn bè: chỉ bạn bè của người chơi xem được, không có trong danh sách chung', async () => {
+  const a = await account('fw_a'), b = await account('fw_b'), f = await account('fw_f'), s = await account('fw_s');
+  const U = (c) => app.hub.store.users.get(c.me.uid);
+  U(a).friends.push(U(f).id);
+  U(f).friends.push(U(a).id);
+  const room = app.hub.makeRoom('series', 3, 0);
+  app.hub.enter(room, a.me.id, 1);
+  app.hub.enter(room, b.me.id, 2);
+  assert.strictEqual(app.hub.canWatch(room, f.me.id), true, 'bạn của người chơi xem được');
+  assert.strictEqual(app.hub.canWatch(room, s.me.id), false, 'người lạ không xem được');
+  assert.strictEqual(app.hub.canWatch(room, 'g_khach'), false, 'khách không xem được');
+  app.hub.tvCache = null;
+  assert.ok(!app.hub.tvGames().some((g) => g.code === room.code), 'không có trong "Đang diễn ra"');
+  [a, b, f, s].forEach((c) => c.close());
 });

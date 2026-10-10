@@ -3,15 +3,8 @@
 const crypto = require('crypto');
 const { Room, DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
-const { TIME_LIMITS, OPENINGS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, userPid, uidOf } = require('./shared.js');
+const { MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, cleanTc, userPid, uidOf } = require('./shared.js');
 const R = require('../rating.js');
-
-/** Kiểm tra lựa chọn thời gian / khai cuộc gửi từ client. */
-const cleanTc = ({ timeLimit, clock, opening } = {}) => ({
-  timeLimit: TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
-  clock: R.CLOCKS.includes(clock) ? clock : null,
-  opening: OPENINGS.includes(opening) ? opening : 'free',
-});
 
 class Rooms {
   roomFor(pid) {
@@ -44,10 +37,7 @@ class Rooms {
     this.scheduleClock(room);
     const v = this.roomView(room);
     for (const p of room.players) this.send(p.id, { t: 'room', room: v });
-    if (room.watchers && room.watchers.size) {
-      const w = { t: 'room', watch: true, room: { ...v, password: null } }; // người xem không thấy mật khẩu phòng
-      for (const c of room.watchers) c.send(w);
-    }
+    if (room.watchers && room.watchers.size) this.sendWatchers(room, v);
     if (room.public) this.lobbyChanged();
   }
 
@@ -75,7 +65,7 @@ class Rooms {
 
   /** tc: { clock, opening } – đồng hồ tổng '3+2' (thay cho timeLimit) và luật khai cuộc. */
   makeRoom(kind, bestOf, timeLimit, tc = {}) {
-    const c = cleanTc({ timeLimit, clock: tc.clock, opening: tc.opening });
+    const c = cleanTc({ timeLimit, clock: tc.clock, opening: tc.opening }); // giá trị lạ -> mặc định
     const room = new Room({
       code: this.newCode(),
       password: String(crypto.randomInt(0, 1000)).padStart(3, '0'),
@@ -208,6 +198,7 @@ class Rooms {
   settle(room, leaving) {
     if (!room.winner || room.settled === room.gameNo + ':' + room.board.moves.length) return;
     room.settled = room.gameNo + ':' + room.board.moves.length;
+    room.lastDelta = null; // điểm thay đổi chỉ hiện cho ván vừa xong (ván với khách thì không có)
     const draw = room.winner === DRAW;
     const xPid = room.seats[1], oPid = room.seats[2];
     const U = (pid) => (uidOf(pid) && this.store.users.get(uidOf(pid))) || null;
@@ -224,7 +215,6 @@ class Rooms {
       this.store.addH2h(ux.id, uo.id, draw ? null : room.winner === 1 ? ux.id : uo.id);
       const tooShort = room.reason !== 'win' && room.board.moves.length < MIN_RATED_MOVES;
       const tourUnrated = room.tour && (!room.tour.rated || room.tour.cancelled); // giải không tính Elo
-      room.lastDelta = null;
       if (tooShort || tourUnrated || this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) room.lastUnrated = true;
       else {
         const d = this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0, R.poolOf(room));
@@ -287,7 +277,7 @@ class Rooms {
     bestOf = [1, 3, 5].includes(Number(bestOf)) ? Number(bestOf) : 1;
     first = ['me', 'them', 'random'].includes(first) ? first : 'random';
     const tc = cleanTc({ timeLimit, clock, opening });
-    timeLimit = tc.clock ? 0 : tc.timeLimit;
+    timeLimit = tc.timeLimit;
     for (const inv of [...this.invites.values()]) if (inv.from === conn.pid) this.dropInvite(inv);
     const inv = { id: crypto.randomBytes(6).toString('hex'), from: conn.pid, to: toPid, bestOf, first, timeLimit, clock: tc.clock, opening: tc.opening };
     inv.timer = setTimeout(() => this.dropInvite(inv, ['invite_no_answer', { name: friend.name }]), this.T.INVITE_TTL_MS);
@@ -328,6 +318,7 @@ class Rooms {
     a.rated++;
     b.rated++;
     for (const u of [a, b]) this.store.addRatingPoint(u.id, pool, u.pools[pool].r);
+    this.ratingsChanged(); // bảng xếp hạng dựng lại
     this.store.touch(a, b);
     return d;
   }

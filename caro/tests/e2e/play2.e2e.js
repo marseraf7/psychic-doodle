@@ -87,7 +87,7 @@ const { setup } = require('./helpers');
 
   // ---------------------------------------------------------------- Hồ sơ + bảng xếp hạng theo loại
   const bUid = await b.evaluate(() => window.CaroOnline.state.me.uid);
-  await a.evaluate((id) => window.CaroPlay.openProfile(id), bUid);
+  await a.evaluate((id) => window.CaroProfile.open(id), bUid);
   await sleep(500);
   ok(/dong_b/.test(await a.textContent('#profile-body')), 'mở hồ sơ người chơi');
   const pools = await a.$$eval('#profile-body .pf-pool', (els) => els.map((e) => e.textContent.replace(/\s+/g, ' ')));

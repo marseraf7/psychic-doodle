@@ -22,7 +22,7 @@ class Hub {
     // SECOND_MS: độ dài 1 "giây" của đồng hồ mỗi nước (test đặt nhỏ để chạy nhanh).
     this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250,
       TOUR_TICK_MS: 1000, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 2 * 60 * 1000, TOUR_MIN_LEAD_MS: 5 * 60 * 1000, TOUR_PUSH_MS: 300,
-      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, ...timers };
+      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, ...timers };
     // Quản trị viên: duyệt câu lạc bộ và giải đấu
     this.admins = new Set(admins.map((a) => String(a).trim().toLowerCase()).filter(Boolean));
     this.byPid = new Map(); // pid -> Set<conn>
@@ -260,6 +260,17 @@ class Hub {
       if (!f || now - f.t > FAIL_WINDOW_MS) this.fails.set(key, { n: 1, t: now });
       else f.n++;
     }
+  }
+
+  /**
+   * Chống spam các lệnh tốn tài nguyên (truy vấn CSDL, duyệt mọi phòng): mỗi kết nối chỉ được gọi lệnh key
+   * một lần mỗi ms mili giây, gọi dồn thì báo "thao tác quá nhanh".
+   */
+  throttle(conn, key, ms) {
+    const now = Date.now();
+    const t = conn.throttle || (conn.throttle = {});
+    if (t[key] && now - t[key] < ms * this.T.THROTTLE_SCALE) throw E('too_fast');
+    t[key] = now;
   }
 
   requireUser(conn) {

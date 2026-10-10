@@ -74,9 +74,9 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   thách đấu, tạo giải. Thanh trên hiện đồng hồ hai bên, đỏ khi còn dưới 10 giây.
 - **Luật khai cuộc Swap2** (tuỳ chọn): thẻ hướng dẫn đặt 3 quân, nút chọn bên.
 - **Điểm Glicko-2 theo loại thời gian**, dấu ? cho điểm tạm, bảng xếp hạng có tab Siêu chớp / Chớp / Nhanh / Chậm.
-- **Hồ sơ người chơi** (`play.js`): bấm tên ở bạn bè, bảng xếp hạng, phòng, giải đấu. Biểu đồ điểm (chạm / rê để xem),
+- **Hồ sơ người chơi** (`profile.js`): bấm tên ở bạn bè, bảng xếp hạng, phòng, giải đấu. Biểu đồ điểm (chạm / rê để xem),
   thống kê, chuỗi thắng, giải đấu, ván gần đây.
-- **Xem trực tiếp**: mục "Đang diễn ra" trong bảng Online, nút "Xem" cạnh bạn bè đang chơi, nhãn "● Đang đấu"
+- **Xem trực tiếp** (`watch.js`): mục "Đang diễn ra" trong bảng Online, nút "Xem" cạnh bạn bè đang chơi, nhãn "● Đang đấu"
   và biểu tượng mắt trong trang giải. Chế độ xem chỉ đọc, có nút "Ván khác" / "Thôi xem".
 - **Học chơi** (`learn.js`): 6 bài tương tác (năm quân, chặn hai đầu, bốn mở, ba mở, thắng kép, chuỗi ép).
   Mở game lần đầu: thẻ "Bạn chơi Caro tới đâu?" để chọn bài học / đối thủ phù hợp (không chặn bàn cờ).
@@ -131,7 +131,9 @@ node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực ti�
 | `bots.js` | 6 nhân vật máy: số liệu sức cờ, `botMove` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
 | `study.js` | Bảng phân tích trong chế độ xem lại, "Thử lại", Giải đố (3 chế độ). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
-| `play.js` | Swap2 (thẻ chọn bên), xem trực tiếp + danh sách "Đang diễn ra", hồ sơ người chơi (biểu đồ điểm) |
+| `swap.js` | Luật Swap2: thẻ hướng dẫn đặt quân, nút chọn bên |
+| `watch.js` | Xem trực tiếp: danh sách "Đang diễn ra", nút Xem (bạn bè, trận trong giải), chế độ người xem |
+| `profile.js` | Hồ sơ người chơi: điểm từng loại + biểu đồ, thống kê, ván gần đây |
 | `learn.js`, `habits.js` | Học chơi (6 bài) + thẻ chào người mới; chuỗi ngày chơi + huy hiệu |
 | `share.js` | Ảnh PNG / GIF động của ván để chia sẻ |
 | `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |

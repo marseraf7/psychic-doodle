@@ -40,6 +40,7 @@ function smtpMailer(url, from) {
 const MAX_CONN_PER_IP = 200;
 const MSG_RATE = 15; // tin nhắn/giây cho mỗi kết nối (cho phép dồn tối đa MSG_BURST)
 const MSG_BURST = 40;
+const MAX_BUFFERED = 2 * 1024 * 1024; // byte chờ gửi tối đa của 1 kết nối
 
 // Chính sách bảo mật nội dung: chỉ chạy script của chính trang (và Google khi bật đăng nhập Google).
 const CSP = [
@@ -153,11 +154,17 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
     const n = (perIp.get(ip) || 0) + 1;
     if (n > MAX_CONN_PER_IP) return ws.close(1008, 'Too many connections');
     perIp.set(ip, n);
+    // Kết nối không đọc kịp (mạng quá chậm / cố tình không đọc) làm dữ liệu dồn trong RAM máy chủ: quá ngưỡng thì ngắt
+    const sendRaw = (str) => {
+      if (ws.readyState !== 1) return;
+      if (ws.bufferedAmount > MAX_BUFFERED) { ws.terminate(); return; }
+      ws.send(str);
+    };
     const conn = {
       ip,
-      send: (obj) => { if (ws.readyState === 1) ws.send(JSON.stringify(obj)); },
-      // Tin đã chuyển JSON sẵn (trang giải: phần chung dựng một lần cho mọi người xem)
-      sendRaw: (str) => { if (ws.readyState === 1) ws.send(str); },
+      send: (obj) => sendRaw(JSON.stringify(obj)),
+      // Tin đã chuyển JSON sẵn (trang giải, người xem ván: phần chung dựng một lần cho mọi người)
+      sendRaw,
     };
     hub.connect(conn);
     ws.isAlive = true;

@@ -13,8 +13,7 @@
 const crypto = require('crypto');
 const { DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
-const { cleanText, cleanName, userPid, uidOf, OPENINGS } = require('./shared.js');
-const R = require('../rating.js');
+const { cleanText, cleanName, cleanTc, userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
 
 const FORMATS = ['arena', 'bracket'];
@@ -166,9 +165,9 @@ class Tournaments {
     const name = cleanName(o.name).slice(0, 60);
     if (name.length < 3) throw E('tour_name_short');
     const format = FORMATS.includes(o.format) ? o.format : 'arena';
-    const clock = R.CLOCKS.includes(o.clock) ? o.clock : null; // đồng hồ tổng (thay cho thời gian mỗi nước)
+    // Đồng hồ tổng (thay cho thời gian mỗi nước) và luật khai cuộc; giải luôn có giới hạn thời gian
+    const { clock, opening } = cleanTc(o);
     const timeLimit = clock ? 0 : TOUR_TIME_LIMITS.includes(Number(o.timeLimit)) ? Number(o.timeLimit) : 20;
-    const opening = OPENINGS.includes(o.opening) ? o.opening : 'free';
     const startsAt = Number(o.startsAt);
     const now = Date.now();
     if (!Number.isFinite(startsAt) || startsAt < now + 60 * 1000 || startsAt > now + MAX_START_DAYS * 86400000) throw E('tour_bad_start');

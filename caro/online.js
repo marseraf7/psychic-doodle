@@ -129,7 +129,7 @@
     me(m) { S.me = m.me; render(); },
     friends(m) { S.friends = m; render(); },
     room(m) {
-      if (m.watch) return; // phòng đang xem: play.js xử lý
+      if (m.watch) return; // phòng đang xem: watch.js xử lý
       probing = null;
       setRoom(m.room);
     },
@@ -144,6 +144,7 @@
     toast(m) { toast(srv(m)); },
     error(m) {
       if (m.ctx === 'move') App.resync();
+      if (m.code === 'too_fast' && ['watch', 'profile'].includes(m.ctx)) return; // bấm dồn: bỏ qua lần thừa
       // Mở bằng link mời: phòng công khai vào thẳng, phòng riêng (sai/thiếu mật khẩu) thì hỏi mật khẩu
       if (m.ctx === 'joinRoom' && probing) {
         const code = probing;

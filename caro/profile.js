@@ -1,8 +1,6 @@
 /*
- * Phần chơi online mở rộng (đợt B/C):
- *  - Luật khai cuộc Swap2: thẻ chọn bên.
- *  - Xem trực tiếp: danh sách "Đang diễn ra" (như Lichess TV), xem ván của bạn bè / trận trong giải.
- *  - Hồ sơ người chơi: điểm Glicko-2 theo loại thời gian + biểu đồ, thành tích, chuỗi thắng, giải đấu, ván gần đây.
+ * Hồ sơ người chơi: điểm Glicko-2 từng loại thời gian + biểu đồ, thắng/thua/hoà, chuỗi thắng, giải đấu, ván gần đây.
+ * Máy chủ: server/src/hub/profile.js. Phần tử có data-profile="<id>" ở bất kỳ đâu mở hồ sơ người đó.
  */
 (function () {
   'use strict';
@@ -13,89 +11,8 @@
   const esc = App.esc;
   const $ = (id) => document.getElementById(id);
   const S = N.state;
-  const glyph = (p) => (p === 1 ? '<b class="x">X</b>' : '<b class="o">O</b>');
-  const ico = (id) => `<svg class="ico i-in" aria-hidden="true"><use href="#i-${id}"/></svg>`;
   const POOLS = ['bullet', 'blitz', 'rapid', 'classical'];
 
-  // ================================================================ Swap2: chọn bên
-  function renderSwap() {
-    const box = $('swap-card');
-    const r = S.room;
-    const me = S.me && S.me.id;
-    const show = r && me && r.opening === 'swap2' && r.phase && !r.winner && r.players.length === 2 && !App.watching;
-    if (!show) { box.hidden = true; return; }
-    const mine = r.actor === me;
-    let html = '';
-    if (r.phase === 'place3' || r.phase === 'place2') {
-      const total = r.phase === 'place3' ? 3 : 5;
-      html = `<b>${esc(T(mine ? 'swap_' + r.phase + '_you' : 'swap_phase_' + r.phase))}</b>
-        <small>${esc(T('swap_progress', { n: r.moves.length, total }))}</small>`;
-    } else if (mine) {
-      html = `<b>${esc(T('swap_choose_title'))}</b><small>${esc(T(r.phase === 'choose1' ? 'swap_choose1_hint' : 'swap_choose2_hint'))}</small>
-        <div class="row">
-          <button type="button" class="primary sm" data-swap="x">${esc(T('swap_take'))} ${glyph(1)}</button>
-          <button type="button" class="primary sm" data-swap="o">${esc(T('swap_take'))} ${glyph(2)}</button>
-          ${r.phase === 'choose1' ? `<button type="button" class="ghost sm" data-swap="place2">${esc(T('swap_place2'))}</button>` : ''}
-        </div>`;
-    } else {
-      const opp = r.players.find((p) => p.id === r.actor);
-      html = `<b>${esc(T('swap_wait', { name: opp ? opp.name : T('opponent') }))}</b>`;
-    }
-    box.innerHTML = html;
-    box.hidden = false;
-    box.querySelectorAll('[data-swap]').forEach((b) => { b.onclick = () => N.send({ t: 'swap', choice: b.dataset.swap }); });
-  }
-  N.on('room', renderSwap);
-  N.on('close', () => { $('swap-card').hidden = true; });
-
-  // ================================================================ Xem trực tiếp
-  let watchCode = null;
-  N.on('room', (m) => {
-    if (!m.watch) return;
-    if (!m.room) {
-      // Phòng đóng / thôi xem
-      if (App.watching) { App.leaveOnline(); if (watchCode) N.toast(T('watch_ended')); }
-      watchCode = null;
-      return;
-    }
-    if (!watchCode) { N.closeDlg('online'); N.closeDlg('profile-dlg'); window.CaroTour && N.closeDlg('tour-dlg'); }
-    watchCode = m.room.code;
-    App.watchRoom(m.room, S.me ? S.me.id : null);
-  });
-  N.on('close', () => { if (App.watching) { App.leaveOnline(); watchCode = null; } });
-
-  function watch(opts) {
-    if (N.roomActive()) return N.toast(T('busy_in_game_short'));
-    N.send({ t: 'watch', ...opts });
-  }
-  function stopWatching() {
-    watchCode = null;
-    N.send({ t: 'unwatch' });
-    if (App.watching) App.leaveOnline();
-  }
-  $('wt-leave').onclick = stopWatching;
-  $('wt-center').onclick = () => $('btn-center').click();
-  $('wt-tv').onclick = () => { stopWatching(); $('btn-online').click(); };
-
-  // Danh sách ván đang diễn ra
-  let tvList = null;
-  function loadTv() { if (N.connected) N.send({ t: 'tv' }); }
-  N.on('tv', (m) => { tvList = m.games; renderTv(); });
-  N.on('welcome', () => { if (N.isOpen('online')) loadTv(); });
-  $('tv-refresh').onclick = loadTv;
-  new MutationObserver(() => { if ($('online').open) loadTv(); }).observe($('online'), { attributes: true, attributeFilter: ['open'] });
-  const rated = (p) => (p.rating ? ` <span class="rating">${p.rating}${p.prov ? '?' : ''}</span>` : '');
-  function renderTv() {
-    const el = $('tv-list');
-    if (!N.connected || !tvList) { el.innerHTML = `<li class="empty">${esc(T('lobby_offline'))}</li>`; return; }
-    if (!tvList.length) { el.innerHTML = `<li class="empty">${esc(T('tv_empty'))}</li>`; return; }
-    el.innerHTML = tvList.map((g) => `<li>
-        <div class="pn"><b>${glyph(1)} ${esc(g.x.name)}${rated(g.x)} <span class="vs">–</span> ${glyph(2)} ${esc(g.o.name)}${rated(g.o)}</b>
-          <small>⏱ ${esc(window.I18N.tc(g.timeLimit, g.clock))}${g.opening === 'swap2' ? ' · Swap2' : ''} · ${esc(T('n_moves', { n: g.moves }))}${g.tour ? ' · ' + esc(g.tour) : ''}${g.watchers ? ` · ${ico('eye')}${g.watchers}` : ''}</small></div>
-        <button type="button" class="primary sm" data-watch="${esc(g.code)}">${esc(T('watch'))}</button></li>`).join('');
-  }
-
-  // ================================================================ Hồ sơ người chơi
   let profile = null, chartPool = null;
   function openProfile(id) {
     profile = null;
@@ -208,22 +125,14 @@
     body.querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendAdd', id: b.dataset.add }); b.disabled = true; }; });
   }
 
-  // Bấm tên người chơi ở bất kỳ đâu (bạn bè, bảng xếp hạng, phòng, giải) để mở hồ sơ; nút "Xem" để xem ván
   document.addEventListener('click', (e) => {
     const pf = e.target.closest('[data-profile]');
-    if (pf) {
-      e.preventDefault();
-      if (!N.connected) return N.toast(T('not_connected'));
-      openProfile(pf.dataset.profile);
-      return;
-    }
-    const w = e.target.closest('[data-watch], [data-watch-uid]');
-    if (w) {
-      e.preventDefault();
-      watch(w.dataset.watch ? { code: w.dataset.watch } : { uid: w.dataset.watchUid });
-    }
+    if (!pf) return;
+    e.preventDefault();
+    if (!N.connected) return N.toast(T('not_connected'));
+    openProfile(pf.dataset.profile);
   });
 
-  window.addEventListener('langchange', () => { renderSwap(); renderTv(); if (N.isOpen('profile-dlg')) renderProfile(); });
-  window.CaroPlay = { openProfile, watch, stopWatching };
+  window.addEventListener('langchange', () => { if (N.isOpen('profile-dlg')) renderProfile(); });
+  window.CaroProfile = { open: openProfile };
 })();

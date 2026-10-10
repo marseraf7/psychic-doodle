@@ -1,9 +1,8 @@
-/* Bạn bè, xếp hạng, lịch sử & đối đầu, chặn & báo cáo, tin nhắn bạn bè. */
+/* Bạn bè, lịch sử & đối đầu, chặn & báo cáo, tin nhắn bạn bè. (Xếp hạng, hồ sơ: profile.js) */
 'use strict';
 const { DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
 const { REPORT_REASONS, cleanText, userPid, uidOf } = require('./shared.js');
-const R = require('../rating.js');
 
 class Social {
   status(uid) {
@@ -87,56 +86,6 @@ class Social {
     this.store.touch(me, other);
     this.sendFriends(me.id);
     if (other) this.sendFriends(other.id);
-  }
-
-  /** Bảng xếp hạng: pool = 'bullet' | 'blitz' | 'rapid' | 'classical' (theo loại thời gian), không có = điểm chính. */
-  on_leaderboard(conn, { pool } = {}) {
-    pool = R.POOLS.includes(pool) ? pool : null;
-    const now = Date.now();
-    const entry = (u) => {
-      if (!pool) return { u, r: u.rating, n: u.rated, prov: false };
-      const p = u.pools[pool];
-      return { u, r: Math.round(p.r), n: p.n, prov: R.provisional(p, now) };
-    };
-    // Loại thời gian: chỉ xếp người đã chơi loại đó và điểm không còn "tạm" (như Lichess)
-    const ranked = [...this.store.users.values()].map(entry).filter((e) => e.n > 0 && !e.prov)
-      .sort((a, b) => b.r - a.r || b.n - a.n);
-    const uid = uidOf(conn.pid);
-    const myRank = uid ? ranked.findIndex((e) => e.u.id === uid) + 1 : 0;
-    conn.send({
-      t: 'leaderboard', pool,
-      top: ranked.slice(0, 20).map((e, i) => ({ rank: i + 1, id: e.u.id, name: e.u.name, username: e.u.username, rating: e.r, games: e.n })),
-      me: myRank ? { rank: myRank, rating: ranked[myRank - 1].r } : null,
-    });
-  }
-
-  /** Trang hồ sơ người chơi: điểm từng loại + biểu đồ, thành tích, chuỗi thắng, giải đấu, ván gần đây. */
-  on_profile(conn, { id, username }) {
-    const u = id ? this.store.users.get(uidOf(id) || id) : this.store.byUsername.get(String(username || '').trim().toLowerCase().replace(/^@/, ''));
-    if (!u) throw E('player_not_found');
-    const meUid = uidOf(conn.pid);
-    if (meUid && u.blocked.includes(meUid)) throw E('player_not_found');
-    const now = Date.now();
-    const pools = {};
-    for (const p of R.POOLS) {
-      const x = u.pools[p];
-      pools[p] = { r: Math.round(x.r), rd: Math.round(R.decayedRd(x, now)), prov: R.provisional(x, now), n: x.n };
-    }
-    const recent = this.store.history(u.id).map((g) => {
-      const side = g.x_id === u.id ? 1 : 2;
-      return { share: g.share, created: g.created, timeLimit: g.time_limit, clock: g.clock || null, opening: g.opening || 'free',
-        opponent: side === 1 ? g.o_name : g.x_name, result: g.winner === DRAW ? 'draw' : g.winner === side ? 'win' : 'loss', moves: g.moves, reason: g.reason };
-    });
-    const me = meUid && this.store.users.get(meUid);
-    conn.send({
-      t: 'profile',
-      profile: {
-        id: u.id, name: u.name, username: u.username, created: u.created || null, status: this.status(u.id),
-        rating: u.rating, main: R.mainPool(u), pools, history: this.store.ratingPoints(u.id),
-        stats: u.stats, rated: u.rated, streak: u.wstreak, tours: u.tours, recent,
-        self: meUid === u.id, friend: !!(me && me.friends.includes(u.id)), h2h: me && me.id !== u.id ? this.store.h2h(me.id, u.id) : null,
-      },
-    });
   }
 
   on_history(conn) {

@@ -15,6 +15,8 @@
 const Caro = require('../../caro/rules.js');
 const { E } = require('./msg.js');
 const { parseClock } = require('./rating.js');
+const { ClockMixin } = require('./room-clock.js');
+const { Swap2Mixin } = require('./room-swap2.js');
 
 const { X, O } = Caro;
 const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
@@ -84,47 +86,6 @@ class Room {
     if (this.phase === 'place3' || this.phase === 'choose2') return this.opener || this.seats[X];
     if (this.phase === 'choose1' || this.phase === 'place2') return this.decider || this.seats[O];
     return this.seats[this.turn];
-  }
-
-  /** Bắt đầu tính giờ cho người phải hành động (giới hạn mỗi nước hoặc đồng hồ tổng). */
-  startClock() {
-    this.beginGame();
-    const who = this.actor();
-    this.clockRun = null;
-    if (this.clock && who) {
-      this.clockRun = { id: who, since: Date.now() };
-      this.turnEndsAt = Date.now() + Math.max(0, this.clockLeft[who] ?? this.clock.base);
-    } else this.turnEndsAt = this.timeLimit && who ? Date.now() + this.timeLimit * this.secondMs : null;
-  }
-
-  /** Trừ thời gian đã nghĩ của người vừa hành động; cộng giờ (nếu còn giờ). Trả về false nếu đã hết giờ. */
-  spend(id) {
-    if (!this.clock || !this.clockRun || this.clockRun.id !== id) return true;
-    const left = (this.clockLeft[id] ?? this.clock.base) - (Date.now() - this.clockRun.since);
-    this.clockRun = null;
-    if (left <= 0) { this.clockLeft[id] = 0; return false; }
-    this.clockLeft[id] = left + this.clock.inc;
-    return true;
-  }
-
-  /** Hết giờ: người phải hành động thua. */
-  timeLoss() {
-    const who = this.actor();
-    if (!who) return;
-    if (this.clock) this.clockLeft[who] = 0;
-    this.finish(Caro.other(this.sideOf(who)), 'time');
-  }
-
-  /** Thời gian còn lại của 2 bên (ms), tính cả phần đang chạy. */
-  clocksView() {
-    if (!this.clock) return null;
-    const left = (id) => {
-      if (!id) return this.clock.base;
-      let ms = this.clockLeft[id] ?? this.clock.base;
-      if (this.clockRun && this.clockRun.id === id) ms -= Date.now() - this.clockRun.since;
-      return Math.max(0, Math.round(ms));
-    };
-    return { x: left(this.seats[X]), o: left(this.seats[O]), running: this.clockRun ? this.sideOf(this.clockRun.id) : 0 };
   }
 
   has(id) { return this.players.some((p) => p.id === id); }
@@ -197,24 +158,6 @@ class Room {
       this.turn = Caro.other(side);
       this.startClock();
     }
-  }
-
-  /**
-   * Swap2: chọn bên. choice = 'x' | 'o' (cầm quân đó) | 'place2' (chỉ ở lượt chọn đầu: đặt thêm 2 quân).
-   */
-  swapChoose(id, choice) {
-    if (!this.active || (this.phase !== 'choose1' && this.phase !== 'choose2')) throw E('swap_not_now');
-    if (this.actor() !== id) throw E('not_your_turn');
-    if (!['x', 'o', 'place2'].includes(choice) || (choice === 'place2' && this.phase !== 'choose1')) throw E('bad_message');
-    if (!this.spend(id)) { this.timeLoss(); return; }
-    this.drawOffer = null;
-    if (choice === 'place2') { this.phase = 'place2'; this.startClock(); this.touch(); return; }
-    const other = id === this.opener ? this.decider : this.opener;
-    this.seats[X] = choice === 'x' ? id : other;
-    this.seats[O] = choice === 'x' ? other : id;
-    this.phase = null;
-    this.startClock();
-    this.touch();
   }
 
   resign(id) {
@@ -328,6 +271,13 @@ class Room {
       public: !!this.public, // phòng công khai (trong sảnh)
       quick: !!this.quick, // phòng do tìm trận nhanh tạo
     };
+  }
+}
+
+// Đồng hồ (room-clock.js) và luật Swap2 (room-swap2.js) tách file riêng cho dễ sửa
+for (const part of [ClockMixin, Swap2Mixin]) {
+  for (const name of Object.getOwnPropertyNames(part.prototype)) {
+    if (name !== 'constructor') Object.defineProperty(Room.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
   }
 }
 

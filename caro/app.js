@@ -783,6 +783,7 @@
   }
 
   /** Đánh dấu của phân tích / giải đố: huy hiệu loại nước, nước gợi ý (vòng nét đứt), nước sai. */
+  let fontFamily = ''; // phông chữ của trang (đọc 1 lần, không gọi getComputedStyle mỗi khung hình)
   function drawMarks(s, x0, x1, y0, y1) {
     for (const m of state.marks) {
       if (m.x < x0 || m.x > x1 || m.y < y0 || m.y > y1) continue;
@@ -814,7 +815,7 @@
         ctx.strokeStyle = colors.bg;
         ctx.stroke();
         ctx.fillStyle = '#fff';
-        ctx.font = `700 ${Math.round(r * (m.text.length > 1 ? 1.05 : 1.3))}px ${getComputedStyle(document.body).fontFamily}`;
+        ctx.font = `700 ${Math.round(r * (m.text.length > 1 ? 1.05 : 1.3))}px ${fontFamily || (fontFamily = getComputedStyle(document.body).fontFamily)}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(m.text, bx, by + 0.5);

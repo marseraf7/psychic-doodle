@@ -259,6 +259,7 @@ class Auth {
     this.tourUserGone(me.id);
     this.clubUserGone(me.id);
     this.store.deleteUser(me);
+    this.ratingsChanged(); // bỏ khỏi bảng xếp hạng ngay
     // Mọi thiết bị đang đăng nhập tài khoản này quay về làm khách
     for (const c of [...(this.byPid.get(pid) || [])]) {
       c.send({ t: 'accountDeleted' });

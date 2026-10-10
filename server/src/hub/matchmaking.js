@@ -11,7 +11,7 @@
  */
 'use strict';
 const { E, note } = require('../msg.js');
-const { TIME_LIMITS, uidOf } = require('./shared.js');
+const { TIME_LIMITS, cleanTc, uidOf } = require('./shared.js');
 const R = require('../rating.js');
 
 const ANY = -1; // thời gian mỗi nước: sao cũng được
@@ -36,7 +36,7 @@ class Matchmaking {
   on_quickMatch(conn, { timeLimit, clock }) {
     const room = this.roomFor(conn.pid);
     if (room && (room.active || room.awaitingNextGame)) throw E('busy_in_game');
-    const ck = R.CLOCKS.includes(clock) ? clock : null;
+    const ck = cleanTc({ clock }).clock;
     const tl = ck ? 0 : TIME_LIMITS.includes(Number(timeLimit)) && timeLimit !== null && timeLimit !== '' ? Number(timeLimit) : ANY;
     const key = ck ? 'c' + ck : String(tl);
     const old = this.queue.get(conn.pid);

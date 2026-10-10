@@ -36,6 +36,15 @@ const RESET_MAIL = {
   ru: { subject: 'Код для сброса пароля Каро', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код для сброса пароля: ${c}\nКод действует 15 минут.\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.` },
   zh: { subject: '五子棋 Caro 密码重置验证码', body: (u, c) => `${u}，你好：\n\n你的密码重置验证码是：${c}\n验证码 15 分钟内有效。\n\n如果这不是你本人的操作，请忽略此邮件。` },
 };
+/** Lựa chọn thời gian / luật khai cuộc gửi từ client: giới hạn mỗi nước, đồng hồ tổng '3+2', luật khai cuộc. */
+function cleanTc({ timeLimit, clock, opening } = {}, CLOCKS = require('../rating.js').CLOCKS) {
+  const ck = CLOCKS.includes(clock) ? clock : null;
+  return {
+    timeLimit: ck ? 0 : TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
+    clock: ck,
+    opening: OPENINGS.includes(opening) ? opening : 'free',
+  };
+}
 const cleanText = (s, max) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);
 
 const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
@@ -65,5 +74,5 @@ async function verifyGoogleToken(credential, clientId) {
 }
 
 module.exports = {
-  USERNAME_RE, OPENINGS, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
+  USERNAME_RE, OPENINGS, cleanTc, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
 };
