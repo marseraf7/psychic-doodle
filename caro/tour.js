@@ -54,7 +54,8 @@
       parts.push(st.map(K.stageName).join(' → '));
       if (st.length === 1) parts.push('Bo' + st[0].bestOf);
     }
-    parts.push(CLOCK + secs(t.timeLimit));
+    parts.push(CLOCK + (t.clock ? window.I18N.tc(0, t.clock) : secs(t.timeLimit)));
+    if (t.opening === 'swap2') parts.push('Swap2');
     if (!t.rated) parts.push(T('unrated_short'));
     parts.push(T('players_n', { n: t.count, max: t.maxPlayers }));
     return parts.join(' · ');
@@ -231,7 +232,7 @@
     if (!t.players.length) return `<p class="hint">${esc(T('tour_no_players'))}</p>`;
     return `<h4>${esc(T('standings'))}</h4><ol class="ranks tstand">${t.players.map((p, i) => `
       <li class="${me() && p.uid === me().uid ? 'me' : ''}"><span class="rank">${i + 1}</span>${dot(p)}
-        <div class="pn"><b>${esc(p.name)}${p.fire ? icon('fire', 'fire') : ''}${p.paused ? icon('pause', 'muted') : ''}${p.withdrawn ? icon('close', 'muted') : ''}</b><small>${esc(T('wdl', { w: p.wins, d: p.draws, l: p.losses }))} · ${esc(String(p.rating))}</small></div>
+        <div class="pn"><b><a href="#" class="plink" data-profile="${esc(p.uid)}">${esc(p.name)}</a>${p.playing && p.uid !== (me() && me().uid) ? ` <a href="#" class="watch-link" data-watch-uid="${esc(p.uid)}" title="${esc(T('watch'))}">${icon('eye')}</a>` : ''}${p.fire ? icon('fire', 'fire') : ''}${p.paused ? icon('pause', 'muted') : ''}${p.withdrawn ? icon('close', 'muted') : ''}</b><small>${esc(T('wdl', { w: p.wins, d: p.draws, l: p.losses }))} · ${esc(String(p.rating))}</small></div>
         <span class="pts">${p.score}</span>${kick(t, p)}</li>`).join('')}</ol>
       <p class="hint">${esc(T('arena_rules')).replace('🔥', icon('fire', 'fire'))}</p>`;
   }

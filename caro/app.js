@@ -134,6 +134,8 @@
 
   /** Hết ván với máy: người thắng thì mở khoá nhân vật kế tiếp. */
   function botGameOver() {
+    // Chuỗi ngày chơi / thành tích (habits.js)
+    window.dispatchEvent(new CustomEvent('caro:gameover', { detail: { mode: state.mode, won: state.mode === 'ai' && state.winner === state.human, bot: state.bot } }));
     if (state.mode !== 'ai' || state.winner !== state.human) return;
     const id = unlockAfter(state.bot);
     if (id) setTimeout(() => toast(T('bot_unlocked', { name: botName(id) }), 4500), 900);
@@ -242,15 +244,45 @@
     renderClock();
   }
 
+  /** 125000 ms -> '2:05'; dưới 10 giây hiện thêm phần mười: '7.4'. */
+  const fmtClock = (ms) => {
+    ms = Math.max(0, ms);
+    if (ms < 10000) return (Math.floor(ms / 100) / 10).toFixed(1);
+    const s = Math.ceil(ms / 1000);
+    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  };
+
+  /** Đồng hồ tổng 2 bên (ván online có đồng hồ, như cờ vua 3+2). */
+  function renderClocks() {
+    const box = $('clocks');
+    const c = state.clocks;
+    if (!c) { box.hidden = true; return; }
+    box.hidden = false;
+    const el = performance.now() - c.at;
+    for (const [k, p] of [['x', X], ['o', O]]) {
+      const run = c.running === p;
+      const ms = c[k] - (run ? el : 0);
+      const node = $('ck-' + k);
+      node.textContent = fmtClock(ms);
+      node.classList.toggle('run', run);
+      node.classList.toggle('low', run && ms < 10000);
+      if (run && ms < 10000 && ms > 0 && state.online && state.online.side === p) {
+        const sec = Math.ceil(ms / 1000);
+        if (sec !== c.lastTick) { c.lastTick = sec; if (sec <= 5) sfx('tick'); }
+      }
+    }
+  }
+
   function renderClock() {
     const el = $('clock');
     const c = state.clock;
-    if (!c || state.winner) { el.hidden = true; return; }
+    renderClocks();
+    if (!c || state.winner || state.clocks) { el.hidden = true; return; }
     const left = Math.max(0, Math.ceil((c.endsAt - performance.now()) / 1000));
     el.hidden = false;
     $('clock-n').textContent = left;
     el.classList.toggle('low', left <= 5);
-    const mine = c.local || (state.online && state.online.room.turn === state.online.side);
+    const mine = c.local || (state.online && state.online.room.actor === state.online.me);
     if (left <= 5 && left > 0 && left !== c.lastTick && mine) sfx('tick');
     c.lastTick = left;
   }
@@ -294,8 +326,12 @@
     if (state.ext) return !state.winner && !!state.ext.canPlay;
     if (state.winner || state.thinking || state.replay) return false;
     if (!state.online) return !isAITurn();
-    const { room, side } = state.online;
-    return room.players.length === 2 && !room.seriesWinner && room.turn === side;
+    const { room, side, me, watch } = state.online;
+    if (watch) return false; // người xem
+    if (room.players.length !== 2 || room.seriesWinner) return false;
+    // Máy chủ cho biết ai phải hành động (luật Swap2: một người đặt cả quân X lẫn O; lúc chọn bên thì không đặt quân)
+    if (room.actor !== undefined) return room.actor === me && !/^choose/.test(room.phase || '');
+    return room.turn === side;
   }
 
   function playOnline(x, y) {
@@ -313,7 +349,7 @@
   }
 
   /** Dựng lại bàn cờ theo trạng thái phòng từ máy chủ. */
-  function applyRoom(room, me) {
+  function applyRoom(room, me, watch) {
     const prev = state.online && state.online.room;
     const isNewGame = !prev || prev.gameNo !== room.gameNo || room.moves.length < prev.moves.length;
     const b = new Board();
@@ -325,8 +361,9 @@
     state.winCells = room.winCells;
     state.pending = null;
     state.thinking = false;
-    state.online = { room, me, side };
+    state.online = { room, me, side: watch ? 0 : side, watch: !!watch };
     state.clock = room.turnLeft != null && !room.winner ? { endsAt: performance.now() + room.turnLeft, local: false } : null;
+    state.clocks = room.clocks ? { ...room.clocks, running: room.winner ? 0 : room.clocks.running, at: performance.now() } : null;
     renderClock();
     const last = b.moves[b.moves.length - 1];
     const grew = prev && !isNewGame && room.moves.length > prev.moves.length;
@@ -344,29 +381,35 @@
     if (room.winner && (!prev || !prev.winner || isNewGame)) {
       state.winAt = performance.now();
       vibrate(40);
-      setTimeout(() => sfx(room.winner === 3 ? 'draw' : room.winner === side ? 'win' : 'lose'), 150);
-      setTimeout(showBanner, 300);
+      setTimeout(() => sfx(room.winner === 3 ? 'draw' : watch || room.winner === side ? 'win' : 'lose'), 150);
+      if (!watch) setTimeout(showBanner, 300);
     }
     if (!room.winner) hideBanner();
     updateUI();
     requestDraw();
   }
 
-  function enterOnline(room, me) {
+  /** watch = true: chỉ xem (không phải người chơi). */
+  function enterOnline(room, me, watch) {
     if (state.replay) closeReplay(true);
-    if (!state.online) {
+    if (state.ext) exitExt(true);
+    const was = state.online;
+    if (!was) {
       save();
       document.body.classList.add('online');
       hideBanner();
       animateCamera(0, 0, Math.max(cam.size, 32));
     }
-    applyRoom(room, me);
+    if (was && !!was.watch !== !!watch) { state.online = null; hideBanner(); } // đổi giữa xem và chơi: coi như phòng mới
+    document.body.classList.toggle('watching', !!watch);
+    applyRoom(room, me, watch);
   }
 
   function leaveOnline() {
     if (!state.online) return;
     state.online = null;
-    document.body.classList.remove('online');
+    state.clocks = null;
+    document.body.classList.remove('online', 'watching');
     restoreLocal();
   }
 
@@ -389,17 +432,25 @@
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  const rated = (p) => (p && p.rating ? ` <span class="rating">${p.rating}${p.prov ? '?' : ''}</span>` : '');
+
   function updateOnlineUI() {
-    const { room, me, side } = state.online;
+    const { room, me, side, watch } = state.online;
+    if (watch) return updateWatchUI(room);
     const opp = room.players.find((p) => p.id !== me);
     const t = $('turn');
-    if (!opp) {
+    const myTurn = room.actor !== undefined ? room.actor === me : room.turn === side;
+    if (room.phase && !room.winner && opp) {
+      // Luật Swap2: đang đặt quân khai cuộc / chọn bên
+      t.innerHTML = myTurn ? `${esc(T('swap_' + room.phase + '_you'))} ${glyph(room.turn)}`
+        : `${esc(T('swap_wait', { name: opp.name }))}`;
+    } else if (!opp) {
       t.innerHTML = `${esc(T('waiting_opp'))} <span class="thinking">${esc(T('room_code', { code: room.code }))}</span>`;
     } else if (room.winner === 3) {
       t.innerHTML = `🤝 ${esc(T('draw_short'))}`;
     } else if (room.winner) {
       t.innerHTML = room.winner === side ? `${glyph(side)} ${esc(T('you_won_short'))}` : `${glyph(room.winner)} ${esc(T('you_lost_short'))}`;
-    } else if (room.turn === side) {
+    } else if (myTurn) {
       t.innerHTML = `${esc(T('your_turn'))} ${glyph(side)}`;
     } else {
       t.innerHTML = esc(T('turn_of', { name: '\u0000' })).replace('\u0000', `<span class="name" title="${esc(opp.name)}">${esc(opp.name)}</span>`) +
@@ -407,7 +458,25 @@
     }
     const oppScore = opp ? room.score[opp.id] || 0 : 0;
     $('score').innerHTML = `${esc(T('you'))} ${room.score[me] || 0} : ${oppScore} <span class="name" title="${esc(opp ? opp.name : '')}">${esc(opp ? opp.name : '?')}</span>` +
-      (room.kind === 'series' ? ` · Bo${room.bestOf}` : '');
+      (room.kind === 'series' ? ` · Bo${room.bestOf}` : '') + watchers(room);
+  }
+
+  const watchers = (room) => (room.watchers ? ` <span class="watchers" title="${esc(T('watchers', { n: room.watchers }))}"><svg class="ico i-in" aria-hidden="true"><use href="#i-eye"/></svg>${room.watchers}</span>` : '');
+
+  /** Người xem: tên 2 bên (kèm điểm), kết quả khi ván xong. */
+  function updateWatchUI(room) {
+    const who = (s) => {
+      const p = room.players.find((q) => q.id === (s === X ? room.seats.x : room.seats.o));
+      return `${glyph(s)} <span class="name" title="${esc(p ? p.name : '?')}">${esc(p ? p.name : '?')}</span>${rated(p)}`;
+    };
+    const t = $('turn');
+    if (room.winner === 3) t.innerHTML = `${who(X)} <span class="thinking">½–½</span> ${who(O)}`;
+    else if (room.winner) t.innerHTML = `${who(X)} <span class="thinking">${room.winner === X ? '1–0' : '0–1'}</span> ${who(O)}`;
+    else t.innerHTML = `${who(X)} <span class="thinking">–</span> ${who(O)}`;
+    let sub = room.winner ? T(room.winner === 3 ? 'draw_short' : 'p_wins_plain', { p: room.winner === X ? 'X' : 'O' })
+      : room.phase ? T('swap_phase_' + room.phase) : T('watching_tag');
+    if (room.tour) sub = room.tour.name + ' · ' + sub;
+    $('score').innerHTML = `${esc(sub)} · ${esc(T('n_moves', { n: room.moves.length }))}` + watchers(room);
   }
 
   // ------------------------------------------------------------ Giao diện
@@ -535,7 +604,6 @@
     $('score').innerHTML = `${idx}/${n}` + (result ? ` · ${esc(result)}` : '');
     $('rp-first').disabled = $('rp-prev').disabled = idx === 0;
     $('rp-next').disabled = idx === n;
-    $('rp-share').hidden = !data.share;
     renderReplayPlay();
   }
 
@@ -544,7 +612,14 @@
   $('rp-next').onclick = () => { stopReplay(); seekReplay(state.replay.idx + 1); };
   $('rp-play').onclick = toggleReplayPlay;
   $('rp-close').onclick = () => closeReplay();
-  $('rp-share').onclick = () => net() && net().shareReplay(state.replay.data);
+  // Chia sẻ: ảnh PNG / GIF động (share.js), và link xem lại nếu là ván đã lưu trên máy chủ
+  $('rp-share').onclick = () => {
+    const d = state.replay.data;
+    const nm = (v) => v || T('deleted_player');
+    let result = d.winner === 3 ? T('draw_short') : d.winner ? T('replay_wins', { name: nm(d.winner === X ? d.x : d.o) }) : '';
+    if (d.reason && !['win', 'draw'].includes(d.reason) && result) result += ' · ' + T('end_' + d.reason);
+    window.CaroShare.open({ moves: d.moves, x: nm(d.x), o: nm(d.o), result }, d.share && net() ? () => net().shareReplay(d) : null);
+  };
 
   function showBanner() {
     if (!state.winner) return;
@@ -578,6 +653,10 @@
     for (const k of ['bg', 'grid', 'grid-strong', 'x', 'o', 'last', 'win', 'muted']) {
       colors[k] = cs.getPropertyValue('--' + k).trim();
     }
+    // Màu bàn cờ riêng (Cài đặt → Bàn cờ)
+    colors.bg = cs.getPropertyValue('--board').trim() || colors.bg;
+    colors.grid = cs.getPropertyValue('--board-grid').trim() || colors.grid;
+    colors['grid-strong'] = cs.getPropertyValue('--board-grid-strong').trim() || colors['grid-strong'];
   }
 
   function resize() {
@@ -603,23 +682,7 @@
   }
 
   function drawStone(p, sx, sy, s, alpha) {
-    const r = s * 0.32;
-    ctx.globalAlpha = alpha;
-    ctx.lineWidth = Math.max(2, s * 0.1);
-    ctx.lineCap = 'round';
-    if (p === X) {
-      ctx.strokeStyle = colors.x;
-      ctx.beginPath();
-      ctx.moveTo(sx - r, sy - r); ctx.lineTo(sx + r, sy + r);
-      ctx.moveTo(sx + r, sy - r); ctx.lineTo(sx - r, sy + r);
-      ctx.stroke();
-    } else {
-      ctx.strokeStyle = colors.o;
-      ctx.beginPath();
-      ctx.arc(sx, sy, r * 1.05, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
+    window.CaroStyle.drawStone(ctx, p, sx, sy, s, alpha, colors);
   }
 
   function draw() {
@@ -1045,6 +1108,9 @@
     form.timeLimit.value = String(state.timeLimit);
     form.allowUndo.value = state.allowUndo ? 'yes' : 'no';
     form.sound.value = window.CaroSound.enabled ? 'on' : 'off';
+    form.soundStyle.value = window.CaroSound.style;
+    form.board.value = window.CaroStyle.board;
+    form.pieces.value = window.CaroStyle.pieces;
     form.theme.value = window.CaroTheme.get();
     form.elements.lang.value = window.I18N.lang;
     form.confirm.checked = state.confirm;
@@ -1062,6 +1128,8 @@
     state.timeLimit = Number(form.timeLimit.value) || 0;
     state.allowUndo = form.allowUndo.value !== 'no';
     window.CaroSound.enabled = form.sound.value !== 'off';
+    if (window.CaroSound.style !== form.soundStyle.value) { window.CaroSound.style = form.soundStyle.value; window.CaroSound.play('placeX'); }
+    if (window.CaroStyle.board !== form.board.value || window.CaroStyle.pieces !== form.pieces.value) window.CaroStyle.set({ board: form.board.value, pieces: form.pieces.value });
     state.confirm = form.confirm.checked;
     window.CaroTheme.set(form.theme.value);
     window.I18N.setLang(form.elements.lang.value);
@@ -1163,10 +1231,19 @@
     fitView,
     seek: (i) => { stopReplay(); seekReplay(i, true); },
     get board() { return state.board; },
+    /** Chọn nhân vật máy (nếu đã mở khoá); unlockTo: mở khoá tới nhân vật thứ n (người chơi tự nhận là đã giỏi). */
+    setBot(id, unlockTo) {
+      if (unlockTo && unlockTo > unlockedCount()) try { localStorage.setItem(BOT_STORE, JSON.stringify({ unlocked: Math.min(Bots.BOTS.length, unlockTo) })); } catch (e) { /* riêng tư */ }
+      if (botAllowed(id)) { state.bot = id; state.mode = 'ai'; save(); updateUI(); }
+    },
     get turn() { return state.turn; },
     get ext() { return state.ext; },
     enterOnline,
-    applyRoom: (room, me) => (state.online ? applyRoom(room, me) : enterOnline(room, me)),
+    applyRoom: (room, me) => (state.online && !state.online.watch ? applyRoom(room, me) : enterOnline(room, me)),
+    /** Xem ván của người khác (chỉ đọc). */
+    watchRoom: (room, me) => (state.online && state.online.watch && state.online.room.code === room.code ? applyRoom(room, me, true) : enterOnline(room, me, true)),
+    get watching() { return !!(state.online && state.online.watch); },
+    fmtClock: (ms) => fmtClock(ms),
     leaveOnline,
     resync: () => { if (state.online) applyRoom(state.online.room, state.online.me); },
     get online() { return state.online; },
@@ -1179,6 +1256,7 @@
 
   // ------------------------------------------------------------ Khởi động
   window.CaroTheme.onChange(() => { readColors(); requestDraw(); });
+  window.CaroStyle.onChange(() => { readColors(); requestDraw(); });
   window.addEventListener('langchange', () => {
     updateUI();
     if (!$('banner').hidden) showBanner();

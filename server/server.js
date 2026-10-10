@@ -100,7 +100,7 @@ function serveReplay(store, share, res) {
   const g = store.gameByShare(share);
   const body = g && JSON.stringify({
     share: g.share, created: g.created, kind: g.kind, timeLimit: g.time_limit,
-    x: g.x_name, o: g.o_name, winner: g.winner, reason: g.reason, moves: g.moves,
+    x: g.x_name, o: g.o_name, winner: g.winner, reason: g.reason, moves: g.moves, clock: g.clock || null, opening: g.opening || 'free',
   });
   res.writeHead(g ? 200 : 404, {
     'content-type': 'application/json; charset=utf-8',

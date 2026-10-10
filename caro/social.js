@@ -58,12 +58,17 @@
 
   // ------------------------------------------------------------ Bảng xếp hạng
   let board = null;
+  const lbPool = () => (document.querySelector('input[name="lb-pool"]:checked') || {}).value || '';
   function openLeaderboard() {
     board = null;
     renderLeaderboard();
     N.openDlg('leaderboard');
-    N.send({ t: 'leaderboard' });
+    N.send({ t: 'leaderboard', pool: lbPool() || undefined });
   }
+  // Chọn loại thời gian (Siêu chớp / Chớp / Nhanh / Chậm) như Lichess
+  document.querySelectorAll('input[name="lb-pool"]').forEach((r) => {
+    r.onchange = () => { board = null; renderLeaderboard(); N.send({ t: 'leaderboard', pool: lbPool() || undefined }); };
+  });
   function renderLeaderboard() {
     const el = $('lb-list');
     const meUid = S.me && S.me.uid;
@@ -73,10 +78,10 @@
     const medal = ['🥇', '🥈', '🥉'];
     el.innerHTML = board.top.map((u) => `<li class="${u.id === meUid ? 'me' : ''}">
         <span class="rank">${u.rank <= 3 ? medal[u.rank - 1] : '#' + u.rank}</span>
-        <div class="pn"><b>${esc(u.name)}</b><small>@${esc(u.username)} · ${esc(T('lb_games', { n: u.games }))}</small></div>
+        <div class="pn"><b><a href="#" class="plink" data-profile="${esc(u.id)}">${esc(u.name)}</a></b><small>@${esc(u.username)} · ${esc(T('lb_games', { n: u.games }))}</small></div>
         <b class="pts">${u.rating}</b></li>`).join('');
   }
-  N.on('leaderboard', (m) => { board = m; renderLeaderboard(); });
+  N.on('leaderboard', (m) => { if ((m.pool || '') === lbPool()) { board = m; renderLeaderboard(); } });
 
   // ------------------------------------------------------------ Nhắn tin bạn bè
   const chat = { peer: null, msgs: [], more: false };

@@ -13,7 +13,8 @@
 const crypto = require('crypto');
 const { DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
-const { cleanText, cleanName, userPid, uidOf } = require('./shared.js');
+const { cleanText, cleanName, userPid, uidOf, OPENINGS } = require('./shared.js');
+const R = require('../rating.js');
 const ST = require('./stages.js');
 
 const FORMATS = ['arena', 'bracket'];
@@ -88,7 +89,7 @@ class Tournaments {
     const champ = t.podium && t.podium[0] && this.player(t, t.podium[0]);
     return {
       id: t.id, name: t.name, format: t.format, status: t.status, startsAt: t.startsAt, endsAt: t.endsAt || null,
-      minutes: t.minutes || null, timeLimit: t.timeLimit, stages: t.stages || null, stage: t.stage || 0, rated: t.rated, access: t.access,
+      minutes: t.minutes || null, timeLimit: t.timeLimit, clock: t.clock || null, opening: t.opening || 'free', stages: t.stages || null, stage: t.stage || 0, rated: t.rated, access: t.access,
       club: c ? { id: c.id, name: c.name } : null, count: t.players.filter((p) => !p.withdrawn).length,
       maxPlayers: t.maxPlayers, creator: this.store.users.get(t.creator)?.name || '?',
       joined: !!(uid && this.player(t, uid) && !this.player(t, uid).withdrawn), checkin: this.inCheckin(t),
@@ -165,7 +166,9 @@ class Tournaments {
     const name = cleanName(o.name).slice(0, 60);
     if (name.length < 3) throw E('tour_name_short');
     const format = FORMATS.includes(o.format) ? o.format : 'arena';
-    const timeLimit = TOUR_TIME_LIMITS.includes(Number(o.timeLimit)) ? Number(o.timeLimit) : 20;
+    const clock = R.CLOCKS.includes(o.clock) ? o.clock : null; // đồng hồ tổng (thay cho thời gian mỗi nước)
+    const timeLimit = clock ? 0 : TOUR_TIME_LIMITS.includes(Number(o.timeLimit)) ? Number(o.timeLimit) : 20;
+    const opening = OPENINGS.includes(o.opening) ? o.opening : 'free';
     const startsAt = Number(o.startsAt);
     const now = Date.now();
     if (!Number.isFinite(startsAt) || startsAt < now + 60 * 1000 || startsAt > now + MAX_START_DAYS * 86400000) throw E('tour_bad_start');
@@ -186,7 +189,7 @@ class Tournaments {
     const admin = this.isAdmin(me.id);
     const t = {
       id: crypto.randomBytes(5).toString('hex'), name, desc: cleanText(o.desc, 1000), format: ko ? 'bracket' : 'arena', creator: me.id,
-      status: admin ? 'scheduled' : 'pending', created: now, startsAt, timeLimit, rated: o.rated !== false,
+      status: admin ? 'scheduled' : 'pending', created: now, startsAt, timeLimit, clock, opening, rated: o.rated !== false,
       access, club, maxPlayers,
       minutes: ko ? null : (ARENA_MINUTES.includes(Number(o.minutes)) ? Number(o.minutes) : 30),
       stages, seeding: o.seeding === 'random' ? 'random' : 'rating',
@@ -386,7 +389,7 @@ class Tournaments {
     const a = userPid(aUid), b = userPid(bUid);
     this.leave(a);
     this.leave(b);
-    const room = this.makeRoom(kind, bestOf, t.timeLimit);
+    const room = this.makeRoom(kind, bestOf, t.timeLimit, { clock: t.clock, opening: t.opening });
     room.tour = { id: t.id, name: t.name, rated: t.rated, arena: t.format === 'arena', ...extra };
     this.enter(room, a, aFirst ? 1 : 2);
     this.enter(room, b, aFirst ? 2 : 1);
@@ -419,6 +422,15 @@ class Tournaments {
     t.podium = t.format === 'arena' ? this.arenaPodium(t) : this.bracketPodium(t);
     this.saveTour(t);
     this.pushTour(t);
+    // Thành tích giải trên trang hồ sơ
+    for (const p of t.players) {
+      const u = !p.withdrawn && this.store.users.get(p.uid);
+      if (!u) continue;
+      u.tours.played++;
+      if (t.podium[0] === p.uid) u.tours.won++;
+      if (t.podium.slice(0, 3).includes(p.uid)) u.tours.podium++;
+      this.store.touch(u);
+    }
     const champ = t.podium[0] && this.player(t, t.podium[0]);
     this.notifyPlayers(t, 'tour_finished', { winner: champ ? champ.name : '—' });
   }

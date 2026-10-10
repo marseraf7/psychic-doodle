@@ -9,8 +9,16 @@ chơi online qua WebSocket (`/ws`):
 - **Phòng công khai**: đánh dấu khi tạo phòng → phòng hiện trong mục "Phòng đang chờ" của mọi người
   (cập nhật tức thì), vào không cần mật khẩu. Phòng đã đủ 2 người hoặc chủ phòng offline thì ẩn đi;
   người đã chặn nhau không thấy phòng của nhau.
-- **Tìm trận nhanh**: chọn thời gian mỗi nước (hoặc "Bất kỳ") rồi bấm tìm; máy chủ ghép với người
-  đang tìm có Elo gần nhất (lệch tối đa 150 điểm, nới thêm 25 điểm mỗi giây chờ), ngẫu nhiên ai đi trước.
+- **Thời gian**: giới hạn mỗi nước (10/20/30 giây) hoặc **đồng hồ tổng + cộng giờ** như cờ vua:
+  1+1, 3+2, 5+3, 10+5 (phút + giây cộng sau mỗi lần đi). Máy chủ giữ đồng hồ (theo người chơi), hết giờ thì thua.
+- **Luật khai cuộc Swap2** (chống lợi thế đi trước, tuỳ chọn khi tạo phòng / thách đấu / tạo giải): người cầm X
+  đặt 3 quân (X, O, X); người kia chọn cầm X, cầm O, hoặc đặt thêm 2 quân (O, X) rồi để người đầu chọn bên.
+  Quân luôn xen kẽ X/O nên lịch sử và xem lại không đổi. Máy chủ cho biết ai phải hành động (`actor`, `phase`).
+- **Xem trực tiếp** (như Lichess TV): danh sách "Đang diễn ra" (điểm trung bình cao trước), xem ván của bạn bè
+  đang chơi, trận đang đấu trong giải. Xem được phòng công khai / tìm nhanh / giải đấu / thách đấu bạn bè (phòng riêng
+  có mật khẩu thì không); người xem không thấy mật khẩu, người chơi thấy số người đang xem.
+- **Tìm trận nhanh**: chọn thời gian mỗi nước / đồng hồ tổng (hoặc "Bất kỳ") rồi bấm tìm; máy chủ ghép với người
+  đang tìm có điểm gần nhất (trong đúng loại thời gian) (lệch tối đa 150 điểm, nới thêm 25 điểm mỗi giây chờ), ngẫu nhiên ai đi trước.
   Không ghép người đã chặn nhau; khách tìm trận được nhưng ván không tính Elo. Mất kết nối, vào phòng khác
   hoặc tái đấu với đối thủ cũ thì tự thôi tìm.
 - **Thách đấu bạn bè**: Bo1 / Bo3 / Bo5, ván đầu: mình đi trước / bạn đi trước / ngẫu nhiên;
@@ -23,8 +31,14 @@ chơi online qua WebSocket (`/ws`):
   8 câu có sẵn (mỗi người thấy theo ngôn ngữ của mình, không có chữ tự do nên không bị spam/lăng mạ).
 - **Lịch sử & xem lại**: mỗi tài khoản giữ 10 trận gần nhất; xem lại từng nước, chia sẻ link
   `https://…/?replay=<mã>` (ai có link cũng xem được, không cần tài khoản).
-- **Đối đầu, Elo, bảng xếp hạng**: thành tích thắng–thua–hoà giữa hai người, điểm Elo
-  (bắt đầu 1200, 20 trận đầu thay đổi nhanh hơn), top 20. Chỉ tính ván giữa hai tài khoản.
+- **Đối đầu, điểm Glicko-2, bảng xếp hạng**: thành tích thắng–thua–hoà giữa hai người; điểm **Glicko-2** như Lichess
+  (`src/rating.js`), tách theo loại thời gian: Siêu chớp / Chớp / Nhanh / Chậm (theo thời lượng ước tính
+  phút×60 + 40×giây cộng; giới hạn 10 giây/nước = Chớp, 20–30 = Nhanh, không giới hạn = Chậm). Bắt đầu 1200;
+  người mới có điểm "tạm" (dấu ?) và lên xuống nhanh, chơi nhiều thì ổn định; lâu không chơi thì độ tin cậy giảm dần.
+  Tài khoản cũ: mọi loại bắt đầu từ điểm Elo cũ. "Điểm chính" = loại chơi nhiều nhất. Bảng xếp hạng chung + từng loại
+  (từng loại chỉ xếp người không còn điểm tạm). Sau ván, thẻ kết quả hiện điểm thay đổi. Chỉ tính ván giữa hai tài khoản.
+- **Trang hồ sơ**: điểm từng loại + biểu đồ điểm theo thời gian (400 điểm gần nhất), thắng / thua / hoà,
+  chuỗi thắng dài nhất, số giải vô địch / đã chơi, 10 ván gần đây, đối đầu với mình.
   Chống cày điểm: ván kết thúc sớm dưới 10 nước (đầu hàng, hoà, rời phòng, hết giờ…) không tính,
   mỗi cặp chỉ tính tối đa 5 ván mỗi ngày.
 - **Câu lạc bộ** (giống Team của Lichess): ai có tài khoản cũng tạo được (tối đa 2 CLB mình làm chủ),
@@ -88,7 +102,8 @@ npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu d
 Mã máy chủ: `server.js` (HTTP + WebSocket), `src/store.js` (SQLite), `src/room.js` (một phòng chơi),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, xếp hạng, lịch sử, chặn, tin nhắn),
-`rooms.js` (phòng, ván đấu, thách đấu, Elo, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
+`rooms.js` (phòng, ván đấu, thách đấu, điểm, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
+`watch.js` (xem trực tiếp, danh sách ván hay), `src/rating.js` (Glicko-2 theo loại thời gian),
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
 `stages.js` (logic thuần các thể thức: loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ),

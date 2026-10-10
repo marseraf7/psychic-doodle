@@ -3,7 +3,15 @@
 const crypto = require('crypto');
 const { Room, DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
-const { TIME_LIMITS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, userPid, uidOf } = require('./shared.js');
+const { TIME_LIMITS, OPENINGS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, userPid, uidOf } = require('./shared.js');
+const R = require('../rating.js');
+
+/** Kiểm tra lựa chọn thời gian / khai cuộc gửi từ client. */
+const cleanTc = ({ timeLimit, clock, opening } = {}) => ({
+  timeLimit: TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
+  clock: R.CLOCKS.includes(clock) ? clock : null,
+  opening: OPENINGS.includes(opening) ? opening : 'free',
+});
 
 class Rooms {
   roomFor(pid) {
@@ -13,11 +21,15 @@ class Rooms {
 
   roomView(room) {
     const v = room.view();
+    const pool = R.poolOf(room);
+    v.pool = pool;
     for (const p of v.players) {
       p.online = this.isOnline(p.id);
       const u = uidOf(p.id) && this.store.users.get(uidOf(p.id));
-      if (u) p.rating = u.rating;
+      if (u) { const r = R.ratingIn(u, pool); p.rating = r.r; p.prov = r.prov; }
     }
+    v.watchers = room.watchers ? room.watchers.size : 0;
+    v.delta = room.winner && room.lastDelta ? room.lastDelta : null; // điểm thay đổi sau ván vừa xong
     // Thành tích đối đầu (chỉ khi cả hai có tài khoản), tính theo người cầm X ở ván hiện tại.
     const ux = uidOf(v.seats.x), uo = uidOf(v.seats.o);
     v.h2h = ux && uo ? this.store.h2h(ux, uo) : null;
@@ -32,6 +44,10 @@ class Rooms {
     this.scheduleClock(room);
     const v = this.roomView(room);
     for (const p of room.players) this.send(p.id, { t: 'room', room: v });
+    if (room.watchers && room.watchers.size) {
+      const w = { t: 'room', watch: true, room: { ...v, password: null } }; // người xem không thấy mật khẩu phòng
+      for (const c of room.watchers) c.send(w);
+    }
     if (room.public) this.lobbyChanged();
   }
 
@@ -44,7 +60,7 @@ class Rooms {
     if (!at) return;
     room.clockTimer = setTimeout(() => {
       if (this.rooms.get(room.code) !== room || room.turnEndsAt !== at || !room.active) return;
-      room.finish(3 - room.turn, 'time');
+      room.timeLoss();
       this.afterChange(room);
     }, Math.max(0, at - Date.now()) + 50);
     room.clockTimer.unref?.();
@@ -57,13 +73,17 @@ class Rooms {
     }
   }
 
-  makeRoom(kind, bestOf, timeLimit) {
+  /** tc: { clock, opening } – đồng hồ tổng '3+2' (thay cho timeLimit) và luật khai cuộc. */
+  makeRoom(kind, bestOf, timeLimit, tc = {}) {
+    const c = cleanTc({ timeLimit, clock: tc.clock, opening: tc.opening });
     const room = new Room({
       code: this.newCode(),
       password: String(crypto.randomInt(0, 1000)).padStart(3, '0'),
       kind,
       bestOf,
-      timeLimit: TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
+      timeLimit: c.timeLimit,
+      clock: c.clock,
+      opening: c.opening,
       secondMs: this.T.SECOND_MS,
       drawCooldownMs: this.T.DRAW_COOLDOWN_MS,
     });
@@ -72,6 +92,7 @@ class Rooms {
   }
 
   enter(room, pid, side) {
+    for (const c of this.byPid.get(pid) || []) this.unwatch(c); // vào ván của mình: thôi xem ván khác
     room.addPlayer({ id: pid, name: this.nameOf(pid) }, side);
     this.roomOf.set(pid, room.code);
     for (const p of room.players) this.dequeue(p.id); // đã có ván (hoặc chờ ván): thôi tìm trận nhanh
@@ -93,6 +114,7 @@ class Rooms {
     room.removePlayer(pid);
     if (!room.players.length) {
       this.rooms.delete(room.code);
+      this.dropWatchers(room);
       if (room.public) this.lobbyChanged();
     }
     else {
@@ -103,9 +125,10 @@ class Rooms {
     for (const p of room.players) this.notifyFriends(p.id);
   }
 
-  on_createRoom(conn, { side, timeLimit, public: isPublic }) {
+  on_createRoom(conn, { side, timeLimit, clock, opening, public: isPublic }) {
+    this.unwatch(conn);
     this.leave(conn.pid);
-    const room = this.makeRoom('room', 1, timeLimit);
+    const room = this.makeRoom('room', 1, timeLimit, { clock, opening });
     room.public = !!isPublic; // phòng công khai: hiện trong sảnh, vào không cần mật khẩu
     this.enter(room, conn.pid, side === 'second' ? 2 : 1);
     this.broadcastRoom(room);
@@ -123,6 +146,7 @@ class Rooms {
     // Không gửi mật khẩu (mở link mời, thử vào thẳng phòng công khai) thì không tính là thử sai
     if (!room.public && pw !== room.password) { if (pw) this.fail(rules); throw E('wrong_room_password'); }
     if (room.full) throw E('room_full');
+    this.unwatch(conn);
     const host = room.players[0];
     if (room.public && host && (this.isBlocked(host.id, conn.pid) || this.isBlocked(conn.pid, host.id))) throw E('blocked');
     this.leave(conn.pid);
@@ -143,6 +167,12 @@ class Rooms {
     const room = this.roomFor(conn.pid);
     if (!room) throw E('not_in_room');
     return room;
+  }
+
+  on_swap(conn, { choice }) {
+    const room = this.inRoom(conn);
+    room.swapChoose(conn.pid, choice);
+    this.afterChange(room);
   }
 
   on_move(conn, { x, y }) {
@@ -194,17 +224,24 @@ class Rooms {
       this.store.addH2h(ux.id, uo.id, draw ? null : room.winner === 1 ? ux.id : uo.id);
       const tooShort = room.reason !== 'win' && room.board.moves.length < MIN_RATED_MOVES;
       const tourUnrated = room.tour && (!room.tour.rated || room.tour.cancelled); // giải không tính Elo
+      room.lastDelta = null;
       if (tooShort || tourUnrated || this.store.ratedToday(ux.id, uo.id) >= MAX_RATED_PER_PAIR_DAY) room.lastUnrated = true;
       else {
-        this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0);
+        const d = this.rate(ux, uo, draw ? 0.5 : room.winner === 1 ? 1 : 0, R.poolOf(room));
+        room.lastDelta = { [xPid]: d.a, [oPid]: d.b };
         this.store.bumpRated(ux.id, uo.id);
+      }
+      // Chuỗi thắng (ván giữa 2 tài khoản)
+      for (const [u, side] of [[ux, 1], [uo, 2]]) {
+        if (draw || room.winner !== side) u.wstreak.cur = 0;
+        else { u.wstreak.cur++; u.wstreak.best = Math.max(u.wstreak.best, u.wstreak.cur); }
       }
     }
     // Lưu ván để xem lại (bỏ qua ván chưa có nước nào)
     if (room.board.moves.length) {
       const name = (pid) => room.players.find((p) => p.id === pid)?.name || this.nameOf(pid);
       room.lastShare = this.store.recordGame({
-        kind: room.kind, timeLimit: room.timeLimit,
+        kind: room.kind, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening,
         xId: ux && ux.id, oId: uo && uo.id, xName: name(xPid), oName: name(oPid),
         winner: room.winner, reason: room.reason,
         moves: room.board.moves.map((m) => [m.x, m.y]),
@@ -228,7 +265,7 @@ class Rooms {
   }
 
   inviteMsg(inv) {
-    return { t: 'invite', invite: { id: inv.id, from: { id: inv.from, name: this.nameOf(inv.from) }, bestOf: inv.bestOf, first: inv.first, timeLimit: inv.timeLimit } };
+    return { t: 'invite', invite: { id: inv.id, from: { id: inv.from, name: this.nameOf(inv.from) }, bestOf: inv.bestOf, first: inv.first, timeLimit: inv.timeLimit, clock: inv.clock, opening: inv.opening } };
   }
 
   dropInvite(inv, reason) {
@@ -239,7 +276,7 @@ class Rooms {
     if (reason) this.send(inv.from, note(...reason));
   }
 
-  on_challenge(conn, { to, bestOf, first, timeLimit }) {
+  on_challenge(conn, { to, bestOf, first, timeLimit, clock, opening }) {
     const me = this.requireUser(conn);
     const friend = this.store.users.get(to);
     if (!friend || !me.friends.includes(friend.id)) throw E('challenge_friends_only');
@@ -249,14 +286,15 @@ class Rooms {
     if (this.roomFor(conn.pid)?.active) throw E('busy_in_game');
     bestOf = [1, 3, 5].includes(Number(bestOf)) ? Number(bestOf) : 1;
     first = ['me', 'them', 'random'].includes(first) ? first : 'random';
-    timeLimit = TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0;
+    const tc = cleanTc({ timeLimit, clock, opening });
+    timeLimit = tc.clock ? 0 : tc.timeLimit;
     for (const inv of [...this.invites.values()]) if (inv.from === conn.pid) this.dropInvite(inv);
-    const inv = { id: crypto.randomBytes(6).toString('hex'), from: conn.pid, to: toPid, bestOf, first, timeLimit };
+    const inv = { id: crypto.randomBytes(6).toString('hex'), from: conn.pid, to: toPid, bestOf, first, timeLimit, clock: tc.clock, opening: tc.opening };
     inv.timer = setTimeout(() => this.dropInvite(inv, ['invite_no_answer', { name: friend.name }]), this.T.INVITE_TTL_MS);
     inv.timer.unref?.();
     this.invites.set(inv.id, inv);
     this.send(toPid, this.inviteMsg(inv));
-    this.send(conn.pid, { t: 'inviteSent', invite: { id: inv.id, to: { id: toPid, name: friend.name }, bestOf, first, timeLimit } });
+    this.send(conn.pid, { t: 'inviteSent', invite: { id: inv.id, to: { id: toPid, name: friend.name }, bestOf, first, timeLimit, clock: inv.clock, opening: inv.opening } });
   }
 
   on_challengeCancel(conn, { id }) {
@@ -275,7 +313,7 @@ class Rooms {
     if (!this.isOnline(inv.from)) throw E('inviter_offline');
     this.leave(inv.from);
     this.leave(inv.to);
-    const room = this.makeRoom('series', inv.bestOf, inv.timeLimit);
+    const room = this.makeRoom('series', inv.bestOf, inv.timeLimit, { clock: inv.clock, opening: inv.opening });
     let challengerFirst = inv.first === 'me' ? true : inv.first === 'them' ? false : crypto.randomInt(2) === 0;
     this.enter(room, inv.from, challengerFirst ? 1 : 2);
     this.enter(room, inv.to, challengerFirst ? 2 : 1);
@@ -284,15 +322,14 @@ class Rooms {
     this.notifyFriends(inv.to);
   }
 
-  /** Cập nhật điểm Elo; sa = kết quả của a (1 thắng, 0.5 hoà, 0 thua). */
-  rate(a, b, sa) {
-    const ea = 1 / (1 + Math.pow(10, (b.rating - a.rating) / 400));
-    const ka = a.rated < 20 ? 40 : 24, kb = b.rated < 20 ? 40 : 24; // người mới thay đổi nhanh hơn
-    a.rating = Math.round(a.rating + ka * (sa - ea));
-    b.rating = Math.round(b.rating + kb * ((1 - sa) - (1 - ea)));
+  /** Cập nhật điểm Glicko-2 trong loại thời gian pool; sa = kết quả của a (1 thắng, 0.5 hoà, 0 thua). Trả về điểm thay đổi. */
+  rate(a, b, sa, pool = 'rapid') {
+    const d = R.rateGame(a, b, pool, sa);
     a.rated++;
     b.rated++;
+    for (const u of [a, b]) this.store.addRatingPoint(u.id, pool, u.pools[pool].r);
     this.store.touch(a, b);
+    return d;
   }
 
   on_drawOffer(conn) {

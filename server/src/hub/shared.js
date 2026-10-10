@@ -10,6 +10,7 @@ const ROOM_IDLE_MS = 30 * 60 * 1000;
 const SEAT_IDLE_MS = 10 * 60 * 1000;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
 const TIME_LIMITS = [0, 10, 20, 30]; // giây mỗi nước, 0 = không giới hạn
+const OPENINGS = ['free', 'swap2']; // luật khai cuộc
 const DRAW_COOLDOWN_MS = 30 * 1000; // bị từ chối hoà thì 30 giây sau mới được xin lại
 // Chống cày Elo bằng 2 tài khoản: ván kết thúc sớm (đầu hàng, hoà, rời phòng…) dưới 10 nước
 // không tính điểm, và mỗi cặp chỉ tính điểm tối đa 5 ván mỗi ngày.
@@ -64,5 +65,5 @@ async function verifyGoogleToken(credential, clientId) {
 }
 
 module.exports = {
-  USERNAME_RE, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
+  USERNAME_RE, OPENINGS, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
 };

@@ -203,20 +203,30 @@
         render,
       };
       App.enterExt(ctrl); // đang ở bài khác thì chỉ thay bài, không lưu đè ván đang chơi
+      renderCard();
       renderBar();
+    }
+
+    /** Thẻ giải thích của bài học (opts.card) phía trên bàn cờ. */
+    function renderCard() {
+      const el = $('lesson-card');
+      if (!t || !t.card) { el.hidden = true; return; }
+      el.innerHTML = t.card;
+      el.hidden = false;
     }
 
     function exit() {
       clearTimeout(timer);
       const o = t;
       t = null;
+      renderCard();
       if (o && o.onExit) o.onExit();
       else App.exitExt();
     }
 
     function render() {
       if (!t) return { turn: '' };
-      const goalText = T(t.goal === 'win' ? 'tr_find_win' : 'tr_find_save');
+      const goalText = t.prompt || T(t.goal === 'win' ? 'tr_find_win' : 'tr_find_save');
       let turn = `${glyph(t.p)} <span>${esc(goalText)}</span>`;
       if (t.goal === 'win' && t.left > 1 && t.status === 'play' && t.first) turn += ` <span class="thinking">${esc(T('tr_in_n', { n: t.left }))}</span>`;
       if (t.msg) turn = `<span class="tr-msg ${t.status}">${t.status === 'solved' ? ico('check') : t.status === 'wrong' ? ico('close') : ''} ${esc(t.msg)}</span>`;
@@ -238,7 +248,8 @@
       const p = t.p, q = C.other(p);
       App.setMarks(null);
       let ok;
-      if (t.goal === 'win') {
+      if (t.check) ok = t.check(board, x, y, p); // bài học: điều kiện riêng
+      else if (t.goal === 'win') {
         ok = C.winsIfPlaced(board, x, y, p) || A.winningMove(board, p, [x, y], Math.max(2, t.left + 1), { deadline: Date.now() + 700 });
       } else {
         board.put(x, y, p);
@@ -256,7 +267,7 @@
       }
       const won = App.extPlace(x, y);
       t.line.push([x, y]);
-      if (won || t.goal === 'save') return solved();
+      if (won || t.goal === 'save' || t.check) return solved();
       // Máy chặn, rồi tới lượt người chơi tiếp tục chuỗi ép.
       t.status = 'busy';
       t.msg = T('tr_good_move');
@@ -282,6 +293,7 @@
       window.CaroSound && window.CaroSound.play('win');
       if (t.first) { t.first = false; if (t.onFirst) t.onFirst(true); }
       if (t.onSolved) t.onSolved(!t.failed);
+      window.dispatchEvent(new CustomEvent('caro:solved', { detail: { kind: t.kind || 'retry', clean: !t.failed } }));
       refresh();
     }
 
@@ -377,6 +389,7 @@
       start: (o) => start({ ...o, left0: o.left, sol0: o.sol }),
       refresh,
       get active() { return !!t; },
+      refreshCard: () => renderCard(),
     };
   })();
 
@@ -458,7 +471,7 @@
     s.delta = null;
     const p = q.m.length % 2 ? C.O : C.X;
     Trainer.start({
-      moves: q.m, p, goal: 'win', left: q.len, sol: q.sol,
+      moves: q.m, p, goal: 'win', left: q.len, sol: q.sol, kind: 'puzzle',
       score: scoreLine,
       onFirst: (ok) => firstResult(q, ok),
       next: s.mode === 'daily' ? null : () => { if (s.over) { s.over = false; s.streak = 0; s.used = new Set(); } nextPuzzle(); },

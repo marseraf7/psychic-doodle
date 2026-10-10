@@ -693,8 +693,13 @@ test('Elo: đầu hàng / hoà quá sớm không tính điểm; thắng thật t
   await playWin(a, b);
   assert.strictEqual(a.room.unrated, false);
   if (a.me.rating === 1200) await a.wait('me', (m) => m.me.rating !== 1200);
-  assert.strictEqual(a.me.rating, 1220);
+  // Glicko-2: người mới (rd 350) lên nhiều sau ván thắng đầu tiên; ván không giới hạn thời gian = loại classical
+  assert.ok(a.me.rating > 1300 && a.me.rating < 1450, String(a.me.rating));
   assert.strictEqual(a.me.rated, 1);
+  assert.strictEqual(a.me.pools.classical.r, a.me.rating);
+  assert.strictEqual(a.me.pools.classical.prov, true, 'mới 1 ván: điểm còn tạm');
+  assert.strictEqual(a.me.pools.blitz.r, 1200, 'loại thời gian khác không đổi');
+  assert.ok(b.room.delta && b.room.delta[b.me.id] < 0, 'người thua thấy điểm bị trừ');
   [a, b].forEach((c) => c.close());
 });
 
@@ -837,9 +842,10 @@ test('tìm trận nhanh: hợp thời gian mới ghép, chọn Elo gần nhất,
 
   // Elo: người 1500 được ghép với 1520 chứ không với 2400
   const p = await account('qm_p'), hi = await account('qm_hi'), near = await account('qm_near');
-  app.hub.store.users.get(p.me.uid).rating = 1500;
-  app.hub.store.users.get(hi.me.uid).rating = 2400;
-  app.hub.store.users.get(near.me.uid).rating = 1520;
+  const setR = (uid, r) => { for (const pool of Object.values(app.hub.store.users.get(uid).pools)) pool.r = r; };
+  setR(p.me.uid, 1500);
+  setR(hi.me.uid, 2400);
+  setR(near.me.uid, 1520);
   await p.req({ t: 'quickMatch' }, 'queue');
   await hi.req({ t: 'quickMatch' }, 'queue');
   const pr = p.wait('room', (m) => m.room && m.room.players.length === 2);

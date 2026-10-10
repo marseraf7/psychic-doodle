@@ -1,6 +1,7 @@
 /* Lõi Hub: trạng thái chung, kết nối, danh tính phiên, giới hạn tần suất, dọn dẹp. */
 'use strict';
 const { E, fmt } = require('../msg.js');
+const R = require('../rating.js');
 const { OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, DRAW_COOLDOWN_MS, userPid, uidOf } = require('./shared.js');
 
 class Hub {
@@ -58,7 +59,9 @@ class Hub {
   disconnect(conn) {
     const pid = conn.pid;
     this.lobbyWatchers.delete(conn);
-    if (!pid || this.closed) return;
+    if (this.closed) return;
+    this.unwatch(conn);
+    if (!pid) return;
     this.detach(conn);
     if (!this.isOnline(pid)) this.wentOffline(pid);
   }
@@ -170,6 +173,7 @@ class Hub {
     return {
       id: pid, uid, name: u.name, username: u.username, guest: false, google: !!u.google, hasPassword: !!u.pass,
       stats: u.stats, rating: u.rating, rated: u.rated, email: u.email,
+      pools: Object.fromEntries(R.POOLS.map((p) => [p, R.ratingIn(u, p)])), streak: u.wstreak, tours: u.tours,
       pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
       blocked: u.blocked.map((id) => ({ id, name: this.store.users.get(id)?.name || '?' })),
       admin: this.isAdmin(uid),
@@ -224,6 +228,12 @@ class Hub {
     delete room.score[oldPid];
     if (room.rematch.delete(oldPid)) room.rematch.add(newPid);
     if (room.seriesWinner === oldPid) room.seriesWinner = newPid;
+    // Swap2 / đồng hồ tổng giữ theo id người chơi
+    if (room.opener === oldPid) room.opener = newPid;
+    if (room.decider === oldPid) room.decider = newPid;
+    if (oldPid in room.clockLeft) { room.clockLeft[newPid] = room.clockLeft[oldPid]; delete room.clockLeft[oldPid]; }
+    if (room.clockRun && room.clockRun.id === oldPid) room.clockRun.id = newPid;
+    if (room.lastDelta && oldPid in room.lastDelta) { room.lastDelta[newPid] = room.lastDelta[oldPid]; delete room.lastDelta[oldPid]; }
     this.roomOf.delete(oldPid);
     this.roomOf.set(newPid, code);
     this.broadcastRoom(room);
@@ -270,6 +280,7 @@ class Hub {
       if (this.rooms.get(room.code) === room && !anyone && now - room.activeAt > ROOM_IDLE_MS) {
         for (const p of room.players) this.roomOf.delete(p.id);
         this.rooms.delete(room.code);
+        this.dropWatchers(room);
       }
     }
     for (const [pid, t] of this.offlineAt) if (now - t > ROOM_IDLE_MS && !this.roomOf.has(pid)) this.offlineAt.delete(pid);

@@ -1,6 +1,6 @@
 // Lưu toàn bộ game vào bộ nhớ đệm để chơi được cả khi mất mạng.
-const CACHE = 'caro-v22';
-const FILES = ['./', 'index.html', 'style.css', 'config.js', 'theme.js', 'i18n.js', 'sound.js', 'rules.js', 'bots.js', 'analysis.js', 'ai-worker.js', 'app.js', 'online.js', 'social.js', 'match.js', 'tour-patch.js', 'tour.js', 'tour-stages.js', 'tour-form.js', 'tour-groups.js', 'club.js', 'study.js', 'puzzles.json', 'native.js', 'privacy.html', 'icon.svg', 'manifest.webmanifest',
+const CACHE = 'caro-v23';
+const FILES = ['./', 'index.html', 'style.css', 'config.js', 'theme.js', 'boardstyle.js', 'i18n.js', 'sound.js', 'rules.js', 'bots.js', 'analysis.js', 'ai-worker.js', 'app.js', 'online.js', 'social.js', 'match.js', 'tour-patch.js', 'tour.js', 'tour-stages.js', 'tour-form.js', 'tour-groups.js', 'club.js', 'study.js', 'share.js', 'play.js', 'learn.js', 'habits.js', 'puzzles.json', 'native.js', 'privacy.html', 'icon.svg', 'manifest.webmanifest',
   // Phông cho 4 ngôn ngữ của game; phần chữ hiếm (latin-ext, cyrillic-ext) tự được lưu khi cần
   'fonts/noto-sans-latin-wght-normal.woff2', 'fonts/noto-sans-vietnamese-wght-normal.woff2', 'fonts/noto-sans-cyrillic-wght-normal.woff2'];
 

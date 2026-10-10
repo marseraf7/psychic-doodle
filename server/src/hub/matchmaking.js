@@ -12,6 +12,7 @@
 'use strict';
 const { E, note } = require('../msg.js');
 const { TIME_LIMITS, uidOf } = require('./shared.js');
+const R = require('../rating.js');
 
 const ANY = -1; // thời gian mỗi nước: sao cũng được
 const MATCH_BASE = 150;
@@ -22,20 +23,26 @@ class Matchmaking {
   // ------------------------------------------------------------ tìm trận nhanh
   queueMsg(pid) {
     const e = this.queue.get(pid);
-    return e ? { t: 'queue', state: 'searching', since: e.since, timeLimit: e.timeLimit } : { t: 'queue', state: 'idle' };
+    return e ? { t: 'queue', state: 'searching', since: e.since, timeLimit: e.timeLimit, clock: e.clock } : { t: 'queue', state: 'idle' };
   }
 
-  ratingOf(pid) {
+  /** Điểm dùng để ghép: theo loại thời gian đang tìm (pool), hoặc điểm chính. */
+  ratingOf(pid, pool) {
     const u = uidOf(pid) && this.store.users.get(uidOf(pid));
-    return u ? u.rating : 1200;
+    return u ? R.ratingIn(u, pool).r : 1200;
   }
 
-  on_quickMatch(conn, { timeLimit }) {
+  /** clock: đồng hồ tổng '3+2' (ưu tiên hơn timeLimit). */
+  on_quickMatch(conn, { timeLimit, clock }) {
     const room = this.roomFor(conn.pid);
     if (room && (room.active || room.awaitingNextGame)) throw E('busy_in_game');
-    const tl = TIME_LIMITS.includes(Number(timeLimit)) && timeLimit !== null && timeLimit !== '' ? Number(timeLimit) : ANY;
+    const ck = R.CLOCKS.includes(clock) ? clock : null;
+    const tl = ck ? 0 : TIME_LIMITS.includes(Number(timeLimit)) && timeLimit !== null && timeLimit !== '' ? Number(timeLimit) : ANY;
+    const key = ck ? 'c' + ck : String(tl);
     const old = this.queue.get(conn.pid);
-    this.queue.set(conn.pid, { pid: conn.pid, timeLimit: tl, since: old && old.timeLimit === tl ? old.since : Date.now() });
+    this.unwatch(conn);
+    this.queue.set(conn.pid, { pid: conn.pid, timeLimit: tl, clock: ck, key, pool: tl === ANY ? null : R.poolOf({ timeLimit: tl, clock: ck }),
+      since: old && old.key === key ? old.since : Date.now() });
     this.send(conn.pid, this.queueMsg(conn.pid));
     this.matchTick();
     if (this.queue.size && !this.matchTimer) {
@@ -76,13 +83,14 @@ class Matchmaking {
     }
     for (const a of waiting) {
       if (taken.has(a.pid)) continue;
-      const ra = this.ratingOf(a.pid);
       let best = null, bestDiff = Infinity;
       for (const b of waiting) {
         if (b === a || taken.has(b.pid)) continue;
-        if (a.timeLimit !== ANY && b.timeLimit !== ANY && a.timeLimit !== b.timeLimit) continue;
+        const anyA = a.timeLimit === ANY, anyB = b.timeLimit === ANY;
+        if (!anyA && !anyB && a.key !== b.key) continue;
         if (this.isBlocked(a.pid, b.pid) || this.isBlocked(b.pid, a.pid)) continue;
-        const diff = Math.abs(ra - this.ratingOf(b.pid));
+        const pool = a.pool || b.pool; // so điểm trong loại thời gian sẽ chơi
+        const diff = Math.abs(this.ratingOf(a.pid, pool) - this.ratingOf(b.pid, pool));
         if (diff > this.matchWindow(Math.min(a.since, b.since), now)) continue;
         if (diff < bestDiff) { best = b; bestDiff = diff; }
       }
@@ -94,12 +102,14 @@ class Matchmaking {
   }
 
   startQuickGame(a, b) {
-    const tl = a.timeLimit !== ANY ? a.timeLimit : b.timeLimit !== ANY ? b.timeLimit : 0;
+    const pick = a.timeLimit !== ANY ? a : b.timeLimit !== ANY ? b : null;
+    const tl = pick ? pick.timeLimit : 0;
+    const clock = pick ? pick.clock : null;
     this.dequeue(a.pid);
     this.dequeue(b.pid);
     this.leave(a.pid); // bỏ phòng đang chờ (nếu có) – không có ván đang diễn ra vì đã kiểm tra lúc vào hàng chờ
     this.leave(b.pid);
-    const room = this.makeRoom('room', 1, tl);
+    const room = this.makeRoom('room', 1, tl, { clock });
     room.quick = true;
     const [first, second] = Math.random() < 0.5 ? [a.pid, b.pid] : [b.pid, a.pid];
     this.enter(room, first, 1);
@@ -121,7 +131,8 @@ class Matchmaking {
       if (!this.isOnline(host.id) || host.id === pid) continue;
       if (this.isBlocked(pid, host.id) || this.isBlocked(host.id, pid)) continue;
       const u = uidOf(host.id) && this.store.users.get(uidOf(host.id));
-      list.push({ code: room.code, timeLimit: room.timeLimit, createdAt: room.createdAt, host: { id: host.id, name: host.name, rating: u ? u.rating : null } });
+      list.push({ code: room.code, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening, createdAt: room.createdAt,
+        host: { id: host.id, name: host.name, rating: u ? R.ratingIn(u, R.poolOf(room)).r : null } });
     }
     list.sort((x, y) => y.createdAt - x.createdAt);
     return list.slice(0, LOBBY_MAX);

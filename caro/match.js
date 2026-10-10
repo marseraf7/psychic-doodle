@@ -6,7 +6,6 @@
   const T = window.I18N.t;
   const esc = window.CaroApp.esc;
   const $ = (id) => document.getElementById(id);
-  const secs = (n) => T('per_move', { n });
 
   const Q = { searching: false, since: 0, lobby: null };
   let ticker = 0;
@@ -21,12 +20,14 @@
   // ------------------------------------------------------------ Tìm trận nhanh
   // Ô vừa chọn trên lưới "Chơi nhanh" (dùng lại cho nút "Tìm trận khác" trên thẻ kết quả)
   Q.time = -1;
-  function start(time) {
+  Q.clock = null; // đồng hồ tổng '3+2' (ô đồng hồ) hoặc null (ô giới hạn mỗi nước)
+  function start(time, clock) {
     if (O.roomActive() && !confirm(T('confirm_leave'))) return;
-    if (typeof time === 'number') Q.time = time;
-    O.send({ t: 'quickMatch', timeLimit: Q.time });
+    if (typeof time === 'number') { Q.time = time; Q.clock = clock || null; }
+    O.send({ t: 'quickMatch', timeLimit: Q.time, clock: Q.clock });
   }
-  document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => { b.onclick = () => start(Number(b.dataset.time)); });
+  const tileOn = (b) => Q.searching && Number(b.dataset.time) === Q.time && (b.dataset.clock || null) === Q.clock;
+  document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => { b.onclick = () => start(Number(b.dataset.time), b.dataset.clock); });
   $('qm-cancel').onclick = () => O.send({ t: 'quickCancel' });
   $('banner-quick').onclick = () => start();
 
@@ -44,8 +45,8 @@
   }
   function renderQuick() {
     document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => {
-      b.classList.toggle('on', Q.searching && Number(b.dataset.time) === Q.time);
-      b.setAttribute('aria-pressed', String(Q.searching && Number(b.dataset.time) === Q.time));
+      b.classList.toggle('on', tileOn(b));
+      b.setAttribute('aria-pressed', String(tileOn(b)));
     });
     $('qm-grid').classList.toggle('searching', Q.searching);
     $('qm-search').hidden = !Q.searching;
@@ -55,7 +56,7 @@
   }
 
   O.on('queue', (m) => {
-    if (m.state === 'searching' && typeof m.timeLimit === 'number') Q.time = m.timeLimit; // ô đang tìm (cả sau khi kết nối lại)
+    if (m.state === 'searching' && typeof m.timeLimit === 'number') { Q.time = m.timeLimit; Q.clock = m.clock || null; } // ô đang tìm (cả sau khi kết nối lại)
     setSearching(m.state === 'searching');
   });
   O.on('welcome', () => {
@@ -94,7 +95,7 @@
     el.innerHTML = Q.lobby.map((r) => `
       <li><span class="st online"></span>
         <div class="pn"><b>${esc(r.host.name)}${r.host.rating ? ` <span class="rating">${esc(String(r.host.rating))}</span>` : ''}</b>
-          <small>⏱ ${esc(r.timeLimit ? secs(r.timeLimit) : T('time_off'))}${r.host.rating ? '' : ' · ' + esc(T('guest'))}</small></div>
+          <small>⏱ ${esc(window.I18N.tc(r.timeLimit, r.clock))}${r.opening === 'swap2' ? ' · Swap2' : ''}${r.host.rating ? '' : ' · ' + esc(T('guest'))}</small></div>
         <button type="button" class="primary sm" data-lobby-join="${esc(r.code)}">${esc(T('lobby_join'))}</button></li>`).join('');
     el.querySelectorAll('[data-lobby-join]').forEach((b) => {
       b.onclick = () => {

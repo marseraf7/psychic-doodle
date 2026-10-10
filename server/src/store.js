@@ -14,9 +14,11 @@ const crypto = require('crypto');
 // node:sqlite còn gắn nhãn "experimental" trong Node 22 nên in 1 dòng cảnh báo khi khởi động.
 // Các lệnh chạy (npm start, Dockerfile, caro.service) dùng --disable-warning=ExperimentalWarning để ẩn.
 const { DatabaseSync } = require('node:sqlite');
+const { upgradePools } = require('./rating.js');
 
 const SESSION_TTL = 180 * 24 * 3600 * 1000;
 const HISTORY_PER_USER = 10;
+const RATING_POINTS_PER_USER = 400; // điểm vẽ biểu đồ trên trang hồ sơ
 const DM_PER_PAIR = 100;
 // Chỉ lưu mã băm của token: lộ file dữ liệu cũng không dùng được để đăng nhập.
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
@@ -48,7 +50,12 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS clubs (id TEXT PRIMARY KEY, data TEXT NOT NULL);
   CREATE TABLE IF NOT EXISTS tours (id TEXT PRIMARY KEY, status TEXT NOT NULL, created INTEGER NOT NULL, data TEXT NOT NULL);
   CREATE INDEX IF NOT EXISTS tours_status ON tours (status, created);
+  CREATE TABLE IF NOT EXISTS rating_hist (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT NOT NULL, pool TEXT NOT NULL,
+    at INTEGER NOT NULL, r INTEGER NOT NULL);
+  CREATE INDEX IF NOT EXISTS rating_hist_uid ON rating_hist (uid, id);
 `;
+// Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
+const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT']];
 
 class Store {
   /**
@@ -59,6 +66,10 @@ class Store {
     if (file) fs.mkdirSync(path.dirname(file), { recursive: true });
     this.db = new DatabaseSync(file || ':memory:');
     this.db.exec(SCHEMA);
+    for (const [table, col, type] of ADD_COLUMNS) {
+      const has = this.db.prepare(`PRAGMA table_info(${table})`).all().some((c) => c.name === col);
+      if (!has) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`);
+    }
     this.users = new Map(); // id -> user
     this.byUsername = new Map();
     this.byGoogle = new Map();
@@ -73,13 +84,13 @@ class Store {
       getSession: q('SELECT uid, created FROM sessions WHERE hash = ?'),
       dropSession: q('DELETE FROM sessions WHERE hash = ?'),
       dropUserSessions: q('DELETE FROM sessions WHERE uid = ? AND hash <> ?'),
-      addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves) VALUES (?,?,?,?,?,?,?,?,?,?,?)'),
+      addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves, clock, opening) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'),
       linkGame: q('INSERT OR IGNORE INTO user_games (uid, game_id) VALUES (?, ?)'),
       oldGames: q('SELECT game_id FROM user_games WHERE uid = ? ORDER BY game_id DESC LIMIT -1 OFFSET ?'),
       unlinkGame: q('DELETE FROM user_games WHERE uid = ? AND game_id = ?'),
       gameRefs: q('SELECT COUNT(*) AS n FROM user_games WHERE game_id = ?'),
       dropGame: q('DELETE FROM games WHERE id = ?'),
-      history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
+      history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.clock, g.opening, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
         json_array_length(g.moves) AS moves FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? ORDER BY g.id DESC LIMIT ?`),
       gameByShare: q('SELECT * FROM games WHERE share = ?'),
       getH2h: q('SELECT a_wins, b_wins, draws FROM h2h WHERE a = ? AND b = ?'),
@@ -108,6 +119,9 @@ class Store {
       dropReset: q('DELETE FROM resets WHERE uid = ?'),
       upsertClub: q('INSERT INTO clubs (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data'),
       dropClub: q('DELETE FROM clubs WHERE id = ?'),
+      addPoint: q('INSERT INTO rating_hist (uid, pool, at, r) VALUES (?, ?, ?, ?)'),
+      prunePoints: q('DELETE FROM rating_hist WHERE uid = ? AND id <= (SELECT id FROM rating_hist WHERE uid = ? ORDER BY id DESC LIMIT 1 OFFSET ?)'),
+      points: q('SELECT pool, at, r FROM rating_hist WHERE uid = ? ORDER BY id'),
       upsertTour: q('INSERT INTO tours (id, status, created, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data'),
     };
     for (const row of this.db.prepare('SELECT data FROM users').all()) this.index(this.upgrade(JSON.parse(row.data)));
@@ -125,6 +139,9 @@ class Store {
     if (typeof u.rating !== 'number') u.rating = 1200;
     if (typeof u.rated !== 'number') u.rated = 0; // số trận đã tính Elo
     u.email = u.email || '';
+    upgradePools(u); // điểm Glicko-2 theo loại thời gian (tài khoản cũ: bắt đầu từ Elo cũ)
+    u.wstreak = { cur: 0, best: 0, ...(u.wstreak || {}) }; // chuỗi thắng
+    u.tours = { played: 0, won: 0, podium: 0, ...(u.tours || {}) }; // thành tích giải đấu
     return u;
   }
 
@@ -214,6 +231,7 @@ class Store {
       run('DELETE FROM dm_read WHERE uid = ? OR peer = ?', id, id);
       run('DELETE FROM resets WHERE uid = ?', id);
       run('DELETE FROM rated_pairs WHERE a = ? OR b = ?', id, id);
+      run('DELETE FROM rating_hist WHERE uid = ?', id);
       run('DELETE FROM reports WHERE reporter = ?', id);
       this.db.exec('COMMIT');
     } catch (e) {
@@ -290,11 +308,11 @@ class Store {
 
   // ------------------------------------------------------------ Trận đấu
   /** Lưu một ván đã kết thúc; xId/oId là id tài khoản (null nếu là khách). Trả về mã chia sẻ. */
-  recordGame({ kind, timeLimit, xId, oId, xName, oName, winner, reason, moves }) {
+  recordGame({ kind, timeLimit, clock = null, opening = 'free', xId, oId, xName, oName, winner, reason, moves }) {
     if (!xId && !oId) return null;
     const share = crypto.randomBytes(8).toString('base64url');
     const { lastInsertRowid } = this.q.addGame.run(share, Date.now(), kind, timeLimit || 0, xId || null, oId || null,
-      xName, oName, winner, reason, JSON.stringify(moves));
+      xName, oName, winner, reason, JSON.stringify(moves), clock || null, opening || 'free');
     const id = Number(lastInsertRowid);
     for (const uid of new Set([xId, oId].filter(Boolean))) {
       this.q.linkGame.run(uid, id);
@@ -316,6 +334,19 @@ class Store {
     const g = this.q.gameByShare.get(share);
     if (!g) return null;
     return { ...g, moves: JSON.parse(g.moves) };
+  }
+
+  // ------------------------------------------------------------ Biểu đồ điểm
+  addRatingPoint(uid, pool, r, at = Date.now()) {
+    this.q.addPoint.run(uid, pool, at, Math.round(r));
+    this.q.prunePoints.run(uid, uid, RATING_POINTS_PER_USER);
+  }
+
+  /** { pool: [[thời điểm, điểm], ...] } */
+  ratingPoints(uid) {
+    const out = {};
+    for (const p of this.q.points.all(uid)) (out[p.pool] = out[p.pool] || []).push([p.at, p.r]);
+    return out;
   }
 
   // ------------------------------------------------------------ Đối đầu

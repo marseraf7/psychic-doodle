@@ -9,10 +9,10 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   - Bị chặn cả 2 đầu → không tính thắng.
 - Chơi **2 người cùng máy**, **với máy** (6 nhân vật có tính cách, xem dưới), hoặc **online**:
   **giải đấu** Arena / loại trực tiếp / nhánh thắng – thua / vòng tròn / Thụy Sĩ (ghép được nhiều giai đoạn, ví dụ
-  vòng bảng → playoff) và **câu lạc bộ**, **tìm trận nhanh** (ghép với người có Elo gần mình), phòng công khai (ai cũng vào được từ danh sách
+  vòng bảng → playoff) và **câu lạc bộ**, **tìm trận nhanh** (ghép với người có điểm gần mình), phòng công khai (ai cũng vào được từ danh sách
   "Phòng đang chờ"), tạo phòng riêng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
   thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online,
-  xin hoà, chat nhanh, nhắn tin bạn bè, lịch sử 10 trận + xem lại + link chia sẻ, đối đầu, Elo và bảng xếp hạng.
+  xin hoà, chat nhanh, nhắn tin bạn bè, lịch sử 10 trận + xem lại + link chia sẻ, đối đầu, điểm Glicko-2 và bảng xếp hạng theo loại thời gian, xem trực tiếp, hồ sơ người chơi.
   Phần online cần chạy máy chủ trong thư mục [`server/`](../server/README.md).
 - Đi lại (bật/tắt trong Cài đặt: "Cho phép đi lại"), lưu ván đang chơi, tỉ số.
 - **Thời gian mỗi nước**: không giới hạn / 10 / 20 / 30 giây – hết giờ mà chưa đánh thì thua
@@ -68,6 +68,26 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   (kể cả xoay / lật), chấm độ khó theo độ dài chuỗi và số nước "bẫy".
 - Nút **Về giữa** chuyển thành nút tròn nổi ở góc phải để thanh dưới có chỗ cho **Giải đố**.
 
+## Thi đấu, cộng đồng và tuỳ chỉnh (đợt B/C)
+
+- **Đồng hồ tổng + cộng giờ** (1+1, 3+2, 5+3, 10+5) bên cạnh giới hạn mỗi nước: chọn ở Chơi nhanh, tạo phòng,
+  thách đấu, tạo giải. Thanh trên hiện đồng hồ hai bên, đỏ khi còn dưới 10 giây.
+- **Luật khai cuộc Swap2** (tuỳ chọn): thẻ hướng dẫn đặt 3 quân, nút chọn bên.
+- **Điểm Glicko-2 theo loại thời gian**, dấu ? cho điểm tạm, bảng xếp hạng có tab Siêu chớp / Chớp / Nhanh / Chậm.
+- **Hồ sơ người chơi** (`play.js`): bấm tên ở bạn bè, bảng xếp hạng, phòng, giải đấu. Biểu đồ điểm (chạm / rê để xem),
+  thống kê, chuỗi thắng, giải đấu, ván gần đây.
+- **Xem trực tiếp**: mục "Đang diễn ra" trong bảng Online, nút "Xem" cạnh bạn bè đang chơi, nhãn "● Đang đấu"
+  và biểu tượng mắt trong trang giải. Chế độ xem chỉ đọc, có nút "Ván khác" / "Thôi xem".
+- **Học chơi** (`learn.js`): 6 bài tương tác (năm quân, chặn hai đầu, bốn mở, ba mở, thắng kép, chuỗi ép).
+  Mở game lần đầu: thẻ "Bạn chơi Caro tới đâu?" để chọn bài học / đối thủ phù hợp (không chặn bàn cờ).
+- **Thành tích** (`habits.js`): chuỗi ngày chơi liên tiếp (lịch 14 ngày) và 19 huy hiệu (thắng từng nhân vật máy,
+  giải đố, học xong, online, điểm, vô địch giải). Lưu trên máy; huy hiệu online dựa vào thống kê tài khoản.
+- **Chia sẻ ảnh / GIF** (`share.js`): trong chế độ xem lại bấm "Chia sẻ" → ảnh PNG thế cờ cuối hoặc GIF động từng nước
+  (mã hoá GIF ngay trên máy, không cần thư viện), hoặc link xem lại. Điện thoại: bảng chia sẻ của hệ thống
+  (ứng dụng dùng thêm plugin `@capacitor/filesystem` để ghi file tạm); máy tính: tải file về.
+- **Tuỳ chỉnh bàn cờ** (`boardstyle.js`, Cài đặt → Bàn cờ): màu bàn Giấy / Gỗ / Xanh lá / Xanh dương / Đêm,
+  kiểu quân X/O mảnh / đậm / quân đá đen trắng, kiểu âm thanh Mặc định / Gõ gỗ / Nhẹ.
+
 ## Phím tắt (máy tính)
 
 `←↑→↓` di chuyển · `+`/`-` phóng to/thu nhỏ · `C` về giữa · `N` ván mới · `Ctrl+Z` đi lại
@@ -98,6 +118,7 @@ Kiểm thử trình duyệt cho giải đấu (cần Playwright + Chromium; mỗ
 node caro/tests/e2e/tour-basic.e2e.js    # câu lạc bộ, Arena, loại trực tiếp
 node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → playoff, Thụy Sĩ → nhánh thắng – thua
 node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + Thử lại, giải đố (3 chế độ)
+node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
 ```
 
 ## Cấu trúc
@@ -110,6 +131,10 @@ node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + 
 | `bots.js` | 6 nhân vật máy: số liệu sức cờ, `botMove` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
 | `study.js` | Bảng phân tích trong chế độ xem lại, "Thử lại", Giải đố (3 chế độ). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
+| `play.js` | Swap2 (thẻ chọn bên), xem trực tiếp + danh sách "Đang diễn ra", hồ sơ người chơi (biểu đồ điểm) |
+| `learn.js`, `habits.js` | Học chơi (6 bài) + thẻ chào người mới; chuỗi ngày chơi + huy hiệu |
+| `share.js` | Ảnh PNG / GIF động của ván để chia sẻ |
+| `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |
 | `puzzles.json` | 300 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
 | `i18n.js`, `theme.js` | Bản dịch 4 ngôn ngữ; giao diện Sáng/Tối/Hệ thống |

@@ -44,6 +44,7 @@ const VENDOR = [
   ['@capacitor/share/dist/plugin.js', 'share.js'],
   ['@capacitor/clipboard/dist/plugin.js', 'clipboard.js'],
   ['@capacitor/haptics/dist/plugin.js', 'haptics.js'],
+  ['@capacitor/filesystem/dist/plugin.js', 'filesystem.js'],
   ['@capgo/capacitor-social-login/dist/plugin.js', 'social-login.js'],
 ];
 fs.mkdirSync(path.join(WWW, 'vendor'));

@@ -11,6 +11,7 @@
  *   bracket.js     – giải theo giai đoạn (dùng logic thể thức trong stages.js)
  *   tourpush.js    – gửi cập nhật trang giải cho người đang xem (gom, chỉ gửi phần đổi)
  *   admin.js       – quản trị viên duyệt câu lạc bộ / giải đấu
+ *   watch.js       – xem trực tiếp ván đang đấu, danh sách ván hay
  * Mỗi phần là một lớp chỉ chứa phương thức; ở đây gộp tất cả vào Hub.prototype.
  * Tin nhắn loại X do phương thức on_X xử lý. Không phụ thuộc thư viện WebSocket:
  * mỗi kết nối chỉ cần có conn.send(obj) và conn.ip.
@@ -27,9 +28,10 @@ const { Arena } = require('./arena.js');
 const { Bracket } = require('./bracket.js');
 const { TourPush } = require('./tourpush.js');
 const { Admin } = require('./admin.js');
+const { Watch } = require('./watch.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, Rooms, Matchmaking, Clubs, Tournaments, Arena, Bracket, TourPush, Admin]) {
+for (const part of [Auth, Social, Rooms, Matchmaking, Clubs, Tournaments, Arena, Bracket, TourPush, Admin, Watch]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

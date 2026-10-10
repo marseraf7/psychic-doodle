@@ -31,6 +31,12 @@
     } catch (e) { /* giữ bản của trình duyệt */ }
   }
 
+  /** Chia sẻ file ảnh (PNG/GIF ván cờ): ghi vào bộ nhớ đệm của app rồi mở bảng chia sẻ của hệ thống. */
+  const shareFile = P.Filesystem && P.Share ? async (name, base64, title) => {
+    const { uri } = await P.Filesystem.writeFile({ path: name, data: base64, directory: 'CACHE' });
+    await P.Share.share({ title, files: [uri], dialogTitle: title });
+  } : null;
+
   // ------------------------------------------------------------ Rung
   if (P.Haptics) {
     navigator.vibrate = (pattern) => {
@@ -90,5 +96,5 @@
     },
   } : null;
 
-  window.CaroNative = { platform, google };
+  window.CaroNative = { platform, google, shareFile };
 })();

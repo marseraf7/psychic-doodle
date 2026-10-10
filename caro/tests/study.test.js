@@ -115,7 +115,7 @@ const tests = {
       const b = board(q.m);
       assert.strictEqual(A.immediateWins(b, q.p).length, 0, `#${q.id}: đã có nước thắng ngay`);
       assert.strictEqual(A.immediateWins(b, C.other(q.p)).length, 0, `#${q.id}: đối thủ đang đe doạ`);
-      assert.ok(A.winningMove(b, q.p, q.sol, q.len, { deadline: Date.now() + 3000 }), `#${q.id}: lời giải sai`);
+      assert.ok(A.winningMove(b, q.p, q.sol, q.len, { deadline: Date.now() + 20000 }), `#${q.id}: lời giải sai`); // rộng tay: chạy chung với đo độ phủ thì chậm
     }
     const lens = new Set(list.map((q) => q.len));
     assert.ok(lens.has(2) && lens.has(3) && lens.has(4), 'đủ bài dễ / vừa / khó');

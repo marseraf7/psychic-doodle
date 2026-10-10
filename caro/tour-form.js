@@ -84,7 +84,8 @@
       <p class="hint" id="tf-fmt-hint"></p>
       <div id="tf-stages" class="only-ko" hidden></div>
       <label class="field"><span>${esc(T('tour_start'))}</span><input name="start" type="datetime-local" value="${local}" required></label>
-      <fieldset><legend>${esc(T('time_limit'))}</legend>${radio('time', [[10, secs(10)], [20, secs(20)], [30, secs(30)]], 20)}</fieldset>
+      <fieldset><legend>${esc(T('time_limit'))}</legend>${radio('time', [['t10', secs(10)], ['t20', secs(20)], ['t30', secs(30)], ['c3+2', '3+2'], ['c5+3', '5+3'], ['c10+5', '10+5']], 't20')}</fieldset>
+      <fieldset><legend>${esc(T('opening'))}</legend>${radio('opening', [['free', T('opening_free')], ['swap2', T('opening_swap2')]], 'free')}</fieldset>
       <fieldset class="only-arena"><legend>${esc(T('duration'))}</legend>${radio('minutes', [15, 30, 45, 60, 90, 120].map((n) => [n, T('minutes_n', { n })]), 30)}</fieldset>
       <fieldset class="only-ko" hidden><legend>${esc(T('seeding'))}</legend>${radio('seeding', [['rating', T('seed_rating')], ['random', T('seed_random')]], 'rating')}</fieldset>
       <label class="check only-ko" hidden><input type="checkbox" name="checkin" checked> <span>${esc(T('checkin_opt'))}</span></label>
@@ -169,7 +170,8 @@
         const ko = F.preset !== 'arena';
         O.send({
           t: 'tourCreate', name: tf.name.value.trim(), desc: tf.desc.value.trim(), format: ko ? 'bracket' : 'arena', startsAt: start - D.skew,
-          timeLimit: Number(tf.time.value), minutes: Number(tf.minutes.value), stages: ko ? F.stages : undefined, seeding: tf.seeding.value,
+          ...(tf.time.value[0] === 'c' ? { timeLimit: 0, clock: tf.time.value.slice(1) } : { timeLimit: Number(tf.time.value.slice(1)) }),
+          opening: tf.opening.value, minutes: Number(tf.minutes.value), stages: ko ? F.stages : undefined, seeding: tf.seeding.value,
           checkin: tf.checkin.checked, rated: tf.rated.checked, maxPlayers: Number(tf.max.value),
           access: tf.access.value, club: tf.club ? tf.club.value : null,
         });

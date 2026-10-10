@@ -255,7 +255,7 @@ class Bracket {
       id: m.id, round: m.round, a: sd(m.a), b: sd(m.b), wa: (ST.real(m.a) && m.wins[m.a]) || 0, wb: (ST.real(m.b) && m.wins[m.b]) || 0,
       done: !!m.done, winner: ST.real(m.winner) ? m.winner : null, draw: !!(m.done && m.winner === null && !m.double),
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0,
-      live: !!(m.room && !m.done && this.rooms.has(m.room)), games: m.games.map((g) => g.share).filter(Boolean),
+      live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }
 

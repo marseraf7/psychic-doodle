@@ -6,8 +6,9 @@
   const T = window.I18N.t;
   /** Dịch thông báo của máy chủ theo mã; chưa có bản dịch thì dùng chữ máy chủ gửi. */
   const srv = (m) => (m.code && T('srv_' + m.code) !== 'srv_' + m.code ? T('srv_' + m.code, m.args || {}) : m.msg || '');
-  const secs = (n) => T('per_move', { n });
   const $ = (id) => document.getElementById(id);
+  /** Giá trị ô chọn thời gian: 't20' (20 giây mỗi nước) / 'c3+2' (đồng hồ tổng). */
+  const parseTc = (v) => (String(v)[0] === 'c' ? { timeLimit: 0, clock: String(v).slice(1) } : { timeLimit: Number(String(v).slice(1)) || 0, clock: null });
 
   const LS = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -127,7 +128,11 @@
     },
     me(m) { S.me = m.me; render(); },
     friends(m) { S.friends = m; render(); },
-    room(m) { probing = null; setRoom(m.room); },
+    room(m) {
+      if (m.watch) return; // phòng đang xem: play.js xử lý
+      probing = null;
+      setRoom(m.room);
+    },
     invite(m) { S.invites.set(m.invite.id, m.invite); navigator.vibrate?.(60); renderInvites(); render(); },
     inviteSent(m) { S.sent = m.invite; closeDlg('challenge'); renderInvites(); },
     inviteGone(m) {
@@ -242,8 +247,9 @@
     } else {
       const st = me.stats || { wins: 0, losses: 0, draws: 0 };
       el.innerHTML = `
-        <div class="who">${avatar}<div><b>${esc(me.name)} <span class="rating">${esc(T('rating_short', { n: me.rating || 1200 }))}</span></b><small>@${esc(me.username)} · ${esc(T('stats3', { w: st.wins, l: st.losses, d: st.draws || 0 }))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
+        <div class="who">${avatar}<div><b><a href="#" class="plink" data-profile="${esc(me.uid)}">${esc(me.name)}</a> <span class="rating">${esc(T('rating_short', { n: me.rating || 1200 }))}</span></b><small>@${esc(me.username)} · ${esc(T('stats3', { w: st.wins, l: st.losses, d: st.draws || 0 }))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
         <div class="row">
+          <button type="button" class="ghost sm" data-profile="${esc(me.uid)}">${esc(T('profile'))}</button>
           <button type="button" class="ghost sm" data-social="history">🕘 ${esc(T('history'))}</button>
           <button type="button" class="ghost sm" data-social="leaderboard">🏆 ${esc(T('leaderboard'))}</button>
           <button type="button" class="ghost sm" data-social="account">⚙ ${esc(T('account_settings'))}</button>
@@ -285,7 +291,7 @@
         ? ` · <span title="${esc(T('h2h_title'))}">${p.h2h.wins}–${p.h2h.losses}–${p.h2h.draws}</span>` : '';
       return `
       <li><span class="st ${p.status}" title="${esc(statusText(p.status))}"></span>
-        <div class="pn"><b>${esc(p.name)}${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>@${esc(p.username)} · ${esc(statusText(p.status))}${h}</small></div>${extra}</li>`;
+        <div class="pn"><b><a href="#" class="plink" data-profile="${esc(p.id)}">${esc(p.name)}</a>${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>@${esc(p.username)} · ${esc(statusText(p.status))}${h}</small></div>${extra}</li>`;
     };
     const onlineCount = f.friends.filter((p) => p.status !== 'offline').length;
     el.innerHTML = `
@@ -298,7 +304,7 @@
         `<button type="button" class="ghost sm" data-deny="${esc(p.id)}">${esc(T('decline'))}</button><button type="button" class="primary sm" data-accept="${esc(p.id)}">${esc(T('accept'))}</button>`)).join('')}</ul>` : ''}
       <ul class="people">${list.map((p) => person(p,
         `<button type="button" class="ghost sm icon chat-btn" data-chat="${esc(p.id)}" title="${esc(T('chat'))}" aria-label="${esc(T('chat'))}">💬${p.unread ? `<i class="count">${p.unread > 99 ? '99+' : p.unread}</i>` : ''}</button>
-         <button type="button" class="primary sm" data-challenge="${esc(p.id)}" ${p.status === 'online' ? '' : 'disabled'}>${esc(T('challenge'))}</button>
+         ${p.status === 'playing' ? `<button type="button" class="ghost sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>` : `<button type="button" class="primary sm" data-challenge="${esc(p.id)}" ${p.status === 'online' ? '' : 'disabled'}>${esc(T('challenge'))}</button>`}
          <button type="button" class="ghost sm icon" data-remove="${esc(p.id)}" title="${esc(T('unfriend'))}">✕</button>`)).join('') ||
         `<li class="empty">${esc(T('no_friends'))}</li>`}</ul>
       ${f.outgoing.length ? `<p class="hint">${esc(T('pending_friends', { names: f.outgoing.map((p) => p.name).join(', ') }))}</p>` : ''}`;
@@ -331,7 +337,7 @@
   $('challenge-form').onsubmit = (e) => {
     e.preventDefault();
     const f = e.target;
-    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value, timeLimit: Number(f.time.value) });
+    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value, ...parseTc(f.tc.value), opening: f.opening.value });
   };
 
   // ------------------------------------------------------------ Lời thách đấu
@@ -344,7 +350,8 @@
       document.body.appendChild(box);
     }
     // Thông tin trận: Bo3 · ai đi trước · thời gian mỗi nước
-    const details = (inv, first) => [`Bo${inv.bestOf}`, first, inv.timeLimit ? '⏱ ' + secs(inv.timeLimit) : ''].filter(Boolean).join(' · ');
+    const details = (inv, first) => [`Bo${inv.bestOf}`, first, inv.timeLimit || inv.clock ? '⏱ ' + window.I18N.tc(inv.timeLimit, inv.clock) : '',
+      inv.opening === 'swap2' ? 'Swap2' : ''].filter(Boolean).join(' · ');
     let html = '';
     for (const inv of S.invites.values()) {
       const first = inv.first === 'random' ? T('first_random') : inv.first === 'me' ? T('first_name', { name: inv.from.name }) : T('first_you');
@@ -464,8 +471,7 @@
   $('btn-online').onclick = () => { connect(); render(); openDlg('online'); };
   $('create-room').onclick = () => {
     const side = document.querySelector('input[name="room-side"]:checked').value;
-    const timeLimit = Number(document.querySelector('input[name="room-time"]:checked').value);
-    send({ t: 'createRoom', side, timeLimit, public: $('room-public').checked });
+    send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, public: $('room-public').checked });
   };
   $('open-join').onclick = () => openJoin('');
 
@@ -517,7 +523,7 @@
       : esc(r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title'));
     // Phòng của giải đấu: không có mã / mật khẩu / link mời
     document.querySelector('#room-info .codes').hidden = !!r.tour;
-    $('ri-time').textContent = '⏱ ' + (r.timeLimit ? secs(r.timeLimit) : T('time_off'));
+    $('ri-time').textContent = '⏱ ' + window.I18N.tc(r.timeLimit, r.clock) + (r.opening === 'swap2' ? ' · ' + T('opening_swap2') : '');
     $('ri-code').textContent = r.code;
     $('ri-pass').textContent = r.password;
     $('ri-hint').textContent = r.tour ? T('room_info_hint_tour') : T(r.public ? 'room_info_hint_public' : 'room_info_hint');
@@ -534,7 +540,7 @@
       const you = p.id === S.me.id;
       const canFriend = !you && !S.me.guest && p.id.startsWith('u_') && !friendIds.has(p.id);
       return `<li><span class="st ${p.online ? 'online' : 'offline'}"></span>${side}
-        <div class="pn"><b>${esc(p.name)}${you ? ' ' + esc(T('you_tag')) : ''}${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>${esc(T('won_games', { n: r.score[p.id] || 0 }))}${r.rematch.includes(p.id) ? ' · ' + esc(T('wants_rematch_tag')) : ''}</small></div>
+        <div class="pn"><b>${p.id.startsWith('u_') ? `<a href="#" class="plink" data-profile="${esc(p.id)}">${esc(p.name)}</a>` : esc(p.name)}${you ? ' ' + esc(T('you_tag')) : ''}${p.rating ? ` <span class="rating">${esc(String(p.rating))}${p.prov ? '?' : ''}</span>` : ''}</b><small>${esc(T('won_games', { n: r.score[p.id] || 0 }))}${r.rematch.includes(p.id) ? ' · ' + esc(T('wants_rematch_tag')) : ''}</small></div>
         ${canFriend ? (pending.has(p.id) ? `<small>${esc(T('friend_sent'))}</small>` : `<button type="button" class="ghost sm" data-add="${esc(p.id)}">${esc(T('add_friend'))}</button>`) : ''}
         ${!you && !S.me.guest && p.id.startsWith('u_') ? `<button type="button" class="ghost sm icon" data-report="${esc(p.id)}" title="${esc(T('report'))}" aria-label="${esc(T('report'))}">⚠</button>` : ''}</li>`;
     }).join('') + (r.players.length < 2 ? `<li class="empty">${esc(T('waiting_join'))}</li>` : '');
@@ -630,6 +636,10 @@
       sub = (sub ? sub + ' · ' : '') + T('score_is', { score });
     }
     if (r.unrated) sub = (sub ? sub + ' · ' : '') + T('unrated');
+    if (r.delta && typeof r.delta[me] === 'number') {
+      const d = r.delta[me];
+      sub = (sub ? sub + ' · ' : '') + T('rating_delta', { d: (d >= 0 ? '+' : '') + d, pool: T('pool_' + (r.pool || 'rapid')) });
+    }
     if (!opp) { sub = T('opp_left'); rematch = false; }
     // Ván của giải đấu: không tái đấu; Arena tự ghép ván sau
     if (r.tour) {
