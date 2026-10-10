@@ -1124,3 +1124,22 @@ fieldset > .select { width: 100%; }
 @keyframes turn-pulse { 40% { transform: translateX(-50%) scale(1.06); } }
 /* Chỉ cho trình đọc màn hình */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ============================ Cài đặt: chia 3 nhóm (Ván chơi / Hiển thị / Âm thanh & thao tác) */
+.set-group {
+  margin: 22px 0 12px; padding-top: 16px; border-top: 1px solid var(--panel-border);
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+}
+.set-links + .set-group { margin-top: 4px; padding-top: 0; border-top: 0; }
+.set-sub { margin-top: 10px; }
+
+/* Lựa chọn đang bật trong nút phân đoạn: chữ màu nhấn + viền mảnh màu nhấn (rõ cả ngoài nắng / màn tối),
+ * không chỉ dựa vào nền sáng hơn một chút */
+.seg label:has(input:checked) {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent), 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+.seg label:has(input:checked) b.x, .seg label:has(input:checked) b.o { filter: none; }
+
+/* Giải đố: ô "Độ khó" cùng kiểu với các ô chọn khác, rộng hết hàng */
+.pz-diff .select { width: 100%; min-width: 0; margin-top: 2px; }

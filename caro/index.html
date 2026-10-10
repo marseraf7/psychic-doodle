@@ -167,6 +167,7 @@
         <button type="button" class="ghost sm" data-open="learn"><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="learn_title"></span></button>
       </div>
 
+      <h3 class="set-group" data-i18n="set_g_game"></h3>
       <fieldset>
         <legend data-i18n="mode"></legend>
         <div class="seg">
@@ -206,14 +207,7 @@
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend data-i18n="sound"></legend>
-        <div class="seg">
-          <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
-          <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
-        </div>
-      </fieldset>
-
+      <h3 class="set-group" data-i18n="set_g_display"></h3>
       <fieldset>
         <legend data-i18n="theme"></legend>
         <div class="seg">
@@ -240,6 +234,22 @@
               <option value="bold" data-i18n="pieces_bold"></option>
               <option value="stones" data-i18n="pieces_stones"></option>
             </select></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend data-i18n="language"></legend>
+        <select name="lang" class="select" data-i18n-aria="language"></select>
+      </fieldset>
+
+      <h3 class="set-group" data-i18n="set_g_sound"></h3>
+      <fieldset>
+        <legend data-i18n="sound"></legend>
+        <div class="seg">
+          <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
+          <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
+        </div>
+        <div class="row opts set-sub">
           <label class="opt"><span data-i18n="sound_style"></span>
             <select name="soundStyle" class="select">
               <option value="classic" data-i18n="sound_classic"></option>
@@ -247,11 +257,6 @@
               <option value="soft" data-i18n="sound_soft"></option>
             </select></label>
         </div>
-      </fieldset>
-
-      <fieldset>
-        <legend data-i18n="language"></legend>
-        <select name="lang" class="select" data-i18n-aria="language"></select>
       </fieldset>
 
       <fieldset>
@@ -328,7 +333,7 @@
       </div>
       <div class="pz-stats" id="pz-stats"></div>
       <label class="field pz-diff"><span data-i18n="pz_diff"></span>
-        <select id="pz-diff">
+        <select id="pz-diff" class="select">
           <option value="-600" data-i18n="pz_diff_-600"></option><option value="-300" data-i18n="pz_diff_-300"></option>
           <option value="0" data-i18n="pz_diff_0"></option><option value="300" data-i18n="pz_diff_300"></option><option value="600" data-i18n="pz_diff_600"></option>
         </select></label>
