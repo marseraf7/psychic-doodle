@@ -291,6 +291,14 @@ const { setup } = require('./helpers');
     const y = () => p.evaluate(() => scrollY);
     await p.mouse.move(640, 400); await p.mouse.wheel(0, 500); await sleep(300);
     ok(await y() === 500, 'chính sách: lăn chuột cuộn được');
+    // Chrome / Yandex trên Windows: body là khung cuộn riêng + overscroll-behavior: none thì lăn chuột trên chữ
+    // không cuộn trang (chỉ cuộn được khi đặt chuột lên thanh cuộn) – Chromium dùng để kiểm thử không tái hiện được,
+    // nên kiểm tra thẳng: trang chỉ có một khung cuộn (html) và không chặn chuyển cuộn
+    const sc = await p.evaluate(() => {
+      const st = (el) => getComputedStyle(el);
+      return { body: st(document.body).overflowY, bodyOb: st(document.body).overscrollBehaviorY, htmlOb: st(document.documentElement).overscrollBehaviorY, root: document.scrollingElement.tagName };
+    });
+    ok(sc.body === 'visible' && sc.bodyOb === 'auto' && sc.htmlOb === 'auto' && sc.root === 'HTML', 'chính sách: chỉ html cuộn, không chặn chuyển cuộn ' + JSON.stringify(sc));
     await p.evaluate(() => scrollTo(0, 0));
     await p.mouse.move(640, 600); await p.mouse.down(); await p.mouse.move(640, 200, { steps: 10 }); await p.mouse.up();
     ok(await y() === 400 && !(await p.evaluate(() => String(getSelection()))), 'chính sách: bấm giữ chuột kéo lên thì cuộn (không bôi đen chữ)');
