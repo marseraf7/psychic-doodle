@@ -192,6 +192,23 @@ const { setup } = require('./helpers');
     // Tải lại trang: ván vẫn còn
     await p.reload(); await sleep(600);
     ok(await nMoves(p) === 2, 'tải lại trang: ván đang chơi được giữ');
+    // Tới lượt mình: thanh trên có viền màu nhấn; trình đọc màn hình đọc dòng lượt đi (không đọc mỗi lần đổi chữ)
+    ok(await p.evaluate(() => document.querySelector('.bar.top').classList.contains('my-turn')), 'tới lượt mình: thanh trên được tô nổi bật');
+    ok(await p.evaluate(() => document.getElementById('turn').getAttribute('aria-live') === null && document.getElementById('sr-live').getAttribute('aria-live') === 'polite'), 'dòng lượt đi không tự đọc, có vùng đọc riêng');
+    // Bàn cờ thu nhỏ quá (ô < 26px): chạm lần đầu chỉ phóng to tới chỗ đó, chạm lần nữa mới đặt quân
+    const cell = () => p.evaluate(() => { const a = window.CaroApp.screenOf(0, 0), b = window.CaroApp.screenOf(1, 0); return Math.round(b[0] - a[0]); });
+    await p.mouse.move(180, 370);
+    for (let k = 0; k < 12 && await cell() >= 20; k++) { await p.mouse.wheel(0, 300); await sleep(80); }
+    const small = await cell();
+    const target = await p.evaluate(() => [[3, 3], [-3, -3], [3, -3], [-3, 3]].find(([x, y]) => !window.CaroApp.board.get(x, y)));
+    const [tx, ty] = await p.evaluate(([x, y]) => window.CaroApp.screenOf(x, y), target);
+    await p.touchscreen.tap(tx, ty); await sleep(600);
+    ok(small < 26 && await nMoves(p) === 2 && await cell() === 36, `ô nhỏ (${small}px): chạm lần đầu phóng to lên ${await cell()}px, chưa đặt quân`);
+    const [tx2, ty2] = await p.evaluate(([x, y]) => window.CaroApp.screenOf(x, y), target);
+    await p.touchscreen.tap(tx2, ty2); await sleep(200);
+    ok(await p.evaluate(([x, y]) => window.CaroApp.board.get(x, y), target) === 1, 'chạm lần nữa: đặt quân đúng ô đã chọn');
+    for (let k = 0; k < 40 && await nMoves(p) < 4; k++) await sleep(100);
+    ok(/bạn/.test(await p.textContent('#sr-live')), 'máy đi xong: trình đọc màn hình báo tới lượt mình – ' + await p.textContent('#sr-live'));
     // Đổi giao diện, ngôn ngữ trong cài đặt
     await closeAll(p);
     await p.tap('#btn-settings'); await sleep(250);

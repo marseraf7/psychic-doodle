@@ -66,7 +66,7 @@
   <canvas id="board" data-i18n-aria="board_aria"></canvas>
 
   <header class="bar top">
-    <div class="turn" id="turn" aria-live="polite"></div>
+    <div class="turn" id="turn"></div>
     <div class="clock" id="clock" hidden><svg class="ico clock-ico" aria-hidden="true"><use href="#i-clock"/></svg><span id="clock-n"></span></div>
     <div class="clocks" id="clocks" hidden><span class="ck x" id="ck-x"></span><span class="ck o" id="ck-o"></span></div>
     <div class="score" id="score" data-i18n-title="score_title"></div>
@@ -126,6 +126,7 @@
   <div class="quick-menu" id="quick-menu" hidden></div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
+  <div class="sr-only" id="sr-live" aria-live="polite" aria-atomic="true"></div>
 
   <!-- Luật Swap2: chọn bên sau khi đặt quân khai cuộc -->
   <div class="swap-card" id="swap-card" hidden></div>
