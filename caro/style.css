@@ -1090,3 +1090,29 @@ body.watching .turn .name { max-width: 9em; overflow: hidden; text-overflow: ell
 .rule-text { white-space: pre-line; line-height: 1.5; min-height: 6em; }
 .rule-nav { justify-content: space-between; }
 #learn-dlg h3 { margin: 14px 0 6px; font-size: var(--fs-sm); color: var(--muted); }
+
+/* ============================ Căn lề chung
+ * Một lề ngang cho mọi thứ nổi trên bàn cờ (thanh dưới, nút tròn, thẻ kết quả, hộp thoại) để các mép thẳng hàng. */
+:root { --edge: 12px; }
+.bar { max-width: calc(100% - 2 * var(--edge)); }
+.banner { padding: 0 var(--edge); }
+dialog { width: min(420px, calc(100% - 2 * var(--edge))); max-height: calc(100% - 2 * var(--edge)); }
+.fab, .quick-menu, .fab-center { right: max(var(--edge), env(safe-area-inset-right)); }
+/* Màn rộng: nút "Về giữa" nằm ngang hàng với thanh dưới (giữa theo chiều cao thanh) thay vì lơ lửng phía trên */
+@media (min-width: 600px) {
+  .fab-center { bottom: calc(10px + (66px - 44px) / 2 + env(safe-area-inset-bottom)); }
+}
+/* Điện thoại: thanh dưới trải hết bề ngang (trừ lề), các nút chia đều – mép phải thẳng với nút "Về giữa" */
+@media (max-width: 599px) {
+  .bar.bottom {
+    left: max(var(--edge), env(safe-area-inset-left)); right: max(var(--edge), env(safe-area-inset-right));
+    transform: none; max-width: none; justify-content: space-between;
+  }
+  .bar.bottom button { flex: 1 1 0; min-width: 0; }
+}
+
+/* Hộp thoại: thanh cuộn mảnh, không đè lên góc bo; nội dung cách đều hai bên */
+dialog { scrollbar-width: thin; scrollbar-color: var(--grid-strong) transparent; scrollbar-gutter: stable both-edges; overscroll-behavior: contain; }
+/* Ô chọn trong Cài đặt / tạo phòng: rộng hết hàng như các nút phân đoạn; nhãn căn trái như mọi tiêu đề khác */
+fieldset > .select { width: 100%; }
+.opt { align-items: stretch; }
