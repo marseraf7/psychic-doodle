@@ -1,7 +1,8 @@
 /* Giao diện Cờ Caro: bàn cờ vô hạn vẽ bằng canvas, hỗ trợ chuột, cảm ứng, bàn phím. */
 (function () {
   'use strict';
-  const { Board, X, O, EMPTY, checkWin, chooseMove, other } = window.Caro;
+  const { Board, X, O, EMPTY, checkWin, other } = window.Caro;
+  const Bots = window.CaroBots;
   const T = window.I18N.t;
   const sfx = (name) => window.CaroSound && window.CaroSound.play(name);
   const TIME_LIMITS = [0, 10, 20, 30];
@@ -21,7 +22,7 @@
     winCells: null,
     mode: 'ai', // 'ai' | 'pvp'
     human: X,
-    level: 2,
+    bot: 'ti', // nhân vật máy (bots.js); người mới bắt đầu với Tí
     confirm: matchMedia('(pointer: coarse)').matches,
     score: { 1: 0, 2: 0 },
     pending: null, // ô đang chờ xác nhận [x, y]
@@ -34,19 +35,43 @@
     allowUndo: true, // cho phép "Đi lại" khi chơi offline
     winReason: null, // 'time' khi thắng vì đối phương hết giờ
     clock: null, // { endsAt (performance.now), local } – đồng hồ lượt hiện tại
+    ext: null, // bàn cờ đang do module khác điều khiển (giải đố, thử lại nước đi) – xem enterExt
+    marks: null, // đánh dấu thêm trên bàn: [{ x, y, kind: 'badge' | 'ghost' | 'bad', color, text }]
   };
   const cam = { x: 0, y: 0, size: 36 };
   let W = 0, H = 0, dpr = 1;
   let colors = {};
 
+  // ------------------------------------------------------------ Nhân vật máy: mở khoá dần
+  const BOT_STORE = 'caro.bots';
+  function unlockedCount() {
+    try { return Math.max(Bots.START_UNLOCKED, Math.min(Bots.BOTS.length, JSON.parse(localStorage.getItem(BOT_STORE) || '{}').unlocked || 0)); } catch (e) { return Bots.START_UNLOCKED; }
+  }
+  const botIndex = (id) => Bots.BOTS.findIndex((b) => b.id === id);
+  const botAllowed = (id) => botIndex(id) >= 0 && botIndex(id) < unlockedCount();
+  const botName = (id) => T('bot_' + id);
+  /** Thắng nhân vật thứ i thì mở khoá nhân vật i+1. Trả về id vừa mở (nếu có). */
+  function unlockAfter(id) {
+    const next = botIndex(id) + 1;
+    if (next < unlockedCount() || next >= Bots.BOTS.length) return null;
+    try { localStorage.setItem(BOT_STORE, JSON.stringify({ unlocked: next + 1 })); } catch (e) { /* riêng tư */ }
+    return Bots.BOTS[next].id;
+  }
+  const toast = (msg, ms) => window.CaroOnline && window.CaroOnline.toast(msg, ms);
+
   function load() {
     try {
       const s = JSON.parse(localStorage.getItem(STORE) || 'null');
       if (!s) return;
+      // Bản cũ lưu mức 1/2/3: chuyển sang nhân vật tương ứng và giữ quyền chơi nhân vật đó.
+      if (!s.bot && Bots.FROM_LEVEL[s.level]) {
+        s.bot = Bots.FROM_LEVEL[s.level];
+        if (!botAllowed(s.bot)) try { localStorage.setItem(BOT_STORE, JSON.stringify({ unlocked: botIndex(s.bot) + 1 })); } catch (e) { /* riêng tư */ }
+      }
       Object.assign(state, {
         mode: s.mode === 'pvp' ? 'pvp' : 'ai',
         human: s.human === O ? O : X,
-        level: [1, 2, 3].includes(s.level) ? s.level : 2,
+        bot: botAllowed(s.bot) ? s.bot : 'ti',
         confirm: !!s.confirm,
         score: s.score || state.score,
         timeLimit: TIME_LIMITS.includes(s.timeLimit) ? s.timeLimit : 0,
@@ -58,10 +83,10 @@
     } catch (e) { /* bỏ qua dữ liệu hỏng */ }
   }
   function save() {
-    if (state.online || state.replay) return; // ván online / xem lại: không ghi đè ván cục bộ
+    if (state.online || state.replay || state.ext) return; // ván online / xem lại / giải đố: không ghi đè ván cục bộ
     try {
       localStorage.setItem(STORE, JSON.stringify({
-        mode: state.mode, human: state.human, level: state.level,
+        mode: state.mode, human: state.human, bot: state.bot,
         confirm: state.confirm, score: state.score, timeLimit: state.timeLimit, allowUndo: state.allowUndo,
         moves: state.board.moves.map((m) => [m.x, m.y]),
         timeout: state.winReason === 'time' ? state.winner : null,
@@ -83,6 +108,7 @@
   function play(x, y) {
     if (state.winner || state.board.get(x, y) !== EMPTY) return;
     state.pending = null;
+    if (state.ext) { if (state.ext.canPlay) state.ext.onMove(x, y); return; }
     if (state.online) return playOnline(x, y);
     const mover = state.turn;
     const win = placeRaw(x, y);
@@ -93,6 +119,7 @@
       state.winAt = performance.now();
       vibrate(40);
       setTimeout(() => sfx(state.mode === 'ai' && state.winner !== state.human ? 'lose' : 'win'), 150);
+      botGameOver();
       setTimeout(showBanner, 250);
     } else vibrate(8);
     save();
@@ -103,16 +130,23 @@
     resetClock();
   }
 
-  const isAITurn = () => !state.online && !state.replay && state.mode === 'ai' && !state.winner && state.turn !== state.human;
+  const isAITurn = () => !state.online && !state.replay && !state.ext && state.mode === 'ai' && !state.winner && state.turn !== state.human;
+
+  /** Hết ván với máy: người thắng thì mở khoá nhân vật kế tiếp. */
+  function botGameOver() {
+    if (state.mode !== 'ai' || state.winner !== state.human) return;
+    const id = unlockAfter(state.bot);
+    if (id) setTimeout(() => toast(T('bot_unlocked', { name: botName(id) }), 4500), 900);
+  }
 
   // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
   // Trình duyệt không hỗ trợ (vd. mở file trực tiếp) thì tính ngay trên luồng chính.
   let aiWorker = null, aiSeq = 0;
   try { if (window.Worker && location.protocol.startsWith('http')) aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
 
-  function askAI(p, level) {
+  function askAI(p, bot) {
     const moves = state.board.moves.map((m) => [m.x, m.y, m.p]);
-    if (!aiWorker) return new Promise((resolve) => setTimeout(() => resolve(chooseMove(state.board, p, level)), 30));
+    if (!aiWorker) return new Promise((resolve) => setTimeout(() => resolve(Bots.botMove(state.board, p, bot)), 30));
     const id = ++aiSeq;
     return new Promise((resolve) => {
       const onMsg = (e) => {
@@ -121,7 +155,7 @@
         resolve(e.data.move);
       };
       aiWorker.addEventListener('message', onMsg);
-      aiWorker.postMessage({ id, moves, p, level });
+      aiWorker.postMessage({ id, moves, p, bot });
     });
   }
 
@@ -131,7 +165,7 @@
     updateUI();
     const started = performance.now();
     const board = state.board, count = board.moves.length;
-    askAI(state.turn, state.level).then(([x, y]) => {
+    askAI(state.turn, state.bot).then(([x, y]) => {
       const wait = Math.max(0, 250 - (performance.now() - started));
       setTimeout(() => {
         // Trong lúc máy nghĩ mà người chơi đã đi lại / ván mới thì bỏ kết quả cũ.
@@ -144,7 +178,7 @@
   }
 
   function undo() {
-    if (state.thinking || state.online || state.replay || !state.allowUndo) return;
+    if (state.thinking || state.online || state.replay || state.ext || !state.allowUndo) return;
     const b = state.board;
     if (state.winReason === 'time') {
       // Thua vì hết giờ: "Đi lại" chỉ huỷ kết quả, cho đánh tiếp lượt đó.
@@ -177,7 +211,7 @@
   }
 
   function newGame() {
-    if (state.online || state.replay) return;
+    if (state.online || state.replay || state.ext) return;
     state.board = new Board();
     state.turn = X;
     state.winner = null;
@@ -192,6 +226,7 @@
     requestDraw();
     maybeAI();
     resetClock();
+    if (state.mode === 'ai') toast(`${botName(state.bot)}: ${T('bot_' + state.bot + '_hi')}`, 3500);
   }
 
   // ------------------------------------------------------------ Đồng hồ mỗi nước
@@ -201,7 +236,7 @@
   const clockPaused = () => document.hidden || !!document.querySelector('dialog[open]');
 
   function resetClock() {
-    if (state.online || state.replay) return;
+    if (state.online || state.replay || state.ext) return;
     const needs = state.timeLimit && !state.winner && !state.thinking && !isAITurn();
     state.clock = needs ? { endsAt: performance.now() + state.timeLimit * 1000, local: true } : null;
     renderClock();
@@ -243,6 +278,7 @@
     state.score[state.winner]++;
     vibrate(60);
     sfx(state.mode === 'ai' && state.winner !== state.human ? 'lose' : 'win');
+    botGameOver();
     save();
     updateUI();
     renderClock();
@@ -255,6 +291,7 @@
 
   // Người chơi có được đánh lúc này không.
   function canPlaceNow() {
+    if (state.ext) return !state.winner && !!state.ext.canPlay;
     if (state.winner || state.thinking || state.replay) return false;
     if (!state.online) return !isAITurn();
     const { room, side } = state.online;
@@ -379,12 +416,18 @@
   function updateUI() {
     const t = $('turn');
     if (state.online) return updateOnlineUI();
+    if (state.ext) {
+      const r = state.ext.render();
+      t.innerHTML = r.turn;
+      $('score').innerHTML = r.score || '';
+      return;
+    }
     if (state.replay) return updateReplayUI();
     if (state.winner) {
       t.innerHTML = T('p_wins', { p: glyph(state.winner) });
     } else {
       let who = '';
-      if (state.mode === 'ai') who = ' ' + esc(T(state.turn === state.human ? 'you_tag' : 'ai_tag'));
+      if (state.mode === 'ai') who = ' ' + (state.turn === state.human ? esc(T('you_tag')) : `<span class="bot-tag">(${esc(botName(state.bot))})</span>`);
       t.innerHTML = T('turn', { p: glyph(state.turn) }) + who +
         (state.thinking ? ` <span class="thinking">${esc(T('thinking'))}</span>` : '');
     }
@@ -442,6 +485,7 @@
     if (i === moves.length) stopReplay();
     updateUI();
     requestDraw();
+    window.dispatchEvent(new CustomEvent('caro:seek', { detail: { idx: i } }));
   }
 
   function stopReplay() {
@@ -467,9 +511,12 @@
 
   function closeReplay(silent) {
     if (!state.replay) return;
+    if (state.ext) exitExt(true);
     stopReplay();
     state.replay = null;
+    state.marks = null;
     document.body.classList.remove('replay');
+    window.dispatchEvent(new CustomEvent('caro:replayclose'));
     if (silent) return; // sắp vào phòng online: không cần dựng lại ván cục bộ
     restoreLocal();
   }
@@ -488,6 +535,7 @@
     $('score').innerHTML = `${idx}/${n}` + (result ? ` · ${esc(result)}` : '');
     $('rp-first').disabled = $('rp-prev').disabled = idx === 0;
     $('rp-next').disabled = idx === n;
+    $('rp-share').hidden = !data.share;
     renderReplayPlay();
   }
 
@@ -503,12 +551,17 @@
     if (state.online) return net().showBanner();
     const name = (p) => (p === X ? 'X' : 'O');
     let text, sub = '';
-    if (state.mode === 'ai') text = T(state.winner === state.human ? 'you_win' : 'ai_wins');
-    else text = T('p_wins', { p: name(state.winner) });
+    if (state.mode === 'ai') {
+      const won = state.winner === state.human;
+      text = T(won ? 'you_win' : 'bot_wins', { name: botName(state.bot) });
+      sub = `${botName(state.bot)}: “${T('bot_' + state.bot + (won ? '_lose' : '_win'))}”`;
+    } else text = T('p_wins', { p: name(state.winner) });
     if (state.winReason === 'time') {
       const loser = other(state.winner);
       sub = state.mode === 'ai' && loser === state.human ? T('you_timeout') : T('p_timeout', { p: name(loser) });
+      $('banner-analyze').hidden = true;
     }
+    if (state.winReason !== 'time') $('banner-analyze').hidden = state.board.moves.length < 6;
     $('banner-title').textContent = text;
     $('banner-sub').textContent = sub;
     $('banner').hidden = false;
@@ -628,6 +681,8 @@
       drawStone(m.p, sx, sy, s * scale, 1);
     }
 
+    if (state.marks) drawMarks(s, x0, x1, y0, y1);
+
     // Quân mờ: chờ xác nhận hoặc rê chuột.
     const ghost = state.pending || state.hover;
     if (ghost && canPlaceNow() && state.board.get(ghost[0], ghost[1]) === EMPTY) {
@@ -662,6 +717,46 @@
     if (camAnim || inertia) again = true;
     if (again) requestDraw();
     stepAnimations(now);
+  }
+
+  /** Đánh dấu của phân tích / giải đố: huy hiệu loại nước, nước gợi ý (vòng nét đứt), nước sai. */
+  function drawMarks(s, x0, x1, y0, y1) {
+    for (const m of state.marks) {
+      if (m.x < x0 || m.x > x1 || m.y < y0 || m.y > y1) continue;
+      const [sx, sy] = toScreen(m.x, m.y);
+      if (m.kind === 'ghost') {
+        ctx.strokeStyle = m.color;
+        ctx.lineWidth = Math.max(2, s * 0.08);
+        ctx.setLineDash([Math.max(3, s * 0.12), Math.max(3, s * 0.1)]);
+        ctx.beginPath();
+        ctx.arc(sx, sy, s * 0.4, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (m.p) drawStone(m.p, sx, sy, s, 0.35);
+      } else if (m.kind === 'bad') {
+        ctx.fillStyle = m.color;
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(sx - s / 2 + 1, sy - s / 2 + 1, s - 1, s - 1);
+        ctx.globalAlpha = 1;
+      }
+      if (m.text) {
+        // Huy hiệu tròn ở góc trên bên phải ô
+        const r = Math.max(7, s * 0.2);
+        const bx = sx + s * 0.38, by = sy - s * 0.38;
+        ctx.fillStyle = m.color;
+        ctx.beginPath();
+        ctx.arc(bx, by, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = colors.bg;
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = `700 ${Math.round(r * (m.text.length > 1 ? 1.05 : 1.3))}px ${getComputedStyle(document.body).fontFamily}`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(m.text, bx, by + 0.5);
+      }
+    }
   }
 
   // ------------------------------------------------------------ Camera
@@ -740,7 +835,7 @@
   let gesture = null;
 
   function tap(sx, sy) {
-    if (state.winner) { showBanner(); return; }
+    if (state.winner) { if (!state.ext) showBanner(); return; }
     if (!canPlaceNow()) return;
     const [x, y] = toCell(sx, sy);
     if (state.board.get(x, y) !== EMPTY) return;
@@ -863,7 +958,9 @@
     const step = 3;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (state.replay) {
+    if (state.ext) {
+      if (e.key === 'Escape') { e.preventDefault(); state.ext.onExit(); return; }
+    } else if (state.replay) {
       // Xem lại: ← → từng nước, Home/End về đầu/cuối, Space phát/dừng, Esc thoát.
       const r = state.replay;
       const act = { ArrowLeft: () => seekReplay(r.idx - 1, true), ArrowRight: () => seekReplay(r.idx + 1),
@@ -878,7 +975,7 @@
       case '+': case '=': zoomAt(W / 2, H / 2, cam.size * 1.2); return;
       case '-': case '_': zoomAt(W / 2, H / 2, cam.size / 1.2); return;
       case 'c': case 'C': centerView(); return;
-      case 'n': case 'N': if (!state.replay) openNewGame(); return;
+      case 'n': case 'N': if (!state.replay && !state.ext) openNewGame(); return;
       default: return;
     }
     requestDraw();
@@ -895,19 +992,43 @@
     if (state.online) return;
     ngForm.mode.value = state.mode;
     ngForm.human.value = String(state.human);
-    ngForm.level.value = String(state.level);
+    renderBotPicker();
     ngForm.timeLimit.value = String(state.timeLimit);
     ngForm.classList.toggle('pvp', state.mode === 'pvp');
     if (ngDlg.showModal) ngDlg.showModal(); else ngDlg.setAttribute('open', '');
   }
-  ngForm.addEventListener('change', () => ngForm.classList.toggle('pvp', ngForm.mode.value === 'pvp'));
+  ngForm.addEventListener('change', () => { ngForm.classList.toggle('pvp', ngForm.mode.value === 'pvp'); renderBotSay(); });
   ngForm.addEventListener('submit', () => {
     state.mode = ngForm.mode.value;
     state.human = Number(ngForm.human.value);
-    state.level = Number(ngForm.level.value);
+    if (botAllowed(ngForm.bot.value)) state.bot = ngForm.bot.value;
     state.timeLimit = Number(ngForm.timeLimit.value) || 0;
     newGame();
   });
+  // Lưới chọn nhân vật: ảnh đại diện, tên, Elo ước tính; nhân vật chưa mở khoá thì mờ đi.
+  const avatar = (b) => `<span class="bot-av" style="--c:${b.color}">${esc([...botName(b.id).split(' ').pop()][0])}</span>`;
+  function renderBotPicker() {
+    const n = unlockedCount();
+    $('ng-bots').innerHTML = Bots.BOTS.map((b, i) => {
+      const locked = i >= n;
+      return `<label class="bot-card${locked ? ' locked' : ''}" title="${esc(locked ? T('bot_locked', { name: botName(Bots.BOTS[i - 1].id) }) : '')}">
+        <input type="radio" name="bot" value="${b.id}"${locked ? ' disabled' : ''}${b.id === state.bot ? ' checked' : ''}>
+        ${avatar(b)}<b>${esc(botName(b.id))}</b><small>${locked ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-lock"/></svg>' : '~' + b.elo}</small></label>`;
+    }).join('');
+    renderBotSay();
+  }
+  function renderBotSay() {
+    const id = ngForm.bot && ngForm.bot.value;
+    const el = $('ng-bot-say');
+    if (!id) { el.textContent = ''; return; }
+    const b = Bots.get(id);
+    el.innerHTML = `<b>${esc(botName(id))}</b> · ~${b.elo} Elo — ${esc(T('bot_' + id + '_desc'))}`;
+  }
+  function renderBotSelect() {
+    const n = unlockedCount();
+    form.bot.innerHTML = Bots.BOTS.map((b, i) => `<option value="${b.id}"${i >= n ? ' disabled' : ''}>${esc(botName(b.id))} (~${b.elo})${i >= n ? ' 🔒' : ''}</option>`).join('');
+  }
+
   $('btn-undo').onclick = undo;
   $('btn-center').onclick = centerView;
   $('banner-new').onclick = newGame;
@@ -919,7 +1040,8 @@
   function fillForm() {
     form.mode.value = state.mode;
     form.human.value = String(state.human);
-    form.level.value = String(state.level);
+    renderBotSelect();
+    form.bot.value = state.bot;
     form.timeLimit.value = String(state.timeLimit);
     form.allowUndo.value = state.allowUndo ? 'yes' : 'no';
     form.sound.value = window.CaroSound.enabled ? 'on' : 'off';
@@ -936,7 +1058,7 @@
     const prevMode = state.mode, prevHuman = state.human, prevTime = state.timeLimit;
     state.mode = form.mode.value;
     state.human = Number(form.human.value);
-    state.level = Number(form.level.value);
+    if (botAllowed(form.bot.value)) state.bot = form.bot.value;
     state.timeLimit = Number(form.timeLimit.value) || 0;
     state.allowUndo = form.allowUndo.value !== 'no';
     window.CaroSound.enabled = form.sound.value !== 'off';
@@ -959,7 +1081,90 @@
     updateUI();
   };
 
+  // ------------------------------------------------------------ Bàn cờ do module khác điều khiển
+  // (giải đố, "Thử lại" trong phân tích). ctrl: { moves, canPlay, onMove(x, y), onExit(), render() -> { turn, score } }
+  function enterExt(ctrl) {
+    if (state.online) return false;
+    if (!state.replay && !state.ext) save();
+    if (state.replay) stopReplay();
+    state.ext = ctrl;
+    state.thinking = false;
+    state.pending = null;
+    state.clock = null;
+    renderClock();
+    hideBanner();
+    document.body.classList.add('ext');
+    extSet(ctrl.moves || []);
+    fitView(ctrl.moves || []);
+    return true;
+  }
+  /** Dựng lại bàn cờ từ danh sách nước (X đi trước). */
+  function extSet(moves) {
+    const b = new Board();
+    moves.forEach(([x, y], i) => b.play(x, y, i % 2 ? O : X));
+    state.board = b;
+    state.turn = moves.length % 2 ? O : X;
+    state.winner = null;
+    state.winCells = null;
+    state.pending = null;
+    updateUI();
+    requestDraw();
+  }
+  /** Đặt 1 quân cho bên tới lượt (có âm thanh, hiệu ứng). Trả về true nếu thắng. */
+  function extPlace(x, y) {
+    const p = state.turn;
+    state.board.play(x, y, p);
+    state.lastPlacedAt = performance.now();
+    sfx(p === X ? 'placeX' : 'placeO');
+    const win = checkWin(state.board, x, y, p);
+    if (win) { state.winner = p; state.winCells = win; state.winAt = performance.now(); vibrate(40); }
+    else { state.turn = other(p); vibrate(8); }
+    updateUI();
+    requestDraw();
+    ensureVisible(x, y);
+    return !!win;
+  }
+  function exitExt(silent) {
+    if (!state.ext) return;
+    state.ext = null;
+    state.marks = null;
+    document.body.classList.remove('ext');
+    if (silent) return;
+    if (state.replay) seekReplay(state.replay.idx, true);
+    else restoreLocal();
+  }
+  function setMarks(marks) { state.marks = marks && marks.length ? marks : null; requestDraw(); }
+  /** Khung nhìn vừa đủ các quân. */
+  function fitView(moves) {
+    if (!moves.length) return animateCamera(0, 0, 36);
+    const xs = moves.map((m) => m[0]), ys = moves.map((m) => m[1]);
+    const w = Math.max(...xs) - Math.min(...xs) + 5, h = Math.max(...ys) - Math.min(...ys) + 5;
+    const size = clamp(Math.min((W - 24) / w, (H - 220) / h), MIN_SIZE, 48);
+    animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2 + 40 / size, size);
+  }
+
+  /** Mở xem lại ván vừa chơi trên máy (để phân tích). */
+  function replayLocal() {
+    const moves = state.board.moves.map((m) => [m.x, m.y]);
+    const nm = (p) => (state.mode === 'ai' ? (p === state.human ? T('you') : botName(state.bot)) : p === X ? 'X' : 'O');
+    return openReplay({ local: true, x: nm(X), o: nm(O), winner: state.winner, reason: state.winReason === 'time' ? 'timeout' : 'win', moves });
+  }
+  $('banner-analyze').onclick = () => {
+    if (state.online) return;
+    if (replayLocal() && window.CaroStudy) window.CaroStudy.analyze();
+  };
+
   window.CaroApp = {
+    enterExt,
+    exitExt,
+    extSet,
+    extPlace,
+    setMarks,
+    fitView,
+    seek: (i) => { stopReplay(); seekReplay(i, true); },
+    get board() { return state.board; },
+    get turn() { return state.turn; },
+    get ext() { return state.ext; },
     enterOnline,
     applyRoom: (room, me) => (state.online ? applyRoom(room, me) : enterOnline(room, me)),
     leaveOnline,

@@ -7,7 +7,7 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   - 4 quân liền, không bị chặn đầu nào → thắng.
   - 5 quân liền, bị chặn 1 đầu → thắng.
   - Bị chặn cả 2 đầu → không tính thắng.
-- Chơi **2 người cùng máy**, **với máy** (Dễ / Vừa / Khó), hoặc **online**:
+- Chơi **2 người cùng máy**, **với máy** (6 nhân vật có tính cách, xem dưới), hoặc **online**:
   **giải đấu** Arena / loại trực tiếp / nhánh thắng – thua / vòng tròn / Thụy Sĩ (ghép được nhiều giai đoạn, ví dụ
   vòng bảng → playoff) và **câu lạc bộ**, **tìm trận nhanh** (ghép với người có Elo gần mình), phòng công khai (ai cũng vào được từ danh sách
   "Phòng đang chờ"), tạo phòng riêng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
@@ -46,6 +46,28 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 - Hoặc tải thư mục `caro/` lên bất kỳ hosting tĩnh nào (Cloudflare Pages, Netlify,
   hosting trong nước…) – nên chọn nơi truy cập ổn định ở cả hai nước.
 
+## Học cờ: máy có tính cách, phân tích ván, giải đố (học theo chess.com / Lichess)
+
+- **6 nhân vật máy** (`bots.js`), mỗi người một sức cờ ước tính và lời thoại riêng:
+  Na ~600 · Tí ~900 · Bin ~1200 · Cô Mai ~1500 · Thầy Minh ~1800 · Rồng ~2100.
+  Sức cờ tạo bằng cách pha AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép) với lỗi có chủ đích
+  (đánh "cho vui", quên chặn, không thấy nước thắng). Mới vào mở sẵn 3 nhân vật đầu; thắng nhân vật nào thì mở khoá
+  người kế tiếp. Người dùng bản cũ đang chọn Dễ / Vừa / Khó được chuyển sang Tí / Cô Mai / Thầy Minh.
+  Thứ tự sức cờ đã kiểm bằng cho máy tự đấu (mỗi cặp liền kề, người sau thắng nhiều hơn).
+- **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
+  Mỗi nước được xếp loại dựa trên chuỗi nước ép (VCF) của hai bên: Xuất sắc `!!` (tự tìm ra chuỗi thắng ≥ 3 nước),
+  Tốt nhất `!`, Tốt, Bỏ lỡ `×` (có nước / chuỗi thắng mà không đi), Sai lầm `?` (để đối thủ có chuỗi ép thắng
+  trong khi có nước tránh được), Sai lầm nặng `??` (để thua sau 1–2 nước), Thế đã thua. Có độ chính xác (%) từng bên,
+  dải màu từng nước, thời điểm quan trọng; trên bàn cờ đánh dấu loại nước và khoanh xanh nước tốt hơn.
+  **Thử lại**: bày lại thế cờ trước nước sai để tự tìm nước đúng (máy kiểm tra và tự chặn).
+- **Giải đố** (`study.js`, dữ liệu `puzzles.json`): tìm chuỗi nước ép thắng; máy tự chặn sau mỗi nước đúng.
+  Ba chế độ: *Có xếp hạng* (điểm giải đố kiểu Elo, chọn bài gần điểm của bạn), *Chuỗi đúng* (khó dần, sai là hết),
+  *Bài của ngày* (giống nhau cho mọi người). Có Gợi ý, Đáp án (tự đi hết lời giải). Điểm, kỷ lục lưu trên máy.
+  Bộ 300 bài sinh tự động: `node server/scripts/gen-puzzles.js [số bài] [hạt giống]` – cho các nhân vật máy
+  đấu với nhau, lấy thế cờ sớm nhất có chuỗi ép 2–7 nước (và một bài dễ ở giữa chuỗi), bỏ bài trùng hình
+  (kể cả xoay / lật), chấm độ khó theo độ dài chuỗi và số nước "bẫy".
+- Nút **Về giữa** chuyển thành nút tròn nổi ở góc phải để thanh dưới có chỗ cho **Giải đố**.
+
 ## Phím tắt (máy tính)
 
 `←↑→↓` di chuyển · `+`/`-` phóng to/thu nhỏ · `C` về giữa · `N` ván mới · `Ctrl+Z` đi lại
@@ -66,6 +88,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
 ```bash
 node caro/tests/rules.test.js
+node caro/tests/study.test.js    # phân tích ván, nhân vật máy, kiểm từng bài đố có lời giải đúng
 ```
 
 Kiểm thử trình duyệt cho giải đấu (cần Playwright + Chromium; mỗi kịch bản tự bật máy chủ trên dữ liệu tạm,
@@ -74,6 +97,7 @@ Kiểm thử trình duyệt cho giải đấu (cần Playwright + Chromium; mỗ
 ```bash
 node caro/tests/e2e/tour-basic.e2e.js    # câu lạc bộ, Arena, loại trực tiếp
 node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → playoff, Thụy Sĩ → nhánh thắng – thua
+node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + Thử lại, giải đố (3 chế độ)
 ```
 
 ## Cấu trúc
@@ -82,7 +106,11 @@ node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → p
 |---|---|
 | `rules.js` | Luật thắng + AI (dùng chung cho trình duyệt và Node) |
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
-| `ai-worker.js` | Chạy AI trong Web Worker để giao diện không bị khựng |
+| `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
+| `bots.js` | 6 nhân vật máy: số liệu sức cờ, `botMove` |
+| `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
+| `study.js` | Bảng phân tích trong chế độ xem lại, "Thử lại", Giải đố (3 chế độ). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
+| `puzzles.json` | 300 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
 | `i18n.js`, `theme.js` | Bản dịch 4 ngôn ngữ; giao diện Sáng/Tối/Hệ thống |
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |

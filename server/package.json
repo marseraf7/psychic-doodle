@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server.js",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
-    "coverage": "node --disable-warning=ExperimentalWarning --test --experimental-test-coverage --test-coverage-exclude='**/test/**' --test-coverage-exclude='**/tests/**' --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=85 test/*.test.js ../caro/tests/rules.test.js"
+    "coverage": "node --disable-warning=ExperimentalWarning --test --experimental-test-coverage --test-coverage-exclude='**/test/**' --test-coverage-exclude='**/tests/**' --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=85 test/*.test.js ../caro/tests/rules.test.js ../caro/tests/study.test.js"
   },
   "engines": {
     "node": ">=22.13"

@@ -48,6 +48,14 @@
     <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.2a6.5 6.5 0 0 1 3.5 5.8"/></symbol>
     <symbol id="i-fire" viewBox="0 0 24 24"><path d="M12 22c4.1 0 7-2.9 7-7 0-3.2-2-5.6-4-7.6-.2 2.1-1.2 3.6-2.6 4.2C12.6 8.3 11 5 8.4 2.5 8.6 6.4 5 8.8 5 14.6 5 18.9 7.9 22 12 22z" fill="currentColor" stroke="none"/></symbol>
     <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <!-- Phân tích, giải đố, nhân vật máy -->
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M10 3h4v2.5a1.5 1.5 0 0 0 3 0V5h2a2 2 0 0 1 2 2v3h-1.5a1.5 1.5 0 0 0 0 3H21v6a2 2 0 0 1-2 2h-5v-1.5a1.5 1.5 0 0 0-3 0V21H5a2 2 0 0 1-2-2v-5h1.5a1.5 1.5 0 0 0 0-3H3V7a2 2 0 0 1 2-2h5z"/></symbol>
+    <symbol id="i-analyze" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 12l2-2.5 2 1.5 2-3"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.8.6 1.1 1.3 1.1 2.2h5c0-.9.3-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-retry" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
   </svg>
 
   <canvas id="board" data-i18n-aria="board_aria"></canvas>
@@ -61,7 +69,7 @@
   <nav class="bar bottom local-only">
     <button id="btn-new" type="button"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="btn_new"></span></button>
     <button id="btn-undo" type="button"><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg><span data-i18n="btn_undo"></span></button>
-    <button id="btn-center" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
+    <button id="btn-puzzle" type="button"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span data-i18n="btn_puzzle"></span></button>
     <button id="btn-online" type="button"><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
     <button id="btn-settings" type="button"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span data-i18n="btn_settings"></span></button>
   </nav>
@@ -80,9 +88,25 @@
     <button id="rp-prev" type="button"><svg class="ico" aria-hidden="true"><use href="#i-prev"/></svg><span data-i18n="rp_prev"></span></button>
     <button id="rp-play" type="button"><svg class="ico" id="rp-play-ico" aria-hidden="true"><use href="#i-play"/></svg><span id="rp-play-label" data-i18n="rp_play"></span></button>
     <button id="rp-next" type="button"><svg class="ico" aria-hidden="true"><use href="#i-next"/></svg><span data-i18n="rp_next"></span></button>
+    <button id="rp-analyze" type="button"><svg class="ico" aria-hidden="true"><use href="#i-analyze"/></svg><span data-i18n="an_btn"></span></button>
     <button id="rp-share" type="button"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg><span data-i18n="share_game"></span></button>
     <button id="rp-close" type="button"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg><span data-i18n="rp_close"></span></button>
   </nav>
+
+  <!-- Giải đố / thử lại: nút do study.js điền -->
+  <nav class="bar bottom ext-only" id="ext-bar"></nav>
+
+  <!-- Về giữa: nút tròn nổi (thanh dưới nhường chỗ cho "Giải đố") -->
+  <button type="button" class="fab-center" id="btn-center" data-i18n-aria="btn_center" data-i18n-title="btn_center"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg></button>
+
+  <!-- Bảng phân tích ván (hiện trong chế độ xem lại) -->
+  <section class="an-panel" id="an-panel" hidden aria-live="polite">
+    <div class="an-head">
+      <button type="button" class="an-toggle" id="an-toggle"><svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg> <b data-i18n="an_title"></b> <span class="an-acc-mini" id="an-acc-mini"></span></button>
+      <button type="button" class="x-close" id="an-close" data-i18n-aria="close">✕</button>
+    </div>
+    <div class="an-body" id="an-body"></div>
+  </section>
 
   <!-- Chat nhanh trong phòng -->
   <button type="button" class="fab online-only" id="quick-btn" data-i18n-aria="quick_chat" data-i18n-title="quick_chat"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></button>
@@ -97,6 +121,7 @@
       <div class="banner-actions">
         <button id="banner-view" type="button" class="ghost" data-i18n="banner_view"></button>
         <button id="banner-leave" type="button" class="ghost online-only" data-i18n="btn_leave"></button>
+        <button id="banner-analyze" type="button" class="ghost local-only" hidden><svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg> <span data-i18n="an_btn"></span></button>
         <button id="banner-new" type="button" class="primary local-only" data-i18n="btn_new"></button>
         <button id="banner-share" type="button" class="ghost online-only" data-i18n="share_game" hidden></button>
         <button id="banner-quick" type="button" class="ghost online-only" data-i18n="qm_again" hidden></button>
@@ -127,12 +152,8 @@
       </fieldset>
 
       <fieldset class="ai-only">
-        <legend data-i18n="level"></legend>
-        <div class="seg">
-          <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
-          <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
-          <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
-        </div>
+        <legend data-i18n="opponent"></legend>
+        <select name="bot" class="select" data-i18n-aria="opponent"></select>
       </fieldset>
 
       <fieldset>
@@ -223,12 +244,9 @@
         </div>
       </fieldset>
       <fieldset class="ai-only">
-        <legend data-i18n="level"></legend>
-        <div class="seg">
-          <label><input type="radio" name="level" value="1"> <span data-i18n="level_1"></span></label>
-          <label><input type="radio" name="level" value="2"> <span data-i18n="level_2"></span></label>
-          <label><input type="radio" name="level" value="3"> <span data-i18n="level_3"></span></label>
-        </div>
+        <legend data-i18n="opponent"></legend>
+        <div class="bot-grid" id="ng-bots"></div>
+        <p class="bot-say" id="ng-bot-say"></p>
       </fieldset>
       <fieldset>
         <legend data-i18n="time_limit"></legend>
@@ -241,6 +259,22 @@
       </fieldset>
       <button class="primary wide" value="start" data-i18n="start_game"></button>
     </form>
+  </dialog>
+
+  <!-- Giải đố -->
+  <dialog id="puzzle-dlg">
+    <div class="dlg">
+      <div class="dlg-head">
+        <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-puzzle"/></svg> <span data-i18n="pz_title"></span></h2>
+        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
+      </div>
+      <div class="pz-stats" id="pz-stats"></div>
+      <div class="pz-modes">
+        <button type="button" class="pz-mode" data-pz="rated"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span><b data-i18n="pz_rated"></b><small data-i18n="pz_rated_d"></small></span></button>
+        <button type="button" class="pz-mode" data-pz="streak"><svg class="ico" aria-hidden="true"><use href="#i-fire"/></svg><span><b data-i18n="pz_streak"></b><small data-i18n="pz_streak_d"></small></span></button>
+        <button type="button" class="pz-mode" data-pz="daily"><svg class="ico" aria-hidden="true"><use href="#i-cal"/></svg><span><b data-i18n="pz_daily"></b><small id="pz-daily-sub" data-i18n="pz_daily_d"></small></span></button>
+      </div>
+    </div>
   </dialog>
 
   <!-- ============================ Online ============================ -->
@@ -541,6 +575,8 @@
   <script src="i18n.js"></script>
   <script src="sound.js"></script>
   <script src="rules.js"></script>
+  <script src="bots.js"></script>
+  <script src="analysis.js"></script>
   <script src="app.js"></script>
   <script src="online.js"></script>
   <script src="social.js"></script>
@@ -551,5 +587,6 @@
   <script src="tour-form.js"></script>
   <script src="tour-groups.js"></script>
   <script src="club.js"></script>
+  <script src="study.js"></script>
 </body>
 </html>
