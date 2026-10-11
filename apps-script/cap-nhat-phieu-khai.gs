@@ -14,7 +14,9 @@
  *        - tách ảnh 3x4 từ file gốc, lưu vào thư mục cá nhân, chèn link vào ô H2,
  *        - ghi đè nội dung file .xlsx gốc bằng bản đã chỉnh (cùng ID).
  *      Nếu báo hết thời gian, chạy lại — script tự làm tiếp phần còn lại.
- *   3. (Tuỳ chọn) `xoaBanChuyenDoiGoogleSheet` → chuyển vào Thùng rác các bản Google Sheet
+ *   3. Chạy `anhTuGoogleSheet` → với phiếu khai dạng Google Sheet có ảnh chèn sẵn ở H2: lưu ảnh vào
+ *      thư mục cá nhân và thay bằng link "Ảnh".
+ *   4. (Tuỳ chọn) `xoaBanChuyenDoiGoogleSheet` → chuyển vào Thùng rác các bản Google Sheet
  *      chuyển đổi trước đó (khôi phục được từ Thùng rác trong 30 ngày).
  */
 
@@ -171,6 +173,41 @@ function xoaBanChuyenDoiGoogleSheet() {
     try { DriveApp.getFileById(id).setTrashed(true); console.log('Đã chuyển vào Thùng rác: ' + id); }
     catch (e) { console.log('Bỏ qua ' + id + ': ' + e.message); }
   });
+}
+
+/**
+ * Phiếu khai dạng Google Sheet có ảnh chèn thẳng vào ô H2: lưu ảnh vào thư mục cá nhân
+ * rồi thay ô H2 bằng chữ "Ảnh" có link tới ảnh. Quét mọi Google Sheet trong các thư mục "Năm ...".
+ */
+function anhTuGoogleSheet() {
+  const nam = DriveApp.getFolderById(CAU_HINH_PK.THU_MUC_GOC).getFolders();
+  const ketQua = [];
+  while (nam.hasNext()) {
+    const n = nam.next();
+    if (!/^n[aă]m/i.test(n.getName().normalize('NFD').replace(/[̀-ͯ]/g, ''))) continue;
+    const nguoi = n.getFolders();
+    while (nguoi.hasNext()) {
+      const tm = nguoi.next();
+      const files = tm.getFilesByType(MimeType.GOOGLE_SHEETS);
+      while (files.hasNext()) {
+        const f = files.next();
+        let sh;
+        try { sh = SpreadsheetApp.openById(f.getId()).getSheets()[0]; } catch (e) { continue; }
+        const o = sh.getRange('H2');
+        const v = o.getValue();
+        if (!v || typeof v.getContentUrl !== 'function') continue;
+        const ten = String(sh.getRange('C9').getDisplayValue() || tm.getName()).trim();
+        const res = UrlFetchApp.fetch(v.getContentUrl(), {
+          headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+        if (res.getResponseCode() >= 300) { ketQua.push('✘ ' + ten + ': không tải được ảnh'); continue; }
+        const anh = tm.createFile(res.getBlob().setName('Ảnh 3x4 - ' + ten + '.jpg'));
+        const url = 'https://drive.google.com/file/d/' + anh.getId() + '/view?usp=drive_link';
+        o.setRichTextValue(SpreadsheetApp.newRichTextValue().setText('Ảnh').setLinkUrl(url).build());
+        ketQua.push('✔ ' + ten);
+      }
+    }
+  }
+  console.log(ketQua.length ? ketQua.join('\n') : 'Không có Google Sheet nào chèn ảnh ở H2.');
 }
 
 /** Xoá trạng thái đã làm (chỉ dùng khi muốn chạy lại từ đầu). */
