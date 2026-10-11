@@ -17,7 +17,8 @@
     { id: 'bin', elo: 1200, level: 2, noise: 0.12, k: 4, missBlock: 0.04, color: '#3b82f6' },
     { id: 'mai', elo: 1500, level: 2, color: '#ec4899' },
     { id: 'minh', elo: 1800, level: 3, noise: 0.07, k: 3, vcfMs: 300, color: '#8b5cf6' },
-    { id: 'rong', elo: 2100, level: 3, vcfDepth: 7, vcfMs: 900, defDepth: 5, defMs: 400, color: '#ef4444' },
+    // GOAT: dùng engine.js (Alpha-Beta + chuỗi ép) – thắng bản cũ (level 3, chuỗi ép sâu 7) khoảng 80% số ván
+    { id: 'rong', elo: 2350, level: 3, vcfDepth: 7, vcfMs: 900, defDepth: 5, defMs: 400, engine: { ms: 700 }, color: '#ef4444' },
   ];
   const START_UNLOCKED = 3;
   // Mức cũ (1 Dễ / 2 Vừa / 3 Khó) -> nhân vật tương ứng.
@@ -59,6 +60,11 @@
       // Đã "không thấy" nước thắng: chọn nước khác.
       const pool = topCells(board, p, 3, notWin);
       if (pool.length) return pool[0];
+    }
+    // Nhân vật dùng engine (nếu đã nạp engine.js): engine tự tính bên tới lượt theo số nước, phải khớp với p
+    const EN = bot.engine && (global.CaroEngine || (typeof require === 'function' ? require('./engine.js') : null));
+    if (EN && (board.moves.length % 2 === 0 ? C.X : C.O) === p) {
+      try { return EN.analyse(board.moves.map((m) => [m.x, m.y]), bot.engine).move; } catch (e) { /* dùng AI cũ */ }
     }
     return C.chooseMove(board, p, bot.level, rng, bot);
   }

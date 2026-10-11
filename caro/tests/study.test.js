@@ -15,7 +15,7 @@ function board(moves) {
 function seeded(s) { return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }; }
 
 const tests = {
-  'analyzeGame: điểm lợi thế cho biểu đồ (giống Lichess) nằm trong [-1, 1], ±1 khi đã thắng chắc'() {
+  'analyzeGame: khả năng thắng cho biểu đồ (giống Lichess) nằm trong [-1, 1], ±1 khi đã thắng chắc'() {
     // X xếp 4 quân hàng 0, O đánh rải rác; nước 6 của O bỏ mặc thế 3 mở -> X thắng chắc
     const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     const r = A.analyzeGame(g);
@@ -58,9 +58,11 @@ const tests = {
     bb.put(r.moves[5].best[0], r.moves[5].best[1], O);
     assert.ok(!A.forced(bb, X, 4, { deadline: Date.now() + 2000 }), 'nước gợi ý giữ được thế');
     assert.strictEqual(r.moves[6].cls, 'best');
-    assert.strictEqual(r.acc[X], 100);
-    assert.ok(r.acc[O] < 100);
-    assert.deepStrictEqual(A.keyMoments(r).map((m) => m.i), [5]);
+    // Độ chính xác tính theo mức tụt khả năng thắng (như Lichess): X gần như không mất gì, O mất nhiều
+    assert.ok(r.acc[X] >= 90, 'X ' + r.acc[X]);
+    assert.ok(r.acc[O] < r.acc[X] - 15, 'O ' + r.acc[O]);
+    // Lỗi nặng chỉ ở nước 6 (các nước "chưa chính xác" nhỏ có thể dao động theo thời gian tìm của engine)
+    assert.deepStrictEqual(A.keyMoments(r).filter((m) => m.cls !== 'inacc').map((m) => m.i), [5]);
   },
   'analyzeGame: bỏ lỡ nước thắng ngay = bỏ lỡ'() {
     // X có 4 quân mở 2 đầu ở nước 7 nhưng đánh chỗ khác
@@ -102,7 +104,11 @@ const tests = {
     const blk = board([[0, 0], [-1, 0], [1, 0], [5, 5], [2, 0], [5, 7], [3, 0]]);
     for (const id of ['mai', 'minh', 'rong']) {
       const [x, y] = B.botMove(blk, O, id, seeded(2));
-      assert.deepStrictEqual([x, y], [4, 0], id + ' không chặn');
+      // Chặn ở (4,0), hoặc ở (5,0) cũng được theo luật Caro Việt Nam (X đánh (4,0) thành 5 quân bị chặn hai đầu)
+      const after = board([[0, 0], [-1, 0], [1, 0], [5, 5], [2, 0], [5, 7], [3, 0]]);
+      after.put(x, y, O);
+      const xWins = [[4, 0], [5, 0]].some(([wx, wy]) => !after.get(wx, wy) && C.winsIfPlaced(after, wx, wy, X));
+      assert.ok(!xWins, id + ' không chặn: ' + [x, y]);
     }
     let binMissed = 0;
     for (let s = 1; s <= 200; s++) if (B.botMove(blk, O, 'bin', seeded(s))[0] !== 4) binMissed++;

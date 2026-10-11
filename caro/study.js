@@ -20,11 +20,12 @@
     best: { color: '#5c9e31', text: '!' },
     good: { color: '#8aa572', text: '' },
     miss: { color: '#e5664f', text: '×' },
+    inacc: { color: '#56b4e9', text: '?!' },
     mistake: { color: '#e9a01d', text: '?' },
     blunder: { color: '#ca3431', text: '??' },
     lost: { color: '#8b8b8b', text: '' },
   };
-  const ORDER = ['great', 'best', 'miss', 'mistake', 'blunder'];
+  const ORDER = ['great', 'best', 'miss', 'inacc', 'mistake', 'blunder'];
   const GOOD = '#5c9e31';
 
   // ================================================================ Phân tích ván
@@ -90,7 +91,7 @@
 
   function renderProgress(f) {
     $('an-body').innerHTML = `<div class="an-prog"><i style="width:${Math.round(f * 100)}%"></i></div>
-      <p class="muted">${esc(T('an_running', { p: Math.round(f * 100) }))}</p>`;
+      <p class="muted">${esc(T('an_running', { p: Math.round(f * 100) }))}<br>${esc(T('an_engine'))}</p>`;
   }
 
   const nameOf = (p) => {
@@ -106,7 +107,7 @@
     const pts = [[0, 50]].concat(res.moves.map((m, k) => [k + 1, 50 - m.e * 46]));
     const line = pts.map(([x, y]) => `${x},${y.toFixed(1)}`).join(' ');
     const area = `0,50 ${line} ${n},50`;
-    const ticks = res.moves.map((m, k) => (['blunder', 'mistake', 'miss'].includes(m.cls)
+    const ticks = res.moves.map((m, k) => (['blunder', 'mistake', 'miss', 'inacc'].includes(m.cls)
       ? `<line x1="${k + 1}" x2="${k + 1}" y1="0" y2="100" stroke="${CLS[m.cls].color}" stroke-width="1.5" vector-effect="non-scaling-stroke" opacity="0.55"/>` : '')).join('');
     return `<svg class="an-graph" viewBox="0 0 ${n} 100" preserveAspectRatio="none" role="img" aria-label="${esc(T('an_graph'))}">
       <title>${esc(T('an_graph'))}</title>
@@ -172,10 +173,11 @@
     if (m.best) marks.push({ x: m.best[0], y: m.best[1], kind: 'ghost', color: GOOD, p: m.p });
     App.setMarks(marks.filter((k) => k.text || k.kind === 'ghost'));
     if (!el) return;
-    let text = T('ex_' + m.cls, { len: m.len });
+    // Xếp loại theo mức tụt khả năng thắng (engine) thì ghi rõ tụt bao nhiêu %
+    let text = m.ev ? T('ex_' + (m.cls === 'inacc' ? 'inacc' : m.cls + '_ev'), { d: m.drop }) : T('ex_' + m.cls, { len: m.len });
     if (m.cls === 'miss' && m.len === 1) text = T('ex_miss1');
     if (m.best) text += ' ' + T('ex_bestmove').replace(/[.。]$/, '') + ` → ${App.cellName(m.best[0], m.best[1])}`;
-    const canRetry = ['miss', 'mistake', 'blunder'].includes(m.cls);
+    const canRetry = ['miss', 'mistake', 'blunder'].includes(m.cls) && !m.ev; // "Thử lại" cần chuỗi thắng / thua chắc
     el.innerHTML = `<span class="an-badge" style="--c:${meta.color}">${meta.text || '•'}</span>
       <span><b>${esc(T('an_move', { n: idx }))} ${glyph(m.p)} ${esc(App.cellName(m.x, m.y))} · ${esc(T('cls_' + m.cls))}</b> — ${esc(text)}</span>
       ${canRetry ? `<button type="button" class="primary sm" data-retry="${idx - 1}">${ico('retry')} ${esc(T('an_retry'))}</button>` : ''}`;
