@@ -1226,3 +1226,15 @@ dialog .row.opts > .opt { flex: none; width: 100%; }
   .bar.bottom.replay-only button { min-height: 46px; padding: 6px 2px; }
   .bar.bottom.replay-only button span { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* ===== Căn lề chuẩn văn bản =====
+   Đoạn văn nhiều dòng: căn đều hai bên; dòng cuối căn theo khối (trái, hoặc giữa nếu khối căn giữa).
+   Khối nằm trong vùng căn giữa thì chính khối cũng phải nằm chính giữa (margin-inline: auto). */
+p, .hint, li.empty, .bot-say, .rule-text, .lesson-card small, .an-now > span, .rules li, #forgot-hint {
+  text-align: justify; text-justify: inter-word; hyphens: manual;
+}
+.banner-sub { margin: -4px auto 12px; text-align: justify; text-align-last: center; }
+.hint.center, .privacy-row, .credit, .credit p, .swap-card p, .welcome-card p, .banner-card p, .codes p, .podium p, .pz-stats p, .pf-stats p, .or {
+  text-align: justify; text-align-last: center;
+}
+.hint.center { margin-inline: auto; }
