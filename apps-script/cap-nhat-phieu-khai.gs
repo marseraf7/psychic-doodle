@@ -14,6 +14,8 @@
  *        - tách ảnh 3x4 từ file gốc, lưu vào thư mục cá nhân, chèn link vào ô H2,
  *        - ghi đè nội dung file .xlsx gốc bằng bản đã chỉnh (cùng ID).
  *      Nếu báo hết thời gian, chạy lại — script tự làm tiếp phần còn lại.
+ *   2b. Chạy `taoGoogleSheet` → tạo phiếu khai dạng Google Sheet (ảnh, chữ ký nằm trong ô như mẫu)
+ *      trong thư mục cá nhân, khôi phục file .xlsx gốc. Chạy lại nếu báo hết thời gian.
  *   3. Chạy `anhTuGoogleSheet` → với phiếu khai dạng Google Sheet có ảnh chèn sẵn ở H2: lưu ảnh vào
  *      thư mục cá nhân và thay bằng link "Ảnh".
  *   4. (Tuỳ chọn) `xoaBanChuyenDoiGoogleSheet` → chuyển vào Thùng rác các bản Google Sheet
@@ -22,6 +24,7 @@
 
 const CAU_HINH_PK = {
   THU_MUC_GOC: '1fDjQwwe8E6-MIh_OHKSIat0KDC9s_Fze',   // XÁC NHẬN BNV
+  MAU: '1Wnfco8C-GFaVGuyyJDA5bcb4kaY1XtfIidq-r88aTZg', // phiếu khai mẫu (Google Sheet)
   TEN_ZIP: 'SV5T_PHIEU_KHAI_DA_SUA.zip',
   TEN_THU_MUC_SAO_LUU: '_SAO LƯU PHIẾU KHAI GỐC',
   TEN_BAO_CAO: 'BÁO CÁO LINK MINH CHỨNG SV5T',
@@ -208,6 +211,88 @@ function anhTuGoogleSheet() {
     }
   }
   console.log(ketQua.length ? ketQua.join('\n') : 'Không có Google Sheet nào chèn ảnh ở H2.');
+}
+
+/**
+ * Tạo phiếu khai dạng Google Sheet (ảnh/chữ ký nằm trong ô như file mẫu) cho từng đoàn viên
+ * từ bản .xlsx đã sửa trong ZIP, đặt trong thư mục cá nhân; khôi phục file .xlsx gốc từ bản sao lưu.
+ * Các bản Google Sheet thử nghiệm trước đó (converted.json) được đưa vào Thùng rác.
+ * Chạy lại nếu báo hết thời gian — script tự làm tiếp.
+ */
+function taoGoogleSheet() {
+  const t0 = Date.now();
+  const props = PropertiesService.getScriptProperties();
+  const { map, manifest } = docZip_();
+  const goc = DriveApp.getFolderById(CAU_HINH_PK.THU_MUC_GOC);
+  const saoLuu = thuMucCon_(goc, CAU_HINH_PK.TEN_THU_MUC_SAO_LUU);
+  const mau = SpreadsheetApp.openById(CAU_HINH_PK.MAU).getSheets()[0];
+  if (!props.getProperty('da_xoa_ban_thu')) {
+    xoaBanChuyenDoiGoogleSheet();
+    props.setProperty('da_xoa_ban_thu', '1');
+  }
+  const ketQua = [];
+  for (const m of manifest) {
+    if (props.getProperty('gs_' + m.fileId)) continue;
+    if ((Date.now() - t0) / 1000 > CAU_HINH_PK.GIOI_HAN_GIAY) {
+      console.log('Hết thời gian – hãy chạy lại taoGoogleSheet để làm tiếp.');
+      break;
+    }
+    try {
+      const xlsx = DriveApp.getFileById(m.fileId);
+      // 1. bản .xlsx đã sửa (gắn link ảnh 3x4 nếu có)
+      let blob = map[m.fileId + '.xlsx'];
+      if (m.photoEntry) {
+        const anh = tachAnh_(saoLuuBlob_(saoLuu, xlsx) || xlsx.getBlob(), m.photoEntry);
+        if (anh) blob = ganLinkAnh_(blob, luuAnh_(m, anh));
+      }
+      // 2. khôi phục file .xlsx gốc từ bản sao lưu
+      const bak = saoLuuBlob_(saoLuu, xlsx);
+      if (bak && props.getProperty('xong_' + m.fileId)) ghiDe_(m.fileId, bak);
+      // 3. chuyển thành Google Sheet trong thư mục cá nhân
+      const ten = '03. ' + m.name.toUpperCase() + ' | PHIẾU KHAI SV5T 2025-2026';
+      const ss = SpreadsheetApp.openById(nhapXlsx_(blob, ten, m.folderId));
+      const M = ss.getSheets()[0];
+      M.getImages().forEach(i => i.remove());
+      // 4. lấy định dạng, phần đầu, phần cam kết – chữ ký (ảnh trong ô) từ file mẫu
+      const T = mau.copyTo(ss);
+      T.getRange('A1:J100').copyTo(M.getRange('A1:J100'), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+      T.getRange('A1:G7').copyTo(M.getRange('A1:G7'));
+      T.getRange('A83:J100').copyTo(M.getRange('A83:J100'));
+      for (let c = 1; c <= 10; c++) M.setColumnWidth(c, T.getColumnWidth(c));
+      [1, 2, 3, 4, 5, 6, 7].concat(Array.from({ length: 18 }, (_, i) => 83 + i))
+        .forEach(r => M.setRowHeight(r, T.getRowHeight(r)));
+      M.getRange('F96').clearContent();
+      M.getRange('F100').setValue(m.name);
+      ss.deleteSheet(T);
+      M.setName('Trang tính1');
+      props.setProperty('gs_' + m.fileId, ss.getId());
+      ketQua.push('✔ ' + m.name + ': ' + ss.getUrl());
+    } catch (e) {
+      ketQua.push('✘ ' + m.name + ': ' + e.message);
+    }
+  }
+  const conLai = manifest.filter(m => !props.getProperty('gs_' + m.fileId)).map(m => m.name);
+  console.log(ketQua.join('\n') + '\n\nCòn lại: ' + (conLai.length ? conLai.join(', ') : 'không'));
+}
+
+function saoLuuBlob_(saoLuu, file) {
+  const it = saoLuu.getFilesByName(file.getName());
+  return it.hasNext() ? it.next().getBlob() : null;
+}
+
+/** Tải .xlsx lên và chuyển thành Google Sheet; trả về ID file mới. */
+function nhapXlsx_(blob, ten, folderId) {
+  const b = 'sv5t' + Date.now();
+  const meta = JSON.stringify({ name: ten, mimeType: 'application/vnd.google-apps.spreadsheet', parents: [folderId] });
+  const payload = Utilities.newBlob('--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + meta +
+    '\r\n--' + b + '\r\nContent-Type: ' + CAU_HINH_PK.XLSX + '\r\n\r\n').getBytes()
+    .concat(blob.getBytes())
+    .concat(Utilities.newBlob('\r\n--' + b + '--').getBytes());
+  const res = UrlFetchApp.fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+    method: 'post', contentType: 'multipart/related; boundary=' + b, payload: payload,
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+  if (res.getResponseCode() >= 300) throw new Error('Tạo Google Sheet thất bại: ' + res.getContentText().slice(0, 300));
+  return JSON.parse(res.getContentText()).id;
 }
 
 /** Xoá trạng thái đã làm (chỉ dùng khi muốn chạy lại từ đầu). */
