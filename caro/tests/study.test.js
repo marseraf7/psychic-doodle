@@ -106,7 +106,7 @@ const tests = {
     }
     let binMissed = 0;
     for (let s = 1; s <= 200; s++) if (B.botMove(blk, O, 'bin', seeded(s))[0] !== 4) binMissed++;
-    assert.ok(binMissed < 20, 'Bin quên chặn ' + binMissed + '/200');
+    assert.ok(binMissed < 20, 'Ba Sáu (bin) quên chặn ' + binMissed + '/200');
     let missed = 0;
     for (let s = 1; s <= 200; s++) {
       const [x, y] = B.botMove(blk, O, 'na', seeded(s));

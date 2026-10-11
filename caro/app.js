@@ -22,7 +22,7 @@
     winCells: null,
     mode: 'ai', // 'ai' | 'pvp'
     human: X,
-    bot: 'ti', // nhân vật máy (bots.js); người mới bắt đầu với Tí
+    bot: 'ti', // nhân vật máy (bots.js); người mới bắt đầu với Anh Độ
     confirm: matchMedia('(pointer: coarse)').matches,
     score: { 1: 0, 2: 0 },
     pending: null, // ô đang chờ xác nhận [x, y]
