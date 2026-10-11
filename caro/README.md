@@ -49,10 +49,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 ## Học cờ: máy có tính cách, phân tích ván, giải đố (học theo chess.com / Lichess)
 
 - **6 nhân vật máy** (`bots.js`), mỗi người một sức cờ ước tính và lời thoại riêng:
-  Na ~600 · Tí ~900 · Bin ~1200 · Cô Mai ~1500 · Thầy Minh ~1800 · Rồng ~2100.
+  Chị Bảy ~600 · Anh Độ ~900 · Ba Sáu ~1200 · Người Tày ~1500 · Rung Động ~1800 · GOAT ~2100 (mã trong code: na, ti, bin, mai, minh, rong).
   Sức cờ tạo bằng cách pha AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép) với lỗi có chủ đích
   (đánh "cho vui", quên chặn, không thấy nước thắng). Mới vào mở sẵn 3 nhân vật đầu; thắng nhân vật nào thì mở khoá
-  người kế tiếp. Người dùng bản cũ đang chọn Dễ / Vừa / Khó được chuyển sang Tí / Cô Mai / Thầy Minh.
+  người kế tiếp. Người dùng bản cũ đang chọn Dễ / Vừa / Khó được chuyển sang Anh Độ / Người Tày / Rung Động.
   Thứ tự sức cờ đã kiểm bằng cho máy tự đấu (mỗi cặp liền kề, người sau thắng nhiều hơn).
 - **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
   Mỗi nước được xếp loại dựa trên chuỗi nước ép (VCF) của hai bên: Xuất sắc `!!` (tự tìm ra chuỗi thắng ≥ 3 nước),

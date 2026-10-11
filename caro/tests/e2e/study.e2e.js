@@ -34,11 +34,11 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(cards.filter((c) => c.locked).length === 3, 'mới vào: 3 nhân vật đầu mở, 3 nhân vật sau khoá');
     await p.click('#ng-bots .bot-card:nth-child(3)');
     await sleep(100);
-    ok(/Bin/.test(await p.textContent('#ng-bot-say')), 'chọn Bin: hiện mô tả');
+    ok(/Ba Sáu/.test(await p.textContent('#ng-bot-say')), 'chọn Ba Sáu: hiện mô tả');
     await shot(p, 'study-bots-430.png');
     await p.click('#newgame-form button.primary');
     await sleep(400);
-    ok(/Bin/.test(await p.textContent('#turn')) || /Bin/.test(await p.textContent('#toasts')), 'ván với Bin: thanh trên / lời chào có tên Bin');
+    ok(/Ba Sáu/.test(await p.textContent('#turn')) || /Ba Sáu/.test(await p.textContent('#toasts')), 'ván với Ba Sáu: thanh trên / lời chào có tên Ba Sáu');
     ok((await p.evaluate(() => JSON.parse(localStorage.getItem('caro.v1')).bot)) === 'bin', 'lưu nhân vật đã chọn');
     const opts = await p.evaluate(() => { document.getElementById('btn-settings').click(); return [...document.querySelectorAll('#settings-form select[name=bot] option')].map((o) => o.disabled); });
     ok(opts.length === 6 && opts.filter(Boolean).length === 3, 'Cài đặt: ô chọn đối thủ có 6 nhân vật, 3 khoá');
@@ -46,13 +46,13 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     await p.context().close();
   }
   {
-    // Người dùng cũ đã chọn "Khó" -> chuyển thành Thầy Minh và được mở khoá
+    // Người dùng cũ đã chọn "Khó" -> chuyển thành Rung Động (minh) và được mở khoá
     const p = await page(430, () => { localStorage.setItem('caro.lang', 'vi'); localStorage.setItem('caro.v1', JSON.stringify({ mode: 'ai', human: 1, level: 3, moves: [] })); });
     const st = await p.evaluate(() => ({ bot: JSON.parse(localStorage.getItem('caro.v1')).bot || null, unlocked: JSON.parse(localStorage.getItem('caro.bots') || '{}').unlocked }));
     await p.click('#btn-new');
     await sleep(200);
     const checked = await p.$eval('#ng-bots input:checked', (e) => e.value);
-    ok(checked === 'minh' && st.unlocked === 5, 'mức Khó cũ -> Thầy Minh, đã mở khoá tới Thầy Minh');
+    ok(checked === 'minh' && st.unlocked === 5, 'mức Khó cũ -> Rung Động, đã mở khoá tới Rung Động');
     await p.context().close();
   }
 
@@ -73,16 +73,24 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     await p.click('#banner-analyze');
     await p.waitForSelector('.an-acc', { timeout: 15000 });
     ok(await p.evaluate(() => document.body.classList.contains('replay')), 'mở chế độ xem lại');
-    const tl = await p.$$eval('.an-tl', (els) => els.map((e) => e.getAttribute('title')));
-    ok(tl.length === GAME.length, `dải màu có ${GAME.length} nước`);
+    const tl = await p.$$eval('.an-mv:not(.empty)', (els) => els.map((e) => e.getAttribute('title')));
+    ok(tl.length === GAME.length, `danh sách nước đi có ${GAME.length} nước`);
     ok(/Sai lầm nặng/.test(tl[5]), 'nước 6 của O: Sai lầm nặng — ' + tl[5]);
     ok(/Tốt nhất/.test(tl[6]), 'nước 7 của X: Tốt nhất');
     const acc = await p.$$eval('.an-acc', (els) => els.map((e) => parseInt(e.textContent, 10)));
     ok(acc[0] === 100 && acc[1] < 100, `độ chính xác X ${acc[0]}%, O ${acc[1]}%`);
-    await p.click('.an-tl[data-i="6"]');
+    await p.click('.an-mv[data-i="6"]');
     await sleep(200);
     ok(/Sai lầm nặng/.test(await p.textContent('#an-now')), 'xem nước 6: có nhận xét');
     ok((await p.evaluate(() => window.CaroApp.board.moves.length)) === 6, 'nhảy tới nước 6');
+    // Bố cục như Lichess: bảng phân tích không che bàn cờ (bàn cờ thu nhỏ nhường chỗ)
+    const geo = await p.evaluate(() => { const b = document.getElementById('board').getBoundingClientRect(), a = document.getElementById('an-panel').getBoundingClientRect(); return { overlap: !(a.top >= b.bottom - 1 || a.left >= b.right - 1), cur: !!document.querySelector('.an-mv.cur[data-i="6"]'), graph: !!document.querySelector('.an-graph'), name: document.querySelector('.an-mv[data-i="6"]').textContent.trim() }; });
+    ok(!geo.overlap && geo.cur && geo.graph && /^[a-z]+\d+/.test(geo.name), 'bảng phân tích không che bàn cờ; có biểu đồ; nước 6 tô nổi, tên ô ' + geo.name);
+    await p.click('.an-graph', { position: { x: 2, y: 30 } });
+    await sleep(200);
+    ok((await p.evaluate(() => window.CaroApp.board.moves.length)) === 0, 'bấm đầu biểu đồ: về đầu ván');
+    await p.click('.an-mv[data-i="6"]');
+    await sleep(200);
     await shot(p, 'study-analysis-430.png');
     // Thử lại: đặt sai rồi đặt đúng
     await p.click('#an-now button[data-retry]');

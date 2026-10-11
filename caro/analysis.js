@@ -115,8 +115,26 @@
   }
 
   /**
+   * Điểm thế cờ cho biểu đồ lợi thế (giống biểu đồ của Lichess), theo góc nhìn X: -1 (O thắng chắc) … +1 (X thắng chắc).
+   * Đã biết bên thắng chắc (từ phép tìm chuỗi ép) thì ±1; còn lại ước lượng bằng ô mạnh nhất của mỗi bên
+   * (cellScore của AI: thế 3, thế 4, đánh hai đường…), bên tới lượt được lợi thêm một nhịp.
+   */
+  function evalAfter(board, p, q, adv) {
+    const toX = (v, side) => (side === C.X ? v : -v);
+    if (adv) return toX(1, adv);
+    let a = 0, b = 0;
+    for (const [cx, cy] of candidates(board, 2)) {
+      a = Math.max(a, cellScore(board, cx, cy, q));
+      b = Math.max(b, cellScore(board, cx, cy, p));
+    }
+    // Chỉ dao động nhẹ (±0,45): chưa ai thắng chắc thì thế cờ còn cân; ±1 dành cho lúc đã có chuỗi thắng
+    return toX(Math.tanh((a - b) / 9000) * 0.45, q);
+  }
+
+  /**
    * Phân tích cả ván. moves: [[x,y], ...] – X đi trước, luân phiên.
-   * Trả về { moves: [{ i, p, x, y, cls, best, len }], acc: {1: %, 2: %}, counts: {1: {...}, 2: {...}} }.
+   * Trả về { moves: [{ i, p, x, y, cls, best, len, e }], acc: {1: %, 2: %}, counts: {1: {...}, 2: {...}} }
+   * (e: điểm thế cờ sau nước đó cho biểu đồ, xem evalAfter).
    */
   function analyzeGame(moves, opts) {
     opts = opts || {};
@@ -128,13 +146,14 @@
       const [x, y] = moves[i];
       const p = i % 2 === 0 ? C.X : C.O;
       const q = other(p);
-      const rec = { i, p, x, y, cls: 'good', best: null, len: 0 };
+      const rec = { i, p, x, y, cls: 'good', best: null, len: 0, e: 0 };
+      let adv = 0; // sau nước này bên nào đã thắng chắc (biết từ các phép tìm chuỗi ép bên dưới)
       const ctx = () => ({ deadline: Date.now() + ms });
 
       const myWins = immediateWins(board, p);
       const theirWins = immediateWins(board, q);
       if (myWins.length) {
-        if (winsIfPlaced(board, x, y, p)) rec.cls = 'best';
+        if (winsIfPlaced(board, x, y, p)) { rec.cls = 'best'; adv = p; }
         else { rec.cls = 'miss'; rec.best = myWins[0]; rec.len = 1; }
       } else if (theirWins.length) {
         board.put(x, y, p);
@@ -150,6 +169,7 @@
           });
           rec.cls = block ? 'blunder' : 'lost';
           rec.best = block || null;
+          adv = q;
         } else {
           // Chặn đúng; xem có nước chặn nào tốt hơn không.
           board.put(x, y, p);
@@ -159,6 +179,7 @@
             const alt = findSaver(board, p, [x, y], theirWins, ms * 2);
             rec.cls = alt ? 'mistake' : 'lost';
             rec.best = alt;
+            adv = q;
           }
         }
       } else {
@@ -167,6 +188,7 @@
           if (winningMove(board, p, [x, y], mine.len + 1, { deadline: Date.now() + ms * 4 })) {
             rec.cls = mine.len >= 3 && !hadForced[p] ? 'great' : 'best';
             rec.len = mine.len;
+            adv = p;
           } else {
             rec.cls = 'miss'; rec.best = mine.move; rec.len = mine.len;
           }
@@ -177,6 +199,7 @@
           const f = forced(board, q, 4, ctx());
           board.remove(x, y);
           if (f) {
+            adv = q;
             const theirs = forced(board, q, 4, ctx());
             let ai = null;
             try { ai = chooseMove(board, p, 3, () => 0.5, { vcfMs: 150, defMs: 120 }); } catch (e) { ai = null; }
@@ -191,8 +214,17 @@
       hadForced[p] = rec.cls === 'best' || rec.cls === 'great';
       out.push(rec);
       board.play(x, y, p);
+      rec.e = evalAfter(board, p, q, adv);
       if (opts.onProgress) opts.onProgress(i + 1, moves.length);
       if (checkWin(board, x, y, p)) break;
+    }
+    // Làm mượt phần ước lượng theo từng cặp nước (bỏ hiện tượng "ai vừa đi trông như đang lợi"), giữ nguyên ±1
+    let prev = 0;
+    for (const m of out) {
+      const raw = m.e;
+      if (Math.abs(raw) < 1) m.e = (raw + prev) / 2;
+      m.e = Math.round(m.e * 1000) / 1000;
+      prev = Math.abs(raw) < 1 ? raw : 0;
     }
     return { moves: out, ...summarize(out) };
   }
@@ -217,7 +249,7 @@
     return result.moves.filter((m) => KEY.has(m.cls));
   }
 
-  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, MAX_DEPTH };
+  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, evalAfter, MAX_DEPTH };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroAnalysis;
   else global.CaroAnalysis = CaroAnalysis;
 })(typeof window !== 'undefined' ? window : globalThis);
