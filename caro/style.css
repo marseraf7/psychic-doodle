@@ -853,9 +853,12 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 /* Biểu đồ lợi thế */
 .an-gwrap { flex: none; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--text) 5%, transparent); }
 .an-graph { display: block; width: 100%; height: 96px; cursor: pointer; }
-.an-ga-x { fill: color-mix(in srgb, var(--x) 30%, transparent); }
-.an-ga-o { fill: color-mix(in srgb, var(--o) 30%, transparent); }
-.an-gl { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+/* Cùng màu với quân cờ: phía trên (X hơn) đỏ cam như quân X, phía dưới (O hơn) xanh như quân O */
+.an-ga-x { fill: color-mix(in srgb, var(--x) 38%, transparent); }
+.an-ga-o { fill: color-mix(in srgb, var(--o) 34%, transparent); }
+.an-gl-x, .an-gl-o { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
+.an-gl-x { stroke: var(--x); }
+.an-gl-o { stroke: var(--o); }
 .an-mid { stroke: var(--grid-strong); stroke-width: 1; }
 .an-cur { stroke: var(--accent); stroke-width: 2; }
 

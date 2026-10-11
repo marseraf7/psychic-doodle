@@ -115,7 +115,8 @@
       <polygon points="${area}" class="an-ga-x" clip-path="url(#an-top)"/>
       <polygon points="${area}" class="an-ga-o" clip-path="url(#an-bot)"/>
       <line x1="0" x2="${n}" y1="50" y2="50" class="an-mid" vector-effect="non-scaling-stroke"/>
-      <polyline points="${line}" class="an-gl" vector-effect="non-scaling-stroke"/>
+      <polyline points="${line}" class="an-gl-x" clip-path="url(#an-top)" vector-effect="non-scaling-stroke"/>
+      <polyline points="${line}" class="an-gl-o" clip-path="url(#an-bot)" vector-effect="non-scaling-stroke"/>
       <line id="an-cur" x1="${idx}" x2="${idx}" y1="0" y2="100" class="an-cur" vector-effect="non-scaling-stroke"/>
     </svg>`;
   }
