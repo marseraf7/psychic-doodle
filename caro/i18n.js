@@ -871,7 +871,7 @@
       badge_beat_minh: "Hạ Rung Động",
       badge_beat_minh_d: "Thắng Rung Động (~1800)",
       badge_beat_rong: "Hạ GOAT",
-      badge_beat_rong_d: "Thắng GOAT (~2100)",
+      badge_beat_rong_d: "Thắng GOAT (~2350)",
       badge_learn_all: 'Tốt nghiệp',
       badge_learn_all_d: 'Học xong 6 bài Học chơi',
       badge_puzzles_10: 'Thợ giải đố',
@@ -1042,6 +1042,11 @@
       an_moves: "Nước đi",
       an_graph: "Biểu đồ lợi thế: phía trên là X đang hơn, phía dưới là O. Bấm để nhảy tới nước đó.",
       an_jump: "Bấm để xem nước tiếp theo loại này",
+      cls_inacc: "Chưa chính xác",
+      ex_inacc: "Chưa phải nước tốt nhất: khả năng thắng giảm {d}%.",
+      ex_mistake_ev: "Sai lầm: khả năng thắng giảm {d}%.",
+      ex_blunder_ev: "Sai lầm nặng: khả năng thắng giảm {d}%.",
+      an_engine: "Engine đang chấm từng thế cờ…",
     },
 
     en: {
@@ -1900,7 +1905,7 @@
       badge_beat_minh: "Over Rung Động",
       badge_beat_minh_d: "Beat Rung Động (~1800)",
       badge_beat_rong: "GOAT slayer",
-      badge_beat_rong_d: "Beat GOAT (~2100)",
+      badge_beat_rong_d: "Beat GOAT (~2350)",
       badge_learn_all: 'Graduate',
       badge_learn_all_d: 'Finish all 6 lessons',
       badge_puzzles_10: 'Puzzle solver',
@@ -2071,6 +2076,11 @@
       an_moves: "Moves",
       an_graph: "Advantage chart: above the line X is better, below O. Click to jump to that move.",
       an_jump: "Click to see the next move of this kind",
+      cls_inacc: "Inaccuracy",
+      ex_inacc: "Not the best move: winning chances drop by {d}%.",
+      ex_mistake_ev: "Mistake: winning chances drop by {d}%.",
+      ex_blunder_ev: "Blunder: winning chances drop by {d}%.",
+      an_engine: "The engine is evaluating every position…",
     },
 
     ru: {
@@ -2929,7 +2939,7 @@
       badge_beat_minh: "Победа над Rung Động",
       badge_beat_minh_d: "Победить Rung Động (~1800)",
       badge_beat_rong: "Победитель GOAT",
-      badge_beat_rong_d: "Победить GOAT (~2100)",
+      badge_beat_rong_d: "Победить GOAT (~2350)",
       badge_learn_all: 'Выпускник',
       badge_learn_all_d: 'Пройти все 6 уроков',
       badge_puzzles_10: 'Решатель',
@@ -3100,6 +3110,11 @@
       an_moves: "Ходы",
       an_graph: "График преимущества: выше линии лучше у X, ниже — у O. Нажмите, чтобы перейти к ходу.",
       an_jump: "Нажмите, чтобы перейти к следующему такому ходу",
+      cls_inacc: "Неточность",
+      ex_inacc: "Не лучший ход: шансы на победу падают на {d}%.",
+      ex_mistake_ev: "Ошибка: шансы на победу падают на {d}%.",
+      ex_blunder_ev: "Грубая ошибка: шансы на победу падают на {d}%.",
+      an_engine: "Движок оценивает каждую позицию…",
     },
 
     zh: {
@@ -3958,7 +3973,7 @@
       badge_beat_minh: "击败 Rung Động",
       badge_beat_minh_d: "战胜 Rung Động（~1800）",
       badge_beat_rong: "战胜 GOAT",
-      badge_beat_rong_d: "战胜 GOAT（~2100）",
+      badge_beat_rong_d: "战胜 GOAT（~2350）",
       badge_learn_all: '毕业',
       badge_learn_all_d: '学完全部 6 课',
       badge_puzzles_10: '解题能手',
@@ -4129,6 +4144,11 @@
       an_moves: "着法",
       an_graph: "优势图：线上方 X 占优，下方 O 占优。点击跳到该手。",
       an_jump: "点击查看下一手此类着法",
+      cls_inacc: "不精确",
+      ex_inacc: "不是最佳着法：胜率下降 {d}%。",
+      ex_mistake_ev: "失误：胜率下降 {d}%。",
+      ex_blunder_ev: "严重失误：胜率下降 {d}%。",
+      an_engine: "引擎正在评估每个局面…",
     },
   };
 

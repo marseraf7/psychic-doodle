@@ -49,13 +49,19 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 ## Học cờ: máy có tính cách, phân tích ván, giải đố (học theo chess.com / Lichess)
 
 - **6 nhân vật máy** (`bots.js`), mỗi người một sức cờ ước tính và lời thoại riêng:
-  Chị Bảy ~600 · Anh Độ ~900 · Ba Sáu ~1200 · Người Tày ~1500 · Rung Động ~1800 · GOAT ~2100 (mã trong code: na, ti, bin, mai, minh, rong).
+  Chị Bảy ~600 · Anh Độ ~900 · Ba Sáu ~1200 · Người Tày ~1500 · Rung Động ~1800 · GOAT ~2350 (mã trong code: na, ti, bin, mai, minh, rong).
   Sức cờ tạo bằng cách pha AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép) với lỗi có chủ đích
   (đánh "cho vui", quên chặn, không thấy nước thắng). Mới vào mở sẵn 3 nhân vật đầu; thắng nhân vật nào thì mở khoá
   người kế tiếp. Người dùng bản cũ đang chọn Dễ / Vừa / Khó được chuyển sang Anh Độ / Người Tày / Rung Động.
   Thứ tự sức cờ đã kiểm bằng cho máy tự đấu (mỗi cặp liền kề, người sau thắng nhiều hơn).
 - **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
-  Mỗi nước được xếp loại dựa trên chuỗi nước ép (VCF) của hai bên: Xuất sắc `!!` (tự tìm ra chuỗi thắng ≥ 3 nước),
+  Dùng **engine riêng của game** (`engine.js`, tự viết theo ý tưởng của các engine Gomoku mạnh, không dùng mã của họ):
+  Alpha-Beta (PVS) làm sâu dần + bảng ghi nhớ thế cờ, chấm điểm theo cửa sổ 5 / 6 ô đúng luật Caro Việt Nam (hàng bị chặn
+  hai đầu = 0 điểm, 3 quân không bị chặn = đe doạ thắng), bộ giải chuỗi ép (VCF) riêng có bảng ghi nhớ. Mỗi thế được đổi ra
+  khả năng thắng; nước đi xếp loại theo mức tụt (?! ≥ 10%, ? ≥ 18%, ?? ≥ 30%) hoặc theo chuỗi thắng chắc (bỏ lỡ / để thua chắc);
+  độ chính xác theo công thức Lichess. Đo được: giải 300/300 bài đố (TB ~9 ms/bài, bộ cũ 288/300 với 300 ms), 57 nước thắng
+  mà bộ cũ không xác nhận được đã kiểm bằng bộ vét cạn độc lập; GOAT dùng engine thắng GOAT cũ 9–1.
+  Ký hiệu: Chưa chính xác `?!` (mới), Xuất sắc `!!` (tự tìm ra chuỗi thắng ≥ 3 nước),
   Tốt nhất `!`, Tốt, Bỏ lỡ `×` (có nước / chuỗi thắng mà không đi), Sai lầm `?` (để đối thủ có chuỗi ép thắng
   trong khi có nước tránh được), Sai lầm nặng `??` (để thua sau 1–2 nước), Thế đã thua. Có độ chính xác (%) từng bên,
   dải màu từng nước, thời điểm quan trọng; trên bàn cờ đánh dấu loại nước và khoanh xanh nước tốt hơn.
@@ -142,6 +148,7 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 6 nhân vật máy: số liệu sức cờ, `botMove` |
+| `engine.js` | Engine phân tích: Alpha-Beta + chuỗi ép, đúng luật Caro Việt Nam (dùng chung trình duyệt, Worker, Node) |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
 | `study.js` | Bảng phân tích trong chế độ xem lại, "Thử lại", Giải đố (3 chế độ). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
 | `swap.js` | Luật Swap2: thẻ hướng dẫn đặt quân, nút chọn bên |

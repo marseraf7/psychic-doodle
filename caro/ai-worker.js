@@ -1,4 +1,4 @@
-importScripts('rules.js', 'bots.js', 'analysis.js');
+importScripts('rules.js', 'bots.js', 'engine.js', 'analysis.js');
 self.onmessage = (e) => {
   const d = e.data;
   if (d.type === 'analyze') {

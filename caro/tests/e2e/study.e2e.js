@@ -78,7 +78,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(/Sai lầm nặng/.test(tl[5]), 'nước 6 của O: Sai lầm nặng — ' + tl[5]);
     ok(/Tốt nhất/.test(tl[6]), 'nước 7 của X: Tốt nhất');
     const acc = await p.$$eval('.an-acc', (els) => els.map((e) => parseInt(e.textContent, 10)));
-    ok(acc[0] === 100 && acc[1] < 100, `độ chính xác X ${acc[0]}%, O ${acc[1]}%`);
+    ok(acc[0] >= 90 && acc[1] < acc[0] - 15, `độ chính xác (theo mức tụt khả năng thắng, như Lichess) X ${acc[0]}%, O ${acc[1]}%`);
     await p.click('.an-mv[data-i="6"]');
     await sleep(200);
     ok(/Sai lầm nặng/.test(await p.textContent('#an-now')), 'xem nước 6: có nhận xét');
