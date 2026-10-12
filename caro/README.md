@@ -63,7 +63,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu |
   | ~2350 | GOAT | UEFAlona | Penaldo | Hai Ngón |
 
-  Sức cờ tạo bằng cách pha AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép; mức ~2350 dùng `engine.js`)
+  Sức cờ: mức 1–3 dùng AI của `rules.js`; từ mức ~1500 dùng `engine.js` với độ sâu / thời gian giới hạn (như các mức Stockfish
+  của Lichess – yếu hơn vì nhìn nông hơn, không phải vì đánh bừa): ~1500 sâu 1 + 30 ms, ~1800 sâu 3 + 80 ms, ~2350 900 ms.
+  Đo bằng `node server/scripts/bot-match.js` (2 ván đổi bên mỗi khai cuộc): mức trên thắng mức dưới ~71% ở mỗi bậc.
+  Phần còn lại của mục này: AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép)
   với lỗi có chủ đích (đánh "cho vui", quên chặn, không thấy nước thắng). Lối đánh đổi cách chấm điểm nước đi:
   Tấn công coi trọng thế của mình và tìm chuỗi ép (VCF) sớm; Phòng thủ coi trọng thế của đối thủ và chặn sớm mọi nước
   thắng chắc của họ; Nước đôi thưởng ô giao điểm có thế trên nhiều đường; Gài bẫy thưởng nước "nhảy" cách quãng, tránh
@@ -77,12 +80,26 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   bằng `node server/scripts/gen-bot-avatars.js` (tóc / mũ theo lối đánh, phụ kiện theo mức). Bảng chọn đối thủ
   (`bot-picker.js`, dùng chung cho Ván mới và Cài đặt) hiện ảnh, biểu tượng, lối đánh và mô tả của từng nhân vật.
 - **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
+  **Nhanh như Lichess** (chạy hết trên máy người chơi, máy chủ không tốn gì thêm):
+  - *Phân tích ngầm khi chơi* (`live-analysis.js`): mỗi nước mới được engine chấm ngay trong một Web Worker riêng
+    (200 ms/thế, giữ bảng nhớ engine suốt ván; tạm dừng khi máy đang nghĩ nước / app chạy nền; đi lại thì bỏ phần đã khác).
+    Nước nào có thể bị đánh dấu thì chấm luôn thế sau nước tốt nhất để so (`altNeeded`). Hết ván bấm Phân tích là có kết quả
+    gần như tức thì (đo ~0,2 giây với ván ngắn). Hoãn một nhịp sau mỗi nước và dừng hẳn Worker khi máy bắt đầu nghĩ, để máy
+    có trọn CPU; đi lại / rẽ nhánh trong lúc đang chấm thì bỏ kết quả cũ. Tắt được ở Cài đặt › Cài đặt bàn cờ để tiết kiệm pin.
+  - *Hai lượt*: ván chưa được phân tích ngầm (ván của người khác, ván cũ trong Lịch sử đấu) chạy lượt nhanh trước
+    (~15–40 ms/thế, hiện kết quả sau 1–2 giây kèm dòng "đang phân tích kỹ hơn"), rồi lượt kỹ chỉ chấm lại các thế
+    mới chấm nhanh và thay kết quả. Các thế đã chấm đủ kỹ luôn được dùng lại (`analyzeGame({ evals })`).
+    Mở phân tích ván khác khi ván trước còn chạy: huỷ ván trước (dừng Worker), không phải chờ, không hiện lẫn kết quả.
   Dùng **engine riêng của game** (`engine.js`, tự viết theo ý tưởng của các engine Gomoku mạnh, không dùng mã của họ):
   Alpha-Beta (PVS) làm sâu dần + bảng ghi nhớ thế cờ, chấm điểm theo cửa sổ 5 / 6 ô đúng luật Caro Việt Nam (hàng bị chặn
   hai đầu = 0 điểm, 3 quân không bị chặn = đe doạ thắng), bộ giải chuỗi ép (VCF) riêng có bảng ghi nhớ. Mỗi thế được đổi ra
   khả năng thắng; nước đi xếp loại theo mức tụt (?! ≥ 10%, ? ≥ 18%, ?? ≥ 30%) hoặc theo chuỗi thắng chắc (bỏ lỡ / để thua chắc);
   độ chính xác theo công thức Lichess. Đo được: giải 300/300 bài đố (TB ~9 ms/bài, bộ cũ 288/300 với 300 ms), 57 nước thắng
   mà bộ cũ không xác nhận được đã kiểm bằng bộ vét cạn độc lập; GOAT dùng engine thắng GOAT cũ 9–1.
+  Tối ưu (cùng kết quả, nhanh ~2,5 lần): đọc mỗi đường một lần rồi trượt cửa sổ, ô chặn chỉ xét trên hướng làm thành ô thắng,
+  bỏ tính điểm khi đang tìm chuỗi ép; ở gốc bỏ các nước để đối thủ có chuỗi ép. Lối đánh của nhân vật máy chỉ tính theo góc
+  nhìn của máy và chỉ đổi thứ tự trong nhóm nước tốt nhất (trước đây làm GOAT "Gài bẫy" yếu hẳn).
+  Phân tích: nước đã đi trùng nước tốt nhất của engine thì không bị chấm sai; mức tụt so với thế sau nước tốt nhất cùng độ sâu.
   Ký hiệu: Chưa chính xác `?!` (mới), Xuất sắc `!!` (tự tìm ra chuỗi thắng ≥ 3 nước),
   Tốt nhất `!`, Tốt, Bỏ lỡ `×` (có nước / chuỗi thắng mà không đi), Sai lầm `?` (để đối thủ có chuỗi ép thắng
   trong khi có nước tránh được), Sai lầm nặng `??` (để thua sau 1–2 nước), Thế đã thua. Có độ chính xác (%) từng bên,
@@ -198,6 +215,8 @@ Kiểm thử trình duyệt cho giải đấu (cần Playwright + Chromium; mỗ
 node caro/tests/e2e/tour-basic.e2e.js    # câu lạc bộ, Arena, loại trực tiếp
 node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → playoff, Thụy Sĩ → nhánh thắng – thua
 node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + Thử lại, giải đố (3 chế độ)
+node caro/tests/e2e/attention.e2e.js     # tiêu đề tab báo lượt, hết ván, đổi ngôn ngữ; kết nối chết lặng thì tự kết nối lại
+node caro/tests/e2e/live.e2e.js          # phân tích ngầm khi chơi (hết ván có ngay), phân tích hai lượt, công tắc trong Cài đặt
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
 node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, ván giải mất kết nối, Storm, ảnh og
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
@@ -212,6 +231,8 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 24 nhân vật máy (6 mức × 4 lối đánh): số liệu sức cờ, trọng số lối đánh, `botMove` |
 | `engine.js` | Engine phân tích: Alpha-Beta + chuỗi ép, đủ 4 luật (kể cả nước cấm Renju), trọng số lối đánh (dùng chung trình duyệt, Worker, Node) |
+| `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
+| `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
 | `study.js` | Bảng phân tích trong chế độ xem lại, "Thử lại", Giải đố (3 chế độ). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
 | `swap.js` | Luật Swap2: thẻ hướng dẫn đặt quân, nút chọn bên |
@@ -225,7 +246,7 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `puzzles.json` | 363 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải, chủ đề VCF / VCT, luật nếu khác luật Việt Nam) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
 | `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `i18n-demos.js`, `i18n-shell.js`, `i18n-tc.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-shell.js`: khung trang, Trang chủ, Cài đặt; `i18n-tc.js`: thời gian, Thiết lập ván đấu; `i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật, `i18n-demos.js`: phụ đề phim minh hoạ); giao diện Sáng/Tối/Hệ thống |
-| `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
+| `online.js`, `config.js` | Chế độ online: kết nối máy chủ (ping mỗi 10 giây, trượt 2 lần liên tiếp thì tự kết nối lại; quá 10 giây chưa có "welcome" cũng kết nối lại; máy chủ cũ chưa có lệnh ping thì thôi ping, không báo lỗi), tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
 | `gamex.js` | Thao tác phụ trong ván: đếm ngược nước đầu, +15 giây, xin đi lại, Berserk |

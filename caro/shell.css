@@ -45,10 +45,14 @@ body.shell-on .invites { bottom: calc(var(--tabbar-h) + 12px + env(safe-area-ins
 .pg-right .conn:not(:empty) { font-size: 0; gap: 0; } /* điện thoại: chỉ chấm màu */
 .pg-body {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  padding: 4px 12px calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom));
+  padding: 4px 12px 0;
   display: flex; flex-direction: column; gap: 12px;
   -webkit-user-select: text; user-select: text;
+  -webkit-overflow-scrolling: touch;
 }
+/* Chừa chỗ cho thanh tab bằng một khối thật ở cuối: Safari (iPad / iPhone) bỏ qua padding-bottom của khung cuộn dạng flex,
+   làm hàng cuối (vd. "Quân đá đen / trắng" ở trang Giao diện) bị thanh tab che mất */
+.pg-body::after { content: ''; flex: none; height: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); }
 .pg-body > * { flex: none; }
 /* Nội dung chuyển từ hộp thoại sang: giữ cỡ chữ tiêu đề nhỏ */
 .pg-body h3 { margin: 0; }
@@ -218,7 +222,8 @@ body.online .home .welcome-card { display: flex; }
   .pg-head { display: none; } /* tiêu đề đã có trên menu */
   #page-settings .pg-head { display: grid; }
   .pg-right .conn:not(:empty) { font-size: var(--fs-xs); gap: 5px; }
-  .pg-body { padding: 18px 24px 40px; }
+  .pg-body { padding: 18px 24px 0; }
+  .pg-body::after { height: 28px; }
   .pg-body:not(.home) { width: min(760px, 100%); margin: 0 auto; }
   .home-grid {
     grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr) minmax(220px, 1fr);

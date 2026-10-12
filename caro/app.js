@@ -527,6 +527,9 @@
     drawStatus();
     turnCue();
     if (window.CaroStrips) window.CaroStrips.render();
+    // Phân tích ngầm ván đang chơi (live-analysis.js); xem lại / giải đố không phải ván đang chơi
+    if (window.CaroLive && !state.replay && !state.ext) window.CaroLive.sync(state.board, { busy: state.thinking, over: !!state.winCells });
+    if (window.CaroAttention) window.CaroAttention.update(attentionInfo());
   }
 
   /**
@@ -1390,6 +1393,21 @@
     if (state.online) return;
     if (replayLocal() && window.CaroStudy) window.CaroStudy.analyze();
   };
+
+  /**
+   * Trạng thái ván cho attention.js (tiêu đề tab, giữ màn hình sáng):
+   * { active: đang có ván dở (không phải xem lại / giải đố), online, myTurn: tới lượt mình (null = 2 người một máy), over }.
+   */
+  function attentionInfo() {
+    if (state.replay || state.ext) return { active: false };
+    if (state.online) {
+      const { room, side, watch } = state.online;
+      const ready = room.players.length >= 2;
+      return { online: true, active: !watch && ready && !room.winner, myTurn: !watch && room.turn === side, over: !watch && ready && !!room.winner };
+    }
+    const started = state.board.moves.length > 0;
+    return { active: started && !state.winner, myTurn: state.mode === 'ai' ? state.turn === state.human : null, over: started && !!state.winner };
+  }
 
   /**
    * Hai người chơi cho thẻ trên / dưới bàn cờ (player-strips.js): dưới là mình (hoặc X khi 2 người / xem ván), trên là đối thủ.

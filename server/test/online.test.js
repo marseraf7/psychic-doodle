@@ -85,6 +85,17 @@ async function playWin(winner, loser, row = 0) {
   }
 }
 
+test('ping của máy khách: trả lời pong ngay (để máy khách phát hiện kết nối chết lặng)', async () => {
+  const a = await Client.open({ guestName: 'Ping' });
+  const pong = await a.req({ t: 'ping' }, 'pong');
+  assert.deepStrictEqual(pong, { t: 'pong' });
+  // Lệnh lạ: báo kèm tên lệnh (ctx) để máy khách biết lỗi thuộc lệnh nào
+  const err = await a.req({ t: 'noSuchCommand' }, 'error');
+  assert.strictEqual(err.code, 'unsupported');
+  assert.strictEqual(err.ctx, 'noSuchCommand');
+  a.ws.close();
+});
+
 test('phòng: tạo, sai/đúng mật khẩu, chọn đi sau, thắng, tái đấu đổi bên', async () => {
   const a = await Client.open({ guestName: 'An' });
   const b = await Client.open({ guestName: 'Bình' });
@@ -309,6 +320,7 @@ test('bảo mật: header an toàn, chặn spam tin nhắn, token không lưu d�
   const r = await fetch(`http://127.0.0.1:${port}/`);
   assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
   assert.strictEqual(r.headers.get('x-frame-options'), 'DENY');
+  assert.match(r.headers.get('strict-transport-security'), /max-age=\d+/);
   assert.strictEqual((await fetch(`http://127.0.0.1:${port}/`, { method: 'POST' })).status, 405);
   assert.strictEqual((await fetch(`http://127.0.0.1:${port}/..%2fserver%2fserver.js`)).status, 404);
 

@@ -20,10 +20,11 @@
     { elo: 600, level: 1, noise: 0.35, k: 8, missBlock: 0.35, missWin: 0.2 },
     { elo: 900, level: 1, noise: 0.15, k: 5, missBlock: 0.15, missWin: 0.05 },
     { elo: 1200, level: 2, noise: 0.12, k: 4, missBlock: 0.04 },
-    { elo: 1500, level: 2 },
-    { elo: 1800, level: 3, noise: 0.07, k: 3, vcfMs: 300 },
-    // Mức cao nhất dùng engine.js (Alpha-Beta + chuỗi ép), thắng AI cũ (level 3, chuỗi ép sâu 7) khoảng 80% số ván
-    { elo: 2350, level: 3, vcfDepth: 7, vcfMs: 900, defDepth: 5, defMs: 400, engine: { ms: 700 } },
+    // Từ mức 4 dùng engine.js (Alpha-Beta + chuỗi ép) với độ sâu / thời gian giới hạn – như các mức Stockfish của Lichess:
+    // yếu hơn vì nhìn nông hơn chứ không phải vì đánh bừa. level / vcf… là AI dự phòng khi không nạp được engine.
+    { elo: 1500, level: 2, noise: 0.1, k: 3, engine: { ms: 30, maxDepth: 1, vcfDepth: 2, safeRoot: false } },
+    { elo: 1800, level: 3, vcfMs: 300, engine: { ms: 80, maxDepth: 3, vcfDepth: 5 } },
+    { elo: 2350, level: 3, vcfDepth: 7, vcfMs: 900, defDepth: 5, defMs: 400, engine: { ms: 900 } },
   ];
   const STYLES = ['atk', 'def', 'dbl', 'trap'];
   // Trọng số theo lối đánh: atkW – nước của mình, defW – nhân với trọng số phòng thủ của mức, dbl / trap – điểm thưởng.

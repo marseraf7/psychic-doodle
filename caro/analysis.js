@@ -125,7 +125,9 @@
   /**
    * Phân tích cả ván bằng engine: chấm từng thế cờ (khả năng thắng của bên tới lượt), rồi xếp loại từng nước theo
    * mức tụt khả năng thắng, hoặc theo chuỗi thắng chắc nếu engine đã thấy (bỏ lỡ / để thua chắc).
-   * opts: { ms: thời gian cho mỗi thế (mặc định tuỳ độ dài ván), rule: luật của ván, onProgress(n, total) }.
+   * opts: { ms: thời gian cho mỗi thế (mặc định tuỳ độ dài ván), rule: luật của ván, onProgress(n, total),
+   *         evals: các thế đã chấm sẵn (phân tích ngầm lúc chơi / lượt nhanh) – thế nào đã chấm với thời gian ≥ ms thì dùng lại }.
+   * Kết quả có thêm evals (gọn: move, score, mate, q = thời gian đã dùng) để lượt sau dùng lại.
    * Trả về { moves: [{ i, p, x, y, cls, best, len, drop, ev, e }], acc: {1: %, 2: %}, counts: {1: {...}, 2: {...}} }
    * (e: khả năng thắng của X sau nước đó, đổi sang −1…+1 cho biểu đồ; ev: xếp loại theo mức tụt, drop: % tụt).
    */
@@ -134,12 +136,13 @@
     const EN = engine();
     const n = moves.length;
     const ms = opts.ms || Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // cả ván khoảng 10 giây
-    const shared = { ms, tt: new Map(), qtt: new Map(), vtt: new Map(), rule: opts.rule };
+    const shared = { ms, tt: new Map(), qtt: new Map(), vtt: new Map(), rule: opts.rule, strict: ms < 60 }; // lượt nhanh: đúng giờ
     const board = new C.Board(opts.rule);
     const evals = []; // evals[i]: thế cờ trước nước i (null = ván đã kết thúc)
+    const pre = opts.evals || [];
     let end = n;
     for (let i = 0; i <= n; i++) {
-      evals[i] = EN.analyse(moves.slice(0, i), shared);
+      evals[i] = reusable(pre[i], ms) ? pre[i] : slim(EN.analyse(moves.slice(0, i), shared), ms);
       if (opts.onProgress) opts.onProgress(i + 1, n + 1);
       if (i === n) break;
       const [x, y] = moves[i], p = i % 2 === 0 ? C.X : C.O;
@@ -148,34 +151,69 @@
     }
     // Khả năng thắng của bên tới lượt ở thế i (thế đã kết thúc: bên tới lượt đã thua)
     const wc = (i) => (evals[i] ? EN.winChance(evals[i].score) : 0);
+    // Thế sau nước tốt nhất của engine (bên kia tới lượt) – chỉ chấm khi cần so với nước đã đi (altNeeded);
+    // phân tích ngầm lúc chơi có thể đã chấm sẵn (evals[i].alt)
+    const alt = (i) => {
+      const e = evals[i];
+      if (!reusable(e.alt, ms)) evals[i] = { ...e, alt: slim(EN.analyse(moves.slice(0, i).concat([e.move]), shared), ms) };
+      return evals[i].alt;
+    };
     const out = [];
     const hadForced = { 1: false, 2: false };
     for (let i = 0; i < end; i++) {
       const [x, y] = moves[i], p = i % 2 === 0 ? C.X : C.O;
       const r = evals[i], nx = evals[i + 1];
       const won = !nx;
+      const isBest = same(r.move, moves[i]); // đi đúng nước engine chọn
       const before = wc(i), after = won ? 1 : 1 - wc(i + 1);
-      const drop = Math.max(0, before - after);
-      const rec = { i, p, x, y, cls: 'good', best: null, len: 0, drop: Math.round(drop * 100), ev: false, e: 0 };
+      // Đi đúng nước tốt nhất thì không tụt: chênh lệch giữa hai lần chấm (độ sâu khác nhau) không phải lỗi của người chơi
+      let drop = isBest ? 0 : Math.max(0, before - after);
+      const rec = { i, p, x, y, cls: 'good', best: null, len: 0, drop: 0, ev: false, e: 0 };
       if (won) rec.cls = 'best';
       else if (r.mate > 0) {
         // Đang có chuỗi thắng chắc: giữ được (đối thủ vẫn thua chắc) hay bỏ lỡ?
-        if (nx.mate < 0) { rec.cls = r.mate >= 3 && !hadForced[p] ? 'great' : 'best'; rec.len = r.mate; }
+        if (nx.mate < 0 || isBest) { rec.cls = r.mate >= 3 && !hadForced[p] ? 'great' : 'best'; rec.len = r.mate; }
         else { rec.cls = 'miss'; rec.best = r.move; rec.len = r.mate; }
       } else if (r.mate < 0) rec.cls = 'lost';
-      else if (nx.mate > 0) { rec.cls = nx.mate <= 2 ? 'blunder' : 'mistake'; rec.best = r.move; rec.len = nx.mate; }
-      else {
+      else if (nx.mate > 0) {
+        // Sau nước này đối thủ có chuỗi thắng chắc. Nếu nước tốt nhất của engine cũng thua chắc thì thế đã thua từ trước.
+        const b = isBest ? null : alt(i);
+        if (isBest || (b && b.mate > 0)) rec.cls = 'lost';
+        else { rec.cls = nx.mate <= 2 ? 'blunder' : 'mistake'; rec.best = r.move; rec.len = nx.mate; }
+      } else if (drop >= DROP.inacc) {
+        // Như Lichess so với nước tốt nhất: chấm thế sau nước tốt nhất cùng độ sâu với thế sau nước đã đi rồi mới so
+        const b = alt(i);
+        const afterBest = b.mate < 0 ? 1 : b.mate > 0 ? 0 : 1 - EN.winChance(b.score);
+        drop = Math.max(0, Math.min(drop, afterBest - after));
         const cls = drop >= DROP.blunder ? 'blunder' : drop >= DROP.mistake ? 'mistake' : drop >= DROP.inacc ? 'inacc' : 'good';
         if (cls !== 'good') { rec.cls = cls; rec.ev = true; rec.best = r.move; }
       }
+      rec.drop = rec.cls === 'lost' ? 0 : Math.round(drop * 100);
       // Biểu đồ: khả năng thắng của X sau nước này
       const wX = won ? (p === C.X ? 1 : 0) : p === C.X ? 1 - wc(i + 1) : wc(i + 1); // thế i+1: tới lượt bên kia
       rec.e = Math.round((2 * wX - 1) * 1000) / 1000;
       hadForced[p] = rec.cls === 'best' || rec.cls === 'great';
       out.push(rec);
     }
-    return { moves: out, ...summarize(out) };
+    return { moves: out, ...summarize(out), evals };
   }
+
+  /**
+   * Nước i có cần chấm thêm thế sau nước tốt nhất không (để xếp loại cho đúng – xem analyzeGame): chưa thắng, không phải
+   * thế thắng / thua chắc, không trùng nước tốt nhất, và sau nước này đối thủ có chuỗi thắng hoặc khả năng thắng tụt ≥ 10%.
+   */
+  function altNeeded(moves, evals, i) {
+    const r = evals[i], nx = evals[i + 1];
+    if (!r || !nx || !moves[i] || same(r.move, moves[i]) || r.mate > 0 || r.mate < 0) return false;
+    if (nx.mate > 0) return true;
+    const EN = engine();
+    return EN.winChance(r.score) - (1 - EN.winChance(nx.score)) >= DROP.inacc;
+  }
+
+  /** Bản gọn của kết quả engine (gửi qua lại giữa Web Worker và trang); q: số ms đã dùng để chấm. */
+  const slim = (r, q) => ({ move: r.move, score: r.score, mate: r.mate, q });
+  /** Thế đã chấm sẵn đủ kỹ (thời gian ≥ ms) thì không cần chấm lại. */
+  const reusable = (e, ms) => !!e && typeof e.score === 'number' && (e.q || 0) >= ms;
 
   /** Độ chính xác từng nước theo mức tụt khả năng thắng (công thức Lichess công bố), rồi lấy trung bình. */
   const moveAcc = (drop) => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * drop) - 3.1669));
@@ -197,7 +235,7 @@
     return result.moves.filter((m) => KEY.has(m.cls));
   }
 
-  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, MAX_DEPTH };
+  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, MAX_DEPTH };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroAnalysis;
   else global.CaroAnalysis = CaroAnalysis;
 })(typeof window !== 'undefined' ? window : globalThis);

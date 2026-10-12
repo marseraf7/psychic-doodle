@@ -50,6 +50,60 @@ const tests = {
     assert.ok(A.winningMove(b, X, [3, 0], 3, { deadline: Date.now() + 2000 }));
     assert.ok(!A.winningMove(b, X, [5, 5], 3, { deadline: Date.now() + 2000 }));
   },
+  'analyzeGame: đi đúng nước engine chọn thì không bị chấm là sai (lỗi h13 ?! mà nước tốt hơn cũng là h13)'() {
+    // Cố định, không phụ thuộc tốc độ máy: lấy điểm thật của ván rồi coi như engine chọn đúng nước đã đi ở mọi thế
+    const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const base = A.analyzeGame(g, { ms: 60 });
+    assert.ok(base.moves.some((m) => m.cls === 'blunder'), 'ván mẫu có nước sai (để phép thử có ý nghĩa)');
+    const evals = base.evals.map((e, i) => e && { ...e, move: g[i] || e.move, q: 1e9 });
+    const r = A.analyzeGame(g, { ms: 60, evals });
+    const bad = new Set(['inacc', 'mistake', 'blunder', 'miss']);
+    r.moves.forEach((m, i) => {
+      assert.ok(!bad.has(m.cls), `nước ${i + 1} trùng nước tốt nhất mà bị chấm ${m.cls}`);
+      assert.strictEqual(m.best, null, `nước ${i + 1}: không gợi ý lại chính nước đã đi`);
+      assert.strictEqual(m.drop, 0);
+    });
+  },
+  'altNeeded: chỉ chấm thêm thế sau nước tốt nhất khi nước đi có thể bị đánh dấu; dùng lại alt đã chấm sẵn'() {
+    const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const r = A.analyzeGame(g, { ms: 60 });
+    const need = g.map((_, i) => A.altNeeded(g, r.evals, i));
+    assert.ok(need[5], 'nước 6 (bỏ mặc thế ba mở) cần so với nước tốt nhất');
+    assert.ok(!need[6], 'nước thắng không cần');
+    assert.ok(r.evals[5].alt && r.evals[5].alt.q === 60, 'analyzeGame trả về alt đã chấm để lần sau dùng lại');
+    // alt chấm sẵn đủ kỹ (vd. phân tích ngầm): dùng nguyên, kể cả khi là giá trị "giả"
+    const fake = r.evals.map((e) => e && { ...e });
+    fake[5] = { ...fake[5], alt: { move: [9, 9], score: 0, mate: -1, q: 1e9 } }; // nước tốt nhất cũng thua chắc
+    const r2 = A.analyzeGame(g, { ms: 60, evals: fake });
+    assert.strictEqual(r2.evals[5].alt, fake[5].alt);
+    assert.strictEqual(r2.moves[5].cls, 'blunder', 'đối thủ thắng chắc sau nước này, nước tốt nhất thì không → sai lầm nặng');
+    fake[5] = { ...fake[5], alt: { move: [9, 9], score: 0, mate: 2, q: 1e9 } }; // nước tốt nhất cũng để đối thủ thắng chắc
+    assert.strictEqual(A.analyzeGame(g, { ms: 60, evals: fake }).moves[5].cls, 'lost', 'nước tốt nhất cũng thua → thế đã thua');
+  },
+  'analyzeGame: dùng lại các thế đã chấm sẵn (phân tích ngầm / lượt nhanh), chỉ chấm lại thế chấm chưa đủ kỹ'() {
+    const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const full = A.analyzeGame(g, { ms: 60 });
+    assert.equal(full.evals.length, g.length + 1);
+    assert.ok(full.evals.slice(0, g.length).every((e) => e && typeof e.score === 'number' && e.q === 60 && !e.pv));
+    // Đủ kỹ: dùng nguyên (kể cả khi được chấm "giả")
+    const fake = full.evals.map((e) => e && { ...e });
+    fake[2] = { move: [9, 9], score: 0, mate: null, q: 500 };
+    const r = A.analyzeGame(g, { ms: 60, evals: fake });
+    assert.strictEqual(r.evals[2], fake[2]);
+    assert.deepEqual(A.analyzeGame(g, { ms: 60, evals: full.evals }).moves.map((m) => m.cls), full.moves.map((m) => m.cls));
+    // Chưa đủ kỹ (q nhỏ hơn ms) hoặc hỏng: chấm lại
+    fake[3] = { ...fake[3], q: 10 };
+    fake[4] = { move: [0, 0] };
+    const r2 = A.analyzeGame(g, { ms: 60, evals: fake });
+    assert.notStrictEqual(r2.evals[3], fake[3]);
+    assert.equal(r2.evals[3].q, 60);
+    assert.equal(typeof r2.evals[4].score, 'number');
+    // Lượt nhanh (thời gian nhỏ): engine xem giờ chặt hơn, kết quả vẫn đủ thế
+    const quick = A.analyzeGame(g, { ms: 20 });
+    assert.equal(quick.moves.length, g.length);
+    assert.ok(quick.evals.slice(0, g.length).every((e) => e.q === 20));
+    assert.deepEqual(A.slim({ move: [1, 2], score: 5, mate: null, pv: [], nodes: 9 }, 20), { move: [1, 2], score: 5, mate: null, q: 20 });
+  },
   'analyzeGame: bỏ mặc thế ba mở = sai lầm nặng, nước thắng = tốt nhất'() {
     const r = A.analyzeGame([[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]]);
     assert.strictEqual(r.moves[5].cls, 'blunder');

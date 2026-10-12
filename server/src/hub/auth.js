@@ -7,6 +7,9 @@ const { weakPassword, isOffensiveName } = require('../moderation.js');
 const { cleanPublicName, USERNAME_RE, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanName, userPid, uidOf, compareVersions } = require('./shared.js');
 
 class Auth {
+  /** Máy khách hỏi kết nối còn sống không (trình duyệt không tự gửi ping WebSocket): trả lời ngay. */
+  on_ping(conn) { conn.send({ t: 'pong' }); }
+
   on_hello(conn, { token, guestKey, guestName, client }) {
     // App điện thoại quá cũ: không cho vào online (tránh lỗi khó hiểu khi giao thức đã đổi)
     const platform = client && typeof client.platform === 'string' ? client.platform : 'web';

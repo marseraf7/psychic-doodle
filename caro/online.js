@@ -51,6 +51,11 @@
     try { ws = new WebSocket(wsUrl); } catch (e) { return scheduleRetry(); }
     ws.onopen = () => {
       retry = 0;
+      misses = 0;
+      noPing = false; // kết nối mới: máy chủ có thể đã được cập nhật
+      // Mở được kết nối mà quá 10 giây chưa có "welcome" (tin hello bị mất): kết nối lại
+      const w = ws;
+      setTimeout(() => { if (ws === w && S.status !== 'online') dropped(1000); }, 10000);
       // Tên khách mặc định theo ngôn ngữ đang chọn (vd. "Guest-3F2A"), nếu chưa tự đặt tên.
       const guestName = LS.get('caro.guestName') || `${T('guest')}-${guestKey.slice(0, 4).toUpperCase()}`;
       // Bản app điện thoại gửi kèm phiên bản để máy chủ báo khi cần cập nhật
@@ -58,19 +63,46 @@
       ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName, client }));
     };
     ws.onmessage = (e) => {
+      lastHeard = Date.now();
       let m;
       try { m = JSON.parse(e.data); } catch (err) { return; }
       if (handlers[m.t]) handlers[m.t](m);
       for (const fn of hooks[m.t] || []) fn(m); // phần mở rộng (social.js)
     };
-    ws.onclose = () => {
-      ws = null;
-      S.status = 'offline';
-      for (const fn of hooks.close || []) fn();
-      render();
-      scheduleRetry();
-    };
+    ws.onclose = () => dropped(0);
   }
+
+  /** Mất kết nối (máy chủ đóng, hoặc ping không được trả lời): báo offline, hẹn kết nối lại. */
+  function dropped(delay) {
+    if (!ws) return;
+    const old = ws;
+    ws = null;
+    old.onopen = old.onmessage = old.onclose = old.onerror = null;
+    try { old.close(); } catch (e) { /* đã đóng */ }
+    S.status = 'offline';
+    for (const fn of hooks.close || []) fn();
+    render();
+    if (delay === 0) scheduleRetry();
+    else { retry = 0; clearTimeout(retryTimer); retryTimer = setTimeout(connect, delay); }
+  }
+
+  // Kết nối "chết lặng" (đổi Wi-Fi ↔ 4G, mạng chập chờn): WebSocket vẫn coi là mở nhưng không còn tin nào qua lại.
+  // Như Lichess: ping định kỳ, không nghe gì từ máy chủ thì chủ động kết nối lại (thay vì chờ hàng phút).
+  // Chỉ ngắt khi trượt 2 lần liên tiếp, và bỏ qua lần mà hẹn giờ chạy trễ (máy chậm / luồng chính bận: tin pong
+  // có thể đang xếp hàng phía sau) – tránh cắt nhầm kết nối vẫn tốt.
+  const PING_MS = 10000, PONG_MS = 6000, LATE_MS = 2000;
+  let lastHeard = 0, misses = 0, lastPing = 0, noPing = false;
+  setInterval(() => {
+    if (noPing || !ws || ws.readyState !== 1 || S.status !== 'online' || document.hidden) return;
+    const sent = lastPing = Date.now();
+    try { ws.send('{"t":"ping"}'); } catch (e) { return dropped(100); }
+    const w = ws;
+    setTimeout(() => {
+      if (ws !== w) return;
+      if (lastHeard >= sent || Date.now() - sent > PONG_MS + LATE_MS) { misses = 0; return; }
+      if (++misses >= 2) { misses = 0; dropped(100); }
+    }, PONG_MS);
+  }, PING_MS);
 
   function scheduleRetry() {
     clearTimeout(retryTimer);
@@ -93,6 +125,7 @@
   const hooks = {};
   const on = (t, fn) => { (hooks[t] = hooks[t] || []).push(fn); };
   const handlers = {
+    pong() { /* chỉ để biết kết nối còn sống (lastHeard) */ },
     welcome(m) {
       S.status = 'online';
       S.me = m.me;
@@ -144,6 +177,9 @@
     },
     toast(m) { toast(srv(m)); },
     error(m) {
+      // Máy chủ cũ (chưa có lệnh ping – bản web được cập nhật trước máy chủ): thôi ping, không báo lỗi cho người chơi.
+      // Máy chủ cũ không gửi kèm ctx nên nhận ra bằng thời điểm: lỗi "unsupported" ngay sau một lần ping.
+      if (m.code === 'unsupported' && (m.ctx === 'ping' || (!m.ctx && Date.now() - lastPing < PONG_MS))) { noPing = true; return; }
       if (m.ctx === 'move') App.resync();
       if (m.code === 'too_fast' && ['watch', 'profile'].includes(m.ctx)) return; // bấm dồn: bỏ qua lần thừa
       // Mở bằng link mời: phòng công khai vào thẳng, phòng riêng (sai/thiếu mật khẩu) thì hỏi mật khẩu
