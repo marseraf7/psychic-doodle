@@ -27,7 +27,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
   // ---------------------------------------------------------------- Nhân vật máy
   {
     const p = await page(430, () => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
-    await p.click('#btn-new');
+    await p.click('[data-home="bot"]'); // Trang chủ: "Chơi với máy" mở bảng Ván mới
     await sleep(300);
     const cards = await p.$$eval('#ng-picker .bot-grid .bot-card', (els) => els.map((e) => ({ locked: e.classList.contains('locked'), name: e.querySelector('b').textContent })));
     ok(cards.length === 6, 'mỗi lối đánh 6 nhân vật (6 mức) trong bảng Ván mới');
@@ -50,6 +50,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
       const r = document.getElementById('set-picker');
       return { cards: r.querySelectorAll('.bot-card').length, locked: r.querySelectorAll('.bot-card.locked').length, checked: (r.querySelector('input[name=bot]:checked') || {}).value, say: r.querySelector('.bot-say').textContent }; });
     ok(set.cards === 6 && set.locked === 3 && set.checked === 'bin' && /Ba Sáu/.test(set.say), 'Cài đặt: bảng chọn đối thủ có ảnh, mô tả, đang chọn Ba Sáu');
+    await p.click('#settings-form [data-go="bot"]'); // trang con "Đối thủ máy"
     await p.click('#set-picker .style-tabs label:nth-child(1)'); // Cài đặt lưu ngay: đổi sang lối Tấn công cùng mức
     await sleep(200);
     ok((await p.evaluate(() => JSON.parse(localStorage.getItem('caro.v1')).bot)) === 'hung', 'Cài đặt: đổi lối đánh -> nhân vật cùng mức của lối mới, lưu ngay');
@@ -60,7 +61,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     // Người dùng cũ đã chọn "Khó" -> chuyển thành Rung Động (minh) và được mở khoá
     const p = await page(430, () => { localStorage.setItem('caro.lang', 'vi'); localStorage.setItem('caro.v1', JSON.stringify({ mode: 'ai', human: 1, level: 3, moves: [] })); });
     const st = await p.evaluate(() => ({ bot: JSON.parse(localStorage.getItem('caro.v1')).bot || null, unlocked: JSON.parse(localStorage.getItem('caro.bots') || '{}').unlocked }));
-    await p.click('#btn-new');
+    await p.click('[data-home="bot"]');
     await sleep(200);
     const checked = await p.$eval('#ng-picker .bot-grid input:checked', (e) => e.value);
     ok(checked === 'minh' && st.unlocked === 5, 'mức Khó cũ -> Rung Động, đã mở khoá tới Rung Động');
@@ -79,6 +80,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     p.on('pageerror', (e) => errors.push(e.message));
     await p.goto(`http://localhost:${port}/`);
     await sleep(800);
+    await p.evaluate(() => window.CaroApp.toBoard()); // mở app vào Trang chủ; vào bàn cờ xem ván đã xong
     ok(!(await p.isHidden('#banner')), 'ván đã kết thúc: hiện thẻ kết quả');
     ok(await p.isVisible('#banner-analyze'), 'thẻ kết quả có nút Phân tích');
     await p.click('#banner-analyze');
@@ -130,9 +132,9 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
   // ---------------------------------------------------------------- Giải đố
   for (const width of [430, 1280]) {
     const p = await page(width, () => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
-    await p.click('#btn-puzzle');
+    await p.click('#tabbar [data-tab="puzzles"]');
     await sleep(300);
-    ok(await p.isVisible('#puzzle-dlg'), `[${width}] mở hộp Giải đố`);
+    ok(await p.isVisible('#page-puzzles'), `[${width}] mở tab Câu đố`);
     ok(/1000/.test(await p.textContent('#pz-stats')), 'điểm giải đố ban đầu 1000');
     if (width === 430) await shot(p, 'study-puzzle-dlg-430.png');
     await p.click('.pz-mode[data-pz=rated]');

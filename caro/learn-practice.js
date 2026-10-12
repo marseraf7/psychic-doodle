@@ -2,7 +2,7 @@
  * Nút "Luyện ngay" của phần Học: mỗi mục giải thích có một cách luyện tương ứng.
  *   Luật Việt Nam / tự do / tiêu chuẩn – ván mới với máy theo luật đó
  *   Renju, Nón lá                      – bài thực hành (learn.js)
- *   Swap2                              – mở bảng Online, chọn sẵn khai cuộc Swap2 khi tạo phòng
+ *   Swap2                              – mở Trang chủ, thẻ Phòng chờ, chọn sẵn khai cuộc Swap2 khi tạo phòng
  *   26 thế khai cuộc, Hoa / Phố Nguyệt – ván với máy theo luật Renju, bày sẵn 3 quân của một thế (bạn cầm X)
  *   VCF, VCT                           – giải đố theo chủ đề
  *   4 lối đánh                         – mở bảng chọn đối thủ (Ván mới)
@@ -37,7 +37,8 @@
     std: () => game('std'),
     renju: () => lesson('renju43'),
     swap2: () => {
-      document.getElementById('btn-online').click();
+      window.CaroShell.open('home');
+      if (window.CaroHome) window.CaroHome.pane('lobby');
       const sel = document.getElementById('room-opening');
       if (sel) { sel.value = 'swap2'; sel.dispatchEvent(new Event('change')); }
       toast(T('pr_swap2'));

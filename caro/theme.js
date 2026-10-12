@@ -2,14 +2,15 @@
 (function () {
   'use strict';
   const KEY = 'caro.theme';
-  const COLORS = { light: '#f6f3ec', dark: '#16191e' };
+  const COLORS = { light: '#f6f3ec', dark: '#161512' };
   const media = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
   const listeners = [];
 
   function get() {
     let v;
     try { v = localStorage.getItem(KEY); } catch (e) { /* riêng tư */ }
-    return v === 'light' || v === 'dark' ? v : 'system';
+    // Chưa chọn gì: nền tối (như Lichess); 'system' = theo máy
+    return v === 'light' || v === 'system' ? v : 'dark';
   }
 
   /** Giao diện thực tế đang hiển thị: 'light' | 'dark'. */

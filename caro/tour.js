@@ -376,8 +376,8 @@
 
   function updateBadge() {
     const n = me() && me().admin ? D.adminCount : 0;
-    const el = $('tour-badge');
-    if (el) { el.hidden = !n; el.textContent = n; }
+    // Nút Giải đấu ở Trang chủ (#tour-badge) và hàng Giải đấu ở Xem thêm (.tour-badge)
+    document.querySelectorAll('#tour-badge, .tour-badge').forEach((el) => { el.hidden = !n; el.textContent = n; });
   }
 
   // ------------------------------------------------------------ Lối vào

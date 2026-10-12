@@ -51,14 +51,15 @@ const { setup } = require('./helpers');
     const clip = [];
     const cv = document.createElement('canvas').getContext('2d');
     const vis = (el) => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
-    document.querySelectorAll('dialog[open] select').forEach((sel) => {
+    const scope = 'dialog[open]:not(.proxied), .shell:not([hidden]) .page:not([hidden])';
+    document.querySelectorAll(scope.split(', ').map((x) => x + ' select').join(', ')).forEach((sel) => {
       if (!vis(sel)) return;
       const cs = getComputedStyle(sel);
       cv.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
       const avail = sel.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - 22; // mũi tên
       for (const o of sel.options) if (cv.measureText(o.textContent).width > avail + 1) clip.push(`ô chọn "${o.textContent}"`);
     });
-    document.querySelectorAll('dialog[open] label, dialog[open] button').forEach((el) => {
+    document.querySelectorAll(scope.split(', ').map((x) => x + ' label, ' + x + ' button').join(', ')).forEach((el) => {
       if (!vis(el)) return;
       const r = el.getBoundingClientRect();
       for (const c of el.querySelectorAll('*')) {
@@ -82,21 +83,39 @@ const { setup } = require('./helpers');
       for (const id of ids) {
         await p.evaluate((id) => { const d = document.getElementById(id); if (!d.open) d.showModal(); }, id);
         await sleep(120);
+        const asPage = await p.evaluate((id) => document.getElementById(id).classList.contains('proxied'), id);
         a = await audit(p);
         if (a.raw.length) bad.push(`#${id}: khoá chưa dịch ${a.raw.join(', ')}`);
         if (a.wide.length) bad.push(`#${id}: tràn ngang ${a.wide.join(' ')}`);
         if (a.clip.length) bad.push(`#${id}: chữ bị cắt / tràn ${a.clip.join(', ')}`);
         if (width === 360) await shot(p, `journey-${lang}-${id}-360.png`);
-        await p.keyboard.press('Escape');
+        // Hộp thoại đã thành trang (Trang chủ, Câu đố, Học tập, Cài đặt): không đóng bằng Esc
+        if (!asPage) await p.keyboard.press('Escape');
         await sleep(120);
         if (await p.evaluate((id) => document.getElementById(id).open, id)) {
-          bad.push(`#${id}: Esc không đóng`);
+          if (!asPage) bad.push(`#${id}: Esc không đóng`);
           await p.evaluate((id) => document.getElementById(id).close(), id);
         }
       }
+      // Các tab và trang con của Cài đặt
+      for (const tab of ['home', 'puzzles', 'learn', 'watch', 'more']) {
+        await p.evaluate((t) => window.CaroShell.open(t), tab); await sleep(150);
+        a = await audit(p);
+        if (a.raw.length) bad.push(`tab ${tab}: khoá chưa dịch ${a.raw.join(', ')}`);
+        if (a.wide.length) bad.push(`tab ${tab}: tràn ngang ${a.wide.join(' ')}`);
+        if (a.clip.length) bad.push(`tab ${tab}: chữ bị cắt / tràn ${a.clip.join(', ')}`);
+        if (width === 360) await shot(p, `journey-${lang}-tab-${tab}-360.png`);
+      }
+      await p.evaluate(() => document.getElementById('btn-settings').click()); await sleep(150);
+      for (const sub of await p.$$eval('#settings-form [data-go]', (b) => b.map((x) => x.dataset.go))) {
+        await p.evaluate((g) => window.CaroSettingsUI.show(g), sub); await sleep(120);
+        a = await audit(p);
+        if (a.raw.length || a.wide.length || a.clip.length) bad.push(`cài đặt ${sub}: ${[...a.raw, ...a.wide, ...a.clip].join(', ')}`);
+        if (width === 360 && lang === 'vi') await shot(p, `journey-vi-set-${sub}-360.png`);
+      }
       // Form tạo giải đấu: dựng bằng JS, mỗi thể thức một bộ ô khác nhau
       await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
-      await p.click('#btn-online'); await sleep(300);
+      await p.evaluate(() => window.CaroShell.open('home')); await sleep(300);
       await p.click('#open-tours'); await sleep(300);
       await p.click('[data-act="tourNew"]'); await sleep(300);
       for (const pr of await p.$$eval('#tf select[name=preset] option', (o) => o.map((x) => x.value))) {
@@ -119,9 +138,7 @@ const { setup } = require('./helpers');
     await p.goto(`http://localhost:${PORT}/`);
     await sleep(500);
     await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
-    await p.click('#btn-settings');
-    await sleep(200);
-    await p.click('#settings-form [data-open="learn"]');
+    await p.click('#tabbar [data-tab="learn"]');
     await sleep(300);
     ok((await p.$$('#rules-list li')).length === 5 && (await p.$$('#open-list li')).length === 3 && (await p.$$('#tactic-list li')).length === 2
       && (await p.$$('#style-cards .style-card')).length === 4,
@@ -170,7 +187,7 @@ const { setup } = require('./helpers');
     await sleep(500);
     await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
     if (register) {
-      await p.tap('#btn-online'); await sleep(500);
+      await p.tap('#tabbar [data-tab="more"]'); await sleep(500);
       await p.tap('#go-register'); await sleep(150);
       await p.fill('#auth-form input[name=username]', name);
       await p.fill('#auth-form input[name=password]', 'caro-pass1');
@@ -192,7 +209,8 @@ const { setup } = require('./helpers');
 
   {
     const p = await phone('local', 'vi', false);
-    await p.tap('#btn-new'); await sleep(250);
+    ok(await p.isVisible('#page-home') && !(await p.isVisible('#btn-new')), 'mở app: vào Trang chủ (bàn cờ ẩn)');
+    await p.tap('[data-home="bot"]'); await sleep(250);
     await p.tap('#newgame-form input[name=mode][value=pvp]');
     await p.tap('#newgame-form input[name=timeLimit][value="0"]');
     await p.tap('#newgame-form button[value=start]'); await sleep(300);
@@ -224,7 +242,9 @@ const { setup } = require('./helpers');
     ok(await nMoves(p) === 2, 'đi lại: lùi cả nước của mình lẫn nước máy');
     // Tải lại trang: ván vẫn còn
     await p.reload(); await sleep(600);
-    ok(await nMoves(p) === 2, 'tải lại trang: ván đang chơi được giữ');
+    ok(await nMoves(p) === 2 && await p.isVisible('#home-resume [data-resume]'), 'tải lại trang: ván đang chơi được giữ, Trang chủ có thẻ "Tiếp tục ván"');
+    await p.tap('#home-resume [data-resume]'); await sleep(300);
+    ok(await p.isVisible('#btn-undo') && !(await p.isVisible('#shell')), 'bấm "Tiếp tục ván": về bàn cờ');
     // Tới lượt mình: thanh trên có viền màu nhấn; trình đọc màn hình đọc dòng lượt đi (không đọc mỗi lần đổi chữ)
     ok(await p.evaluate(() => document.querySelector('.bar.top').classList.contains('my-turn')), 'tới lượt mình: thanh trên được tô nổi bật');
     ok(await p.evaluate(() => document.getElementById('turn').getAttribute('aria-live') === null && document.getElementById('sr-live').getAttribute('aria-live') === 'polite'), 'dòng lượt đi không tự đọc, có vùng đọc riêng');
@@ -245,14 +265,16 @@ const { setup } = require('./helpers');
     // Đổi giao diện, ngôn ngữ trong cài đặt
     await closeAll(p);
     await p.tap('#btn-settings'); await sleep(250);
-    const langSel = await p.$('#settings-form select[name=lang], #lang');
-    if (langSel) {
-      await langSel.selectOption('en'); await sleep(250);
-      ok(/Settings/.test(await p.textContent('#settings')), 'đổi ngôn ngữ sang tiếng Anh ngay lập tức');
-      const a = await audit(p);
-      ok(!a.raw.length, 'sau khi đổi ngôn ngữ không còn khoá chưa dịch ' + a.raw.join(','));
-      await langSel.selectOption('vi'); await sleep(200);
-    } else ok(false, 'không tìm thấy ô chọn ngôn ngữ');
+    ok(await p.isVisible('#page-settings'), 'nút Cài đặt trên bàn cờ: mở trang Cài đặt');
+    await p.tap('#settings-form [data-go="lang"]'); await sleep(200);
+    await p.tap('#lang-list label:has(input[value="en"])'); await sleep(250);
+    ok(/Language/.test(await p.textContent('#page-settings .pg-title')) && /Home/.test(await p.textContent('#tabbar')), 'đổi ngôn ngữ sang tiếng Anh ngay lập tức');
+    const a = await audit(p);
+    ok(!a.raw.length, 'sau khi đổi ngôn ngữ không còn khoá chưa dịch ' + a.raw.join(','));
+    await p.tap('#page-settings [data-pg-back]'); await sleep(200);
+    ok(/Settings/.test(await p.textContent('#page-settings .pg-title')) && /English/.test(await p.textContent('#settings-form [data-val="lang"]')), 'nút ‹: về trang gốc Cài đặt, hàng Ngôn ngữ ghi English');
+    await p.tap('#settings-form [data-go="lang"]'); await sleep(200);
+    await p.tap('#lang-list label:has(input[value="vi"])'); await sleep(200);
     await p.context().close();
   }
 
@@ -260,6 +282,7 @@ const { setup } = require('./helpers');
   {
     const a = await phone('jrphonea');
     const b = await phone('jrphoneb');
+    for (const p of [a, b]) { await p.tap('#tabbar [data-tab="home"]'); await p.tap('.home-tabs [data-hpane="quick"]'); }
     for (const p of [a, b]) await p.tap('#qm-grid .qm-tile[data-time="0"]:not([data-clock])');
     let r;
     for (let k = 0; k < 50; k++) { r = await a.evaluate(() => window.CaroOnline.state.room); if (r && r.seats && r.seats.o) break; await sleep(100); }
@@ -270,7 +293,7 @@ const { setup } = require('./helpers');
     await shot(x, 'journey-online-start-360.png');
     // Xem ván (người thứ ba, chưa đăng nhập)
     const w = await phone('watcher', 'vi', false);
-    await w.tap('#btn-online'); await sleep(800);
+    await w.tap('#tabbar [data-tab="watch"]'); await sleep(800);
     const watchBtn = await w.$('#tv-list [data-watch]');
     ok(!!watchBtn, 'TV: thấy ván đang diễn ra');
     if (watchBtn) { await watchBtn.tap(); await sleep(600); }
@@ -318,9 +341,10 @@ const { setup } = require('./helpers');
     await x2.tap('#banner-leave'); await sleep(500);
     ok(!(await x2.evaluate(() => !!window.CaroApp.online)), 'rời phòng: về bàn cờ trên máy');
     // Lịch sử ván + xem lại
-    await x2.tap('#btn-online'); await sleep(400);
+    await x2.tap('#btn-home'); await sleep(300);
+    await x2.tap('#tabbar [data-tab="more"]'); await sleep(400);
     const hist = await x2.$('[data-social="history"]:visible');
-    ok(!!hist, 'bảng Online có nút Lịch sử');
+    ok(!!hist, 'Xem thêm có hàng Lịch sử');
     if (hist) {
       await hist.tap(); await sleep(600);
       ok((await x2.$$('#history-list li')).length === 2, 'lịch sử: có 2 ván vừa chơi – ' + (await x2.textContent('#history-list')).replace(/\s+/g, ' '));

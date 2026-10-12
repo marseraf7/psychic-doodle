@@ -62,6 +62,9 @@
     return Bots.TIERS[next].elo;
   }
   const toast = (msg, ms) => window.CaroOnline && window.CaroOnline.toast(msg, ms);
+  /** Báo khung trang (shell.js): người chơi vào bàn cờ → ẩn các trang. */
+  const toBoard = () => window.dispatchEvent(new Event('caro:board'));
+  const shellOn = () => document.body.classList.contains('shell-on');
 
   function load() {
     try {
@@ -244,7 +247,7 @@
   // Offline: đếm trên máy, tạm dừng khi mở hộp thoại hoặc chuyển sang app khác.
   // Online: máy chủ quyết định hết giờ, ở đây chỉ hiển thị thời gian còn lại.
   let clockLast = performance.now();
-  const clockPaused = () => document.hidden || !!document.querySelector('dialog[open]');
+  const clockPaused = () => document.hidden || shellOn() || !!document.querySelector('dialog[open]');
 
   function resetClock() {
     if (state.online || state.replay || state.ext) return;
@@ -412,6 +415,7 @@
     if (was && !!was.watch !== !!watch) { state.online = null; hideBanner(); } // đổi giữa xem và chơi: coi như phòng mới
     document.body.classList.toggle('watching', !!watch);
     applyRoom(room, me, watch);
+    if (!was || !!was.watch !== !!watch) toBoard();
   }
 
   function leaveOnline() {
@@ -560,6 +564,7 @@
     if (!state.replay) save();
     stopReplay();
     state.replay = { data, idx: 0, timer: 0 };
+    toBoard();
     state.thinking = false;
     state.pending = null;
     state.clock = null;
@@ -1138,7 +1143,7 @@
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (document.querySelector('dialog[open]') || /INPUT|TEXTAREA/.test(document.activeElement?.tagName)) return;
+    if (shellOn() || document.querySelector('dialog[open]') || /INPUT|TEXTAREA/.test(document.activeElement?.tagName)) return;
     const step = 3;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1192,6 +1197,7 @@
     if (botAllowed(ngForm.bot.value)) state.bot = ngForm.bot.value;
     state.timeLimit = Number(ngForm.timeLimit.value) || 0;
     newGame();
+    toBoard();
   });
   // Bảng chọn nhân vật (lối đánh, ảnh, mô tả) nằm ở bot-picker.js, dùng chung cho Ván mới và Cài đặt
   const renderBotPicker = () => window.CaroBotPicker.render($('ng-picker'), state.bot);
@@ -1203,15 +1209,16 @@
 
   const dlg = $('settings');
   const form = $('settings-form');
-  form.elements.lang.innerHTML = window.I18N.LANGS.map(([code, label]) => `<option value="${code}">${label}</option>`).join('');
+  // Ngôn ngữ: mỗi thứ tiếng một hàng chọn (trang con "Ngôn ngữ" của Cài đặt)
+  $('lang-list').innerHTML = window.I18N.LANGS.map(([code, label]) => `<label class="li"><span class="li-t">${label}</span><input type="radio" name="lang" value="${code}"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>`).join('');
   function fillForm() {
     form.mode.value = state.mode;
     form.human.value = String(state.human);
     form.rule.value = state.rule;
     window.CaroBotPicker.render($('set-picker'), state.bot);
     form.timeLimit.value = String(state.timeLimit);
-    form.allowUndo.value = state.allowUndo ? 'yes' : 'no';
-    form.sound.value = window.CaroSound.enabled ? 'on' : 'off';
+    form.allowUndo.checked = state.allowUndo;
+    form.sound.checked = window.CaroSound.enabled;
     form.soundStyle.value = window.CaroSound.style;
     form.board.value = window.CaroStyle.board;
     form.pieces.value = window.CaroStyle.pieces;
@@ -1231,8 +1238,8 @@
     state.human = Number(form.human.value);
     if (botAllowed(form.bot.value)) state.bot = form.bot.value;
     state.timeLimit = Number(form.timeLimit.value) || 0;
-    state.allowUndo = form.allowUndo.value !== 'no';
-    window.CaroSound.enabled = form.sound.value !== 'off';
+    state.allowUndo = form.allowUndo.checked;
+    window.CaroSound.enabled = form.sound.checked;
     if (window.CaroSound.style !== form.soundStyle.value) { window.CaroSound.style = form.soundStyle.value; window.CaroSound.play('placeX'); }
     if (window.CaroStyle.board !== form.board.value || window.CaroStyle.pieces !== form.pieces.value) window.CaroStyle.set({ board: form.board.value, pieces: form.pieces.value });
     state.confirm = form.confirm.checked;
@@ -1262,6 +1269,7 @@
     if (!state.replay && !state.ext) save();
     if (state.replay) stopReplay();
     state.ext = ctrl;
+    toBoard();
     state.thinking = false;
     state.pending = null;
     state.clock = null;
@@ -1353,16 +1361,18 @@
     screenOf: (x, y) => [(x - cam.x) * cam.size + W / 2, (y - cam.y) * cam.size + H / 2],
     /** Chọn nhân vật máy (nếu đã mở khoá); unlockTo: mở khoá tới nhân vật thứ n (người chơi tự nhận là đã giỏi). */
     /**
-     * Ván mới với máy, bày sẵn vài nước đầu (luyện khai cuộc – learn-practice.js).
-     * opts: { rule, moves: [[x, y], …] (X đi trước), human: X | O }.
+     * Ván mới, bày sẵn vài nước đầu (luyện khai cuộc – learn-practice.js; ô chơi nhanh ở Trang chủ – home.js).
+     * opts: { rule, moves: [[x, y], …] (X đi trước), human: X | O, mode: 'ai' (mặc định) | 'pvp', bot }.
      */
     startPreset(opts) {
       if (state.online) return false;
       if (state.replay) closeReplay(true);
       if (state.ext) exitExt(true);
-      state.mode = 'ai';
+      state.mode = opts.mode === 'pvp' ? 'pvp' : 'ai';
       state.rule = ruleOf(opts.rule);
       if (opts.human) state.human = opts.human;
+      if (opts.bot && botAllowed(opts.bot)) state.bot = opts.bot;
+      toBoard();
       newGame();
       for (const [x, y] of opts.moves || []) if (!state.winner) placeRaw(x, y);
       state.lastPlacedAt = performance.now();
@@ -1372,6 +1382,12 @@
       maybeAI();
       return true;
     },
+    /** Mở bảng "Ván mới" (chọn chế độ, đối thủ, luật, thời gian). */
+    openNewGame,
+    /** Ván cục bộ hiện tại (Trang chủ hiện thẻ "Tiếp tục ván"): { mode, bot, rule, moves, winner }. */
+    get local() { return { mode: state.mode, bot: state.bot, rule: state.rule, moves: state.board.moves.length, winner: state.winner }; },
+    /** Về bàn cờ (đóng các trang). */
+    toBoard,
     /** Số mức nhân vật máy đã mở khoá (bot-picker.js). */
     unlockedTiers: () => unlockedCount(),
     setBot(id, unlockTo) {

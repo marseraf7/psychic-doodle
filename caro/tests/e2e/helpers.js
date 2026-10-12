@@ -3,6 +3,7 @@
  * tự bật máy chủ trên thư mục dữ liệu tạm, mở trình duyệt, tạo người chơi đã đăng ký tài khoản.
  *   node caro/tests/e2e/tour-basic.e2e.js     (CLB, Arena, loại trực tiếp)
  *   node caro/tests/e2e/tour-stages.e2e.js    (vòng bảng → playoff, xếp bảng, Thụy Sĩ → nhánh thắng – thua)
+ * Mở trang: vào Trang chủ (khung 5 tab – shell.js); bàn cờ hiện khi vào ván. tab(p, id) chuyển tab.
  * Ảnh chụp màn hình lưu ở E2E_OUT (mặc định: thư mục tạm, in ra khi chạy xong).
  */
 'use strict';
@@ -45,7 +46,7 @@ async function setup(port, timers = {}) {
     p.on('websocket', (ws) => ws.on('framereceived', (f) => { if (typeof f.payload === 'string' && f.payload.startsWith('{"t":"tourPatch"')) p.patches++; }));
     await p.goto(`http://localhost:${port}/`);
     await sleep(400);
-    await p.click('#btn-online');
+    await p.click('#tabbar [data-tab="more"]'); // thẻ tài khoản nằm ở tab Xem thêm
     await sleep(500);
     await p.click('#go-register');
     await sleep(150);

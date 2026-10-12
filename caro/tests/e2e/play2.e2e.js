@@ -20,7 +20,9 @@ const { setup } = require('./helpers');
   // ---------------------------------------------------------------- Đồng hồ tổng + Swap2 + xem trực tiếp
   const a = await user('vi', 'dong_a');
   const b = await user('vi', 'dong_b');
-  // Chủ phòng: phòng công khai, đồng hồ 3+2, luật Swap2 (chọn trong bảng Online)
+  // Chủ phòng: phòng công khai, đồng hồ 3+2, luật Swap2 (Trang chủ → thẻ Phòng chờ)
+  await a.click('#tabbar [data-tab="home"]');
+  await a.click('.home-tabs [data-hpane="lobby"]');
   await a.selectOption('#room-tc', 'c3+2');
   await a.selectOption('#room-opening', 'swap2');
   await a.check('#room-public');
@@ -42,7 +44,7 @@ const { setup } = require('./helpers');
     watchErrors(p, 'xem');
     await p.goto(`http://localhost:${PORT}/`);
     await sleep(400);
-    await p.click('#btn-online');
+    await p.click('#tabbar [data-tab="watch"]');
     await sleep(800);
     return p;
   });
@@ -124,7 +126,7 @@ const { setup } = require('./helpers');
   await shot(p, 'play2-welcome-430.png');
   await p.click('#welcome-card [data-level="new"]');
   await sleep(400);
-  ok(await p.isVisible('#learn-dlg'), 'chọn "Mới học": mở Học chơi');
+  ok(await p.isVisible('#page-learn'), 'chọn "Mới học": mở tab Học tập');
   ok((await p.$$('#learn-list li')).length === 9, '9 bài học');
   await shot(p, 'play2-learn-430.png');
   await p.click('#learn-list [data-lesson="0"]');
@@ -193,14 +195,14 @@ const { setup } = require('./helpers');
   await shot(p, 'play2-opening-practice-430.png');
   await p.evaluate(() => window.CaroLearn.open());
   await sleep(200);
-  ok((await p.$$('#style-cards .style-card')).length === 4 && (await p.$$('#learn-dlg [data-practice]')).length >= 10, 'Học chơi: 4 thẻ lối đánh, nút Luyện ở các mục');
+  ok((await p.$$('#style-cards .style-card')).length === 4 && (await p.$$('#page-learn [data-practice]')).length >= 10, 'Học chơi: 4 thẻ lối đánh, nút Luyện ở các mục');
   await p.click('#style-cards [data-style-step="3"]');
   await sleep(300);
   ok((await p.$$('#rule-bots .rb-bot')).length === 6 && /Nước đôi/.test(await p.textContent('#rule-bots')), 'lối Nước đôi: phim + 6 nhân vật của lối đó');
   await shot(p, 'play2-style-dbl-430.png');
   await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
   // Thành tích: chuỗi 1 ngày, huy hiệu "Tốt nghiệp"
-  await p.click('#btn-settings');
+  await p.evaluate(() => document.getElementById('btn-settings').click());
   await sleep(200);
   await p.click('#settings-form [data-open="habits"]');
   await sleep(300);
@@ -209,16 +211,20 @@ const { setup } = require('./helpers');
   await shot(p, 'play2-habits-430.png');
   await p.keyboard.press('Escape');
   // Bàn cờ gỗ + quân đá
-  await p.click('#btn-settings');
+  await p.evaluate(() => document.getElementById('btn-settings').click());
   await sleep(200);
-  await p.selectOption('#settings-form select[name=board]', 'wood');
-  await p.selectOption('#settings-form select[name=pieces]', 'stones');
-  await p.keyboard.press('Escape');
+  await p.click('#settings-form [data-go="look"]');
+  await p.click('#settings-form label:has(input[name=board][value=wood])');
+  await p.click('#settings-form label:has(input[name=pieces][value=stones])');
+  await sleep(200);
+  await shot(p, 'play2-settings-look-430.png');
   ok(await p.evaluate(() => document.documentElement.dataset.board === 'wood' && JSON.parse(localStorage.getItem('caro.style')).pieces === 'stones'), 'đổi bàn gỗ + quân đá, lưu lại');
   // Một ván 2 người đã xong (X thắng) rồi chia sẻ ảnh / GIF
   await p.evaluate(() => sessionStorage.setItem('inject', JSON.stringify({ mode: 'pvp', human: 1, bot: 'ti', moves: [[0, 0], [0, 4], [1, 0], [1, 4], [2, 0], [5, 6], [3, 0]] })));
   await p.reload();
   await sleep(700);
+  await p.evaluate(() => window.CaroApp.toBoard()); // ván đã xong: Trang chủ không có thẻ "Tiếp tục"; vào bàn cờ xem
+  await sleep(400);
   await shot(p, 'play2-wood-stones-430.png');
   await p.click('#banner-analyze');
   await sleep(400);

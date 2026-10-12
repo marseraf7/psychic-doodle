@@ -90,38 +90,38 @@
 /* Tối: theo hệ thống (khi không chọn Sáng) hoặc chọn Tối trong Cài đặt */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #16191e;
-    --grid: #262b33;
-    --grid-strong: #353c47;
-    --panel: #1f232a;
+    --bg: #161512;
+    --grid: #2b2925;
+    --grid-strong: #3c3934;
+    --panel: #262421;
     --panel-border: rgba(255, 255, 255, 0.08);
-    --text: #e9ebee;
-    --muted: #9aa3ae;
+    --text: #e6e4e1;
+    --muted: #9b9893;
     --x: #ff5d52;
     --o: #57a0ff;
     --last: rgba(255, 196, 0, 0.18);
     --win: rgba(60, 220, 120, 0.9);
     --accent: #57a0ff;
     --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-    --seg-on: #3a414c;
+    --seg-on: #403d39;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #16191e;
-  --grid: #262b33;
-  --grid-strong: #353c47;
-  --panel: #1f232a;
+  --bg: #161512;
+  --grid: #2b2925;
+  --grid-strong: #3c3934;
+  --panel: #262421;
   --panel-border: rgba(255, 255, 255, 0.08);
-  --text: #e9ebee;
-  --muted: #9aa3ae;
+  --text: #e6e4e1;
+  --muted: #9b9893;
   --x: #ff5d52;
   --o: #57a0ff;
   --last: rgba(255, 196, 0, 0.18);
   --win: rgba(60, 220, 120, 0.9);
   --accent: #57a0ff;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
-  --seg-on: #3a414c;
+  --seg-on: #403d39;
   color-scheme: dark;
 }
 
