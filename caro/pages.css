@@ -1,0 +1,46 @@
+/*
+ * Các tab nội dung kiểu Lichess (đợt 3): Câu đố, Học tập, Xem.
+ * Danh sách thành khối bo góc, các hàng ngăn bằng đường kẻ mảnh, tiêu đề khối chữ nhạt (giống Cài đặt – shell.css).
+ * Chỉ áp dụng trong trang (.pg-body); hộp thoại cũ không đổi.
+ */
+
+/* ============================ Câu đố ============================ */
+.pz-today {
+  display: grid; grid-template-columns: minmax(120px, 40%) 1fr; gap: 14px; align-items: center;
+  padding: 12px; border-radius: 12px; background: var(--panel);
+}
+.pz-today[hidden] { display: none; }
+.pzt-board svg { width: 100%; display: block; border-radius: 8px; background: var(--board); }
+.pzt-board .rgrid line { stroke: var(--board-grid); stroke-width: 1; }
+.pzt-board .rx line { stroke: var(--x); stroke-width: 3; stroke-linecap: round; }
+.pzt-board .ro { fill: none; stroke: var(--o); stroke-width: 3; }
+.pzt-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.pzt-info h3 { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-semibold); }
+.pzt-info p { margin: 0; font-size: var(--fs-sm); }
+.pzt-info small { color: var(--muted); font-size: var(--fs-xs); }
+.pzt-info .primary { align-self: flex-start; margin-top: 4px; }
+.pg-body .pz-stats { margin: 0; }
+.pg-body .pz-modes { gap: 0; background: var(--panel); border-radius: 12px; overflow: hidden; }
+.pg-body .pz-mode { position: relative; border-radius: 0; background: none; padding: 12px 40px 12px 16px; }
+.pg-body .pz-mode + .pz-mode::before { content: ""; position: absolute; left: 54px; right: 0; top: 0; border-top: 1px solid var(--line); }
+.pg-body .pz-mode::after { content: "›"; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: var(--fs-lg); }
+.pg-body .pz-mode .ico { width: 24px; height: 24px; }
+.pg-body .pz-mode small { font-size: var(--fs-xs); }
+.pg-body .pz-mode[data-pz="daily"] { display: none; } /* đã có thẻ Câu đố hôm nay ở trên */
+
+/* ============================ Học tập ============================ */
+#page-learn .pg-body > h3 { margin: 10px 4px -4px; font-size: var(--fs-sm); font-weight: var(--fw-regular); color: var(--muted); }
+#page-learn .learn-list { background: var(--panel); border-radius: 12px; overflow: hidden; gap: 0; }
+#page-learn .learn-list li { position: relative; padding: 10px 12px; gap: 12px; }
+#page-learn .learn-list li + li::before { content: ""; position: absolute; left: 54px; right: 0; top: 0; border-top: 1px solid var(--line); }
+#page-learn .style-card { background: var(--panel); }
+#page-learn .styles-more { justify-content: center; }
+#page-learn #learn-progress { margin: -4px 4px 0; }
+
+/* ============================ Xem ============================ */
+#page-watch #tv-card { padding: 0; overflow: hidden; }
+#page-watch #tv-card > h3 { padding: 12px 16px 4px; justify-content: space-between; }
+#page-watch #tv-list { gap: 0; }
+#page-watch #tv-list li { position: relative; padding: 12px 16px; gap: 12px; }
+#page-watch #tv-list li + li::before { content: ""; position: absolute; left: 16px; right: 0; top: 0; border-top: 1px solid var(--line); }
+#page-watch #tv-list li.empty { padding: 16px; }

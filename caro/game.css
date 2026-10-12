@@ -1,0 +1,76 @@
+/*
+ * Màn chơi kiểu Lichess (đợt 3): thẻ người chơi trên / dưới bàn cờ (player-strips.js) và thanh công cụ phẳng sát đáy.
+ * Bàn cờ vẫn là canvas toàn màn hình (app.js); các thanh nằm nổi phía trên.
+ */
+:root { --strip-h: 48px; }
+
+/* ============================ Thẻ người chơi ============================ */
+.pstrip {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 5;
+  width: min(460px, calc(100% - 16px)); height: var(--strip-h);
+  display: flex; align-items: center; gap: 10px; padding: 0 6px 0 8px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid var(--panel-border); border-radius: 12px; box-shadow: var(--shadow);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.pstrip[hidden] { display: none; }
+.pl-top { top: calc(64px + env(safe-area-inset-top)); }
+.pl-bot { bottom: calc(76px + env(safe-area-inset-bottom)); }
+.pstrip.turn { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+.pstrip .bot-av, .pl-av { flex: none; }
+.pl-av {
+  width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-weight: var(--fw-bold); color: #fff; background: var(--o);
+}
+.pl-av.x { background: var(--x); }
+.pl-t { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
+.pl-name { font-size: var(--fs-sm); font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-t small { font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-t small:empty { display: none; }
+.pl-off { color: #e5392f; }
+.pl-side b { font-size: var(--fs-lg); font-weight: var(--fw-bold); }
+.pl-ck { display: flex; }
+.pstrip .ck { font-size: var(--fs-md); padding: 4px 10px; min-width: 4.2em; border-radius: 8px; box-shadow: none; }
+/* Không có đồng hồ tổng: ẩn ô đồng hồ trong thẻ; có thẻ thì thanh trên không hiện đồng hồ nữa (và vẫn hiện tỉ số) */
+body:has(#clocks[hidden]) .pl-ck { display: none; }
+body:has(#pl-bot:not([hidden])) .bar.top .clocks { display: none; }
+body:has(#pl-bot:not([hidden])) .bar.top .score { display: block; }
+body:has(#pl-bot:not([hidden])) .bar.top { flex-wrap: nowrap; }
+/* Lúc ở trang, xem lại có bảng phân tích, đang giải đố: ẩn thẻ */
+body.shell-on .pstrip, body.analysis .pstrip, body.ext .pstrip { display: none; }
+/* Nút nổi "Về giữa" và lời mời nhường chỗ cho thẻ dưới */
+body:has(#pl-bot:not([hidden])) .fab-center { bottom: calc(76px + var(--strip-h) + 10px + env(safe-area-inset-bottom)); }
+body:has(#pl-bot:not([hidden])) .invites { bottom: calc(76px + var(--strip-h) + 8px + env(safe-area-inset-bottom)); }
+/* Thanh dưới đã có nút Về giữa khi chơi trên máy */
+body:not(.online):not(.replay):not(.ext) .fab-center { display: none; }
+
+/* ============================ Thanh trên: nút ‹ ============================ */
+.bar.top .to-home .ico { width: 22px; height: 22px; }
+
+/* ============================ Điện thoại: thanh công cụ phẳng sát đáy (như app Lichess) ============================ */
+@media (max-width: 899px) {
+  .bar.bottom {
+    left: 0; right: 0; transform: none; max-width: none; width: 100%;
+    bottom: 0; border-radius: 0; border: 0; border-top: 1px solid var(--panel-border);
+    box-shadow: none; padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    justify-content: space-around; gap: 0;
+    background: var(--bg);
+  }
+  .bar.bottom button { flex: 1 1 0; min-width: 0; padding: 6px 2px; }
+  .bar.bottom button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .pl-bot { bottom: calc(70px + env(safe-area-inset-bottom)); }
+  body:has(#pl-bot:not([hidden])) .fab-center { bottom: calc(70px + var(--strip-h) + 10px + env(safe-area-inset-bottom)); }
+  body:has(#pl-bot:not([hidden])) .invites, body:has(#pl-bot:not([hidden])) .banner { bottom: calc(70px + var(--strip-h) + 8px + env(safe-area-inset-bottom)); }
+}
+
+/* ============================ Máy tính: thẻ người chơi ở cột phải, như Lichess ============================ */
+@media (min-width: 1100px) {
+  .pstrip { left: auto; right: 24px; transform: none; width: 320px; }
+  .pl-top { top: calc(50% - var(--strip-h) - 70px); }
+  .pl-bot { bottom: auto; top: calc(50% + 70px); }
+  body.replay .pstrip { display: none; }
+}
+
+/* Thông báo nhường chỗ cho thẻ người chơi trên */
+body:has(#pl-top:not([hidden])):not(.shell-on) .toasts { top: calc(64px + var(--strip-h) + 8px + env(safe-area-inset-top)); }

@@ -163,6 +163,11 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   thanh trượt số giây mỗi nước (5…120) hoặc "phút + giây cộng" (1…180 phút, 0…180 giây) + ô chọn nhanh. Dùng cho Ván mới,
   Cài đặt, Tạo phòng, Thách đấu. Chơi trên máy cũng có đồng hồ tổng (`local-clock.js`): chạy từ sau nước đầu, tạm dừng khi
   mở trang / hộp thoại, giữ thời gian còn lại khi tải lại trang. Lưới ghép trận ở Trang chủ có 9 ô đồng hồ + giây mỗi nước + Tuỳ chỉnh.
+- **Màn chơi** (`player-strips.js`, `game.css`): thẻ người chơi trên (đối thủ) / dưới (mình) với ảnh, tên, Elo, quân X / O và đồng hồ;
+  thẻ của bên tới lượt sáng lên. Điện thoại: thanh công cụ phẳng sát đáy (Ván mới · Đi lại · Phân tích · Về giữa · Cài đặt);
+  máy tính rộng: thẻ người chơi ở cột phải như Lichess.
+- **Tab Câu đố** (`puzzle-home.js`, `pages.css`): thẻ "Câu đố hôm nay" có bàn cờ thu nhỏ + nút Giải ngay, các chế độ dạng danh sách.
+  Tab Học tập, Xem cũng chuyển sang khối danh sách; tab Xem có thêm lối tắt Giải đấu / Xếp hạng / Lịch sử.
 - Các hộp thoại cũ (Online, Giải đố, Học chơi, Cài đặt) được `CaroShell.proxy()` chuyển thành trang: mã cũ vẫn gọi
   `showModal()` / `close()` như trước.
 - **Phông Noto Sans** (giống Lichess), lưu trong `fonts/`, không tải từ dịch vụ ngoài; đủ dấu tiếng Việt và chữ Nga,
@@ -233,5 +238,6 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |
 | `timectl.js`, `tc-picker.js`, `local-clock.js`, `setup.css` | Mức thời gian cho phép (dùng chung máy chủ); bộ chọn thời gian; đồng hồ tổng khi chơi trên máy; giao diện Thiết lập ván đấu |
+| `player-strips.js`, `game.css`, `puzzle-home.js`, `pages.css` | Thẻ người chơi + thanh công cụ màn chơi; thẻ Câu đố hôm nay; kiểu danh sách của tab Câu đố / Học tập / Xem |
 | `index.html`, `style.css` | Giao diện |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |

@@ -607,5 +607,5 @@
   document.querySelectorAll('.pz-mode').forEach((b) => { b.onclick = () => startMode(b.dataset.pz); });
   window.addEventListener('langchange', () => { if (an.result) renderPanel(); if (Trainer.active) Trainer.refresh(); });
 
-  window.CaroStudy = { analyze, openPuzzles, startMode, Trainer, loadPuzzles, pickNear, get puzzles() { return puzzles; } };
+  window.CaroStudy = { analyze, openPuzzles, startMode, Trainer, loadPuzzles, pickNear, dailyPuzzle, get puzzles() { return puzzles; } };
 })();
