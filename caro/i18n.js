@@ -4210,7 +4210,7 @@
     window.dispatchEvent(new Event('langchange'));
   }
 
-  /** Bổ sung / ghi đè chuỗi cho một ngôn ngữ (i18n-extra.js). */
+  /** Bổ sung / ghi đè chuỗi cho một ngôn ngữ (i18n-rules.js, i18n-bots.js). */
   function extend(l, obj) { if (DICT[l]) Object.assign(DICT[l], obj); }
   /** ' · Renju' – nhãn luật thắng khác luật Việt Nam (để nối vào dòng thông tin ván). */
   const ruleTag = (rule) => (rule && rule !== 'vn' ? ' · ' + t('grule_s_' + rule) : '');

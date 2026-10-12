@@ -56,12 +56,12 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
   | Mức | Tấn công | Phòng thủ – phản công | Nước đôi | Gài bẫy (dương đông kích tây) |
   |---|---|---|---|---|
-  | ~600 | Bé Tít | Chị Bảy | Cô Mơ | Thằng Bờm |
-  | ~900 | Anh Độ | Chú Năm | Cô Lan | Trạng Cuội |
-  | ~1200 | Hùng Hổ | Ông Tường | Song Kiếm | Ba Sáu |
-  | ~1500 | Lốc Xoáy | Đá Tảng | Người Tày | Cáo Già |
-  | ~1800 | Rung Động | Thành Đồng | Gọng Kìm | Ninja |
-  | ~2350 | GOAT | Pháo Đài | Song Long | Ảo Thuật Gia |
+  | ~600 | BéXuânMaiLonTon | Chị Bảy | Cocobay | Sa Tị |
+  | ~900 | Anh Độ | Khô Gà | Bã Mía | Phượng Lên Đồ |
+  | ~1200 | Mân Đàn | Phấn Đào | Vardrid | Ba Sáu |
+  | ~1500 | Khá Bảnh | Trà Từ Tay | Người Tày | Tú Sena |
+  | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu |
+  | ~2350 | GOAT | UEFAlona | Penaldo | Hai Ngón |
 
   Sức cờ tạo bằng cách pha AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép; mức ~2350 dùng `engine.js`)
   với lỗi có chủ đích (đánh "cho vui", quên chặn, không thấy nước thắng). Lối đánh đổi cách chấm điểm nước đi:
@@ -185,7 +185,7 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |
 | `puzzles.json` | 363 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải, chủ đề VCF / VCT, luật nếu khác luật Việt Nam) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
-| `i18n.js`, `i18n-extra.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-extra.js`: luật, 24 nhân vật, phần Học); giao diện Sáng/Tối/Hệ thống |
+| `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật); giao diện Sáng/Tối/Hệ thống |
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |

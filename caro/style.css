@@ -921,7 +921,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .primary.sm { padding: 7px 12px; font-size: var(--fs-sm); border-radius: 10px; white-space: nowrap; display: inline-flex; align-items: center; }
 
 /* ============================ Chọn nhân vật máy */
-.bot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } /* cột luôn đều nhau, kể cả tên rất dài */
 .bot-card {
   position: relative; display: flex !important; flex-direction: column; align-items: center; gap: 2px; margin: 0 !important;
   padding: 8px 4px 6px; border: 1px solid var(--panel-border); border-radius: 12px; cursor: pointer; text-align: center;
@@ -930,7 +930,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .bot-card input { position: absolute; opacity: 0; pointer-events: none; }
 .bot-card:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .bot-card:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-.bot-card b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.bot-card b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); max-width: 100%; overflow-wrap: anywhere; text-align: center; line-height: 1.25; }
 .bot-card small { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 .bot-card.locked { opacity: 0.45; cursor: not-allowed; }
 .bot-card.locked .bot-av { filter: grayscale(1); }

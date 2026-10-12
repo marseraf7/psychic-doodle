@@ -35,7 +35,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok((await p.$$('#ng-styles label')).length === 4, '4 lối đánh: Tấn công / Phòng thủ / Nước đôi / Gài bẫy');
     await p.click('#ng-styles label:nth-child(4)'); // Gài bẫy
     await sleep(100);
-    ok((await p.$$eval('#ng-bots .bot-card b', (els) => els.map((e) => e.textContent))).join(',') === 'Thằng Bờm,Trạng Cuội,Ba Sáu,Cáo Già,Ninja,Ảo Thuật Gia', 'lối Gài bẫy: 6 nhân vật theo mức');
+    ok((await p.$$eval('#ng-bots .bot-card b', (els) => els.map((e) => e.textContent))).join(',') === 'Sa Tị,Phượng Lên Đồ,Ba Sáu,Tú Sena,Đi Bộ Vuốt Râu,Hai Ngón', 'lối Gài bẫy: 6 nhân vật theo mức');
     await p.click('#ng-bots .bot-card:nth-child(3)');
     await sleep(100);
     ok(/Ba Sáu/.test(await p.textContent('#ng-bot-say')), 'chọn Ba Sáu: hiện mô tả');
