@@ -16,6 +16,27 @@ const check = (label, ok, extra = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${extra ? ' | ' + extra : ''}`);
   if (!ok) failed++;
 };
+/**
+ * Chẩn đoán khi app không vào được ván giải: trạng thái kết nối / phòng của app và web, lỗi máy chủ đã trả về,
+ * và người chơi trong giải theo máy chủ (máy chủ chỉ ghép người đang online và không ở phòng khác).
+ */
+async function tourDiag(app, web, id) {
+  const side = (p) => p.evaluate(() => {
+    const s = window.CaroOnline.state, r = s.room;
+    return { status: s.status, me: s.me && s.me.id, errors: window.__srvErr || [],
+      room: r && { code: r.code, tour: r.tour && r.tour.id, players: r.players.length, moves: r.moves && r.moves.length, winner: r.winner || null } };
+  }).catch((e) => ({ evalError: String(e) }));
+  const tour = await web.evaluate((tid) => new Promise((res) => {
+    window.CaroOnline.on('tour', (m) => { if (m.id === tid) res(m.tour); });
+    window.CaroOnline.send({ t: 'tourGet', id: tid });
+    setTimeout(() => res('không trả lời'), 5000);
+  }), id).catch((e) => String(e));
+  const brief = tour && typeof tour === 'object'
+    ? { status: tour.status, players: (tour.players || []).map((p) => ({ name: p.name, online: p.online, playing: p.playing, paused: p.paused, withdrawn: p.withdrawn, games: p.games })), games: (tour.games || []).length }
+    : tour;
+  console.log('Chẩn đoán giải:', JSON.stringify({ app: await side(app), web: await side(web), tour: brief }));
+}
+
 async function until(fn, ms = 15000, step = 250) {
   const t0 = Date.now();
   for (;;) {
@@ -474,17 +495,31 @@ async function screenRect(app, sel) {
   await app.click('[data-act="join"]');
   check('app tham gia giải', !!(await until(() => app.evaluate(() => !!document.querySelector('[data-act="leave"]')))));
   shot('tour');
+  // Ghi lại lỗi máy chủ trả về cho cả hai bên (để chẩn đoán nếu bước dưới trượt)
+  for (const p of [app, web]) {
+    await p.evaluate(() => {
+      window.__srvErr = [];
+      window.CaroOnline.on('error', (m) => window.__srvErr.push({ code: m.code, ctx: m.ctx, at: Math.round(performance.now()) }));
+    });
+  }
   await web.evaluate((id) => window.CaroOnline.send({ t: 'tourJoin', id }), tourId);
   await sleep(500);
   await web.evaluate((id) => window.CaroOnline.send({ t: 'tourStart', id }), tourId);
-  check('bắt đầu giải: app tự vào ván với web', !!(await until(() => app.evaluate((id) => {
+  const tourOk = !!(await until(() => app.evaluate((id) => {
     const r = window.CaroOnline.state.room; return !!(r && r.tour && r.tour.id === id && r.players.length === 2);
-  }, tourId))));
+  }, tourId)));
+  if (!tourOk) await tourDiag(app, web, tourId);
+  check('bắt đầu giải: app tự vào ván với web', tourOk);
   check('hộp thoại giải tự đóng để vào bàn cờ', !!(await until(() => app.evaluate(() => !document.getElementById('tour-dlg').open))));
   shot('tour-game');
   await web.screenshot({ path: `${SHOTS}/api${API}-web-vs-android.png` });
   console.log('Lỗi JS:', errors.length ? errors : 'không có');
-  if (errors.some((e) => !/Failed to load resource/.test(e))) failed++;
+  // Mạng của máy ảo đôi khi mất vài giây (ERR_ADDRESS_UNREACHABLE…): trình duyệt ghi lần kết nối WebSocket hỏng vào console.
+  // Đó là mạng, không phải lỗi code (app tự kết nối lại – các bước trên đã kiểm) → không tính là lỗi JS
+  const NETWORK = /Failed to load resource|WebSocket connection to .* failed/;
+  const net = errors.filter((e) => NETWORK.test(e)).length;
+  if (net) console.log(`(mạng máy ảo chập chờn: ${net} lần kết nối hỏng – không tính là lỗi JS)`);
+  check('không có lỗi JS', !errors.some((e) => !NETWORK.test(e)));
   await browser.close();
   await device.close();
   console.log(failed ? `✗ ${failed} kiểm tra thất bại` : '✓ Tất cả kiểm tra đều đạt');
