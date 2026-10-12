@@ -50,6 +50,23 @@ const tests = {
     assert.ok(A.winningMove(b, X, [3, 0], 3, { deadline: Date.now() + 2000 }));
     assert.ok(!A.winningMove(b, X, [5, 5], 3, { deadline: Date.now() + 2000 }));
   },
+  'analyzeGame: đi đúng nước engine chọn thì không bị chấm là sai (lỗi h13 ?! mà nước tốt hơn cũng là h13)'() {
+    // Ván máy tự đánh bằng engine: phần lớn nước trùng nước tốt nhất mà bảng phân tích đưa ra
+    const EN = require('../engine.js');
+    const moves = [[7, 7]];
+    for (let t = 0; t < 22; t++) moves.push(EN.analyse(moves, { ms: 40 }).move);
+    const r = A.analyzeGame(moves, { ms: 60 });
+    const bad = new Set(['inacc', 'mistake', 'blunder', 'miss']);
+    let same = 0;
+    r.moves.forEach((m, i) => {
+      const e = r.evals[i];
+      if (!e || e.move[0] !== m.x || e.move[1] !== m.y) return;
+      same++;
+      assert.ok(!bad.has(m.cls), `nước ${i + 1} trùng nước tốt nhất mà bị chấm ${m.cls}`);
+      assert.ok(!m.best || m.best[0] !== m.x || m.best[1] !== m.y, `nước ${i + 1}: gợi ý trùng nước đã đi`);
+    });
+    assert.ok(same >= 5, 'có đủ nước trùng để kiểm: ' + same);
+  },
   'analyzeGame: dùng lại các thế đã chấm sẵn (phân tích ngầm / lượt nhanh), chỉ chấm lại thế chấm chưa đủ kỹ'() {
     const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     const full = A.analyzeGame(g, { ms: 60 });

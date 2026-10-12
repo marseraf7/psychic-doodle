@@ -63,7 +63,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu |
   | ~2350 | GOAT | UEFAlona | Penaldo | Hai Ngón |
 
-  Sức cờ tạo bằng cách pha AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép; mức ~2350 dùng `engine.js`)
+  Sức cờ: mức 1–3 dùng AI của `rules.js`; từ mức ~1500 dùng `engine.js` với độ sâu / thời gian giới hạn (như các mức Stockfish
+  của Lichess – yếu hơn vì nhìn nông hơn, không phải vì đánh bừa): ~1500 sâu 1 + 30 ms, ~1800 sâu 3 + 80 ms, ~2350 900 ms.
+  Đo bằng `node server/scripts/bot-match.js` (2 ván đổi bên mỗi khai cuộc): mức trên thắng mức dưới ~71% ở mỗi bậc.
+  Phần còn lại của mục này: AI của `rules.js` (mức 1–3, độ sâu / thời gian tìm chuỗi ép)
   với lỗi có chủ đích (đánh "cho vui", quên chặn, không thấy nước thắng). Lối đánh đổi cách chấm điểm nước đi:
   Tấn công coi trọng thế của mình và tìm chuỗi ép (VCF) sớm; Phòng thủ coi trọng thế của đối thủ và chặn sớm mọi nước
   thắng chắc của họ; Nước đôi thưởng ô giao điểm có thế trên nhiều đường; Gài bẫy thưởng nước "nhảy" cách quãng, tránh
@@ -90,6 +93,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   khả năng thắng; nước đi xếp loại theo mức tụt (?! ≥ 10%, ? ≥ 18%, ?? ≥ 30%) hoặc theo chuỗi thắng chắc (bỏ lỡ / để thua chắc);
   độ chính xác theo công thức Lichess. Đo được: giải 300/300 bài đố (TB ~9 ms/bài, bộ cũ 288/300 với 300 ms), 57 nước thắng
   mà bộ cũ không xác nhận được đã kiểm bằng bộ vét cạn độc lập; GOAT dùng engine thắng GOAT cũ 9–1.
+  Tối ưu (cùng kết quả, nhanh ~2,5 lần): đọc mỗi đường một lần rồi trượt cửa sổ, ô chặn chỉ xét trên hướng làm thành ô thắng,
+  bỏ tính điểm khi đang tìm chuỗi ép; ở gốc bỏ các nước để đối thủ có chuỗi ép. Lối đánh của nhân vật máy chỉ tính theo góc
+  nhìn của máy và chỉ đổi thứ tự trong nhóm nước tốt nhất (trước đây làm GOAT "Gài bẫy" yếu hẳn).
+  Phân tích: nước đã đi trùng nước tốt nhất của engine thì không bị chấm sai; mức tụt so với thế sau nước tốt nhất cùng độ sâu.
   Ký hiệu: Chưa chính xác `?!` (mới), Xuất sắc `!!` (tự tìm ra chuỗi thắng ≥ 3 nước),
   Tốt nhất `!`, Tốt, Bỏ lỡ `×` (có nước / chuỗi thắng mà không đi), Sai lầm `?` (để đối thủ có chuỗi ép thắng
   trong khi có nước tránh được), Sai lầm nặng `??` (để thua sau 1–2 nước), Thế đã thua. Có độ chính xác (%) từng bên,

@@ -151,26 +151,39 @@
     }
     // Khả năng thắng của bên tới lượt ở thế i (thế đã kết thúc: bên tới lượt đã thua)
     const wc = (i) => (evals[i] ? EN.winChance(evals[i].score) : 0);
+    // Thế sau nước tốt nhất của engine (bên kia tới lượt) – chỉ chấm khi cần so với nước đã đi
+    const alt = (i) => EN.analyse(moves.slice(0, i).concat([evals[i].move]), shared);
     const out = [];
     const hadForced = { 1: false, 2: false };
     for (let i = 0; i < end; i++) {
       const [x, y] = moves[i], p = i % 2 === 0 ? C.X : C.O;
       const r = evals[i], nx = evals[i + 1];
       const won = !nx;
+      const isBest = same(r.move, moves[i]); // đi đúng nước engine chọn
       const before = wc(i), after = won ? 1 : 1 - wc(i + 1);
-      const drop = Math.max(0, before - after);
-      const rec = { i, p, x, y, cls: 'good', best: null, len: 0, drop: Math.round(drop * 100), ev: false, e: 0 };
+      // Đi đúng nước tốt nhất thì không tụt: chênh lệch giữa hai lần chấm (độ sâu khác nhau) không phải lỗi của người chơi
+      let drop = isBest ? 0 : Math.max(0, before - after);
+      const rec = { i, p, x, y, cls: 'good', best: null, len: 0, drop: 0, ev: false, e: 0 };
       if (won) rec.cls = 'best';
       else if (r.mate > 0) {
         // Đang có chuỗi thắng chắc: giữ được (đối thủ vẫn thua chắc) hay bỏ lỡ?
-        if (nx.mate < 0) { rec.cls = r.mate >= 3 && !hadForced[p] ? 'great' : 'best'; rec.len = r.mate; }
+        if (nx.mate < 0 || isBest) { rec.cls = r.mate >= 3 && !hadForced[p] ? 'great' : 'best'; rec.len = r.mate; }
         else { rec.cls = 'miss'; rec.best = r.move; rec.len = r.mate; }
       } else if (r.mate < 0) rec.cls = 'lost';
-      else if (nx.mate > 0) { rec.cls = nx.mate <= 2 ? 'blunder' : 'mistake'; rec.best = r.move; rec.len = nx.mate; }
-      else {
+      else if (nx.mate > 0) {
+        // Sau nước này đối thủ có chuỗi thắng chắc. Nếu nước tốt nhất của engine cũng thua chắc thì thế đã thua từ trước.
+        const b = isBest ? null : alt(i);
+        if (isBest || (b && b.mate > 0)) rec.cls = 'lost';
+        else { rec.cls = nx.mate <= 2 ? 'blunder' : 'mistake'; rec.best = r.move; rec.len = nx.mate; }
+      } else if (drop >= DROP.inacc) {
+        // Như Lichess so với nước tốt nhất: chấm thế sau nước tốt nhất cùng độ sâu với thế sau nước đã đi rồi mới so
+        const b = alt(i);
+        const afterBest = b.mate < 0 ? 1 : b.mate > 0 ? 0 : 1 - EN.winChance(b.score);
+        drop = Math.max(0, Math.min(drop, afterBest - after));
         const cls = drop >= DROP.blunder ? 'blunder' : drop >= DROP.mistake ? 'mistake' : drop >= DROP.inacc ? 'inacc' : 'good';
         if (cls !== 'good') { rec.cls = cls; rec.ev = true; rec.best = r.move; }
       }
+      rec.drop = rec.cls === 'lost' ? 0 : Math.round(drop * 100);
       // Biểu đồ: khả năng thắng của X sau nước này
       const wX = won ? (p === C.X ? 1 : 0) : p === C.X ? 1 - wc(i + 1) : wc(i + 1); // thế i+1: tới lượt bên kia
       rec.e = Math.round((2 * wX - 1) * 1000) / 1000;
