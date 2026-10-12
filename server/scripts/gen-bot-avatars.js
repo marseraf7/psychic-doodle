@@ -1,6 +1,7 @@
-// Sinh ảnh đại diện mặc định (SVG) cho 24 nhân vật máy vào caro/img/bots/<id>.svg.
+// Sinh ảnh đại diện mặc định (SVG) cho 30 nhân vật máy vào caro/img/bots/<id>.svg.
 // Mỗi ảnh: nền màu riêng của nhân vật, khuôn mặt (màu da, mắt, miệng khác nhau theo id), kiểu tóc / mũ theo lối đánh
-// (Tấn công: tóc dựng + băng đô, Phòng thủ: mũ giáp, Nước đôi: tóc hai màu, Gài bẫy: mũ trùm) và phụ kiện theo mức.
+// (Tấn công: tóc dựng + băng đô, Phòng thủ: mũ giáp, Nước đôi: tóc hai màu, Gài bẫy: mũ trùm, Toàn diện: vương miện nhỏ)
+// và phụ kiện theo mức.
 // Muốn thay ảnh: chép ảnh mới (svg / png / jpg / webp, vuông) vào caro/img/bots/ rồi sửa đường dẫn trong
 // caro/bot-looks.js – không cần chạy lại script này.
 //   node server/scripts/gen-bot-avatars.js
@@ -51,6 +52,9 @@ function top(style, hair, color) {
         <rect x="47" y="18" width="6" height="24" rx="3" fill="#cbd5e1"/>`;
     case 'dbl': // tóc hai màu (hai đường)
       return `<path d="M24 44 a26 24 0 0 1 26 -24 v24 z" fill="${hair}"/><path d="M50 20 a26 24 0 0 1 26 24 h-26 z" fill="${shade(color, 0.65)}"/>`;
+    case 'uni': // Toàn diện: tóc gọn + vương miện nhỏ năm màu (đủ mọi lối)
+      return `<path d="M25 44 a25 23 0 0 1 50 0 q-12 -10 -25 -8 q-13 -2 -25 8 z" fill="${hair}"/>
+        <path d="M33 26 l5 -9 l6 7 l6 -10 l6 10 l6 -7 l5 9 z" fill="${color}" stroke="${shade(color, 0.6)}" stroke-width="1.5"/>`;
     default: // mũ trùm (gài bẫy)
       return `<path d="M16 86 v-36 a34 34 0 0 1 68 0 v36 h-10 v-34 a24 24 0 0 0 -48 0 v34 z" fill="${shade(color, 0.45)}"/>`;
   }

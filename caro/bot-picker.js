@@ -11,7 +11,7 @@
   const Bots = window.CaroBots;
   const T = window.I18N.t;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const STYLE_ICON = { atk: 'bolt', def: 'shield', dbl: 'fork', trap: 'eye' };
+  const STYLE_ICON = { atk: 'bolt', def: 'shield', dbl: 'fork', trap: 'eye', uni: 'star' };
   const FALLBACK = { avatar: '', icon: '', color: '#64748b' };
 
   const look = (id) => (window.CaroBotLooks && window.CaroBotLooks[id]) || FALLBACK;

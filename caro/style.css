@@ -969,7 +969,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .style-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; font-weight: var(--fw-semibold);
   background: color-mix(in srgb, var(--st) 16%, transparent); color: color-mix(in srgb, var(--st) 80%, var(--text)); }
 .style-tag .ico.i-in { width: 12px; height: 12px; margin: 0; }
-.st-atk { --st: #ef4444; } .st-def { --st: #3b82f6; } .st-dbl { --st: #a855f7; } .st-trap { --st: #f59e0b; }
+.st-atk { --st: #ef4444; } .st-def { --st: #3b82f6; } .st-dbl { --st: #a855f7; } .st-trap { --st: #f59e0b; } .st-uni { --st: #ca8a04; }
 
 /* ============================ Hộp thoại Giải đố */
 dialog div.dlg { padding: 16px 18px 18px; }

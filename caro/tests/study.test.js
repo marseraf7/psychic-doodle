@@ -141,10 +141,10 @@ const tests = {
     r.moves.forEach((m, i) => assert.strictEqual(m.p, i % 2 ? O : X));
     for (const p2 of [X, O]) assert.ok(r.acc[p2] >= 0 && r.acc[p2] <= 100);
   },
-  'bots: 24 nhân vật = 6 mức × 4 lối đánh, Elo tăng theo mức, 3 mức đầu mở sẵn'() {
-    assert.strictEqual(B.BOTS.length, 24);
-    assert.strictEqual(new Set(B.BOTS.map((b) => b.id)).size, 24);
-    assert.deepStrictEqual(B.STYLES, ['atk', 'def', 'dbl', 'trap']);
+  'bots: 30 nhân vật = 6 mức × 5 lối đánh, Elo tăng theo mức, 3 mức đầu mở sẵn'() {
+    assert.strictEqual(B.BOTS.length, 30);
+    assert.strictEqual(new Set(B.BOTS.map((b) => b.id)).size, 30);
+    assert.deepStrictEqual(B.STYLES, ['atk', 'def', 'dbl', 'trap', 'uni']);
     for (let t = 1; t <= 6; t++) {
       const row = B.byTier(t);
       assert.deepStrictEqual(row.map((b) => b.style).sort(), [...B.STYLES].sort());
@@ -156,6 +156,31 @@ const tests = {
     assert.strictEqual(B.START_UNLOCKED, 3);
     for (const l of [1, 2, 3]) assert.ok(B.get(B.FROM_LEVEL[l]));
     assert.strictEqual(B.of(6, 'def').id, 'phao');
+    // Lối Toàn diện: Trình, Tê Liệt, Con Gái FIFA, Sách Thể Thao, The Liems, GOAT – ít lỗi / nghĩ lâu hơn các nhân vật cùng mức
+    assert.deepStrictEqual([1, 2, 3, 4, 5, 6].map((t) => B.of(t, 'uni').id), ['trinh', 'teliet', 'fifa', 'sach', 'liems', 'goat']);
+    for (let t = 1; t <= 6; t++) {
+      const u = B.of(t, 'uni'), others = B.byTier(t).filter((b) => b.style !== 'uni');
+      for (const o of others) {
+        assert.ok((u.noise || 0) <= (o.noise || 0) && (u.missBlock || 0) <= (o.missBlock || 0), `${u.id} ít lỗi hơn ${o.id}`);
+        if (o.engine) assert.ok(u.engine && u.engine.ms > o.engine.ms, `${u.id} nghĩ lâu hơn ${o.id}`);
+      }
+    }
+  },
+  'sách khai cuộc: tra được thế cờ đã ghi dù xoay / lật / dời; bot có sách đi theo sách, bot khác không'() {
+    const Bk = require('../book.js');
+    const saved = globalThis.CaroBookData;
+    try {
+      const pos = [[0, 0], [1, 1], [0, 1]];
+      const c = Bk.toCanon(pos, [0, -1]);
+      globalThis.CaroBookData = { vn: { [c.key]: c.move } };
+      // xoay 90° rồi dời (5, -3): nước trong sách đi theo đúng phép biến đổi
+      const T = ([x, y]) => [-y + 5, x - 3];
+      assert.deepStrictEqual(Bk.lookup(pos.map(T), 'vn'), T([0, -1]));
+      assert.strictEqual(Bk.lookup(pos, 'free'), null, 'luật khác không dùng chung sách');
+      const b = board(pos.map(T));
+      assert.deepStrictEqual(B.botMove(b, O, 'goat'), T([0, -1]), 'GOAT đi theo sách');
+      assert.strictEqual(B.bookMove(b, O, B.get('mai')), null, 'nhân vật mức thấp không dùng sách');
+    } finally { globalThis.CaroBookData = saved; }
   },
   'bots: lối đánh đổi cách chấm điểm (nước đôi thưởng ô giao điểm, gài bẫy thưởng nước nhảy)'() {
     // X có 2 quân ngang (0,0),(1,0) và 2 quân dọc (3,2),(3,3): ô (3,0) là giao điểm

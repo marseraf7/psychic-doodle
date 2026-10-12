@@ -22,10 +22,21 @@
   const WIN = 1000000;            // điểm thắng (trừ dần theo số nước để thắng nhanh được ưu tiên)
   const MATE = WIN - 1000;        // điểm ≥ MATE: đã thấy thắng chắc
   const PAD = 8;                  // vùng trống quanh các quân trong mảng
-  // Điểm cửa sổ 5 ô theo số quân (một màu): thế 4 trong cửa sổ = sắp có ô thắng
+  // Trọng số chấm điểm thế cờ theo từng luật. Cửa sổ 5 ô một màu có k quân → a5[k] nếu là quân của bên tới lượt
+  // ("thế của mình"), d5[k] nếu là quân đối thủ ("thế của đối thủ"); cửa sổ 6 ô hai đầu trống, 4 ô giữa một màu: a6 / d6.
+  // tempo: lợi thế được đi. Bộ 'base' là bộ cũ (công = thủ); các luật khác được học từ ván Gomocup bằng
+  // server/scripts/tune-eval.js (Texel tuning) và kiểm lại bằng tự đấu (server/scripts/bot-match.js).
   const W5 = [0, 2, 12, 60, 450, 0];
-  // Cửa sổ 6 ô hai đầu trống, 4 ô giữa một màu: 2 quân = thế 2 mở, 3 quân = thế 3 mở (đe doạ thắng ở luật này)
   const W6 = [0, 0, 24, 420, 0];
+  const EVAL = {
+    base: { a5: W5, d5: W5, a6: W6, d6: W6, tempo: 30 },
+    // Học từ ván Gomocup 2016–2025 (server/scripts/tune-eval.js); luật Việt Nam thêm vòng tự đấu – học lại (selfplay.js)
+    free: { a5: [0, 8, 44, 117, 450, 0], d5: [0, 8, 36, 110, 450, 0], a6: [0, 0, 28, 420, 0], d6: [0, 0, 13, 72, 0], tempo: 135 },
+    std: { a5: [0, 11, 49, 87, 450, 0], d5: [0, 9, 40, 98, 450, 0], a6: [0, 0, 0, 420, 0], d6: [0, 0, 0, 97, 0], tempo: 96 },
+    renju: { a5: [0, 6, 40, 82, 450, 0], d5: [0, 5, 29, 105, 450, 0], a6: [0, 0, 0, 420, 0], d6: [0, 0, 0, 75, 0], tempo: 109 },
+    vn: { a5: [0, 3, 0, 170, 450, 0], d5: [0, 0, 54, 22, 450, 0], a6: [0, 0, 151, 420, 0], d6: [0, 0, 0, 420, 0], tempo: 120 },
+  };
+  const evalOf = (rule) => EVAL[rule] || EVAL[rule === 'vn' ? 'vn' : 'base'] || EVAL.base;
 
   // Bộ sinh số giả ngẫu nhiên cố định (khoá Zobrist giống nhau mọi lần chạy)
   let seed = 0x9e3779b9;
@@ -51,8 +62,8 @@
       this.zob = [null, new Int32Array(n), new Int32Array(n), new Int32Array(n), new Int32Array(n)]; // lo/hi cho X, O
       for (let i = 0; i < n; i++) { this.zob[1][i] = rnd(); this.zob[2][i] = rnd() & 0x1fffff; this.zob[3][i] = rnd(); this.zob[4][i] = rnd() & 0x1fffff; }
       this.lo = 0; this.hi = 0;
-      this.evalX = 0;                      // điểm thế cờ theo góc nhìn X
-      this.evalXp = 0; this.evalOn = 0;    // phần của X (≥ 0) và của O (≤ 0): evalX = evalXp + evalOn
+      this.ev = evalOf(this.rule);         // trọng số chấm điểm của luật này
+      this.acc = new Float64Array(4);      // [công X, thủ X, công O, thủ O]: tổng trọng số cửa sổ của X / O (a… / d…)
       this.style = { a: 1, d: 1, dbl: 0, trap: 0 }; // lối đánh (bots.js): trọng số thế mình / thế đối thủ, thưởng xếp nước
       this.stack = [];
       this._line = new Int8Array(13);
@@ -177,12 +188,12 @@
     }
 
     // ---- điểm thế cờ: các cửa sổ chịu ảnh hưởng khi ô (cx, cy) đổi
-    /** Tổng điểm các cửa sổ qua (cx, cy); phần âm (của O) để ở this._neg. */
-    windowsAround(cx, cy) {
+    /** Cộng (sign = +1) hoặc trừ (sign = -1) điểm các cửa sổ qua (cx, cy) vào this.acc. */
+    windowsAround(cx, cy, sign) {
       // Đọc 13 ô trên mỗi đường một lần rồi trượt cửa sổ (nhanh hơn nhiều so với đọc lại từng cửa sổ)
-      // Cửa sổ 5 ô: một màu, x quân → W5[x] (luật Việt Nam: bị chặn hai đầu = 0); cửa sổ 6 ô hai đầu trống: W6[x]
-      let s = 0, neg = 0;
-      const L = this._line, vn = this.rule === 'vn';
+      // Cửa sổ 5 ô: một màu, k quân (luật Việt Nam: bị chặn hai đầu = 0); cửa sổ 6 ô hai đầu trống, 4 ô giữa một màu
+      const L = this._line, vn = this.rule === 'vn', acc = this.acc, E = this.ev;
+      const a5 = E.a5, d5 = E.d5, a6 = E.a6, d6 = E.d6;
       for (let d = 0; d < 4; d++) {
         const dx = DX[d], dy = DY[d];
         for (let k = -6; k <= 6; k++) L[k + 6] = this.at(cx + k * dx, cy + k * dy);
@@ -198,7 +209,7 @@
           if ((x && o) || (!x && !o)) continue;
           const q = x ? O : X;
           if (vn && L[b - 1] === q && L[b + 5] === q) continue; // luật Việt Nam: bị chặn hai đầu
-          if (x) s += W5[x]; else { s -= W5[o]; neg -= W5[o]; }
+          if (x) { acc[0] += sign * a5[x]; acc[1] += sign * d5[x]; } else { acc[2] += sign * a5[o]; acc[3] += sign * d5[o]; }
         }
         // Cửa sổ 6 ô L[b..b+5], b = 1..6: hai đầu trống, 4 ô giữa một màu
         for (let b = 1; b <= 6; b++) {
@@ -206,12 +217,13 @@
           let x6 = 0, o6 = 0;
           for (let k = 1; k < 5; k++) { const v = L[b + k]; if (v === X) x6++; else if (v === O) o6++; }
           if ((x6 && o6) || (!x6 && !o6)) continue;
-          if (x6) s += W6[x6]; else { s -= W6[o6]; neg -= W6[o6]; }
+          if (x6) { acc[0] += sign * a6[x6]; acc[1] += sign * d6[x6]; } else { acc[2] += sign * a6[o6]; acc[3] += sign * d6[o6]; }
         }
       }
-      this._neg = neg;
-      return s;
     }
+    /** Điểm theo góc nhìn X với trọng số công (để tương thích: bộ 'base' công = thủ nên bằng điểm cũ). */
+    get evalX() { return this.acc[0] - this.acc[2]; }
+
     // ---- cập nhật ô thắng trên 4 đường qua (cx, cy): ô khác trên đường d chỉ có thể đổi theo hướng d
     refreshWins(cx, cy) {
       // Đọc 25 ô trên mỗi đường một lần (L[12] = ô vừa đổi), rồi xét lại 11 ô k = -5..5 như winDir
@@ -269,12 +281,9 @@
       // Trong lúc tìm chuỗi ép (lazy > 0) không cần điểm thế cờ: bỏ qua phần tính điểm (undo cũng bỏ qua theo evs)
       const ev = !this.lazy;
       if (ev) {
-        const before = this.windowsAround(cx, cy), bn = this._neg;
+        this.windowsAround(cx, cy, -1);
         this.cells[i] = p;
-        const after = this.windowsAround(cx, cy);
-        this.evalX += after - before;
-        this.evalOn += this._neg - bn;
-        this.evalXp = this.evalX - this.evalOn;
+        this.windowsAround(cx, cy, 1);
       } else this.cells[i] = p;
       this.evs.push(ev);
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
@@ -290,12 +299,9 @@
       const p = this.cells[i];
       const cx = i % this.W, cy = (i / this.W) | 0;
       if (this.evs.pop()) {
-        const before = this.windowsAround(cx, cy), bn = this._neg;
+        this.windowsAround(cx, cy, -1);
         this.cells[i] = EMPTY;
-        const after = this.windowsAround(cx, cy);
-        this.evalX += after - before;
-        this.evalOn += this._neg - bn;
-        this.evalXp = this.evalX - this.evalOn;
+        this.windowsAround(cx, cy, 1);
       } else this.cells[i] = EMPTY;
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {
@@ -434,15 +440,16 @@
       return false;
     }
 
-    /** Điểm thế cờ theo bên tới lượt (lối đánh: a – trọng số thế mình, d – thế đối thủ). */
+    /** Điểm thế cờ theo bên tới lượt: thế của mình (trọng số công) trừ thế của đối thủ (trọng số thủ) + lợi thế được đi. */
     evaluate() {
-      const st = this.style;
-      if (st.a === 1 && st.d === 1) { const e = this.side === X ? this.evalX : -this.evalX; return e + 30; }
-      // Lối đánh theo góc nhìn của bên đi ở gốc (nhân vật máy), đổi dấu cho bên kia: điểm vẫn nhất quán khi tìm (negamax)
-      const xs = this.evalXp, os = -this.evalOn, rs = this.rootSide || this.side;
-      const mine = rs === X ? xs : os, theirs = rs === X ? os : xs;
+      const st = this.style, acc = this.acc, tempo = this.ev.tempo;
+      if (st.a === 1 && st.d === 1) return Math.round(this.side === X ? acc[0] - acc[3] : acc[2] - acc[1]) + tempo;
+      // Lối đánh (a – trọng số thế mình, d – thế đối thủ) theo góc nhìn bên đi ở gốc (nhân vật máy), đổi dấu cho bên kia:
+      // điểm vẫn nhất quán khi tìm (negamax)
+      const rs = this.rootSide || this.side;
+      const mine = rs === X ? acc[0] : acc[2], theirs = rs === X ? acc[3] : acc[1];
       const e = Math.round(st.a * mine - st.d * theirs);
-      return (this.side === rs ? e : -e) + 30;
+      return (this.side === rs ? e : -e) + tempo;
     }
     /** Thưởng xếp thứ tự ứng viên theo lối đánh: nước đôi (nhiều đường có quân mình), gài bẫy (nước nhảy cách quãng). */
     styleScore(i, p) {

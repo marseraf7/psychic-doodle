@@ -126,13 +126,14 @@
       { demo: 'vct' },
       { s: [] },
     ],
-    // 4 lối đánh: bước 1 giới thiệu cả 24 nhân vật, mỗi bước sau một lối (phim + 6 nhân vật của lối đó)
+    // 5 lối đánh: bước 1 giới thiệu cả 30 nhân vật, mỗi bước sau một lối (phim + 6 nhân vật của lối đó)
     styles: [
       { bots: 'all' },
       { demo: 'st_atk', bots: 'atk' },
       { demo: 'st_def', bots: 'def' },
       { demo: 'st_dbl', bots: 'dbl' },
       { demo: 'st_trap', bots: 'trap' },
+      { bots: 'uni' }, // Toàn diện: không có phim riêng (đánh được mọi lối), chỉ giới thiệu 6 nhân vật
     ],
   };
   const GROUPS = [['rules-list', ['vn', 'free', 'std', 'renju', 'swap2']], ['open-list', ['open26', 'moon', 'nonla']], ['tactic-list', ['vcf', 'vct']]];
@@ -160,7 +161,7 @@
     $('rule-next').textContent = T(rv.i === steps.length - 1 ? 'rule_done' : 'rule_next');
     $('rule-try').hidden = !Practice().has(rv.id); // luôn có, ở mọi bước, kể cả khi đọc lại
   }
-  /** Ảnh + tên các nhân vật máy của một lối đánh ('all': cả 4 lối, mỗi lối một hàng). */
+  /** Ảnh + tên các nhân vật máy của một lối đánh ('all': cả 5 lối, mỗi lối một hàng). */
   function botsStrip(style) {
     const P = window.CaroBotPicker, B = window.CaroBots;
     const row = (st) => `<div class="rb-row">${P.styleTag(st)}<div class="rb-bots">${B.BOTS.filter((b) => b.style === st).map((b) =>
@@ -252,7 +253,7 @@
     N.closeDlg('puzzle-dlg');
     N.openDlg('learn-dlg');
   }
-  /** Mục "Lối đánh của máy": 4 thẻ (tên lối, 3 ảnh nhân vật, mô tả ngắn); bấm để xem phim của lối đó. */
+  /** Mục "Lối đánh của máy": 5 thẻ (tên lối, 3 ảnh nhân vật, mô tả ngắn); bấm để xem phim của lối đó. */
   function renderStyleCards() {
     const P = window.CaroBotPicker, B = window.CaroBots;
     $('style-cards').innerHTML = B.STYLES.map((st, i) => `<button type="button" class="style-card st-${st}" data-style-step="${i + 1}">
