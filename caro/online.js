@@ -51,6 +51,10 @@
     try { ws = new WebSocket(wsUrl); } catch (e) { return scheduleRetry(); }
     ws.onopen = () => {
       retry = 0;
+      misses = 0;
+      // Mở được kết nối mà quá 10 giây chưa có "welcome" (tin hello bị mất): kết nối lại
+      const w = ws;
+      setTimeout(() => { if (ws === w && S.status !== 'online') dropped(1000); }, 10000);
       // Tên khách mặc định theo ngôn ngữ đang chọn (vd. "Guest-3F2A"), nếu chưa tự đặt tên.
       const guestName = LS.get('caro.guestName') || `${T('guest')}-${guestKey.slice(0, 4).toUpperCase()}`;
       // Bản app điện thoại gửi kèm phiên bản để máy chủ báo khi cần cập nhật
@@ -82,15 +86,21 @@
   }
 
   // Kết nối "chết lặng" (đổi Wi-Fi ↔ 4G, mạng chập chờn): WebSocket vẫn coi là mở nhưng không còn tin nào qua lại.
-  // Như Lichess: ping định kỳ, quá PONG_MS không nghe gì từ máy chủ thì chủ động kết nối lại (thay vì chờ hàng phút).
-  const PING_MS = 10000, PONG_MS = 6000;
-  let lastHeard = 0;
+  // Như Lichess: ping định kỳ, không nghe gì từ máy chủ thì chủ động kết nối lại (thay vì chờ hàng phút).
+  // Chỉ ngắt khi trượt 2 lần liên tiếp, và bỏ qua lần mà hẹn giờ chạy trễ (máy chậm / luồng chính bận: tin pong
+  // có thể đang xếp hàng phía sau) – tránh cắt nhầm kết nối vẫn tốt.
+  const PING_MS = 10000, PONG_MS = 6000, LATE_MS = 2000;
+  let lastHeard = 0, misses = 0;
   setInterval(() => {
     if (!ws || ws.readyState !== 1 || S.status !== 'online' || document.hidden) return;
     const sent = Date.now();
     try { ws.send('{"t":"ping"}'); } catch (e) { return dropped(100); }
     const w = ws;
-    setTimeout(() => { if (ws === w && lastHeard < sent) dropped(100); }, PONG_MS);
+    setTimeout(() => {
+      if (ws !== w) return;
+      if (lastHeard >= sent || Date.now() - sent > PONG_MS + LATE_MS) { misses = 0; return; }
+      if (++misses >= 2) { misses = 0; dropped(100); }
+    }, PONG_MS);
   }, PING_MS);
 
   function scheduleRetry() {

@@ -51,7 +51,7 @@ const { setup, play, roomOf } = require('./helpers');
   });
   ok(sock0 === 'online', 'trước khi mất mạng: online');
   let st = '';
-  for (let k = 0; k < 40 && st !== 'offline' && st !== 'connecting'; k++) { await sleep(500); st = await b.evaluate(() => window.CaroOnline.state.status); }
+  for (let k = 0; k < 80 && st !== 'offline' && st !== 'connecting'; k++) { await sleep(500); st = await b.evaluate(() => window.CaroOnline.state.status); }
   ok(st === 'offline' || st === 'connecting', 'không nghe thấy pong: tự nhận ra mất kết nối (' + st + ')');
   await b.evaluate(() => { window.__mute = false; });
   for (let k = 0; k < 30 && st !== 'online'; k++) { await sleep(300); st = await b.evaluate(() => window.CaroOnline.state.status); }
