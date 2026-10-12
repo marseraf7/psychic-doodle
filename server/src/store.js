@@ -17,7 +17,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { upgradePools } = require('./rating.js');
 
 const SESSION_TTL = 180 * 24 * 3600 * 1000;
-const HISTORY_PER_USER = 10;
+const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
 const RATING_POINTS_PER_USER = 400; // điểm vẽ biểu đồ trên trang hồ sơ
 const DM_PER_PAIR = 100;
 // Chỉ lưu mã băm của token: lộ file dữ liệu cũng không dùng được để đăng nhập.
@@ -92,7 +92,7 @@ class Store {
       gameRefs: q('SELECT COUNT(*) AS n FROM user_games WHERE game_id = ?'),
       dropGame: q('DELETE FROM games WHERE id = ?'),
       history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.clock, g.opening, g.rule, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
-        json_array_length(g.moves) AS moves FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? ORDER BY g.id DESC LIMIT ?`),
+        json_array_length(g.moves) AS moves FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? AND g.id < ? ORDER BY g.id DESC LIMIT ?`),
       gameByShare: q('SELECT * FROM games WHERE share = ?'),
       pairGames: q(`SELECT * FROM (SELECT id, x_id, o_id, winner, moves FROM games WHERE x_id = ? AND o_id = ?
         UNION ALL SELECT id, x_id, o_id, winner, moves FROM games WHERE x_id = ? AND o_id = ?) ORDER BY id DESC LIMIT ?`),
@@ -328,8 +328,9 @@ class Store {
     return share;
   }
 
-  history(uid) {
-    return this.q.history.all(uid, HISTORY_PER_USER);
+  /** Ván của uid, mới nhất trước; before: chỉ lấy ván có id nhỏ hơn (trang sau), limit: số ván. */
+  history(uid, limit = 10, before = Number.MAX_SAFE_INTEGER) {
+    return this.q.history.all(uid, Number(before) > 0 ? Number(before) : Number.MAX_SAFE_INTEGER, Math.min(limit, HISTORY_PER_USER));
   }
 
   gameByShare(share) {

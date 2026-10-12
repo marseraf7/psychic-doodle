@@ -2,7 +2,8 @@
  * Trung tâm xử lý tin nhắn realtime, chia theo chủ đề:
  *   core.js        – trạng thái chung, kết nối, phiên, giới hạn tần suất, dọn dẹp
  *   auth.js        – tài khoản, mật khẩu, email, xoá tài khoản
- *   social.js      – bạn bè, lịch sử, chặn/báo cáo, tin nhắn
+ *   social.js      – bạn bè, chặn/báo cáo, tin nhắn
+ *   history.js     – Lịch sử đấu: xem của mình / người khác theo quyền riêng tư (Công khai · Bạn bè · Chỉ mình tôi)
  *   profile.js     – bảng xếp hạng (chung + theo loại thời gian), trang hồ sơ người chơi
  *   rooms.js       – phòng chơi, ván đấu, thách đấu, tính điểm, xin hoà
  *   matchmaking.js – tìm trận nhanh và phòng công khai
@@ -24,6 +25,7 @@
 const { Hub } = require('./core.js');
 const { Auth } = require('./auth.js');
 const { Social } = require('./social.js');
+const { History } = require('./history.js');
 const { Rooms } = require('./rooms.js');
 const { Matchmaking } = require('./matchmaking.js');
 const { Clubs } = require('./clubs.js');
@@ -39,7 +41,7 @@ const { Disputes } = require('./disputes.js');
 const { Api } = require('./api.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, Rooms, Matchmaking, Clubs, Tournaments, Arena, Bracket, TourPush, Admin, Watch, Profile, Playban, Api, Disputes]) {
+for (const part of [Auth, Social, History, Rooms, Matchmaking, Clubs, Tournaments, Arena, Bracket, TourPush, Admin, Watch, Profile, Playban, Api, Disputes]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

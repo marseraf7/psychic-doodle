@@ -1,6 +1,5 @@
 /* Bạn bè, lịch sử & đối đầu, chặn & báo cáo, tin nhắn bạn bè. (Xếp hạng, hồ sơ: profile.js) */
 'use strict';
-const { DRAW } = require('../room.js');
 const { E, note } = require('../msg.js');
 const { REPORT_REASONS, cleanText, cleanPublicText, userPid, uidOf } = require('./shared.js');
 const { Flood } = require('../moderation.js');
@@ -87,20 +86,6 @@ class Social {
     this.store.touch(me, other);
     this.sendFriends(me.id);
     if (other) this.sendFriends(other.id);
-  }
-
-  on_history(conn) {
-    const me = this.requireUser(conn);
-    const games = this.store.history(me.id).map((g) => {
-      const mySide = g.x_id === me.id ? 1 : 2;
-      return {
-        share: g.share, created: g.created, kind: g.kind, timeLimit: g.time_limit, clock: g.clock || null, opening: g.opening || 'free', rule: g.rule || 'vn',
-        opponent: mySide === 1 ? g.o_name : g.x_name, mySide,
-        result: g.winner === DRAW ? 'draw' : g.winner === mySide ? 'win' : 'loss',
-        reason: g.reason, moves: g.moves,
-      };
-    });
-    conn.send({ t: 'history', games });
   }
 
   on_h2h(conn, { id }) {

@@ -133,6 +133,7 @@
     const actions = [];
     if (!p.self && S.me && !S.me.guest && !p.friend) actions.push(`<button type="button" class="ghost sm" data-add="${esc(p.id)}">${esc(T('add_friend'))}</button>`);
     const sameRoom = S.room && S.room.players.some((q) => q.id === 'u_' + p.id); // đang đấu với chính mình
+    if (p.canHistory) actions.push(`<button type="button" class="ghost sm" data-hist>${esc(T('hist_open'))}</button>`);
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
     $('profile-body').innerHTML = `
       <div class="who pf-who"><span class="avatar">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</span>
@@ -152,11 +153,12 @@
       ${perfHtml(p)}
       ${activityHtml(p)}
       <h3>${esc(T('profile_recent'))}</h3>
-      <ul class="games">${recent || `<li class="empty">${esc(T('no_history'))}</li>`}</ul>`;
+      <ul class="games">${recent || `<li class="empty">${esc(T(p.canHistory === false ? 'hist_hidden' : 'no_history', { name: p.name }))}</li>`}</ul>`;
     const body = $('profile-body');
     bindChart(body);
     body.querySelectorAll('[data-pool]').forEach((b) => { b.onclick = () => { chartPool = b.dataset.pool; renderProfile(); }; });
     body.querySelectorAll('[data-replay]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); N.openReplay(b.dataset.replay); }; });
+    body.querySelectorAll('[data-hist]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroHistory.open(p.id, p.name); }; });
     body.querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendAdd', id: b.dataset.add }); b.disabled = true; }; });
   }
 

@@ -635,10 +635,13 @@
   <dialog id="history">
     <div class="dlg">
       <div class="dlg-head">
-        <h2 data-i18n="history_title" tabindex="-1" autofocus></h2>
+        <h2 id="history-title" tabindex="-1" autofocus></h2>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
+      <!-- Lịch sử đấu (history.js): quyền xem (của mình), danh sách ván, tải thêm -->
+      <div class="hist-vis" id="history-vis" hidden></div>
       <ul class="games" id="history-list"></ul>
+      <button type="button" class="ghost wide" id="history-more" data-i18n="hist_more" hidden></button>
     </div>
   </dialog>
 
@@ -848,6 +851,7 @@
   <script src="i18n-demos.js"></script>
   <script src="i18n-shell.js"></script>
   <script src="i18n-tc.js"></script>
+  <script src="i18n-history.js"></script>
   <script src="timectl.js"></script>
   <script src="local-clock.js"></script>
   <script src="tc-picker.js"></script>
@@ -861,6 +865,7 @@
   <script src="shell.js"></script>
   <script src="online.js"></script>
   <script src="social.js"></script>
+  <script src="history.js"></script>
   <script src="match.js"></script>
   <script src="gamex.js"></script>
   <script src="tour-patch.js"></script>

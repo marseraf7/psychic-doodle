@@ -560,7 +560,7 @@ test('chat nhanh trong phòng: chỉ câu có sẵn, giới hạn tốc độ, n
   [a, b].forEach((c) => c.close());
 });
 
-test('lịch sử 10 trận, xem lại qua link chia sẻ, đối đầu, Elo và bảng xếp hạng', async () => {
+test('Lịch sử đấu (quyền riêng tư, trang sau), xem lại qua link chia sẻ, đối đầu, Elo và bảng xếp hạng', async () => {
   const a = await account('hist_a', 'An'), b = await account('hist_b', 'Bình');
   const g = await Client.open({ guestName: 'Khách' });
   await roomOf(a, g); // ván với khách: có lịch sử, không có Elo / đối đầu
@@ -577,8 +577,30 @@ test('lịch sử 10 trận, xem lại qua link chia sẻ, đối đầu, Elo v�
   }
   // Ván cuối: A thắng -> 7 thắng 5 thua? (6 ván A thắng với B, 5 ván B thắng) + 1 ván thắng khách
   const h = await a.req({ t: 'history' }, 'history');
-  assert.strictEqual(h.games.length, 10, 'chỉ giữ 10 trận gần nhất');
-  assert.ok(h.games.every((x) => x.opponent === 'Bình'));
+  assert.strictEqual(h.games.length, 12, 'Lịch sử đấu giữ đủ 12 ván (11 ván với B + 1 ván với khách; tối đa 300 ván / tài khoản)');
+  assert.ok(h.owner.self && h.owner.vis === 'public' && h.more === false);
+  // Trang sau: chỉ các ván cũ hơn ván thứ 5
+  const h2 = await a.req({ t: 'history', before: h.games[4].id }, 'history');
+  assert.deepStrictEqual(h2.games.map((g) => g.id), h.games.slice(5).map((g) => g.id));
+  // Xem lịch sử người khác theo quyền riêng tư: Công khai · Bạn bè · Chỉ mình tôi
+  const c = await account('hist_c', 'Chi');
+  const seen = await c.req({ t: 'history', uid: a.me.uid }, 'history');
+  assert.ok(!seen.hidden && seen.games.length === 12 && seen.owner.name === 'An' && !seen.owner.self, 'công khai: ai cũng xem được');
+  await a.req({ t: 'setHistVis', vis: 'private' }, 'histVis');
+  assert.ok((await c.req({ t: 'history', uid: a.me.uid }, 'history')).hidden, 'chỉ mình tôi: người khác không xem được');
+  assert.strictEqual((await c.req({ t: 'profile', id: a.me.uid }, 'profile')).profile.recent.length, 0, 'hồ sơ cũng ẩn ván gần đây');
+  assert.strictEqual((await a.req({ t: 'history' }, 'history')).games.length, 12, 'chủ lịch sử vẫn xem được');
+  await a.req({ t: 'setHistVis', vis: 'friends' }, 'histVis');
+  assert.ok((await c.req({ t: 'history', uid: a.me.uid }, 'history')).hidden, 'chỉ bạn bè: người lạ không xem được');
+  await befriend(a, c);
+  assert.ok(!(await c.req({ t: 'history', uid: a.me.uid }, 'history')).hidden, 'chỉ bạn bè: bạn bè xem được');
+  assert.ok((await (await Client.open()).req({ t: 'history', uid: a.me.uid }, 'history')).hidden, 'khách không xem được lịch sử chỉ dành cho bạn bè');
+  assert.strictEqual((await a.req({ t: 'setHistVis', vis: 'xyz' }, 'error')).code, 'bad_message');
+  assert.strictEqual((await c.req({ t: 'history', uid: 'khongco' }, 'error')).code, 'player_not_found');
+  assert.strictEqual((await (await Client.open()).req({ t: 'history' }, 'error')).code, 'need_account');
+  await a.req({ t: 'setHistVis', vis: 'public' }, 'histVis');
+  c.close();
+  assert.ok(h.games.slice(0, 11).every((x) => x.opponent === 'Bình'));
   assert.strictEqual(h.games[0].result, 'win'); // ván thứ 11 (i = 10): A thắng
   assert.ok(h.games[0].moves >= 7);
   // Xem lại qua HTTP, không lộ id tài khoản

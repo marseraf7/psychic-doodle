@@ -56,7 +56,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
   | Mức | Tấn công | Phòng thủ – phản công | Nước đôi | Gài bẫy (dương đông kích tây) |
   |---|---|---|---|---|
-  | ~600 | BéXuânMaiLonTon | Chị Bảy | Cocobay | Sa Tị |
+  | ~600 | Bé Bưởi | Chị Bảy | Cocobay | Sa Tị |
   | ~900 | Anh Độ | Khô Gà | Bã Mía | Phượng Lên Đồ |
   | ~1200 | Mân Đàn | Phấn Đào | Vardrid | Ba Sáu |
   | ~1500 | Khá Bảnh | Trà Từ Tay | Người Tày | Tú Sena |
@@ -168,6 +168,9 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   máy tính rộng: thẻ người chơi ở cột phải như Lichess.
 - **Tab Câu đố** (`puzzle-home.js`, `pages.css`): thẻ "Câu đố hôm nay" có bàn cờ thu nhỏ + nút Giải ngay, các chế độ dạng danh sách.
   Tab Học tập, Xem cũng chuyển sang khối danh sách; tab Xem có thêm lối tắt Giải đấu / Xếp hạng / Lịch sử.
+- **Lịch sử đấu** (`history.js`, máy chủ `server/src/hub/history.js`): lưu tối đa 300 ván / tài khoản, mỗi lần tải 20 ván.
+  Chủ lịch sử chọn ai xem được: Công khai · Bạn bè · Chỉ mình tôi. Xem lịch sử người khác từ hồ sơ của họ;
+  mỗi ván có Xem lại, Phân tích (chạy trên máy người xem), Chia sẻ.
 - Các hộp thoại cũ (Online, Giải đố, Học chơi, Cài đặt) được `CaroShell.proxy()` chuyển thành trang: mã cũ vẫn gọi
   `showModal()` / `close()` như trước.
 - **Phông Noto Sans** (giống Lichess), lưu trong `fonts/`, không tải từ dịch vụ ngoài; đủ dấu tiếng Việt và chữ Nga,
@@ -237,6 +240,7 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |
+| `history.js`, `i18n-history.js` | Lịch sử đấu: quyền xem, danh sách ván, xem lại, phân tích |
 | `timectl.js`, `tc-picker.js`, `local-clock.js`, `setup.css` | Mức thời gian cho phép (dùng chung máy chủ); bộ chọn thời gian; đồng hồ tổng khi chơi trên máy; giao diện Thiết lập ván đấu |
 | `player-strips.js`, `game.css`, `puzzle-home.js`, `pages.css` | Thẻ người chơi + thanh công cụ màn chơi; thẻ Câu đố hôm nay; kiểu danh sách của tab Câu đố / Học tập / Xem |
 | `index.html`, `style.css` | Giao diện |
