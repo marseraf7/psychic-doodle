@@ -14,6 +14,8 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="shell.css">
   <link rel="stylesheet" href="setup.css">
+  <link rel="stylesheet" href="game.css">
+  <link rel="stylesheet" href="pages.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="theme.js"></script>
   <script src="boardstyle.js"></script>
@@ -90,12 +92,18 @@
     <div class="clocks" id="clocks" hidden><span class="ck x" id="ck-x"></span><span class="ck o" id="ck-o"></span></div>
     <div class="score" id="score" data-i18n-title="score_title"></div>
   </header>
+  <!-- Thẻ người chơi trên / dưới bàn cờ (player-strips.js): ảnh, tên, Elo, quân, đồng hồ -->
+  <div class="pstrip pl-top" id="pl-top" hidden></div>
+  <div class="pstrip pl-bot" id="pl-bot" hidden></div>
 
   <nav class="bar bottom local-only">
     <button id="btn-new" type="button"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg><span data-i18n="btn_new"></span></button>
     <button id="btn-undo" type="button"><svg class="ico" aria-hidden="true"><use href="#i-undo"/></svg><span data-i18n="btn_undo"></span></button>
-    <button id="btn-puzzle" type="button"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span data-i18n="btn_puzzle"></span></button>
-    <button id="btn-online" type="button"><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
+    <button id="btn-analyze" type="button"><svg class="ico" aria-hidden="true"><use href="#i-analyze"/></svg><span data-i18n="an_btn"></span></button>
+    <button id="btn-center-l" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
+    <!-- Giải đố / Online: nay là tab Câu đố / Trang chủ; giữ nút ẩn cho mã cũ (study.js, online.js) -->
+    <button id="btn-puzzle" type="button" hidden><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span data-i18n="btn_puzzle"></span></button>
+    <button id="btn-online" type="button" hidden><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
     <button id="btn-settings" type="button"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span data-i18n="btn_settings"></span></button>
   </nav>
 
@@ -280,6 +288,12 @@
           <h3><svg class="ico i-in" aria-hidden="true"><use href="#i-eye"/></svg><span data-i18n="tv_title"></span> <button type="button" class="ghost sm" id="tv-refresh" data-i18n="refresh"></button></h3>
           <ul class="people" id="tv-list"></ul>
         </section>
+        <h3 class="list-h" data-i18n="more_tools"></h3>
+        <div class="list">
+          <button type="button" class="li" data-fwd="open-tours"><svg class="ico li-ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="li-t" data-i18n="tours_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li" data-social="leaderboard"><svg class="ico li-ic" aria-hidden="true"><use href="#i-medal"/></svg><span class="li-t" data-i18n="leaderboard"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li" data-social="history"><svg class="ico li-ic" aria-hidden="true"><use href="#i-clock"/></svg><span class="li-t" data-i18n="history"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        </div>
       </div>
     </section>
 
@@ -483,6 +497,8 @@
         <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-puzzle"/></svg> <span data-i18n="pz_title"></span></h2>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
+      <!-- Câu đố hôm nay (puzzle-home.js) -->
+      <div class="pz-today" id="pz-today" hidden></div>
       <div class="pz-stats" id="pz-stats"></div>
       <label class="field pz-diff"><span data-i18n="pz_diff"></span>
         <select id="pz-diff" class="select">
@@ -861,10 +877,12 @@
   <script src="watch.js"></script>
   <script src="profile.js"></script>
   <script src="bot-picker.js"></script>
+  <script src="player-strips.js"></script>
   <script src="learn-demos.js"></script>
   <script src="learn-board.js"></script>
   <script src="learn-practice.js"></script>
   <script src="learn.js"></script>
+  <script src="puzzle-home.js"></script>
   <script src="habits.js"></script>
   <script src="settings-ui.js"></script>
   <script src="more.js"></script>

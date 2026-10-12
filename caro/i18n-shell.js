@@ -3,6 +3,9 @@
   'use strict';
   const I = window.I18N;
   I.extend('vi', {
+    pz_go: 'Giải ngay',
+    pz_rating_n: 'Độ khó {n}',
+    strip_player: 'Người chơi {p}',
     tab_home: 'Trang chủ',
     tab_puzzles: 'Câu đố',
     tab_learn: 'Học tập',
@@ -47,6 +50,9 @@
     reset_score_d: 'Đưa tỉ số X – O về 0 – 0.',
   });
   I.extend('en', {
+    pz_go: 'Solve now',
+    pz_rating_n: 'Rating {n}',
+    strip_player: 'Player {p}',
     tab_home: 'Home',
     tab_puzzles: 'Puzzles',
     tab_learn: 'Learn',
@@ -91,6 +97,9 @@
     reset_score_d: 'Set the X – O score back to 0 – 0.',
   });
   I.extend('ru', {
+    pz_go: 'Решить',
+    pz_rating_n: 'Рейтинг {n}',
+    strip_player: 'Игрок {p}',
     tab_home: 'Главная',
     tab_puzzles: 'Задачи',
     tab_learn: 'Обучение',
@@ -135,6 +144,9 @@
     reset_score_d: 'Сбросить счёт X – O до 0 – 0.',
   });
   I.extend('zh', {
+    pz_go: '立即解题',
+    pz_rating_n: '难度 {n}',
+    strip_player: '玩家 {p}',
     tab_home: '首页',
     tab_puzzles: '谜题',
     tab_learn: '学习',

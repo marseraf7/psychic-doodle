@@ -217,13 +217,14 @@ async function screenRect(app, sel) {
     const bars = systemBars();
     console.log('Thanh hệ thống:', JSON.stringify(bars), '· WebView:', JSON.stringify(webViewBounds()));
     const top = await screenRect(app, '.bar.top');
-    const bottom = await screenRect(app, '.bar.bottom.local-only');
+    // Thanh dưới nằm sát đáy (nền kéo xuống dưới thanh điều hướng): đo nút bấm bên trong, là chỗ người dùng chạm
+    const bottom = await screenRect(app, '.bar.bottom.local-only button');
     check('thanh trên không bị thanh trạng thái che', !!bars.status && top.top >= bars.status.b - 1,
       `thanh trên y=${Math.round(top.top)}, thanh trạng thái tới y=${bars.status && bars.status.b}`);
-    check('thanh dưới không bị thanh điều hướng che', !bars.nav || bottom.bottom <= bars.nav.t + 1,
+    check('thanh dưới không bị thanh điều hướng che', !bars.nav || bottom.bottom <= bars.nav.t + 3,
       `thanh dưới tới y=${Math.round(bottom.bottom)}, thanh điều hướng từ y=${bars.nav && bars.nav.t}`);
     // Thanh 5 tab (đang ở Trang chủ) cũng không bị thanh điều hướng che
-    const tabs = await screenRect(app, '#tabbar');
+    const tabs = await screenRect(app, '#tabbar button');
     // Sai số 3 px máy (làm tròn theo mật độ điểm ảnh): thanh tab nằm sát đáy WebView, ngay trên thanh điều hướng
     check('thanh tab không bị thanh điều hướng che', !bars.nav || tabs.bottom <= bars.nav.t + 3,
       `thanh tab tới y=${Math.round(tabs.bottom)}, thanh điều hướng từ y=${bars.nav && bars.nav.t}`);

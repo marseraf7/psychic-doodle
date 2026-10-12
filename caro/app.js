@@ -526,6 +526,7 @@
   function updateUI() {
     drawStatus();
     turnCue();
+    if (window.CaroStrips) window.CaroStrips.render();
   }
 
   /**
@@ -583,6 +584,7 @@
     $('score').innerHTML = ruleChip(state.rule) + `<span class="x">X</span> ${state.score[X]} : ${state.score[O]} <span class="o">O</span>`;
     $('btn-undo').hidden = !state.allowUndo;
     $('btn-undo').disabled = !state.board.moves.length || state.thinking;
+    $('btn-analyze').disabled = state.board.moves.length < 2 || state.thinking;
   }
 
   // ------------------------------------------------------------ Xem lại ván đã lưu
@@ -1378,10 +1380,52 @@
     const nm = (p) => (state.mode === 'ai' ? (p === state.human ? T('you') : botName(state.bot)) : p === X ? 'X' : 'O');
     return openReplay({ local: true, x: nm(X), o: nm(O), winner: state.winner, reason: state.winReason === 'time' ? 'timeout' : 'win', moves, rule: state.rule });
   }
+  // Thanh dưới: Phân tích ván đang chơi (mở xem lại + bảng phân tích), Về giữa
+  $('btn-analyze').onclick = () => {
+    if (state.online || state.board.moves.length < 2) return;
+    if (replayLocal() && window.CaroStudy) window.CaroStudy.analyze();
+  };
+  $('btn-center-l').onclick = () => $('btn-center').click();
   $('banner-analyze').onclick = () => {
     if (state.online) return;
     if (replayLocal() && window.CaroStudy) window.CaroStudy.analyze();
   };
+
+  /**
+   * Hai người chơi cho thẻ trên / dưới bàn cờ (player-strips.js): dưới là mình (hoặc X khi 2 người / xem ván), trên là đối thủ.
+   * Mỗi bên: { side, name, me, bot, rating, prov, offline, turn }. null khi bàn cờ đang do giải đố / bài học điều khiển.
+   */
+  function playersInfo() {
+    if (state.ext) return null;
+    let bottom, top, turn = 0;
+    if (state.online) {
+      const { room, me, side, watch } = state.online;
+      const bs = watch ? X : side;
+      const as = (s) => {
+        const p = room.players.find((q) => q.id === (s === X ? room.seats.x : room.seats.o));
+        return { side: s, name: p ? p.name : '…', rating: p && p.rating, prov: p && p.prov, offline: !!p && p.online === false, me: !watch && s === side };
+      };
+      bottom = as(bs);
+      top = as(other(bs));
+      turn = room.winner || room.players.length < 2 ? 0 : room.turn;
+    } else if (state.replay) {
+      const d = state.replay.data;
+      bottom = { side: X, name: d.x || T('deleted_player') };
+      top = { side: O, name: d.o || T('deleted_player') };
+    } else {
+      if (state.mode === 'ai') {
+        bottom = { side: state.human, name: T('you'), me: true };
+        top = { side: other(state.human), name: botName(state.bot), bot: state.bot };
+      } else {
+        bottom = { side: X, name: T('strip_player', { p: 'X' }) };
+        top = { side: O, name: T('strip_player', { p: 'O' }) };
+      }
+      turn = state.winner ? 0 : state.turn;
+    }
+    bottom.turn = bottom.side === turn;
+    top.turn = top.side === turn;
+    return { top, bottom, thinking: !state.online && !state.replay && state.thinking };
+  }
 
   window.CaroApp = {
     enterExt,
@@ -1434,6 +1478,7 @@
       if (botAllowed(id)) { state.bot = id; state.mode = 'ai'; save(); updateUI(); }
     },
     get turn() { return state.turn; },
+    get players() { return playersInfo(); },
     get ext() { return state.ext; },
     enterOnline,
     applyRoom: (room, me) => (state.online && !state.online.watch ? applyRoom(room, me) : enterOnline(room, me)),

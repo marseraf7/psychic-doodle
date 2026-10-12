@@ -10,12 +10,15 @@
   const N = window.CaroOnline;
   const page = $('page-more');
 
-  page.addEventListener('click', (e) => {
+  const onRows = (e) => {
     const f = e.target.closest('[data-fwd]');
     if (f) { $(f.dataset.fwd).click(); return; }
     const s = e.target.closest('.list [data-social]');
     if (s && window.CaroSocial) window.CaroSocial.open(s.dataset.social);
-  });
+  };
+  // Cùng kiểu hàng ở tab Xem (giải đấu, xếp hạng, lịch sử)
+  page.addEventListener('click', onRows);
+  $('page-watch').addEventListener('click', onRows);
   $('more-settings').onclick = () => $('btn-settings').click();
 
   // Mở trang: kết nối để thẻ tài khoản / bạn bè có dữ liệu

@@ -36,7 +36,7 @@ const { setup } = require('./helpers');
   await a.keyboard.press('Escape');
   await b.evaluate((code) => window.CaroOnline.send({ t: 'joinRoom', code }), r0.code);
   await sleep(700);
-  ok(await a.isVisible('#clocks'), 'thanh trên hiện đồng hồ của 2 bên');
+  ok(await a.isVisible('#pl-bot .ck') && await a.isVisible('#pl-top .ck'), 'thẻ người chơi trên / dưới hiện đồng hồ của 2 bên');
   ok(/3:00|2:5\d/.test(await a.textContent('#ck-x')), 'đồng hồ bắt đầu từ 3:00: ' + await a.textContent('#ck-x'));
   ok(/Đặt 3 quân/.test(await a.textContent('#swap-card')), 'chủ phòng được nhắc đặt 3 quân khai cuộc');
   ok(/Đang đặt 3 quân/.test(await b.textContent('#swap-card')), 'người kia thấy đối thủ đang đặt quân khai cuộc');

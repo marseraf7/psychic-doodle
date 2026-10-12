@@ -180,23 +180,23 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     await sleep(300);
     ok(!(await p.evaluate(() => document.body.classList.contains('ext'))), 'Thoát giải đố');
     // Chuỗi đúng + bài của ngày
-    await p.click('#btn-puzzle');
+    await p.evaluate(() => window.CaroShell.open('puzzles'));
     await sleep(200);
     await p.click('.pz-mode[data-pz=streak]');
     await sleep(400);
     ok(/Chuỗi: 0/.test(await p.textContent('#score')), 'Chuỗi đúng: bắt đầu từ 0');
     await p.click('#ext-bar button[data-act=exit]');
     await sleep(200);
-    await p.click('#btn-puzzle');
+    await p.evaluate(() => window.CaroShell.open('puzzles'));
     await sleep(200);
-    await p.click('.pz-mode[data-pz=daily]');
+    await p.click('#pz-today [data-pz-today]'); // thẻ Câu đố hôm nay đầu tab
     await sleep(400);
     const d1 = await p.evaluate(() => window.CaroApp.board.moves.map((m) => m.x + ',' + m.y).join(';'));
     await p.click('#ext-bar button[data-act=exit]');
     await sleep(200);
-    await p.click('#btn-puzzle');
+    await p.evaluate(() => window.CaroShell.open('puzzles'));
     await sleep(200);
-    await p.click('.pz-mode[data-pz=daily]');
+    await p.click('#pz-today [data-pz-today]'); // thẻ Câu đố hôm nay đầu tab
     await sleep(400);
     const d2 = await p.evaluate(() => window.CaroApp.board.moves.map((m) => m.x + ',' + m.y).join(';'));
     ok(d1 && d1 === d2, 'Bài của ngày: mở lại vẫn là cùng một bài');

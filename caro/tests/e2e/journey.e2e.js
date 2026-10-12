@@ -216,7 +216,7 @@ const { setup } = require('./helpers');
     await p.tap('#ng-tc [data-chip="c2+1"]');
     await p.tap('#newgame-form button[value=start]'); await sleep(300);
     ok(await nMoves(p) === 0 && !(await p.isVisible('#newgame')), 'ván 2 người trên máy: bàn trống');
-    ok(await p.isVisible('#clocks') && await p.textContent('#ck-x') === '2:00' && await p.textContent('#ck-o') === '2:00', 'đồng hồ 2+1: hai bên 2:00, chưa chạy trước nước đầu');
+    ok(await p.isVisible('#pl-bot .ck') && await p.textContent('#ck-x') === '2:00' && await p.textContent('#ck-o') === '2:00', 'đồng hồ 2+1: hai bên 2:00, chưa chạy trước nước đầu');
     await tapCell(p, 5, 5); await sleep(1200);
     ok(await p.textContent('#ck-x') === '2:00' && /^1:5\d$/.test(await p.textContent('#ck-o')), 'X đi xong: đồng hồ O chạy – ' + await p.textContent('#ck-o'));
     await tapCell(p, 5, 7); await sleep(200);
