@@ -56,7 +56,7 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS games_pair ON games (x_id, o_id, id);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
-const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT']];
+const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT'], ['games', 'rule', 'TEXT']];
 
 class Store {
   /**
@@ -85,13 +85,13 @@ class Store {
       getSession: q('SELECT uid, created FROM sessions WHERE hash = ?'),
       dropSession: q('DELETE FROM sessions WHERE hash = ?'),
       dropUserSessions: q('DELETE FROM sessions WHERE uid = ? AND hash <> ?'),
-      addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves, clock, opening) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)'),
+      addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves, clock, opening, rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'),
       linkGame: q('INSERT OR IGNORE INTO user_games (uid, game_id) VALUES (?, ?)'),
       oldGames: q('SELECT game_id FROM user_games WHERE uid = ? ORDER BY game_id DESC LIMIT -1 OFFSET ?'),
       unlinkGame: q('DELETE FROM user_games WHERE uid = ? AND game_id = ?'),
       gameRefs: q('SELECT COUNT(*) AS n FROM user_games WHERE game_id = ?'),
       dropGame: q('DELETE FROM games WHERE id = ?'),
-      history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.clock, g.opening, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
+      history: q(`SELECT g.id, g.share, g.created, g.kind, g.time_limit, g.clock, g.opening, g.rule, g.x_id, g.o_id, g.x_name, g.o_name, g.winner, g.reason,
         json_array_length(g.moves) AS moves FROM user_games ug JOIN games g ON g.id = ug.game_id WHERE ug.uid = ? ORDER BY g.id DESC LIMIT ?`),
       gameByShare: q('SELECT * FROM games WHERE share = ?'),
       pairGames: q(`SELECT * FROM (SELECT id, x_id, o_id, winner, moves FROM games WHERE x_id = ? AND o_id = ?
@@ -311,11 +311,11 @@ class Store {
 
   // ------------------------------------------------------------ Trận đấu
   /** Lưu một ván đã kết thúc; xId/oId là id tài khoản (null nếu là khách). Trả về mã chia sẻ. */
-  recordGame({ kind, timeLimit, clock = null, opening = 'free', xId, oId, xName, oName, winner, reason, moves }) {
+  recordGame({ kind, timeLimit, clock = null, opening = 'free', rule = 'vn', xId, oId, xName, oName, winner, reason, moves }) {
     if (!xId && !oId) return null;
     const share = crypto.randomBytes(8).toString('base64url');
     const { lastInsertRowid } = this.q.addGame.run(share, Date.now(), kind, timeLimit || 0, xId || null, oId || null,
-      xName, oName, winner, reason, JSON.stringify(moves), clock || null, opening || 'free');
+      xName, oName, winner, reason, JSON.stringify(moves), clock || null, opening || 'free', rule || 'vn');
     const id = Number(lastInsertRowid);
     for (const uid of new Set([xId, oId].filter(Boolean))) {
       this.q.linkGame.run(uid, id);

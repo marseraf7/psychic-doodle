@@ -67,9 +67,9 @@ class Rooms {
     }
   }
 
-  /** tc: { clock, opening } – đồng hồ tổng '3+2' (thay cho timeLimit) và luật khai cuộc. */
+  /** tc: { clock, opening, rule } – đồng hồ tổng '3+2' (thay cho timeLimit), luật khai cuộc, luật thắng. */
   makeRoom(kind, bestOf, timeLimit, tc = {}) {
-    const c = cleanTc({ timeLimit, clock: tc.clock, opening: tc.opening }); // giá trị lạ -> mặc định
+    const c = cleanTc({ timeLimit, clock: tc.clock, opening: tc.opening, rule: tc.rule }); // giá trị lạ -> mặc định
     const room = new Room({
       code: this.newCode(),
       password: String(crypto.randomInt(0, 1000)).padStart(3, '0'),
@@ -78,6 +78,7 @@ class Rooms {
       timeLimit: c.timeLimit,
       clock: c.clock,
       opening: c.opening,
+      rule: c.rule,
       secondMs: this.T.SECOND_MS,
       drawCooldownMs: this.T.DRAW_COOLDOWN_MS,
     });
@@ -125,11 +126,11 @@ class Rooms {
     for (const p of room.players) this.notifyFriends(p.id);
   }
 
-  on_createRoom(conn, { side, timeLimit, clock, opening, public: isPublic }) {
+  on_createRoom(conn, { side, timeLimit, clock, opening, rule, public: isPublic }) {
     if (isPublic) this.checkPlayban(conn.pid); // đang bị cấm vì bỏ ván: không mở phòng công khai
     this.unwatch(conn);
     this.leave(conn.pid);
-    const room = this.makeRoom('room', 1, timeLimit, { clock, opening });
+    const room = this.makeRoom('room', 1, timeLimit, { clock, opening, rule });
     room.public = !!isPublic; // phòng công khai: hiện trong sảnh, vào không cần mật khẩu
     if (room.public) room.firstMoveMs = this.T.FIRST_MOVE_MS; // gặp người lạ: có hạn đi nước đầu
     this.enter(room, conn.pid, side === 'second' ? 2 : 1);
@@ -282,7 +283,7 @@ class Rooms {
     if (moves.length) {
       const name = (pid) => room.players.find((p) => p.id === pid)?.name || this.nameOf(pid);
       room.lastShare = this.store.recordGame({
-        kind: room.kind, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening,
+        kind: room.kind, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening, rule: room.rule,
         xId: ux && ux.id, oId: uo && uo.id, xName: name(xPid), oName: name(oPid),
         winner: room.winner, reason: room.reason, moves,
       });
@@ -352,7 +353,7 @@ class Rooms {
   }
 
   inviteMsg(inv) {
-    return { t: 'invite', invite: { id: inv.id, from: { id: inv.from, name: this.nameOf(inv.from) }, bestOf: inv.bestOf, first: inv.first, timeLimit: inv.timeLimit, clock: inv.clock, opening: inv.opening } };
+    return { t: 'invite', invite: { id: inv.id, from: { id: inv.from, name: this.nameOf(inv.from) }, bestOf: inv.bestOf, first: inv.first, timeLimit: inv.timeLimit, clock: inv.clock, opening: inv.opening, rule: inv.rule } };
   }
 
   dropInvite(inv, reason) {
@@ -363,7 +364,7 @@ class Rooms {
     if (reason) this.send(inv.from, note(...reason));
   }
 
-  on_challenge(conn, { to, bestOf, first, timeLimit, clock, opening }) {
+  on_challenge(conn, { to, bestOf, first, timeLimit, clock, opening, rule }) {
     const me = this.requireUser(conn);
     const friend = this.store.users.get(to);
     if (!friend || !me.friends.includes(friend.id)) throw E('challenge_friends_only');
@@ -373,15 +374,15 @@ class Rooms {
     if (this.roomFor(conn.pid)?.active) throw E('busy_in_game');
     bestOf = [1, 3, 5].includes(Number(bestOf)) ? Number(bestOf) : 1;
     first = ['me', 'them', 'random'].includes(first) ? first : 'random';
-    const tc = cleanTc({ timeLimit, clock, opening });
+    const tc = cleanTc({ timeLimit, clock, opening, rule });
     timeLimit = tc.timeLimit;
     for (const inv of [...this.invites.values()]) if (inv.from === conn.pid) this.dropInvite(inv);
-    const inv = { id: crypto.randomBytes(6).toString('hex'), from: conn.pid, to: toPid, bestOf, first, timeLimit, clock: tc.clock, opening: tc.opening };
+    const inv = { id: crypto.randomBytes(6).toString('hex'), from: conn.pid, to: toPid, bestOf, first, timeLimit, clock: tc.clock, opening: tc.opening, rule: tc.rule };
     inv.timer = setTimeout(() => this.dropInvite(inv, ['invite_no_answer', { name: friend.name }]), this.T.INVITE_TTL_MS);
     inv.timer.unref?.();
     this.invites.set(inv.id, inv);
     this.send(toPid, this.inviteMsg(inv));
-    this.send(conn.pid, { t: 'inviteSent', invite: { id: inv.id, to: { id: toPid, name: friend.name }, bestOf, first, timeLimit, clock: inv.clock, opening: inv.opening } });
+    this.send(conn.pid, { t: 'inviteSent', invite: { id: inv.id, to: { id: toPid, name: friend.name }, bestOf, first, timeLimit, clock: inv.clock, opening: inv.opening, rule: inv.rule } });
   }
 
   on_challengeCancel(conn, { id }) {
@@ -400,7 +401,7 @@ class Rooms {
     if (!this.isOnline(inv.from)) throw E('inviter_offline');
     this.leave(inv.from);
     this.leave(inv.to);
-    const room = this.makeRoom('series', inv.bestOf, inv.timeLimit, { clock: inv.clock, opening: inv.opening });
+    const room = this.makeRoom('series', inv.bestOf, inv.timeLimit, { clock: inv.clock, opening: inv.opening, rule: inv.rule });
     let challengerFirst = inv.first === 'me' ? true : inv.first === 'them' ? false : crypto.randomInt(2) === 0;
     this.enter(room, inv.from, challengerFirst ? 1 : 2);
     this.enter(room, inv.to, challengerFirst ? 2 : 1);

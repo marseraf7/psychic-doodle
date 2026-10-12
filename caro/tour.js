@@ -56,6 +56,7 @@
     }
     parts.push(CLOCK + (t.clock ? window.I18N.tc(0, t.clock) : secs(t.timeLimit)));
     if (t.opening === 'swap2') parts.push('Swap2');
+    if (t.rule && t.rule !== 'vn') parts.push(T('grule_s_' + t.rule));
     if (!t.rated) parts.push(T('unrated_short'));
     parts.push(T('players_n', { n: t.count, max: t.maxPlayers }));
     return parts.join(' · ');

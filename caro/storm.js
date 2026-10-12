@@ -44,7 +44,7 @@
     try { list = await St.loadPuzzles(); } catch (e) { window.CaroOnline?.toast(T('pz_load_fail')); return; }
     const d = $('puzzle-dlg');
     if (d.open) { if (d.close) d.close(); else d.removeAttribute('open'); }
-    s = { list: list.filter((q) => q.len <= 3), endAt: Date.now() + DURATION, solved: 0, wrong: 0, combo: 0, maxCombo: 0, used: new Set(), over: false, bonus: null };
+    s = { list: list.filter((q) => q.len <= 3 && !q.rule), endAt: Date.now() + DURATION, solved: 0, wrong: 0, combo: 0, maxCombo: 0, used: new Set(), over: false, bonus: null };
     clearInterval(ticker);
     ticker = setInterval(tick, 250);
     next();

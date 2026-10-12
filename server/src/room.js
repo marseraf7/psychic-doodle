@@ -10,6 +10,8 @@
  *  'swap2' : chống lợi thế đi trước. Người cầm X lúc đầu (opener) đặt 3 quân X, O, X. Người kia (decider) chọn
  *            cầm X, cầm O, hoặc đặt thêm 2 quân (O, X) rồi để opener chọn bên. Sau đó ai cầm O đi tiếp.
  *            Quân luôn xen kẽ X/O nên lịch sử ván và xem lại không đổi.
+ * Luật thắng (rule): 'vn' (Caro Việt Nam, mặc định) | 'free' (Gomoku tự do) | 'std' (Gomoku tiêu chuẩn) | 'renju'
+ *  – xem caro/rules.js. Renju: nước cấm của X bị từ chối (không đặt được).
  */
 'use strict';
 const Caro = require('../../caro/rules.js');
@@ -24,7 +26,7 @@ const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
 const COORD_LIMIT = 1_000_000;
 
 class Room {
-  constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, clock = null, opening = 'free', secondMs = 1000, drawCooldownMs = 30000, firstMoveMs = 0 }) {
+  constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, clock = null, opening = 'free', rule = 'vn', secondMs = 1000, drawCooldownMs = 30000, firstMoveMs = 0 }) {
     this.code = code;
     this.password = password;
     this.kind = kind;
@@ -37,6 +39,7 @@ class Room {
     }
     this.timeLimit = this.clock ? 0 : timeLimit; // giây mỗi nước, 0 = không giới hạn
     this.opening = opening === 'swap2' ? 'swap2' : 'free';
+    this.rule = Caro.ruleOf(rule);
     this.clockLeft = {}; // id -> ms còn lại (đồng hồ tổng)
     this.clockRun = null; // { id, since }: đồng hồ đang chạy của ai
     this.secondMs = secondMs;
@@ -57,7 +60,7 @@ class Room {
   touch() { this.activeAt = Date.now(); }
 
   resetBoard() {
-    this.board = new Caro.Board();
+    this.board = new Caro.Board(this.rule);
     this.turn = X;
     this.winner = null; // X | O | DRAW
     this.winCells = null;
@@ -155,6 +158,7 @@ class Room {
       throw E('bad_move');
     }
     if (this.board.get(x, y) !== Caro.EMPTY) throw E('cell_taken');
+    if (Caro.forbidden(this.board, x, y, this.turn)) throw E('forbidden_move');
     if (!this.spend(id)) { this.timeLoss(); return; }
     const side = this.turn; // khai cuộc Swap2: một người đặt cả quân X lẫn O
     this.board.play(x, y, side);
@@ -268,6 +272,7 @@ class Room {
       clock: this.clockSpec,
       clocks: this.clocksView(),
       opening: this.opening,
+      rule: this.rule,
       phase: this.phase, // Swap2: 'place3' | 'choose1' | 'place2' | 'choose2' | null
       opener: this.opener,
       actor: this.actor(),

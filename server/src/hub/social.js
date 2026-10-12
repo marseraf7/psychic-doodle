@@ -94,7 +94,7 @@ class Social {
     const games = this.store.history(me.id).map((g) => {
       const mySide = g.x_id === me.id ? 1 : 2;
       return {
-        share: g.share, created: g.created, kind: g.kind, timeLimit: g.time_limit, clock: g.clock || null, opening: g.opening || 'free',
+        share: g.share, created: g.created, kind: g.kind, timeLimit: g.time_limit, clock: g.clock || null, opening: g.opening || 'free', rule: g.rule || 'vn',
         opponent: mySide === 1 ? g.o_name : g.x_name, mySide,
         result: g.winner === DRAW ? 'draw' : g.winner === mySide ? 'win' : 'loss',
         reason: g.reason, moves: g.moves,

@@ -921,7 +921,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .primary.sm { padding: 7px 12px; font-size: var(--fs-sm); border-radius: 10px; white-space: nowrap; display: inline-flex; align-items: center; }
 
 /* ============================ Chọn nhân vật máy */
-.bot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.bot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } /* cột luôn đều nhau, kể cả tên rất dài */
 .bot-card {
   position: relative; display: flex !important; flex-direction: column; align-items: center; gap: 2px; margin: 0 !important;
   padding: 8px 4px 6px; border: 1px solid var(--panel-border); border-radius: 12px; cursor: pointer; text-align: center;
@@ -930,7 +930,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .bot-card input { position: absolute; opacity: 0; pointer-events: none; }
 .bot-card:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .bot-card:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
-.bot-card b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); }
+.bot-card b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); max-width: 100%; overflow-wrap: anywhere; text-align: center; line-height: 1.25; }
 .bot-card small { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
 .bot-card.locked { opacity: 0.45; cursor: not-allowed; }
 .bot-card.locked .bot-av { filter: grayscale(1); }
@@ -1238,3 +1238,20 @@ p, .hint, li.empty, .bot-say, .rule-text, .lesson-card small, .an-now > span, .r
   text-align: justify; text-align-last: center;
 }
 .hint.center { margin-inline: auto; }
+
+/* Lối đánh của nhân vật máy (Tấn công / Phòng thủ / Nước đôi / Gài bẫy) + nhãn luật chơi */
+.style-tabs { margin-bottom: 8px; grid-template-columns: repeat(4, minmax(min-content, 1fr)); }
+.style-tabs label { gap: 4px; padding-inline: 4px; }
+.style-tabs .ico { flex: none; }
+@media (max-width: 400px) { .style-tabs label { flex-direction: column; gap: 2px; font-size: var(--fs-xs); } .style-tabs .ico.i-in { margin: 0; } }
+.bot-say small { display: block; margin-top: 4px; font-size: var(--fs-xs); }
+.rule-hint { margin-top: 6px; }
+.rule-chip {
+  display: inline-block; padding: 1px 7px; margin-right: 4px; border-radius: 999px; font-size: var(--fs-2xs); font-weight: var(--fw-semibold);
+  background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); vertical-align: 1px; letter-spacing: 0.01em;
+}
+/* Hình minh hoạ phần Học: số thứ tự thế khai cuộc trên ô trống, chấm xanh / đỏ = Đen (X) / Trắng (O) thắng */
+.rule-board .rnum circle { fill: rgba(255, 255, 255, 0.85); stroke: #8a7a5c; stroke-width: 1.2; }
+.rule-board .rnum text { font-size: 11px; font-weight: 700; fill: #3b3326; text-anchor: middle; }
+.rule-board .rwin { fill: #2f9a4c; opacity: 0.75; }
+.rule-board .rlose { fill: #e05545; opacity: 0.75; }

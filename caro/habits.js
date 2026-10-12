@@ -47,13 +47,15 @@
   // ---------------------------------------------------------------- Huy hiệu
   const pz = () => { try { return JSON.parse(localStorage.getItem('caro.puzzles') || '{}'); } catch (e) { return {}; } };
   const me = () => (N && N.state.me && !N.state.me.guest ? N.state.me : null);
+  /** Đã thắng một nhân vật máy ở mức sức cờ ≥ tier (1…6) chưa? */
+  const beatTier = (tier) => Object.keys(H.bots).some((id) => { const b = window.CaroBots && window.CaroBots.BOTS.find((o) => o.id === id); return b && b.tier >= tier; });
   const BADGES = [
     { id: 'first_game', icon: 'swords', ok: () => H.games >= 1 },
     { id: 'first_win', icon: 'trophy', ok: () => Object.keys(H.bots).length > 0 || (me() && me().stats.wins > 0) },
-    { id: 'beat_bin', icon: 'check', ok: () => !!H.bots.bin },
-    { id: 'beat_mai', icon: 'check', ok: () => !!H.bots.mai },
-    { id: 'beat_minh', icon: 'medal2', ok: () => !!H.bots.minh },
-    { id: 'beat_rong', icon: 'fire', ok: () => !!H.bots.rong },
+    { id: 'beat_bin', icon: 'check', ok: () => beatTier(3) },
+    { id: 'beat_mai', icon: 'check', ok: () => beatTier(4) },
+    { id: 'beat_minh', icon: 'medal2', ok: () => beatTier(5) },
+    { id: 'beat_rong', icon: 'fire', ok: () => beatTier(6) },
     { id: 'learn_all', icon: 'book', ok: () => window.CaroLearn && window.CaroLearn.doneCount() >= window.CaroLearn.LESSONS.length },
     { id: 'puzzles_10', icon: 'puzzle', ok: () => (pz().ok || 0) >= 10 },
     { id: 'puzzles_50', icon: 'puzzle', ok: () => (pz().ok || 0) >= 50 },

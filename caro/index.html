@@ -56,6 +56,8 @@
     <symbol id="i-analyze" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5M7.5 12l2-2.5 2 1.5 2-3"/></symbol>
     <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.8.6 1.1 1.3 1.1 2.2h5c0-.9.3-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
     <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8 8 9 4.6-1 8-4.5 8-9V6z"/></symbol>
+    <symbol id="i-fork" viewBox="0 0 24 24"><path d="M6 3v6a6 6 0 0 0 12 0V3M12 15v6"/></symbol>
     <symbol id="i-retry" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.3-5.7M4 4v4h4"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
     <symbol id="i-medal2" viewBox="0 0 24 24"><circle cx="12" cy="14" r="6"/><path d="M8.5 3.5 11 8.5M15.5 3.5 13 8.5M12 11.5l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z"/></symbol>
@@ -196,6 +198,11 @@
         </div>
       </fieldset>
 
+      <fieldset>
+        <legend data-i18n="grule"></legend>
+        <select name="rule" class="select" data-i18n-aria="grule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select>
+      </fieldset>
+
       <fieldset class="ai-only">
         <legend data-i18n="opponent"></legend>
         <select name="bot" class="select" data-i18n-aria="opponent"></select>
@@ -318,8 +325,14 @@
           <label><input type="radio" name="human" value="2"> <b class="o">O</b> <span data-i18n="goes_second"></span></label>
         </div>
       </fieldset>
+      <fieldset>
+        <legend data-i18n="grule"></legend>
+        <select name="rule" class="select" data-i18n-aria="grule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select>
+        <p class="hint rule-hint" id="ng-rule-hint"></p>
+      </fieldset>
       <fieldset class="ai-only">
         <legend data-i18n="opponent"></legend>
+        <div class="seg style-tabs" id="ng-styles" role="radiogroup" data-i18n-aria="bot_style"></div>
         <div class="bot-grid" id="ng-bots"></div>
         <p class="bot-say" id="ng-bot-say"></p>
       </fieldset>
@@ -353,6 +366,8 @@
         <button type="button" class="pz-mode" data-open="learn"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span><b data-i18n="learn_title"></b><small data-i18n="learn_sub"></small></span></button>
         <button type="button" class="pz-mode" data-pz="rated"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span><b data-i18n="pz_rated"></b><small data-i18n="pz_rated_d"></small></span></button>
         <button type="button" class="pz-mode" data-storm><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg><span><b data-i18n="storm_title"></b><small id="storm-sub" data-i18n="storm_d"></small></span></button>
+        <button type="button" class="pz-mode" data-pz="vcf"><svg class="ico" aria-hidden="true"><use href="#i-bolt"/></svg><span><b data-i18n="pz_vcf"></b><small data-i18n="pz_vcf_d"></small></span></button>
+        <button type="button" class="pz-mode" data-pz="vct"><svg class="ico" aria-hidden="true"><use href="#i-fork"/></svg><span><b data-i18n="pz_vct"></b><small data-i18n="pz_vct_d"></small></span></button>
         <button type="button" class="pz-mode" data-pz="streak"><svg class="ico" aria-hidden="true"><use href="#i-fire"/></svg><span><b data-i18n="pz_streak"></b><small data-i18n="pz_streak_d"></small></span></button>
         <button type="button" class="pz-mode" data-open="habits"><svg class="ico" aria-hidden="true"><use href="#i-medal2"/></svg><span><b data-i18n="habits_title"></b><small data-i18n="habits_sub"></small></span></button>
         <button type="button" class="pz-mode" data-pz="daily"><svg class="ico" aria-hidden="true"><use href="#i-cal"/></svg><span><b data-i18n="pz_daily"></b><small id="pz-daily-sub" data-i18n="pz_daily_d"></small></span></button>
@@ -421,6 +436,8 @@
             </select></label>
           <label class="opt"><span data-i18n="opening"></span>
             <select class="select" id="room-opening"><option value="free" data-i18n="opening_free"></option><option value="swap2" data-i18n="opening_swap2_short"></option></select></label>
+          <label class="opt"><span data-i18n="grule"></span>
+            <select class="select" id="room-rule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select></label>
         </div>
         <p class="hint" id="room-opening-hint" data-i18n="opening_hint" hidden></p>
         <label class="check"><input type="checkbox" id="room-public"> <span data-i18n="room_public"></span></label>
@@ -554,6 +571,8 @@
           </select></label>
         <label class="opt"><span data-i18n="opening"></span>
           <select class="select" name="opening"><option value="free" data-i18n="opening_free"></option><option value="swap2" data-i18n="opening_swap2_short"></option></select></label>
+        <label class="opt"><span data-i18n="grule"></span>
+          <select class="select" name="rule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select></label>
       </fieldset>
       <p class="hint" data-i18n="opening_hint"></p>
       <p class="hint" data-i18n="challenge_hint"></p>
@@ -617,10 +636,14 @@
       <ul class="people learn-list" id="learn-list"></ul>
       <h3 data-i18n="rules_title"></h3>
       <ul class="people learn-list" id="rules-list"></ul>
+      <h3 data-i18n="open_title"></h3>
+      <ul class="people learn-list" id="open-list"></ul>
+      <h3 data-i18n="tactic_title"></h3>
+      <ul class="people learn-list" id="tactic-list"></ul>
     </div>
   </dialog>
 
-  <!-- Giải thích luật (Swap2, Renju): từng bước có hình bàn cờ -->
+  <!-- Giải thích luật / khai cuộc / chiến thuật: từng bước có hình bàn cờ -->
   <dialog id="rule-dlg">
     <div class="dlg">
       <div class="dlg-head">
@@ -632,6 +655,7 @@
       <p class="rule-text" id="rule-text"></p>
       <div class="row rule-nav">
         <button type="button" class="ghost" id="rule-prev" data-i18n="rule_prev"></button>
+        <button type="button" class="ghost" id="rule-try" data-i18n="rule_try" hidden></button>
         <button type="button" class="primary" id="rule-next" data-i18n="rule_next"></button>
       </div>
     </div>
@@ -759,6 +783,8 @@
   <script src="config.js"></script>
   <script src="native.js"></script>
   <script src="i18n.js"></script>
+  <script src="i18n-rules.js"></script>
+  <script src="i18n-bots.js"></script>
   <script src="sound.js"></script>
   <script src="rules.js"></script>
   <script src="bots.js"></script>

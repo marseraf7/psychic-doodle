@@ -113,7 +113,7 @@ class Watch {
       const x = side(1), o = side(2);
       list.push({
         code: room.code, x, o, moves: room.board.moves.length, timeLimit: room.timeLimit, clock: room.clockSpec,
-        opening: room.opening, tour: room.tour ? room.tour.name : null, watchers: room.watchers ? room.watchers.size : 0,
+        opening: room.opening, rule: room.rule, tour: room.tour ? room.tour.name : null, watchers: room.watchers ? room.watchers.size : 0,
         avg: ((x.rating || 1000) + (o.rating || 1000)) / 2,
       });
     }

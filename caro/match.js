@@ -95,7 +95,7 @@
     el.innerHTML = Q.lobby.map((r) => `
       <li><span class="st online"></span>
         <div class="pn"><b>${esc(r.host.name)}${r.host.rating ? ` <span class="rating">${esc(String(r.host.rating))}</span>` : ''}</b>
-          <small>⏱ ${esc(window.I18N.tc(r.timeLimit, r.clock))}${r.opening === 'swap2' ? ' · Swap2' : ''}${r.host.rating ? '' : ' · ' + esc(T('guest'))}</small></div>
+          <small>⏱ ${esc(window.I18N.tc(r.timeLimit, r.clock))}${r.opening === 'swap2' ? ' · Swap2' : ''}${esc(window.I18N.ruleTag(r.rule))}${r.host.rating ? '' : ' · ' + esc(T('guest'))}</small></div>
         <button type="button" class="primary sm" data-lobby-join="${esc(r.code)}">${esc(T('lobby_join'))}</button></li>`).join('');
     el.querySelectorAll('[data-lobby-join]').forEach((b) => {
       b.onclick = () => {

@@ -36,6 +36,65 @@ const tests = {
     }
     assert.ok(checked > 50000);
   },
+  'luật tự do / tiêu chuẩn / Renju: ô thắng của engine giống rules.js, nước cấm giống rules.js'() {
+    const rng = seeded(11);
+    let checked = 0, forb = 0;
+    for (const rule of ['free', 'std', 'renju']) {
+      for (let g = 0; g < 25; g++) {
+        const b = new C.Board(rule); const mv = [];
+        for (let k = 0; k < 40; k++) {
+          const x = Math.floor(rng() * 9) - 4, y = Math.floor(rng() * 9) - 4;
+          if (b.get(x, y)) continue;
+          const p = mv.length % 2 ? O : X;
+          if (C.forbidden(b, x, y, p)) continue;
+          b.play(x, y, p); mv.push([x, y]);
+          if (C.checkWin(b, x, y, p)) break;
+          const pos = new E.Position(mv, rule);
+          for (let yy = -6; yy <= 6; yy++) for (let xx = -6; xx <= 6; xx++) {
+            if (b.get(xx, yy)) continue;
+            for (const q of [X, O]) { checked++; assert.strictEqual(!!pos.win[q][pos.idx(xx, yy)], C.winsIfPlaced(b, xx, yy, q), `${rule} (${xx},${yy}) bên ${q} sau ${JSON.stringify(mv)}`); }
+            if (rule === 'renju') {
+              const f = !!C.forbidden(b, xx, yy, X);
+              if (f) forb++;
+              assert.strictEqual(pos.forbidden(pos.idx(xx, yy), X), f, `nước cấm (${xx},${yy}) sau ${JSON.stringify(mv)}`);
+            }
+          }
+          assert.strictEqual(pos.evalX, new E.Position(mv, rule).evalX);
+        }
+      }
+    }
+    assert.ok(checked > 20000 && forb > 20, `${checked} ô, ${forb} ô cấm`);
+  },
+  'Renju: engine cầm X không đánh vào ô cấm; X chỉ còn ô chặn là ô cấm thì thua'() {
+    // X có 3-3 tại (0,0) – ô cấm; X tới lượt
+    const mv = [[1, 0], [9, 9], [2, 0], [9, 10], [0, 1], [10, 9], [0, 2], [8, 8]];
+    const r = E.analyse(mv, { ms: 200, rule: 'renju' });
+    const b = new C.Board('renju'); mv.forEach(([x, y], i) => b.play(x, y, i % 2 ? O : X));
+    assert.strictEqual(C.forbidden(b, r.move[0], r.move[1], X), null, 'engine đánh vào ô cấm ' + r.move);
+    // O có 4 quân dọc (0,-1…-4), đầu dưới đã bị X chặn ở (0,-5): ô thắng duy nhất của O là (0,0),
+    // mà (0,0) lại là ô cấm 3-3 của X (ngang (1,0),(2,0) + chéo (1,1),(2,2)) -> X không chặn được, X thua
+    const t = [[1, 0], [0, -1], [2, 0], [0, -2], [1, 1], [0, -3], [2, 2], [0, -4], [0, -5], [-5, -5]];
+    const bt = new C.Board('renju'); t.forEach(([x, y], i) => bt.play(x, y, i % 2 ? O : X));
+    assert.strictEqual(C.forbidden(bt, 0, 0, X), '33');
+    assert.deepStrictEqual(C.candidates(bt, 1).filter(([x, y]) => C.winsIfPlaced(bt, x, y, O)), [[0, 0]]);
+    const pos = new E.Position(t, 'renju');
+    assert.ok(pos.winCount[O] === 1 && pos.blocks(X).length === 0, 'X không có nước chặn hợp lệ');
+    const r2 = E.analyse(t, { ms: 200, rule: 'renju' });
+    assert.ok(r2.mate < 0, JSON.stringify(r2));
+    // Cùng thế cờ theo luật Việt Nam: X chặn được ở (0,0)
+    assert.ok(new E.Position(t, 'vn').blocks(X).length > 0);
+  },
+  'lối đánh: trọng số mặc định giữ nguyên điểm; lối phòng thủ coi trọng thế đối thủ hơn'() {
+    const mv = [[0, 0], [5, 5], [1, 0], [5, 6], [2, 0], [9, 9]];
+    const a = new E.Position(mv), d = new E.Position(mv);
+    d.style = { a: 0.9, d: 1.25, dbl: 0, trap: 0 };
+    assert.strictEqual(a.evaluate(), (a.side === X ? a.evalX : -a.evalX) + 30);
+    assert.ok(d.evaluate() !== a.evaluate());
+    for (const st of ['atk', 'def', 'dbl', 'trap']) {
+      const r = E.analyse(mv, { ms: 150, style: B.STYLES.includes(st) ? B.of(6, st).styleW.engine : null });
+      assert.ok(r.move && r.move.length === 2);
+    }
+  },
   'đi rồi lùi trả lại đúng trạng thái (khoá, điểm, ô thắng)'() {
     const pos = new E.Position([[0, 0], [1, 1], [1, 0], [2, 2], [2, 0], [0, 3]]);
     const snap = () => [pos.key, pos.evalX, pos.winCount.join(), Array.from(pos.win[X]).join(''), Array.from(pos.near).join('')].join('|');
@@ -55,12 +114,12 @@ const tests = {
     const list = require(path.join(__dirname, '../puzzles.json'));
     let solved = 0;
     for (const q of list) {
-      const r = E.analyse(q.m, { ms: 400 });
+      const r = E.analyse(q.m, { ms: 400, rule: q.rule });
       const b = board(q.m);
       assert.strictEqual(b.get(r.move[0], r.move[1]), C.EMPTY, `#${q.id}: ô đã có quân`);
       if (r.mate > 0 && r.mate <= q.len + 1) solved++;
     }
-    assert.ok(solved >= 297, `giải ${solved}/300`);
+    assert.ok(solved >= list.length - 3, `giải ${solved}/${list.length}`);
   },
   'bên sắp thua thấy mình thua chắc (điểm âm, mate < 0)'() {
     // O tới lượt, X có 4 quân hai đầu đều trống (không chặn nổi cả hai)

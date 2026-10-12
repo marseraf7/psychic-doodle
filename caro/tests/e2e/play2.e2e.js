@@ -125,7 +125,7 @@ const { setup } = require('./helpers');
   await p.click('#welcome-card [data-level="new"]');
   await sleep(400);
   ok(await p.isVisible('#learn-dlg'), 'chọn "Mới học": mở Học chơi');
-  ok((await p.$$('#learn-list li')).length === 6, '6 bài học');
+  ok((await p.$$('#learn-list li')).length === 9, '9 bài học');
   await shot(p, 'play2-learn-430.png');
   await p.click('#learn-list [data-lesson="0"]');
   await sleep(400);
@@ -154,20 +154,23 @@ const { setup } = require('./helpers');
     await p.click('#ext-bar [data-act=next]');
     await sleep(500);
   }
-  // Bài 6: chuỗi ép (bài đố thật)
-  for (let k = 0; k < 8 && !/Chính xác|Đã giải/.test(await p.textContent('#turn')); k++) {
-    await p.evaluate(() => {
-      const A = window.CaroApp;
-      if (!A.ext || !A.ext.canPlay) return;
-      const f = window.CaroAnalysis.forced(A.board, A.turn, 7, { deadline: Date.now() + 3000 });
-      if (f) A.ext.onMove(f.move[0], f.move[1]);
-    });
-    await sleep(800);
+  // Bài 6–9: chuỗi nước bốn (luật tự do), chuỗi đe doạ (luật VN), thế nón lá (luật tự do), Renju 4-3
+  for (let i = 6; i <= 9; i++) {
+    for (let k = 0; k < 10 && !/Chính xác|Đã giải/.test(await p.textContent('#turn')); k++) {
+      await p.evaluate(() => {
+        const A = window.CaroApp;
+        if (!A.ext || !A.ext.canPlay) return;
+        const f = window.CaroAnalysis.forced(A.board, A.turn, 7, { deadline: Date.now() + 3000 });
+        if (f) A.ext.onMove(f.move[0], f.move[1]);
+      });
+      await sleep(800);
+    }
+    ok(/Chính xác|Đã giải/.test(await p.textContent('#turn')), `bài ${i}: giải đúng (luật ${await p.evaluate(() => window.CaroApp.board.rule)})`);
+    if (i < 9) { await p.click('#ext-bar [data-act=next]'); await sleep(600); }
   }
-  ok(/Chính xác|Đã giải/.test(await p.textContent('#turn')), 'bài 6 (chuỗi ép): giải đúng');
   await p.click('#ext-bar [data-act=exit]');
   await sleep(400);
-  ok(await p.evaluate(() => window.CaroLearn.doneCount()) === 6, 'học xong 6/6 bài');
+  ok(await p.evaluate(() => window.CaroLearn.doneCount()) === 9, 'học xong 9/9 bài');
   // Thành tích: chuỗi 1 ngày, huy hiệu "Tốt nghiệp"
   await p.click('#btn-settings');
   await sleep(200);

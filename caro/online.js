@@ -338,7 +338,7 @@
   $('challenge-form').onsubmit = (e) => {
     e.preventDefault();
     const f = e.target;
-    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value, ...parseTc(f.tc.value), opening: f.opening.value });
+    if (S.challengeTo) send({ t: 'challenge', to: S.challengeTo.id, bestOf: Number(f.bo.value), first: f.first.value, ...parseTc(f.tc.value), opening: f.opening.value, rule: f.rule.value });
   };
 
   // ------------------------------------------------------------ Lời thách đấu
@@ -352,7 +352,7 @@
     }
     // Thông tin trận: Bo3 · ai đi trước · thời gian mỗi nước
     const details = (inv, first) => [`Bo${inv.bestOf}`, first, inv.timeLimit || inv.clock ? '⏱ ' + window.I18N.tc(inv.timeLimit, inv.clock) : '',
-      inv.opening === 'swap2' ? 'Swap2' : ''].filter(Boolean).join(' · ');
+      inv.opening === 'swap2' ? 'Swap2' : '', inv.rule && inv.rule !== 'vn' ? T('grule_s_' + inv.rule) : ''].filter(Boolean).join(' · ');
     let html = '';
     for (const inv of S.invites.values()) {
       const first = inv.first === 'random' ? T('first_random') : inv.first === 'me' ? T('first_name', { name: inv.from.name }) : T('first_you');
@@ -472,7 +472,7 @@
   $('btn-online').onclick = () => { connect(); render(); openDlg('online'); };
   $('create-room').onclick = () => {
     const side = document.querySelector('input[name="room-side"]:checked').value;
-    send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, public: $('room-public').checked });
+    send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, rule: $('room-rule').value, public: $('room-public').checked });
   };
   // Chọn Swap2 thì hiện lời giải thích luật ngay dưới (ô chọn chỉ ghi ngắn "Swap2" để không bị cắt chữ)
   $('room-opening').onchange = () => { $('room-opening-hint').hidden = $('room-opening').value !== 'swap2'; };
@@ -526,7 +526,7 @@
       : esc(r.kind === 'series' ? T('series_title', { n: r.bestOf }) : T('room_title'));
     // Phòng của giải đấu: không có mã / mật khẩu / link mời
     document.querySelector('#room-info .codes').hidden = !!r.tour;
-    $('ri-time').textContent = '⏱ ' + window.I18N.tc(r.timeLimit, r.clock) + (r.opening === 'swap2' ? ' · ' + T('opening_swap2') : '');
+    $('ri-time').textContent = '⏱ ' + window.I18N.tc(r.timeLimit, r.clock) + (r.opening === 'swap2' ? ' · ' + T('opening_swap2') : '') + window.I18N.ruleTag(r.rule);
     $('ri-code').textContent = r.code;
     $('ri-pass').textContent = r.password;
     $('ri-hint').textContent = r.tour ? T('room_info_hint_tour') : T(r.public ? 'room_info_hint_public' : 'room_info_hint');

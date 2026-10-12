@@ -1,8 +1,14 @@
 /*
- * Cờ Caro – luật "chặn 2 đầu" (phổ biến ở Việt Nam) + AI.
+ * Cờ Caro – các luật chơi + AI.
+ * Luật Việt Nam "chặn 2 đầu" (mặc định, 'vn'):
  *  - Chuỗi bị chặn 1 đầu: đủ 5 quân là thắng.
  *  - Chuỗi không bị chặn đầu nào: đủ 4 quân là thắng.
  *  - Chuỗi bị chặn cả 2 đầu: không tính thắng.
+ * Luật quốc tế:
+ *  - 'free'  Gomoku tự do: 5 quân trở lên là thắng (6, 7 quân vẫn thắng), không quan tâm bị chặn.
+ *  - 'std'   Gomoku tiêu chuẩn: chỉ đúng 5 quân mới thắng; 6 quân trở lên (quá năm) không tính.
+ *  - 'renju' Liên Châu: X (quân đen, đi trước) chỉ thắng với đúng 5 quân và bị cấm 3-3, 4-4, quá năm;
+ *            O (quân trắng) 5 quân trở lên đều thắng, không bị cấm gì.
  * Bàn cờ vô hạn: chỉ lưu các ô đã đánh.
  * Chạy được trên trình duyệt (window.Caro) và Node (module.exports) để test.
  */
@@ -16,10 +22,14 @@
   const key = (x, y) => (x + OFF) * SPAN + (y + OFF);
   const other = (p) => 3 - p;
 
+  const RULES = ['vn', 'free', 'std', 'renju'];
+  const ruleOf = (r) => (RULES.includes(r) ? r : 'vn');
+
   class Board {
-    constructor() {
+    constructor(rule) {
       this.cells = new Map();
       this.moves = [];
+      this.rule = ruleOf(rule);
     }
     get(x, y) { return this.cells.get(key(x, y)) || EMPTY; }
     put(x, y, p) { this.cells.set(key(x, y), p); }
@@ -35,6 +45,19 @@
     }
   }
 
+  /** Chuỗi liền len quân của p có thắng không theo luật rule? openA / openB: hàm hỏi hai đầu có trống không. */
+  function winLen(rule, p, len, openA, openB) {
+    switch (rule) {
+      case 'free': return len >= 5;
+      case 'std': return len === 5;
+      case 'renju': return p === X ? len === 5 : len >= 5;
+      default: {
+        const a = openA(), b = openB();
+        return (len >= 5 && (a || b)) || (len >= 4 && a && b);
+      }
+    }
+  }
+
   // Quân p đã nằm ở (x,y). Trả về các ô của chuỗi thắng theo hướng (dx,dy), hoặc null.
   function lineWin(board, x, y, dx, dy, p) {
     let a = 1;
@@ -43,9 +66,7 @@
     while (board.get(x + b * dx, y + b * dy) === p) b++;
     const len = a + b - 1;
     if (len < 4) return null;
-    const openA = board.get(x - a * dx, y - a * dy) === EMPTY;
-    const openB = board.get(x + b * dx, y + b * dy) === EMPTY;
-    const win = (len >= 5 && (openA || openB)) || (openA && openB);
+    const win = winLen(board.rule, p, len, () => board.get(x - a * dx, y - a * dy) === EMPTY, () => board.get(x + b * dx, y + b * dy) === EMPTY);
     if (!win) return null;
     const cells = [];
     for (let i = -(a - 1); i <= b - 1; i++) cells.push([x + i * dx, y + i * dy]);
@@ -65,6 +86,108 @@
     const w = checkWin(board, x, y, p) !== null;
     board.remove(x, y);
     return w;
+  }
+
+  // ---------------------------------------------------------------- Nước cấm Renju (chỉ quân X / đen)
+  // Định nghĩa theo luật RIF:
+  //  - Năm: đúng 5 quân liền. Thắng luôn được ưu tiên hơn nước cấm.
+  //  - Bốn: một đường mà thêm 1 quân là thành đúng 5. "Bốn thẳng" (_XXXX_) có 2 ô thành 5 nhưng vẫn chỉ là 1 bốn;
+  //    hai ô thành 5 cách nhau không phải 5 ô (vd. X_XXX_X) là 2 bốn trên cùng một đường.
+  //  - Ba (ba mở): một đường mà thêm 1 quân (ở ô không bị cấm) thành bốn thẳng.
+  //  - Cấm: quá năm (≥ 6 quân), hai bốn trở lên (4-4), hai ba trở lên (3-3).
+
+  /** Ô (x,y) đang trống; các quân đen đã có trên bàn. Hàm trả về độ dài chuỗi đen liền qua (x,y) theo hướng (dx,dy) nếu đặt đen ở đó. */
+  function runLen(board, x, y, dx, dy) {
+    let a = 1; while (board.get(x - a * dx, y - a * dy) === X) a++;
+    let b = 1; while (board.get(x + b * dx, y + b * dy) === X) b++;
+    return a + b - 1;
+  }
+  /** Đen (đã nằm ở (x,y)) có các ô nào trên đường (dx,dy) mà đánh vào thành đúng 5 (gồm cả (x,y))? Trả về chỉ số k của các ô đó. */
+  function fiveSpots(board, x, y, dx, dy) {
+    const out = [];
+    for (let k = -4; k <= 4; k++) {
+      if (!k) continue;
+      const cx = x + k * dx, cy = y + k * dy;
+      if (board.get(cx, cy) !== EMPTY) continue;
+      board.put(cx, cy, X);
+      // Chuỗi đúng 5 qua ô mới và phải chứa (x,y)
+      let a = 1; while (board.get(cx - a * dx, cy - a * dy) === X) a++;
+      let b = 1; while (board.get(cx + b * dx, cy + b * dy) === X) b++;
+      board.remove(cx, cy);
+      if (a + b - 1 === 5 && k - (a - 1) <= 0 && k + (b - 1) >= 0) out.push(k);
+    }
+    return out;
+  }
+  /** Số "bốn" trên một đường (bốn thẳng tính là 1). */
+  function foursOnLine(board, x, y, dx, dy) {
+    const f = fiveSpots(board, x, y, dx, dy);
+    if (f.length === 2 && Math.abs(f[1] - f[0]) === 5) return 1;
+    return f.length;
+  }
+  /** Đường (dx,dy) qua (x,y) có "ba mở" không: thêm 1 quân ở ô không cấm thì thành bốn thẳng. */
+  function threeOnLine(board, x, y, dx, dy, depth) {
+    for (let k = -4; k <= 4; k++) {
+      if (!k) continue;
+      const cx = x + k * dx, cy = y + k * dy;
+      if (board.get(cx, cy) !== EMPTY) continue;
+      board.put(cx, cy, X);
+      const f = fiveSpots(board, x, y, dx, dy);
+      const straight = f.length === 2 && Math.abs(f[1] - f[0]) === 5 && runLen(board, cx, cy, dx, dy) === 4;
+      board.remove(cx, cy);
+      if (straight && (depth <= 0 || !forbiddenAt(board, cx, cy, depth - 1))) return true;
+    }
+    return false;
+  }
+  /** Đặt đen vào ô trống (x,y) có phải nước cấm không? Trả về 'overline' | '44' | '33' | null. */
+  function forbiddenAt(board, x, y, depth) {
+    if (depth === undefined) depth = 2;
+    board.put(x, y, X);
+    try {
+      let five = false, over = false;
+      for (const [dx, dy] of DIRS) {
+        const n = runLen2(board, x, y, dx, dy);
+        if (n === 5) five = true; else if (n > 5) over = true;
+      }
+      if (five) return null;
+      if (over) return 'overline';
+      let fours = 0, threes = 0;
+      for (const [dx, dy] of DIRS) {
+        const f = foursOnLine(board, x, y, dx, dy);
+        fours += f;
+        if (!f && threeOnLine(board, x, y, dx, dy, depth)) threes++;
+      }
+      if (fours >= 2) return '44';
+      if (threes >= 2) return '33';
+      return null;
+    } finally {
+      board.remove(x, y);
+    }
+  }
+  // (x,y) đã có đen: độ dài chuỗi liền qua đó
+  function runLen2(board, x, y, dx, dy) {
+    let a = 1; while (board.get(x - a * dx, y - a * dy) === X) a++;
+    let b = 1; while (board.get(x + b * dx, y + b * dy) === X) b++;
+    return a + b - 1;
+  }
+  /** Lọc nhanh: (x,y) chỉ có thể là nước cấm nếu ≥ 2 hướng có ≥ 2 quân đen gần (≤ 4 ô, chưa bị chặn) hoặc một hướng có ≥ 3, hoặc có thể thành quá năm. */
+  function mayForbid(board, x, y) {
+    let lines = 0;
+    for (const [dx, dy] of DIRS) {
+      let n = 0;
+      for (let k = 1; k <= 4; k++) { const v = board.get(x + k * dx, y + k * dy); if (v === X) n++; else if (v !== EMPTY) break; }
+      for (let k = 1; k <= 4; k++) { const v = board.get(x - k * dx, y - k * dy); if (v === X) n++; else if (v !== EMPTY) break; }
+      if (n >= 3) return true; // có thể 4-4 trên cùng một đường (X_XXX_X)
+      if (n >= 2) lines++;
+      if (lines >= 2) return true;
+      if (runLen(board, x, y, dx, dy) >= 6) return true;
+    }
+    return false;
+  }
+  /** p đánh vào ô trống (x,y) có bị cấm không (chỉ luật Renju, chỉ quân X)? Trả về lý do hoặc null. */
+  function forbidden(board, x, y, p) {
+    if (board.rule !== 'renju' || p !== X || board.get(x, y) !== EMPTY) return null;
+    if (!mayForbid(board, x, y)) return null;
+    return forbiddenAt(board, x, y);
   }
 
   // ---------------------------------------------------------------- AI
@@ -184,6 +307,7 @@
         }
       }
       for (const [rx, ry] of replies.values()) {
+        if (forbidden(board, rx, ry, opp)) continue; // Renju: X không được chặn vào ô cấm
         board.put(rx, ry, opp);
         let still = false;
         for (const [wx, wy] of W) {
@@ -231,7 +355,7 @@
       board.put(rx, ry, opp);
       const stillWins = W.some(([wx, wy]) => board.get(wx, wy) === EMPTY && winsIfPlaced(board, wx, wy, p));
       board.remove(rx, ry);
-      if (!stillWins) out.push([rx, ry]);
+      if (!stillWins && !forbidden(board, rx, ry, opp)) out.push([rx, ry]);
     }
     return out;
   }
@@ -255,7 +379,7 @@
     if (depth <= 0 || Date.now() > ctx.deadline) return null;
     const opp = other(p);
     const threats = [];
-    for (const [x, y] of candidates(board, 2)) {
+    for (const [x, y] of legal(board, candidates(board, 2), p)) {
       if (!couldThreat(board, x, y, p)) continue;
       board.put(x, y, p);
       const W = winCellsAround(board, x, y, p);
@@ -289,21 +413,76 @@
    * opts (mức Khó): vcfDepth / vcfMs – độ sâu và thời gian tìm chuỗi ép của mình,
    *                 defDepth / defMs – của đối thủ (để phá). Mặc định như trước: 5 / 450ms, 4 / 250ms.
    */
+  /**
+   * Điểm thưởng theo lối đánh của nhân vật máy (bots.js) khi p đánh vào ô trống (x,y).
+   * w.dbl  – nước đôi: thưởng ô giao điểm, nơi quân mới góp thế trên nhiều đường cùng lúc.
+   * w.trap – gài bẫy: thưởng nước "nhảy" cách quân mình 1 ô (không sát quân nào), trừ điểm nước bám sát nước vừa đi
+   *          của đối thủ, thưởng thế 3 có khe (khó nhìn ra).
+   */
+  function styleBonus(board, x, y, p, w) {
+    if (!w || (!w.dbl && !w.trap)) return 0;
+    const opp = other(p);
+    let dirs2 = 0, dirs3 = 0, split3 = 0;
+    for (const [dx, dy] of DIRS) {
+      // Cửa sổ 5 ô chứa (x,y), không có quân đối thủ: nhiều quân mình nhất là bao nhiêu (kể cả quân mới)?
+      let best = 0, gap = false;
+      for (let st = -4; st <= 0; st++) {
+        let n = 1, blocked = false, holes = 0;
+        for (let k = st; k < st + 5; k++) {
+          if (!k) continue;
+          const v = board.get(x + k * dx, y + k * dy);
+          if (v === opp) { blocked = true; break; }
+          if (v === p) n++;
+          else if (k > st && k < st + 4) holes++;
+        }
+        if (!blocked && n > best) { best = n; gap = holes > 0 && n === 3; }
+      }
+      if (best >= 2) dirs2++;
+      if (best >= 3) dirs3++;
+      if (gap) split3++;
+    }
+    let b = 0;
+    if (w.dbl) b += w.dbl * (60 * Math.max(0, dirs2 - 1) + 400 * Math.max(0, dirs3 - 1));
+    if (w.trap) {
+      let adj = false, near = false;
+      for (let dx = -2; dx <= 2; dx++) {
+        for (let dy = -2; dy <= 2; dy++) {
+          if (!dx && !dy) continue;
+          const v = board.get(x + dx, y + dy);
+          if (!v) continue;
+          if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1) adj = true;
+          else if (v === p) near = true;
+        }
+      }
+      const last = board.moves[board.moves.length - 1];
+      const nearLast = last && last.p === opp && Math.abs(last.x - x) <= 1 && Math.abs(last.y - y) <= 1;
+      b += w.trap * ((!adj && near ? 80 : 0) - (nearLast ? 60 : 0) + 120 * split3);
+    }
+    return b;
+  }
+
+  /** Bỏ các ô cấm (Renju, quân X) khỏi danh sách ô. */
+  function legal(board, cells, p) {
+    if (board.rule !== 'renju' || p !== X) return cells;
+    return cells.filter(([x, y]) => !forbidden(board, x, y, p));
+  }
+
   function chooseMove(board, p, level, rng, opts) {
     rng = rng || Math.random;
     const o = { vcfDepth: 5, vcfMs: 450, defDepth: 4, defMs: 250, ...(opts || {}) };
     const opp = other(p);
-    const cands = candidates(board, 2);
+    const cands = legal(board, candidates(board, 2), p);
     if (board.moves.length === 0) return [0, 0];
 
     // 1. Thắng ngay.
     for (const [x, y] of cands) if (winsIfPlaced(board, x, y, p)) return [x, y];
 
-    // Chấm điểm tấn công + phòng thủ.
-    const defW = level === 1 ? 0.6 : level === 2 ? 0.85 : 0.95;
+    // Chấm điểm tấn công + phòng thủ (+ lối đánh của nhân vật: o.atkW, o.defW, o.dbl, o.trap – xem bots.js).
+    const atkW = o.atkW || 1;
+    const defW = (level === 1 ? 0.6 : level === 2 ? 0.85 : 0.95) * (o.defW || 1);
     const scored = cands.map(([x, y]) => ({
       c: [x, y],
-      s: cellScore(board, x, y, p) + defW * cellScore(board, x, y, opp) + rng() * (level === 1 ? 60 : 3),
+      s: atkW * cellScore(board, x, y, p) + defW * cellScore(board, x, y, opp) + styleBonus(board, x, y, p, o) + rng() * (level === 1 ? 60 : 3),
     }));
     scored.sort((a, b) => b.s - a.s);
 
@@ -328,6 +507,23 @@
     // 3. Nước thắng chắc (tạo đe doạ không thể chặn hết).
     for (const { c } of scored.slice(0, 30)) {
       if (forcesWin(board, c[0], c[1], p, cands, false)) return c;
+    }
+
+    if (level === 2) {
+      // Lối Tấn công: tìm chuỗi ép ngắn cho mình từ sớm.
+      if (o.vcfEarly) {
+        const mine = vcf(board, p, 3, { deadline: Date.now() + 150 });
+        if (mine) return mine;
+      }
+      // Lối Phòng thủ: chặn từ sớm mọi nước thắng chắc của đối thủ.
+      if (o.defW > 1 && opponentHasForce(board, opp, 8)) {
+        for (const { c } of scored.slice(0, 8)) {
+          board.put(c[0], c[1], p);
+          const bad = opponentHasForce(board, opp, 8);
+          board.remove(c[0], c[1]);
+          if (!bad) return c;
+        }
+      }
     }
 
     // 4. Khó: tìm chuỗi nước ép sâu hơn cho mình, và phá chuỗi ép của đối thủ.
@@ -365,8 +561,8 @@
   }
 
   const Caro = {
-    EMPTY, X, O, DIRS, Board, key, other, lineWin, checkWin, winsIfPlaced, candidates, cellScore, forcesWin, vcf, chooseMove,
-    winCellsAround, blockingReplies,
+    EMPTY, X, O, DIRS, RULES, ruleOf, Board, key, other, lineWin, checkWin, winsIfPlaced, candidates, cellScore, forcesWin, vcf, chooseMove,
+    winCellsAround, blockingReplies, forbidden, legal, winLen, styleBonus,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = Caro;
   else global.Caro = Caro;

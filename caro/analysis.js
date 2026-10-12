@@ -125,7 +125,7 @@
   /**
    * Phân tích cả ván bằng engine: chấm từng thế cờ (khả năng thắng của bên tới lượt), rồi xếp loại từng nước theo
    * mức tụt khả năng thắng, hoặc theo chuỗi thắng chắc nếu engine đã thấy (bỏ lỡ / để thua chắc).
-   * opts: { ms: thời gian cho mỗi thế (mặc định tuỳ độ dài ván), onProgress(n, total) }.
+   * opts: { ms: thời gian cho mỗi thế (mặc định tuỳ độ dài ván), rule: luật của ván, onProgress(n, total) }.
    * Trả về { moves: [{ i, p, x, y, cls, best, len, drop, ev, e }], acc: {1: %, 2: %}, counts: {1: {...}, 2: {...}} }
    * (e: khả năng thắng của X sau nước đó, đổi sang −1…+1 cho biểu đồ; ev: xếp loại theo mức tụt, drop: % tụt).
    */
@@ -134,8 +134,8 @@
     const EN = engine();
     const n = moves.length;
     const ms = opts.ms || Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // cả ván khoảng 10 giây
-    const shared = { ms, tt: new Map(), qtt: new Map(), vtt: new Map() };
-    const board = new C.Board();
+    const shared = { ms, tt: new Map(), qtt: new Map(), vtt: new Map(), rule: opts.rule };
+    const board = new C.Board(opts.rule);
     const evals = []; // evals[i]: thế cờ trước nước i (null = ván đã kết thúc)
     let end = n;
     for (let i = 0; i <= n; i++) {
