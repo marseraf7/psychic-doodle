@@ -20,8 +20,13 @@ const { setup } = require('./helpers');
   // ---------------------------------------------------------------- Đồng hồ tổng + Swap2 + xem trực tiếp
   const a = await user('vi', 'dong_a');
   const b = await user('vi', 'dong_b');
-  // Chủ phòng: phòng công khai, đồng hồ 3+2, luật Swap2 (chọn trong bảng Online)
-  await a.selectOption('#room-tc', 'c3+2');
+  // Chủ phòng: phòng công khai, đồng hồ 3+2, luật Swap2 (Trang chủ → thẻ Phòng chờ)
+  await a.click('#tabbar [data-tab="home"]');
+  await a.click('.home-tabs [data-hpane="lobby"]');
+  // Bộ chọn thời gian (tc-picker.js): thẻ Đồng hồ, ô chọn nhanh 3+2
+  await a.click('#create-card [data-tcm="clock"]');
+  await a.click('#create-card [data-chip="c3+2"]');
+  ok(await a.inputValue('#room-tc') === 'c3+2', 'tạo phòng: chọn đồng hồ 3+2 bằng ô chọn nhanh');
   await a.selectOption('#room-opening', 'swap2');
   await a.check('#room-public');
   await a.click('#create-room');
@@ -42,7 +47,7 @@ const { setup } = require('./helpers');
     watchErrors(p, 'xem');
     await p.goto(`http://localhost:${PORT}/`);
     await sleep(400);
-    await p.click('#btn-online');
+    await p.click('#tabbar [data-tab="watch"]');
     await sleep(800);
     return p;
   });
@@ -124,7 +129,7 @@ const { setup } = require('./helpers');
   await shot(p, 'play2-welcome-430.png');
   await p.click('#welcome-card [data-level="new"]');
   await sleep(400);
-  ok(await p.isVisible('#learn-dlg'), 'chọn "Mới học": mở Học chơi');
+  ok(await p.isVisible('#page-learn'), 'chọn "Mới học": mở tab Học tập');
   ok((await p.$$('#learn-list li')).length === 9, '9 bài học');
   await shot(p, 'play2-learn-430.png');
   await p.click('#learn-list [data-lesson="0"]');
@@ -171,8 +176,36 @@ const { setup } = require('./helpers');
   await p.click('#ext-bar [data-act=exit]');
   await sleep(400);
   ok(await p.evaluate(() => window.CaroLearn.doneCount()) === 9, 'học xong 9/9 bài');
+  // Phim minh hoạ có phụ đề + "Luyện ngay" luôn có (kể cả khi đọc lại)
+  await p.evaluate(() => window.CaroLearn.openRule('open26', 1));
+  await sleep(300);
+  ok(/Hàn Tinh/.test(await p.textContent('#rule-board .demo-cap')), 'phim 26 thế khai cuộc: phụ đề khung đầu (Hàn Tinh)');
+  await p.click('#rule-board [data-demo="next"]');
+  await sleep(200);
+  ok(/Khê Nguyệt/.test(await p.textContent('#rule-board .demo-cap')), 'phim: bấm khung tiếp -> Khê Nguyệt');
+  await p.evaluate(() => window.I18N.setLang('en'));
+  await sleep(200);
+  ok(/Keigetsu/.test(await p.textContent('#rule-board .demo-cap')), 'đổi sang tiếng Anh: phụ đề tiếng Anh, giữ khung đang xem');
+  await p.evaluate(() => window.I18N.setLang('vi'));
+  await p.click('#rule-next'); // đọc hết rồi mở lại: vẫn có Luyện ngay
+  for (let k = 0; k < 6 && (await p.isVisible('#rule-dlg')); k++) { await p.click('#rule-next'); await sleep(150); }
+  await p.evaluate(() => window.CaroLearn.openRule('open26'));
+  await sleep(200);
+  ok(await p.isVisible('#rule-try'), 'đọc lại 26 thế khai cuộc: vẫn có nút Luyện ngay');
+  await p.click('#rule-try');
+  await sleep(2500);
+  ok(await p.evaluate(() => window.CaroApp.board.rule === 'renju' && window.CaroApp.board.moves.length >= 3), 'Luyện ngay: ván Renju với máy, bày sẵn 3 quân khai cuộc');
+  await shot(p, 'play2-opening-practice-430.png');
+  await p.evaluate(() => window.CaroLearn.open());
+  await sleep(200);
+  ok((await p.$$('#style-cards .style-card')).length === 4 && (await p.$$('#page-learn [data-practice]')).length >= 10, 'Học chơi: 4 thẻ lối đánh, nút Luyện ở các mục');
+  await p.click('#style-cards [data-style-step="3"]');
+  await sleep(300);
+  ok((await p.$$('#rule-bots .rb-bot')).length === 6 && /Nước đôi/.test(await p.textContent('#rule-bots')), 'lối Nước đôi: phim + 6 nhân vật của lối đó');
+  await shot(p, 'play2-style-dbl-430.png');
+  await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
   // Thành tích: chuỗi 1 ngày, huy hiệu "Tốt nghiệp"
-  await p.click('#btn-settings');
+  await p.evaluate(() => document.getElementById('btn-settings').click());
   await sleep(200);
   await p.click('#settings-form [data-open="habits"]');
   await sleep(300);
@@ -181,16 +214,20 @@ const { setup } = require('./helpers');
   await shot(p, 'play2-habits-430.png');
   await p.keyboard.press('Escape');
   // Bàn cờ gỗ + quân đá
-  await p.click('#btn-settings');
+  await p.evaluate(() => document.getElementById('btn-settings').click());
   await sleep(200);
-  await p.selectOption('#settings-form select[name=board]', 'wood');
-  await p.selectOption('#settings-form select[name=pieces]', 'stones');
-  await p.keyboard.press('Escape');
+  await p.click('#settings-form [data-go="look"]');
+  await p.click('#settings-form label:has(input[name=board][value=wood])');
+  await p.click('#settings-form label:has(input[name=pieces][value=stones])');
+  await sleep(200);
+  await shot(p, 'play2-settings-look-430.png');
   ok(await p.evaluate(() => document.documentElement.dataset.board === 'wood' && JSON.parse(localStorage.getItem('caro.style')).pieces === 'stones'), 'đổi bàn gỗ + quân đá, lưu lại');
   // Một ván 2 người đã xong (X thắng) rồi chia sẻ ảnh / GIF
   await p.evaluate(() => sessionStorage.setItem('inject', JSON.stringify({ mode: 'pvp', human: 1, bot: 'ti', moves: [[0, 0], [0, 4], [1, 0], [1, 4], [2, 0], [5, 6], [3, 0]] })));
   await p.reload();
   await sleep(700);
+  await p.evaluate(() => window.CaroApp.toBoard()); // ván đã xong: Trang chủ không có thẻ "Tiếp tục"; vào bàn cờ xem
+  await sleep(400);
   await shot(p, 'play2-wood-stones-430.png');
   await p.click('#banner-analyze');
   await sleep(400);

@@ -125,7 +125,7 @@ const { setup, play } = require('./helpers');
     await sleep(500);
     return pg;
   });
-  await p.click('#btn-puzzle');
+  await p.click('#tabbar [data-tab="puzzles"]');
   await sleep(400);
   await p.selectOption('#pz-diff', '300');
   ok(JSON.parse(await p.evaluate(() => localStorage.getItem('caro.puzzles'))).diff === 300, 'chọn độ khó: lưu lại');

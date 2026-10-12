@@ -40,15 +40,17 @@
   }
   $('wt-leave').onclick = stopWatching;
   $('wt-center').onclick = () => $('btn-center').click();
-  $('wt-tv').onclick = () => { stopWatching(); $('btn-online').click(); };
+  $('wt-tv').onclick = () => { stopWatching(); window.CaroShell.open('watch'); };
 
   // Danh sách ván đang diễn ra
   let tvList = null;
   function loadTv() { if (N.connected) N.send({ t: 'tv' }); }
   N.on('tv', (m) => { tvList = m.games; renderTv(); });
-  N.on('welcome', () => { if (N.isOpen('online')) loadTv(); });
+  const onWatchPage = () => window.CaroShell && window.CaroShell.current === 'watch';
+  N.on('welcome', () => { if (onWatchPage()) loadTv(); });
+  // Mở tab Xem: kết nối rồi tải danh sách ván đang diễn ra
+  window.addEventListener('caro:page', (e) => { if (e.detail.id === 'watch') { N.connect(); renderTv(); loadTv(); } });
   $('tv-refresh').onclick = loadTv;
-  new MutationObserver(() => { if ($('online').open) loadTv(); }).observe($('online'), { attributes: true, attributeFilter: ['open'] });
   const rated = (p) => (p.rating ? ` <span class="rating">${p.rating}${p.prov ? '?' : ''}</span>` : '');
   function renderTv() {
     const el = $('tv-list');

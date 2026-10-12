@@ -17,7 +17,7 @@ const { cleanPublicText, cleanPublicName, cleanTc, userPid, uidOf } = require('.
 const ST = require('./stages.js');
 
 const FORMATS = ['arena', 'bracket'];
-const TOUR_TIME_LIMITS = [10, 20, 30];
+const TOUR_TIME_LIMITS = require('../../../caro/timectl.js').PER_MOVE; // giải luôn có giới hạn thời gian
 const ARENA_MINUTES = [15, 20, 30, 45, 60, 90, 120];
 const ACCESS = ['public', 'link', 'club'];
 const MAX_ACTIVE_TOURS_PER_USER = 3;

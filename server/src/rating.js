@@ -8,7 +8,9 @@
 'use strict';
 
 const POOLS = ['bullet', 'blitz', 'rapid', 'classical'];
-const CLOCKS = ['1+1', '3+2', '5+3', '10+5']; // phút + giây cộng thêm mỗi nước
+// Đồng hồ tổng 'phút+giây cộng': các mức cho phép nằm ở caro/timectl.js (dùng chung với trình duyệt)
+const TC = require('../../caro/timectl.js');
+const CLOCKS = TC.CLOCK_PRESETS; // các ô chọn nhanh (mọi mức hợp lệ khác vẫn dùng được)
 const START = 1200;
 const RD_MAX = 350, RD_MIN = 45, VOL = 0.06, TAU = 0.75;
 const PROVISIONAL_RD = 110;
@@ -20,11 +22,7 @@ const MAX_DELTA = 700; // mỗi ván thay đổi tối đa 700 điểm
 const C2 = (110 * 110 - 60 * 60) / 365;
 
 /** '3+2' -> { base: 180000, inc: 2000 } (ms), hoặc null nếu không hợp lệ. */
-function parseClock(s) {
-  if (!CLOCKS.includes(s)) return null;
-  const [m, i] = s.split('+').map(Number);
-  return { base: m * 60000, inc: i * 1000 };
-}
+const parseClock = TC.parseClock;
 
 /** Loại thời gian của một ván: đồng hồ tổng theo thời lượng ước tính (phút*60 + 40*giây cộng), hoặc giới hạn mỗi nước. */
 function poolOf({ timeLimit, clock, clockSpec }) {

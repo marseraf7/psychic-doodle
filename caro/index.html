@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#161512" media="(prefers-color-scheme: dark)">
   <meta name="description" content="Cờ Caro online – bàn cờ vô hạn, luật chặn 2 đầu, chơi 2 người hoặc với máy.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Cờ Caro</title>
@@ -12,6 +12,8 @@
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="shell.css">
+  <link rel="stylesheet" href="setup.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="theme.js"></script>
   <script src="boardstyle.js"></script>
@@ -63,11 +65,26 @@
     <symbol id="i-medal2" viewBox="0 0 24 24"><circle cx="12" cy="14" r="6"/><path d="M8.5 3.5 11 8.5M15.5 3.5 13 8.5M12 11.5l.9 1.8 2 .3-1.45 1.4.35 2-1.8-.95-1.8.95.35-2-1.45-1.4 2-.3z"/></symbol>
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></symbol>
     <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6.5 11v4.5c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3V11M21.5 9v5"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="13" rx="2"/><path d="m10 8.5 4.5 2.5-4.5 2.5zM8 21h8"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+    <symbol id="i-chevl" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5"/><path d="M9 2.5V6M15 2.5V6M9 18v3.5M15 18v3.5M2.5 9H6M2.5 15H6M18 9h3.5M18 15h3.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></symbol>
+    <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18.5 6.5a7.5 7.5 0 0 1 0 11"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.6-1-2.6 0-.9.7-1.6 1.7-1.6H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7.2" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9.2h17M3.5 14.8h17M9.2 3.5v17M14.8 3.5v17"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14.5 8.5l2 2"/></symbol>
   </svg>
 
   <canvas id="board" data-i18n-aria="board_aria"></canvas>
 
   <header class="bar top">
+    <button type="button" class="to-home" id="btn-home" data-i18n-aria="to_home" data-i18n-title="to_home"><svg class="ico" aria-hidden="true"><use href="#i-chevl"/></svg></button>
     <div class="turn" id="turn"></div>
     <div class="clock" id="clock" hidden><svg class="ico clock-ico" aria-hidden="true"><use href="#i-clock"/></svg><span id="clock-n"></span></div>
     <div class="clocks" id="clocks" hidden><span class="ck x" id="ck-x"></span><span class="ck o" id="ck-o"></span></div>
@@ -139,20 +156,170 @@
   <button type="button" class="fab online-only" id="quick-btn" data-i18n-aria="quick_chat" data-i18n-title="quick_chat"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg></button>
   <div class="quick-menu" id="quick-menu" hidden></div>
 
+  <!-- ============================ Khung trang (shell.js) ============================
+       5 tab như Lichess: Trang chủ · Câu đố · Học tập · Xem · Xem thêm. Điện thoại: thanh tab dưới đáy; màn hình rộng: menu chữ trên cùng.
+       Đang chơi thì khung ẩn đi, chỉ còn bàn cờ (nút ‹ trên thanh trên để quay lại). -->
+  <div class="shell" id="shell" hidden>
+    <nav class="tabbar" id="tabbar">
+      <span class="tb-logo"><img src="icon.svg" alt=""><span data-i18n="app_title"></span></span>
+      <button type="button" data-tab="home"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg><span data-i18n="tab_home"></span><i class="badge" id="home-badge" hidden></i></button>
+      <button type="button" data-tab="puzzles"><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span data-i18n="tab_puzzles"></span></button>
+      <button type="button" data-tab="learn"><svg class="ico" aria-hidden="true"><use href="#i-cap"/></svg><span data-i18n="tab_learn"></span></button>
+      <button type="button" data-tab="watch" class="online-need"><svg class="ico" aria-hidden="true"><use href="#i-tv"/></svg><span data-i18n="tab_watch"></span></button>
+      <button type="button" data-tab="more"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg><span data-i18n="tab_more"></span></button>
+    </nav>
+
+    <section class="page" id="page-home" data-page="home" hidden>
+      <header class="pg-head"><h1 class="pg-title"><img class="pg-logo" src="icon.svg" alt=""><span data-i18n="app_title"></span></h1><span class="pg-right"><span class="conn" id="conn"></span></span></header>
+      <div class="pg-body home">
+      <div class="welcome-card" id="welcome-card" hidden>
+        <b data-i18n="welcome_title"></b>
+        <div class="row">
+          <button type="button" class="ghost sm" data-level="new" data-i18n="welcome_new"></button>
+          <button type="button" class="ghost sm" data-level="know" data-i18n="welcome_know"></button>
+          <button type="button" class="ghost sm" data-level="good" data-i18n="welcome_good"></button>
+        </div>
+      </div>
+        <div class="home-resume" id="home-resume" hidden></div>
+        <div class="dlg-invites" id="dlg-invites" hidden></div>
+        <div class="home-grid">
+          <div class="home-main">
+            <div class="tabs home-tabs" role="tablist">
+              <button type="button" role="tab" data-hpane="quick" class="online-need" data-i18n="home_quick"></button>
+              <button type="button" role="tab" data-hpane="lobby" class="online-need" data-i18n="home_lobby"></button>
+              <button type="button" role="tab" data-hpane="bot" data-i18n="home_bot"></button>
+            </div>
+            <div class="hpane" data-hpane="quick">
+            <section class="card" id="quick-card">
+              <!-- Như Lichess: bấm một ô là tìm trận ngay với thời gian đó -->
+              <div class="qm-grid" id="qm-grid" role="group" data-i18n-aria="time_limit">
+                <!-- Như Lichess: bấm một ô là tìm trận ngay với thời gian đó (đồng hồ phút+giây cộng, hoặc giới hạn mỗi nước) -->
+                <button type="button" class="qm-tile" data-time="0" data-clock="1+0"><b>1+0</b><small data-i18n="pool_bullet"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="2+1"><b>2+1</b><small data-i18n="pool_bullet"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="3+2"><b>3+2</b><small data-i18n="pool_blitz"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="5+0"><b>5+0</b><small data-i18n="pool_blitz"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="5+3"><b>5+3</b><small data-i18n="pool_blitz"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="10+0"><b>10+0</b><small data-i18n="pool_rapid"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="10+5"><b>10+5</b><small data-i18n="pool_rapid"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="15+10"><b>15+10</b><small data-i18n="pool_rapid"></small></button>
+                <button type="button" class="qm-tile" data-time="0" data-clock="30+0"><b>30+0</b><small data-i18n="pool_classical"></small></button>
+                <button type="button" class="qm-tile" data-time="20"><b>20</b><small data-i18n="qm_unit"></small></button>
+                <button type="button" class="qm-tile" data-time="0"><b>∞</b><small data-i18n="time_off"></small></button>
+                <button type="button" class="qm-tile qm-custom" id="qm-custom"><b data-i18n="home_custom"></b><small data-i18n="qm_custom_sub"></small></button>
+                <button type="button" class="qm-tile wide2" data-time="-1" id="qm-start"><b data-i18n="qm_any"></b><small data-i18n="qm_any_sub"></small></button>
+              </div>
+              <div class="row qm-search" id="qm-search" hidden>
+                <span class="spinner" aria-hidden="true"></span>
+                <span class="qm-status" id="qm-status" role="status"></span>
+                <button type="button" class="ghost" id="qm-cancel" data-i18n="cancel"></button>
+              </div>
+              <p class="hint" data-i18n="qm_hint"></p>
+            </section>
+            </div>
+            <div class="hpane" data-hpane="lobby" hidden>
+            <section class="card" id="create-card">
+              <h3 data-i18n="create_room"></h3>
+              <div class="seg">
+                <label><input type="radio" name="room-side" value="first" checked> <span data-i18n="me_first"></span></label>
+                <label><input type="radio" name="room-side" value="second"> <span data-i18n="me_second"></span></label>
+              </div>
+              <div class="row opts">
+                <div class="opt wide-opt"><span class="opt-l" data-i18n="time_limit"></span><div data-tcp data-id="room-tc" data-value="t20"></div></div>
+                <label class="opt"><span data-i18n="opening"></span>
+                  <select class="select" id="room-opening"><option value="free" data-i18n="opening_free"></option><option value="swap2" data-i18n="opening_swap2_short"></option></select></label>
+                <label class="opt"><span data-i18n="grule"></span>
+                  <select class="select" id="room-rule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select></label>
+              </div>
+              <p class="hint" id="room-opening-hint" data-i18n="opening_hint" hidden></p>
+              <label class="check"><input type="checkbox" id="room-public"> <span data-i18n="room_public"></span></label>
+              <div class="row">
+                <button type="button" class="primary" id="create-room" data-i18n="create_room"></button>
+                <button type="button" class="ghost" id="open-join" data-i18n="join_by_code"></button>
+              </div>
+              <p class="hint" data-i18n="room_hint"></p>
+            </section>
+            <section class="card" id="lobby-card">
+              <h3 data-i18n="lobby_title"></h3>
+              <ul class="people" id="lobby-list"></ul>
+            </section>
+            </div>
+            <div class="hpane" data-hpane="bot" hidden>
+              <div class="qm-grid home-bots" id="home-bots"></div>
+              <p class="hint" id="home-bot-hint"></p>
+            </div>
+          </div>
+          <aside class="home-side">
+            <button type="button" class="hbtn online-need" data-home="create"><svg class="ico" aria-hidden="true"><use href="#i-users"/></svg><span data-i18n="home_create"></span></button>
+            <button type="button" class="hbtn online-need" data-home="challenge"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg><span data-i18n="home_challenge"></span></button>
+            <button type="button" class="hbtn" data-home="bot"><svg class="ico" aria-hidden="true"><use href="#i-cpu"/></svg><span data-i18n="home_vs_bot"></span></button>
+            <button type="button" class="hbtn" data-home="pvp"><svg class="ico" aria-hidden="true"><use href="#i-swords"/></svg><span data-i18n="home_pvp"></span></button>
+          </aside>
+          <div class="home-left">
+            <section class="card online-need" id="tour-card">
+              <h3 data-i18n="tours_clubs"></h3>
+              <div class="row">
+                <button type="button" class="primary" id="open-tours"><svg class="ico i-in" aria-hidden="true"><use href="#i-trophy"/></svg><span data-i18n="tours_title"></span> <i class="count" id="tour-badge" hidden></i></button>
+                <button type="button" class="ghost" id="open-clubs"><svg class="ico i-in" aria-hidden="true"><use href="#i-users"/></svg><span data-i18n="clubs_title"></span></button>
+              </div>
+              <p class="hint" data-i18n="tours_card_hint"></p>
+            </section>
+            <p class="home-intro" data-i18n="home_intro"></p>
+            <p class="hint offline-note" data-i18n="home_offline"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-puzzles" data-page="puzzles" hidden></section>
+    <section class="page" id="page-learn" data-page="learn" hidden></section>
+
+    <section class="page" id="page-watch" data-page="watch" hidden>
+      <header class="pg-head"><h1 class="pg-title" data-i18n="tab_watch"></h1></header>
+      <div class="pg-body">
+        <section class="card" id="tv-card">
+          <h3><svg class="ico i-in" aria-hidden="true"><use href="#i-eye"/></svg><span data-i18n="tv_title"></span> <button type="button" class="ghost sm" id="tv-refresh" data-i18n="refresh"></button></h3>
+          <ul class="people" id="tv-list"></ul>
+        </section>
+      </div>
+    </section>
+
+    <section class="page" id="page-more" data-page="more" hidden>
+      <header class="pg-head"><h1 class="pg-title"><img class="pg-logo" src="icon.svg" alt=""><span data-i18n="app_title"></span></h1></header>
+      <div class="pg-body more">
+        <section class="card" id="account"></section>
+        <h3 class="list-h online-need" data-i18n="more_play"></h3>
+        <div class="list online-need">
+          <button type="button" class="li" data-fwd="open-tours"><svg class="ico li-ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="li-t" data-i18n="tours_title"></span><i class="count tour-badge" hidden></i><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li" data-fwd="open-clubs"><svg class="ico li-ic" aria-hidden="true"><use href="#i-users"/></svg><span class="li-t" data-i18n="clubs_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li" data-fwd="open-join"><svg class="ico li-ic" aria-hidden="true"><use href="#i-key"/></svg><span class="li-t" data-i18n="join_by_code"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        </div>
+        <h3 class="list-h" data-i18n="more_tools"></h3>
+        <div class="list">
+          <button type="button" class="li online-need" data-social="history"><svg class="ico li-ic" aria-hidden="true"><use href="#i-clock"/></svg><span class="li-t" data-i18n="history"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li" data-social="leaderboard"><svg class="ico li-ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="li-t" data-i18n="leaderboard"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li" data-open="habits"><svg class="ico li-ic" aria-hidden="true"><use href="#i-medal2"/></svg><span class="li-t" data-i18n="habits_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li" data-tab-go="learn"><svg class="ico li-ic" aria-hidden="true"><use href="#i-book"/></svg><span class="li-t" data-i18n="learn_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        </div>
+        <h3 class="list-h online-need" data-i18n="more_community"></h3>
+        <section class="card online-need" id="friends"></section>
+        <h3 class="list-h" data-i18n="settings"></h3>
+        <div class="list">
+          <button type="button" class="li" id="more-settings"><svg class="ico li-ic" aria-hidden="true"><use href="#i-gear"/></svg><span class="li-t" data-i18n="settings"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <button type="button" class="li online-need" data-social="account"><svg class="ico li-ic" aria-hidden="true"><use href="#i-user"/></svg><span class="li-t" data-i18n="account_settings"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <a class="li privacy-link" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-shield"/></svg><span class="li-t" data-i18n="privacy"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
+        </div>
+        <p class="more-about" data-i18n="more_about"></p>
+      </div>
+    </section>
+
+    <section class="page" id="page-settings" data-page="settings" data-parent="more" hidden></section>
+  </div>
+
   <div class="toasts" id="toasts" aria-live="polite"></div>
   <div class="sr-only" id="sr-live" aria-live="polite" aria-atomic="true"></div>
 
   <!-- Luật Swap2: chọn bên sau khi đặt quân khai cuộc -->
   <div class="swap-card" id="swap-card" hidden></div>
-  <!-- Lần đầu mở game: chọn trình độ (không chặn bàn cờ) -->
-  <div class="welcome-card" id="welcome-card" hidden>
-    <b data-i18n="welcome_title"></b>
-    <div class="row">
-      <button type="button" class="ghost sm" data-level="new" data-i18n="welcome_new"></button>
-      <button type="button" class="ghost sm" data-level="know" data-i18n="welcome_know"></button>
-      <button type="button" class="ghost sm" data-level="good" data-i18n="welcome_good"></button>
-    </div>
-  </div>
   <!-- Bài học: giải thích phía trên bàn cờ -->
   <div class="swap-card lesson-card" id="lesson-card" hidden></div>
 
@@ -173,179 +340,139 @@
     </div>
   </div>
 
+  <!-- Cài đặt: các hàng kiểu danh sách, bấm vào hàng có dấu › để mở trang con (settings-ui.js).
+       Trang Cài đặt nằm trong khung trang (shell.js chuyển nội dung hộp thoại này vào trang). -->
   <dialog id="settings">
-    <form method="dialog" id="settings-form">
-      <h2 data-i18n="settings" tabindex="-1" autofocus></h2>
-      <div class="row set-links">
-        <button type="button" class="ghost sm" data-open="habits"><svg class="ico i-in" aria-hidden="true"><use href="#i-medal2"/></svg><span data-i18n="habits_title"></span></button>
-        <button type="button" class="ghost sm" data-open="learn"><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="learn_title"></span></button>
+    <form method="dialog" id="settings-form" class="setf">
+      <div class="sp" data-sp="root">
+      <div class="list">
+        <button type="button" class="li" data-go="sound"><svg class="ico li-ic" aria-hidden="true"><use href="#i-sound"/></svg><span class="li-t" data-i18n="set_sound"></span><span class="li-v" data-val="sound"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        <button type="button" class="li" data-go="look"><svg class="ico li-ic" aria-hidden="true"><use href="#i-palette"/></svg><span class="li-t" data-i18n="set_look"></span><span class="li-v" data-val="look"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        <button type="button" class="li" data-go="board"><svg class="ico li-ic" aria-hidden="true"><use href="#i-board"/></svg><span class="li-t" data-i18n="set_board"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        <button type="button" class="li" data-go="lang"><svg class="ico li-ic" aria-hidden="true"><use href="#i-globe"/></svg><span class="li-t" data-i18n="language"></span><span class="li-v" data-val="lang"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       </div>
-
-      <h3 class="set-group" data-i18n="set_g_game"></h3>
-      <fieldset>
-        <legend data-i18n="mode"></legend>
-        <div class="seg">
-          <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
-          <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
-        </div>
-      </fieldset>
-
-      <fieldset class="ai-only">
-        <legend data-i18n="you_play"></legend>
-        <div class="seg">
-          <label><input type="radio" name="human" value="1"> <b class="x">X</b> – <span data-i18n="goes_first"></span></label>
-          <label><input type="radio" name="human" value="2"> <b class="o">O</b> – <span data-i18n="goes_second"></span></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend data-i18n="grule"></legend>
-        <select name="rule" class="select" data-i18n-aria="grule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select>
-      </fieldset>
-
-      <fieldset class="ai-only">
-        <legend data-i18n="opponent"></legend>
-        <select name="bot" class="select" data-i18n-aria="opponent"></select>
-      </fieldset>
-
-      <fieldset>
-        <legend data-i18n="time_limit"></legend>
-        <div class="seg">
-          <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
-          <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
-          <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
-          <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend data-i18n="allow_undo"></legend>
-        <div class="seg">
-          <label><input type="radio" name="allowUndo" value="yes"> <span data-i18n="yes"></span></label>
-          <label><input type="radio" name="allowUndo" value="no"> <span data-i18n="no"></span></label>
-        </div>
-      </fieldset>
-
-      <h3 class="set-group" data-i18n="set_g_display"></h3>
-      <fieldset>
-        <legend data-i18n="theme"></legend>
-        <div class="seg">
-          <label><input type="radio" name="theme" value="light"> <span data-i18n="theme_light"></span></label>
-          <label><input type="radio" name="theme" value="dark"> <span data-i18n="theme_dark"></span></label>
-          <label><input type="radio" name="theme" value="system"> <span data-i18n="theme_system"></span></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend data-i18n="board_style"></legend>
-        <div class="row opts">
-          <label class="opt"><span data-i18n="board_color"></span>
-            <select name="board" class="select">
-              <option value="paper" data-i18n="board_paper"></option>
-              <option value="wood" data-i18n="board_wood"></option>
-              <option value="green" data-i18n="board_green"></option>
-              <option value="blue" data-i18n="board_blue"></option>
-              <option value="night" data-i18n="board_night"></option>
-            </select></label>
-          <label class="opt"><span data-i18n="piece_style"></span>
-            <select name="pieces" class="select">
-              <option value="classic" data-i18n="pieces_classic"></option>
-              <option value="bold" data-i18n="pieces_bold"></option>
-              <option value="stones" data-i18n="pieces_stones"></option>
-            </select></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend data-i18n="language"></legend>
-        <select name="lang" class="select" data-i18n-aria="language"></select>
-      </fieldset>
-
-      <h3 class="set-group" data-i18n="set_g_sound"></h3>
-      <fieldset>
-        <legend data-i18n="sound"></legend>
-        <div class="seg">
-          <label><input type="radio" name="sound" value="on"> <span data-i18n="on"></span></label>
-          <label><input type="radio" name="sound" value="off"> <span data-i18n="off"></span></label>
-        </div>
-        <div class="row opts set-sub">
-          <label class="opt"><span data-i18n="sound_style"></span>
-            <select name="soundStyle" class="select">
-              <option value="classic" data-i18n="sound_classic"></option>
-              <option value="wood" data-i18n="sound_wood"></option>
-              <option value="soft" data-i18n="sound_soft"></option>
-            </select></label>
-        </div>
-      </fieldset>
-
-      <fieldset>
-        <legend data-i18n="controls"></legend>
-        <label class="switch"><input type="checkbox" name="confirm"> <span data-i18n="confirm_tap"></span></label>
-      </fieldset>
-
-      <details class="rules">
-        <summary data-i18n="rules"></summary>
-        <ul>
-          <li data-i18n-html="rules_1"></li>
-          <li data-i18n-html="rules_2"></li>
-          <li data-i18n-html="rules_3"></li>
-          <li data-i18n-html="rules_4"></li>
-          <li data-i18n-html="rules_5"></li>
-        </ul>
-      </details>
-
-      <div class="dialog-actions">
-        <button type="button" id="reset-score" class="ghost" data-i18n="reset_score"></button>
-        <button value="ok" class="primary" data-i18n="done"></button>
+      <h3 class="list-h" data-i18n="set_g_game"></h3>
+      <div class="list">
+        <button type="button" class="li" data-go="game"><svg class="ico li-ic" aria-hidden="true"><use href="#i-sliders"/></svg><span class="li-t" data-i18n="set_game"></span><span class="li-v" data-val="game"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        <button type="button" class="li" data-go="bot"><svg class="ico li-ic" aria-hidden="true"><use href="#i-cpu"/></svg><span class="li-t" data-i18n="set_bot"></span><span class="li-v" data-val="bot"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       </div>
-
-      <p class="privacy-row"><a class="link privacy-link" target="_blank" rel="noopener" data-i18n="privacy"></a></p>
+      <h3 class="list-h" data-i18n="set_more"></h3>
+      <div class="list">
+        <button type="button" class="li" data-open="habits"><svg class="ico li-ic" aria-hidden="true"><use href="#i-medal2"/></svg><span class="li-t" data-i18n="habits_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        <a class="li privacy-link" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-shield"/></svg><span class="li-t" data-i18n="privacy"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
+      </div>
+      <h3 class="list-h" data-i18n="set_data"></h3>
+      <div class="list">
+        <button type="button" class="li danger" id="reset-score"><svg class="ico li-ic" aria-hidden="true"><use href="#i-trash"/></svg><span class="li-t"><span data-i18n="reset_score"></span><small data-i18n="reset_score_d"></small></span></button>
+      </div>
       <p class="credit"><span class="credit-mark" aria-hidden="true">✦</span> Designed by <span class="credit-name">Dawn</span> <span class="credit-mark" aria-hidden="true">✦</span></p>
+      </div>
+
+      <div class="sp" data-sp="sound" data-title="set_sound" hidden>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="sound_on"></span></span><input type="checkbox" class="tog" name="sound"></label>
+      </div>
+      <h3 class="list-h" data-i18n="sound_style"></h3>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="sound_classic"></span></span><input type="radio" name="soundStyle" value="classic"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_wood"></span></span><input type="radio" name="soundStyle" value="wood"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_soft"></span></span><input type="radio" name="soundStyle" value="soft"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      </div>
+
+      <div class="sp" data-sp="look" data-title="set_look" hidden>
+      <canvas class="look-preview" id="look-preview" aria-hidden="true"></canvas>
+      <h3 class="list-h" data-i18n="theme"></h3>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="theme_dark"></span></span><input type="radio" name="theme" value="dark"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="theme_light"></span></span><input type="radio" name="theme" value="light"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="theme_system"></span></span><input type="radio" name="theme" value="system"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <h3 class="list-h" data-i18n="set_look_board"></h3>
+      <div class="list">
+        <label class="li"><i class="swatch" style="--sw:var(--bg)"></i><span class="li-t"><span data-i18n="board_paper"></span></span><input type="radio" name="board" value="paper"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#dcb67f"></i><span class="li-t"><span data-i18n="board_wood"></span></span><input type="radio" name="board" value="wood"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#cfe3c4"></i><span class="li-t"><span data-i18n="board_green"></span></span><input type="radio" name="board" value="green"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#d6e4f2"></i><span class="li-t"><span data-i18n="board_blue"></span></span><input type="radio" name="board" value="blue"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#1d2430"></i><span class="li-t"><span data-i18n="board_night"></span></span><input type="radio" name="board" value="night"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <h3 class="list-h" data-i18n="set_look_pieces"></h3>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="pieces_classic"></span></span><input type="radio" name="pieces" value="classic"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="pieces_bold"></span></span><input type="radio" name="pieces" value="bold"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="pieces_stones"></span></span><input type="radio" name="pieces" value="stones"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      </div>
+
+      <div class="sp" data-sp="board" data-title="set_board" hidden>
+      <h3 class="list-h" data-i18n="set_play"></h3>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="confirm_tap"></span><small data-i18n="confirm_tap_d"></small></span><input type="checkbox" class="tog" name="confirm"></label>
+        <label class="li"><span class="li-t"><span data-i18n="allow_undo"></span><small data-i18n="allow_undo_d"></small></span><input type="checkbox" class="tog" name="allowUndo"></label>
+      </div>
+      </div>
+
+      <div class="sp" data-sp="lang" data-title="language" hidden>
+      <div class="list" id="lang-list"></div>
+      </div>
+
+      <div class="sp" data-sp="game" data-title="set_game" hidden>
+      <h3 class="list-h" data-i18n="mode"></h3>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="mode_ai"></span></span><input type="radio" name="mode" value="ai"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="mode_pvp"></span></span><input type="radio" name="mode" value="pvp"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <h3 class="list-h ai-only" data-i18n="you_play"></h3>
+      <div class="list ai-only">
+        <label class="li"><span class="li-t"><span><b class="x">X</b> – <span data-i18n="goes_first"></span></span></span><input type="radio" name="human" value="1"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span><b class="o">O</b> – <span data-i18n="goes_second"></span></span></span><input type="radio" name="human" value="2"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <h3 class="list-h" data-i18n="grule"></h3>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="grule_vn"></span><small data-i18n="grule_vn_d"></small></span><input type="radio" name="rule" value="vn"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="grule_free"></span><small data-i18n="grule_free_d"></small></span><input type="radio" name="rule" value="free"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="grule_std"></span><small data-i18n="grule_std_d"></small></span><input type="radio" name="rule" value="std"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="grule_renju"></span><small data-i18n="grule_renju_d"></small></span><input type="radio" name="rule" value="renju"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <h3 class="list-h" data-i18n="time_limit"></h3>
+      <div class="list pad"><div data-tcp data-name="tc" id="set-tc"></div></div>
+      </div>
+
+      <div class="sp" data-sp="bot" data-title="set_bot" hidden>
+      <div class="list pad"><div id="set-picker"></div></div>
+      </div>
     </form>
   </dialog>
 
-  <!-- Bảng chọn nhanh khi bấm "Ván mới" -->
-  <dialog id="newgame">
+  <!-- Thiết lập ván đấu (như Lichess): luật, thời gian, đối thủ, bên – bấm Chơi là bắt đầu -->
+  <dialog id="newgame" class="setup-dlg">
     <form class="dlg" id="newgame-form" method="dialog">
       <div class="dlg-head">
-        <h2 data-i18n="btn_new" tabindex="-1" autofocus></h2>
+        <h2 data-i18n="ng_title" tabindex="-1" autofocus></h2>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
-      <fieldset>
-        <legend data-i18n="mode"></legend>
-        <div class="seg">
-          <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
-          <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
-        </div>
-      </fieldset>
-      <fieldset class="ai-only">
-        <legend data-i18n="you_play"></legend>
-        <div class="seg">
-          <label><input type="radio" name="human" value="1"> <b class="x">X</b> <span data-i18n="goes_first"></span></label>
-          <label><input type="radio" name="human" value="2"> <b class="o">O</b> <span data-i18n="goes_second"></span></label>
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend data-i18n="grule"></legend>
+      <div class="seg">
+        <label><input type="radio" name="mode" value="ai"> <span data-i18n="mode_ai"></span></label>
+        <label><input type="radio" name="mode" value="pvp"> <span data-i18n="mode_pvp"></span></label>
+      </div>
+      <label class="ng-rule">
         <select name="rule" class="select" data-i18n-aria="grule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select>
-        <p class="hint rule-hint" id="ng-rule-hint"></p>
-      </fieldset>
+      </label>
+      <p class="hint rule-hint" id="ng-rule-hint"></p>
+      <div data-tcp data-name="tc" id="ng-tc"></div>
       <fieldset class="ai-only">
         <legend data-i18n="opponent"></legend>
-        <div class="seg style-tabs" id="ng-styles" role="radiogroup" data-i18n-aria="bot_style"></div>
-        <div class="bot-grid" id="ng-bots"></div>
-        <p class="bot-say" id="ng-bot-say"></p>
+        <div id="ng-picker"></div>
       </fieldset>
-      <fieldset>
-        <legend data-i18n="time_limit"></legend>
-        <div class="seg">
-          <label><input type="radio" name="timeLimit" value="0"> <span data-i18n="time_off"></span></label>
-          <label><input type="radio" name="timeLimit" value="10"> <span data-i18n-n="10"></span></label>
-          <label><input type="radio" name="timeLimit" value="20"> <span data-i18n-n="20"></span></label>
-          <label><input type="radio" name="timeLimit" value="30"> <span data-i18n-n="30"></span></label>
+      <fieldset class="ai-only ng-sides">
+        <legend data-i18n="ng_side"></legend>
+        <div class="side-pick">
+          <label><input type="radio" name="human" value="1"><b class="x">X</b><span data-i18n="side_x"></span></label>
+          <label class="mid"><input type="radio" name="human" value="r"><b>X<i>/</i>O</b><span data-i18n="side_random"></span></label>
+          <label><input type="radio" name="human" value="2"><b class="o">O</b><span data-i18n="side_o"></span></label>
         </div>
       </fieldset>
-      <button class="primary wide" value="start" data-i18n="start_game"></button>
+      <button class="primary wide ng-go" value="start"><svg class="ico i-in" aria-hidden="true"><use href="#i-play"/></svg><span data-i18n="ng_play"></span></button>
     </form>
   </dialog>
 
@@ -375,89 +502,8 @@
     </div>
   </dialog>
 
-  <!-- ============================ Online ============================ -->
-  <dialog id="online">
-    <div class="dlg">
-      <div class="dlg-head">
-        <h2 data-i18n="online_title" tabindex="-1" autofocus></h2>
-        <span class="conn" id="conn"></span>
-        <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
-      </div>
-      <div class="dlg-invites" id="dlg-invites" hidden></div>
-      <section class="card" id="account"></section>
-      <section class="card" id="quick-card">
-        <h3 data-i18n="quick_title"></h3>
-        <!-- Như Lichess: bấm một ô là tìm trận ngay với thời gian đó -->
-        <div class="qm-grid" id="qm-grid" role="group" data-i18n-aria="time_limit">
-          <!-- Đồng hồ tổng (phút + giây cộng mỗi nước) như Lichess -->
-          <button type="button" class="qm-tile" data-time="0" data-clock="1+1"><b>1+1</b><small data-i18n="pool_bullet"></small></button>
-          <button type="button" class="qm-tile" data-time="0" data-clock="3+2"><b>3+2</b><small data-i18n="pool_blitz"></small></button>
-          <button type="button" class="qm-tile" data-time="0" data-clock="5+3"><b>5+3</b><small data-i18n="pool_blitz"></small></button>
-          <button type="button" class="qm-tile" data-time="0" data-clock="10+5"><b>10+5</b><small data-i18n="pool_rapid"></small></button>
-          <!-- Giới hạn mỗi nước -->
-          <button type="button" class="qm-tile" data-time="10"><b>10</b><small data-i18n="qm_unit"></small></button>
-          <button type="button" class="qm-tile" data-time="20"><b>20</b><small data-i18n="qm_unit"></small></button>
-          <button type="button" class="qm-tile" data-time="30"><b>30</b><small data-i18n="qm_unit"></small></button>
-          <button type="button" class="qm-tile" data-time="0"><b>∞</b><small data-i18n="time_off"></small></button>
-          <button type="button" class="qm-tile wide2" data-time="-1" id="qm-start"><b data-i18n="qm_any"></b><small data-i18n="qm_any_sub"></small></button>
-        </div>
-        <div class="row qm-search" id="qm-search" hidden>
-          <span class="spinner" aria-hidden="true"></span>
-          <span class="qm-status" id="qm-status" role="status"></span>
-          <button type="button" class="ghost" id="qm-cancel" data-i18n="cancel"></button>
-        </div>
-        <p class="hint" data-i18n="qm_hint"></p>
-      </section>
-      <section class="card" id="tour-card">
-        <h3 data-i18n="tours_clubs"></h3>
-        <div class="row">
-          <button type="button" class="primary" id="open-tours"><svg class="ico i-in" aria-hidden="true"><use href="#i-trophy"/></svg><span data-i18n="tours_title"></span> <i class="count" id="tour-badge" hidden></i></button>
-          <button type="button" class="ghost" id="open-clubs"><svg class="ico i-in" aria-hidden="true"><use href="#i-users"/></svg><span data-i18n="clubs_title"></span></button>
-        </div>
-        <p class="hint" data-i18n="tours_card_hint"></p>
-      </section>
-      <section class="card">
-        <h3 data-i18n="create_room"></h3>
-        <div class="seg">
-          <label><input type="radio" name="room-side" value="first" checked> <span data-i18n="me_first"></span></label>
-          <label><input type="radio" name="room-side" value="second"> <span data-i18n="me_second"></span></label>
-        </div>
-        <div class="row opts">
-          <label class="opt"><span data-i18n="time_limit"></span>
-            <select class="select" id="room-tc">
-          <option value="t0" data-i18n="time_off"></option>
-          <option value="t10" data-i18n-tc="t10"></option>
-          <option value="t20" data-i18n-tc="t20"></option>
-          <option value="t30" data-i18n-tc="t30"></option>
-          <option value="c1+1" data-i18n-tc="c1+1"></option>
-          <option value="c3+2" data-i18n-tc="c3+2"></option>
-          <option value="c5+3" data-i18n-tc="c5+3"></option>
-          <option value="c10+5" data-i18n-tc="c10+5"></option>
-            </select></label>
-          <label class="opt"><span data-i18n="opening"></span>
-            <select class="select" id="room-opening"><option value="free" data-i18n="opening_free"></option><option value="swap2" data-i18n="opening_swap2_short"></option></select></label>
-          <label class="opt"><span data-i18n="grule"></span>
-            <select class="select" id="room-rule"><option value="vn" data-i18n="grule_vn"></option><option value="free" data-i18n="grule_free"></option><option value="std" data-i18n="grule_std"></option><option value="renju" data-i18n="grule_renju"></option></select></label>
-        </div>
-        <p class="hint" id="room-opening-hint" data-i18n="opening_hint" hidden></p>
-        <label class="check"><input type="checkbox" id="room-public"> <span data-i18n="room_public"></span></label>
-        <div class="row">
-          <button type="button" class="primary" id="create-room" data-i18n="create_room"></button>
-          <button type="button" class="ghost" id="open-join" data-i18n="join_by_code"></button>
-        </div>
-        <p class="hint" data-i18n="room_hint"></p>
-      </section>
-      <section class="card" id="tv-card">
-        <h3><svg class="ico i-in" aria-hidden="true"><use href="#i-eye"/></svg><span data-i18n="tv_title"></span> <button type="button" class="ghost sm" id="tv-refresh" data-i18n="refresh"></button></h3>
-        <ul class="people" id="tv-list"></ul>
-      </section>
-      <section class="card" id="lobby-card">
-        <h3 data-i18n="lobby_title"></h3>
-        <ul class="people" id="lobby-list"></ul>
-      </section>
-      <section class="card" id="friends"></section>
-    </div>
-  </dialog>
+  <!-- Bảng Online cũ: nội dung đã chia vào Trang chủ / Xem / Xem thêm; mở bảng này = mở Trang chủ (shell.js) -->
+  <dialog id="online"><div class="dlg"></div></dialog>
 
   <dialog id="auth">
     <form class="dlg" id="auth-form">
@@ -558,17 +604,7 @@
         </div>
       </fieldset>
       <fieldset class="row opts">
-        <label class="opt"><span data-i18n="time_limit"></span>
-          <select class="select" name="tc">
-          <option value="t0" data-i18n="time_off"></option>
-          <option value="t10" data-i18n-tc="t10"></option>
-          <option value="t20" data-i18n-tc="t20"></option>
-          <option value="t30" data-i18n-tc="t30"></option>
-          <option value="c1+1" data-i18n-tc="c1+1"></option>
-          <option value="c3+2" data-i18n-tc="c3+2"></option>
-          <option value="c5+3" data-i18n-tc="c5+3"></option>
-          <option value="c10+5" data-i18n-tc="c10+5"></option>
-          </select></label>
+        <div class="opt wide-opt"><span class="opt-l" data-i18n="time_limit"></span><div data-tcp data-name="tc" data-value="t20"></div></div>
         <label class="opt"><span data-i18n="opening"></span>
           <select class="select" name="opening"><option value="free" data-i18n="opening_free"></option><option value="swap2" data-i18n="opening_swap2_short"></option></select></label>
         <label class="opt"><span data-i18n="grule"></span>
@@ -632,6 +668,13 @@
         <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="learn_title"></span></h2>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
+      <h3 data-i18n="styles_title"></h3>
+      <div class="style-cards" id="style-cards"></div>
+      <div class="row styles-more" id="styles-more">
+        <button type="button" class="ghost sm" data-rule="styles" data-i18n="styles_more"></button>
+        <button type="button" class="ghost sm" data-practice="styles" data-i18n="styles_pick"></button>
+      </div>
+      <h3 data-i18n="lessons_title"></h3>
       <p class="hint" id="learn-progress"></p>
       <ul class="people learn-list" id="learn-list"></ul>
       <h3 data-i18n="rules_title"></h3>
@@ -652,6 +695,7 @@
       </div>
       <p class="hint" id="rule-step"></p>
       <div class="rule-board" id="rule-board"></div>
+      <div class="rule-bots" id="rule-bots" hidden></div>
       <p class="rule-text" id="rule-text"></p>
       <div class="row rule-nav">
         <button type="button" class="ghost" id="rule-prev" data-i18n="rule_prev"></button>
@@ -785,12 +829,20 @@
   <script src="i18n.js"></script>
   <script src="i18n-rules.js"></script>
   <script src="i18n-bots.js"></script>
+  <script src="i18n-demos.js"></script>
+  <script src="i18n-shell.js"></script>
+  <script src="i18n-tc.js"></script>
+  <script src="timectl.js"></script>
+  <script src="local-clock.js"></script>
+  <script src="tc-picker.js"></script>
   <script src="sound.js"></script>
   <script src="rules.js"></script>
   <script src="bots.js"></script>
+  <script src="bot-looks.js"></script>
   <script src="engine.js"></script>
   <script src="analysis.js"></script>
   <script src="app.js"></script>
+  <script src="shell.js"></script>
   <script src="online.js"></script>
   <script src="social.js"></script>
   <script src="match.js"></script>
@@ -808,7 +860,14 @@
   <script src="swap.js"></script>
   <script src="watch.js"></script>
   <script src="profile.js"></script>
+  <script src="bot-picker.js"></script>
+  <script src="learn-demos.js"></script>
+  <script src="learn-board.js"></script>
+  <script src="learn-practice.js"></script>
   <script src="learn.js"></script>
   <script src="habits.js"></script>
+  <script src="settings-ui.js"></script>
+  <script src="more.js"></script>
+  <script src="home.js"></script>
 </body>
 </html>

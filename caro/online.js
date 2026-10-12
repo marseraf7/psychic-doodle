@@ -8,7 +8,7 @@
   const srv = (m) => (m.code && T('srv_' + m.code) !== 'srv_' + m.code ? T('srv_' + m.code, m.args || {}) : m.msg || '');
   const $ = (id) => document.getElementById(id);
   /** Giá trị ô chọn thời gian: 't20' (20 giây mỗi nước) / 'c3+2' (đồng hồ tổng). */
-  const parseTc = (v) => (String(v)[0] === 'c' ? { timeLimit: 0, clock: String(v).slice(1) } : { timeLimit: Number(String(v).slice(1)) || 0, clock: null });
+  const parseTc = (v) => window.CaroTimeCtl.fromValue(v); // 't20' / 'c5+3' (bộ chọn thời gian, tc-picker.js)
 
   const LS = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -40,6 +40,7 @@
   // ------------------------------------------------------------ Kết nối
   let ws = null, retry = 0, retryTimer = 0;
   let noServer = false; // true khi chạy trên hosting tĩnh, không có máy chủ game
+  let serverChecked = false; // đã hỏi xong máy chủ (start() đã chạy)
   let outdated = null; // app điện thoại quá cũ: { min, url } – không kết nối online nữa, vẫn chơi offline
 
   function connect() {
@@ -712,6 +713,8 @@
 
   window.CaroOnline = {
     send, showBanner, shareReplay, renderInvites, roomActive, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
+    /** Kết nối (khi mở Trang chủ / Xem) – chỉ sau khi đã biết có máy chủ game. */
+    connect: () => { if (serverChecked) connect(); },
     get connected() { return S.status === 'online'; },
   };
 
@@ -740,8 +743,10 @@
 
   // Kết nối sẵn khi có tài khoản (để bạn bè thấy mình online), đang ở trong phòng, hoặc mở bằng link mời.
   function start() {
-    // (?t= / ?club=: link giải đấu / câu lạc bộ)
-    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club)=/.test(location.search))) connect();
+    serverChecked = true;
+    // (?t= / ?club=: link giải đấu / câu lạc bộ; đang ở Trang chủ / Xem: cần danh sách trận, sảnh)
+    const page = window.CaroShell && window.CaroShell.current;
+    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club)=/.test(location.search) || page === 'home' || page === 'watch')) connect();
     render();
     checkReplayLink();
   }

@@ -19,7 +19,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   };
   async function create(name, preset, edit) {
     await boss.evaluate(() => { const d = document.getElementById('tour-dlg'); if (d.open) d.close(); });
-    await boss.click('#open-tours'); await sleep(300);
+    await boss.evaluate(() => document.getElementById('open-tours').click()); await sleep(300);
     await boss.click('[data-act="tourNew"]'); await sleep(300);
     await boss.fill('#tf input[name=name]', name);
     await boss.selectOption('#tf select[name=preset]', preset); await sleep(100);
@@ -30,8 +30,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
     for (const p of ps) {
       await p.evaluate(() => { const b = document.getElementById('banner'); if (b) b.hidden = true; if (document.getElementById('tour-dlg').open) document.getElementById('tour-dlg').close(); });
       if (await p.evaluate(() => document.body.classList.contains('online'))) { await p.click('#btn-leave'); await sleep(300); }
-      if (!(await p.isVisible('#online'))) { await p.click('#btn-online'); await sleep(300); }
-      await p.click('#open-tours'); await sleep(500);
+        await p.evaluate(() => document.getElementById('open-tours').click()); await sleep(500);
       await p.locator('[data-act="tour"]', { hasText: name }).first().click(); await sleep(400);
       await p.click('[data-act="join"]'); await sleep(250);
     }

@@ -2,7 +2,7 @@
  * Cầu nối khi chạy trong ứng dụng Android / iOS (Capacitor). Trên trình duyệt web file này không làm gì.
  * Ứng dụng dùng đúng giao diện và mã chơi của bản web, chỉ thay vài chỗ trình duyệt trong app
  * không hỗ trợ bằng tính năng gốc của điện thoại:
- *  - Nút Back của Android: đóng hộp thoại / menu / chế độ xem lại trước, hết mới thu nhỏ app.
+ *  - Nút Back của Android: đóng hộp thoại / menu, lùi trang (trang con → Trang chủ → bàn cờ), thoát xem lại; hết mới thu nhỏ app.
  *  - Chia sẻ link mời, link xem lại: bảng chia sẻ của hệ thống.
  *  - Sao chép link: bộ nhớ tạm của hệ thống.
  *  - Rung: phản hồi rung của hệ thống.
@@ -60,7 +60,8 @@
     P.App.addListener('backButton', () => {
       const menu = document.getElementById('quick-menu');
       if (menu && !menu.hidden) { menu.hidden = true; return; }
-      const open = [...document.querySelectorAll('dialog[open]')]
+      // Hộp thoại đã thành trang (shell.js) không tính: Back của trang do CaroShell.back() xử lý
+      const open = [...document.querySelectorAll('dialog[open]:not(.proxied)')]
         .sort((a, b) => Number(a.dataset.openedAt || 0) - Number(b.dataset.openedAt || 0));
       if (open.length) {
         const d = open[open.length - 1];
@@ -68,6 +69,7 @@
         if (d.close) d.close(); else d.removeAttribute('open');
         return;
       }
+      if (window.CaroShell && window.CaroShell.back()) return;
       if (window.CaroApp && window.CaroApp.replay) { window.CaroApp.closeReplay(); return; }
       const banner = document.getElementById('banner');
       if (banner && !banner.hidden) { banner.hidden = true; return; }

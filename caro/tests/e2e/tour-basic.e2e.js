@@ -10,7 +10,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   const { user, ok, shot, finish } = await setup(Number(process.env.E2E_PORT) || 8792);
   const boss = await user('vi', 'boss', 1100), A = await user('vi', 'an_vi'), B = await user('en', 'bob_en', 390);
   // A tạo CLB -> chờ duyệt
-  await A.click('#open-clubs'); await sleep(400);
+  await A.evaluate(() => document.getElementById('open-clubs').click()); await sleep(400);
   await A.click('[data-act="clubNew"]'); await sleep(200);
   await A.fill('#cf input[name=name]', 'CLB Hà Nội');
   await A.fill('#cf textarea[name=desc]', 'Chơi caro mỗi tối, giao lưu vui vẻ.');
@@ -18,14 +18,14 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   await A.click('#cf button.primary'); await sleep(500);
   ok((await A.textContent('#tour-body')).includes('chờ quản trị viên duyệt'), 'A: CLB chờ duyệt');
   await shot(A, 't1-club-pending.png');
-  ok(await boss.isVisible('#tour-badge') && (await boss.textContent('#tour-badge')) === '1', 'boss: số mục chờ duyệt trên nút');
-  await boss.click('#open-tours'); await sleep(300);
+  ok(await boss.isVisible('[data-fwd="open-tours"] .tour-badge') && (await boss.textContent('#tour-badge')) === '1', 'boss: số mục chờ duyệt trên hàng Giải đấu (Xem thêm)');
+  await boss.evaluate(() => document.getElementById('open-tours').click()); await sleep(300);
   await boss.click('[data-ttab="admin"]'); await sleep(400);
   await shot(boss, 't2-admin-review.png');
   await boss.click('[data-act="review"][data-v="1"]'); await sleep(500);
   ok((await A.textContent('#toasts')).includes('đã được duyệt'), 'A: thông báo CLB được duyệt');
   // B xin vào CLB, A duyệt
-  await B.click('#open-clubs'); await sleep(500);
+  await B.evaluate(() => document.getElementById('open-clubs').click()); await sleep(500);
   await B.click('[data-act="club"]'); await sleep(400);
   await B.click('[data-act="clubJoin"]'); await sleep(400);
   await A.click('[data-act="clubReq"][data-v="1"]'); await sleep(400);
@@ -73,8 +73,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
     await p.evaluate(() => { const r = window.CaroOnline.state.room; if (r && r.tour) window.CaroOnline.send({ t: 'tourLeave', id: r.tour.id }); });
     await sleep(300);
     if (await p.evaluate(() => document.body.classList.contains('online'))) { await p.click('#btn-leave'); await sleep(400); }
-    if (!(await p.isVisible('#online'))) { await p.click('#btn-online'); await sleep(300); }
-    await p.click('#open-tours');
+    await p.evaluate(() => document.getElementById('open-tours').click());
     await sleep(500);
     await p.locator('[data-act="tour"]', { hasText: 'Cúp Mùa Thu' }).click(); await sleep(400);
     await p.click('[data-act="join"]'); await sleep(300);
@@ -100,7 +99,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   // Trang CLB trên màn hẹp (đã sửa số thành viên / danh sách)
   await A.evaluate(() => { document.getElementById('banner').hidden = true; });
   await A.click('#btn-leave').catch(() => {}); await sleep(300);
-  await A.click('#btn-online'); await sleep(300); await A.click('#open-clubs'); await sleep(500);
+  await A.evaluate(() => document.getElementById('open-clubs').click()); await sleep(500);
   await A.click('[data-act="club"]'); await sleep(500);
   ok(!(await A.textContent('#tour-body')).includes('object'), 'Trang CLB: không còn [object Object]');
   await shot(A, 't11-club-mobile.png');
