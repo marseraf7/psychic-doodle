@@ -41,6 +41,8 @@ const SECURITY_HEADERS = {
   'referrer-policy': 'strict-origin-when-cross-origin',
   'cross-origin-opener-policy': 'same-origin-allow-popups', // cần cho cửa sổ đăng nhập Google
   'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+  // Chỉ có hiệu lực khi trang chạy qua HTTPS (sau Caddy / nginx): trình duyệt nhớ 180 ngày, không bị hạ xuống HTTP
+  'strict-transport-security': 'max-age=15552000',
 };
 
 /** Kết nối từ chính máy này hoặc mạng nội bộ (proxy như Caddy / nginx / Docker) – không thể giả từ Internet. */
