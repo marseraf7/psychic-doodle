@@ -52,17 +52,21 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
 ## Học cờ: máy có tính cách, phân tích ván, giải đố (học theo chess.com / Lichess)
 
-- **24 nhân vật máy** (`bots.js`) = 6 mức sức cờ × 4 lối đánh, mỗi người một tên và lời thoại riêng:
+- **30 nhân vật máy** (`bots.js`) = 6 mức sức cờ × 5 lối đánh, mỗi người một tên và lời thoại riêng:
 
-  | Mức | Tấn công | Phòng thủ – phản công | Nước đôi | Gài bẫy (dương đông kích tây) |
-  |---|---|---|---|---|
-  | ~600 | Bé Bưởi | Chị Bảy | Cocobay | Sa Tị |
-  | ~900 | Anh Độ | Khô Gà | Bã Mía | Phượng Lên Đồ |
-  | ~1200 | Mân Đàn | Phấn Đào | Vardrid | Ba Sáu |
-  | ~1500 | Khá Bảnh | Trà Từ Tay | Người Tày | Tú Sena |
-  | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu |
-  | ~2350 | GOAT | UEFAlona | Penaldo | Hai Ngón |
+  | Mức | Tấn công | Phòng thủ – phản công | Nước đôi | Gài bẫy (dương đông kích tây) | Toàn diện |
+  |---|---|---|---|---|---|
+  | ~600 | Bé Bưởi | Chị Bảy | Cocobay | Sa Tị | Trình |
+  | ~900 | Anh Độ | Khô Gà | Bã Mía | Phượng Lên Đồ | Tê Liệt |
+  | ~1200 | Mân Đàn | Phấn Đào | Vardrid | Ba Sáu | Con Gái FIFA |
+  | ~1500 | Khá Bảnh | Trà Từ Tay | Người Tày | Tú Sena | Sách Thể Thao |
+  | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu | The Liems |
+  | ~2350 | Y Đững | UEFAlona | Penaldo | Hai Ngón | GOAT |
 
+  **Toàn diện** (`uni`, `i18n-bots-uni.js`): không thiên lối nào, ít lỗi hơn / nghĩ lâu hơn các nhân vật cùng mức – mạnh
+  nhất mỗi mức. Đo bằng `bot-match.js` (2 ván đổi bên mỗi khai cuộc): thắng các nhân vật cùng mức 65–82% (mức 1–4),
+  60–65% (mức 5); GOAT thắng Y Đững 60%, Hai Ngón 56%, UEFAlona / Penaldo 58%. GOAT, các nhân vật mức ~2350 và The Liems
+  dùng sách khai cuộc (`book.js`). Ở mức ~2350 bên đi trước thắng ~80–85% số ván máy – máy.
   Sức cờ: mức 1–3 dùng AI của `rules.js`; từ mức ~1500 dùng `engine.js` với độ sâu / thời gian giới hạn (như các mức Stockfish
   của Lichess – yếu hơn vì nhìn nông hơn, không phải vì đánh bừa): ~1500 sâu 1 + 30 ms, ~1800 sâu 3 + 80 ms, ~2350 900 ms.
   Đo bằng `node server/scripts/bot-match.js` (2 ván đổi bên mỗi khai cuộc): mức trên thắng mức dưới ~71% ở mỗi bậc.
@@ -96,6 +100,20 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   khả năng thắng; nước đi xếp loại theo mức tụt (?! ≥ 10%, ? ≥ 18%, ?? ≥ 30%) hoặc theo chuỗi thắng chắc (bỏ lỡ / để thua chắc);
   độ chính xác theo công thức Lichess. Đo được: giải 300/300 bài đố (TB ~9 ms/bài, bộ cũ 288/300 với 300 ms), 57 nước thắng
   mà bộ cũ không xác nhận được đã kiểm bằng bộ vét cạn độc lập; GOAT dùng engine thắng GOAT cũ 9–1.
+  **Học từ ván vô địch** (cách các engine cờ vua như Stockfish chỉnh hàm đánh giá – Texel tuning – và vòng "tự đấu – học
+  lại" của các engine Gomoku vô địch Gomocup; chỉ học ý tưởng, không dùng mã của họ): mỗi luật có bộ trọng số riêng,
+  tách "thế của mình" và "thế của đối thủ" (`EVAL` trong `engine.js`), học từ ~340 nghìn ván Gomocup 2016–2025
+  (Freestyle → luật tự do, Standard, Renju, Caro → luật Việt Nam) và ván tự đấu. Engine học xong thắng bản cũ 72%
+  (tự do), 61% (tiêu chuẩn), 67% (Renju), 63% rồi thêm 61% sau vòng tự đấu (Việt Nam). Công cụ (chỉ cho người phát triển):
+  - `server/scripts/gomocup-import.js` – đọc ván Gomocup (.psq) → `<luật>.jsonl`
+  - `server/scripts/selfplay.js` – engine tự đấu sinh thêm ván (luật ít dữ liệu như luật Việt Nam)
+  - `server/scripts/tune-eval.js` – học trọng số (hồi quy logistic, Adam; 80% học / 20% kiểm tra)
+  - `server/scripts/build-book.js` – dựng sách khai cuộc (`book-data.js`): engine nghĩ 6 giây mỗi thế đầu ván
+  - `server/scripts/bot-match.js` – đấu kiểm chứng (chỉ nhận trọng số / thay đổi nào thắng bản cũ)
+
+  Lấy thêm ván để học: Gomocup – mỗi năm một file `https://gomocup.org/static/tournaments/<năm>/results/gomocup<năm>results.zip`
+  (bảng Caro có từ 2021); Renju – cơ sở dữ liệu ván của RenjuNet (renju.net, định dạng RIF); ván Caro Việt Nam của
+  người chơi: xuất ván từ chính app (Lịch sử đấu / API `/api/replay/<mã>`) hoặc gửi dãy nước dạng `x,y` mỗi dòng.
   Tối ưu (cùng kết quả, nhanh ~2,5 lần): đọc mỗi đường một lần rồi trượt cửa sổ, ô chặn chỉ xét trên hướng làm thành ô thắng,
   bỏ tính điểm khi đang tìm chuỗi ép; ở gốc bỏ các nước để đối thủ có chuỗi ép. Lối đánh của nhân vật máy chỉ tính theo góc
   nhìn của máy và chỉ đổi thứ tự trong nhóm nước tốt nhất (trước đây làm GOAT "Gài bẫy" yếu hẳn).
@@ -229,7 +247,8 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `rules.js` | 4 luật thắng, nước cấm Renju + AI (dùng chung cho trình duyệt và Node) |
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
-| `bots.js` | 24 nhân vật máy (6 mức × 4 lối đánh): số liệu sức cờ, trọng số lối đánh, `botMove` |
+| `bots.js` | 30 nhân vật máy (6 mức × 5 lối đánh): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
+| `book.js`, `book-data.js` | Sách khai cuộc của nhân vật mức cao: tra thế cờ (chuẩn hoá xoay / lật / dời) → nước đã phân tích sẵn |
 | `engine.js` | Engine phân tích: Alpha-Beta + chuỗi ép, đủ 4 luật (kể cả nước cấm Renju), trọng số lối đánh (dùng chung trình duyệt, Worker, Node) |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
 | `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
