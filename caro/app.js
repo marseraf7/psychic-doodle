@@ -527,6 +527,8 @@
     drawStatus();
     turnCue();
     if (window.CaroStrips) window.CaroStrips.render();
+    // Phân tích ngầm ván đang chơi (live-analysis.js); xem lại / giải đố không phải ván đang chơi
+    if (window.CaroLive && !state.replay && !state.ext) window.CaroLive.sync(state.board, { busy: state.thinking, over: !!state.winCells });
   }
 
   /**

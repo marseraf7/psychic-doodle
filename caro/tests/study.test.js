@@ -50,6 +50,30 @@ const tests = {
     assert.ok(A.winningMove(b, X, [3, 0], 3, { deadline: Date.now() + 2000 }));
     assert.ok(!A.winningMove(b, X, [5, 5], 3, { deadline: Date.now() + 2000 }));
   },
+  'analyzeGame: dùng lại các thế đã chấm sẵn (phân tích ngầm / lượt nhanh), chỉ chấm lại thế chấm chưa đủ kỹ'() {
+    const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const full = A.analyzeGame(g, { ms: 60 });
+    assert.equal(full.evals.length, g.length + 1);
+    assert.ok(full.evals.slice(0, g.length).every((e) => e && typeof e.score === 'number' && e.q === 60 && !e.pv));
+    // Đủ kỹ: dùng nguyên (kể cả khi được chấm "giả")
+    const fake = full.evals.map((e) => e && { ...e });
+    fake[2] = { move: [9, 9], score: 0, mate: null, q: 500 };
+    const r = A.analyzeGame(g, { ms: 60, evals: fake });
+    assert.strictEqual(r.evals[2], fake[2]);
+    assert.deepEqual(A.analyzeGame(g, { ms: 60, evals: full.evals }).moves.map((m) => m.cls), full.moves.map((m) => m.cls));
+    // Chưa đủ kỹ (q nhỏ hơn ms) hoặc hỏng: chấm lại
+    fake[3] = { ...fake[3], q: 10 };
+    fake[4] = { move: [0, 0] };
+    const r2 = A.analyzeGame(g, { ms: 60, evals: fake });
+    assert.notStrictEqual(r2.evals[3], fake[3]);
+    assert.equal(r2.evals[3].q, 60);
+    assert.equal(typeof r2.evals[4].score, 'number');
+    // Lượt nhanh (thời gian nhỏ): engine xem giờ chặt hơn, kết quả vẫn đủ thế
+    const quick = A.analyzeGame(g, { ms: 20 });
+    assert.equal(quick.moves.length, g.length);
+    assert.ok(quick.evals.slice(0, g.length).every((e) => e.q === 20));
+    assert.deepEqual(A.slim({ move: [1, 2], score: 5, mate: null, pv: [], nodes: 9 }, 20), { move: [1, 2], score: 5, mate: null, q: 20 });
+  },
   'analyzeGame: bỏ mặc thế ba mở = sai lầm nặng, nước thắng = tốt nhất'() {
     const r = A.analyzeGame([[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]]);
     assert.strictEqual(r.moves[5].cls, 'blunder');

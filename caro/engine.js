@@ -417,6 +417,9 @@
       this.vtt = opts.vtt || new Map();
       this.leafVcf = opts.leafVcf || 3;  // độ sâu chuỗi ép thử ở lá
       this.nodes = 0;
+      // Xem giờ mỗi 1024 nút; opts.strict: mỗi 128 nút – một nút có thể tốn ~0,1 ms nên 1024 nút trễ hạn cả trăm ms
+      // (lượt phân tích nhanh cần đúng giờ; máy đánh và phân tích kỹ giữ cách cũ để sức cờ không đổi)
+      this.tick = opts.strict ? 127 : 1023;
       this.stop = false;
       this.killers = [];
       this.width = opts.width || 10;   // số ứng viên ở các nút bên trong
@@ -424,7 +427,7 @@
       this.qDepth = opts.qDepth || 14; // độ sâu tối đa của chuỗi ép ở lá
     }
     timeUp() {
-      if ((++this.nodes & 1023) === 0 && Date.now() > this.deadline) this.stop = true;
+      if ((++this.nodes & this.tick) === 0 && Date.now() > this.deadline) this.stop = true;
       return this.stop;
     }
     ttGet(ply) {

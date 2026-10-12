@@ -77,6 +77,13 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   bằng `node server/scripts/gen-bot-avatars.js` (tóc / mũ theo lối đánh, phụ kiện theo mức). Bảng chọn đối thủ
   (`bot-picker.js`, dùng chung cho Ván mới và Cài đặt) hiện ảnh, biểu tượng, lối đánh và mô tả của từng nhân vật.
 - **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
+  **Nhanh như Lichess** (chạy hết trên máy người chơi, máy chủ không tốn gì thêm):
+  - *Phân tích ngầm khi chơi* (`live-analysis.js`): mỗi nước mới được engine chấm ngay trong một Web Worker riêng
+    (200 ms/thế, giữ bảng nhớ engine suốt ván; tạm dừng khi máy đang nghĩ nước / app chạy nền; đi lại thì bỏ phần đã khác).
+    Hết ván bấm Phân tích là có kết quả gần như tức thì (~0,2 giây). Tắt được ở Cài đặt › Cài đặt bàn cờ để tiết kiệm pin.
+  - *Hai lượt*: ván chưa được phân tích ngầm (ván của người khác, ván cũ trong Lịch sử đấu) chạy lượt nhanh trước
+    (~15–40 ms/thế, hiện kết quả sau 1–2 giây kèm dòng "đang phân tích kỹ hơn"), rồi lượt kỹ chỉ chấm lại các thế
+    mới chấm nhanh và thay kết quả. Các thế đã chấm đủ kỹ luôn được dùng lại (`analyzeGame({ evals })`).
   Dùng **engine riêng của game** (`engine.js`, tự viết theo ý tưởng của các engine Gomoku mạnh, không dùng mã của họ):
   Alpha-Beta (PVS) làm sâu dần + bảng ghi nhớ thế cờ, chấm điểm theo cửa sổ 5 / 6 ô đúng luật Caro Việt Nam (hàng bị chặn
   hai đầu = 0 điểm, 3 quân không bị chặn = đe doạ thắng), bộ giải chuỗi ép (VCF) riêng có bảng ghi nhớ. Mỗi thế được đổi ra
@@ -198,6 +205,7 @@ Kiểm thử trình duyệt cho giải đấu (cần Playwright + Chromium; mỗ
 node caro/tests/e2e/tour-basic.e2e.js    # câu lạc bộ, Arena, loại trực tiếp
 node caro/tests/e2e/tour-stages.e2e.js   # vòng bảng (xếp bảng tay) → playoff, Thụy Sĩ → nhánh thắng – thua
 node caro/tests/e2e/study.e2e.js         # nhân vật máy, phân tích ván + Thử lại, giải đố (3 chế độ)
+node caro/tests/e2e/live.e2e.js          # phân tích ngầm khi chơi (hết ván có ngay), phân tích hai lượt, công tắc trong Cài đặt
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
 node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, ván giải mất kết nối, Storm, ảnh og
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
@@ -212,6 +220,7 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 24 nhân vật máy (6 mức × 4 lối đánh): số liệu sức cờ, trọng số lối đánh, `botMove` |
 | `engine.js` | Engine phân tích: Alpha-Beta + chuỗi ép, đủ 4 luật (kể cả nước cấm Renju), trọng số lối đánh (dùng chung trình duyệt, Worker, Node) |
+| `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
 | `study.js` | Bảng phân tích trong chế độ xem lại, "Thử lại", Giải đố (3 chế độ). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
 | `swap.js` | Luật Swap2: thẻ hướng dẫn đặt quân, nút chọn bên |

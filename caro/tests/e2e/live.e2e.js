@@ -1,0 +1,69 @@
+/*
+ * Kiểm thử trình duyệt: phân tích ngầm lúc chơi (live-analysis.js) và phân tích hai lượt (study.js).
+ *   node caro/tests/e2e/live.e2e.js
+ */
+'use strict';
+const { setup } = require('./helpers');
+
+// X xếp 4 quân hàng 0; O bỏ mặc thế ba mở, X thắng ở nước 7.
+const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+// Ván dài chưa phân tích ngầm: các quân cách nhau 3 ô, không ai thắng
+const LONG = Array.from({ length: 36 }, (_, i) => [(i % 6) * 3, Math.floor(i / 6) * 3]);
+
+(async () => {
+  const { browser, ok, shot, sleep, finish } = await setup(8098);
+  const errors = [];
+  const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
+  await ctx.addInitScript(() => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errors.push(e.message + ' ' + (e.stack || '').split('\n')[1]));
+  p.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+  await p.goto('http://localhost:8098/');
+  await sleep(500);
+
+  // ---------------------------------------------------------------- Phân tích ngầm trong lúc chơi
+  ok(await p.evaluate(() => window.CaroLive.on), 'phân tích ngầm bật sẵn');
+  await p.evaluate((moves) => window.CaroApp.startPreset({ mode: 'pvp', moves }), GAME);
+  for (let k = 0; k < 40 && (await p.evaluate(() => window.CaroLive.done)) < GAME.length; k++) await sleep(150);
+  ok((await p.evaluate(() => window.CaroLive.done)) === GAME.length, 'đã chấm sẵn mọi thế của ván (trừ thế sau nước thắng)');
+  const t0 = Date.now();
+  await p.click('#btn-analyze');
+  await p.waitForSelector('#an-body .an-players', { timeout: 5000 });
+  const ms = Date.now() - t0;
+  ok(ms < 1500, `hết ván bấm Phân tích là có ngay (${ms} ms)`);
+  ok(!(await p.$('#an-refine')), 'không cần lượt tinh chỉnh');
+  ok((await p.$$eval('#an-moves .an-mv b', (els) => els.map((e) => e.textContent))).includes('??'), 'vẫn chỉ ra sai lầm nặng của O');
+  await shot(p, 'live-analysis-430.png');
+  await p.click('#rp-close');
+  await sleep(300);
+
+  // ---------------------------------------------------------------- Ván chưa phân tích ngầm: lượt nhanh rồi lượt kỹ
+  await p.evaluate((moves) => { window.CaroApp.openReplay({ local: true, x: 'A', o: 'B', winner: 0, reason: 'draw', moves, rule: 'vn' }); window.CaroStudy.analyze(); }, LONG);
+  await p.waitForSelector('#an-refine', { timeout: 8000 });
+  ok(true, 'lượt nhanh hiện kết quả trước, kèm dòng "đang phân tích kỹ hơn"');
+  ok((await p.$$('#an-moves .an-mv[data-i]')).length === LONG.length, 'lượt nhanh đã có đủ danh sách nước đi');
+  await p.waitForSelector('#an-refine', { state: 'detached', timeout: 30000 });
+  ok((await p.$$('#an-moves .an-mv[data-i]')).length === LONG.length, 'lượt kỹ xong: thay kết quả, bỏ dòng tinh chỉnh');
+  await p.click('#rp-close');
+  await sleep(200);
+
+  // ---------------------------------------------------------------- Chơi với máy: máy nghĩ xong mới chấm tiếp
+  await p.evaluate(() => window.CaroApp.startPreset({ mode: 'ai', human: 1, moves: [[7, 7]] }));
+  for (let k = 0; k < 60 && (await p.evaluate(() => window.CaroApp.board.moves.length)) < 2; k++) await sleep(100);
+  ok((await p.evaluate(() => window.CaroApp.board.moves.length)) === 2, 'máy vẫn đi bình thường khi phân tích ngầm bật');
+  for (let k = 0; k < 40 && (await p.evaluate(() => window.CaroLive.done)) < 3; k++) await sleep(150);
+  ok((await p.evaluate(() => window.CaroLive.done)) === 3, 'ván với máy: đã chấm cả 3 thế (trước nước 1, 2 và thế hiện tại)');
+
+  // ---------------------------------------------------------------- Tắt trong Cài đặt
+  await p.evaluate(() => document.getElementById('btn-settings').click()); // như bấm Xem thêm › Cài đặt
+  await sleep(200);
+  await p.click('#settings-form [data-go="board"]');
+  await sleep(150);
+  ok(await p.isChecked('#settings-form [name=liveAn]'), 'Cài đặt bàn cờ: công tắc phân tích ngầm đang bật');
+  await p.click('#settings-form label:has([name=liveAn])');
+  ok(!(await p.evaluate(() => window.CaroLive.on)) && (await p.evaluate(() => localStorage.getItem('caro.liveAn'))) === '0', 'tắt được và nhớ lựa chọn');
+
+  ok(!errors.length, 'không có lỗi JS trên trang' + (errors.length ? ': ' + errors.join(' | ') : ''));
+  await ctx.close();
+  await finish();
+})().catch((e) => { console.error(e); process.exit(1); });
