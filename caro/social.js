@@ -1,5 +1,5 @@
 /*
- * Tính năng cộng đồng khi chơi online: lịch sử & xem lại ván, bảng xếp hạng, nhắn tin bạn bè,
+ * Tính năng cộng đồng khi chơi online: bảng xếp hạng (Lịch sử đấu: history.js), nhắn tin bạn bè,
  * chặn / báo cáo, tài khoản (mật khẩu, email, quên mật khẩu) và chat nhanh trong phòng.
  */
 (function () {
@@ -14,47 +14,10 @@
   const QUICK = ['hello', 'nice', 'gg', 'rematch', 'hurry', 'oops', 'thanks', 'wow'];
 
   const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang]);
-  const when = (ms) => {
-    try { return new Date(ms).toLocaleString(locale(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); }
-    catch (e) { return new Date(ms).toLocaleString(); }
-  };
   const time = (ms) => {
     try { return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }); }
     catch (e) { return ''; }
   };
-
-  // ------------------------------------------------------------ Lịch sử
-  let games = null;
-  function openHistory() {
-    games = null;
-    renderHistory();
-    N.openDlg('history');
-    N.send({ t: 'history' });
-  }
-  function renderHistory() {
-    const el = $('history-list');
-    if (!games) { el.innerHTML = `<li class="empty">…</li>`; return; }
-    if (!games.length) { el.innerHTML = `<li class="empty">${esc(T('no_history'))}</li>`; return; }
-    el.innerHTML = games.map((g, i) => {
-      const how = g.reason && !['win', 'draw'].includes(g.reason) ? ' · ' + T('end_' + g.reason) : '';
-      return `<li>
-        <span class="res ${g.result}">${esc(T('res_' + g.result))}</span>
-        <div class="pn"><b>${esc(T('vs', { name: g.opponent || T('deleted_player') }))}</b>
-          <small>${esc(when(g.created))} · ${esc(T('n_moves', { n: g.moves }))}${esc(how)}</small></div>
-        <button type="button" class="ghost sm icon" data-share="${i}" title="${esc(T('share_game'))}" aria-label="${esc(T('share_game'))}">↗</button>
-        <button type="button" class="primary sm" data-replay="${i}">▶ ${esc(T('replay'))}</button>
-      </li>`;
-    }).join('');
-    const names = (g) => {
-    const opp = g.opponent || T('deleted_player');
-    return g.mySide === 1 ? { x: S.me.name, o: opp } : { x: opp, o: S.me.name };
-  };
-    el.querySelectorAll('[data-replay]').forEach((b) => { b.onclick = () => N.openReplay(games[b.dataset.replay].share); });
-    el.querySelectorAll('[data-share]').forEach((b) => {
-      b.onclick = () => { const g = games[b.dataset.share]; N.shareReplay({ share: g.share, ...names(g) }); };
-    });
-  }
-  N.on('history', (m) => { games = m.games; renderHistory(); });
 
   // ------------------------------------------------------------ Bảng xếp hạng
   let board = null;
@@ -364,7 +327,7 @@
 
   function open(what) {
     if (!N.connected) return N.send({ t: 'noop' }); // báo chưa kết nối và thử kết nối lại
-    if (what === 'history') openHistory();
+    if (what === 'history') window.CaroHistory.open();
     else if (what === 'leaderboard') openLeaderboard();
     else if (what === 'account') openAccount();
   }
@@ -372,7 +335,6 @@
   window.CaroSocial = { open, openChat, openReport, errorTarget };
 
   window.addEventListener('langchange', () => {
-    if (N.isOpen('history')) renderHistory();
     if (N.isOpen('leaderboard')) renderLeaderboard();
     if (N.isOpen('chat')) renderChat();
     if (N.isOpen('account-dlg')) fillAccount();

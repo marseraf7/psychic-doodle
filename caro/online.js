@@ -704,7 +704,7 @@
     } catch (e) { return toast(T('replay_offline')); }
     closeDlg('history');
     closeDlg('online');
-    App.openReplay(data);
+    return App.openReplay(data);
   }
 
   // Chính sách quyền riêng tư: trong app mở trang trên máy chủ (trình duyệt), trên web mở trang cùng thư mục

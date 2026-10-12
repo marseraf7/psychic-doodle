@@ -183,6 +183,7 @@ class Hub {
       pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
       blocked: u.blocked.map((id) => ({ id, name: this.store.users.get(id)?.name || '?' })),
       admin: this.isAdmin(uid),
+      histVis: this.histVisOf(u), // ai xem được Lịch sử đấu (history.js)
       playban: this.playbanLeft(pid), // ms còn lại của lệnh cấm tìm trận (bỏ ván nhiều)
     };
   }

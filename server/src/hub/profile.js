@@ -4,7 +4,6 @@
  * nên mở bảng liên tục không làm máy chủ phải sắp xếp lại.
  */
 'use strict';
-const { DRAW } = require('../room.js');
 const { E } = require('../msg.js');
 const { uidOf } = require('./shared.js');
 const R = require('../rating.js');
@@ -67,18 +66,16 @@ class Profile {
       const x = u.pools[p];
       pools[p] = { r: Math.round(x.r), rd: Math.round(R.decayedRd(x, now)), prov: R.provisional(x, now), n: x.n };
     }
-    const recent = this.store.history(u.id).map((g) => {
-      const side = g.x_id === u.id ? 1 : 2;
-      return { share: g.share, created: g.created, timeLimit: g.time_limit, clock: g.clock || null, opening: g.opening || 'free', rule: g.rule || 'vn',
-        opponent: side === 1 ? g.o_name : g.x_name, result: g.winner === DRAW ? 'draw' : g.winner === side ? 'win' : 'loss', moves: g.moves, reason: g.reason };
-    });
+    // Ván gần đây: theo quyền riêng tư Lịch sử đấu của chủ hồ sơ (history.js)
+    const canHistory = this.canSeeHistory(meUid, u);
+    const recent = canHistory ? this.historyItems(u, 10) : [];
     const me = meUid && this.store.users.get(meUid);
     conn.send({
       t: 'profile',
       profile: {
         id: u.id, name: u.name, username: u.username, created: u.created || null, status: this.status(u.id),
         rating: u.rating, main: R.mainPool(u), pools, history: this.store.ratingPoints(u.id),
-        stats: u.stats, rated: u.rated, streak: u.wstreak, tours: u.tours, recent,
+        stats: u.stats, rated: u.rated, streak: u.wstreak, tours: u.tours, recent, canHistory, histVis: this.histVisOf(u),
         perf: u.perf || {}, activity: Perf.activity(u), // thống kê sâu theo loại + hoạt động 30 ngày
         self: meUid === u.id, friend: !!(me && me.friends.includes(u.id)), h2h: me && me.id !== u.id ? this.store.h2h(me.id, u.id) : null,
       },
