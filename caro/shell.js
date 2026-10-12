@@ -154,8 +154,22 @@
   proxy('learn-dlg', 'learn');
   proxy('settings', 'settings', 'settings');
 
+  /**
+   * Nút Back (Android – native.js): trang con → trang cha; tab khác → Trang chủ; Trang chủ → bàn cờ.
+   * Trả về true nếu đã xử lý (khung đang ẩn thì không xử lý: Back trên bàn cờ do native.js lo).
+   */
+  function back() {
+    if (!visible) return false;
+    const ev = new CustomEvent('caro:back', { cancelable: true, detail: { id: cur } });
+    if (!window.dispatchEvent(ev)) return true; // trang con của Cài đặt tự lùi một bước
+    if (pages[cur].parent) open(pages[cur].parent);
+    else if (cur !== 'home') open('home');
+    else hide();
+    return true;
+  }
+
   window.CaroShell = {
-    go, hide, open, proxy,
+    go, hide, open, proxy, back,
     show: () => open(TABS.includes(tabOf(last)) ? last : 'home'),
     get visible() { return visible; },
     get current() { return cur; },

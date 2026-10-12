@@ -222,6 +222,10 @@ async function screenRect(app, sel) {
       `thanh trên y=${Math.round(top.top)}, thanh trạng thái tới y=${bars.status && bars.status.b}`);
     check('thanh dưới không bị thanh điều hướng che', !bars.nav || bottom.bottom <= bars.nav.t + 1,
       `thanh dưới tới y=${Math.round(bottom.bottom)}, thanh điều hướng từ y=${bars.nav && bars.nav.t}`);
+    // Thanh 5 tab (đang ở Trang chủ) cũng không bị thanh điều hướng che
+    const tabs = await screenRect(app, '#tabbar');
+    check('thanh tab không bị thanh điều hướng che', !bars.nav || tabs.bottom <= bars.nav.t + 1,
+      `thanh tab tới y=${Math.round(tabs.bottom)}, thanh điều hướng từ y=${bars.nav && bars.nav.t}`);
     shot('home');
   }
 
@@ -233,7 +237,9 @@ async function screenRect(app, sel) {
   await until(() => web.evaluate(() => !!window.CaroOnline));
 
   // App: tạo tài khoản bằng giao diện (gõ vào ô nhập trong WebView)
-  await app.click('#btn-online');
+  // Mở app là vào Trang chủ (khung 5 tab); thẻ tài khoản nằm ở tab Xem thêm
+  check('mở app vào Trang chủ', await app.isVisible('#page-home'));
+  await app.click('#tabbar [data-tab="more"]');
   check('app kết nối máy chủ', !!(await until(() => app.evaluate(() => window.CaroOnline.connected), 45000)));
   await app.click('#go-register');
   await app.fill('#auth-form input[name=name]', 'Android');
@@ -244,7 +250,7 @@ async function screenRect(app, sel) {
   check('app đăng ký tài khoản', !!appMe && appMe.username === 'android_1');
 
   // Web: tài khoản + kết bạn + nhắn tin
-  await web.click('#btn-online');
+  await web.click('#tabbar [data-tab="more"]');
   await until(() => web.evaluate(() => window.CaroOnline.connected));
   await web.click('#go-register');
   await web.fill('#auth-form input[name=username]', 'web_1');
@@ -329,7 +335,7 @@ async function screenRect(app, sel) {
       await until(() => app.evaluate(() => !document.getElementById('chat').open), 2500);
     }
     check('Back đóng hộp chat', !!(await until(() => app.evaluate(() => !document.getElementById('chat').open), 5000)));
-    await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+    await app.evaluate(() => { window.CaroShell.open('home'); window.CaroHome.pane('lobby'); });
   }
 
   // App tạo phòng, đi trước; web vào bằng mã phòng
@@ -420,7 +426,7 @@ async function screenRect(app, sel) {
   await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
   await until(() => app.evaluate(() => !window.CaroOnline.state.room));
   await web.evaluate(() => window.CaroOnline.send({ t: 'createRoom', public: true }));
-  await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  await app.evaluate(() => { window.CaroShell.open('home'); window.CaroHome.pane('lobby'); });
   check('app thấy phòng công khai của web', !!(await until(() => app.evaluate(() => !!document.querySelector('[data-lobby-join]')))));
   await app.locator('#lobby-card').scrollIntoViewIfNeeded();
   shot('lobby');
@@ -431,12 +437,12 @@ async function screenRect(app, sel) {
   await until(() => app.evaluate(() => !window.CaroOnline.state.room));
 
   // Tìm trận nhanh: app bấm "Tìm trận", đóng bảng bằng Back (thẻ "đang tìm" nổi trên màn chơi), web tìm trận → được ghép
-  await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  await app.evaluate(() => { window.CaroShell.open('home'); window.CaroHome.pane('quick'); });
   await app.locator('#qm-start').scrollIntoViewIfNeeded();
   await app.click('#qm-start');
   check('app đang tìm trận', !!(await until(() => app.isVisible('#qm-search'))));
   pressBack();
-  check('Back đóng bảng, thẻ đang tìm hiện trên màn chơi', !!(await until(() => app.isVisible('.qm-float'))));
+  check('Back ở Trang chủ: về bàn cờ, thẻ đang tìm hiện trên màn chơi', !!(await until(() => app.isVisible('.qm-float'))));
   shot('searching');
   await web.evaluate(() => window.CaroOnline.send({ t: 'quickMatch', timeLimit: -1 }));
   // Web vừa rời phòng công khai trước nước đầu (= huỷ ván, bị ghi là bỏ ván) nên được ưu tiên ghép với người hay bỏ ván:
@@ -457,7 +463,7 @@ async function screenRect(app, sel) {
     window.CaroOnline.send({ t: 'tourCreate', name: 'Arena CI', format: 'arena', startsAt: Date.now() + 120000, timeLimit: 30, minutes: 15 });
   }));
   check('quản trị viên tạo giải (duyệt luôn)', !!tourId);
-  await app.evaluate(() => { if (!document.getElementById('online').open) document.getElementById('btn-online').click(); });
+  await app.evaluate(() => window.CaroShell.open('home'));
   await app.locator('#open-tours').scrollIntoViewIfNeeded();
   await app.click('#open-tours');
   check('app thấy giải trong danh sách', !!(await until(() => app.isVisible(`[data-act="tour"][data-id="${tourId}"]`))));
