@@ -224,7 +224,8 @@ async function screenRect(app, sel) {
       `thanh dưới tới y=${Math.round(bottom.bottom)}, thanh điều hướng từ y=${bars.nav && bars.nav.t}`);
     // Thanh 5 tab (đang ở Trang chủ) cũng không bị thanh điều hướng che
     const tabs = await screenRect(app, '#tabbar');
-    check('thanh tab không bị thanh điều hướng che', !bars.nav || tabs.bottom <= bars.nav.t + 1,
+    // Sai số 3 px máy (làm tròn theo mật độ điểm ảnh): thanh tab nằm sát đáy WebView, ngay trên thanh điều hướng
+    check('thanh tab không bị thanh điều hướng che', !bars.nav || tabs.bottom <= bars.nav.t + 3,
       `thanh tab tới y=${Math.round(tabs.bottom)}, thanh điều hướng từ y=${bars.nav && bars.nav.t}`);
     shot('home');
   }
