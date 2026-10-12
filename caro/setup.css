@@ -1,0 +1,76 @@
+/*
+ * Bộ chọn thời gian (tc-picker.js) và hộp "Thiết lập ván đấu" (như hộp tạo ván của Lichess):
+ * 3 thẻ thời gian gạch chân màu nhấn, ô số "5 + 3", hai thanh trượt tô màu nhấn bên trái nút kéo, các ô chọn nhanh,
+ * 3 ô chọn bên X / Ngẫu nhiên / O.
+ */
+.tcp { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.tcp > div { display: flex; flex-direction: column; gap: 10px; }
+.tcp-tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--line, rgba(127, 127, 127, 0.2)); }
+.tcp-tabs button {
+  border-radius: 0; padding: 9px 4px; margin-bottom: -1px; background: none;
+  color: var(--text); font-size: var(--fs-sm); border-bottom: 2px solid transparent;
+}
+.tcp-tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tcp-head { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: var(--fs-sm); color: var(--text); }
+.tcp-head i { font-style: normal; color: var(--muted); }
+.tcp-num {
+  min-width: 2.2em; padding: 1px 8px; border-radius: 6px; text-align: center;
+  background: color-mix(in srgb, var(--text) 14%, transparent); font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold);
+}
+.tcp-two { display: grid !important; grid-template-columns: 1fr 1fr; gap: 18px; flex-direction: row !important; }
+.tcp-two label { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--fs-xs); color: var(--muted); }
+.tcp-two label:last-child { text-align: right; }
+/* Thanh trượt */
+input.tcp-range {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0; background: transparent; cursor: pointer;
+  border: 0; padding: 0; box-shadow: none; border-radius: 0;
+  --p: 0%;
+}
+input.tcp-range::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--accent) var(--p), color-mix(in srgb, var(--text) 18%, transparent) var(--p));
+}
+input.tcp-range::-moz-range-track { height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--text) 18%, transparent); }
+input.tcp-range::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+input.tcp-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin-top: -8px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+input.tcp-range::-moz-range-thumb { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); }
+input.tcp-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+/* Ô chọn nhanh */
+.tcp-chips { display: flex !important; flex-direction: row !important; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.tcp-chips button {
+  padding: 3px 10px; border-radius: 6px; font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--text);
+}
+.tcp-chips button.on { background: var(--accent); color: #fff; }
+.tcp-pool { margin: -4px 0 0; text-align: center; font-size: var(--fs-xs); color: var(--muted); }
+
+/* ============================ Hộp Thiết lập ván đấu ============================ */
+dialog.setup-dlg { width: min(560px, calc(100% - 16px)); }
+.setup-dlg .dlg-head h2 { flex: 1; text-align: center; font-weight: var(--fw-regular); font-size: var(--fs-xl); }
+.setup-dlg .ng-rule .select { width: 100%; }
+.setup-dlg .rule-hint { margin-top: -6px; }
+.setup-dlg fieldset { margin: 0; }
+.setup-dlg legend { width: 100%; text-align: center; font-weight: var(--fw-semibold); }
+.side-pick { display: grid; grid-template-columns: 1fr 1.3fr 1fr; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--text) 7%, transparent); }
+.side-pick label {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 12px 6px; cursor: pointer; text-align: center; font-size: var(--fs-sm); color: var(--text); min-width: 0;
+}
+.side-pick label + label { border-left: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
+.side-pick input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.side-pick b { font-size: var(--fs-xl); line-height: 1; font-weight: var(--fw-bold); }
+.side-pick b i { font-style: normal; color: var(--muted); margin: 0 2px; }
+.side-pick label:has(input:checked) { background: var(--accent); color: #fff; }
+.side-pick label:has(input:checked) b, .side-pick label:has(input:checked) b i { color: #fff; }
+.side-pick label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.setup-dlg .ng-go { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: var(--fs-md); padding: 12px; }
+#newgame-form.pvp .ai-only { display: none; }
+
+/* Tạo phòng / thách đấu: bộ chọn thời gian chiếm cả hàng */
+.opt.wide-opt { flex: 1 1 100%; }
+.opt-l { font-size: var(--fs-sm); color: var(--muted); }
+/* Ô "Tuỳ chỉnh" của lưới ghép trận */
+.home .qm-tile.qm-custom b { font-size: var(--fs-lg); }

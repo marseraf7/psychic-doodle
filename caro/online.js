@@ -8,7 +8,7 @@
   const srv = (m) => (m.code && T('srv_' + m.code) !== 'srv_' + m.code ? T('srv_' + m.code, m.args || {}) : m.msg || '');
   const $ = (id) => document.getElementById(id);
   /** Giá trị ô chọn thời gian: 't20' (20 giây mỗi nước) / 'c3+2' (đồng hồ tổng). */
-  const parseTc = (v) => (String(v)[0] === 'c' ? { timeLimit: 0, clock: String(v).slice(1) } : { timeLimit: Number(String(v).slice(1)) || 0, clock: null });
+  const parseTc = (v) => window.CaroTimeCtl.fromValue(v); // 't20' / 'c5+3' (bộ chọn thời gian, tc-picker.js)
 
   const LS = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },

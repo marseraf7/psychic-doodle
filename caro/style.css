@@ -345,14 +345,14 @@ body.online .banner-actions .online-only { display: inline-block !important; }
 .sm.icon { padding: 6px 8px; }
 .tag { font-size: var(--fs-sm); color: var(--muted); padding: 6px 0; }
 
-input:not([type="radio"]):not([type="checkbox"]) {
+input:not([type="radio"]):not([type="checkbox"]):not([type="range"]) {
   font: inherit; font-size: var(--fs-input);
   color: var(--text); background: transparent;
   border: 1px solid var(--grid-strong); border-radius: 10px;
   padding: 9px 11px; width: 100%;
   -webkit-user-select: text; user-select: text;
 }
-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+input:not([type="range"]):focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); font-weight: var(--fw-medium); color: var(--muted); flex: 1; }
 .field.short { flex: 0 0 96px; }
 

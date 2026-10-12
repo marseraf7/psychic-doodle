@@ -158,6 +158,11 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 - **Xem thêm** (`more.js`): tài khoản, Chơi (giải đấu, câu lạc bộ, vào phòng bằng mã), Công cụ, Cộng đồng (bạn bè), Cài đặt.
 - **Cài đặt dạng danh sách** (`settings-ui.js`): hàng có giá trị hiện bên phải, công tắc, trang con (Âm thanh, Giao diện có
   bàn cờ xem trước, Cài đặt bàn cờ, Ngôn ngữ, Ván cờ mặc định, Đối thủ máy).
+- **Thiết lập ván đấu** (hộp Ván mới, như Lichess): luật, thời gian, đối thủ, bên X / Ngẫu nhiên / O.
+- **Thời gian tuỳ chỉnh** (`timectl.js` dùng chung máy chủ + trình duyệt, `tc-picker.js`): 3 thẻ Không giới hạn · Mỗi nước · Đồng hồ;
+  thanh trượt số giây mỗi nước (5…120) hoặc "phút + giây cộng" (1…180 phút, 0…180 giây) + ô chọn nhanh. Dùng cho Ván mới,
+  Cài đặt, Tạo phòng, Thách đấu. Chơi trên máy cũng có đồng hồ tổng (`local-clock.js`): chạy từ sau nước đầu, tạm dừng khi
+  mở trang / hộp thoại, giữ thời gian còn lại khi tải lại trang. Lưới ghép trận ở Trang chủ có 9 ô đồng hồ + giây mỗi nước + Tuỳ chỉnh.
 - Các hộp thoại cũ (Online, Giải đố, Học chơi, Cài đặt) được `CaroShell.proxy()` chuyển thành trang: mã cũ vẫn gọi
   `showModal()` / `close()` như trước.
 - **Phông Noto Sans** (giống Lichess), lưu trong `fonts/`, không tải từ dịch vụ ngoài; đủ dấu tiếng Việt và chữ Nga,
@@ -211,7 +216,7 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |
 | `puzzles.json` | 363 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải, chủ đề VCF / VCT, luật nếu khác luật Việt Nam) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
-| `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `i18n-demos.js`, `i18n-shell.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-shell.js`: khung trang, Trang chủ, Cài đặt; `i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật, `i18n-demos.js`: phụ đề phim minh hoạ); giao diện Sáng/Tối/Hệ thống |
+| `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `i18n-demos.js`, `i18n-shell.js`, `i18n-tc.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-shell.js`: khung trang, Trang chủ, Cài đặt; `i18n-tc.js`: thời gian, Thiết lập ván đấu; `i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật, `i18n-demos.js`: phụ đề phim minh hoạ); giao diện Sáng/Tối/Hệ thống |
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
@@ -227,5 +232,6 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |
+| `timectl.js`, `tc-picker.js`, `local-clock.js`, `setup.css` | Mức thời gian cho phép (dùng chung máy chủ); bộ chọn thời gian; đồng hồ tổng khi chơi trên máy; giao diện Thiết lập ván đấu |
 | `index.html`, `style.css` | Giao diện |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |

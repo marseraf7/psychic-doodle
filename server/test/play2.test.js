@@ -47,7 +47,11 @@ test('Glicko-2: điểm tạm, rd tăng dần khi lâu không chơi, loại th�
   assert.strictEqual(R.poolOf({ timeLimit: 10 }), 'blitz');
   assert.strictEqual(R.poolOf({ timeLimit: 30 }), 'rapid');
   assert.strictEqual(R.poolOf({ timeLimit: 0 }), 'classical');
-  assert.strictEqual(R.parseClock('7+7'), null);
+  assert.strictEqual(R.parseClock('11+7'), null); // 11 phút không nằm trong các mức
+  assert.deepStrictEqual(R.parseClock('7+7'), { base: 420000, inc: 7000 }); // thời gian tuỳ chỉnh
+  assert.strictEqual(R.poolOf({ clock: '1+0' }), 'bullet');
+  assert.strictEqual(R.poolOf({ clock: '30+20' }), 'classical');
+  assert.strictEqual(R.poolOf({ timeLimit: 60 }), 'rapid');
   // Tài khoản cũ chỉ có Elo: mọi loại bắt đầu từ Elo cũ, đã chơi nhiều thì không còn "tạm"
   const old = R.upgradePools({ rating: 1650, rated: 40 });
   assert.strictEqual(old.pools.blitz.r, 1650);
@@ -317,7 +321,7 @@ test('thách đấu và giải đấu mang theo đồng hồ / luật khai cuộ
   assert.strictEqual(room.clockSpec, '5+3');
   assert.strictEqual(room.timeLimit, 0);
   assert.strictEqual(room.opening, 'swap2');
-  const bad = app.hub.makeRoom('room', 1, 20, { clock: '9+9', opening: 'renju' });
+  const bad = app.hub.makeRoom('room', 1, 20, { clock: '11+11', opening: 'renju' });
   assert.strictEqual(bad.clockSpec, null);
   assert.strictEqual(bad.timeLimit, 20);
   assert.strictEqual(bad.opening, 'free');
@@ -356,4 +360,27 @@ test('thách đấu bạn bè: chỉ bạn bè của người chơi xem được
   app.hub.tvCache = null;
   assert.ok(!app.hub.tvGames().some((g) => g.code === room.code), 'không có trong "Đang diễn ra"');
   [a, b, f, s].forEach((c) => c.close());
+});
+
+// ---------------------------------------------------------------- Thời gian tuỳ chỉnh (caro/timectl.js, dùng chung trình duyệt)
+test('Thời gian tuỳ chỉnh: đồng hồ phút+giây cộng và giây mỗi nước theo các mức cho phép', () => {
+  const TC = require('../../caro/timectl.js');
+  const { cleanTc } = require('../src/hub/shared.js');
+  assert.deepStrictEqual(cleanTc({ clock: '7+7' }), { timeLimit: 0, clock: '7+7', opening: 'free', rule: 'vn' });
+  assert.strictEqual(cleanTc({ clock: '11+0' }).clock, null, 'mức phút lạ -> không có đồng hồ');
+  assert.strictEqual(cleanTc({ timeLimit: 45 }).timeLimit, 45);
+  assert.strictEqual(cleanTc({ timeLimit: 11 }).timeLimit, 0, 'giây mỗi nước lạ -> không giới hạn');
+  assert.deepStrictEqual(TC.fromValue('c5+3'), { timeLimit: 0, clock: '5+3' });
+  assert.deepStrictEqual(TC.fromValue('t45'), { timeLimit: 45, clock: null });
+  assert.deepStrictEqual(TC.fromValue('c11+1'), { timeLimit: 0, clock: null });
+  assert.deepStrictEqual(TC.fromValue('x'), { timeLimit: 0, clock: null });
+  assert.strictEqual(TC.toValue({ clock: '5+3' }), 'c5+3');
+  assert.strictEqual(TC.toValue({ timeLimit: 20 }), 't20');
+  assert.strictEqual(TC.toValue({ timeLimit: 11 }), 't0');
+  assert.strictEqual(TC.toValue(), 't0');
+  assert.strictEqual(TC.poolOfClock('2+1'), 'bullet');
+  assert.ok(TC.CLOCK_PRESETS.every(TC.isClock) && TC.MOVE_PRESETS.every(TC.isTimeLimit), 'ô chọn nhanh đều hợp lệ');
+  assert.strictEqual(TC.isClock(null), false);
+  const room = new Room({ code: '123456', password: '123', clock: '2+1' });
+  assert.ok(room.clock && room.clock.base === 120000 && room.clock.inc === 1000, 'phòng nhận đồng hồ tuỳ chỉnh 2+1');
 });

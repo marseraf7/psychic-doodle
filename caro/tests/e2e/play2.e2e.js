@@ -23,7 +23,10 @@ const { setup } = require('./helpers');
   // Chủ phòng: phòng công khai, đồng hồ 3+2, luật Swap2 (Trang chủ → thẻ Phòng chờ)
   await a.click('#tabbar [data-tab="home"]');
   await a.click('.home-tabs [data-hpane="lobby"]');
-  await a.selectOption('#room-tc', 'c3+2');
+  // Bộ chọn thời gian (tc-picker.js): thẻ Đồng hồ, ô chọn nhanh 3+2
+  await a.click('#create-card [data-tcm="clock"]');
+  await a.click('#create-card [data-chip="c3+2"]');
+  ok(await a.inputValue('#room-tc') === 'c3+2', 'tạo phòng: chọn đồng hồ 3+2 bằng ô chọn nhanh');
   await a.selectOption('#room-opening', 'swap2');
   await a.check('#room-public');
   await a.click('#create-room');

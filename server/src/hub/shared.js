@@ -9,7 +9,8 @@ const INVITE_TTL_MS = 60 * 1000;
 const ROOM_IDLE_MS = 30 * 60 * 1000;
 const SEAT_IDLE_MS = 10 * 60 * 1000;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
-const TIME_LIMITS = [0, 10, 20, 30]; // giây mỗi nước, 0 = không giới hạn
+const TC = require('../../../caro/timectl.js'); // các mức thời gian cho phép (dùng chung với trình duyệt)
+const TIME_LIMITS = [0, ...TC.PER_MOVE]; // giây mỗi nước, 0 = không giới hạn
 const OPENINGS = ['free', 'swap2']; // luật khai cuộc
 const GAME_RULES = require('../../../caro/rules.js').RULES; // luật thắng: 'vn' | 'free' | 'std' | 'renju'
 const DRAW_COOLDOWN_MS = 30 * 1000; // bị từ chối hoà thì 30 giây sau mới được xin lại
@@ -38,8 +39,8 @@ const RESET_MAIL = {
   zh: { subject: '五子棋 Caro 密码重置验证码', body: (u, c) => `${u}，你好：\n\n你的密码重置验证码是：${c}\n验证码 15 分钟内有效。\n\n如果这不是你本人的操作，请忽略此邮件。` },
 };
 /** Lựa chọn thời gian / luật gửi từ client: giới hạn mỗi nước, đồng hồ tổng '3+2', luật khai cuộc, luật thắng. */
-function cleanTc({ timeLimit, clock, opening, rule } = {}, CLOCKS = require('../rating.js').CLOCKS) {
-  const ck = CLOCKS.includes(clock) ? clock : null;
+function cleanTc({ timeLimit, clock, opening, rule } = {}) {
+  const ck = TC.isClock(clock) ? clock : null;
   return {
     timeLimit: ck ? 0 : TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
     clock: ck,

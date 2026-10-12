@@ -27,7 +27,7 @@
     O.send({ t: 'quickMatch', timeLimit: Q.time, clock: Q.clock });
   }
   const tileOn = (b) => Q.searching && Number(b.dataset.time) === Q.time && (b.dataset.clock || null) === Q.clock;
-  document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => { b.onclick = () => start(Number(b.dataset.time), b.dataset.clock); });
+  document.querySelectorAll('#qm-grid .qm-tile[data-time]').forEach((b) => { b.onclick = () => start(Number(b.dataset.time), b.dataset.clock); });
   $('qm-cancel').onclick = () => O.send({ t: 'quickCancel' });
   $('banner-quick').onclick = () => start();
 
@@ -44,7 +44,7 @@
     document.querySelectorAll('.qm-time').forEach((el) => { el.textContent = statusText(); });
   }
   function renderQuick() {
-    document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => {
+    document.querySelectorAll('#qm-grid .qm-tile[data-time]').forEach((b) => {
       b.classList.toggle('on', tileOn(b));
       b.setAttribute('aria-pressed', String(tileOn(b)));
     });

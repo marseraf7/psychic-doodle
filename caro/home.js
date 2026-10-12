@@ -73,6 +73,8 @@
     pvp: () => App.startPreset({ rule: App.local.rule, mode: 'pvp', moves: [] }),
   };
   document.querySelectorAll('[data-home]').forEach((b) => { b.onclick = () => ACT[b.dataset.home](); });
+  // Ô "Tuỳ chỉnh" của lưới ghép trận: tạo phòng với thời gian tự chọn
+  $('qm-custom').onclick = ACT.create;
 
   // ---------------------------------------------------------------- Thẻ "Tiếp tục ván"
   function renderResume() {

@@ -5,7 +5,8 @@
   const Bots = window.CaroBots;
   const T = window.I18N.t;
   const sfx = (name) => window.CaroSound && window.CaroSound.play(name);
-  const TIME_LIMITS = [0, 10, 20, 30];
+  const TC = window.CaroTimeCtl; // các mức thời gian (timectl.js)
+  const LC = window.CaroLocalClock; // đồng hồ tổng khi chơi trên máy (local-clock.js)
 
   const STORE = 'caro.v1';
   const MIN_SIZE = 14, MAX_SIZE = 96;
@@ -33,6 +34,8 @@
     online: null, // { room, me, side } khi đang chơi online
     replay: null, // { data, idx, timer } khi đang xem lại một ván đã lưu
     timeLimit: 0, // giây mỗi nước khi chơi offline, 0 = không giới hạn
+    clockSpec: null, // đồng hồ tổng khi chơi offline, vd. '5+3' (thay cho timeLimit)
+    sidePick: '1', // lựa chọn bên trong hộp Thiết lập ván đấu: '1' X · '2' O · 'r' ngẫu nhiên
     allowUndo: true, // cho phép "Đi lại" khi chơi offline
     winReason: null, // 'time' khi thắng vì đối phương hết giờ
     clock: null, // { endsAt (performance.now), local } – đồng hồ lượt hiện tại
@@ -81,13 +84,17 @@
         bot: botAllowed(s.bot) ? s.bot : 'ti',
         confirm: !!s.confirm,
         score: s.score || state.score,
-        timeLimit: TIME_LIMITS.includes(s.timeLimit) ? s.timeLimit : 0,
+        timeLimit: TC.isTimeLimit(s.timeLimit) ? s.timeLimit : 0,
+        clockSpec: TC.isClock(s.clockSpec) ? s.clockSpec : null,
+        sidePick: ['1', '2', 'r'].includes(s.sidePick) ? s.sidePick : String(s.human === O ? O : X),
         allowUndo: s.allowUndo !== false,
         rule: ruleOf(s.rule),
       });
       state.board = new Board(state.rule);
       for (const [x, y] of s.moves || []) placeRaw(x, y);
       if (s.timeout && !state.winner) { state.winner = s.timeout; state.winReason = 'time'; }
+      // Đồng hồ tổng: thời gian còn lại của 2 bên lúc lưu
+      state.clocks = state.clockSpec && s.lclock && s.lclock.spec === state.clockSpec ? LC.create(state.clockSpec, performance.now(), s.lclock) : null;
       if (s.cam) Object.assign(cam, s.cam);
     } catch (e) { /* bỏ qua dữ liệu hỏng */ }
   }
@@ -96,7 +103,8 @@
     try {
       localStorage.setItem(STORE, JSON.stringify({
         mode: state.mode, human: state.human, bot: state.bot, rule: state.rule,
-        confirm: state.confirm, score: state.score, timeLimit: state.timeLimit, allowUndo: state.allowUndo,
+        confirm: state.confirm, score: state.score, timeLimit: state.timeLimit, clockSpec: state.clockSpec, sidePick: state.sidePick, allowUndo: state.allowUndo,
+        lclock: state.clocks && state.clocks.local ? LC.snapshot(state.clocks, performance.now()) : null,
         moves: state.board.moves.map((m) => [m.x, m.y]),
         timeout: state.winReason === 'time' ? state.winner : null,
         cam: { x: cam.x, y: cam.y, size: cam.size },
@@ -123,6 +131,7 @@
     if (fb) { toast(T('forbid_' + fb), 3000); vibrate(30); requestDraw(); return; }
     if (state.online) return playOnline(x, y);
     const mover = state.turn;
+    if (state.clocks && state.clocks.local) LC.press(state.clocks, mover, performance.now());
     const win = placeRaw(x, y);
     state.lastPlacedAt = performance.now();
     sfx(mover === X ? 'placeX' : 'placeO');
@@ -199,6 +208,7 @@
       state.score[state.winner] = Math.max(0, state.score[state.winner] - 1);
       state.winner = null;
       state.winReason = null;
+      if (state.clocks && state.clocks.local) state.clocks = null; // đồng hồ tổng: bắt đầu lại từ đầu
       hideBanner();
       save();
       updateUI();
@@ -233,6 +243,7 @@
     state.winCells = null;
     state.pending = null;
     state.thinking = false;
+    if (state.clocks && state.clocks.local) state.clocks = null;
     hideBanner();
     animateCamera(0, 0, Math.max(cam.size, 32));
     save();
@@ -251,9 +262,18 @@
 
   function resetClock() {
     if (state.online || state.replay || state.ext) return;
-    const needs = state.timeLimit && !state.winner && !state.thinking && !isAITurn();
+    syncTotalClock();
+    const needs = !state.clockSpec && state.timeLimit && !state.winner && !state.thinking && !isAITurn();
     state.clock = needs ? { endsAt: performance.now() + state.timeLimit * 1000, local: true } : null;
     renderClock();
+  }
+
+  /** Đồng hồ tổng offline: tạo khi cần, cho bên tới lượt chạy (chưa chạy trước nước đầu và khi ván đã xong). */
+  function syncTotalClock() {
+    const now = performance.now();
+    if (!state.clockSpec) { if (state.clocks && state.clocks.local) state.clocks = null; return; }
+    if (!state.clocks || !state.clocks.local || state.clocks.spec !== state.clockSpec) state.clocks = LC.create(state.clockSpec, now);
+    LC.run(state.clocks, state.winner || !state.board.moves.length ? 0 : state.turn, now);
   }
 
   /** 125000 ms -> '2:05'; dưới 10 giây hiện thêm phần mười: '7.4'. */
@@ -278,7 +298,8 @@
       node.textContent = fmtClock(ms);
       node.classList.toggle('run', run);
       node.classList.toggle('low', run && ms < 10000);
-      if (run && ms < 10000 && ms > 0 && state.online && state.online.side === p) {
+      const mine = state.online ? state.online.side === p : !(state.mode === 'ai' && p !== state.human);
+      if (run && ms < 10000 && ms > 0 && mine) {
         const sec = Math.ceil(ms / 1000);
         if (sec !== c.lastTick) { c.lastTick = sec; if (sec <= 5) sfx('tick'); }
       }
@@ -308,6 +329,11 @@
       if (clockPaused()) c.endsAt += dt;
       else if (!state.winner && now >= c.endsAt) return timeUp();
     }
+    const t = state.clocks;
+    if (t && t.local && !state.online && !state.replay && !state.ext) {
+      if (clockPaused()) LC.pause(t, dt);
+      else if (!state.winner && t.running && LC.left(t, t.running, now) <= 0) return timeUp();
+    }
     renderClock();
   }
   setInterval(tickClock, 200);
@@ -315,6 +341,7 @@
   /** Hết giờ khi chơi offline: người đang tới lượt thua. */
   function timeUp() {
     state.clock = null;
+    if (state.clocks && state.clocks.local) LC.run(state.clocks, 0, performance.now());
     state.winner = other(state.turn);
     state.winReason = 'time';
     state.winCells = null;
@@ -428,6 +455,7 @@
 
   /** Quay lại ván chơi trên máy (sau khi rời phòng online hoặc thoát xem lại). */
   function restoreLocal() {
+    state.clocks = null; // load() khôi phục đồng hồ tổng đã lưu
     state.board = new Board(state.rule);
     state.turn = X;
     state.winner = null;
@@ -564,6 +592,7 @@
     if (!state.replay) save();
     stopReplay();
     state.replay = { data, idx: 0, timer: 0 };
+    if (state.clocks && state.clocks.local) state.clocks = null; // đồng hồ ván trên máy đã lưu, khôi phục khi quay lại
     toBoard();
     state.thinking = false;
     state.pending = null;
@@ -1175,16 +1204,23 @@
   $('btn-new').onclick = () => openNewGame();
 
   // Bảng chọn nhanh khi bấm "Ván mới": chế độ, cầm quân, độ khó, thời gian – rồi bắt đầu ngay.
+  // Thời gian ván trên máy dạng chữ của bộ chọn thời gian (tc-picker.js): 't0' | 't20' | 'c5+3'
+  const tcValue = () => TC.toValue({ timeLimit: state.timeLimit, clock: state.clockSpec });
+  function setTc(v) {
+    const t = TC.fromValue(v);
+    state.timeLimit = t.timeLimit;
+    state.clockSpec = t.clock;
+  }
   const ngDlg = $('newgame');
   const ngForm = $('newgame-form');
   function openNewGame() {
     if (state.online) return;
     ngForm.mode.value = state.mode;
-    ngForm.human.value = String(state.human);
+    ngForm.human.value = state.sidePick;
     ngForm.rule.value = state.rule;
     renderRuleHint();
     renderBotPicker();
-    ngForm.timeLimit.value = String(state.timeLimit);
+    window.CaroTcPicker.set($('ng-tc'), tcValue());
     ngForm.classList.toggle('pvp', state.mode === 'pvp');
     if (ngDlg.showModal) ngDlg.showModal(); else ngDlg.setAttribute('open', '');
   }
@@ -1192,10 +1228,11 @@
   function renderRuleHint() { $('ng-rule-hint').textContent = T('grule_' + ngForm.rule.value + '_d'); }
   ngForm.addEventListener('submit', () => {
     state.mode = ngForm.mode.value;
-    state.human = Number(ngForm.human.value);
+    state.sidePick = ngForm.human.value;
+    state.human = state.sidePick === 'r' ? (Math.random() < 0.5 ? X : O) : Number(state.sidePick); // Ngẫu nhiên: bốc thăm mỗi ván
     state.rule = ruleOf(ngForm.rule.value);
     if (botAllowed(ngForm.bot.value)) state.bot = ngForm.bot.value;
-    state.timeLimit = Number(ngForm.timeLimit.value) || 0;
+    setTc(ngForm.tc.value);
     newGame();
     toBoard();
   });
@@ -1216,7 +1253,7 @@
     form.human.value = String(state.human);
     form.rule.value = state.rule;
     window.CaroBotPicker.render($('set-picker'), state.bot);
-    form.timeLimit.value = String(state.timeLimit);
+    window.CaroTcPicker.set($('set-tc'), tcValue());
     form.allowUndo.checked = state.allowUndo;
     form.sound.checked = window.CaroSound.enabled;
     form.soundStyle.value = window.CaroSound.style;
@@ -1232,12 +1269,13 @@
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   };
   form.addEventListener('change', () => {
-    const prevMode = state.mode, prevHuman = state.human, prevTime = state.timeLimit, prevRule = state.rule;
+    const prevMode = state.mode, prevHuman = state.human, prevTime = tcValue(), prevRule = state.rule;
     state.mode = form.mode.value;
     state.rule = ruleOf(form.rule.value);
     state.human = Number(form.human.value);
     if (botAllowed(form.bot.value)) state.bot = form.bot.value;
-    state.timeLimit = Number(form.timeLimit.value) || 0;
+    setTc(form.tc.value);
+    state.sidePick = String(state.human);
     state.allowUndo = form.allowUndo.checked;
     window.CaroSound.enabled = form.sound.checked;
     if (window.CaroSound.style !== form.soundStyle.value) { window.CaroSound.style = form.soundStyle.value; window.CaroSound.play('placeX'); }
@@ -1245,7 +1283,7 @@
     state.confirm = form.confirm.checked;
     window.CaroTheme.set(form.theme.value);
     window.I18N.setLang(form.elements.lang.value);
-    if (prevTime !== state.timeLimit) resetClock();
+    if (prevTime !== tcValue()) { if (state.clocks && state.clocks.local) state.clocks = null; resetClock(); }
     state.pending = null;
     form.classList.toggle('pvp', state.mode === 'pvp');
     const changedSides = prevMode !== state.mode || prevHuman !== state.human;
@@ -1269,6 +1307,7 @@
     if (!state.replay && !state.ext) save();
     if (state.replay) stopReplay();
     state.ext = ctrl;
+    if (state.clocks && state.clocks.local) state.clocks = null; // đồng hồ ván trên máy đã lưu, khôi phục khi quay lại
     toBoard();
     state.thinking = false;
     state.pending = null;

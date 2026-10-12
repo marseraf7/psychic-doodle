@@ -14,6 +14,7 @@
   const page = $('page-settings');
   let sub = 'root';
 
+  const tcText = (v) => { const t = window.CaroTimeCtl.fromValue(v); return t.clock || window.I18N.tc(t.timeLimit, null); };
   const checkedText = (name) => {
     const el = form.querySelector(`input[name="${name}"]:checked`);
     const lab = el && el.closest('.li');
@@ -26,7 +27,7 @@
       sound: form.sound.checked ? checkedText('soundStyle') : T('off'),
       look: [checkedText('theme'), checkedText('board')].join(' · '),
       lang: checkedText('lang'),
-      game: [form.mode.value === 'pvp' ? T('mode_pvp') : T('mode_ai'), T('grule_s_' + form.rule.value)].join(' · '),
+      game: [form.mode.value === 'pvp' ? T('mode_pvp') : T('mode_ai'), T('grule_s_' + form.rule.value), form.tc ? tcText(form.tc.value) : ''].filter(Boolean).join(' · '),
       bot: form.bot ? T('bot_' + form.bot.value) : '',
     };
     form.querySelectorAll('[data-val]').forEach((el) => { el.textContent = v[el.dataset.val] || ''; });
