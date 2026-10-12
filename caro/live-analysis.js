@@ -102,8 +102,8 @@
     inflight = null;
     // Ván vẫn còn đúng thế đó thì lưu (đi lại rồi rẽ nhánh khác trong lúc chấm: các nước đầu đã khác – bỏ)
     if (gid === g.gid && i <= g.moves.length && key === keyOf(g.moves, i) && d.ev) {
-      if (!alt) g.evals[i] = d.ev;
-      else if (g.evals[i]) g.evals[i] = { ...g.evals[i], alt: d.ev };
+      if (!alt) g.evals[i] = { ...d.ev, k: key }; // k: khoá của đúng thế đã chấm (evalsFor kiểm lại)
+      else if (g.evals[i] && g.evals[i].k === key) g.evals[i] = { ...g.evals[i], alt: d.ev };
     }
     setTimeout(pump, 0);
   }
@@ -117,7 +117,8 @@
     const c = common(g.moves, moves);
     if (c === 0 && moves.length) return null;
     const out = new Array(moves.length + 1).fill(null);
-    for (let i = 0; i <= c; i++) if (g.evals[i]) out[i] = g.evals[i];
+    // Chỉ lấy thế có khoá khớp đúng thế của ván này (an toàn tuyệt đối dù đi lại / rẽ nhánh bao nhiêu lần)
+    for (let i = 0; i <= c; i++) if (g.evals[i] && g.evals[i].k === keyOf(moves, i)) out[i] = g.evals[i];
     return out;
   }
 
@@ -137,5 +138,8 @@
     el.addEventListener('change', () => setOn(el.checked));
   }
 
-  window.CaroLive = { sync, evalsFor, setOn, MS, get on() { return on; }, get done() { return g.evals.filter(Boolean).length; }, get alts() { return g.evals.filter((e) => e && e.alt).length; } };
+  /** Kiểm thử: mọi thế đã chấm có khoá khớp với ván hiện tại không. */
+  const consistent = () => g.evals.every((e, i) => !e || e.k === keyOf(g.moves, i));
+
+  window.CaroLive = { consistent, sync, evalsFor, setOn, MS, get on() { return on; }, get done() { return g.evals.filter(Boolean).length; }, get alts() { return g.evals.filter((e) => e && e.alt).length; } };
 })();

@@ -38,9 +38,22 @@
   const cache = new Map(); // khoá: chuỗi nước đi -> kết quả
   const an = { result: null, running: false, seq: 0, refining: null, job: 0, key: null, prog: 0 };
 
-  /** opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế (bỏ trống = mặc định của analysis.js) }. */
-  function runAnalysis(moves, rule, onProgress, opts) {
+  /**
+   * opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế }. Có nhiều Worker (an-pool.js): chấm song song rồi xếp loại
+   * ngay trên trang; không thì một Worker chạy cả analyzeGame (cách cũ).
+   */
+  async function runAnalysis(moves, rule, onProgress, opts) {
     opts = opts || {};
+    const Pool = window.CaroAnPool;
+    if (Pool && opts.ms && Pool.size > 1) {
+      const job = an.job;
+      const evals = await Pool.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress });
+      if (job !== an.job) return null; // đã huỷ
+      if (evals) return A.analyzeGame(moves, { rule, ms: opts.ms, evals });
+    }
+    return runSingle(moves, rule, onProgress, opts);
+  }
+  function runSingle(moves, rule, onProgress, opts) {
     const w = getWorker();
     if (!w) {
       // Không có Web Worker: tính trên luồng chính (sau 1 khung hình để kịp vẽ thanh tiến trình).
@@ -75,6 +88,7 @@
     an.running = false;
     an.key = null;
     if (worker) { worker.terminate(); worker = null; }
+    if (window.CaroAnPool) window.CaroAnPool.cancel();
     for (const res of pending) res(null);
     pending.clear();
   }

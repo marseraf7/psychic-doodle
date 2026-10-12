@@ -63,6 +63,32 @@ const LONG = Array.from({ length: 36 }, (_, i) => [(i % 6) * 3, Math.floor(i / 6
   await p.click('#rp-close');
   await sleep(200);
 
+  // ---------------------------------------------------------------- Đi lại / rẽ nhánh liên tục trong lúc đang chấm
+  const storm = await p.evaluate(async () => {
+    const L = window.CaroLive;
+    let s = 11;
+    const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    const moves = [];
+    const used = new Set();
+    for (let step = 0; step < 300; step++) {
+      if (moves.length > 2 && rnd() < 0.45) { const m = moves.pop(); used.delete(m.x + ',' + m.y); } // đi lại
+      else {
+        let x, y;
+        do { x = Math.floor(rnd() * 13) - 6; y = Math.floor(rnd() * 13) - 6; } while (used.has(x + ',' + y));
+        used.add(x + ',' + y);
+        moves.push({ x, y, p: moves.length % 2 ? 2 : 1 });
+      }
+      L.sync({ moves: moves.slice(), rule: 'vn' }, {});
+      await new Promise((r) => setTimeout(r, rnd() * 120)); // lúc nhanh lúc chậm, xen giữa các lần chấm
+      if (!L.consistent()) return { ok: false, step };
+    }
+    await new Promise((r) => setTimeout(r, 4000));
+    const ev = L.evalsFor(moves.map((m) => [m.x, m.y]), 'vn');
+    return { ok: L.consistent(), n: moves.length, have: ev ? ev.filter(Boolean).length : 0 };
+  });
+  ok(storm.ok, `300 lần đánh / đi lại / rẽ nhánh xen lúc đang chấm: không thế nào bị gắn nhầm kết quả (${JSON.stringify(storm)})`);
+  ok(storm.have > 0, 'sau khi dừng: các thế của ván cuối vẫn được chấm và dùng được');
+
   // ---------------------------------------------------------------- Chơi với máy: máy nghĩ xong mới chấm tiếp
   await p.evaluate(() => window.CaroApp.startPreset({ mode: 'ai', human: 1, moves: [[7, 7]] }));
   for (let k = 0; k < 60 && (await p.evaluate(() => window.CaroApp.board.moves.length)) < 2; k++) await sleep(100);

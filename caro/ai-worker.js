@@ -6,6 +6,7 @@ self.onmessage = (e) => {
   if (d.type === 'eval') {
     if (live.gid !== d.gid) live = { gid: d.gid, shared: { tt: new Map(), qtt: new Map(), vtt: new Map(), rule: d.rule } };
     live.shared.ms = d.ms;
+    live.shared.strict = d.ms < 60; // lượt phân tích nhanh: xem giờ chặt (engine.js)
     const r = self.CaroEngine.analyse(d.moves, live.shared);
     self.postMessage({ id: d.id, ev: self.CaroAnalysis.slim(r, d.ms) });
     return;

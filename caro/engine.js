@@ -492,6 +492,7 @@
       // Xem giờ mỗi 1024 nút; opts.strict: mỗi 128 nút – một nút có thể tốn ~0,1 ms nên 1024 nút trễ hạn cả trăm ms
       // (lượt phân tích nhanh cần đúng giờ; máy đánh và phân tích kỹ giữ cách cũ để sức cờ không đổi)
       this.tick = opts.strict ? 127 : 1023;
+      this.lmr = !!opts.lmr; // bật bằng opts.lmr (đang thử nghiệm – xem server/scripts/bot-match.js)
       this.stop = false;
       this.killers = [];
       this.width = opts.width || 10;   // số ứng viên ở các nút bên trong
@@ -690,7 +691,10 @@
         childPv.length = 0;
         if (n === 0) s = -this.negamax(depth - 1 + ext, -beta, -alpha, ply + 1, childPv);
         else {
-          s = -this.negamax(depth - 1 + ext, -alpha - 1, -alpha, ply + 1, childPv);
+          // LMR (như Stockfish / Rapfi): nước xếp cuối, thế yên tĩnh, còn sâu → tìm nông hơn 1 bậc; vượt alpha thì tìm lại đủ sâu
+          const r = this.lmr && n >= 3 && depth >= 3 && !ext && !pos.winCount[q] && !pos.winCount[p] ? 1 : 0;
+          s = -this.negamax(depth - 1 - r + ext, -alpha - 1, -alpha, ply + 1, childPv);
+          if (r && s > alpha && !this.stop) { childPv.length = 0; s = -this.negamax(depth - 1 + ext, -alpha - 1, -alpha, ply + 1, childPv); }
           if (s > alpha && s < beta) { childPv.length = 0; s = -this.negamax(depth - 1 + ext, -beta, -alpha, ply + 1, childPv); }
         }
         pos.undo();
