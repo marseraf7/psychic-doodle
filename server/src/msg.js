@@ -50,6 +50,7 @@ const VI = {
   not_your_turn: 'Chưa đến lượt bạn',
   bad_move: 'Nước đi không hợp lệ',
   cell_taken: 'Ô này đã có quân',
+  forbidden_move: 'Nước cấm theo luật Renju (3-3, 4-4 hoặc quá năm)',
   cannot_resign: 'Không thể đầu hàng lúc này',
   cannot_rematch: 'Chưa thể tái đấu',
   next_game_auto: 'Ván tiếp theo sẽ tự bắt đầu',

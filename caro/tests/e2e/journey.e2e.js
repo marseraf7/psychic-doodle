@@ -123,7 +123,8 @@ const { setup } = require('./helpers');
     await sleep(200);
     await p.click('#settings-form [data-open="learn"]');
     await sleep(300);
-    ok((await p.$$('#rules-list li')).length === 2, `${width}px: Học chơi có 2 mục luật (Swap2, Renju)`);
+    ok((await p.$$('#rules-list li')).length === 5 && (await p.$$('#open-list li')).length === 3 && (await p.$$('#tactic-list li')).length === 3,
+      `${width}px: Học chơi có 5 mục luật, 3 mục khai cuộc, 3 mục chiến thuật`);
     for (const id of ['swap2', 'renju']) {
       await p.click(`#rules-list [data-rule="${id}"]`);
       await sleep(250);

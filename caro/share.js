@@ -41,7 +41,7 @@
     for (let j = 0; j <= rows; j++) { ctx.moveTo(ox, oy + j * s + 0.5); ctx.lineTo(ox + s * cols, oy + j * s + 0.5); }
     ctx.stroke();
     const cell = (x, y) => [ox + (x - box.x0) * s + s / 2, oy + (y - box.y0) * s + s / 2];
-    const b = new C.Board();
+    const b = new C.Board(info && info.rule);
     for (let i = 0; i < n; i++) b.play(moves[i][0], moves[i][1], i % 2 ? C.O : C.X);
     if (n) {
       const [lx, ly] = cell(moves[n - 1][0], moves[n - 1][1]);

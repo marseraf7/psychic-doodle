@@ -87,22 +87,42 @@ const tests = {
     r.moves.forEach((m, i) => assert.strictEqual(m.p, i % 2 ? O : X));
     for (const p2 of [X, O]) assert.ok(r.acc[p2] >= 0 && r.acc[p2] <= 100);
   },
-  'bots: 6 nhân vật, Elo tăng dần, 3 nhân vật đầu mở sẵn'() {
-    assert.strictEqual(B.BOTS.length, 6);
-    for (let i = 1; i < B.BOTS.length; i++) assert.ok(B.BOTS[i].elo > B.BOTS[i - 1].elo);
+  'bots: 24 nhân vật = 6 mức × 4 lối đánh, Elo tăng theo mức, 3 mức đầu mở sẵn'() {
+    assert.strictEqual(B.BOTS.length, 24);
+    assert.strictEqual(new Set(B.BOTS.map((b) => b.id)).size, 24);
+    assert.deepStrictEqual(B.STYLES, ['atk', 'def', 'dbl', 'trap']);
+    for (let t = 1; t <= 6; t++) {
+      const row = B.byTier(t);
+      assert.deepStrictEqual(row.map((b) => b.style).sort(), [...B.STYLES].sort());
+      assert.ok(row.every((b) => b.elo === B.TIERS[t - 1].elo));
+      if (t > 1) assert.ok(B.TIERS[t - 1].elo > B.TIERS[t - 2].elo);
+    }
+    // 6 nhân vật cũ giữ id (lựa chọn đã lưu của người chơi cũ vẫn dùng được), mỗi người một mức
+    assert.deepStrictEqual(['na', 'ti', 'bin', 'mai', 'minh', 'rong'].map((id) => B.get(id).tier), [1, 2, 3, 4, 5, 6]);
     assert.strictEqual(B.START_UNLOCKED, 3);
     for (const l of [1, 2, 3]) assert.ok(B.get(B.FROM_LEVEL[l]));
+    assert.strictEqual(B.of(6, 'def').id, 'phao');
+  },
+  'bots: lối đánh đổi cách chấm điểm (nước đôi thưởng ô giao điểm, gài bẫy thưởng nước nhảy)'() {
+    // X có 2 quân ngang (0,0),(1,0) và 2 quân dọc (3,2),(3,3): ô (3,0) là giao điểm
+    const b = board([[0, 0], [9, 9], [1, 0], [9, 11], [3, 2], [11, 9], [3, 3]]);
+    assert.ok(C.styleBonus(b, 3, 0, X, { dbl: 1 }) > C.styleBonus(b, -1, 0, X, { dbl: 1 }));
+    assert.strictEqual(C.styleBonus(b, 3, 0, X, {}), 0);
+    // nước nhảy (cách quân mình 1 ô, không sát quân nào) được thưởng; nước sát nước vừa đi của đối thủ bị trừ
+    const t = board([[0, 0], [5, 5], [1, 0]]);
+    assert.ok(C.styleBonus(t, 3, 2, X, { trap: 1 }) > 0, 'nước nhảy cách quân mình 1 ô');
+    assert.ok(C.styleBonus(t, 2, 1, O, { trap: 1 }) < 0, 'đánh sát nước vừa đi của đối thủ bị trừ điểm');
   },
   'bots: nhân vật mạnh luôn thắng ngay và luôn chặn; Na đôi khi quên chặn'() {
     // O tới lượt, có 3 quân mở ở hàng 5: đánh thành 4 mở là thắng
     const win = board([[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [2, 5], [9, 9]]);
-    for (const id of ['bin', 'mai', 'minh', 'rong']) {
+    for (const id of B.BOTS.filter((o) => o.tier >= 3).map((o) => o.id)) {
       const [x, y] = B.botMove(win, O, id, seeded(1));
       assert.ok(C.winsIfPlaced(win, x, y, O), id + ' bỏ lỡ nước thắng');
     }
     // Phải chặn: X có 4 quân chặn 1 đầu
     const blk = board([[0, 0], [-1, 0], [1, 0], [5, 5], [2, 0], [5, 7], [3, 0]]);
-    for (const id of ['mai', 'minh', 'rong']) {
+    for (const id of B.BOTS.filter((o) => o.tier >= 4).map((o) => o.id)) {
       const [x, y] = B.botMove(blk, O, id, seeded(2));
       // Chặn ở (4,0), hoặc ở (5,0) cũng được theo luật Caro Việt Nam (X đánh (4,0) thành 5 quân bị chặn hai đầu)
       const after = board([[0, 0], [-1, 0], [1, 0], [5, 5], [2, 0], [5, 7], [3, 0]]);
@@ -132,11 +152,16 @@ const tests = {
       prevR = q.r;
       assert.strictEqual(q.p, q.m.length % 2 ? O : X, `#${q.id}: bên đi không khớp`);
       assert.ok(q.len >= 2 && q.len <= 7);
-      const b = board(q.m);
+      assert.ok(['vcf', 'vct'].includes(q.t), `#${q.id}: thiếu chủ đề VCF / VCT`);
+      assert.ok(!q.rule || C.RULES.includes(q.rule));
+      const b = new C.Board(q.rule);
+      q.m.forEach(([x, y], i) => b.play(x, y, i % 2 ? O : X));
       assert.strictEqual(A.immediateWins(b, q.p).length, 0, `#${q.id}: đã có nước thắng ngay`);
       assert.strictEqual(A.immediateWins(b, C.other(q.p)).length, 0, `#${q.id}: đối thủ đang đe doạ`);
       assert.ok(A.winningMove(b, q.p, q.sol, q.len, { deadline: Date.now() + 20000 }), `#${q.id}: lời giải sai`); // rộng tay: chạy chung với đo độ phủ thì chậm
     }
+    assert.ok(list.filter((q) => q.t === 'vcf').length >= 100 && list.filter((q) => q.t === 'vct').length >= 100, 'đủ bài VCF và VCT');
+    assert.ok(list.some((q) => q.t === 'vcf' && q.rule === 'free' && q.len === 3), 'có bài VCF 3 nước cho bài học');
     const lens = new Set(list.map((q) => q.len));
     assert.ok(lens.has(2) && lens.has(3) && lens.has(4), 'đủ bài dễ / vừa / khó');
   },

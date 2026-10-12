@@ -38,11 +38,11 @@
   const cache = new Map(); // khoá: chuỗi nước đi -> kết quả
   const an = { result: null, running: false, seq: 0 };
 
-  function runAnalysis(moves, onProgress) {
+  function runAnalysis(moves, rule, onProgress) {
     const w = getWorker();
     if (!w) {
       // Không có Web Worker: tính trên luồng chính (sau 1 khung hình để kịp vẽ thanh tiến trình).
-      return new Promise((res) => setTimeout(() => res(A.analyzeGame(moves)), 30));
+      return new Promise((res) => setTimeout(() => res(A.analyzeGame(moves, { rule })), 30));
     }
     const id = 'an' + ++an.seq;
     return new Promise((res) => {
@@ -53,7 +53,7 @@
         res(e.data.result);
       };
       w.addEventListener('message', onMsg);
-      w.postMessage({ id, type: 'analyze', moves });
+      w.postMessage({ id, type: 'analyze', moves, rule });
     });
   }
 
@@ -74,13 +74,13 @@
     const xs = moves.map((m) => m[0]), ys = moves.map((m) => m[1]);
     // Nới 2 ô mỗi phía: nước gợi ý có thể nằm ngoài vùng đã có quân
     App.setCoords(xs.length ? { minX: Math.min(...xs) - 2, maxX: Math.max(...xs) + 2, minY: Math.min(...ys) - 2, maxY: Math.max(...ys) + 2 } : null);
-    const key = JSON.stringify(moves);
+    const key = (r.data.rule || 'vn') + JSON.stringify(moves);
     if (cache.has(key)) { an.result = cache.get(key); renderPanel(); return; }
     if (an.running) return;
     an.running = true;
     an.result = null;
     renderProgress(0);
-    const res = await runAnalysis(moves, renderProgress);
+    const res = await runAnalysis(moves, r.data.rule, renderProgress);
     an.running = false;
     cache.set(key, res);
     // Người dùng đã đóng xem lại / mở ván khác trong lúc chờ
@@ -250,7 +250,7 @@
     const backTo = r.idx;
     const goal = m.cls === 'miss' ? 'win' : 'save';
     Trainer.start({
-      moves, p: m.p, goal, left: m.len || 0, sol: m.best,
+      moves, p: m.p, goal, left: m.len || 0, sol: m.best, rule: r.data.rule,
       title: T('an_retry'),
       exitLabel: 'tr_back',
       onExit: () => { App.exitExt(); App.seek(backTo); relayout(); },
@@ -270,6 +270,7 @@
       t = { ...opts, line: opts.moves.slice(), status: 'play', msg: '', first: true, failed: false };
       const ctrl = {
         moves: t.moves,
+        rule: t.rule,
         get canPlay() { return t && t.status === 'play'; },
         onMove,
         onExit: () => exit(),
@@ -321,7 +322,9 @@
       const p = t.p, q = C.other(p);
       App.setMarks(null);
       let ok;
-      if (t.check) ok = t.check(board, x, y, p); // bài học: điều kiện riêng
+      const fb = C.forbidden(board, x, y, p); // Renju: X đánh vào ô cấm
+      if (fb) ok = false;
+      else if (t.check) ok = t.check(board, x, y, p); // bài học: điều kiện riêng
       else if (t.goal === 'win') {
         ok = C.winsIfPlaced(board, x, y, p) || A.winningMove(board, p, [x, y], Math.max(2, t.left + 1), { deadline: Date.now() + 700 });
       } else {
@@ -332,7 +335,7 @@
       if (!ok) {
         App.setMarks([{ x, y, kind: 'bad', color: '#ca3431', text: '?' }]);
         t.status = 'wrong';
-        t.msg = T('tr_wrong');
+        t.msg = fb ? T('forbid_s_' + fb) : T('tr_wrong');
         if (t.first) { t.first = false; t.failed = true; if (t.onFirst) t.onFirst(false); }
         window.CaroSound && window.CaroSound.play('lose');
         refresh();
@@ -541,15 +544,17 @@
     list = list || puzzles;
     const s = session;
     let q;
-    if (s.mode === 'daily') q = dailyPuzzle(list);
-    else if (s.mode === 'streak') q = pickNear(list, 600 + s.streak * 70, s.used);
-    else q = pickNear(list, pz.r + pz.diff, new Set([...pz.recent, ...s.used]));
+    if (s.mode === 'daily') q = dailyPuzzle(list.filter((z) => !z.rule));
+    else if (s.mode === 'streak') q = pickNear(list.filter((z) => !z.rule), 600 + s.streak * 70, s.used);
+    else if (s.mode === 'vcf' || s.mode === 'vct') q = pickNear(list.filter((z) => (z.t || 'vct') === s.mode), pz.r + pz.diff, s.used); // luyện theo chủ đề (không tính điểm)
+    else q = pickNear(list.filter((z) => !z.rule), pz.r + pz.diff, new Set([...pz.recent, ...s.used]));
     s.used.add(q.id);
     s.current = q;
     s.delta = null;
     const p = q.m.length % 2 ? C.O : C.X;
     Trainer.start({
-      moves: q.m, p, goal: 'win', left: q.len, sol: q.sol, kind: 'puzzle',
+      moves: q.m, p, goal: 'win', left: q.len, sol: q.sol, kind: 'puzzle', rule: q.rule || 'vn',
+      prompt: q.t === 'vcf' && (s.mode === 'vcf' || s.mode === 'vct') ? T('pz_vcf_task') : null,
       score: scoreLine,
       onFirst: (ok) => firstResult(q, ok),
       next: s.mode === 'daily' ? null : () => { if (s.over) { s.over = false; s.streak = 0; s.used = new Set(); } nextPuzzle(); },
@@ -564,6 +569,7 @@
     const q = s.current;
     if (s.mode === 'streak') return `${ico('fire')} ${esc(T('pz_streak_n', { n: s.streak }))}`;
     if (s.mode === 'daily') return `${ico('cal')} ${esc(T('pz_daily'))}`;
+    if (s.mode === 'vcf' || s.mode === 'vct') return `${ico('puzzle')} ${esc(T('pz_' + s.mode))}${q.rule ? ' · ' + esc(T('grule_s_' + q.rule)) : ''} <span class="thinking wide-only">#${q.id} · ${q.r}</span>`;
     const d = s.delta;
     const delta = d == null ? '' : ` <span class="${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : ''}${d}</span>`;
     return `${ico('puzzle')} ${pz.r}${delta} <span class="thinking wide-only">#${q.id} · ${q.r}</span>`;

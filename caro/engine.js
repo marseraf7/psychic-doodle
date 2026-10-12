@@ -1,5 +1,5 @@
 /*
- * Engine phân tích Caro (luật Việt Nam), tự viết – học ý tưởng từ các engine Gomoku mạnh (Rapfi, AlphaGomoku,
+ * Engine phân tích Caro (luật Việt Nam + Gomoku tự do / tiêu chuẩn / Renju), tự viết – học ý tưởng từ các engine Gomoku mạnh (Rapfi, AlphaGomoku,
  * KataGomo…) nhưng không dùng mã nguồn của họ.
  *
  * Luật (giống rules.js): hàng ≥ 5 quân thắng nếu còn ít nhất một đầu trống; 4 quân liền mà hai đầu đều trống thắng ngay;
@@ -32,8 +32,9 @@
   const rnd = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return seed >>> 0; };
 
   class Position {
-    /** moves: [[x, y], …] – X đi trước, luân phiên. */
-    constructor(moves) {
+    /** moves: [[x, y], …] – X đi trước, luân phiên. rule: 'vn' (mặc định) | 'free' | 'std' | 'renju'. */
+    constructor(moves, rule) {
+      this.rule = ['free', 'std', 'renju'].includes(rule) ? rule : 'vn';
       let x0 = 0, x1 = 0, y0 = 0, y1 = 0;
       if (moves.length) {
         x0 = x1 = moves[0][0]; y0 = y1 = moves[0][1];
@@ -50,6 +51,8 @@
       for (let i = 0; i < n; i++) { this.zob[1][i] = rnd(); this.zob[2][i] = rnd() & 0x1fffff; this.zob[3][i] = rnd(); this.zob[4][i] = rnd() & 0x1fffff; }
       this.lo = 0; this.hi = 0;
       this.evalX = 0;                      // điểm thế cờ theo góc nhìn X
+      this.evalXp = 0; this.evalOn = 0;    // phần của X (≥ 0) và của O (≤ 0): evalX = evalXp + evalOn
+      this.style = { a: 1, d: 1, dbl: 0, trap: 0 }; // lối đánh (bots.js): trọng số thế mình / thế đối thủ, thưởng xếp nước
       this.stack = [];
       this.count = 0;
       for (const [x, y] of moves) this.play(this.idx(x, y), this.count % 2 ? O : X);
@@ -61,16 +64,100 @@
     get key() { return this.hi * 4294967296 + (this.lo >>> 0); }
     get side() { return this.count % 2 ? O : X; }
 
-    /** Đặt quân p tại (cx, cy) có thắng ngay theo hướng d không (đúng luật Caro Việt Nam)? */
+    /** Đặt quân p tại (cx, cy) có thắng ngay theo hướng d không (đúng luật đang chơi, giống rules.js)? */
     winDir(cx, cy, p, d) {
       const dx = DX[d], dy = DY[d];
       let a = 1; while (this.at(cx - a * dx, cy - a * dy) === p) a++;
       let b = 1; while (this.at(cx + b * dx, cy + b * dy) === p) b++;
       const len = a + b - 1;
       if (len < 4) return false;
+      switch (this.rule) {
+        case 'free': return len >= 5;
+        case 'std': return len === 5;
+        case 'renju': return p === X ? len === 5 : len >= 5;
+      }
       const openA = this.at(cx - a * dx, cy - a * dy) === EMPTY, openB = this.at(cx + b * dx, cy + b * dy) === EMPTY;
       return (len >= 5 && (openA || openB)) || (openA && openB);
     }
+
+    // ---- nước cấm Renju cho X (cùng định nghĩa với rules.js)
+    run(cx, cy, d) {
+      const dx = DX[d], dy = DY[d];
+      let a = 1; while (this.at(cx - a * dx, cy - a * dy) === X) a++;
+      let b = 1; while (this.at(cx + b * dx, cy + b * dy) === X) b++;
+      return a + b - 1;
+    }
+    /** X đã nằm ở (cx, cy): các ô k trên hướng d mà đánh vào thành đúng 5 (chuỗi chứa (cx, cy)). */
+    fiveSpots(cx, cy, d) {
+      const dx = DX[d], dy = DY[d], out = [];
+      for (let k = -4; k <= 4; k++) {
+        if (!k) continue;
+        const x = cx + k * dx, y = cy + k * dy;
+        if (this.at(x, y) !== EMPTY || x < 0 || y < 0 || x >= this.W || y >= this.H) continue;
+        const i = y * this.W + x;
+        this.cells[i] = X;
+        let a = 1; while (this.at(x - a * dx, y - a * dy) === X) a++;
+        let b = 1; while (this.at(x + b * dx, y + b * dy) === X) b++;
+        this.cells[i] = EMPTY;
+        if (a + b - 1 === 5 && k - (a - 1) <= 0 && k + (b - 1) >= 0) out.push(k);
+      }
+      return out;
+    }
+    forbidAt(cx, cy, depth) {
+      const i = cy * this.W + cx;
+      this.cells[i] = X;
+      let res = null;
+      let five = false, over = false;
+      for (let d = 0; d < 4; d++) { const n = this.run(cx, cy, d); if (n === 5) five = true; else if (n > 5) over = true; }
+      if (!five) {
+        if (over) res = 1;
+        else {
+          let fours = 0, threes = 0;
+          for (let d = 0; d < 4 && fours < 2; d++) {
+            const f = this.fiveSpots(cx, cy, d);
+            const nf = f.length === 2 && Math.abs(f[1] - f[0]) === 5 ? 1 : f.length;
+            fours += nf;
+            if (!nf && threes < 2 && this.threeOn(cx, cy, d, depth)) threes++;
+          }
+          if (fours >= 2 || threes >= 2) res = 1;
+        }
+      }
+      this.cells[i] = EMPTY;
+      return res;
+    }
+    threeOn(cx, cy, d, depth) {
+      const dx = DX[d], dy = DY[d];
+      for (let k = -4; k <= 4; k++) {
+        if (!k) continue;
+        const x = cx + k * dx, y = cy + k * dy;
+        if (this.at(x, y) !== EMPTY || x < 0 || y < 0 || x >= this.W || y >= this.H) continue;
+        const i = y * this.W + x;
+        this.cells[i] = X;
+        const f = this.fiveSpots(cx, cy, d);
+        const straight = f.length === 2 && Math.abs(f[1] - f[0]) === 5 && this.run(x, y, d) === 4;
+        this.cells[i] = EMPTY;
+        if (straight && (depth <= 0 || !this.forbidAt(x, y, depth - 1))) return true;
+      }
+      return false;
+    }
+    /** Ô trống i có cấm với p không (chỉ Renju, chỉ X)? */
+    forbidden(i, p) {
+      if (this.rule !== 'renju' || p !== X) return false;
+      const cx = i % this.W, cy = (i / this.W) | 0;
+      // lọc nhanh như rules.js
+      let lines = 0, maybe = false;
+      for (let d = 0; d < 4 && !maybe; d++) {
+        const dx = DX[d], dy = DY[d];
+        let n = 0;
+        for (let k = 1; k <= 4; k++) { const v = this.at(cx + k * dx, cy + k * dy); if (v === X) n++; else if (v !== EMPTY) break; }
+        for (let k = 1; k <= 4; k++) { const v = this.at(cx - k * dx, cy - k * dy); if (v === X) n++; else if (v !== EMPTY) break; }
+        if (n >= 3 || this.run(cx, cy, d) >= 6) maybe = true;
+        else if (n >= 2 && ++lines >= 2) maybe = true;
+      }
+      return maybe && !!this.forbidAt(cx, cy, 2);
+    }
+    /** Bỏ các ô cấm khỏi danh sách (khi p là X theo luật Renju). */
+    legal(list, p) { return this.rule === 'renju' && p === X ? list.filter((i) => !this.forbidden(i, p)) : list; }
     /** Đặt quân p tại (cx, cy) có thắng ngay không? Ô phải đang trống. */
     wouldWin(cx, cy, p) {
       return this.winDir(cx, cy, p, 0) || this.winDir(cx, cy, p, 1) || this.winDir(cx, cy, p, 2) || this.winDir(cx, cy, p, 3);
@@ -85,13 +172,15 @@
     }
 
     // ---- điểm thế cờ: các cửa sổ chịu ảnh hưởng khi ô (cx, cy) đổi
+    /** Tổng điểm các cửa sổ qua (cx, cy); phần âm (của O) để ở this._neg. */
     windowsAround(cx, cy) {
-      let s = 0;
+      let s = 0, neg = 0;
       for (let d = 0; d < 4; d++) {
         const dx = DX[d], dy = DY[d];
-        for (let st = -5; st <= 1; st++) s += this.win5(cx + st * dx, cy + st * dy, dx, dy);
-        for (let st = -5; st <= 0; st++) s += this.win6(cx + st * dx, cy + st * dy, dx, dy);
+        for (let st = -5; st <= 1; st++) { const v = this.win5(cx + st * dx, cy + st * dy, dx, dy); s += v; if (v < 0) neg += v; }
+        for (let st = -5; st <= 0; st++) { const v = this.win6(cx + st * dx, cy + st * dy, dx, dy); s += v; if (v < 0) neg += v; }
       }
+      this._neg = neg;
       return s;
     }
     win5(sx, sy, dx, dy) {
@@ -99,8 +188,8 @@
       for (let k = 0; k < 5; k++) { const v = this.at(sx + k * dx, sy + k * dy); if (v === X) x++; else if (v === O) o++; }
       if ((x && o) || (!x && !o)) return 0;
       const p = x ? X : O, q = x ? O : X;
-      // Bị chặn cả hai đầu: hàng này không bao giờ thắng được
-      if (this.at(sx - dx, sy - dy) === q && this.at(sx + 5 * dx, sy + 5 * dy) === q) return 0;
+      // Luật Việt Nam – bị chặn cả hai đầu: hàng này không bao giờ thắng được
+      if (this.rule === 'vn' && this.at(sx - dx, sy - dy) === q && this.at(sx + 5 * dx, sy + 5 * dy) === q) return 0;
       return p === X ? W5[x] : -W5[o];
     }
     win6(sx, sy, dx, dy) {
@@ -132,9 +221,12 @@
 
     play(i, p) {
       const cx = i % this.W, cy = (i / this.W) | 0;
-      const before = this.windowsAround(cx, cy);
+      const before = this.windowsAround(cx, cy), bn = this._neg;
       this.cells[i] = p;
-      this.evalX += this.windowsAround(cx, cy) - before;
+      const after = this.windowsAround(cx, cy);
+      this.evalX += after - before;
+      this.evalOn += this._neg - bn;
+      this.evalXp = this.evalX - this.evalOn;
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {
         for (let x = Math.max(0, cx - 2); x <= Math.min(this.W - 1, cx + 2); x++) this.near[y * this.W + x]++;
@@ -147,9 +239,12 @@
       const i = this.stack.pop();
       const p = this.cells[i];
       const cx = i % this.W, cy = (i / this.W) | 0;
-      const before = this.windowsAround(cx, cy);
+      const before = this.windowsAround(cx, cy), bn = this._neg;
       this.cells[i] = EMPTY;
-      this.evalX += this.windowsAround(cx, cy) - before;
+      const after = this.windowsAround(cx, cy);
+      this.evalX += after - before;
+      this.evalOn += this._neg - bn;
+      this.evalXp = this.evalX - this.evalOn;
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {
         for (let x = Math.max(0, cx - 2); x <= Math.min(this.W - 1, cx + 2); x++) this.near[y * this.W + x]--;
@@ -216,7 +311,7 @@
         this.cells[b] = EMPTY;
         if (!still) out.push(b);
       }
-      return out;
+      return this.legal(out, p);
     }
 
     /** Ứng viên (ô trống gần quân), xếp theo điểm tấn công + phòng thủ. */
@@ -225,9 +320,14 @@
       if (!this.count) return [this.idx(0, 0)];
       for (let i = 0; i < this.cells.length; i++) {
         if (this.cells[i] !== EMPTY || !this.near[i]) continue;
-        list.push({ i, s: this.quickScore(i, p) + 0.85 * this.quickScore(i, q) });
+        list.push({ i, s: this.quickScore(i, p) + 0.85 * this.quickScore(i, q) + this.styleScore(i, p) });
       }
       list.sort((a, b) => b.s - a.s);
+      if (this.rule === 'renju' && p === X) {
+        const out = [];
+        for (const o of list) { if (!this.forbidden(o.i, p)) out.push(o.i); if (limit && out.length >= limit) break; }
+        return out;
+      }
       return (limit ? list.slice(0, limit) : list).map((o) => o.i);
     }
 
@@ -256,7 +356,7 @@
         if (made) out.push({ i, s: this.quickScore(i, p) + made * 60 });
       }
       out.sort((a, b) => b.s - a.s);
-      return out.slice(0, limit).map((o) => o.i);
+      return this.legal(out.slice(0, limit).map((o) => o.i), p);
     }
     /** Lọc nhanh: đánh vào (cx, cy) có thể tạo ô thắng nếu một đường có ≥ 2 quân p trong 4 ô mỗi bên (chưa bị chặn). */
     mayThreat(cx, cy, p) {
@@ -271,8 +371,38 @@
       return false;
     }
 
-    /** Điểm thế cờ theo bên tới lượt. */
-    evaluate() { const e = this.side === X ? this.evalX : -this.evalX; return e + 30; }
+    /** Điểm thế cờ theo bên tới lượt (lối đánh: a – trọng số thế mình, d – thế đối thủ). */
+    evaluate() {
+      const st = this.style;
+      if (st.a === 1 && st.d === 1) { const e = this.side === X ? this.evalX : -this.evalX; return e + 30; }
+      const xs = this.evalXp, os = -this.evalOn;
+      const mine = this.side === X ? xs : os, theirs = this.side === X ? os : xs;
+      return Math.round(st.a * mine - st.d * theirs) + 30;
+    }
+    /** Thưởng xếp thứ tự ứng viên theo lối đánh: nước đôi (nhiều đường có quân mình), gài bẫy (nước nhảy cách quãng). */
+    styleScore(i, p) {
+      const st = this.style;
+      if (!st.dbl && !st.trap) return 0;
+      const cx = i % this.W, cy = (i / this.W) | 0, q = 3 - p;
+      let b = 0;
+      if (st.dbl) {
+        let dirs = 0;
+        for (let d = 0; d < 4; d++) {
+          let n = 0;
+          for (const sg of [-1, 1]) for (let k = 1; k <= 4; k++) { const v = this.at(cx + sg * k * DX[d], cy + sg * k * DY[d]); if (v === q) break; if (v === p) n++; }
+          if (n >= 1) dirs++;
+        }
+        b += st.dbl * 30 * Math.max(0, dirs - 1);
+      }
+      if (st.trap) {
+        let adj = false;
+        for (let dy = -1; dy <= 1 && !adj; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && this.at(cx + dx, cy + dy) !== EMPTY) { adj = true; break; }
+        const last = this.stack[this.stack.length - 1];
+        const near = last !== undefined && Math.abs((last % this.W) - cx) <= 1 && Math.abs(((last / this.W) | 0) - cy) <= 1;
+        b += st.trap * ((adj ? 0 : 20) - (near ? 15 : 0));
+      }
+      return b;
+    }
   }
 
   // ================================================================ Tìm kiếm
@@ -469,12 +599,13 @@
 
   /**
    * Phân tích một thế cờ (moves: [[x, y], …], bên tới lượt = X nếu số nước chẵn).
-   * opts: { ms (thời gian, mặc định 500), maxDepth (mặc định 20), tt (Map dùng lại giữa các lần gọi) }.
+   * opts: { ms (thời gian, mặc định 500), maxDepth (mặc định 20), tt (Map dùng lại giữa các lần gọi), rule }.
    * Trả về { move: [x, y], score, depth, nodes, pv: [[x, y]…], mate: số nước tới thắng (+ bên tới lượt thắng, − thua) | null }.
    */
   function analyse(moves, opts) {
     opts = opts || {};
-    const pos = new Position(moves);
+    const pos = new Position(moves, opts.rule);
+    if (opts.style) Object.assign(pos.style, opts.style);
     const p = pos.side;
     if (!moves.length) return { move: [0, 0], score: 0, depth: 0, nodes: 0, pv: [[0, 0]], mate: null };
     // Thắng ngay

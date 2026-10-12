@@ -88,7 +88,7 @@ class Tournaments {
     const champ = t.podium && t.podium[0] && this.player(t, t.podium[0]);
     return {
       id: t.id, name: t.name, format: t.format, status: t.status, startsAt: t.startsAt, endsAt: t.endsAt || null,
-      minutes: t.minutes || null, timeLimit: t.timeLimit, clock: t.clock || null, opening: t.opening || 'free', stages: t.stages || null, stage: t.stage || 0, rated: t.rated, access: t.access,
+      minutes: t.minutes || null, timeLimit: t.timeLimit, clock: t.clock || null, opening: t.opening || 'free', rule: t.rule || 'vn', stages: t.stages || null, stage: t.stage || 0, rated: t.rated, access: t.access,
       club: c ? { id: c.id, name: c.name } : null, count: t.players.filter((p) => !p.withdrawn).length,
       maxPlayers: t.maxPlayers, creator: this.store.users.get(t.creator)?.name || '?',
       joined: !!(uid && this.player(t, uid) && !this.player(t, uid).withdrawn), checkin: this.inCheckin(t),
@@ -167,7 +167,7 @@ class Tournaments {
     if (name.length < 3) throw E('tour_name_short');
     const format = FORMATS.includes(o.format) ? o.format : 'arena';
     // Đồng hồ tổng (thay cho thời gian mỗi nước) và luật khai cuộc; giải luôn có giới hạn thời gian
-    const { clock, opening } = cleanTc(o);
+    const { clock, opening, rule } = cleanTc(o);
     const timeLimit = clock ? 0 : TOUR_TIME_LIMITS.includes(Number(o.timeLimit)) ? Number(o.timeLimit) : 20;
     const startsAt = Number(o.startsAt);
     const now = Date.now();
@@ -189,7 +189,7 @@ class Tournaments {
     const admin = this.isAdmin(me.id);
     const t = {
       id: crypto.randomBytes(5).toString('hex'), name, desc: cleanPublicText(o.desc, 1000), format: ko ? 'bracket' : 'arena', creator: me.id,
-      status: admin ? 'scheduled' : 'pending', created: now, startsAt, timeLimit, clock, opening, rated: o.rated !== false,
+      status: admin ? 'scheduled' : 'pending', created: now, startsAt, timeLimit, clock, opening, rule, rated: o.rated !== false,
       access, club, maxPlayers,
       minutes: ko ? null : (ARENA_MINUTES.includes(Number(o.minutes)) ? Number(o.minutes) : 30),
       stages, seeding: o.seeding === 'random' ? 'random' : 'rating',
@@ -392,7 +392,7 @@ class Tournaments {
     const a = userPid(aUid), b = userPid(bUid);
     this.leave(a);
     this.leave(b);
-    const room = this.makeRoom(kind, bestOf, t.timeLimit, { clock: t.clock, opening: t.opening });
+    const room = this.makeRoom(kind, bestOf, t.timeLimit, { clock: t.clock, opening: t.opening, rule: t.rule });
     room.tour = { id: t.id, name: t.name, rated: t.rated, arena: t.format === 'arena', ...extra };
     this.enter(room, a, aFirst ? 1 : 2);
     this.enter(room, b, aFirst ? 2 : 1);

@@ -134,6 +134,33 @@ test('phòng: tạo, sai/đúng mật khẩu, chọn đi sau, thắng, tái đ�
   [a, b, c].forEach((x) => x.close());
 });
 
+test('phòng theo luật Renju: X không đánh được nước cấm, O thắng với 6 quân; luật lạ -> luật Việt Nam', async () => {
+  const a = await Client.open({ guestName: 'Rền' });
+  const b = await Client.open({ guestName: 'Ju' });
+  await a.req({ t: 'createRoom', side: 'first', rule: 'renju' }, 'room');
+  assert.strictEqual(a.room.rule, 'renju');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  // X: (1,0) (2,0) (0,1) (0,2) – ô (0,0) thành 3-3, bị cấm
+  const xs = [[1, 0], [2, 0], [0, 1], [0, 2]], os = [[9, 9], [9, 11], [11, 9], [12, 12]];
+  for (let i = 0; i < 4; i++) { await move(a, b, ...xs[i]); await move(b, a, ...os[i]); }
+  const e = await a.req({ t: 'move', x: 0, y: 0 }, 'error');
+  assert.match(e.msg, /cấm/);
+  assert.strictEqual(a.room.moves.length, 8, 'nước cấm không được ghi');
+  await move(a, b, 5, 5);
+  // O: 2 quân + ... xếp hàng 6 (quá năm) vẫn thắng
+  await move(b, a, 20, 0); await move(a, b, -5, 5);
+  await move(b, a, 21, 0); await move(a, b, -5, 7);
+  await move(b, a, 22, 0); await move(a, b, -7, 5);
+  await move(b, a, 24, 0); await move(a, b, -7, 7);
+  await move(b, a, 25, 0); await move(a, b, -9, 9);
+  await move(b, a, 23, 0);
+  assert.strictEqual(a.room.winner, 2, 'O thắng với 6 quân (quá năm) theo Renju');
+  const c = await Client.open();
+  await c.req({ t: 'createRoom', side: 'first', rule: 'abc' }, 'room');
+  assert.strictEqual(c.room.rule, 'vn');
+  [a, b, c].forEach((x) => x.close());
+});
+
 test('mất kết nối khi đang đánh: kết nối lại vẫn ở trong phòng, quá hạn thì xử thua', async () => {
   const a = await Client.open();
   const b = await Client.open();

@@ -80,7 +80,7 @@ class Canvas {
 }
 
 /** moves: [[x, y], ...] (X đi trước). Trả về Buffer PNG. */
-function boardPng(moves) {
+function boardPng(moves, rule) {
   const cv = new Canvas(W, H, COLORS.bg);
   const list = Array.isArray(moves) ? moves.slice(0, 2000) : [];
   let minX = 0, maxX = 0, minY = 0, maxY = 0;
@@ -102,7 +102,7 @@ function boardPng(moves) {
   const left = Math.floor((W - bw) / 2), top = Math.floor((H - bh) / 2);
   cv.rect(left, top, bw, bh, COLORS.board);
   // Ô thắng: dựng lại bàn để tìm 5 quân thắng từ nước cuối
-  const board = new Caro.Board();
+  const board = new Caro.Board(rule);
   list.forEach((m, i) => board.play(m[0], m[1], i % 2 ? Caro.O : Caro.X));
   const last = list[list.length - 1];
   const win = last ? Caro.checkWin(board, last[0], last[1], list.length % 2 ? Caro.X : Caro.O) : null;

@@ -113,7 +113,7 @@ function makeHandler({ store, hub }) {
     if (!g) return json(res, 404, { error: 'not_found' }, { 'cache-control': 'no-cache' });
     json(res, 200, {
       share: g.share, created: g.created, kind: g.kind, timeLimit: g.time_limit,
-      x: g.x_name, o: g.o_name, winner: g.winner, reason: g.reason, moves: g.moves, clock: g.clock || null, opening: g.opening || 'free',
+      x: g.x_name, o: g.o_name, winner: g.winner, reason: g.reason, moves: g.moves, clock: g.clock || null, opening: g.opening || 'free', rule: g.rule || 'vn',
     }, { 'cache-control': 'no-cache' }); // bản web tĩnh (CARO_SERVER) ở tên miền khác cũng đọc được
   }
 
@@ -126,7 +126,7 @@ function makeHandler({ store, hub }) {
       if (pngGlobal.reset < now) { pngGlobal.n = 0; pngGlobal.reset = now + 1000; }
       const wait = hit(pngHits, clientIp(req), PNG_PER_IP, 60000, now) || (++pngGlobal.n > PNG_GLOBAL_PER_S ? 1 : 0);
       if (wait) { res.writeHead(429, { 'retry-after': String(wait), 'content-type': 'text/plain; charset=utf-8' }); return res.end('too many requests'); }
-      png = boardPng(g.moves);
+      png = boardPng(g.moves, g.rule);
       pngCache.set(share, png);
       if (pngCache.size > PNG_CACHE) pngCache.delete(pngCache.keys().next().value);
     } else { pngCache.delete(share); pngCache.set(share, png); } // dùng gần đây: đưa về cuối

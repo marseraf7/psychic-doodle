@@ -136,7 +136,7 @@ class Matchmaking {
       if (!this.isOnline(host.id) || host.id === pid) continue;
       if (this.isBlocked(pid, host.id) || this.isBlocked(host.id, pid)) continue;
       const u = uidOf(host.id) && this.store.users.get(uidOf(host.id));
-      list.push({ code: room.code, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening, createdAt: room.createdAt,
+      list.push({ code: room.code, timeLimit: room.timeLimit, clock: room.clockSpec, opening: room.opening, rule: room.rule, createdAt: room.createdAt,
         host: { id: host.id, name: host.name, rating: u ? R.ratingIn(u, R.poolOf(room)).r : null } });
     }
     list.sort((x, y) => y.createdAt - x.createdAt);

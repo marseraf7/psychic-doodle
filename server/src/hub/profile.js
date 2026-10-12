@@ -69,7 +69,7 @@ class Profile {
     }
     const recent = this.store.history(u.id).map((g) => {
       const side = g.x_id === u.id ? 1 : 2;
-      return { share: g.share, created: g.created, timeLimit: g.time_limit, clock: g.clock || null, opening: g.opening || 'free',
+      return { share: g.share, created: g.created, timeLimit: g.time_limit, clock: g.clock || null, opening: g.opening || 'free', rule: g.rule || 'vn',
         opponent: side === 1 ? g.o_name : g.x_name, result: g.winner === DRAW ? 'draw' : g.winner === side ? 'win' : 'loss', moves: g.moves, reason: g.reason };
     });
     const me = meUid && this.store.users.get(meUid);

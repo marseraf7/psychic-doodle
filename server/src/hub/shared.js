@@ -11,6 +11,7 @@ const SEAT_IDLE_MS = 10 * 60 * 1000;
 const FAIL_WINDOW_MS = 10 * 60 * 1000;
 const TIME_LIMITS = [0, 10, 20, 30]; // giây mỗi nước, 0 = không giới hạn
 const OPENINGS = ['free', 'swap2']; // luật khai cuộc
+const GAME_RULES = require('../../../caro/rules.js').RULES; // luật thắng: 'vn' | 'free' | 'std' | 'renju'
 const DRAW_COOLDOWN_MS = 30 * 1000; // bị từ chối hoà thì 30 giây sau mới được xin lại
 // Chống cày Elo bằng 2 tài khoản: ván kết thúc sớm (đầu hàng, hoà, rời phòng…) dưới 10 nước
 // không tính điểm, và mỗi cặp chỉ tính điểm tối đa 5 ván mỗi ngày.
@@ -36,13 +37,14 @@ const RESET_MAIL = {
   ru: { subject: 'Код для сброса пароля Каро', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код для сброса пароля: ${c}\nКод действует 15 минут.\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.` },
   zh: { subject: '五子棋 Caro 密码重置验证码', body: (u, c) => `${u}，你好：\n\n你的密码重置验证码是：${c}\n验证码 15 分钟内有效。\n\n如果这不是你本人的操作，请忽略此邮件。` },
 };
-/** Lựa chọn thời gian / luật khai cuộc gửi từ client: giới hạn mỗi nước, đồng hồ tổng '3+2', luật khai cuộc. */
-function cleanTc({ timeLimit, clock, opening } = {}, CLOCKS = require('../rating.js').CLOCKS) {
+/** Lựa chọn thời gian / luật gửi từ client: giới hạn mỗi nước, đồng hồ tổng '3+2', luật khai cuộc, luật thắng. */
+function cleanTc({ timeLimit, clock, opening, rule } = {}, CLOCKS = require('../rating.js').CLOCKS) {
   const ck = CLOCKS.includes(clock) ? clock : null;
   return {
     timeLimit: ck ? 0 : TIME_LIMITS.includes(Number(timeLimit)) ? Number(timeLimit) : 0,
     clock: ck,
     opening: OPENINGS.includes(opening) ? opening : 'free',
+    rule: GAME_RULES.includes(rule) ? rule : 'vn',
   };
 }
 const cleanText = (s, max) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, max);

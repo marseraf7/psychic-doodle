@@ -56,7 +56,7 @@
     if (!tvList.length) { el.innerHTML = `<li class="empty">${esc(T('tv_empty'))}</li>`; return; }
     el.innerHTML = tvList.map((g) => `<li>
         <div class="pn"><b>${glyph(1)} ${esc(g.x.name)}${rated(g.x)} <span class="vs">–</span> ${glyph(2)} ${esc(g.o.name)}${rated(g.o)}</b>
-          <small>⏱ ${esc(window.I18N.tc(g.timeLimit, g.clock))}${g.opening === 'swap2' ? ' · Swap2' : ''} · ${esc(T('n_moves', { n: g.moves }))}${g.tour ? ' · ' + esc(g.tour) : ''}${g.watchers ? ` · ${ico('eye')}${g.watchers}` : ''}</small></div>
+          <small>⏱ ${esc(window.I18N.tc(g.timeLimit, g.clock))}${g.opening === 'swap2' ? ' · Swap2' : ''}${esc(window.I18N.ruleTag(g.rule))} · ${esc(T('n_moves', { n: g.moves }))}${g.tour ? ' · ' + esc(g.tour) : ''}${g.watchers ? ` · ${ico('eye')}${g.watchers}` : ''}</small></div>
         <button type="button" class="primary sm" data-watch="${esc(g.code)}">${esc(T('watch'))}</button></li>`).join('');
   }
 
