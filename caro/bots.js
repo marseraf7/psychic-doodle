@@ -43,20 +43,12 @@
     { atk: 'minh', def: 'thanh', dbl: 'kep', trap: 'ninja' },
     { atk: 'rong', def: 'phao', dbl: 'long', trap: 'ao' },
   ];
-  const COLORS = {
-    tit: '#fb923c', na: '#f59e0b', mo: '#facc15', bom: '#a3e635',
-    ti: '#22c55e', nam: '#10b981', lan: '#14b8a6', cuoi: '#84cc16',
-    hung: '#f97316', tuong: '#64748b', song: '#06b6d4', bin: '#3b82f6',
-    loc: '#0ea5e9', da: '#78716c', mai: '#ec4899', cao: '#d97706',
-    minh: '#8b5cf6', thanh: '#b45309', kep: '#6366f1', ninja: '#334155',
-    rong: '#ef4444', phao: '#991b1b', long: '#dc2626', ao: '#a855f7',
-  };
 
   const BOTS = [];
   IDS.forEach((row, t) => {
     for (const style of STYLES) {
       const id = row[style];
-      BOTS.push({ id, tier: t + 1, style, color: COLORS[id], ...TIERS[t], styleW: STYLE_W[style] });
+      BOTS.push({ id, tier: t + 1, style, ...TIERS[t], styleW: STYLE_W[style] }); // ảnh, biểu tượng, màu: bot-looks.js
     }
   });
   const START_UNLOCKED = 3; // số mức mở sẵn

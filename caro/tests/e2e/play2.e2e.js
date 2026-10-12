@@ -171,6 +171,34 @@ const { setup } = require('./helpers');
   await p.click('#ext-bar [data-act=exit]');
   await sleep(400);
   ok(await p.evaluate(() => window.CaroLearn.doneCount()) === 9, 'học xong 9/9 bài');
+  // Phim minh hoạ có phụ đề + "Luyện ngay" luôn có (kể cả khi đọc lại)
+  await p.evaluate(() => window.CaroLearn.openRule('open26', 1));
+  await sleep(300);
+  ok(/Hàn Tinh/.test(await p.textContent('#rule-board .demo-cap')), 'phim 26 thế khai cuộc: phụ đề khung đầu (Hàn Tinh)');
+  await p.click('#rule-board [data-demo="next"]');
+  await sleep(200);
+  ok(/Khê Nguyệt/.test(await p.textContent('#rule-board .demo-cap')), 'phim: bấm khung tiếp -> Khê Nguyệt');
+  await p.evaluate(() => window.I18N.setLang('en'));
+  await sleep(200);
+  ok(/Keigetsu/.test(await p.textContent('#rule-board .demo-cap')), 'đổi sang tiếng Anh: phụ đề tiếng Anh, giữ khung đang xem');
+  await p.evaluate(() => window.I18N.setLang('vi'));
+  await p.click('#rule-next'); // đọc hết rồi mở lại: vẫn có Luyện ngay
+  for (let k = 0; k < 6 && (await p.isVisible('#rule-dlg')); k++) { await p.click('#rule-next'); await sleep(150); }
+  await p.evaluate(() => window.CaroLearn.openRule('open26'));
+  await sleep(200);
+  ok(await p.isVisible('#rule-try'), 'đọc lại 26 thế khai cuộc: vẫn có nút Luyện ngay');
+  await p.click('#rule-try');
+  await sleep(2500);
+  ok(await p.evaluate(() => window.CaroApp.board.rule === 'renju' && window.CaroApp.board.moves.length >= 3), 'Luyện ngay: ván Renju với máy, bày sẵn 3 quân khai cuộc');
+  await shot(p, 'play2-opening-practice-430.png');
+  await p.evaluate(() => window.CaroLearn.open());
+  await sleep(200);
+  ok((await p.$$('#style-cards .style-card')).length === 4 && (await p.$$('#learn-dlg [data-practice]')).length >= 10, 'Học chơi: 4 thẻ lối đánh, nút Luyện ở các mục');
+  await p.click('#style-cards [data-style-step="3"]');
+  await sleep(300);
+  ok((await p.$$('#rule-bots .rb-bot')).length === 6 && /Nước đôi/.test(await p.textContent('#rule-bots')), 'lối Nước đôi: phim + 6 nhân vật của lối đó');
+  await shot(p, 'play2-style-dbl-430.png');
+  await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
   // Thành tích: chuỗi 1 ngày, huy hiệu "Tốt nghiệp"
   await p.click('#btn-settings');
   await sleep(200);

@@ -29,23 +29,30 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     const p = await page(430, () => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
     await p.click('#btn-new');
     await sleep(300);
-    const cards = await p.$$eval('#ng-bots .bot-card', (els) => els.map((e) => ({ locked: e.classList.contains('locked'), name: e.querySelector('b').textContent })));
+    const cards = await p.$$eval('#ng-picker .bot-grid .bot-card', (els) => els.map((e) => ({ locked: e.classList.contains('locked'), name: e.querySelector('b').textContent })));
     ok(cards.length === 6, 'mỗi lối đánh 6 nhân vật (6 mức) trong bảng Ván mới');
     ok(cards.filter((c) => c.locked).length === 3, 'mới vào: 3 mức đầu mở, 3 mức sau khoá');
-    ok((await p.$$('#ng-styles label')).length === 4, '4 lối đánh: Tấn công / Phòng thủ / Nước đôi / Gài bẫy');
-    await p.click('#ng-styles label:nth-child(4)'); // Gài bẫy
+    ok((await p.$$('#ng-picker .style-tabs label')).length === 4, '4 lối đánh: Tấn công / Phòng thủ / Nước đôi / Gài bẫy');
+    await p.click('#ng-picker .style-tabs label:nth-child(4)'); // Gài bẫy
     await sleep(100);
-    ok((await p.$$eval('#ng-bots .bot-card b', (els) => els.map((e) => e.textContent))).join(',') === 'Sa Tị,Phượng Lên Đồ,Ba Sáu,Tú Sena,Đi Bộ Vuốt Râu,Hai Ngón', 'lối Gài bẫy: 6 nhân vật theo mức');
-    await p.click('#ng-bots .bot-card:nth-child(3)');
+    ok((await p.$$eval('#ng-picker .bot-grid .bot-card b', (els) => els.map((e) => e.textContent))).join(',') === 'Sa Tị,Phượng Lên Đồ,Ba Sáu,Tú Sena,Đi Bộ Vuốt Râu,Hai Ngón', 'lối Gài bẫy: 6 nhân vật theo mức');
+    await p.click('#ng-picker .bot-grid .bot-card:nth-child(3)');
     await sleep(100);
-    ok(/Ba Sáu/.test(await p.textContent('#ng-bot-say')), 'chọn Ba Sáu: hiện mô tả');
+    ok(/Ba Sáu/.test(await p.textContent('#ng-picker .bot-say')), 'chọn Ba Sáu: hiện mô tả');
     await shot(p, 'study-bots-430.png');
     await p.click('#newgame-form button.primary');
     await sleep(400);
     ok(/Ba Sáu/.test(await p.textContent('#turn')) || /Ba Sáu/.test(await p.textContent('#toasts')), 'ván với Ba Sáu: thanh trên / lời chào có tên Ba Sáu');
     ok((await p.evaluate(() => JSON.parse(localStorage.getItem('caro.v1')).bot)) === 'bin', 'lưu nhân vật đã chọn');
-    const opts = await p.evaluate(() => { document.getElementById('btn-settings').click(); return [...document.querySelectorAll('#settings-form select[name=bot] option')].map((o) => o.disabled); });
-    ok(opts.length === 24 && opts.filter(Boolean).length === 12, 'Cài đặt: ô chọn đối thủ có 24 nhân vật, 3 mức (12 nhân vật) khoá');
+    ok(await p.$eval('#ng-picker .bot-say', (e) => !!e.querySelector('.bot-av img') && /Gài bẫy/.test(e.textContent)), 'mô tả có ảnh đại diện và lối đánh');
+    ok(await p.$$eval('#ng-picker .bot-card .bot-av img', (els) => els.length === 6 && els.every((i) => i.complete && i.naturalWidth > 0)), '6 ảnh đại diện tải được');
+    const set = await p.evaluate(() => { document.getElementById('btn-settings').click();
+      const r = document.getElementById('set-picker');
+      return { cards: r.querySelectorAll('.bot-card').length, locked: r.querySelectorAll('.bot-card.locked').length, checked: (r.querySelector('input[name=bot]:checked') || {}).value, say: r.querySelector('.bot-say').textContent }; });
+    ok(set.cards === 6 && set.locked === 3 && set.checked === 'bin' && /Ba Sáu/.test(set.say), 'Cài đặt: bảng chọn đối thủ có ảnh, mô tả, đang chọn Ba Sáu');
+    await p.click('#set-picker .style-tabs label:nth-child(1)'); // Cài đặt lưu ngay: đổi sang lối Tấn công cùng mức
+    await sleep(200);
+    ok((await p.evaluate(() => JSON.parse(localStorage.getItem('caro.v1')).bot)) === 'hung', 'Cài đặt: đổi lối đánh -> nhân vật cùng mức của lối mới, lưu ngay');
     await p.keyboard.press('Escape');
     await p.context().close();
   }
@@ -55,7 +62,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     const st = await p.evaluate(() => ({ bot: JSON.parse(localStorage.getItem('caro.v1')).bot || null, unlocked: JSON.parse(localStorage.getItem('caro.bots') || '{}').unlocked }));
     await p.click('#btn-new');
     await sleep(200);
-    const checked = await p.$eval('#ng-bots input:checked', (e) => e.value);
+    const checked = await p.$eval('#ng-picker .bot-grid input:checked', (e) => e.value);
     ok(checked === 'minh' && st.unlocked === 5, 'mức Khó cũ -> Rung Động, đã mở khoá tới Rung Động');
     await p.context().close();
   }

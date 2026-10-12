@@ -205,7 +205,7 @@
 
       <fieldset class="ai-only">
         <legend data-i18n="opponent"></legend>
-        <select name="bot" class="select" data-i18n-aria="opponent"></select>
+        <div id="set-picker"></div>
       </fieldset>
 
       <fieldset>
@@ -332,9 +332,7 @@
       </fieldset>
       <fieldset class="ai-only">
         <legend data-i18n="opponent"></legend>
-        <div class="seg style-tabs" id="ng-styles" role="radiogroup" data-i18n-aria="bot_style"></div>
-        <div class="bot-grid" id="ng-bots"></div>
-        <p class="bot-say" id="ng-bot-say"></p>
+        <div id="ng-picker"></div>
       </fieldset>
       <fieldset>
         <legend data-i18n="time_limit"></legend>
@@ -632,6 +630,13 @@
         <h2 tabindex="-1" autofocus><svg class="ico i-in" aria-hidden="true"><use href="#i-book"/></svg><span data-i18n="learn_title"></span></h2>
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
+      <h3 data-i18n="styles_title"></h3>
+      <div class="style-cards" id="style-cards"></div>
+      <div class="row styles-more" id="styles-more">
+        <button type="button" class="ghost sm" data-rule="styles" data-i18n="styles_more"></button>
+        <button type="button" class="ghost sm" data-practice="styles" data-i18n="styles_pick"></button>
+      </div>
+      <h3 data-i18n="lessons_title"></h3>
       <p class="hint" id="learn-progress"></p>
       <ul class="people learn-list" id="learn-list"></ul>
       <h3 data-i18n="rules_title"></h3>
@@ -652,6 +657,7 @@
       </div>
       <p class="hint" id="rule-step"></p>
       <div class="rule-board" id="rule-board"></div>
+      <div class="rule-bots" id="rule-bots" hidden></div>
       <p class="rule-text" id="rule-text"></p>
       <div class="row rule-nav">
         <button type="button" class="ghost" id="rule-prev" data-i18n="rule_prev"></button>
@@ -785,9 +791,11 @@
   <script src="i18n.js"></script>
   <script src="i18n-rules.js"></script>
   <script src="i18n-bots.js"></script>
+  <script src="i18n-demos.js"></script>
   <script src="sound.js"></script>
   <script src="rules.js"></script>
   <script src="bots.js"></script>
+  <script src="bot-looks.js"></script>
   <script src="engine.js"></script>
   <script src="analysis.js"></script>
   <script src="app.js"></script>
@@ -808,6 +816,10 @@
   <script src="swap.js"></script>
   <script src="watch.js"></script>
   <script src="profile.js"></script>
+  <script src="bot-picker.js"></script>
+  <script src="learn-demos.js"></script>
+  <script src="learn-board.js"></script>
+  <script src="learn-practice.js"></script>
   <script src="learn.js"></script>
   <script src="habits.js"></script>
 </body>

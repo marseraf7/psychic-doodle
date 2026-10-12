@@ -71,6 +71,11 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   thứ tự nước. Mới vào mở sẵn 3 mức đầu; thắng một nhân vật bất kỳ ở một mức thì mở khoá cả mức sau. 6 nhân vật cũ
   giữ mã (na, ti, bin, mai, minh, rong), người dùng bản cũ không mất lựa chọn. Thứ tự sức cờ đã kiểm bằng cho máy
   tự đấu (mỗi mức thắng mức ngay dưới 20–28 / 32 ván).
+- **Ngoại hình nhân vật** (`bot-looks.js`, chỉ có dữ liệu): mỗi nhân vật một ảnh đại diện, một biểu tượng (emoji hoặc ảnh
+  nhỏ) và một màu riêng. **Đổi ảnh**: chép ảnh mới (svg / png / jpg / webp, vuông) vào `img/bots/`, sửa đường dẫn
+  `avatar` của nhân vật trong `bot-looks.js`, thêm đường dẫn vào `FILES` trong `sw.js` và tăng `CACHE`. Ảnh mặc định sinh
+  bằng `node server/scripts/gen-bot-avatars.js` (tóc / mũ theo lối đánh, phụ kiện theo mức). Bảng chọn đối thủ
+  (`bot-picker.js`, dùng chung cho Ván mới và Cài đặt) hiện ảnh, biểu tượng, lối đánh và mô tả của từng nhân vật.
 - **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
   Dùng **engine riêng của game** (`engine.js`, tự viết theo ý tưởng của các engine Gomoku mạnh, không dùng mã của họ):
   Alpha-Beta (PVS) làm sâu dần + bảng ghi nhớ thế cờ, chấm điểm theo cửa sổ 5 / 6 ô đúng luật Caro Việt Nam (hàng bị chặn
@@ -110,7 +115,15 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - **Luật chơi**: Caro Việt Nam, Gomoku tự do, Gomoku tiêu chuẩn, Renju, khai cuộc Swap2.
   - **Khai cuộc**: 26 thế khai cuộc chuẩn (13 trực chỉ, 13 gián chỉ, tên Hán – Việt, thế nào X / O thắng),
     Hoa Nguyệt (花月) & Phố Nguyệt (浦月), thế Nón lá.
-  - **Chiến thuật**: VCF, VCT, 4 lối đánh của nhân vật máy. Bước cuối có nút "Luyện ngay".
+  - **Chiến thuật**: VCF, VCT.
+  - **Lối đánh của máy**: 4 thẻ lối đánh (ảnh nhân vật, mô tả ngắn) mở phần giới thiệu từng lối.
+  - **Phim minh hoạ có phụ đề** (`learn-board.js` phát, `learn-demos.js` dữ liệu, `i18n-demos.js` phụ đề 4 ngôn ngữ):
+    quân hiện lần lượt, quân mới có vòng sáng, phụ đề theo ngôn ngữ đang chọn (đổi ngôn ngữ thì phụ đề đổi ngay, giữ
+    khung đang xem), có nút phát lại / tạm dừng / khung tiếp. Mọi phim được `caro/tests/demos.test.js` kiểm bằng luật
+    thật (nước hợp lệ, khung "thắng / đe doạ / chặn / ô cấm" đúng như phụ đề nói, đủ phụ đề 4 ngôn ngữ).
+  - **Luyện ngay** (`learn-practice.js`): có ở mọi bước và ngay trong danh sách (nút "Luyện"), kể cả khi đọc lại. Luật
+    chơi → ván với máy theo luật đó; khai cuộc → ván Renju với máy bày sẵn 3 quân của một thế (Hoa / Phố Nguyệt hoặc
+    ngẫu nhiên trong 26 thế); VCF / VCT → giải đố theo chủ đề; Renju, Nón lá → bài thực hành; lối đánh → bảng chọn đối thủ.
   Mở game lần đầu: thẻ "Bạn chơi Caro tới đâu?" để chọn bài học / đối thủ phù hợp (không chặn bàn cờ).
 - **Thành tích** (`habits.js`): chuỗi ngày chơi liên tiếp (lịch 14 ngày) và 19 huy hiệu (thắng từng nhân vật máy,
   giải đố, học xong, online, điểm, vô địch giải). Lưu trên máy; huy hiệu online dựa vào thống kê tài khoản.
@@ -152,6 +165,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 ```bash
 node caro/tests/rules.test.js
 node caro/tests/study.test.js    # phân tích ván, nhân vật máy, kiểm từng bài đố có lời giải đúng
+node caro/tests/demos.test.js    # phim minh hoạ phần Học: nước hợp lệ, đúng như phụ đề, đủ 4 ngôn ngữ
 ```
 
 Kiểm thử trình duyệt cho giải đấu (cần Playwright + Chromium; mỗi kịch bản tự bật máy chủ trên dữ liệu tạm,
@@ -180,12 +194,14 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `swap.js` | Luật Swap2: thẻ hướng dẫn đặt quân, nút chọn bên |
 | `watch.js` | Xem trực tiếp: danh sách "Đang diễn ra", nút Xem (bạn bè, trận trong giải), chế độ người xem |
 | `profile.js` | Hồ sơ người chơi: điểm từng loại + biểu đồ, thống kê, ván gần đây |
-| `learn.js`, `habits.js` | Học chơi (9 bài + giải thích luật, khai cuộc, chiến thuật) + thẻ chào người mới; chuỗi ngày chơi + huy hiệu |
+| `learn.js`, `habits.js` | Học chơi (9 bài + giải thích luật, khai cuộc, chiến thuật, lối đánh) + thẻ chào người mới; chuỗi ngày chơi + huy hiệu |
+| `learn-board.js`, `learn-demos.js`, `learn-practice.js` | Phần Học: hình bàn cờ + trình phát phim có phụ đề; dữ liệu phim; nút "Luyện ngay" |
+| `bot-looks.js`, `bot-picker.js`, `img/bots/` | Ngoại hình nhân vật máy (ảnh, biểu tượng, màu – sửa được); bảng chọn đối thủ dùng chung |
 | `share.js` | Ảnh PNG / GIF động của ván để chia sẻ |
 | `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |
 | `puzzles.json` | 363 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải, chủ đề VCF / VCT, luật nếu khác luật Việt Nam) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
-| `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật); giao diện Sáng/Tối/Hệ thống |
+| `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `i18n-demos.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật, `i18n-demos.js`: phụ đề phim minh hoạ); giao diện Sáng/Tối/Hệ thống |
 | `online.js`, `config.js` | Chế độ online: kết nối máy chủ, tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |

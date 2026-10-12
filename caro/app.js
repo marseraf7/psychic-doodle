@@ -693,7 +693,9 @@
       $('banner-analyze').hidden = true;
     }
     if (state.winReason !== 'time') $('banner-analyze').hidden = state.board.moves.length < 6;
-    $('banner-title').textContent = text;
+    // Đấu với máy: ảnh đại diện nhỏ của nhân vật cạnh dòng kết quả
+    const av = state.mode === 'ai' && window.CaroBotPicker ? window.CaroBotPicker.avatarHtml(state.bot, 'sm') + ' ' : '';
+    $('banner-title').innerHTML = av + esc(text);
     $('banner-sub').textContent = sub;
     $('banner').hidden = false;
   }
@@ -1181,7 +1183,7 @@
     ngForm.classList.toggle('pvp', state.mode === 'pvp');
     if (ngDlg.showModal) ngDlg.showModal(); else ngDlg.setAttribute('open', '');
   }
-  ngForm.addEventListener('change', () => { ngForm.classList.toggle('pvp', ngForm.mode.value === 'pvp'); renderRuleHint(); renderBotSay(); });
+  ngForm.addEventListener('change', () => { ngForm.classList.toggle('pvp', ngForm.mode.value === 'pvp'); renderRuleHint(); });
   function renderRuleHint() { $('ng-rule-hint').textContent = T('grule_' + ngForm.rule.value + '_d'); }
   ngForm.addEventListener('submit', () => {
     state.mode = ngForm.mode.value;
@@ -1191,56 +1193,8 @@
     state.timeLimit = Number(ngForm.timeLimit.value) || 0;
     newGame();
   });
-  // Chọn nhân vật: hàng nút lối đánh (Tấn công / Phòng thủ / Nước đôi / Gài bẫy), bên dưới 6 nhân vật của lối đó theo
-  // mức sức cờ (ảnh đại diện, tên, Elo ước tính); mức chưa mở khoá thì mờ đi.
-  const avatar = (b) => `<span class="bot-av" style="--c:${b.color}">${esc([...botName(b.id).split(' ').pop()][0])}</span>`;
-  const styleIcon = { atk: 'bolt', def: 'shield', dbl: 'fork', trap: 'eye' };
-  let pickStyle = 'atk';
-  function renderBotPicker() {
-    const cur = Bots.get(state.bot);
-    pickStyle = cur ? cur.style : 'atk';
-    renderStyleTabs();
-    renderBotCards(state.bot);
-  }
-  function renderStyleTabs() {
-    $('ng-styles').innerHTML = Bots.STYLES.map((st) => `<label><input type="radio" name="botStyle" value="${st}"${st === pickStyle ? ' checked' : ''}>
-      <svg class="ico i-in" aria-hidden="true"><use href="#i-${styleIcon[st]}"/></svg><span>${esc(T('style_' + st))}</span></label>`).join('');
-  }
-  function renderBotCards(selected) {
-    const n = unlockedCount();
-    const list = Bots.BOTS.filter((b) => b.style === pickStyle);
-    // Nhân vật đang chọn không thuộc lối này: chọn nhân vật cùng mức của lối mới (nếu đã mở khoá)
-    if (!list.some((b) => b.id === selected)) {
-      const t = Bots.get(selected) ? Bots.get(selected).tier : 2;
-      const same = list.find((b) => b.tier === Math.min(t, n));
-      selected = same ? same.id : list[0].id;
-    }
-    $('ng-bots').innerHTML = list.map((b) => {
-      const locked = b.tier - 1 >= n;
-      return `<label class="bot-card${locked ? ' locked' : ''}" title="${esc(locked ? T('tier_locked', { elo: Bots.TIERS[b.tier - 2].elo }) : '')}">
-        <input type="radio" name="bot" value="${b.id}"${locked ? ' disabled' : ''}${b.id === selected ? ' checked' : ''}>
-        ${avatar(b)}<b>${esc(botName(b.id))}</b><small>${locked ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-lock"/></svg>' : '~' + b.elo}</small></label>`;
-    }).join('');
-    renderBotSay();
-  }
-  $('ng-styles').addEventListener('change', (e) => {
-    if (e.target.name !== 'botStyle') return;
-    e.stopPropagation();
-    pickStyle = e.target.value;
-    renderBotCards(ngForm.bot && ngForm.bot.value);
-  });
-  function renderBotSay() {
-    const id = ngForm.bot && ngForm.bot.value;
-    const el = $('ng-bot-say');
-    if (!id) { el.textContent = ''; return; }
-    const b = Bots.get(id);
-    el.innerHTML = `<b>${esc(botName(id))}</b> · ~${b.elo} Elo · ${esc(T('style_' + b.style))} — ${esc(T('bot_' + id + '_desc'))}<br><small>${esc(T('style_' + b.style + '_d'))}</small>`;
-  }
-  function renderBotSelect() {
-    const n = unlockedCount();
-    form.bot.innerHTML = Bots.TIERS.map((t, i) => `<optgroup label="~${t.elo} Elo${i >= n ? ' 🔒' : ''}">${Bots.byTier(i + 1).map((b) =>
-      `<option value="${b.id}"${i >= n ? ' disabled' : ''}>${esc(botName(b.id))} · ${esc(T('style_' + b.style))}</option>`).join('')}</optgroup>`).join('');
-  }
+  // Bảng chọn nhân vật (lối đánh, ảnh, mô tả) nằm ở bot-picker.js, dùng chung cho Ván mới và Cài đặt
+  const renderBotPicker = () => window.CaroBotPicker.render($('ng-picker'), state.bot);
 
   $('btn-undo').onclick = undo;
   $('btn-center').onclick = centerView;
@@ -1254,8 +1208,7 @@
     form.mode.value = state.mode;
     form.human.value = String(state.human);
     form.rule.value = state.rule;
-    renderBotSelect();
-    form.bot.value = state.bot;
+    window.CaroBotPicker.render($('set-picker'), state.bot);
     form.timeLimit.value = String(state.timeLimit);
     form.allowUndo.value = state.allowUndo ? 'yes' : 'no';
     form.sound.value = window.CaroSound.enabled ? 'on' : 'off';
@@ -1399,6 +1352,28 @@
     /** Toạ độ màn hình của ô (x, y) – dùng cho kiểm thử bấm bàn cờ thật. */
     screenOf: (x, y) => [(x - cam.x) * cam.size + W / 2, (y - cam.y) * cam.size + H / 2],
     /** Chọn nhân vật máy (nếu đã mở khoá); unlockTo: mở khoá tới nhân vật thứ n (người chơi tự nhận là đã giỏi). */
+    /**
+     * Ván mới với máy, bày sẵn vài nước đầu (luyện khai cuộc – learn-practice.js).
+     * opts: { rule, moves: [[x, y], …] (X đi trước), human: X | O }.
+     */
+    startPreset(opts) {
+      if (state.online) return false;
+      if (state.replay) closeReplay(true);
+      if (state.ext) exitExt(true);
+      state.mode = 'ai';
+      state.rule = ruleOf(opts.rule);
+      if (opts.human) state.human = opts.human;
+      newGame();
+      for (const [x, y] of opts.moves || []) if (!state.winner) placeRaw(x, y);
+      state.lastPlacedAt = performance.now();
+      save();
+      updateUI();
+      requestDraw();
+      maybeAI();
+      return true;
+    },
+    /** Số mức nhân vật máy đã mở khoá (bot-picker.js). */
+    unlockedTiers: () => unlockedCount(),
     setBot(id, unlockTo) {
       if (unlockTo && unlockTo > unlockedCount()) try { localStorage.setItem(BOT_STORE, JSON.stringify({ unlocked: Math.min(TIER_N, unlockTo) })); } catch (e) { /* riêng tư */ }
       if (botAllowed(id)) { state.bot = id; state.mode = 'ai'; save(); updateUI(); }

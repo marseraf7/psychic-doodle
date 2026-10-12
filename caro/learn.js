@@ -51,26 +51,29 @@
   // Mỗi bước: chữ (i18n "rule_<luật>_<n>") + hình bàn cờ 9×9: quân [x, y, 'x' | 'o' | số thứ tự], dấu [x, y, 'bad' | 'good']
   // Toạ độ trên hình 9×9: tâm (4, 4); y tăng xuống dưới. Dấu [x, y, 'n', chữ] = số / chữ trên ô trống.
   const C0 = [4, 4, 'x', 1];
-  const DIRECT = [[4, 2], [5, 2], [6, 2], [5, 3], [6, 3], [5, 4], [6, 4], [4, 5], [5, 5], [6, 5], [4, 6], [5, 6], [6, 6]];
-  const INDIRECT = [[6, 2], [6, 3], [6, 4], [6, 5], [6, 6], [5, 4], [5, 5], [5, 6], [4, 5], [4, 6], [3, 5], [3, 6], [2, 6]];
+  /** Hình đánh giá thế khai cuộc: chấm xanh = X thắng chắc, chấm đỏ = O thắng (số liệu ở learn-demos.js). */
+  function evalStep(which) {
+    const o = window.CaroLearnDemos.OPENINGS[which];
+    return { s: [C0, [o.o2[0], o.o2[1], 'o', 2]], m: [...o.xwin.map((n) => [...o.x3[n - 1], 'win']), ...o.owin.map((n) => [...o.x3[n - 1], 'lose'])] };
+  }
   const RULES = {
     vn: [
       { s: [] },
-      { s: [[2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [5, 2, 'o'], [3, 6, 'o'], [6, 6, 'o']] },
+      { demo: 'vn' },
       { s: [[1, 4, 'o'], [2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [6, 4, 'x'], [3, 6, 'o'], [5, 2, 'o']] },
-      { s: [[1, 4, 'o'], [2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [6, 4, 'x'], [7, 4, 'o'], [4, 6, 'o']], m: [[4, 2, 'bad']] },
+      { demo: 'vnblock' },
       { s: [[3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [4, 6, 'o'], [6, 2, 'o']], m: [[2, 4, 'good'], [6, 4, 'good']] },
     ],
     free: [
       { s: [] },
-      { s: [[1, 4, 'o'], [2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [6, 4, 'x'], [7, 4, 'o'], [4, 6, 'o']] },
+      { demo: 'free' },
       { s: [[1, 4, 'x'], [2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [6, 4, 'x'], [2, 6, 'o'], [5, 2, 'o'], [7, 6, 'o']] },
       { s: [[2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [3, 6, 'o'], [6, 2, 'o']], m: [[1, 4, 'good'], [6, 4, 'good']] },
       { s: [[3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [4, 6, 'o'], [6, 2, 'o']], m: [[2, 4, 'good'], [6, 4, 'good']] },
     ],
     std: [
       { s: [] },
-      { s: [[1, 4, 'x'], [2, 4, 'x'], [3, 4, 'x'], [5, 4, 'x'], [6, 4, 'x'], [3, 6, 'o'], [5, 2, 'o'], [7, 6, 'o']], m: [[4, 4, 'bad']] },
+      { demo: 'std' },
       { s: [[1, 4, 'x'], [2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [6, 4, 'x'], [3, 6, 'o'], [5, 2, 'o'], [7, 6, 'o'], [2, 2, 'o']], m: [[5, 4, 'bad'], [0, 4, 'good']] },
     ],
     swap2: [
@@ -87,82 +90,55 @@
       { s: [[3, 4, 'x'], [4, 4, 'x'], [5, 2, 'x'], [5, 3, 'x'], [2, 6, 'o'], [7, 1, 'o']], m: [[5, 4, 'bad']] },
       { s: [[2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 1, 'x'], [5, 2, 'x'], [5, 3, 'x'], [1, 4, 'o'], [5, 0, 'o']], m: [[5, 4, 'bad']] },
       { s: [[1, 4, 'x'], [2, 4, 'x'], [3, 4, 'x'], [5, 4, 'x'], [6, 4, 'x'], [4, 6, 'o'], [2, 2, 'o']], m: [[4, 4, 'bad']] },
-      { s: [[2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 2, 'x'], [5, 3, 'x'], [1, 4, 'o'], [7, 6, 'o']], m: [[5, 4, 'good']] },
+      { demo: 'renju' },
       { s: [[1, 4, 'o'], [2, 4, 'o'], [3, 4, 'o'], [5, 4, 'o'], [6, 4, 'o'], [3, 2, 'x'], [5, 6, 'x']], m: [[4, 4, 'good']] },
       { s: [[2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [5, 4, 'x'], [2, 6, 'x'], [3, 6, 'x'], [4, 6, 'x'], [5, 6, 'x'], [6, 6, 'x'], [1, 6, 'o'], [7, 6, 'o'], [4, 2, 'o']] },
     ],
     // 26 thế khai cuộc: X1 ở tâm, O2 sát cạnh (trực chỉ) hoặc sát chéo (gián chỉ), X3 trong ô 5×5 quanh tâm
     open26: [
       { s: [] },
-      { s: [C0, [4, 3, 'o', 2]], m: DIRECT.map(([x, y], i) => [x, y, 'n', i + 1]) },
-      { s: [C0, [5, 3, 'o', 2]], m: INDIRECT.map(([x, y], i) => [x, y, 'n', i + 1]) },
-      { s: [C0, [4, 3, 'o', 2]], m: [[4, 2, 'win'], [5, 2, 'win'], [5, 3, 'win'], [5, 4, 'win'], [6, 4, 'win'], [6, 6, 'lose']] },
-      { s: [C0, [5, 3, 'o', 2]], m: [[6, 3, 'win'], [6, 4, 'win'], [6, 5, 'win'], [5, 4, 'win'], [5, 5, 'win'], [5, 6, 'win'], [4, 6, 'win'], [2, 6, 'lose']] },
+      { demo: 'open_direct' },
+      { demo: 'open_indirect' },
+      evalStep('direct'),
+      evalStep('indirect'),
       { s: [] },
     ],
     // Hoa Nguyệt (花月, trực chỉ số 4) và Phố Nguyệt (浦月, gián chỉ số 7)
     moon: [
-      { s: [C0, [4, 3, 'o', 2], [5, 3, 'x', 3]] },
-      { s: [C0, [5, 3, 'o', 2], [5, 5, 'x', 3]] },
+      { demo: 'moon1' },
+      { demo: 'moon2' },
       { s: [C0, [4, 3, 'o', 2], [5, 3, 'x', 3]] },
       { s: [] },
     ],
     // Thế nón lá: các quân xếp thành tam giác cân (đỉnh nón ở trên, hai cạnh là hai đường chéo, đáy là hàng ngang)
     nonla: [
       { s: [[4, 1, 'x'], [3, 2, 'x'], [5, 2, 'x'], [2, 3, 'x'], [6, 3, 'x']], m: [[1, 4, 'good'], [4, 4, 'good'], [7, 4, 'good']] },
-      { s: [[4, 1, 'x'], [3, 2, 'x'], [5, 2, 'x'], [2, 3, 'x'], [6, 3, 'x'], [3, 4, 'x'], [5, 4, 'x'], [5, 0, 'o'], [3, 0, 'o']], m: [[1, 4, 'good'], [7, 4, 'good'], [4, 4, 'good']] },
+      { demo: 'nonla' },
       { s: [] },
     ],
     vcf: [
       { s: [] },
-      { s: [[2, 4, 'x'], [3, 4, 'x'], [4, 4, 'x'], [1, 4, 'o'], [5, 2, 'x'], [5, 3, 'x'], [5, 1, 'o']], m: [[5, 4, 'good']] },
+      { demo: 'vcf' },
       { s: [] },
     ],
     vct: [
       { s: [] },
-      { s: [[2, 4, 'x'], [3, 4, 'x'], [4, 2, 'x'], [4, 3, 'x'], [2, 6, 'o'], [6, 6, 'o'], [7, 1, 'o']], m: [[4, 4, 'good']] },
+      { demo: 'vct' },
       { s: [] },
     ],
+    // 4 lối đánh: bước 1 giới thiệu cả 24 nhân vật, mỗi bước sau một lối (phim + 6 nhân vật của lối đó)
     styles: [
-      { s: [] },
-      { s: [] },
-      { s: [] },
-      { s: [] },
-      { s: [] },
+      { bots: 'all' },
+      { demo: 'st_atk', bots: 'atk' },
+      { demo: 'st_def', bots: 'def' },
+      { demo: 'st_dbl', bots: 'dbl' },
+      { demo: 'st_trap', bots: 'trap' },
     ],
   };
-  const GROUPS = [['rules-list', ['vn', 'free', 'std', 'renju', 'swap2']], ['open-list', ['open26', 'moon', 'nonla']], ['tactic-list', ['vcf', 'vct', 'styles']]];
-  // Bước cuối của một số mục có nút "Luyện ngay": mở bài thực hành / bài đố theo chủ đề
-  const PRACTICE = {
-    renju: () => startLesson(LESSONS.findIndex((L) => L.id === 'renju43')),
-    vcf: () => window.CaroStudy.startMode('vcf'),
-    vct: () => window.CaroStudy.startMode('vct'),
-    nonla: () => { const i = LESSONS.findIndex((L) => L.id === 'nonla'); if (i >= 0) startLesson(i); },
-  };
-
-  /** Hình bàn cờ 9×9 (SVG): lưới, quân X / O (có số thứ tự nếu có), dấu ✕ đỏ (cấm) / ✓ xanh (được đi). */
-  function boardSvg(step) {
-    const N = 9, C = 32, P = 6, W = N * C + P * 2;
-    let g = '';
-    for (let i = 0; i <= N; i++) {
-      g += `<line x1="${P}" y1="${P + i * C}" x2="${P + N * C}" y2="${P + i * C}"/><line x1="${P + i * C}" y1="${P}" x2="${P + i * C}" y2="${P + N * C}"/>`;
-    }
-    const cx = (x) => P + x * C + C / 2;
-    let st = '';
-    for (const [x, y, p, n] of step.s || []) {
-      if (p === 'x') st += `<g class="rx"><line x1="${cx(x) - 9}" y1="${cx(y) - 9}" x2="${cx(x) + 9}" y2="${cx(y) + 9}"/><line x1="${cx(x) + 9}" y1="${cx(y) - 9}" x2="${cx(x) - 9}" y2="${cx(y) + 9}"/></g>`;
-      else st += `<circle class="ro" cx="${cx(x)}" cy="${cx(y)}" r="9.5"/>`;
-      if (n) st += `<text class="rn" x="${cx(x) + 11}" y="${cx(y) - 7}">${n}</text>`;
-    }
-    for (const [x, y, k, label] of step.m || []) {
-      if (k === 'n') { st += `<g class="rnum"><circle cx="${cx(x)}" cy="${cx(y)}" r="10"/><text x="${cx(x)}" y="${cx(y) + 4}">${label}</text></g>`; continue; }
-      if (k === 'win' || k === 'lose') { st += `<circle class="r${k}" cx="${cx(x)}" cy="${cx(y)}" r="8"/>`; continue; }
-      st += k === 'bad'
-        ? `<g class="rbad"><rect x="${cx(x) - 14}" y="${cx(y) - 14}" width="28" height="28" rx="6"/><line x1="${cx(x) - 7}" y1="${cx(y) - 7}" x2="${cx(x) + 7}" y2="${cx(y) + 7}"/><line x1="${cx(x) + 7}" y1="${cx(y) - 7}" x2="${cx(x) - 7}" y2="${cx(y) + 7}"/></g>`
-        : `<g class="rgood"><rect x="${cx(x) - 14}" y="${cx(y) - 14}" width="28" height="28" rx="6"/><path d="M${cx(x) - 7} ${cx(y)} l5 5 l9 -10"/></g>`;
-    }
-    return `<svg viewBox="0 0 ${W} ${W}" role="img" aria-hidden="true"><g class="rgrid">${g}</g>${st}</svg>`;
-  }
+  const GROUPS = [['rules-list', ['vn', 'free', 'std', 'renju', 'swap2']], ['open-list', ['open26', 'moon', 'nonla']], ['tactic-list', ['vcf', 'vct']]];
+  // "Luyện ngay" (mọi bước + trong danh sách): learn-practice.js
+  const Practice = () => window.CaroLearnPractice;
+  const Board = window.CaroLearnBoard;
 
   const rv = { id: null, i: 0 };
   function renderRule() {
@@ -171,34 +147,49 @@
     $('rule-name').textContent = T('rule_' + rv.id);
     $('rule-step').textContent = T('rule_step', { n: rv.i + 1, total: steps.length });
     const board = $('rule-board');
-    board.hidden = !(step.s && step.s.length);
-    board.innerHTML = board.hidden ? '' : boardSvg(step);
+    if (step.demo) { board.hidden = false; Board.play(board, step.demo); } // phim minh hoạ có phụ đề
+    else {
+      Board.stop();
+      board.hidden = !(step.s && step.s.length);
+      board.innerHTML = board.hidden ? '' : Board.svg(step);
+    }
+    $('rule-bots').hidden = !step.bots;
+    $('rule-bots').innerHTML = step.bots ? botsStrip(step.bots) : '';
     $('rule-text').textContent = T(`rule_${rv.id}_${rv.i + 1}`);
     $('rule-prev').disabled = rv.i === 0;
     $('rule-next').textContent = T(rv.i === steps.length - 1 ? 'rule_done' : 'rule_next');
-    $('rule-try').hidden = !(rv.i === steps.length - 1 && PRACTICE[rv.id] && (rv.id !== 'nonla' || LESSONS.some((L) => L.id === 'nonla')));
+    $('rule-try').hidden = !Practice().has(rv.id); // luôn có, ở mọi bước, kể cả khi đọc lại
   }
-  $('rule-try').onclick = () => { const id = rv.id; markRead(id); N.closeDlg('rule-dlg'); PRACTICE[id](); };
+  /** Ảnh + tên các nhân vật máy của một lối đánh ('all': cả 4 lối, mỗi lối một hàng). */
+  function botsStrip(style) {
+    const P = window.CaroBotPicker, B = window.CaroBots;
+    const row = (st) => `<div class="rb-row">${P.styleTag(st)}<div class="rb-bots">${B.BOTS.filter((b) => b.style === st).map((b) =>
+      `<span class="rb-bot" title="${esc(T('bot_' + b.id))} · ~${b.elo}">${P.avatarHtml(b.id, 'sm')}<small>${esc(T('bot_' + b.id))}</small></span>`).join('')}</div></div>`;
+    return style === 'all' ? B.STYLES.map(row).join('') : row(style);
+  }
+  $('rule-try').onclick = () => { const id = rv.id; markRead(id); Board.stop(); N.closeDlg('rule-dlg'); Practice().run(id); };
   function markRead(id) {
     const d = load();
     d.rules = [...new Set([...(d.rules || []), id])];
     save(d);
   }
-  function openRule(id) {
+  function openRule(id, step) {
     rv.id = id;
-    rv.i = 0;
+    rv.i = Math.max(0, Math.min(RULES[id].length - 1, step || 0));
     renderRule();
     N.openDlg('rule-dlg');
   }
   $('rule-prev').onclick = () => { if (rv.i > 0) { rv.i--; renderRule(); } };
   $('rule-next').onclick = () => {
     if (rv.i < RULES[rv.id].length - 1) { rv.i++; renderRule(); return; }
+    Board.stop();
     N.closeDlg('rule-dlg');
     markRead(rv.id);
     renderList();
   };
   // Nút Back (Android): lùi một bước, ở bước đầu thì đóng
-  $('rule-dlg').onBack = () => { if (rv.i > 0) { rv.i--; renderRule(); return true; } return false; };
+  $('rule-dlg').onBack = () => { if (rv.i > 0) { rv.i--; renderRule(); return true; } Board.stop(); return false; };
+  $('rule-dlg').addEventListener('close', () => Board.stop());
 
   function load() { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { return {}; } }
   function save(d) { try { localStorage.setItem(STORE, JSON.stringify(d)); } catch (e) { /* riêng tư */ } }
@@ -251,18 +242,30 @@
       $(list).innerHTML = ids.map((id) => `<li>
         <span class="ln-n ${read.has(id) ? 'done' : ''}">${read.has(id) ? '<svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>' : '§'}</span>
         <div class="pn"><b>${esc(T('rule_' + id))}</b><small>${esc(T('rule_' + id + '_sub'))}</small></div>
-        <button type="button" class="${read.has(id) ? 'ghost' : 'primary'} sm" data-rule="${id}">${esc(T('rule_read'))}</button></li>`).join('');
+        <div class="ln-acts"><button type="button" class="${read.has(id) ? 'ghost' : 'primary'} sm" data-rule="${id}">${esc(T('rule_read'))}</button>
+        ${Practice().has(id) ? `<button type="button" class="ghost sm" data-practice="${id}">${esc(T('learn_practice'))}</button>` : ''}</div></li>`).join('');
     }
+    renderStyleCards();
   }
   function openLearn() {
     renderList();
     N.closeDlg('puzzle-dlg');
     N.openDlg('learn-dlg');
   }
-  for (const [list] of GROUPS) {
+  /** Mục "Lối đánh của máy": 4 thẻ (tên lối, 3 ảnh nhân vật, mô tả ngắn); bấm để xem phim của lối đó. */
+  function renderStyleCards() {
+    const P = window.CaroBotPicker, B = window.CaroBots;
+    $('style-cards').innerHTML = B.STYLES.map((st, i) => `<button type="button" class="style-card st-${st}" data-style-step="${i + 1}">
+      ${P.styleTag(st)}<span class="sc-bots">${B.BOTS.filter((b) => b.style === st).slice(-3).map((b) => P.avatarHtml(b.id, 'sm')).join('')}</span>
+      <small>${esc(T('style_' + st + '_s'))}</small></button>`).join('');
+  }
+  for (const list of [...GROUPS.map((g) => g[0]), 'style-cards', 'styles-more']) {
     $(list).addEventListener('click', (e) => {
-      const b = e.target.closest('[data-rule]');
-      if (b) openRule(b.dataset.rule);
+      const b = e.target.closest('[data-rule], [data-practice], [data-style-step]');
+      if (!b) return;
+      if (b.dataset.practice) { markRead(b.dataset.practice); N.closeDlg('learn-dlg'); Practice().run(b.dataset.practice); return; }
+      if (b.dataset.styleStep) return openRule('styles', Number(b.dataset.styleStep));
+      openRule(b.dataset.rule);
     });
   }
   $('learn-list').addEventListener('click', (e) => {
