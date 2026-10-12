@@ -30,9 +30,10 @@
   const W6 = [0, 0, 24, 420, 0];
   const EVAL = {
     base: { a5: W5, d5: W5, a6: W6, d6: W6, tempo: 30 },
-    // Học từ ván Gomocup 2016–2025 (server/scripts/tune-eval.js); luật Việt Nam thêm vòng tự đấu – học lại (selfplay.js)
-    free: { a5: [0, 8, 44, 117, 450, 0], d5: [0, 8, 36, 110, 450, 0], a6: [0, 0, 28, 420, 0], d6: [0, 0, 13, 72, 0], tempo: 135 },
-    std: { a5: [0, 11, 49, 87, 450, 0], d5: [0, 9, 40, 98, 450, 0], a6: [0, 0, 0, 420, 0], d6: [0, 0, 0, 97, 0], tempo: 96 },
+    // Học từ ván Gomocup 2008–2025 (~365 nghìn ván, server/scripts/tune-eval.js), chỉ nhận bộ nào thắng bộ trước khi tự đấu;
+    // luật Việt Nam (Gomocup chỉ có 864 ván Caro) thêm vòng tự đấu – học lại (selfplay.js)
+    free: { a5: [0, 7, 47, 145, 450, 0], d5: [0, 7, 38, 141, 450, 0], a6: [0, 0, 31, 420, 0], d6: [0, 0, 14, 58, 0], tempo: 135 },
+    std: { a5: [0, 9, 53, 105, 450, 0], d5: [0, 8, 41, 128, 450, 0], a6: [0, 0, 0, 420, 0], d6: [0, 0, 0, 69, 0], tempo: 143 },
     renju: { a5: [0, 6, 40, 82, 450, 0], d5: [0, 5, 29, 105, 450, 0], a6: [0, 0, 0, 420, 0], d6: [0, 0, 0, 75, 0], tempo: 109 },
     vn: { a5: [0, 3, 0, 170, 450, 0], d5: [0, 0, 54, 22, 450, 0], a6: [0, 0, 151, 420, 0], d6: [0, 0, 0, 420, 0], tempo: 120 },
   };
@@ -492,7 +493,9 @@
       // Xem giờ mỗi 1024 nút; opts.strict: mỗi 128 nút – một nút có thể tốn ~0,1 ms nên 1024 nút trễ hạn cả trăm ms
       // (lượt phân tích nhanh cần đúng giờ; máy đánh và phân tích kỹ giữ cách cũ để sức cờ không đổi)
       this.tick = opts.strict ? 127 : 1023;
-      this.lmr = !!opts.lmr; // bật bằng opts.lmr (đang thử nghiệm – xem server/scripts/bot-match.js)
+      // LMR: tự đấu (bot-match.js, 192 ván / luật) cho thấy có lợi ở luật tiêu chuẩn (+60%), ngang ở luật Việt Nam (53%),
+      // hơi kém ở luật tự do / Renju (47–48%) → mặc định chỉ bật cho luật tiêu chuẩn; opts.lmr ghi đè
+      this.lmr = opts.lmr != null ? !!opts.lmr : pos.rule === 'std';
       this.stop = false;
       this.killers = [];
       this.width = opts.width || 10;   // số ứng viên ở các nút bên trong

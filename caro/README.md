@@ -111,6 +111,12 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - `server/scripts/build-book.js` – dựng sách khai cuộc (`book-data.js`): engine nghĩ 6 giây mỗi thế đầu ván
   - `server/scripts/bot-match.js` – đấu kiểm chứng (chỉ nhận trọng số / thay đổi nào thắng bản cũ)
 
+  Tìm kiếm: LMR (giảm độ sâu nước xếp cuối, như Stockfish / Rapfi) bật cho luật tiêu chuẩn – tự đấu 60% trên 192 ván;
+  luật khác không lợi nên tắt. Mỗi thay đổi chỉ được giữ khi thắng bản trước trong tự đấu.
+  **Phân tích song song** (`an-pool.js`): các thế của ván chia cho min(4, lõi − 1) Web Worker (như Lichess chạy Stockfish
+  nhiều luồng) – ván 36 nước trên máy 4 lõi: kết quả nhanh 1,4 giây (trước 2,9), phân tích kỹ xong 6,8 giây (trước 18,4).
+  Phân tích ngầm gắn khoá thế cờ vào từng kết quả: đi lại / rẽ nhánh bao nhiêu lần cũng không dùng nhầm (e2e: 300 lần).
+  **Sách khai cuộc** (`book-data.js`, 783 thế cho 4 luật): engine nghĩ 6 giây mỗi thế (gấp ~7 lần thời gian GOAT được nghĩ).
   Lấy thêm ván để học: Gomocup – mỗi năm một file `https://gomocup.org/static/tournaments/<năm>/results/gomocup<năm>results.zip`
   (bảng Caro có từ 2021); Renju – cơ sở dữ liệu ván của RenjuNet (renju.net, định dạng RIF); ván Caro Việt Nam của
   người chơi: xuất ván từ chính app (Lịch sử đấu / API `/api/replay/<mã>`) hoặc gửi dãy nước dạng `x,y` mỗi dòng.
@@ -248,6 +254,7 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 30 nhân vật máy (6 mức × 5 lối đánh): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
+| `an-pool.js` | Phân tích ván song song trên nhiều Web Worker (chấm thế + thế sau nước tốt nhất), `study.js` chỉ còn xếp loại |
 | `book.js`, `book-data.js` | Sách khai cuộc của nhân vật mức cao: tra thế cờ (chuẩn hoá xoay / lật / dời) → nước đã phân tích sẵn |
 | `engine.js` | Engine phân tích: Alpha-Beta + chuỗi ép, đủ 4 luật (kể cả nước cấm Renju), trọng số lối đánh (dùng chung trình duyệt, Worker, Node) |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
