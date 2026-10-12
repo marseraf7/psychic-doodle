@@ -17,7 +17,8 @@
 
   let worker = null, failed = false, seq = 0, gidSeq = 0;
   const g = { gid: 0, rule: null, moves: [], evals: [], busy: false, over: false };
-  let inflight = null; // { id, gid, i }
+  let inflight = null; // { id, gid, i, key, alt: đang chấm thế sau nước tốt nhất của nước i }
+  let pumpTimer = 0;
 
   function getWorker() {
     if (worker || failed) return worker;
@@ -29,6 +30,9 @@
     } catch (e) { failed = true; worker = null; }
     return worker;
   }
+
+  /** Khoá của thế sau i nước đầu (để biết kết quả trả về còn đúng thế đang có không). */
+  const keyOf = (moves, i) => moves.slice(0, i).join(';');
 
   /** Số nước đầu giống nhau của hai ván. */
   function common(a, b) {
@@ -55,7 +59,17 @@
     g.moves = moves;
     g.busy = !!opts.busy;
     g.over = !!opts.over;
-    pump();
+    if (g.busy && inflight) stop(); // máy bắt đầu nghĩ: dừng thế đang chấm dở để máy có trọn CPU
+    // Hoãn một nhịp: app.js báo "máy đang nghĩ" ngay sau nước của người chơi – khỏi bắt đầu chấm rồi lại phải dừng
+    clearTimeout(pumpTimer);
+    pumpTimer = setTimeout(pump, 60);
+  }
+
+  /** Dừng Worker đang chấm (không huỷ được giữa chừng): lần chấm sau tạo Worker mới. */
+  function stop() {
+    if (worker) worker.terminate();
+    worker = null;
+    inflight = null;
   }
 
   /** Chấm thế kế tiếp còn thiếu (từng thế một, theo thứ tự trong ván). */
@@ -63,22 +77,34 @@
     if (!on || inflight || g.busy || document.hidden) return;
     const n = g.moves.length;
     const last = g.over ? n - 1 : n; // thế sau nước thắng không cần chấm
-    let i = 0;
+    if (n === 0) return;
+    let i = 0, alt = false;
     while (i <= last && g.evals[i]) i++;
-    if (i > last || n === 0) return;
+    if (i > last) {
+      // Đã chấm đủ các thế: chấm thêm thế sau nước tốt nhất cho các nước bị đánh dấu (để hết ván xếp loại ngay)
+      const A = window.CaroAnalysis;
+      i = 0;
+      while (i < n && !(A && A.altNeeded(g.moves, g.evals, i) && !g.evals[i].alt)) i++;
+      if (i >= n) return;
+      alt = true;
+    }
     const w = getWorker();
     if (!w) return;
-    inflight = { id: 'lv' + ++seq, gid: g.gid, i };
-    w.postMessage({ type: 'eval', id: inflight.id, gid: g.gid, rule: g.rule, ms: MS, moves: g.moves.slice(0, i) });
+    const pos = alt ? g.moves.slice(0, i).concat([g.evals[i].move]) : g.moves.slice(0, i);
+    inflight = { id: 'lv' + ++seq, gid: g.gid, i, alt, key: keyOf(g.moves, i) };
+    w.postMessage({ type: 'eval', id: inflight.id, gid: g.gid, rule: g.rule, ms: MS, moves: pos });
   }
 
   function onResult(e) {
     const d = e.data;
     if (!inflight || d.id !== inflight.id) return;
-    const { gid, i } = inflight;
+    const { gid, i, key, alt } = inflight;
     inflight = null;
-    // Ván vẫn còn thế đó (chưa bị đi lại qua) thì lưu
-    if (gid === g.gid && i <= g.moves.length && d.ev) g.evals[i] = d.ev;
+    // Ván vẫn còn đúng thế đó thì lưu (đi lại rồi rẽ nhánh khác trong lúc chấm: các nước đầu đã khác – bỏ)
+    if (gid === g.gid && i <= g.moves.length && key === keyOf(g.moves, i) && d.ev) {
+      if (!alt) g.evals[i] = d.ev;
+      else if (g.evals[i]) g.evals[i] = { ...g.evals[i], alt: d.ev };
+    }
     setTimeout(pump, 0);
   }
 
@@ -111,5 +137,5 @@
     el.addEventListener('change', () => setOn(el.checked));
   }
 
-  window.CaroLive = { sync, evalsFor, setOn, MS, get on() { return on; }, get done() { return g.evals.filter(Boolean).length; } };
+  window.CaroLive = { sync, evalsFor, setOn, MS, get on() { return on; }, get done() { return g.evals.filter(Boolean).length; }, get alts() { return g.evals.filter((e) => e && e.alt).length; } };
 })();

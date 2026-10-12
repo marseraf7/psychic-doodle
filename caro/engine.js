@@ -369,10 +369,11 @@
     }
 
     /** Ứng viên (ô trống gần quân), xếp theo điểm tấn công + phòng thủ. */
-    candidates(p, limit) {
+    candidates(p, limit, pure) {
       const q = 3 - p, list = [];
       if (!this.count) return [this.idx(0, 0)];
-      const root = this.count === this.rootCount; // thưởng theo lối đánh chỉ cho nước của nhân vật máy ở gốc
+      // Thưởng theo lối đánh chỉ cho nước của nhân vật máy ở gốc (pure: bỏ qua, chỉ theo điểm)
+      const root = !pure && this.count === this.rootCount;
       for (let i = 0; i < this.cells.length; i++) {
         if (this.cells[i] !== EMPTY || !this.near[i]) continue;
         list.push({ i, s: this.quickScore(i, p) + 0.85 * this.quickScore(i, q) });
@@ -621,7 +622,7 @@
       if (pos.winCount[q] || !pos.threatMoves(q, 1).length) return null; // đối thủ chưa có nước công nào
       const saved = this.deadline;
       this.deadline = Math.min(saved, deadline);
-      const cands = pos.candidates(p, 40);
+      const cands = pos.candidates(p, 40, true); // theo điểm thuần: lối đánh không được đẩy nước tốt ra ngoài
       const safe = [];
       let unsafe = 0;
       for (const m of cands) {
@@ -637,6 +638,11 @@
       this.stop = false;
       this.deadline = saved;
       if (timedOut || !unsafe || !safe.length) return null;
+      // Lối đánh chỉ đổi thứ tự xét trong nhóm an toàn (như candidates ở gốc)
+      if (pos.style.dbl || pos.style.trap) {
+        const rank = new Map(pos.candidates(p, 40).map((m, k) => [m, k]));
+        safe.sort((a, b) => rank.get(a) - rank.get(b));
+      }
       return safe;
     }
 

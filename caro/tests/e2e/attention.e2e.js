@@ -7,7 +7,7 @@
 const { setup, play, roomOf } = require('./helpers');
 
 (async () => {
-  const { user, ok, sleep, finish } = await setup(8101);
+  const { app, browser, user, ok, sleep, finish } = await setup(8101);
   const a = await user('vi', 'tab_a');
   const b = await user('en', 'tab_b');
   ok(await a.title() === 'Cờ Caro', 'chưa có ván: tiêu đề gốc');
@@ -37,10 +37,22 @@ const { setup, play, roomOf } = require('./helpers');
   await b.evaluate(() => window.I18N.setLang('vi'));
   await sleep(200);
   ok(/^Hết ván – Cờ Caro$/.test(await b.title()), 'đổi ngôn ngữ: tiêu đề đổi theo – ' + await b.title());
-  // Với máy: không đổi tiêu đề, đòi giữ màn hình sáng (không lỗi dù trình duyệt không cho)
-  await a.evaluate(() => window.CaroApp.startPreset({ mode: 'ai', human: 1, moves: [[0, 0]] }));
+  // Với máy (trang khách mới, chưa vào phòng): không đổi tiêu đề; giữ màn hình sáng khi ở bàn cờ, thôi khi sang menu
+  const c = await (await browser.newContext({ viewport: { width: 430, height: 860 } })).newPage();
+  await c.goto('http://localhost:8101/');
+  await sleep(500);
+  await c.evaluate(() => window.CaroApp.startPreset({ mode: 'ai', human: 1, moves: [[0, 0]] }));
   await sleep(300);
-  ok(!/Đến lượt/.test(await a.title()), 'ván với máy: giữ tiêu đề gốc');
+  ok(!/Đến lượt/.test(await c.title()), 'ván với máy: giữ tiêu đề gốc');
+  ok(await c.evaluate(() => window.CaroAttention.wanted), 'ván dở, đang ở bàn cờ: muốn giữ màn hình sáng');
+  await c.evaluate(() => window.CaroShell.open('home'));
+  await sleep(200);
+  ok(!(await c.evaluate(() => window.CaroAttention.wanted)), 'sang Trang chủ (ván vẫn dở): thôi giữ màn hình sáng');
+  await c.click('#home-resume, [data-home="resume"]').catch(() => c.evaluate(() => window.dispatchEvent(new Event('caro:board'))));
+  await sleep(300);
+  ok(await c.evaluate(() => window.CaroAttention.wanted), 'quay lại bàn cờ: giữ màn hình sáng lại');
+  await c.context().close();
+
   // Kết nối chết lặng: mọi tin gửi đi bị nuốt (như đổi mạng di động) → hết hạn ping thì tự kết nối lại
   const sock0 = await b.evaluate(() => {
     window.__wsCount = 0;
@@ -54,7 +66,15 @@ const { setup, play, roomOf } = require('./helpers');
   for (let k = 0; k < 80 && st !== 'offline' && st !== 'connecting'; k++) { await sleep(500); st = await b.evaluate(() => window.CaroOnline.state.status); }
   ok(st === 'offline' || st === 'connecting', 'không nghe thấy pong: tự nhận ra mất kết nối (' + st + ')');
   await b.evaluate(() => { window.__mute = false; });
-  for (let k = 0; k < 30 && st !== 'online'; k++) { await sleep(300); st = await b.evaluate(() => window.CaroOnline.state.status); }
+  for (let k = 0; k < 70 && st !== 'online'; k++) { await sleep(300); st = await b.evaluate(() => window.CaroOnline.state.status); }
   ok(st === 'online', 'mạng trở lại: tự kết nối lại');
+  // Máy chủ cũ chưa có lệnh ping (bản web được cập nhật trước máy chủ): không hiện lỗi cho người chơi, thôi ping
+  const handle = app.hub.handle.bind(app.hub);
+  app.hub.handle = (conn, raw) => (String(raw).includes('"t":"ping"') ? conn.send({ t: 'error', code: 'unsupported', msg: 'Lệnh không hỗ trợ' }) : handle(conn, raw));
+  await a.evaluate(() => { window.__toasts = 0; new MutationObserver((l) => l.forEach((m) => { window.__toasts += m.addedNodes.length; })).observe(document.getElementById('toasts'), { childList: true }); });
+  await sleep(12000); // ít nhất một lần ping
+  ok((await a.evaluate(() => window.__toasts)) === 0, 'máy chủ cũ trả "Lệnh không hỗ trợ" cho ping: không hiện thông báo lỗi');
+  ok((await a.evaluate(() => window.CaroOnline.state.status)) === 'online', 'máy chủ cũ: vẫn online, không bị ngắt');
+  app.hub.handle = handle;
   await finish();
 })().catch((e) => { console.error(e); process.exit(1); });

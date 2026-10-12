@@ -52,6 +52,7 @@
     ws.onopen = () => {
       retry = 0;
       misses = 0;
+      noPing = false; // kết nối mới: máy chủ có thể đã được cập nhật
       // Mở được kết nối mà quá 10 giây chưa có "welcome" (tin hello bị mất): kết nối lại
       const w = ws;
       setTimeout(() => { if (ws === w && S.status !== 'online') dropped(1000); }, 10000);
@@ -90,10 +91,10 @@
   // Chỉ ngắt khi trượt 2 lần liên tiếp, và bỏ qua lần mà hẹn giờ chạy trễ (máy chậm / luồng chính bận: tin pong
   // có thể đang xếp hàng phía sau) – tránh cắt nhầm kết nối vẫn tốt.
   const PING_MS = 10000, PONG_MS = 6000, LATE_MS = 2000;
-  let lastHeard = 0, misses = 0;
+  let lastHeard = 0, misses = 0, lastPing = 0, noPing = false;
   setInterval(() => {
-    if (!ws || ws.readyState !== 1 || S.status !== 'online' || document.hidden) return;
-    const sent = Date.now();
+    if (noPing || !ws || ws.readyState !== 1 || S.status !== 'online' || document.hidden) return;
+    const sent = lastPing = Date.now();
     try { ws.send('{"t":"ping"}'); } catch (e) { return dropped(100); }
     const w = ws;
     setTimeout(() => {
@@ -176,6 +177,9 @@
     },
     toast(m) { toast(srv(m)); },
     error(m) {
+      // Máy chủ cũ (chưa có lệnh ping – bản web được cập nhật trước máy chủ): thôi ping, không báo lỗi cho người chơi.
+      // Máy chủ cũ không gửi kèm ctx nên nhận ra bằng thời điểm: lỗi "unsupported" ngay sau một lần ping.
+      if (m.code === 'unsupported' && (m.ctx === 'ping' || (!m.ctx && Date.now() - lastPing < PONG_MS))) { noPing = true; return; }
       if (m.ctx === 'move') App.resync();
       if (m.code === 'too_fast' && ['watch', 'profile'].includes(m.ctx)) return; // bấm dồn: bỏ qua lần thừa
       // Mở bằng link mời: phòng công khai vào thẳng, phòng riêng (sai/thiếu mật khẩu) thì hỏi mật khẩu

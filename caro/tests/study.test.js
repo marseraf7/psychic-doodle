@@ -51,21 +51,34 @@ const tests = {
     assert.ok(!A.winningMove(b, X, [5, 5], 3, { deadline: Date.now() + 2000 }));
   },
   'analyzeGame: đi đúng nước engine chọn thì không bị chấm là sai (lỗi h13 ?! mà nước tốt hơn cũng là h13)'() {
-    // Ván máy tự đánh bằng engine: phần lớn nước trùng nước tốt nhất mà bảng phân tích đưa ra
-    const EN = require('../engine.js');
-    const moves = [[7, 7]];
-    for (let t = 0; t < 22; t++) moves.push(EN.analyse(moves, { ms: 40 }).move);
-    const r = A.analyzeGame(moves, { ms: 60 });
+    // Cố định, không phụ thuộc tốc độ máy: lấy điểm thật của ván rồi coi như engine chọn đúng nước đã đi ở mọi thế
+    const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const base = A.analyzeGame(g, { ms: 60 });
+    assert.ok(base.moves.some((m) => m.cls === 'blunder'), 'ván mẫu có nước sai (để phép thử có ý nghĩa)');
+    const evals = base.evals.map((e, i) => e && { ...e, move: g[i] || e.move, q: 1e9 });
+    const r = A.analyzeGame(g, { ms: 60, evals });
     const bad = new Set(['inacc', 'mistake', 'blunder', 'miss']);
-    let same = 0;
     r.moves.forEach((m, i) => {
-      const e = r.evals[i];
-      if (!e || e.move[0] !== m.x || e.move[1] !== m.y) return;
-      same++;
       assert.ok(!bad.has(m.cls), `nước ${i + 1} trùng nước tốt nhất mà bị chấm ${m.cls}`);
-      assert.ok(!m.best || m.best[0] !== m.x || m.best[1] !== m.y, `nước ${i + 1}: gợi ý trùng nước đã đi`);
+      assert.strictEqual(m.best, null, `nước ${i + 1}: không gợi ý lại chính nước đã đi`);
+      assert.strictEqual(m.drop, 0);
     });
-    assert.ok(same >= 5, 'có đủ nước trùng để kiểm: ' + same);
+  },
+  'altNeeded: chỉ chấm thêm thế sau nước tốt nhất khi nước đi có thể bị đánh dấu; dùng lại alt đã chấm sẵn'() {
+    const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
+    const r = A.analyzeGame(g, { ms: 60 });
+    const need = g.map((_, i) => A.altNeeded(g, r.evals, i));
+    assert.ok(need[5], 'nước 6 (bỏ mặc thế ba mở) cần so với nước tốt nhất');
+    assert.ok(!need[6], 'nước thắng không cần');
+    assert.ok(r.evals[5].alt && r.evals[5].alt.q === 60, 'analyzeGame trả về alt đã chấm để lần sau dùng lại');
+    // alt chấm sẵn đủ kỹ (vd. phân tích ngầm): dùng nguyên, kể cả khi là giá trị "giả"
+    const fake = r.evals.map((e) => e && { ...e });
+    fake[5] = { ...fake[5], alt: { move: [9, 9], score: 0, mate: -1, q: 1e9 } }; // nước tốt nhất cũng thua chắc
+    const r2 = A.analyzeGame(g, { ms: 60, evals: fake });
+    assert.strictEqual(r2.evals[5].alt, fake[5].alt);
+    assert.strictEqual(r2.moves[5].cls, 'blunder', 'đối thủ thắng chắc sau nước này, nước tốt nhất thì không → sai lầm nặng');
+    fake[5] = { ...fake[5], alt: { move: [9, 9], score: 0, mate: 2, q: 1e9 } }; // nước tốt nhất cũng để đối thủ thắng chắc
+    assert.strictEqual(A.analyzeGame(g, { ms: 60, evals: fake }).moves[5].cls, 'lost', 'nước tốt nhất cũng thua → thế đã thua');
   },
   'analyzeGame: dùng lại các thế đã chấm sẵn (phân tích ngầm / lượt nhanh), chỉ chấm lại thế chấm chưa đủ kỹ'() {
     const g = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];

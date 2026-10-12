@@ -89,6 +89,10 @@ test('ping của máy khách: trả lời pong ngay (để máy khách phát hi�
   const a = await Client.open({ guestName: 'Ping' });
   const pong = await a.req({ t: 'ping' }, 'pong');
   assert.deepStrictEqual(pong, { t: 'pong' });
+  // Lệnh lạ: báo kèm tên lệnh (ctx) để máy khách biết lỗi thuộc lệnh nào
+  const err = await a.req({ t: 'noSuchCommand' }, 'error');
+  assert.strictEqual(err.code, 'unsupported');
+  assert.strictEqual(err.ctx, 'noSuchCommand');
   a.ws.close();
 });
 

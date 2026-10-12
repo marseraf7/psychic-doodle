@@ -78,7 +78,7 @@ class Hub {
       return conn.send({ t: 'error', code: 'bad_message', msg: fmt('bad_message') });
     }
     const fn = this['on_' + msg.t];
-    if (!fn) return conn.send({ t: 'error', code: 'unsupported', msg: fmt('unsupported') });
+    if (!fn) return conn.send({ t: 'error', code: 'unsupported', msg: fmt('unsupported'), ctx: String(msg.t).slice(0, 40) });
     if (!conn.pid && msg.t !== 'hello') return conn.send({ t: 'error', code: 'no_hello', msg: fmt('no_hello') });
     const t0 = performance.now();
     try {

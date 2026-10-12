@@ -151,8 +151,13 @@
     }
     // Khả năng thắng của bên tới lượt ở thế i (thế đã kết thúc: bên tới lượt đã thua)
     const wc = (i) => (evals[i] ? EN.winChance(evals[i].score) : 0);
-    // Thế sau nước tốt nhất của engine (bên kia tới lượt) – chỉ chấm khi cần so với nước đã đi
-    const alt = (i) => EN.analyse(moves.slice(0, i).concat([evals[i].move]), shared);
+    // Thế sau nước tốt nhất của engine (bên kia tới lượt) – chỉ chấm khi cần so với nước đã đi (altNeeded);
+    // phân tích ngầm lúc chơi có thể đã chấm sẵn (evals[i].alt)
+    const alt = (i) => {
+      const e = evals[i];
+      if (!reusable(e.alt, ms)) evals[i] = { ...e, alt: slim(EN.analyse(moves.slice(0, i).concat([e.move]), shared), ms) };
+      return evals[i].alt;
+    };
     const out = [];
     const hadForced = { 1: false, 2: false };
     for (let i = 0; i < end; i++) {
@@ -193,6 +198,18 @@
     return { moves: out, ...summarize(out), evals };
   }
 
+  /**
+   * Nước i có cần chấm thêm thế sau nước tốt nhất không (để xếp loại cho đúng – xem analyzeGame): chưa thắng, không phải
+   * thế thắng / thua chắc, không trùng nước tốt nhất, và sau nước này đối thủ có chuỗi thắng hoặc khả năng thắng tụt ≥ 10%.
+   */
+  function altNeeded(moves, evals, i) {
+    const r = evals[i], nx = evals[i + 1];
+    if (!r || !nx || !moves[i] || same(r.move, moves[i]) || r.mate > 0 || r.mate < 0) return false;
+    if (nx.mate > 0) return true;
+    const EN = engine();
+    return EN.winChance(r.score) - (1 - EN.winChance(nx.score)) >= DROP.inacc;
+  }
+
   /** Bản gọn của kết quả engine (gửi qua lại giữa Web Worker và trang); q: số ms đã dùng để chấm. */
   const slim = (r, q) => ({ move: r.move, score: r.score, mate: r.mate, q });
   /** Thế đã chấm sẵn đủ kỹ (thời gian ≥ ms) thì không cần chấm lại. */
@@ -218,7 +235,7 @@
     return result.moves.filter((m) => KEY.has(m.cls));
   }
 
-  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, MAX_DEPTH };
+  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, MAX_DEPTH };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroAnalysis;
   else global.CaroAnalysis = CaroAnalysis;
 })(typeof window !== 'undefined' ? window : globalThis);

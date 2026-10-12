@@ -26,6 +26,8 @@ const LONG = Array.from({ length: 36 }, (_, i) => [(i % 6) * 3, Math.floor(i / 6
   await p.evaluate((moves) => window.CaroApp.startPreset({ mode: 'pvp', moves }), GAME);
   for (let k = 0; k < 40 && (await p.evaluate(() => window.CaroLive.done)) < GAME.length; k++) await sleep(150);
   ok((await p.evaluate(() => window.CaroLive.done)) === GAME.length, 'đã chấm sẵn mọi thế của ván (trừ thế sau nước thắng)');
+  for (let k = 0; k < 40 && (await p.evaluate(() => window.CaroLive.alts)) < 1; k++) await sleep(150);
+  ok((await p.evaluate(() => window.CaroLive.alts)) >= 1, 'nước sai cũng được chấm sẵn thế sau nước tốt nhất (hết ván xếp loại ngay)');
   const t0 = Date.now();
   await p.click('#btn-analyze');
   await p.waitForSelector('#an-body .an-players', { timeout: 5000 });
@@ -44,6 +46,20 @@ const LONG = Array.from({ length: 36 }, (_, i) => [(i % 6) * 3, Math.floor(i / 6
   ok((await p.$$('#an-moves .an-mv[data-i]')).length === LONG.length, 'lượt nhanh đã có đủ danh sách nước đi');
   await p.waitForSelector('#an-refine', { state: 'detached', timeout: 30000 });
   ok((await p.$$('#an-moves .an-mv[data-i]')).length === LONG.length, 'lượt kỹ xong: thay kết quả, bỏ dòng tinh chỉnh');
+  await p.click('#rp-close');
+  await sleep(200);
+
+  // ---------------------------------------------------------------- Mở phân tích ván khác khi ván trước đang chạy
+  const LONG2 = LONG.map(([x, y]) => [y + 1, x]);
+  await p.evaluate((moves) => { window.CaroApp.openReplay({ local: true, x: 'A', o: 'B', winner: 0, reason: 'draw', moves, rule: 'vn' }); window.CaroStudy.analyze(); }, LONG.map(([x, y]) => [x + 40, y]));
+  await sleep(400);
+  await p.evaluate((moves) => { window.CaroApp.openReplay({ local: true, x: 'C', o: 'D', winner: 0, reason: 'draw', moves, rule: 'vn' }); window.CaroStudy.analyze(); }, LONG2);
+  await p.waitForSelector('#an-moves', { timeout: 15000 });
+  const first = await p.$eval('#an-moves .an-mv[data-i="1"]', (e) => e.textContent).catch(() => '');
+  const want = await p.evaluate(([x, y]) => window.CaroApp.cellName(x, y), LONG2[0]);
+  ok(first.startsWith(want), `ván thứ hai: bảng hiện đúng nước của ván đó (${first} ~ ${want}), không lẫn ván trước`);
+  await p.waitForSelector('#an-refine', { state: 'detached', timeout: 30000 });
+  ok((await p.$$('#an-moves .an-mv[data-i]')).length === LONG2.length, 'ván thứ hai phân tích xong, không phải chờ ván trước');
   await p.click('#rp-close');
   await sleep(200);
 

@@ -36,7 +36,7 @@
     return worker;
   }
   const cache = new Map(); // khoá: chuỗi nước đi -> kết quả
-  const an = { result: null, running: false, seq: 0, refining: null };
+  const an = { result: null, running: false, seq: 0, refining: null, job: 0, key: null, prog: 0 };
 
   /** opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế (bỏ trống = mặc định của analysis.js) }. */
   function runAnalysis(moves, rule, onProgress, opts) {
@@ -48,10 +48,12 @@
     }
     const id = 'an' + ++an.seq;
     return new Promise((res) => {
+      pending.add(res); // cancel() trả null cho mọi lần đang chờ
       const onMsg = (e) => {
         if (e.data.id !== id) return;
         if (e.data.progress != null) return onProgress(e.data.progress);
         w.removeEventListener('message', onMsg);
+        pending.delete(res);
         res(e.data.result);
       };
       w.addEventListener('message', onMsg);
@@ -64,6 +66,18 @@
   const QUICK_MIN = 8; // còn ít thế chưa chấm hơn thế này thì làm luôn lượt kỹ
   const quickMs = (n) => Math.max(15, Math.min(40, Math.round(2000 / (n + 1))));
   const fullMs = (n) => Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // như mặc định của analysis.js
+
+  const pending = new Set();
+  /** Huỷ phân tích đang chạy (mở ván khác): dừng Worker (không dừng giữa chừng được), các lần chờ nhận null. */
+  function cancel() {
+    if (!an.running) return;
+    an.job++;
+    an.running = false;
+    an.key = null;
+    if (worker) { worker.terminate(); worker = null; }
+    for (const res of pending) res(null);
+    pending.clear();
+  }
 
   /** Bàn cờ vừa đổi kích thước (mở / đóng bảng): đợi bố cục xong rồi vừa khung lại. */
   function relayout() {
@@ -83,12 +97,22 @@
     // Nới 2 ô mỗi phía: nước gợi ý có thể nằm ngoài vùng đã có quân
     App.setCoords(xs.length ? { minX: Math.min(...xs) - 2, maxX: Math.max(...xs) + 2, minY: Math.min(...ys) - 2, maxY: Math.max(...ys) + 2 } : null);
     const key = (r.data.rule || 'vn') + JSON.stringify(moves);
+    if (an.running && an.key === key) {
+      // Đang phân tích đúng ván này (vd. đóng rồi mở lại bảng): hiện lại trạng thái hiện có
+      if (an.result) renderPanel(); else renderProgress(an.prog || 0);
+      return;
+    }
+    cancel(); // đang phân tích ván khác: huỷ, khỏi phải chờ và khỏi hiện nhầm kết quả ván cũ
     if (cache.has(key)) { an.result = cache.get(key); an.refining = null; renderPanel(); return; }
-    if (an.running) return;
+    const job = ++an.job;
+    const mine = () => job === an.job; // chưa bị huỷ
     an.running = true;
+    an.key = key;
     an.result = null;
     an.refining = null;
-    const same = () => App.replay && App.replay.data.moves === moves; // người dùng chưa đóng xem lại / mở ván khác
+    an.prog = 0;
+    const same = () => mine() && App.replay && App.replay.data.moves === moves; // chưa đóng xem lại / mở ván khác
+    const progress = (f) => { if (!mine()) return; an.prog = f; if (an.refining != null) renderRefine(f); else if (same()) renderProgress(f); };
     const n = moves.length, ms = fullMs(n);
     const live = window.CaroLive ? window.CaroLive.evalsFor(moves, r.data.rule) : null;
     const missing = Array.from({ length: n + 1 }, (_, i) => !(live && live[i] && (live[i].q || 0) >= ms)).filter(Boolean).length;
@@ -97,21 +121,21 @@
       if (missing > QUICK_MIN) {
         // Lượt nhanh
         renderProgress(0);
-        const quick = await runAnalysis(moves, r.data.rule, renderProgress, { evals, ms: quickMs(n) });
+        const quick = await runAnalysis(moves, r.data.rule, progress, { evals, ms: quickMs(n) });
+        if (!quick || !mine()) return;
         if (same()) { an.result = quick; an.refining = 0; renderPanel(); }
         evals = quick.evals;
-      } else if (!missing) {
-        // Đã phân tích ngầm xong: chỉ còn xếp loại nước đi
-      } else renderProgress(0);
+      } else if (missing) renderProgress(0); // không thiếu thế nào: đã phân tích ngầm xong, chỉ còn xếp loại nước đi
       // Lượt kỹ: chỉ chấm lại các thế mới chấm nhanh / còn thiếu
-      const res = await runAnalysis(moves, r.data.rule, (f) => (an.refining != null ? renderRefine(f) : renderProgress(f)), { evals, ms });
+      const res = await runAnalysis(moves, r.data.rule, progress, { evals, ms });
+      if (!res || !mine()) return;
       cache.set(key, res);
       if (!same()) return;
       an.result = res;
       an.refining = null;
       renderPanel();
     } finally {
-      an.running = false;
+      if (mine()) { an.running = false; an.key = null; }
     }
   }
 
@@ -268,7 +292,7 @@
     else if (act === 'close') $('rp-close').click();
   });
   $('rp-analyze').onclick = () => {
-    if (!$('an-panel').hidden && !an.running) return closePanel();
+    if (!$('an-panel').hidden && (!an.running || an.result)) return closePanel(); // đang tinh chỉnh vẫn đóng được
     analyze();
   };
   window.addEventListener('caro:seek', renderNow);

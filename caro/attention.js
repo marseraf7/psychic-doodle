@@ -2,7 +2,8 @@
  * Nhắc người chơi khi đang có ván (học ý tưởng từ màn chơi của Lichess, tự viết):
  *   - Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ" / "Hết ván"; tới lượt mình mà đang ở tab khác thì
  *     biểu tượng tab nhấp nháy cho tới khi quay lại.
- *   - Mọi ván đang dở (online, với máy, 2 người): giữ màn hình không tự tắt (Screen Wake Lock), nhả ra khi hết ván / rời bàn.
+ *   - Mọi ván đang dở (online, với máy, 2 người) khi đang ở bàn cờ: giữ màn hình không tự tắt (Screen Wake Lock),
+ *     nhả ra khi hết ván hoặc chuyển sang Trang chủ / menu.
  *     Safari chỉ cấp khi người dùng vừa chạm, nên thử lại ở lần chạm kế tiếp nếu chưa được.
  * app.js gọi update(info) mỗi khi giao diện đổi (info: xem attentionInfo trong app.js).
  */
@@ -61,13 +62,19 @@
   ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, acquire, { capture: true, passive: true }));
   document.addEventListener('visibilitychange', () => { if (document.hidden) release(); else acquire(); });
 
+  /** Chỉ giữ màn hình sáng khi đang ở bàn cờ (đang xem Trang chủ / menu với một ván dở thì không). */
+  function applyLock() {
+    want = !!info.active && !document.body.classList.contains('shell-on');
+    if (want) acquire(); else release();
+  }
   function update(next) {
     info = next || { active: false };
     renderTitle();
-    want = !!info.active;
-    if (want) acquire(); else release();
+    applyLock();
   }
+  window.addEventListener('caro:page', () => setTimeout(applyLock, 0));
+  window.addEventListener('caro:board', () => setTimeout(applyLock, 0));
 
   window.addEventListener('langchange', renderTitle);
-  window.CaroAttention = { update, get locked() { return !!lock; } };
+  window.CaroAttention = { update, get locked() { return !!lock; }, get wanted() { return want; } };
 })();
