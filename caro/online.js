@@ -746,6 +746,8 @@
   // Chính sách quyền riêng tư: trong app mở trang trên máy chủ (trình duyệt), trên web mở trang cùng thư mục
   const privacyUrl = window.CaroNative && base ? base + '/privacy.html' : 'privacy.html';
   document.querySelectorAll('.privacy-link').forEach((a) => { a.href = privacyUrl; });
+  // Trang giấy phép mã nguồn mở (Rapfi GPL-3 …): như trang quyền riêng tư, app mở bản trên máy chủ
+  document.querySelectorAll('.licenses-link').forEach((a) => { a.href = privacyUrl.replace('privacy.html', 'licenses.html'); });
 
   window.CaroOnline = {
     send, showBanner, shareReplay, renderInvites, roomActive, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,

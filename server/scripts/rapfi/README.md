@@ -1,8 +1,8 @@
 # Đo sức và học từ Rapfi (chỉ cho người phát triển)
 
 [Rapfi](https://github.com/dhbloo/rapfi) là engine Gomoku / Renju vô địch Gomocup (Alpha-Beta + mạng NNUE "Mix9"). Mã nguồn
-GPL-3, trọng số mạng CC0 ([rapfi-networks](https://github.com/dhbloo/rapfi-networks)). Rapfi **không** nằm trong repo hay
-app – các script ở đây chỉ chạy nó cục bộ như một chương trình riêng (giao thức Piskvork) để:
+GPL-3, trọng số mạng CC0 ([rapfi-networks](https://github.com/dhbloo/rapfi-networks)). App dùng bản WebAssembly cho BOAT
+(`caro/rapfi/`, xem `caro/rapfi/SOURCE.md`); các script ở đây chạy Rapfi cục bộ (giao thức Piskvork) để:
 
 - `match.js` – đấu engine của game với Rapfi trên bộ khai cuộc cân bằng (`../openings.json`);
 - `selfplay.js` – cho Rapfi tự đấu sinh ván (kèm điểm Rapfi từng thế) để `train-policy.js` / `tune-eval.js` học.
@@ -33,6 +33,18 @@ node server/scripts/rapfi/selfplay.js free 600 60 13 > rapfi-free.jsonl
 node server/scripts/train-policy.js free rapfi-free.jsonl
 LABEL=ev EVSCALE=150 node server/scripts/tune-eval.js rapfi-free.jsonl free
 ```
+
+## Đo bản WebAssembly của app
+
+`driver-wasm.js` nạp đúng `caro/rapfi/rapfi-single-simd128.{js,wasm}` + `worker.js` (config) trong Node; mạng lấy ở
+`RAPFI_NETS` (mặc định `run/`):
+
+```bash
+RAPFI=wasm node server/scripts/rapfi/match.js free 8 3000 1000 0 1 '{"vctDepth":10}'
+```
+
+Kết quả (16 ván mỗi luật): Rapfi-WASM 1 giây / nước thắng engine của game 3 giây / nước 94% tự do, 81% tiêu chuẩn,
+81% Renju. Tốc độ WASM 1 luồng ~50–140 nghìn nút / giây.
 
 ## Lưu ý
 

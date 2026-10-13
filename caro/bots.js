@@ -68,8 +68,9 @@
       BOTS.push({ id, tier: t + 1, style, ...TIERS[t], ...extra, styleW: STYLE_W[style] }); // ảnh, biểu tượng, màu: bot-looks.js
     }
   });
-  // Trùm cuối (mức 7, chỉ lối Toàn diện)
-  BOTS.push({ id: 'boat', tier: TIERS.length, style: 'uni', ...TIERS[TIERS.length - 1], styleW: STYLE_W.uni });
+  // Trùm cuối (mức 7, chỉ lối Toàn diện). rapfi: luật tự do / tiêu chuẩn / Renju chạy Rapfi WebAssembly (boat-rapfi.js),
+  // ms = thời gian nghĩ mỗi nước của Rapfi; luật Việt Nam và khi không chạy được Rapfi thì dùng engine (engine.ms).
+  BOTS.push({ id: 'boat', tier: TIERS.length, style: 'uni', ...TIERS[TIERS.length - 1], rapfi: { ms: 2500 }, styleW: STYLE_W.uni });
   const START_UNLOCKED = 3; // số mức mở sẵn
   // Mức cũ (1 Dễ / 2 Vừa / 3 Khó) -> nhân vật tương ứng.
   const FROM_LEVEL = { 1: 'ti', 2: 'mai', 3: 'minh' };

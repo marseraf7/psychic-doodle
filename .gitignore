@@ -13,3 +13,6 @@ ket_qua_phan_tich/
 .venv/
 tom_tat_ghi_am/models/
 server/scripts/rapfi/run/
+
+# Mạng Rapfi tự đặt trên máy chủ (tuỳ chọn, ~10 MB mỗi file – xem caro/rapfi/SOURCE.md)
+caro/rapfi/nets/

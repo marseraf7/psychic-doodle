@@ -158,9 +158,23 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     Alpha-Beta 40–44% (96 ván / cấu hình) – không có mạng giá trị mạnh (cần GPU, hàng triệu ván) thì MCTS kém Alpha-Beta
     + chuỗi đe doạ ở cờ caro, nên không dùng.
   - Đo: BOAT thắng GOAT 63% (Việt Nam) / 58% (tự do) – 48 ván mỗi luật, cùng engine nên lợi thế đến từ nghĩ lâu hơn.
-  - So với nhà vô địch Gomocup **Rapfi** (chạy cục bộ bằng `server/scripts/rapfi/`, không nằm trong app): Rapfi nghĩ
-    40 ms / nước vẫn thắng BOAT nghĩ 3 giây (BOAT được 19% tự do, 38% tiêu chuẩn, 38% Renju). Học hàm đánh giá tuyến tính
-    theo điểm của Rapfi làm engine kém đi (33–41%) – muốn tới mức vô địch cần mạng nơ-ron (NNUE hoặc CNN + MCTS).
+  - So với nhà vô địch Gomocup **Rapfi** (chạy cục bộ bằng `server/scripts/rapfi/`): Rapfi nghĩ 40 ms / nước vẫn thắng
+    engine của game nghĩ 3 giây (engine được 19% tự do, 38% tiêu chuẩn, 38% Renju). Học hàm đánh giá tuyến tính theo
+    điểm của Rapfi làm engine kém đi (33–41%) – muốn tới mức vô địch cần mạng nơ-ron (NNUE hoặc CNN + MCTS).
+  **BOAT chạy Rapfi (WebAssembly) ở luật tự do / tiêu chuẩn / Renju** (`boat-rapfi.js` + `rapfi/`, như trang Gomocalc):
+  - Rapfi (GPL-3) dựng bằng Emscripten thành `rapfi/rapfi-single-simd128.{js,wasm}` (1,2 MB, 1 luồng, WebAssembly SIMD),
+    chạy trong Worker riêng `rapfi/worker.js`, nói giao thức Piskvork; BOAT nghĩ 2,5 giây / nước (`bots.js`: `rapfi.ms`).
+  - Mạng NNUE "mix9svq" (CC0, ~10 MB; Renju 2 file) chỉ tải khi bắt đầu ván với BOAT – thử `rapfi/nets/` trên máy chủ,
+    rồi jsDelivr, rồi GitHub raw – giữ trong Cache Storage `caro-rapfi-nets-v1` (sw.js không xoá), lần sau không tải lại.
+  - Bàn vô hạn → bàn Rapfi (tự do 20×20, tiêu chuẩn / Renju 15×15): mỗi nước đặt khung bao các quân vào giữa, chừa ≥ 1 ô
+    mỗi bên. Không vừa bàn, luật Việt Nam, trình duyệt không có WebAssembly SIMD, tải mạng lỗi / quá 6 giây, Rapfi treo
+    hay trả nước sai → nước đó dùng engine của game (BOAT luật Việt Nam vẫn là engine của game).
+  - Đo (16 ván mỗi luật, khai cuộc cân bằng, bản WASM chạy trong Node như trong trình duyệt – `RAPFI=wasm
+    server/scripts/rapfi/match.js`): Rapfi-WASM nghĩ **1 giây** thắng engine của game nghĩ 3 giây **94%** tự do, **81%**
+    tiêu chuẩn, **81%** Renju – trong app Rapfi còn được 2,5 giây.
+  - Giấy phép: trang `licenses.html` (Xem thêm / Cài đặt → *Giấy phép mã nguồn mở*, 4 ngôn ngữ) ghi công Rapfi, toàn văn
+    GPL-3 (`rapfi/COPYING.txt`), mã nguồn đúng commit đang dùng (`rapfi/build/rapfi-src-3c94c2a.tar.gz`), cách dựng lại
+    (`rapfi/build/build.sh`, `rapfi/SOURCE.md`). CSP máy chủ thêm `'wasm-unsafe-eval'` và 2 CDN của mạng.
   **Phân tích song song** (`an-pool.js`): các thế của ván chia cho min(4, lõi − 1) Web Worker (như Lichess chạy Stockfish
   nhiều luồng) – ván 36 nước trên máy 4 lõi: kết quả nhanh 1,4 giây (trước 2,9), phân tích kỹ xong 6,8 giây (trước 18,4).
   Phân tích ngầm gắn khoá thế cờ vào từng kết quả: đi lại / rẽ nhánh bao nhiêu lần cũng không dùng nhầm (e2e: 300 lần).
@@ -292,6 +306,7 @@ node caro/tests/e2e/attention.e2e.js     # tiêu đề tab báo lượt, hết v
 node caro/tests/e2e/live.e2e.js          # phân tích ngầm khi chơi (hết ván có ngay), phân tích hai lượt, công tắc trong Cài đặt
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
 node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, ván giải mất kết nối, Storm, ảnh og
+node caro/tests/e2e/boat-rapfi.e2e.js    # BOAT chạy Rapfi ở 3 luật, luật Việt Nam dùng engine, mạng lấy từ bộ nhớ đệm, trang giấy phép (RAPFI_NETS=<thư mục mạng> nếu không ra được Internet)
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
 ```
 
@@ -312,6 +327,9 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `engine-renju.js`, `engine-eval.js`, `engine-moves.js` | Gắn vào thế cờ: nước cấm Renju; chấm điểm (trọng số học từ Gomocup, lối đánh); sinh nước, nước bốn, ô chặn, phòng thủ bắt buộc |
 | `engine-search.js` | Alpha-Beta (PVS) làm sâu dần, bảng ghi nhớ, chuỗi bốn (VCF) ở lá và ở gốc |
 | `engine-vct.js` | Chuỗi đe doạ ba / bốn (VCT – threat-space search của Allis): tìm thắng và kiểm nước định đi |
+| `boat-rapfi.js`, `i18n-rapfi.js` | BOAT gọi Rapfi (Worker) ở luật tự do / tiêu chuẩn / Renju: tải mạng khi cần, đặt thế vào bàn Rapfi, dự phòng engine của game |
+| `rapfi/` | Rapfi WebAssembly (GPL-3): `worker.js`, `rapfi-single-simd128.{js,wasm}`, mô hình cổ điển, `COPYING.txt`, `SOURCE.md`, `build/` (mã nguồn + cách dựng) |
+| `licenses.html` | Giấy phép mã nguồn mở (Rapfi GPL-3, mạng CC0, phông OFL) – 4 ngôn ngữ, dùng `privacy.js` |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
 | `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |

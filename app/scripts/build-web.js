@@ -29,7 +29,9 @@ const serverUrl = server.origin;
 // ---------------------------------------------------------------- Chép giao diện
 const SKIP = new Set(['tests', 'README.md', 'sw.js', 'config.js']);
 fs.rmSync(WWW, { recursive: true, force: true });
-fs.cpSync(SRC, WWW, { recursive: true, filter: (src) => !SKIP.has(path.relative(SRC, src).split(path.sep)[0]) || src === SRC });
+// rapfi/nets/: mạng Rapfi (~10 MB mỗi file) nếu người triển khai đặt sẵn cho web – app tự tải khi cần, không gói vào
+const skip = (rel) => SKIP.has(rel.split(path.sep)[0]) || rel === path.join('rapfi', 'nets');
+fs.cpSync(SRC, WWW, { recursive: true, filter: (src) => src === SRC || !skip(path.relative(SRC, src)) });
 
 fs.writeFileSync(path.join(WWW, 'config.js'),
   '// Tạo tự động bởi app/scripts/build-web.js – không sửa tay.\n' +

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cờ Caro – Giấy phép mã nguồn mở</title>
+  <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="theme.js"></script>
+  <style>
+    /* Bỏ phần khoá cuộn của màn chơi (style.css): trang chữ cuộn bình thường */
+    html, body { height: auto; overscroll-behavior: auto; -webkit-user-select: text; user-select: text; }
+    html { overflow-y: auto; scroll-padding-top: 84px; }
+    body { overflow: visible; background: var(--bg); color: var(--text); }
+    html.dragging, html.dragging * { cursor: grabbing; -webkit-user-select: none; user-select: none; }
+
+    /* Lề ngang chung cho thanh đầu và nội dung: luôn thẳng hàng nhau */
+    :root { --page: 760px; --gutter: max(16px, env(safe-area-inset-left), env(safe-area-inset-right)); }
+    .wrap { width: 100%; max-width: calc(var(--page) + 2 * var(--gutter)); margin: 0 auto; padding-inline: var(--gutter); box-sizing: border-box; }
+
+    /* ---------- Thanh đầu: logo · ngôn ngữ · về game */
+    .top {
+      position: sticky; top: 0; z-index: 5;
+      padding-top: env(safe-area-inset-top);
+      background: color-mix(in srgb, var(--bg) 86%, transparent);
+      -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px);
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .top .wrap { display: flex; align-items: center; gap: 12px; min-height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: var(--fw-bold); font-size: var(--fs-md); letter-spacing: -0.01em; white-space: nowrap; }
+    .brand img { width: 30px; height: 30px; border-radius: 8px; }
+    .langs { display: flex; gap: 2px; padding: 3px; margin-left: auto; border-radius: 12px; background: rgba(127, 127, 127, 0.12); }
+    .langs a {
+      padding: 6px 10px; border-radius: 9px; font-size: var(--fs-sm); font-weight: var(--fw-medium);
+      color: var(--muted); text-decoration: none; white-space: nowrap; transition: background-color 0.15s, color 0.15s;
+    }
+    .langs a:hover { color: var(--text); }
+    .langs a[aria-current="true"] { background: var(--panel); color: var(--text); font-weight: var(--fw-semibold); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14); }
+    .back {
+      display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px;
+      background: var(--accent); color: #fff; text-decoration: none; font-size: var(--fs-sm); font-weight: var(--fw-semibold); white-space: nowrap;
+    }
+    .back:hover { filter: brightness(1.08); }
+    .back svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* ---------- Nội dung */
+    main { padding-top: clamp(28px, 5vw, 56px); padding-bottom: 64px; font-size: clamp(1rem, 0.96rem + 0.2vw, 1.0625rem); line-height: 1.7; }
+    section[lang] { display: flex; flex-direction: column; gap: 16px; }
+    section[lang] + section[lang] { margin-top: 48px; }
+    section[lang][hidden] { display: none; }
+    .hero { margin-bottom: 8px; }
+    h1 { font-size: clamp(1.75rem, 1.4rem + 1.6vw, 2.5rem); font-weight: var(--fw-bold); line-height: 1.15; letter-spacing: -0.025em; margin: 0 0 12px; text-wrap: balance; }
+    .meta { margin: 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.55; }
+    .updated { display: inline-block; margin-top: 10px; padding: 3px 10px; border-radius: 999px; background: rgba(127, 127, 127, 0.12); color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
+    .chips li {
+      display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 6px 12px; border-radius: 999px;
+      border: 1px solid var(--panel-border); background: var(--panel); font-size: var(--fs-sm); font-weight: var(--fw-medium); line-height: 1.3;
+    }
+    .chips li::before { content: ''; width: 14px; height: 14px; flex: none; background: var(--accent); -webkit-mask: var(--check) center / contain no-repeat; mask: var(--check) center / contain no-repeat; }
+    :root { --check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E"); }
+
+    .card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 18px; padding: clamp(18px, 3vw, 28px); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); }
+    .card > :first-child { margin-top: 0; }
+    .card > :last-child { margin-bottom: 0; }
+    h2 { display: flex; align-items: center; gap: 10px; font-size: clamp(1.125rem, 1.05rem + 0.4vw, 1.375rem); font-weight: var(--fw-bold); line-height: 1.3; letter-spacing: -0.01em; margin: 0 0 12px; }
+    h2::before { content: ''; width: 4px; height: 1.1em; border-radius: 2px; background: var(--accent); flex: none; }
+    p { margin: 0 0 12px; max-width: 68ch; }
+    b { font-weight: var(--fw-semibold); }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+    ul.list li { position: relative; padding: 12px 0 12px 22px; border-top: 1px solid var(--panel-border); max-width: 72ch; }
+    ul.list li:first-child { border-top: 0; padding-top: 0; }
+    ul.list li:last-child { padding-bottom: 0; }
+    ul.list li::before { content: ''; position: absolute; left: 4px; top: calc(12px + 0.62em); width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: 0.75; }
+    ul.list li:first-child::before { top: 0.62em; }
+    ul.list li b:first-child { display: block; color: var(--text); }
+    .steps b { display: inline-block; padding: 1px 9px; margin: 2px 0; border-radius: 7px; background: rgba(127, 127, 127, 0.14); font-weight: var(--fw-semibold); line-height: 1.6; }
+    .note { padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 9%, transparent); }
+    .mail { font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+    .foot { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--panel-border); color: var(--muted); font-size: var(--fs-sm); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .foot a { color: var(--muted); }
+
+    @media (max-width: 560px) {
+      .brand span { display: none; }
+      .langs a { padding: 6px 8px; }
+      .back span { display: none; }
+      .back { padding: 8px 10px; }
+    }
+    @media print {
+      .top, .foot { display: none; }
+      section[lang][hidden] { display: flex; }
+      .card { box-shadow: none; }
+    }
+    /* Căn đều hai bên như văn bản hành chính; dòng cuối căn trái */
+    p, ul.list li, .meta, .steps, .note { text-align: justify; text-justify: inter-word; }
+  </style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.svg" alt=""><span id="brand-label">Cờ Caro</span></a>
+    <nav class="langs" aria-label="Language"><a href="#vi" lang="vi">VI</a><a href="#en" lang="en">EN</a><a href="#ru" lang="ru">RU</a><a href="#zh" lang="zh-CN">中文</a></nav>
+    <a class="back" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg><span id="back-label">Về game</span></a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="vi" lang="vi" data-title="Cờ Caro – Giấy phép mã nguồn mở" data-back="Về game" data-brand="Cờ Caro">
+    <header class="hero">
+      <h1>Giấy phép mã nguồn mở</h1>
+      <p class="meta">Các thành phần của bên thứ ba trong Cờ Caro (web và ứng dụng Android / iOS) và giấy phép của chúng.</p>
+    </header>
+    <div class="card">
+      <h2>Rapfi – bộ não của BOAT</h2>
+      <p>Nhân vật trùm cuối <b>BOAT</b> ở luật tự do, tiêu chuẩn và Renju chạy <b>Rapfi</b> – engine Gomoku / Renju vô địch Gomocup – bản WebAssembly ngay trên máy bạn. Rapfi © Rapfi developers (Haobin Duan và cộng sự), phát hành theo <b>Giấy phép Công cộng GNU phiên bản 3 (GPL-3)</b>. Phần Rapfi trong game (thư mục <code>rapfi/</code>) cũng theo GPL-3: bạn được dùng, sao chép, sửa đổi và phân phối lại theo các điều khoản của giấy phép này. Phần mềm được cung cấp không kèm bất kỳ bảo hành nào.</p>
+      <ul class="list">
+        <li><a href="rapfi/COPYING.txt">Toàn văn giấy phép GPL-3</a></li>
+        <li><a href="rapfi/build/rapfi-src-3c94c2a.tar.gz">Mã nguồn Rapfi đúng phiên bản đang dùng (commit 3c94c2a)</a></li>
+        <li><a href="rapfi/build/build.sh">Cách dựng lại bản WebAssembly</a></li>
+        <li><a href="rapfi/build/expose-fs.js">Phần thêm khi dựng (chạy trước khi Rapfi khởi động)</a></li>
+        <li><a href="https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">Kho mã gốc trên GitHub</a></li>
+        <li><a href="rapfi/AUTHORS.txt">Tác giả Rapfi</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Mạng nơ-ron của Rapfi</h2>
+      <p>Các mạng NNUE "mix9svq" và mô hình cổ điển của Rapfi được tác giả tặng vào phạm vi công cộng theo <b>CC0 1.0</b>. Mạng chỉ được tải về khi bạn đấu BOAT (khoảng 10 MB cho luật tự do hoặc tiêu chuẩn, 20 MB cho Renju) và được lưu lại trên máy để lần sau không phải tải nữa.</p>
+      <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a></p>
+    </div>
+    <div class="card">
+      <h2>Engine của Cờ Caro</h2>
+      <p>Luật Việt Nam (chặn hai đầu), các nhân vật máy khác, phần phân tích ván và BOAT khi trình duyệt không chạy được Rapfi dùng engine riêng của Cờ Caro – không chứa mã của Rapfi.</p>
+    </div>
+    <div class="card">
+      <h2>Phông chữ</h2>
+      <p>Noto Sans – SIL Open Font License 1.1. <a href="fonts/OFL-LICENSE.txt">Toàn văn giấy phép OFL</a></p>
+    </div>
+  </section>
+
+  <section id="en" lang="en" data-title="Caro – Open-source licenses" data-back="Back to game" data-brand="Caro">
+    <header class="hero">
+      <h1>Open-source licenses</h1>
+      <p class="meta">Third-party components in Caro (web and Android / iOS apps) and their licenses.</p>
+    </header>
+    <div class="card">
+      <h2>Rapfi – the brain of BOAT</h2>
+      <p>The final boss <b>BOAT</b> plays the freestyle, standard and Renju rules with <b>Rapfi</b> – the Gomocup-champion Gomoku / Renju engine – compiled to WebAssembly and running on your device. Rapfi © Rapfi developers (Haobin Duan et al.), released under the <b>GNU General Public License version 3 (GPL-3)</b>. The Rapfi part of the game (the <code>rapfi/</code> folder) is under GPL-3 as well: you may use, copy, modify and redistribute it under the terms of that license. It comes with no warranty of any kind.</p>
+      <ul class="list">
+        <li><a href="rapfi/COPYING.txt">Full text of the GPL-3</a></li>
+        <li><a href="rapfi/build/rapfi-src-3c94c2a.tar.gz">Rapfi source code of the exact version in use (commit 3c94c2a)</a></li>
+        <li><a href="rapfi/build/build.sh">How to rebuild the WebAssembly build</a></li>
+        <li><a href="rapfi/build/expose-fs.js">Build-time addition (runs before Rapfi starts)</a></li>
+        <li><a href="https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">Upstream repository on GitHub</a></li>
+        <li><a href="rapfi/AUTHORS.txt">Rapfi authors</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Rapfi neural networks</h2>
+      <p>Rapfi's "mix9svq" NNUE networks and classical model are dedicated to the public domain by their authors under <b>CC0 1.0</b>. A network is downloaded only when you play BOAT (about 10 MB for freestyle or standard, 20 MB for Renju) and is kept on your device so it is not downloaded again.</p>
+      <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a></p>
+    </div>
+    <div class="card">
+      <h2>Caro's own engine</h2>
+      <p>The Vietnamese rule (both-ends-blocked), the other bots, game analysis, and BOAT on browsers that cannot run Rapfi use Caro's own engine – it contains no Rapfi code.</p>
+    </div>
+    <div class="card">
+      <h2>Fonts</h2>
+      <p>Noto Sans – SIL Open Font License 1.1. <a href="fonts/OFL-LICENSE.txt">Full text of the OFL</a></p>
+    </div>
+  </section>
+
+  <section id="ru" lang="ru" data-title="Каро – лицензии открытого ПО" data-back="К игре" data-brand="Каро">
+    <header class="hero">
+      <h1>Лицензии открытого ПО</h1>
+      <p class="meta">Сторонние компоненты в Каро (веб и приложения Android / iOS) и их лицензии.</p>
+    </header>
+    <div class="card">
+      <h2>Rapfi – мозг BOAT</h2>
+      <p>Финальный босс <b>BOAT</b> в свободных, стандартных правилах и Рэндзю играет движком <b>Rapfi</b> – чемпионом Gomocup по гомоку / рэндзю – в сборке WebAssembly прямо на вашем устройстве. Rapfi © Rapfi developers (Haobin Duan и соавторы), распространяется по <b>Стандартной общественной лицензии GNU версии 3 (GPL-3)</b>. Часть игры с Rapfi (папка <code>rapfi/</code>) тоже под GPL-3: вы можете использовать, копировать, изменять и распространять её на условиях этой лицензии. Без каких-либо гарантий.</p>
+      <ul class="list">
+        <li><a href="rapfi/COPYING.txt">Полный текст GPL-3</a></li>
+        <li><a href="rapfi/build/rapfi-src-3c94c2a.tar.gz">Исходный код Rapfi используемой версии (коммит 3c94c2a)</a></li>
+        <li><a href="rapfi/build/build.sh">Как пересобрать WebAssembly-версию</a></li>
+        <li><a href="rapfi/build/expose-fs.js">Добавка при сборке (выполняется до запуска Rapfi)</a></li>
+        <li><a href="https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">Исходный репозиторий на GitHub</a></li>
+        <li><a href="rapfi/AUTHORS.txt">Авторы Rapfi</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Нейросети Rapfi</h2>
+      <p>Сети NNUE «mix9svq» и классическая модель Rapfi переданы авторами в общественное достояние по <b>CC0 1.0</b>. Сеть загружается только когда вы играете с BOAT (около 10 МБ для свободных или стандартных правил, 20 МБ для Рэндзю) и сохраняется на устройстве, чтобы не скачивать её снова.</p>
+      <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a></p>
+    </div>
+    <div class="card">
+      <h2>Собственный движок Каро</h2>
+      <p>Вьетнамские правила (блок с двух концов), остальные боты, анализ партий и BOAT в браузерах, где Rapfi не запускается, используют собственный движок Каро – в нём нет кода Rapfi.</p>
+    </div>
+    <div class="card">
+      <h2>Шрифты</h2>
+      <p>Noto Sans – SIL Open Font License 1.1. <a href="fonts/OFL-LICENSE.txt">Полный текст OFL</a></p>
+    </div>
+  </section>
+
+  <section id="zh" lang="zh-CN" data-title="Caro – 开源许可" data-back="返回游戏" data-brand="Caro">
+    <header class="hero">
+      <h1>开源许可</h1>
+      <p class="meta">Caro（网页版及 Android / iOS 应用）中的第三方组件及其许可。</p>
+    </header>
+    <div class="card">
+      <h2>Rapfi——BOAT 的大脑</h2>
+      <p>最终头目 <b>BOAT</b> 在自由、标准和连珠规则下使用 <b>Rapfi</b>——Gomocup 冠军五子棋 / 连珠引擎——的 WebAssembly 版本，直接在你的设备上运行。Rapfi © Rapfi developers（Haobin Duan 等），以 <b>GNU 通用公共许可证第 3 版（GPL-3）</b>发布。游戏中的 Rapfi 部分（<code>rapfi/</code> 文件夹）同样采用 GPL-3：你可以按该许可的条款使用、复制、修改和再分发。本软件不附带任何担保。</p>
+      <ul class="list">
+        <li><a href="rapfi/COPYING.txt">GPL-3 全文</a></li>
+        <li><a href="rapfi/build/rapfi-src-3c94c2a.tar.gz">当前所用版本的 Rapfi 源代码（提交 3c94c2a）</a></li>
+        <li><a href="rapfi/build/build.sh">如何重新构建 WebAssembly 版本</a></li>
+        <li><a href="rapfi/build/expose-fs.js">构建时添加的部分（在 Rapfi 启动前运行）</a></li>
+        <li><a href="https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">GitHub 上游仓库</a></li>
+        <li><a href="rapfi/AUTHORS.txt">Rapfi 作者</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Rapfi 神经网络</h2>
+      <p>Rapfi 的 “mix9svq” NNUE 网络和经典模型由作者以 <b>CC0 1.0</b> 贡献至公有领域。只有在你与 BOAT 对局时才会下载网络（自由或标准规则约 10 MB，连珠约 20 MB），并保存在设备上，下次无需再次下载。</p>
+      <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a></p>
+    </div>
+    <div class="card">
+      <h2>Caro 自己的引擎</h2>
+      <p>越南规则（两端被堵不算赢）、其他电脑角色、对局分析，以及在无法运行 Rapfi 的浏览器上的 BOAT，都使用 Caro 自己的引擎——其中不包含 Rapfi 的代码。</p>
+    </div>
+    <div class="card">
+      <h2>字体</h2>
+      <p>Noto Sans – SIL Open Font License 1.1。 <a href="fonts/OFL-LICENSE.txt">OFL 全文</a></p>
+    </div>
+  </section>
+
+  <footer class="foot"><span id="foot-brand">Cờ Caro</span><a href="https://github.com/dhbloo/rapfi" target="_blank" rel="noopener">github.com/dhbloo/rapfi</a></footer>
+</main>
+<script src="privacy.js"></script>
+</body>
+</html>

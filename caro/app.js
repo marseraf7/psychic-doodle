@@ -168,6 +168,13 @@
   try { if (window.Worker && location.protocol.startsWith('http')) aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
 
   function askAI(p, bot) {
+    // BOAT ở luật tự do / tiêu chuẩn / Renju: Rapfi (boat-rapfi.js); không chạy được thì engine của game như mọi bot
+    const R = window.CaroRapfi;
+    if (R && R.handles(bot, state.board.rule)) return R.move(state.board, p, bot).then((m) => m || askEngine(p, bot));
+    return askEngine(p, bot);
+  }
+
+  function askEngine(p, bot) {
     const moves = state.board.moves.map((m) => [m.x, m.y, m.p]);
     if (!aiWorker) return new Promise((resolve) => setTimeout(() => resolve(Bots.botMove(state.board, p, bot)), 30));
     const id = ++aiSeq;
@@ -252,6 +259,7 @@
     maybeAI();
     resetClock();
     if (state.mode === 'ai') toast(`${botName(state.bot)}: ${T('bot_' + state.bot + '_hi')}`, 3500);
+    if (state.mode === 'ai' && window.CaroRapfi) window.CaroRapfi.prepare(state.bot, state.rule); // tải trước mạng của BOAT
   }
 
   // ------------------------------------------------------------ Đồng hồ mỗi nước

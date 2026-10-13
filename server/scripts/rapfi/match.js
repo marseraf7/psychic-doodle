@@ -14,7 +14,8 @@ const [rule, NOPEN, MS, RMS, SHARD = '0', NSHARD = '1', OPTS] = process.argv.sli
 const extra = OPTS ? JSON.parse(OPTS) : {};
 const SIZE = rule === 'free' ? 20 : 15, OFF = SIZE >> 1, RULE_N = { free: 0, std: 1, renju: 4 }[rule];
 
-const { Rapfi } = require('./driver.js');
+// RAPFI=wasm: dùng bản WebAssembly trong app (caro/rapfi/) thay cho bản dựng gốc
+const { Rapfi } = require(process.env.RAPFI === 'wasm' ? './driver-wasm.js' : './driver.js');
 
 (async () => {
   const rp = new Rapfi(SIZE, RULE_N, +RMS); await rp.init();
