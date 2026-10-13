@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dựng Rapfi (GPL-3, https://github.com/dhbloo/rapfi) thành WebAssembly cho BOAT – tái tạo đúng file trong caro/rapfi/.
+# Dựng Rapfi (GPL-3, https://github.com/dhbloo/rapfi – bản sao lưu https://github.com/marseraf7/rapfi) thành WebAssembly cho BOAT – tái tạo đúng file trong caro/rapfi/.
 #   bash caro/rapfi/build/build.sh [thư mục ra, mặc định caro/rapfi]
 # Cần emsdk đã kích hoạt (emcmake / emcc trong PATH) và cmake. Biến RAPFI_SRC: bản clone có sẵn (bỏ qua thì tự clone).
 # Mã nguồn được dùng nguyên vẹn ở commit ghim dưới đây; chỉ thêm expose-fs.js (--pre-js) và không gói sẵn mạng nào
@@ -16,7 +16,8 @@ if [ -n "${RAPFI_SRC:-}" ]; then
   cp -r "$RAPFI_SRC/Rapfi" "$WORK/Rapfi"
   (cd "$RAPFI_SRC" && [ "$(git rev-parse HEAD)" = "$RAPFI_COMMIT" ]) || echo "Cảnh báo: RAPFI_SRC không ở commit $RAPFI_COMMIT"
 else
-  git clone https://github.com/dhbloo/rapfi.git "$WORK/src"
+  # Bản sao lưu (fork) trước, kho gốc của tác giả sau – cùng commit ghim nên cùng mã nguồn
+  git clone https://github.com/marseraf7/rapfi.git "$WORK/src" || git clone https://github.com/dhbloo/rapfi.git "$WORK/src"
   git -C "$WORK/src" checkout "$RAPFI_COMMIT"
   mv "$WORK/src/Rapfi" "$WORK/Rapfi"
 fi

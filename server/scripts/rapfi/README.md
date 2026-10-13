@@ -12,7 +12,8 @@ Rapfi hỗ trợ luật tự do, tiêu chuẩn, Renju – **không** có luật 
 ## Dựng Rapfi (Linux, CPU có AVX2)
 
 ```bash
-git clone --depth 1 https://github.com/dhbloo/rapfi.git && git clone --depth 1 https://github.com/dhbloo/rapfi-networks.git
+# bản sao lưu (fork) của Cờ Caro; kho gốc: github.com/dhbloo/rapfi, github.com/dhbloo/rapfi-networks
+git clone --depth 1 https://github.com/marseraf7/rapfi.git && git clone --depth 1 https://github.com/marseraf7/rapfi-networks.git
 cd rapfi/Rapfi && cmake --preset x64-clang-AVX2 && cmake --build build/x64-clang-AVX2 -j4
 mkdir -p <repo>/server/scripts/rapfi/run
 cp build/x64-clang-AVX2/pbrain-rapfi <repo>/server/scripts/rapfi/run/

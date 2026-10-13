@@ -2,9 +2,10 @@
  * Worker chạy Rapfi (bản WebAssembly) làm "bộ não" của BOAT ở luật tự do / tiêu chuẩn / Renju.
  *
  * Rapfi – engine Gomoku / Renju vô địch Gomocup – Copyright (C) Rapfi developers, giấy phép GPL-3
- * (https://github.com/dhbloo/rapfi). File này cùng các file rapfi-single*.js / *.wasm trong thư mục này được phát hành
+ * (https://github.com/dhbloo/rapfi, bản sao lưu https://github.com/marseraf7/rapfi). File này cùng các file rapfi-single*.js / *.wasm trong thư mục này được phát hành
  * theo GPL-3 (xem COPYING.txt; mã nguồn và cách dựng lại: SOURCE.md). Mạng NNUE "mix9svq" và mô hình cổ điển của Rapfi
- * là CC0 (https://github.com/dhbloo/rapfi-networks) – mạng ~10 MB chỉ tải khi cần, rồi giữ trong Cache Storage.
+ * là CC0 (https://github.com/dhbloo/rapfi-networks, bản sao lưu https://github.com/marseraf7/rapfi-networks) – mạng ~10 MB
+ * chỉ tải khi cần, rồi giữ trong Cache Storage.
  *
  * Mỗi Worker chỉ phục vụ một luật (đổi luật thì trang tạo Worker mới). Giao tiếp:
  *   vào  { type: 'init', rule }                         – tải mạng + khởi động Rapfi
@@ -21,12 +22,16 @@ const NETS = {
 };
 const RULE_N = { free: 0, std: 1, renju: 4 }; // mã luật trong giao thức Piskvork của Rapfi
 const NET_CACHE = 'caro-rapfi-nets-v1'; // tách khỏi bộ nhớ đệm của sw.js nên không bị xoá khi app cập nhật
-// Thứ tự thử: cùng máy chủ (nếu người triển khai đặt sẵn vào rapfi/nets/), rồi 2 CDN công khai của repo mạng
+// Thứ tự thử: cùng máy chủ (nếu người triển khai đặt sẵn vào rapfi/nets/), rồi jsDelivr / GitHub raw của bản sao lưu
+// (fork marseraf7/rapfi-networks), cuối cùng kho gốc dhbloo/rapfi-networks – cùng commit nên cùng nội dung
+const REPOS = ['marseraf7/rapfi-networks', 'dhbloo/rapfi-networks'];
 const sources = (f) => [
   'nets/' + f,
-  `https://cdn.jsdelivr.net/gh/dhbloo/rapfi-networks@${NETS_COMMIT}/mix9svq/${f}`,
-  `https://raw.githubusercontent.com/dhbloo/rapfi-networks/${NETS_COMMIT}/mix9svq/${f}`,
+  ...REPOS.map((r) => `https://cdn.jsdelivr.net/gh/${r}@${NETS_COMMIT}/mix9svq/${f}`),
+  ...REPOS.map((r) => `https://raw.githubusercontent.com/${r}/${NETS_COMMIT}/mix9svq/${f}`),
 ];
+// Khoá trong Cache Storage: giữ như bản đầu (URL jsDelivr của kho gốc) để mạng đã tải không phải tải lại
+const cacheKey = (f) => `https://cdn.jsdelivr.net/gh/dhbloo/rapfi-networks@${NETS_COMMIT}/mix9svq/${f}`;
 
 let mod = null, out = [], lastEval = null;
 
@@ -39,7 +44,7 @@ function hasSimd() {
 
 /** Tải một file mạng (có báo tiến độ) – lấy từ Cache Storage nếu đã tải trước đó. */
 async function fetchNet(file, onBytes) {
-  const key = sources(file)[1];
+  const key = cacheKey(file);
   let cache = null;
   try { cache = await caches.open(NET_CACHE); } catch (e) { cache = null; }
   if (cache) {
