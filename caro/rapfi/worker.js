@@ -1,11 +1,15 @@
 /*
- * Worker chạy Rapfi (bản WebAssembly) làm "bộ não" của BOAT ở luật tự do / tiêu chuẩn / Renju.
+ * Worker chạy Rapfi (bản WebAssembly) làm "bộ não" của BOAT ở luật tự do / tiêu chuẩn / Renju, và Rapfi-CARO (Rapfi
+ * thêm luật Việt Nam – bản vá server/scripts/rapfi/caro/rapfi-caro.patch, xem SOURCE.md) ở luật Việt Nam.
  *
  * Rapfi – engine Gomoku / Renju vô địch Gomocup – Copyright (C) Rapfi developers, giấy phép GPL-3
  * (https://github.com/dhbloo/rapfi, bản sao lưu https://github.com/marseraf7/rapfi). File này cùng các file rapfi-single*.js / *.wasm trong thư mục này được phát hành
  * theo GPL-3 (xem COPYING.txt; mã nguồn và cách dựng lại: SOURCE.md). Mạng NNUE "mix9svq" và mô hình cổ điển của Rapfi
  * là CC0 (https://github.com/dhbloo/rapfi-networks, bản sao lưu https://github.com/marseraf7/rapfi-networks) – mạng ~10 MB
  * chỉ tải khi cần, rồi giữ trong Cache Storage.
+ *
+ * Luật Việt Nam không có mạng NNUE: Rapfi-CARO dùng đánh giá cổ điển với bảng học riêng (model-caro.bin, ~27 KB, đi kèm
+ * app) – không tải gì từ CDN.
  *
  * Mỗi Worker chỉ phục vụ một luật (đổi luật thì trang tạo Worker mới). Giao tiếp:
  *   vào  { type: 'init', rule }                  – tải mạng (kiểm SHA-256) + khởi động Rapfi + thử nạp mạng NNUE
@@ -22,9 +26,14 @@ const NETS = {
   free: ['mix9svqfreestyle_bsmix.bin.lz4'],
   std: ['mix9svqstandard_bs15.bin.lz4'],
   renju: ['mix9svqrenju_bs15_black.bin.lz4', 'mix9svqrenju_bs15_white.bin.lz4'],
+  vn: [],
 };
-const RULE_N = { free: 0, std: 1, renju: 4 }; // mã luật trong giao thức Piskvork của Rapfi
-const SIZE = { free: 20, std: 15, renju: 15 }; // cỡ bàn đúng với mạng đã học (boat-rapfi.js dùng cùng số)
+const RULE_N = { free: 0, std: 1, renju: 4, vn: 8 }; // mã luật trong giao thức Piskvork của Rapfi (8: caro – Rapfi-CARO)
+const SIZE = { free: 20, std: 15, renju: 15, vn: 20 }; // cỡ bàn đúng với mạng đã học (boat-rapfi.js dùng cùng số)
+// Bản dựng: Rapfi nguyên bản cho 3 luật Gomoku, Rapfi-CARO cho luật Việt Nam (tách riêng để 3 luật kia không đổi gì)
+const ENGINE = { free: 'rapfi-single-simd128', std: 'rapfi-single-simd128', renju: 'rapfi-single-simd128', vn: 'rapfi-caro-simd128' };
+// File đi kèm app (cùng thư mục) cần cho từng luật, ngoài mô hình cổ điển model210901.bin
+const LOCAL = { free: [], std: [], renju: [], vn: ['model-caro.bin'] };
 // Kích thước + SHA-256 từng file (commit NETS_COMMIT): tải đứt / sai thì không lưu, không dùng – nếu không Rapfi lặng lẽ
 // tắt mạng NNUE và chơi yếu hẳn mà không báo lỗi
 const SPEC = {
@@ -33,6 +42,7 @@ const SPEC = {
   'mix9svqrenju_bs15_black.bin.lz4': [9984172, '7ab8c974c30da07717ce6a504616a62ac8c981500503f0ced0fadefd3f46c5ec'],
   'mix9svqrenju_bs15_white.bin.lz4': [9844944, 'a31f318518d3b5630489054d9eb013fd5353c553999640c2bcfd8d95e6fe4e4e'],
   'model210901.bin': [30109, '34061bca4031a786a4b0ff52470fa9f316013c4c2239db0d70581a3c35d0a72a'],
+  'model-caro.bin': [26778, '84d8ac7996c261321577f69df4d466c3ef8628da6269cce9d51d727686651f14'],
 };
 const NET_CACHE = 'caro-rapfi-nets-v1'; // tách khỏi bộ nhớ đệm của sw.js nên không bị xoá khi app cập nhật
 // Thứ tự thử: cùng máy chủ (nếu người triển khai đặt sẵn vào rapfi/nets/), rồi jsDelivr / GitHub raw của bản sao lưu
@@ -45,6 +55,9 @@ const sources = (f) => [
 ];
 // Khoá trong Cache Storage: giữ như bản đầu (URL jsDelivr của kho gốc) để mạng đã tải không phải tải lại
 const cacheKey = (f) => `https://cdn.jsdelivr.net/gh/dhbloo/rapfi-networks@${NETS_COMMIT}/mix9svq/${f}`;
+
+/** Tên file Emscripten cần (glue JS gọi theo tên dự án rapfi-single-simd128.*) → file của bản dựng cho luật. */
+const wasmName = (rule, f) => f.replace(/^rapfi-single-simd128\./, ENGINE[rule] + '.');
 
 let mod = null, out = [];
 
@@ -109,11 +122,24 @@ async function fetchNet(file, onBytes) {
   throw new Error('net ' + file);
 }
 
-/** config.toml cho Rapfi: 1 luồng, bảng băm 16 MB (đủ nhẹ cho điện thoại), chỉ mạng của luật đang chơi. */
+/**
+ * config.toml cho Rapfi: 1 luồng, bảng băm 16 MB (đủ nhẹ cho điện thoại), chỉ mạng của luật đang chơi. Luật Việt Nam:
+ * không mạng NNUE, bảng đánh giá cổ điển học riêng cho caro (caro_binary_file).
+ */
 function config(rule) {
-  const w = rule === 'renju'
+  const model = rule === 'vn'
+    ? 'binary_file = "model210901.bin"\ncaro_binary_file = "model-caro.bin"'
+    : `binary_file = "model210901.bin"
+
+[model.evaluator]
+type = "mix9svq"
+draw_black_winrate = 0.5
+draw_ratio = 1.0
+
+[[model.evaluator.weights]]
+${rule === 'renju'
     ? `weight_file_black = "${NETS.renju[0]}"\nweight_file_white = "${NETS.renju[1]}"`
-    : `weight_file = "${NETS[rule][0]}"`;
+    : `weight_file = "${NETS[rule][0]}"`}`;
   return `[general]
 reload_config_each_move = false
 clear_hash_after_config_loaded = false
@@ -125,15 +151,7 @@ memory_reserved_mb = 0
 default_tt_size_kb = 16384
 
 [model]
-binary_file = "model210901.bin"
-
-[model.evaluator]
-type = "mix9svq"
-draw_black_winrate = 0.5
-draw_ratio = 1.0
-
-[[model.evaluator.weights]]
-${w}
+${model}
 
 [search]
 aspiration_window = true
@@ -187,32 +205,33 @@ async function init(rule) {
     const pct = Math.max(0, Math.min(99, Math.floor((got / total) * 100)));
     if (pct !== lastPct) { lastPct = pct; self.postMessage({ type: 'progress', pct }); }
   };
-  let data = await Promise.all([
-    fetch('model210901.bin').then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('model')))).then(async (b) => {
-      const u = new Uint8Array(b);
-      if (!(await intact('model210901.bin', u))) throw new Error('model');
-      return u;
-    }),
-    ...files.map((f) => fetchNet(f, onBytes)),
-  ]);
-  importScripts('rapfi-single-simd128.js');
+  // File đi kèm app (cùng thư mục): mô hình cổ điển + bảng riêng của luật (nếu có)
+  const local = ['model210901.bin', ...LOCAL[rule]];
+  const own = (f) => fetch(f).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('model')))).then(async (b) => {
+    const u = new Uint8Array(b);
+    if (!(await intact(f, u))) throw new Error('model');
+    return u;
+  });
+  let data = await Promise.all([...local.map(own), ...files.map((f) => fetchNet(f, onBytes))]);
+  importScripts(ENGINE[rule] + '.js');
   let fs = null;
   mod = await self.Rapfi({
     // expose-fs.js (lúc dựng) gọi hàm này trước main(): ghi file vào bộ nhớ ảo để Rapfi đọc khi khởi động
     onFS(FS) {
       fs = FS;
       FS.writeFile('/config.toml', config(rule));
-      FS.writeFile('/model210901.bin', data[0]);
-      files.forEach((f, i) => FS.writeFile('/' + f, data[i + 1]));
+      [...local, ...files].forEach((f, i) => FS.writeFile('/' + f, data[i]));
       data = null; // bộ nhớ ảo đã có bản sao: bỏ bản tải về
     },
+    // File .wasm cùng tên với bản dựng (Rapfi-CARO dựng từ cùng dự án nên glue JS vẫn gọi tên rapfi-single-simd128.wasm)
+    locateFile: (f, dir) => (dir || '') + wasmName(rule, f),
     onReceiveStdout(line) { out.push(line); },
     onReceiveStderr() {},
     onExit() { mod = null; },
   });
   if (!send('START ' + SIZE[rule]).includes('OK')) throw new Error('start');
   for (const c of [`INFO rule ${RULE_N[rule]}`, 'INFO timeout_match 0', 'INFO thread_num 1', 'INFO max_memory 0']) send(c);
-  // Rapfi chỉ nạp mạng NNUE khi nghĩ nước đầu: nghĩ thử một nước ngắn để chắc mạng dùng được
+  // Rapfi chỉ nạp mạng NNUE (và bảng caro) khi nghĩ nước đầu: nghĩ thử một nước ngắn để chắc nạp được
   const c = SIZE[rule] >> 1;
   const probe = think([[c, c]], 60);
   const bad = probe.lines.some((l) => /Failed to load|Evaluator .* disabled/.test(l));
@@ -221,7 +240,7 @@ async function init(rule) {
   for (const f of files) { try { fs.unlink('/' + f); } catch (e) { /* đã xoá */ } }
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, config, parseEval }; // cho Node
+if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, ENGINE, LOCAL, config, parseEval, wasmName }; // cho Node
 else self.onmessage = async (e) => {
   const d = e.data;
   if (d.type === 'init') {

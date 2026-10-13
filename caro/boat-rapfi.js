@@ -1,11 +1,11 @@
 /*
- * Cầu nối tới Rapfi (engine vô địch Gomocup, bản WebAssembly – caro/rapfi/, GPL-3) cho luật tự do / tiêu chuẩn / Renju:
- * BOAT đi nước (move) và phân tích ván chấm thế (ask – rapfi-analysis.js). Rapfi chạy trong Worker riêng
- * (rapfi/worker.js), chỉ nói chuyện qua postMessage. Luật Việt Nam, bản iOS (CARO_NO_RAPFI – điều khoản App Store xung
- * khắc với GPL), trình duyệt không có WebAssembly SIMD, thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để
- * app.js / phân tích dùng engine của game.
+ * Cầu nối tới Rapfi (engine vô địch Gomocup, bản WebAssembly – caro/rapfi/, GPL-3) cho luật tự do / tiêu chuẩn / Renju,
+ * và Rapfi-CARO (Rapfi thêm luật Việt Nam chặn hai đầu – caro/rapfi/SOURCE.md) cho luật Việt Nam: BOAT đi nước (move) và
+ * phân tích ván chấm thế (ask – rapfi-analysis.js). Rapfi chạy trong Worker riêng (rapfi/worker.js), chỉ nói chuyện qua
+ * postMessage. Bản iOS (CARO_NO_RAPFI – điều khoản App Store xung khắc với GPL), trình duyệt không có WebAssembly SIMD,
+ * thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để app.js / phân tích dùng engine của game.
  *
- * Bàn của game vô hạn, Rapfi cần bàn cố định (tự do 20×20, tiêu chuẩn / Renju 15×15 – đúng cỡ mạng NNUE đã học): mỗi
+ * Bàn của game vô hạn, Rapfi cần bàn cố định (tự do / Việt Nam 20×20, tiêu chuẩn / Renju 15×15 – đúng cỡ mạng đã học): mỗi
  * lần đặt khung bao các quân vào giữa bàn Rapfi. Rapfi coi mép bàn là tường chặn, nên khi quân cách mép < 4 ô (chuỗi năm
  * kéo ra ngoài mép, thế ba "chết" vì mép mà thật ra còn sống) thì engine của game – hiểu đúng bàn vô hạn – kiểm lại
  * chuỗi ép thắng của cả hai bên (check). Cách mép < 1 ô: không dùng Rapfi.
@@ -24,8 +24,9 @@
 (function (global) {
   'use strict';
   const C = global.Caro;
+  // Luật Việt Nam (Rapfi-CARO, bàn 20×20) đã có trong rapfi/worker.js nhưng chưa bật ở đây: đang đo sức so với engine của game
   const SIZE = { free: 20, std: 15, renju: 15 };
-  const MB = { free: 10, std: 10, renju: 20 };
+  const MB = { free: 10, std: 10, renju: 20, vn: 1 }; // luật Việt Nam: chỉ bản dựng ~1,3 MB, không mạng NNUE
   const SAFE_EDGE = 4; // cách mép ≥ 4 ô: mép bàn không ảnh hưởng chuỗi năm nào qua các quân → tin Rapfi hoàn toàn
   const FIRST_WAIT = 1500; // mạng chưa sẵn sàng: chờ ngần này (đủ cho lần nạp từ bộ nhớ đệm), quá thì nước này dùng engine
   const RETRY_MS = 60000; // tải lỗi (mạng chập chờn): sau 1 phút cho thử lại
@@ -37,7 +38,7 @@
   const failedAt = {}; // luật → thời điểm tải lỗi gần nhất
   let seq = 0;
 
-  // Mạng NNUE của Rapfi bắt buộc có WebAssembly SIMD (kiểm bằng một hàm nhỏ dùng lệnh v128 – như wasm-feature-detect)
+  // Rapfi dựng với WebAssembly SIMD – mạng NNUE bắt buộc có (kiểm bằng một hàm nhỏ dùng lệnh v128 – như wasm-feature-detect)
   let simd = null;
   function hasSimd() {
     if (simd === null) {

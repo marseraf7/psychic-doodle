@@ -9,8 +9,12 @@ Thêm luật `CARO` (giao thức Gomocup: `INFO rule 8`) đúng luật Việt Na
   (F4, không chặn nổi) chỉ khi không quân chặn nào diệt hết.
 - Bảng "ô diệt ô thắng" (`FIVEKILLCaro`) + `generateCaroFiveDefence` (`game/movegen.cpp`): chặn ô thắng của đối thủ được ở
   chính ô đó **hoặc** ô đầu bên kia; nhiều ô thắng thì lấy giao. Dùng ở bộ chọn nước, kiểm thắng nhanh, VCF phòng thủ.
-- Tìm kiếm: VCF phòng thủ thử mọi cách chặn; giới hạn 6 nước công trong VCF (cây nổ vì nhiều cách chặn); tắt các phép tỉa /
-  nhận định "chỉ một nước chặn" của Gomoku; thế đối thủ đe doạ "bốn mở" / B4+F3 thì xét mọi nước.
+- Tìm kiếm: VCF phòng thủ thử mọi cách chặn (nước chặn đồng thời tạo đe doạ của mình thử trước); giới hạn 6 nước công
+  trong VCF (cây nổ vì nhiều cách chặn); tắt các phép tỉa / nhận định "chỉ một nước chặn" của Gomoku. Gomoku cộng thêm
+  độ sâu (+1,3) cho nước chặn "năm" vì chỉ có một cách chặn – ở caro thường có 2–3 cách nên chỉ cộng khi chặn duy nhất
+  (`CARO_MULTI_DEFENCE_EXT`), không thì cây nổ: độ sâu 1 giây tăng từ 7–9 lên 14–21. Đối thủ có ô "bốn mở" (B_FLEX4):
+  chỉ xét các nước làm ô đó hết là bốn mở (`generateCaroFourDefence`, thử bằng cách đặt quân) cùng các nước tạo bốn;
+  đối thủ đe doạ B4+F3 thì xét mọi nước.
 - Đánh giá cổ điển: khe bảng thứ 5 (`CARO_SLOT`), mặc định chép bảng luật tự do; `caro_binary_file` trong `[model]`
   nạp bảng học riêng cho caro. Tuner (`tuning -r caro`) học khe này, xuất ra file có bảng caro ở khe tự do. Dữ liệu
   `.binpack` ghi luật caro = 7 (trường 3 bit). Tự đấu: `selfplay --rule caro`. MCTS không hỗ trợ caro.
@@ -28,8 +32,17 @@ RAPFI_DIR=<thư mục chạy> node server/scripts/rapfi/caro/caro-diff.js 1500 1
 Kết quả kiểm (10/2026): 245.048 lần so ô thắng ngay trên 1.500 thế ngẫu nhiên (3.438 ô thắng thật) – **0 sai khác** với
 `rules.js`; 992 thế phải chặn / có nước thắng – 0 lần bỏ lỡ thắng, 0 lần chặn sai.
 
-## Sức mạnh (chưa dùng trong app)
+## Sức mạnh
 
-Với bảng đánh giá mượn của luật tự do, Rapfi-CARO 1 giây **thua** engine của game 3 giây ở luật Việt Nam (2/7 ván; thêm
-engine kiểm chuỗi ép: 2/8): tìm kiếm nhanh nhưng "khẩu vị" thế cờ sai luật. Đang học bảng đánh giá riêng cho caro bằng
-Rapfi tự đấu + tuner; chỉ đưa vào app (BOAT / phân tích luật Việt Nam) khi thắng rõ engine của game.
+Bản đầu (độ sâu 7–9 trong 1 giây) **thua** engine của game: 2/7 ván (bảng của luật tự do), 1/16 (bảng học từ 1.000 ván
+tự đấu). Sau khi sửa độ sâu (ở trên) – Rapfi-CARO 1 giây vs engine của game 3 giây, bàn vô hạn như trong app
+(`boat-match.js vn`, `CHECK=0`): 10/16 ván (bảng học từ 1.000 ván), 16/32 (bảng học từ 2.000 ván). Đang đo thêm trước khi
+bật cho BOAT / phân tích luật Việt Nam (`caro/boat-rapfi.js` · `SIZE`).
+
+Học bảng đánh giá (`model-caro.bin` trong `caro/rapfi/`):
+
+```bash
+pbrain-rapfi selfplay --rule caro -n 250 --boardsize-min 20 --boardsize-max 20 --budget-unit nodes \
+  --budget-distribution fixed --budget-value 20000 --seed <hạt giống> -o <thư mục dữ liệu>/<tên>.binpack.lz4
+pbrain-rapfi tuning -d <thư mục dữ liệu> -r caro -o <thư mục ra> -n c -e 3000 -i 1000   # → c-e03000.bin
+```

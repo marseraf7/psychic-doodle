@@ -2,14 +2,17 @@
 
 Thư mục này chứa **Rapfi** (https://github.com/dhbloo/rapfi; bản sao lưu: https://github.com/marseraf7/rapfi) – engine Gomoku / Renju vô địch Gomocup, © Rapfi developers
 (xem `AUTHORS.txt`) – dựng thành WebAssembly để nhân vật trùm cuối **BOAT** chơi luật tự do, tiêu chuẩn và Renju ngay
-trong trình duyệt / ứng dụng. Luật Việt Nam và mọi phần khác của game dùng engine riêng của Cờ Caro (không chứa mã Rapfi).
+trong trình duyệt / ứng dụng. **Rapfi-CARO** (`rapfi-caro-simd128.*`) là Rapfi cộng bản vá thêm luật Việt Nam (chặn hai đầu)
+do Cờ Caro viết – dùng cho luật Việt Nam. Mọi phần khác của game dùng engine riêng của Cờ Caro (không chứa mã Rapfi).
 
 ## Giấy phép
 
 | File | Giấy phép |
 |---|---|
 | `rapfi-single-simd128.js`, `rapfi-single-simd128.wasm` (dựng từ mã Rapfi) | GPL-3 (`COPYING.txt`) |
+| `rapfi-caro-simd128.js`, `rapfi-caro-simd128.wasm` (Rapfi-CARO – mã Rapfi + bản vá luật Việt Nam) | GPL-3 (`COPYING.txt`) |
 | `worker.js` (cầu nối Worker ↔ Rapfi), `build/build.sh`, `build/expose-fs.js` | GPL-3 (`COPYING.txt`) |
+| `model-caro.bin` (bảng đánh giá cổ điển cho luật Việt Nam, Cờ Caro học bằng tuner của Rapfi từ ván Rapfi-CARO tự đấu) | CC0 1.0 |
 | `model210901.bin` (mô hình cổ điển) và các mạng NNUE `mix9svq*.bin.lz4` tải khi cần | CC0 1.0 (https://github.com/dhbloo/rapfi-networks; bản sao lưu: https://github.com/marseraf7/rapfi-networks) |
 
 Phần còn lại của game chỉ trao đổi với Rapfi qua thông điệp Worker (`boat-rapfi.js` ↔ `worker.js`).
@@ -23,22 +26,30 @@ Phần còn lại của game chỉ trao đổi với Rapfi qua thông điệp Wo
 - `build/expose-fs.js` – phần duy nhất thêm vào khi dựng (`--pre-js`): gọi `Module.onFS(FS)` trước `main()` để
   `worker.js` ghi `config.toml` và mạng vào bộ nhớ ảo.
 - `build/build.sh` – lệnh dựng (Emscripten 6.0.12, cmake; 1 luồng, WebAssembly SIMD, không gói sẵn mạng).
+- Rapfi-CARO: cùng gói nguồn trên + bản vá `server/scripts/rapfi/caro/rapfi-caro.patch` (GPL-3; mô tả, cách kiểm đúng luật
+  và đo sức: `server/scripts/rapfi/caro/README.md`). `build.sh` áp bản vá vào một bản sao rồi dựng `rapfi-caro-simd128.*`.
 
 Dựng lại (mặc định dùng chính gói nguồn kèm theo, không cần mạng):
 
 ```bash
 # cần emsdk: git clone https://github.com/emscripten-core/emsdk && cd emsdk && ./emsdk install 6.0.12 && ./emsdk activate 6.0.12 && source emsdk_env.sh
-bash caro/rapfi/build/build.sh                 # ghi đè caro/rapfi/rapfi-single-simd128.{js,wasm}, in SHA-256
+bash caro/rapfi/build/build.sh                 # ghi đè caro/rapfi/rapfi-{single,caro}-simd128.{js,wasm}, in SHA-256
+RAPFI_ONLY=caro bash caro/rapfi/build/build.sh # chỉ dựng Rapfi-CARO (RAPFI_ONLY=single: chỉ bản nguyên bản)
 RAPFI_CLONE=1 bash caro/rapfi/build/build.sh   # hoặc: clone đúng commit từ fork marseraf7/rapfi (lỗi thì kho gốc)
 ```
 
 Đã kiểm (10/2026, Emscripten 6.0.12): dựng từ gói nguồn và từ fork đều ra **trùng từng byte** với bản trong app –
 `rapfi-single-simd128.wasm` SHA-256 `92d29800714f4ba68105e4229850b5c6d7062fb6ab39c42e5457cb1416288b07`,
-`rapfi-single-simd128.js` `dfa7b76abf414c5a6c02cb2ee80174d4e45267fcafab4715c09252500d21b013`.
+`rapfi-single-simd128.js` `dfa7b76abf414c5a6c02cb2ee80174d4e45267fcafab4715c09252500d21b013`. Rapfi-CARO:
+`rapfi-caro-simd128.wasm` `ec57f7b7498b5e7bceb52ad825b2f92399026e14aba9badea4bd77ae87c36d0f`,
+`rapfi-caro-simd128.js` `44023d8aeac6cfbcd808e05690ff0bd71a45a5dfb5ac566f00a631d300d268ff`.
 
 Mạng NNUE của Rapfi bắt buộc có SIMD nên không có bản vô hướng: trình duyệt không hỗ trợ WebAssembly SIMD thì BOAT dùng
 engine của game. **Bản iOS không kèm Rapfi** (điều khoản App Store xung khắc với GPL): hook `capacitor:copy:after`
 (`app/scripts/strip-rapfi-ios.js`) xoá thư mục này khỏi bản chép vào `ios/` và bật `CARO_NO_RAPFI`.
+
+Luật Việt Nam không dùng mạng NNUE: Rapfi-CARO đánh giá bằng mô hình cổ điển (`model210901.bin` + `model-caro.bin`, đi
+kèm app, kiểm kích thước + SHA-256 như mạng), không tải gì thêm.
 
 ## Mạng NNUE (tải khi cần)
 

@@ -1,7 +1,7 @@
 /*
  * Chạy đúng bản Rapfi WebAssembly của app (caro/rapfi/, GPL-3) trong Node, cùng giao diện với driver.js – để đo sức BOAT
  * như người chơi gặp trong trình duyệt. Cần các file mạng (CC0) trong RAPFI_NETS (mặc định server/scripts/rapfi/run,
- * cùng chỗ với bản dựng gốc – xem README.md). Dùng: RAPFI=wasm node server/scripts/rapfi/match.js …
+ * cùng chỗ với bản dựng gốc – xem README.md; luật Việt Nam không cần mạng). Dùng: RAPFI=wasm node server/scripts/rapfi/match.js …
  */
 'use strict';
 const fs = require('fs');
@@ -9,18 +9,18 @@ const path = require('path');
 const RDIR = path.join(__dirname, '../../../caro/rapfi');
 const NETS_DIR = process.env.RAPFI_NETS || process.env.RAPFI_DIR || path.join(__dirname, 'run');
 const W = require(path.join(RDIR, 'worker.js'));
-const RULE = { 0: 'free', 1: 'std', 4: 'renju' };
+const RULE = { 0: 'free', 1: 'std', 4: 'renju', 8: 'vn' };
 
 class Rapfi {
   constructor(size, ruleN, ms) { this.size = size; this.rule = RULE[ruleN]; this.ruleN = ruleN; this.ms = ms; this.restarts = 0; }
   async init() {
-    const factory = require(path.join(RDIR, 'rapfi-single-simd128.js'));
+    const factory = require(path.join(RDIR, W.ENGINE[this.rule] + '.js'));
     this.out = [];
     this.mod = await factory({
-      locateFile: (f) => path.join(RDIR, f),
+      locateFile: (f) => path.join(RDIR, W.wasmName(this.rule, f)),
       onFS: (FS) => {
         FS.writeFile('/config.toml', W.config(this.rule));
-        FS.writeFile('/model210901.bin', fs.readFileSync(path.join(RDIR, 'model210901.bin')));
+        for (const f of ['model210901.bin', ...W.LOCAL[this.rule]]) FS.writeFile('/' + f, fs.readFileSync(path.join(RDIR, f)));
         for (const f of W.NETS[this.rule]) FS.writeFile('/' + f, fs.readFileSync(path.join(NETS_DIR, f)));
       },
       onReceiveStdout: (l) => this.out.push(l),
