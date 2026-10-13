@@ -36,8 +36,9 @@ Kết quả kiểm (10/2026): 245.048 lần so ô thắng ngay trên 1.500 thế
 
 Bản đầu (độ sâu 7–9 trong 1 giây) **thua** engine của game: 2/7 ván (bảng của luật tự do), 1/16 (bảng học từ 1.000 ván
 tự đấu). Sau khi sửa độ sâu (ở trên) – Rapfi-CARO 1 giây vs engine của game 3 giây, bàn vô hạn như trong app
-(`boat-match.js vn`, `CHECK=0`): 10/16 ván (bảng học từ 1.000 ván), 16/32 (bảng học từ 2.000 ván). Đang đo thêm trước khi
-bật cho BOAT / phân tích luật Việt Nam (`caro/boat-rapfi.js` · `SIZE`).
+(`boat-match.js vn`, `CHECK=0`): bảng học từ 1.000 ván tự đấu **34/48 (71%)**; bảng mượn của luật tự do 17/32 (53%);
+bảng học từ 2.000 ván 16/32 (50%) – app dùng bảng đầu (`model-caro.bin`). Đang đo thêm trước khi bật cho BOAT / phân
+tích luật Việt Nam (`caro/boat-rapfi.js` · `SIZE`).
 
 Học bảng đánh giá (`model-caro.bin` trong `caro/rapfi/`):
 
