@@ -27,7 +27,12 @@ if (!isMainThread) {
   parentPort.on('message', async ({ id, moves, rule, ms }) => {
     if (RAPFI_DIR && rule === 'vn') {
       // Rapfi-CARO: đặt thế vào giữa bàn 20×20 (khai cuộc nhỏ, luôn vừa); điểm ±20000 = thắng / thua chắc
-      if (!rapfi) { const { Rapfi } = require('./rapfi/driver.js'); rapfi = new Rapfi(20, 8, ms); await rapfi.init(); }
+      if (!rapfi) {
+        process.env.RAPFI_DIR = RAPFI_DIR; // driver.js đọc thư mục chạy từ biến này
+        const { Rapfi } = require('./rapfi/driver.js');
+        rapfi = new Rapfi(20, 8, ms);
+        await rapfi.init();
+      }
       rapfi.ms = ms; rapfi.send('INFO timeout_turn ' + ms);
       let x0 = Infinity, y0 = Infinity;
       for (const [x, y] of moves) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); }
