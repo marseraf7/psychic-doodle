@@ -131,8 +131,9 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
     'Rapfi-CARO biết luật Việt Nam: ba mở → thắng — ' + JSON.stringify(vn));
 
   // ---------------------------------------------------------------- Phân tích ván bằng Rapfi (luật tự do)
-  // X xếp năm hàng 0; O bỏ mặc thế ba / bốn của X (nước 6, 8 là sai lầm)
-  const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0], [6, 6], [4, 0]];
+  // O chặn ba mở của X (nước 6) rồi bỏ mặc thế bốn (nước 8 – sai lầm), X thắng ở nước 9. (Ván cũ để O bỏ mặc ba mở từ
+  // đầu: Rapfi nghĩ đủ lâu thấy O thua chắc từ trước – vd. −M40 – nên kết quả đổi theo thời gian nghĩ)
+  const GAME = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [3, 0], [-1, 0], [2, 1], [-2, 0]];
   await p.evaluate((g) => window.CaroApp.startPreset({ rule: 'free', mode: 'pvp', moves: g }), GAME);
   await sleep(300);
   await p.evaluate(() => document.getElementById('btn-analyze').click()); // nút "Phân tích" trên thanh công cụ
@@ -140,14 +141,15 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   await p.waitForFunction(() => !document.getElementById('an-refine'), null, { timeout: 90000 });
   const an = await p.evaluate(() => ({ eng: (document.querySelector('.an-eng') || {}).textContent || '', titles: [...document.querySelectorAll('.an-mv:not(.empty)')].map((e) => e.getAttribute('title')) }));
   ok(/Rapfi/.test(an.eng), 'phân tích: lượt kỹ do Rapfi chấm — ' + an.eng);
-  const marked = an.titles.length === GAME.length && /Sai lầm|Bỏ lỡ/.test(an.titles[5] + an.titles[7]);
+  const oMoves = an.titles.filter((t, i) => i % 2 === 1);
+  const marked = an.titles.length === GAME.length && oMoves.some((t) => /Sai lầm|Bỏ lỡ/.test(t));
   // Hỏng thì in điểm Rapfi của các thế quanh nước 6 để tìm nguyên nhân
   const dbg = marked ? '' : ' · Rapfi: ' + JSON.stringify(await p.evaluate(async (g) => {
     const out = [];
-    for (const i of [5, 6]) out.push(await window.CaroRapfi.ask('free', g.slice(0, i), 500));
+    for (const i of [7, 8]) out.push(await window.CaroRapfi.ask('free', g.slice(0, i), 500));
     return out;
   }, GAME));
-  ok(marked, 'Rapfi đánh dấu nước bỏ mặc thế bốn của O — ' + an.titles[5] + ' / ' + an.titles[7] + dbg);
+  ok(marked, 'Rapfi đánh dấu nước sai của O — ' + oMoves.join(' / ') + dbg);
   await shot(p, 'boat-rapfi-analysis.png');
   await p.evaluate(() => window.CaroApp.toBoard && window.CaroApp.toBoard());
 
