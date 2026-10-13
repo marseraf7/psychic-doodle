@@ -27,6 +27,10 @@ jobs:
   # mạng hỏng, trang giấy phép (caro/tests/e2e/boat-rapfi.e2e.js). Mạng NNUE (CC0, ~40 MB) tải 1 lần rồi giữ trong cache.
   rapfi-e2e:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit] # webkit ≈ Safari
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -37,7 +41,7 @@ jobs:
       - name: Cài Playwright
         run: |
           npm install --no-save playwright@1.56.1
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps ${{ matrix.browser }}
       - name: Bộ nhớ đệm mạng Rapfi
         uses: actions/cache@v4
         with:
@@ -52,9 +56,9 @@ jobs:
           done
           sha256sum *.lz4
       - name: Kiểm thử trình duyệt BOAT – Rapfi
-        run: RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js
+        run: E2E_BROWSER=${{ matrix.browser }} RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: boat-rapfi-e2e-screenshots
+          name: boat-rapfi-e2e-${{ matrix.browser }}
           path: ${{ runner.temp }}/shots

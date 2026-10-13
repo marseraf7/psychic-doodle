@@ -47,6 +47,21 @@ RAPFI=wasm node server/scripts/rapfi/match.js free 8 3000 1000 0 1 '{"vctDepth":
 Kết quả (16 ván mỗi luật): Rapfi-WASM 1 giây / nước thắng engine của game 3 giây / nước 94% tự do, 81% tiêu chuẩn,
 81% Renju. Tốc độ WASM 1 luồng ~50–140 nghìn nút / giây.
 
+## Đo BOAT đúng như trong app
+
+`boat-match.js`: bàn vô hạn, mỗi nước đặt thế vào giữa bàn Rapfi, cách mép < 4 ô thì engine của game kiểm chuỗi ép (như
+`caro/boat-rapfi.js`), không vừa bàn thì engine đi. `MOVES=1` in cả nước đi, `TRACE=1` in tiến độ từng nước.
+
+```bash
+RAPFI_NETS=server/scripts/rapfi/run node server/scripts/rapfi/boat-match.js std 12 2500 3000 > std.out
+```
+
+| Luật | Rapfi 2,5 giây | Rapfi 0,6 giây (≈ điện thoại) |
+|---|---|---|
+| Tự do | 88% | 83% |
+| Tiêu chuẩn | 75% | 75% |
+| Renju | 75% | 79% |
+
 ## Lưu ý
 
 - Cho Rapfi ít nhất **40 ms / nước**: thấp hơn (10–30 ms) nó không kịp tìm và trả nước vô nghĩa (đánh tuần tự từ góc bàn).

@@ -169,9 +169,19 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - Bàn vô hạn → bàn Rapfi (tự do 20×20, tiêu chuẩn / Renju 15×15): mỗi nước đặt khung bao các quân vào giữa, chừa ≥ 1 ô
     mỗi bên. Không vừa bàn, luật Việt Nam, trình duyệt không có WebAssembly SIMD, tải mạng lỗi / quá 6 giây, Rapfi treo
     hay trả nước sai → nước đó dùng engine của game (BOAT luật Việt Nam vẫn là engine của game).
-  - Đo (16 ván mỗi luật, khai cuộc cân bằng, bản WASM chạy trong Node như trong trình duyệt – `RAPFI=wasm
-    server/scripts/rapfi/match.js`): Rapfi-WASM nghĩ **1 giây** thắng engine của game nghĩ 3 giây **94%** tự do, **81%**
-    tiêu chuẩn, **81%** Renju – trong app Rapfi còn được 2,5 giây.
+  - Đo đúng như trong app (`server/scripts/rapfi/boat-match.js`: bàn vô hạn, đặt thế vào bàn Rapfi, engine kiểm khi
+    sát mép; 24 ván mỗi ô, khai cuộc cân bằng, đối thủ là engine của game nghĩ 3 giây):
+
+    | Luật | Rapfi 2,5 giây (máy tính) | Rapfi 0,6 giây (≈ điện thoại chậm hơn ~4 lần) |
+    |---|---|---|
+    | Tự do | **88%** | **83%** |
+    | Tiêu chuẩn | **75%** | **75%** |
+    | Renju | **75%** | **79%** |
+
+    Trên bàn cố định 15×15 / 20×20 (không phải đặt thế vào khung) Rapfi 1 giây được 94 / 81 / 81%: phần chênh là do thế
+    rộng hơn bàn Rapfi phải nhường engine của game, và mép bàn.
+  - Phân tích ván: lượt kỹ ở 3 luật này do Rapfi chấm (`rapfi-analysis.js`); thế sát mép bàn Rapfi có engine của game
+    kiểm chuỗi ép cùng lúc.
   - Giấy phép: trang `licenses.html` (Xem thêm / Cài đặt → *Giấy phép mã nguồn mở*, 4 ngôn ngữ) ghi công Rapfi, toàn văn
     GPL-3 (`rapfi/COPYING.txt`), mã nguồn đúng commit đang dùng (`rapfi/build/rapfi-src-3c94c2a.tar.gz`), cách dựng lại
     (`rapfi/build/build.sh`, `rapfi/SOURCE.md`). CSP máy chủ thêm `'wasm-unsafe-eval'` và 2 CDN của mạng.
