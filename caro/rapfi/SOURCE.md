@@ -26,7 +26,7 @@ Phần còn lại của game chỉ trao đổi với Rapfi qua thông điệp Wo
 - `build/expose-fs.js` – phần duy nhất thêm vào khi dựng (`--pre-js`): gọi `Module.onFS(FS)` trước `main()` để
   `worker.js` ghi `config.toml` và mạng vào bộ nhớ ảo.
 - `build/build.sh` – lệnh dựng (Emscripten 6.0.12, cmake; 1 luồng, WebAssembly SIMD, không gói sẵn mạng).
-- Rapfi-CARO: cùng gói nguồn trên + bản vá `server/scripts/rapfi/caro/rapfi-caro.patch` (GPL-3; mô tả, cách kiểm đúng luật
+- Rapfi-CARO: cùng gói nguồn trên + bản vá `build/rapfi-caro.patch` (GPL-3; mô tả, cách kiểm đúng luật
   và đo sức: `server/scripts/rapfi/caro/README.md`). `build.sh` áp bản vá vào một bản sao rồi dựng `rapfi-caro-simd128.*`.
 
 Dựng lại (mặc định dùng chính gói nguồn kèm theo, không cần mạng):

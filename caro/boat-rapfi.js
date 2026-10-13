@@ -24,8 +24,7 @@
 (function (global) {
   'use strict';
   const C = global.Caro;
-  // Luật Việt Nam (Rapfi-CARO, bàn 20×20) đã có trong rapfi/worker.js nhưng chưa bật ở đây: đang đo sức so với engine của game
-  const SIZE = { free: 20, std: 15, renju: 15 };
+  const SIZE = { free: 20, std: 15, renju: 15, vn: 20 };
   const MB = { free: 10, std: 10, renju: 20, vn: 1 }; // luật Việt Nam: chỉ bản dựng ~1,3 MB, không mạng NNUE
   const SAFE_EDGE = 4; // cách mép ≥ 4 ô: mép bàn không ảnh hưởng chuỗi năm nào qua các quân → tin Rapfi hoàn toàn
   const FIRST_WAIT = 1500; // mạng chưa sẵn sàng: chờ ngần này (đủ cho lần nạp từ bộ nhớ đệm), quá thì nước này dùng engine

@@ -14,6 +14,9 @@ const LONG = Array.from({ length: 36 }, (_, i) => [(i % 6) * 3, Math.floor(i / 6
   const { browser, ok, shot, sleep, finish } = await setup(8098);
   const errors = [];
   const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
+  // Kiểm luồng phân tích bằng engine của game (iOS / máy không có WebAssembly SIMD); phân tích bằng Rapfi /
+  // Rapfi-CARO kiểm ở boat-rapfi.e2e.js
+  await ctx.addInitScript(() => { window.CARO_NO_RAPFI = true; });
   await ctx.addInitScript(() => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errors.push(e.message + ' ' + (e.stack || '').split('\n')[1]));

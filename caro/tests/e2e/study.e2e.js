@@ -76,6 +76,9 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
   {
     // Ghi ván đã chơi xong trước khi trang chạy (tải lại trang thì trang tự lưu đè ván đang mở)
     const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
+    // Kiểm luồng phân tích bằng engine của game (iOS / máy không có WebAssembly SIMD); phân tích bằng Rapfi /
+    // Rapfi-CARO kiểm ở boat-rapfi.e2e.js
+    await ctx.addInitScript(() => { window.CARO_NO_RAPFI = true; });
     await ctx.addInitScript((g) => {
       localStorage.setItem('caro.lang', 'vi');
       localStorage.setItem('caro.v1', JSON.stringify({ mode: 'pvp', human: 1, bot: 'mai', moves: g }));
@@ -101,7 +104,8 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(acc[0] >= 80 && acc[1] < acc[0], `độ chính xác (theo mức tụt khả năng thắng, như Lichess) X ${acc[0]}%, O ${acc[1]}%`);
     await p.click('.an-mv[data-i="6"]');
     await sleep(200);
-    ok(/Sai lầm nặng/.test(await p.textContent('#an-now')), 'xem nước 6: có nhận xét');
+    const now6 = await p.textContent('#an-now');
+    ok(/Sai lầm nặng/.test(now6), 'xem nước 6: có nhận xét — ' + now6);
     ok((await p.evaluate(() => window.CaroApp.board.moves.length)) === 6, 'nhảy tới nước 6');
     // Bố cục như Lichess: bảng phân tích không che bàn cờ (bàn cờ thu nhỏ nhường chỗ)
     const geo = await p.evaluate(() => { const b = document.getElementById('board').getBoundingClientRect(), a = document.getElementById('an-panel').getBoundingClientRect(); return { overlap: !(a.top >= b.bottom - 1 || a.left >= b.right - 1), cur: !!document.querySelector('.an-mv.cur[data-i="6"]'), graph: !!document.querySelector('.an-graph'), name: document.querySelector('.an-mv[data-i="6"]').textContent.trim() }; });

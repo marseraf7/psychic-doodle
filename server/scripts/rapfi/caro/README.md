@@ -1,6 +1,6 @@
 # Rapfi-CARO: thêm luật Việt Nam (chặn hai đầu) vào Rapfi
 
-`rapfi-caro.patch` – bản vá trên Rapfi commit `3c94c2a` (GPL-3, như Rapfi; mã gốc: `caro/rapfi/build/rapfi-src-3c94c2a.tar.gz`).
+`caro/rapfi/build/rapfi-caro.patch` (đi kèm app cùng gói nguồn Rapfi) – bản vá trên Rapfi commit `3c94c2a` (GPL-3, như Rapfi; mã gốc: `caro/rapfi/build/rapfi-src-3c94c2a.tar.gz`).
 Thêm luật `CARO` (giao thức Gomocup: `INFO rule 8`) đúng luật Việt Nam của game (`caro/rules.js`, luật `vn`):
 
 - **Thắng**: ≥ 5 quân liền có ít nhất một đầu trống, hoặc 4 quân liền trống **cả hai** đầu. Năm quân bị chặn hai đầu: không thắng.
@@ -23,7 +23,7 @@ Thêm luật `CARO` (giao thức Gomocup: `INFO rule 8`) đúng luật Việt Na
 
 ```bash
 mkdir rapfi-src && tar xzf caro/rapfi/build/rapfi-src-3c94c2a.tar.gz -C rapfi-src --strip-components=1
-cd rapfi-src && patch -p1 < ../server/scripts/rapfi/caro/rapfi-caro.patch
+cd rapfi-src && patch -p1 < ../caro/rapfi/build/rapfi-caro.patch
 cd Rapfi && cmake --preset x64-clang-AVX2 && cmake --build build/x64-clang-AVX2 -j4
 # thư mục chạy: pbrain-rapfi + config.toml (chỉ mô hình cổ điển model210901.bin, không mạng NNUE)
 RAPFI_DIR=<thư mục chạy> node server/scripts/rapfi/caro/caro-diff.js 1500 11
@@ -37,8 +37,10 @@ Kết quả kiểm (10/2026): 245.048 lần so ô thắng ngay trên 1.500 thế
 Bản đầu (độ sâu 7–9 trong 1 giây) **thua** engine của game: 2/7 ván (bảng của luật tự do), 1/16 (bảng học từ 1.000 ván
 tự đấu). Sau khi sửa độ sâu (ở trên) – Rapfi-CARO 1 giây vs engine của game 3 giây, bàn vô hạn như trong app
 (`boat-match.js vn`, `CHECK=0`): bảng học từ 1.000 ván tự đấu **34/48 (71%)**; bảng mượn của luật tự do 17/32 (53%);
-bảng học từ 2.000 ván 16/32 (50%) – app dùng bảng đầu (`model-caro.bin`). Đang đo thêm trước khi bật cho BOAT / phân
-tích luật Việt Nam (`caro/boat-rapfi.js` · `SIZE`).
+bảng học từ 2.000 ván 16/32 (50%) – app dùng bảng đầu (`caro/rapfi/model-caro.bin`). Thêm engine của game kiểm mọi nước
+(`CHECK=1`): 23/32 (72%) – không hơn, nên app chỉ kiểm khi sát mép như 3 luật kia. Bản WebAssembly của app
+(`RAPFI=wasm`) 0,6 giây – ≈ BOAT 2,5 giây trên điện thoại – vs engine 3 giây: 18/32 (56%). **Đã dùng cho BOAT và phân
+tích luật Việt Nam.**
 
 Học bảng đánh giá (`model-caro.bin` trong `caro/rapfi/`):
 

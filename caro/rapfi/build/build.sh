@@ -2,7 +2,7 @@
 # Dựng Rapfi (GPL-3, https://github.com/dhbloo/rapfi – bản sao lưu https://github.com/marseraf7/rapfi) thành WebAssembly
 # cho BOAT – tái tạo đúng các file trong caro/rapfi/:
 #   rapfi-single-simd128.{js,wasm}  Rapfi nguyên bản (luật tự do / tiêu chuẩn / Renju)
-#   rapfi-caro-simd128.{js,wasm}    Rapfi-CARO: cùng mã + bản vá server/scripts/rapfi/caro/rapfi-caro.patch (luật Việt Nam)
+#   rapfi-caro-simd128.{js,wasm}    Rapfi-CARO: cùng mã + bản vá rapfi-caro.patch cùng thư mục (luật Việt Nam)
 #   bash caro/rapfi/build/build.sh [thư mục ra, mặc định caro/rapfi]
 # Cần emsdk đã kích hoạt (emcmake / emcc trong PATH; bản đã dùng: 6.0.12) và cmake.
 # Nguồn (theo thứ tự ưu tiên):
@@ -58,7 +58,7 @@ fi
 if [ "${RAPFI_ONLY:-}" != "single" ]; then
   # Rapfi-CARO: thêm luật Việt Nam (chặn hai đầu) – bản vá GPL-3 kèm trong repo
   mkdir -p "$WORK/caro/Networks" && : > "$WORK/caro/Networks/wasm_preloads.txt" && cp -r "$WORK/Rapfi" "$WORK/caro/Rapfi"
-  (cd "$WORK/caro" && patch -s -p1 < "$ROOT/server/scripts/rapfi/caro/rapfi-caro.patch")
+  (cd "$WORK/caro" && patch -s -p1 < "$HERE/rapfi-caro.patch")
   build caro/Rapfi rapfi-caro-simd128 -DUSE_WASM_SIMD=ON
 fi
 ls -la "$OUT"/rapfi-*-simd128.*

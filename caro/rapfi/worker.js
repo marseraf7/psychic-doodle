@@ -1,6 +1,6 @@
 /*
  * Worker chạy Rapfi (bản WebAssembly) làm "bộ não" của BOAT ở luật tự do / tiêu chuẩn / Renju, và Rapfi-CARO (Rapfi
- * thêm luật Việt Nam – bản vá server/scripts/rapfi/caro/rapfi-caro.patch, xem SOURCE.md) ở luật Việt Nam.
+ * thêm luật Việt Nam – bản vá build/rapfi-caro.patch, xem SOURCE.md) ở luật Việt Nam.
  *
  * Rapfi – engine Gomoku / Renju vô địch Gomocup – Copyright (C) Rapfi developers, giấy phép GPL-3
  * (https://github.com/dhbloo/rapfi, bản sao lưu https://github.com/marseraf7/rapfi). File này cùng các file rapfi-single*.js / *.wasm trong thư mục này được phát hành

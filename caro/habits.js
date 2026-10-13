@@ -57,7 +57,7 @@
     { id: 'beat_minh', icon: 'medal2', ok: () => beatTier(5) },
     { id: 'beat_rong', icon: 'fire', ok: () => beatTier(6) },
     { id: 'beat_boat', icon: 'trophy', ok: () => beatTier(7) },
-    // Thắng BOAT trong ván Rapfi cầm quân (luật tự do / tiêu chuẩn / Renju – boat-rapfi.js) – khó nhất
+    // Thắng BOAT trong ván Rapfi cầm quân (boat-rapfi.js; luật Việt Nam: Rapfi-CARO) – khó nhất
     { id: 'beat_boat_rapfi', icon: 'trophy', ok: () => !!H.boatRapfi },
     { id: 'learn_all', icon: 'book', ok: () => window.CaroLearn && window.CaroLearn.doneCount() >= window.CaroLearn.LESSONS.length },
     { id: 'puzzles_10', icon: 'puzzle', ok: () => (pz().ok || 0) >= 10 },

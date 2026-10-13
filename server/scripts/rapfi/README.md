@@ -7,7 +7,8 @@ GPL-3, trọng số mạng CC0 ([rapfi-networks](https://github.com/dhbloo/rapfi
 - `match.js` – đấu engine của game với Rapfi trên bộ khai cuộc cân bằng (`../openings.json`);
 - `selfplay.js` – cho Rapfi tự đấu sinh ván (kèm điểm Rapfi từng thế) để `train-policy.js` / `tune-eval.js` học.
 
-Rapfi hỗ trợ luật tự do, tiêu chuẩn, Renju – **không** có luật Việt Nam (bị chặn hai đầu).
+Rapfi gốc hỗ trợ luật tự do, tiêu chuẩn, Renju – **không** có luật Việt Nam (bị chặn hai đầu); Cờ Caro thêm luật này
+bằng bản vá Rapfi-CARO – xem `caro/README.md` (thư mục `caro/` ở đây).
 
 ## Dựng Rapfi (Linux, CPU có AVX2)
 

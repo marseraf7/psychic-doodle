@@ -34,13 +34,13 @@
   const styleTag = (st) => `<span class="style-tag st-${st}"><svg class="ico i-in" aria-hidden="true"><use href="#i-${STYLE_ICON[st]}"/></svg>${esc(T('style_' + st))}</span>`;
 
   /**
-   * Nhãn sức cờ. BOAT chạy Rapfi (engine vô địch Gomocup) ở luật tự do / tiêu chuẩn / Renju thì mạnh hơn hẳn ~2700 –
-   * không gán một con số Elo bịa ra: ghi "Rapfi" (đủ chỗ thì ghi rõ ~2700 là ở luật Việt Nam).
+   * Nhãn sức cờ. BOAT chạy Rapfi (engine vô địch Gomocup; luật Việt Nam: Rapfi-CARO) thì mạnh hơn hẳn ~2700 – không gán
+   * một con số Elo bịa ra: ghi "Rapfi" (đủ chỗ thì ghi rõ Rapfi-CARO ở luật Việt Nam).
    */
   function eloText(b, long) {
     const R = window.CaroRapfi;
     if (!(b.rapfi && R && R.available('free'))) return long ? `~${b.elo} Elo` : '~' + b.elo;
-    return long ? T('boat_elo_rapfi', { elo: b.elo }) : 'Rapfi';
+    return long ? T('boat_elo_rapfi') : 'Rapfi';
   }
 
   /** Khung giới thiệu nhân vật id. */

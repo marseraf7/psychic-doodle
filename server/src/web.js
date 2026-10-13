@@ -80,6 +80,7 @@ const MIME = {
   '.wasm': 'application/wasm',
   '.gz': 'application/gzip',
   '.sh': 'text/plain; charset=utf-8',
+  '.patch': 'text/plain; charset=utf-8',
 };
 
 const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

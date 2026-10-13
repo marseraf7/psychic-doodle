@@ -47,12 +47,27 @@
     const r = f ? await Rp.ask(rule, moves, ms) : null;
     const e = chk ? await chk : null;
     if (!r) return e ? { ...e, q: ms, src: 'rapfi' } : null; // không vừa bàn: kết quả engine
-    let out = convert(r.ev, r.move, ms, rule);
+    // Rapfi đi ngay không tìm kiếm (không in điểm) khi có nước thắng ngay – hoặc thế chỉ còn một nước: tự chấm
+    let ev = r.ev;
+    if (!ev && winsNow(rule, moves, r.move)) ev = { cp: 20000, mate: 1 };
+    if (!ev) {
+      const e2 = e || (await Rp.check(rule, moves, Math.min(ms, 400)));
+      return e2 ? { ...e2, q: ms, src: 'rapfi' } : convert(null, r.move, ms, rule);
+    }
+    let out = convert(ev, r.move, ms, rule);
     if (e) {
       if (e.mate && (!out.mate || Math.sign(e.mate) !== Math.sign(out.mate))) out = { ...e, q: ms, src: 'rapfi' };
       else if (out.mate && !e.mate) out = { ...out, mate: null, score: Math.sign(out.score) * 1500 }; // chưa chắc vì mép bàn
     }
     return out;
+  }
+
+  /** Bên đi đặt quân ở `move` là thắng ngay. */
+  function winsNow(rule, moves, move) {
+    const b = new C.Board(rule);
+    moves.forEach(([x, y], i) => b.play(x, y, i % 2 ? C.O : C.X));
+    const p = moves.length % 2 ? C.O : C.X;
+    return b.get(move[0], move[1]) === C.EMPTY && C.winsIfPlaced(b, move[0], move[1], p);
   }
 
   /** Ván kết thúc ở nước nào (thế sau đó không cần chấm). */

@@ -1,6 +1,6 @@
 /*
- * Kiểm thử trình duyệt: BOAT chạy Rapfi (WebAssembly, GPL-3) ở luật tự do / tiêu chuẩn / Renju, luật Việt Nam dùng
- * engine của game, nước đầu không phải chờ tải mạng, thế sát mép bàn Rapfi được engine kiểm lại, mạng tải hỏng bị loại
+ * Kiểm thử trình duyệt: BOAT chạy Rapfi (WebAssembly, GPL-3) ở luật tự do / tiêu chuẩn / Renju, Rapfi-CARO ở luật
+ * Việt Nam (không tải mạng, thấy thế ba mở hai đầu là thắng), nước đầu không phải chờ tải mạng, thế sát mép bàn Rapfi được engine kiểm lại, mạng tải hỏng bị loại
  * (không lưu, không dùng), mạng lấy lại từ Cache Storage, phân tích ván bằng Rapfi, nhãn Elo / huy hiệu BOAT–Rapfi,
  * CSP của máy chủ cho phép WebAssembly, trang giấy phép.
  *   RAPFI_NETS=<thư mục có mix9svq*.bin.lz4> node caro/tests/e2e/boat-rapfi.e2e.js
@@ -75,8 +75,8 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
     await p.mouse.click(sx, sy);
   }
 
-  ok(await p.evaluate(() => window.CaroBots.get('boat').rapfi.ms > 0 && window.CaroRapfi.handles('boat', 'free') && !window.CaroRapfi.handles('boat', 'vn') && !window.CaroRapfi.handles('rong', 'free')),
-    'BOAT dùng Rapfi ở luật tự do; luật Việt Nam và các bot khác thì không');
+  ok(await p.evaluate(() => window.CaroBots.get('boat').rapfi.ms > 0 && window.CaroRapfi.handles('boat', 'free') && window.CaroRapfi.handles('boat', 'vn') && !window.CaroRapfi.handles('rong', 'free')),
+    'BOAT dùng Rapfi ở luật tự do và Rapfi-CARO ở luật Việt Nam; các bot khác thì không');
   ok(await p.evaluate(() => { const f = window.CaroRapfi.frame([[0, 0], [9, 0], [0, 3]], 15); return f && f.margin === 2 && !window.CaroRapfi.frame([[0, 0], [13, 0]], 15); }),
     'đặt thế vào bàn Rapfi: cách mép 2 ô; rộng 14 ô thì không vừa bàn 15×15');
 
@@ -111,11 +111,22 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   ok(await waitFor(async () => (await stones()) === 2, 30000) && (await stats()).rapfi === 4, 'Renju: Rapfi đi (2 mạng đen / trắng)');
   okNet(downloads === 4, `tự do 1 + tiêu chuẩn 1 + Renju 2 file mạng (${downloads})`);
 
-  // ---------------------------------------------------------------- Luật Việt Nam: engine của game
+  // ---------------------------------------------------------------- Luật Việt Nam: Rapfi-CARO (không mạng NNUE)
+  ok(await warm('vn'), 'luật Việt Nam: Rapfi-CARO sẵn sàng');
+  okNet(downloads === 4, `luật Việt Nam không tải mạng (${downloads})`);
   await start('vn');
-  ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật Việt Nam: BOAT vẫn đi');
+  ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật Việt Nam: BOAT đi');
   s = await stats();
-  ok(s.rapfi === 4 && s.fallback === 1, 'luật Việt Nam không gọi Rapfi');
+  ok(s.rapfi === 5 && s.fallback === 1, `luật Việt Nam: Rapfi-CARO đi (rapfi ${s.rapfi}, nhường ${s.fallback})`);
+  // Luật Việt Nam: bốn quân trống hai đầu là thắng – X có ba mở (0,0)–(0,2) nên đi (0,3) hoặc (0,−1) là thắng ngay
+  // (Rapfi đi ngay, không in điểm – phân tích tự chấm là thắng)
+  const vn = await p.evaluate(async () => {
+    const mv = [[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2]];
+    const ev = await window.CaroRapfiAn.evaluate({ moves: mv, rule: 'vn', ms: 300 });
+    return ev && ev[6];
+  });
+  ok(vn && vn.mate > 0 && vn.move[0] === 0 && (vn.move[1] === 3 || vn.move[1] === -1),
+    'Rapfi-CARO biết luật Việt Nam: ba mở → thắng — ' + JSON.stringify(vn));
 
   // ---------------------------------------------------------------- Phân tích ván bằng Rapfi (luật tự do)
   // X xếp năm hàng 0; O bỏ mặc thế ba / bốn của X (nước 6, 8 là sai lầm)
@@ -166,7 +177,7 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   ok(card === 'Rapfi', 'thẻ BOAT ghi "Rapfi" thay cho ~2700 — ' + card);
   await p.click('#ng-picker .bot-card:last-child');
   await sleep(150);
-  ok(/luật Việt Nam.*Rapfi/.test(await p.textContent('#ng-picker .bot-say')), 'mô tả BOAT: ~2700 ở luật Việt Nam · Rapfi ở 3 luật còn lại');
+  ok(/luật Việt Nam là Rapfi-CARO/.test(await p.textContent('#ng-picker .bot-say')), 'mô tả BOAT: Rapfi ở 3 luật Gomoku, Rapfi-CARO ở luật Việt Nam');
   await p.keyboard.press('Escape');
   const badge = await p.evaluate(() => {
     const R = window.CaroRapfi;

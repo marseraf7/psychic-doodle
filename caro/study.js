@@ -44,7 +44,7 @@
    */
   async function runAnalysis(moves, rule, onProgress, opts) {
     opts = opts || {};
-    // Luật tự do / tiêu chuẩn / Renju: lượt kỹ do Rapfi chấm (rapfi-analysis.js); Rapfi lỗi thì engine của game
+    // Lượt kỹ do Rapfi chấm (luật Việt Nam: Rapfi-CARO) (rapfi-analysis.js); Rapfi lỗi thì engine của game
     if (opts.rapfi && window.CaroRapfiAn) {
       const job = an.job;
       const evals = await window.CaroRapfiAn.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress });
