@@ -6,7 +6,7 @@
  * In từng ván một dòng JSON { k, swap, winner, boatSide, n, rapfi, fallback, fixed }. Cần RAPFI_NETS (xem driver-wasm.js).
  * RAPFI=native: dùng bản dựng gốc (driver.js, RAPFI_DIR) thay cho WebAssembly. Luật vn (Rapfi có thêm luật caro – mã 8):
  * bàn Rapfi 20×20.
- * ms Rapfi nhỏ (vd. 600) ≈ BOAT 2,5 giây trên điện thoại chậm hơn máy đo ~4 lần.
+ * OPEN_FROM=k: bắt đầu từ khai cuộc thứ k. ms Rapfi nhỏ (vd. 600) ≈ BOAT 2,5 giây trên điện thoại chậm hơn máy đo ~4 lần.
  */
 'use strict';
 const path = require('path');
@@ -31,7 +31,8 @@ function frame(moves, n) {
 
 (async () => {
   const rp = new Rapfi(SIZE, RULE_N, +RMS); await rp.init();
-  const ops = OPEN[rule].slice(0, +NOPEN);
+  const from = +(process.env.OPEN_FROM || 0); // OPEN_FROM=k: dùng khai cuộc k…k+NOPEN−1 (đo lại trên bộ khác)
+  const ops = OPEN[rule].slice(from, from + +NOPEN);
   for (let k = +SHARD; k < ops.length; k += +NSHARD) {
     for (const swap of [false, true]) {
       const boatSide = swap ? C.O : C.X;
