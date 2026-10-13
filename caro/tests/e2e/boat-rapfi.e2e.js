@@ -1,6 +1,8 @@
 /*
  * Kiểm thử trình duyệt: BOAT chạy Rapfi (WebAssembly, GPL-3) ở luật tự do / tiêu chuẩn / Renju, luật Việt Nam dùng
- * engine của game, mạng tải một lần rồi lấy từ Cache Storage, CSP của máy chủ cho phép WebAssembly, trang giấy phép.
+ * engine của game, nước đầu không phải chờ tải mạng, thế sát mép bàn Rapfi được engine kiểm lại, mạng tải hỏng bị loại
+ * (không lưu, không dùng), mạng lấy lại từ Cache Storage, phân tích ván bằng Rapfi, nhãn Elo / huy hiệu BOAT–Rapfi,
+ * CSP của máy chủ cho phép WebAssembly, trang giấy phép.
  *   RAPFI_NETS=<thư mục có mix9svq*.bin.lz4> node caro/tests/e2e/boat-rapfi.e2e.js
  * Có RAPFI_NETS thì trả file mạng từ thư mục đó thay cho CDN (máy không ra Internet); không có thì tải thật từ CDN.
  */
@@ -9,6 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const { setup } = require('./helpers');
 
+const NET_RE = /mix9svq.*\.bin\.lz4$/;
+
 (async () => {
   const port = 8098;
   const { browser, ok, shot, sleep, finish } = await setup(port);
@@ -16,39 +20,48 @@ const { setup } = require('./helpers');
   const nets = process.env.RAPFI_NETS;
   let downloads = 0;
 
-  const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
-  await ctx.addInitScript(() => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
-  if (nets) {
-    await ctx.route(/mix9svq.*\.bin\.lz4$/, async (route) => {
-      const url = route.request().url();
-      if (url.startsWith(`http://localhost:${port}/`)) return route.fulfill({ status: 404, body: '' }); // chưa đặt sẵn trên máy chủ
-      if (++downloads === 1) await sleep(1500); // lần tải đầu chậm như mạng thật: phải hiện thông báo đang tải
-      return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/octet-stream' }, body: fs.readFileSync(path.join(nets, path.basename(url))) });
-    });
-  } else {
-    ctx.on('request', (r) => { if (/mix9svq.*\.bin\.lz4$/.test(r.url()) && !r.url().startsWith('http://localhost')) downloads++; });
+  /** Ngữ cảnh trình duyệt mới; mode 'slow': lần tải đầu chậm 3 giây; 'bad': trả file mạng bị cắt cụt. */
+  async function context(mode) {
+    const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
+    await ctx.addInitScript(() => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
+    if (nets || mode === 'bad') {
+      await ctx.route(NET_RE, async (route) => {
+        const url = route.request().url();
+        if (url.startsWith(`http://localhost:${port}/`)) return route.fulfill({ status: 404, body: '' }); // chưa đặt sẵn trên máy chủ
+        const file = path.basename(url);
+        let body = nets ? fs.readFileSync(path.join(nets, file)) : Buffer.from((await (await route.fetch()).body()));
+        if (mode === 'bad') body = body.subarray(0, body.length >> 1); // tải đứt giữa chừng
+        else if (++downloads === 1 && mode === 'slow') await sleep(3000); // mạng chậm như lần tải thật đầu tiên
+        return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*', 'content-type': 'application/octet-stream' }, body });
+      });
+    } else {
+      ctx.on('request', (r) => { if (NET_RE.test(r.url()) && !r.url().startsWith('http://localhost')) downloads++; });
+    }
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => errors.push(e.message));
+    p.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errors.push('console: ' + m.text()); });
+    await p.goto(`http://localhost:${port}/`);
+    await sleep(500);
+    return { ctx, p };
   }
-  const p = await ctx.newPage();
-  p.on('pageerror', (e) => errors.push(e.message));
-  p.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errors.push('console: ' + m.text()); });
-  await p.goto(`http://localhost:${port}/`);
-  await sleep(500);
 
-  const X = 1, O = 2;
-  const stats = () => p.evaluate(() => ({ ...window.CaroRapfi.stats }));
-  const stones = () => p.evaluate(() => window.CaroApp.board.moves.length);
+  const { ctx, p } = await context('slow');
+  const X = 1;
+  const stats = (pg = p) => pg.evaluate(() => ({ ...window.CaroRapfi.stats }));
+  const stones = (pg = p) => pg.evaluate(() => window.CaroApp.board.moves.length);
   async function waitFor(fn, ms) {
     const t0 = Date.now();
     while (Date.now() - t0 < ms) { if (await fn()) return true; await sleep(250); }
     return false;
   }
-  /** Ván mới với BOAT, người cầm X đã đi (0,0): BOAT (O) nghĩ nước 2. */
-  async function start(rule, moves = [[0, 0]]) {
-    await p.evaluate(({ rule, moves, X }) => {
+  /** Ván mới với BOAT, người cầm X, bày sẵn các nước moves: tới BOAT (O) nghĩ. */
+  async function start(rule, moves = [[0, 0]], pg = p) {
+    await pg.evaluate(({ rule, moves, X }) => {
       window.CaroApp.setBot('boat', 7);
       return window.CaroApp.startPreset({ rule, human: X, bot: 'boat', moves });
     }, { rule, moves, X });
   }
+  const warm = (rule, pg = p) => pg.evaluate((r) => window.CaroRapfi.ready(r, 60000), rule);
   /** Người chơi bấm ô (x, y) trên bàn cờ thật. */
   async function click(x, y) {
     const [sx, sy] = await p.evaluate(([x, y]) => window.CaroApp.screenOf(x, y), [x, y]);
@@ -59,43 +72,66 @@ const { setup } = require('./helpers');
 
   ok(await p.evaluate(() => window.CaroBots.get('boat').rapfi.ms > 0 && window.CaroRapfi.handles('boat', 'free') && !window.CaroRapfi.handles('boat', 'vn') && !window.CaroRapfi.handles('rong', 'free')),
     'BOAT dùng Rapfi ở luật tự do; luật Việt Nam và các bot khác thì không');
+  ok(await p.evaluate(() => { const f = window.CaroRapfi.frame([[0, 0], [9, 0], [0, 3]], 15); return f && f.margin === 2 && !window.CaroRapfi.frame([[0, 0], [13, 0]], 15); }),
+    'đặt thế vào bàn Rapfi: cách mép 2 ô; rộng 14 ô thì không vừa bàn 15×15');
 
-  // ---------------------------------------------------------------- Luật tự do: tải mạng lần đầu, Rapfi đi
+  // ---------------------------------------------------------------- Luật tự do: lần đầu tải chậm → nước đầu không phải chờ
   await start('free');
-  const sawToast = await waitFor(async () => /Rapfi/.test(await p.textContent('#toasts')), 4000);
-  ok(sawToast, 'lần đầu: báo đang tải bộ não Rapfi');
-  ok(await waitFor(async () => (await stones()) === 2, 40000), 'luật tự do: BOAT đi nước 2');
+  ok(await waitFor(async () => /Rapfi/.test(await p.textContent('#toasts')), 4000), 'lần đầu: báo đang tải bộ não Rapfi');
+  ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật tự do: BOAT đi nước 2 ngay (engine của game, mạng chưa tải xong)');
   let s = await stats();
-  ok(s.rapfi === 1 && s.fallback === 0, `nước 2 do Rapfi đi (rapfi ${s.rapfi}, nhường engine ${s.fallback})`);
+  ok(s.rapfi === 0 && s.fallback === 1, `nước 2 nhường engine (rapfi ${s.rapfi}, nhường ${s.fallback})`);
+  ok(await warm('free'), 'mạng tải xong: Rapfi sẵn sàng');
   ok(downloads === 1, `tải đúng 1 file mạng (${downloads})`);
-  await shot(p, 'boat-rapfi-free.png');
-  // Người đi tiếp một nước, BOAT trả lời trong thời gian nghĩ (~2,5 giây)
+  // Người đi tiếp một nước, BOAT (Rapfi) trả lời trong thời gian nghĩ (~2,5 giây)
   const empty = await p.evaluate(() => { const b = window.CaroApp.board; for (const [x, y] of [[1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0]]) if (!b.get(x, y)) return [x, y]; return null; });
   const t0 = Date.now();
   await click(empty[0], empty[1]);
   ok(await waitFor(async () => (await stones()) === 4, 20000), 'BOAT trả lời nước người chơi');
   const took = Date.now() - t0;
   s = await stats();
-  ok(s.rapfi === 2 && took < 9000, `nước 4 cũng do Rapfi (${took} ms)`);
+  ok(s.rapfi === 1 && took < 9000, `nước 4 do Rapfi đi (${took} ms)`);
+  await shot(p, 'boat-rapfi-free.png');
 
   // ---------------------------------------------------------------- Tiêu chuẩn và Renju: Worker mới, mạng của luật đó
+  ok(await warm('std'), 'luật tiêu chuẩn: mạng sẵn sàng');
   await start('std', [[0, 0], [1, 0], [0, 1]]); // bày sẵn 3 quân → tới BOAT (O) đi nước 4
-  ok(await waitFor(async () => (await stones()) === 4, 40000) && (await stats()).rapfi === 3, 'luật tiêu chuẩn: Rapfi đi');
+  ok(await waitFor(async () => (await stones()) === 4, 30000) && (await stats()).rapfi === 2, 'luật tiêu chuẩn: Rapfi đi');
+  // Thế rộng 10 ô trên bàn 15×15 (cách mép 2 ô): Rapfi đi, engine của game kiểm chuỗi ép (thời gian vẫn như thường)
+  const t1 = Date.now();
+  await start('std', [[0, 0], [9, 0], [0, 1]]);
+  ok(await waitFor(async () => (await stones()) === 4, 30000) && (await stats()).rapfi === 3, `sát mép: Rapfi đi, engine kiểm lại (${Date.now() - t1} ms)`);
+  ok(await warm('renju'), 'Renju: mạng sẵn sàng');
   await start('renju');
-  ok(await waitFor(async () => (await stones()) === 2, 40000) && (await stats()).rapfi === 4, 'Renju: Rapfi đi (2 mạng đen / trắng)');
+  ok(await waitFor(async () => (await stones()) === 2, 30000) && (await stats()).rapfi === 4, 'Renju: Rapfi đi (2 mạng đen / trắng)');
   ok(downloads === 4, `tự do 1 + tiêu chuẩn 1 + Renju 2 file mạng (${downloads})`);
 
   // ---------------------------------------------------------------- Luật Việt Nam: engine của game
   await start('vn');
   ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật Việt Nam: BOAT vẫn đi');
   s = await stats();
-  ok(s.rapfi === 4 && s.fallback === 0, 'luật Việt Nam không gọi Rapfi');
+  ok(s.rapfi === 4 && s.fallback === 1, 'luật Việt Nam không gọi Rapfi');
+
+  // ---------------------------------------------------------------- Phân tích ván bằng Rapfi (luật tự do)
+  // X xếp năm hàng 0; O bỏ mặc thế ba / bốn của X (nước 6, 8 là sai lầm)
+  const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0], [6, 6], [4, 0]];
+  await p.evaluate((g) => window.CaroApp.startPreset({ rule: 'free', mode: 'pvp', moves: g }), GAME);
+  await sleep(300);
+  await p.evaluate(() => document.getElementById('btn-analyze').click()); // nút "Phân tích" trên thanh công cụ
+  await p.waitForSelector('.an-acc', { timeout: 20000 });
+  await p.waitForFunction(() => !document.getElementById('an-refine'), null, { timeout: 90000 });
+  const an = await p.evaluate(() => ({ eng: (document.querySelector('.an-eng') || {}).textContent || '', titles: [...document.querySelectorAll('.an-mv:not(.empty)')].map((e) => e.getAttribute('title')) }));
+  ok(/Rapfi/.test(an.eng), 'phân tích: lượt kỹ do Rapfi chấm — ' + an.eng);
+  ok(an.titles.length === GAME.length && /Sai lầm|Bỏ lỡ/.test(an.titles[5] + an.titles[7]), 'Rapfi đánh dấu nước bỏ mặc thế bốn của O — ' + an.titles[5] + ' / ' + an.titles[7]);
+  await shot(p, 'boat-rapfi-analysis.png');
+  await p.evaluate(() => window.CaroApp.toBoard && window.CaroApp.toBoard());
 
   // ---------------------------------------------------------------- Tải lại trang: mạng lấy từ Cache Storage, không tải lại
   await p.reload();
   await sleep(600);
+  ok(await warm('free'), 'sau khi tải lại trang: Rapfi sẵn sàng từ bộ nhớ đệm');
   await start('free');
-  ok(await waitFor(async () => (await stones()) === 2, 30000) && (await stats()).rapfi === 1, 'sau khi tải lại trang: Rapfi vẫn đi');
+  ok(await waitFor(async () => (await stones()) === 2, 30000) && (await stats()).rapfi === 1, 'sau khi tải lại trang: Rapfi đi');
   ok(downloads === 4, `mạng lấy từ bộ nhớ đệm, không tải lại (${downloads})`);
 
   // Thế cờ quá rộng so với bàn 20×20 của Rapfi → nhường engine của game
@@ -103,6 +139,36 @@ const { setup } = require('./helpers');
   ok(await waitFor(async () => (await stones()) === 4, 20000), 'thế cờ rộng hơn bàn Rapfi: BOAT vẫn đi (engine của game)');
   s = await stats();
   ok(s.fallback === 1 && s.rapfi === 1, 'không vừa bàn: không gửi cho Rapfi, đếm 1 lần nhường engine');
+
+  // ---------------------------------------------------------------- Nhãn sức cờ, huy hiệu BOAT–Rapfi
+  await p.evaluate(() => window.CaroApp.openNewGame());
+  await sleep(300);
+  await p.click('#ng-picker .style-tabs label:nth-child(5)');
+  await sleep(150);
+  const card = await p.$$eval('#ng-picker .bot-card', (els) => { const b = els.find((e) => /BOAT/.test(e.textContent)); return b ? b.querySelector('small').textContent : ''; });
+  ok(card === 'Rapfi', 'thẻ BOAT ghi "Rapfi" thay cho ~2700 — ' + card);
+  await p.click('#ng-picker .bot-card:last-child');
+  await sleep(150);
+  ok(/luật Việt Nam.*Rapfi/.test(await p.textContent('#ng-picker .bot-say')), 'mô tả BOAT: ~2700 ở luật Việt Nam · Rapfi ở 3 luật còn lại');
+  await p.keyboard.press('Escape');
+  const badge = await p.evaluate(() => {
+    const R = window.CaroRapfi;
+    R.game.rapfi = 30; R.game.fallback = 0; // như một ván Rapfi cầm quân suốt ván
+    window.dispatchEvent(new CustomEvent('caro:gameover', { detail: { mode: 'ai', won: true, bot: 'boat' } }));
+    return JSON.parse(localStorage.getItem('caro.habits')).earned;
+  });
+  ok(badge.beat_boat_rapfi && badge.beat_boat, 'thắng BOAT khi Rapfi cầm quân: huy hiệu "Đánh chìm BOAT–Rapfi"');
+
+  // ---------------------------------------------------------------- Mạng tải hỏng: không dùng, không lưu, BOAT dùng engine
+  {
+    const bad = await context('bad');
+    await start('renju', [[0, 0]], bad.p);
+    ok(await waitFor(async () => (await stones(bad.p)) === 2, 30000), 'mạng hỏng: BOAT vẫn đi (engine của game)');
+    ok(await waitFor(async () => /Không tải được Rapfi/.test(await bad.p.textContent('#toasts')), 30000), 'mạng hỏng: báo không tải được Rapfi');
+    const st = await bad.p.evaluate(async () => ({ avail: window.CaroRapfi.available('renju'), cached: (await (await caches.open('caro-rapfi-nets-v1')).keys()).length }));
+    ok(!st.avail && st.cached === 0, `mạng hỏng không được lưu vào bộ nhớ đệm (${st.cached}), tạm tắt Rapfi luật Renju`);
+    await bad.ctx.close();
+  }
 
   // ---------------------------------------------------------------- Trang giấy phép (GPL-3)
   await p.evaluate(() => window.CaroShell.open('more'));

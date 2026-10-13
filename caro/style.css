@@ -836,6 +836,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .an-prog { height: 6px; border-radius: 3px; background: rgba(127, 127, 127, 0.18); overflow: hidden; margin: 8px 0 6px; }
 .an-prog i { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
 .an-refine { margin: 2px 0 6px; font-size: var(--fs-xs); }
+.an-eng { margin: 2px 0 6px; font-size: var(--fs-xs); }
 
 /* Người chơi: tên · số lỗi theo loại (bấm để nhảy tới) · độ chính xác */
 .an-players { display: grid; gap: 4px; flex: none; }

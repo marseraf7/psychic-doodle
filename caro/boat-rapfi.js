@@ -1,14 +1,24 @@
 /*
- * BOAT dùng Rapfi (engine vô địch Gomocup, bản WebAssembly – caro/rapfi/, GPL-3) ở luật tự do / tiêu chuẩn / Renju.
- * Luật Việt Nam, trình duyệt không có WebAssembly SIMD, thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để
- * app.js dùng engine của game như cũ. Rapfi chạy trong Worker riêng (rapfi/worker.js), chỉ nói chuyện qua postMessage.
+ * Cầu nối tới Rapfi (engine vô địch Gomocup, bản WebAssembly – caro/rapfi/, GPL-3) cho luật tự do / tiêu chuẩn / Renju:
+ * BOAT đi nước (move) và phân tích ván chấm thế (ask – rapfi-analysis.js). Rapfi chạy trong Worker riêng
+ * (rapfi/worker.js), chỉ nói chuyện qua postMessage. Luật Việt Nam, bản iOS (CARO_NO_RAPFI – điều khoản App Store xung
+ * khắc với GPL), trình duyệt không có WebAssembly SIMD, thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để
+ * app.js / phân tích dùng engine của game.
  *
- * Bàn của game vô hạn, Rapfi cần bàn cố định (tự do 20×20, tiêu chuẩn / Renju 15×15 – đúng cỡ mạng NNUE đã học):
- * mỗi nước đặt khung bao các quân vào giữa bàn Rapfi, chừa ít nhất 1 ô mỗi bên để Rapfi không tưởng mép bàn là quân chặn.
+ * Bàn của game vô hạn, Rapfi cần bàn cố định (tự do 20×20, tiêu chuẩn / Renju 15×15 – đúng cỡ mạng NNUE đã học): mỗi
+ * lần đặt khung bao các quân vào giữa bàn Rapfi. Rapfi coi mép bàn là tường chặn, nên khi quân cách mép < 4 ô (chuỗi năm
+ * kéo ra ngoài mép, thế ba "chết" vì mép mà thật ra còn sống) thì engine của game – hiểu đúng bàn vô hạn – kiểm lại
+ * chuỗi ép thắng của cả hai bên (check). Cách mép < 1 ô: không dùng Rapfi.
  *
- *   CaroRapfi.handles(botId, rule)      – BOAT + luật có Rapfi + trình duyệt chạy được
- *   CaroRapfi.prepare(botId, rule)      – tải trước mạng (~10 MB, lần đầu) khi bắt đầu ván với BOAT
- *   CaroRapfi.move(board, p, botId)     – Promise<[x, y] | null>; CaroRapfi.stats: số nước Rapfi đi / nhường engine
+ *   CaroRapfi.handles(botId, rule)   – BOAT + luật có Rapfi + trình duyệt chạy được
+ *   CaroRapfi.available(rule)        – luật có Rapfi + trình duyệt chạy được (phân tích)
+ *   CaroRapfi.prepare(botId, rule)   – tải trước mạng (~10 MB, lần đầu) khi bắt đầu ván với BOAT
+ *   CaroRapfi.ready(rule, wait)      – Promise<bool>: Rapfi của luật đã sẵn sàng (chờ tối đa wait ms)
+ *   CaroRapfi.move(board, p, botId)  – Promise<[x, y] | null>
+ *   CaroRapfi.ask(rule, moves, ms)   – Promise<{ move, ev: { cp, mate }, margin } | null>, moves: [[x, y], …] toạ độ game
+ *   CaroRapfi.check(rule, moves, ms) – engine của game chấm thế (Worker riêng): Promise<{ move, score, mate } | null>
+ *   CaroRapfi.stats                  – số nước Rapfi đi / nhường engine / engine sửa nước Rapfi sát mép
+ *   CaroRapfi.game                   – như stats nhưng chỉ ván hiện tại (đếm lại ở prepare – mỗi ván mới)
  * Phát sự kiện window 'caro:rapfi' { state: 'loading' | 'ready' | 'failed', rule, pct }.
  */
 (function (global) {
@@ -16,12 +26,15 @@
   const C = global.Caro;
   const SIZE = { free: 20, std: 15, renju: 15 };
   const MB = { free: 10, std: 10, renju: 20 };
-  const LOAD_WAIT = 6000; // chờ tải mạng tối đa ngần này cho một nước; quá thì nước đó dùng engine của game
+  const SAFE_EDGE = 4; // cách mép ≥ 4 ô: mép bàn không ảnh hưởng chuỗi năm nào qua các quân → tin Rapfi hoàn toàn
+  const FIRST_WAIT = 1500; // mạng chưa sẵn sàng: chờ ngần này (đủ cho lần nạp từ bộ nhớ đệm), quá thì nước này dùng engine
+  const RETRY_MS = 60000; // tải lỗi (mạng chập chờn): sau 1 phút cho thử lại
+  const CHECK_MS = 400; // thời gian engine của game kiểm một thế sát mép
   const T = (k, v) => (global.I18N ? global.I18N.t(k, v) : k);
   const toast = (m, ms) => global.CaroOnline && global.CaroOnline.toast(m, ms);
 
   let cur = null; // { rule, worker, ready: Promise<bool>, state, pct, toasted }
-  const failed = {}; // luật đã lỗi tải trong phiên này → không thử lại cho tới khi tải lại trang
+  const failedAt = {}; // luật → thời điểm tải lỗi gần nhất
   let seq = 0;
 
   // Mạng NNUE của Rapfi bắt buộc có WebAssembly SIMD (kiểm bằng một hàm nhỏ dùng lệnh v128 – như wasm-feature-detect)
@@ -35,12 +48,16 @@
     return simd;
   }
   function supported() {
-    return typeof WebAssembly === 'object' && !!global.Worker && /^(https?|capacitor):$/.test(global.location.protocol) && hasSimd();
+    return !global.CARO_NO_RAPFI && typeof WebAssembly === 'object' && !!global.Worker &&
+      /^(https?|capacitor):$/.test(global.location.protocol) && hasSimd();
   }
   function botOf(id) { return global.CaroBots && (typeof id === 'string' ? global.CaroBots.get(id) : id); }
+  function available(rule) {
+    return !!(SIZE[rule] && supported() && !(failedAt[rule] && Date.now() - failedAt[rule] < RETRY_MS));
+  }
   function handles(botId, rule) {
     const bot = botOf(botId);
-    return !!(bot && bot.rapfi && SIZE[rule] && supported() && !failed[rule]);
+    return !!(bot && bot.rapfi && available(rule));
   }
   const emit = (detail) => global.dispatchEvent(new CustomEvent('caro:rapfi', { detail }));
 
@@ -54,7 +71,7 @@
     if (cur && cur.rule === rule) return cur;
     stop();
     let worker;
-    try { worker = new Worker('rapfi/worker.js'); } catch (e) { failed[rule] = true; return null; }
+    try { worker = new Worker('rapfi/worker.js'); } catch (e) { failedAt[rule] = Date.now(); return null; }
     const st = { rule, worker, state: 'loading', pct: 0, toasted: false };
     // Chỉ báo "đang tải" khi chưa xong sau 0,7 giây (mạng đã có trong Cache Storage thì nạp gần như tức thì)
     const slow = setTimeout(() => {
@@ -76,10 +93,13 @@
         } else if (d.type === 'error') {
           clearTimeout(slow);
           worker.removeEventListener('message', onMsg);
-          st.state = 'failed'; failed[rule] = true;
+          if (st.state === 'loading') { // lỗi khi đang tải / khởi động
+            failedAt[rule] = Date.now();
+            toast(T('rapfi_failed'), 4500);
+            emit({ state: 'failed', rule });
+          }
+          st.state = 'failed';
           if (cur === st) stop();
-          toast(T('rapfi_failed'), 4500);
-          emit({ state: 'failed', rule });
           resolve(false);
         }
       };
@@ -91,58 +111,113 @@
     return st;
   }
 
-  function prepare(botId, rule) { if (handles(botId, rule)) ensure(rule); }
-
-  /** Khung đặt các quân vào bàn Rapfi cỡ n: { ox, oy } (toạ độ Rapfi = toạ độ game − o), hoặc null nếu không vừa. */
-  function frame(moves, n) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const m of moves) { x0 = Math.min(x0, m.x); x1 = Math.max(x1, m.x); y0 = Math.min(y0, m.y); y1 = Math.max(y1, m.y); }
-    const w = x1 - x0 + 1, h = y1 - y0 + 1;
-    if (w > n - 2 || h > n - 2) return null;
-    return { ox: x0 - Math.floor((n - w) / 2), oy: y0 - Math.floor((n - h) / 2) };
+  // Ván hiện tại: số nước Rapfi đi / nhường engine (huy hiệu "Đánh chìm BOAT–Rapfi" – habits.js); ván mới thì đếm lại
+  const game = { rapfi: 0, fallback: 0 };
+  function prepare(botId, rule) {
+    game.rapfi = game.fallback = 0;
+    if (handles(botId, rule)) ensure(rule);
   }
 
   const wait = (ms) => new Promise((r) => setTimeout(() => r(false), ms));
-
-  // Đếm số nước Rapfi đi / phải nhường engine của game (kiểm thử, gỡ lỗi)
-  const stats = { rapfi: 0, fallback: 0 };
-
-  async function move(board, p, botId) {
-    if (!handles(botOf(botId), board.rule)) return null;
-    const m = await think(board, p, botOf(botId));
-    stats[m ? 'rapfi' : 'fallback']++;
-    return m;
+  /** Rapfi của luật đã sẵn sàng chưa (bắt đầu tải nếu chưa) – chờ tối đa `ms`. */
+  async function ready(rule, ms) {
+    if (!available(rule)) return false;
+    const st = ensure(rule);
+    if (!st) return false;
+    const ok = st.state === 'ready' || (await Promise.race([st.ready, wait(ms)]));
+    return !!ok && cur === st;
   }
 
-  async function think(board, p, bot) {
-    const rule = board.rule;
-    const moves = board.moves;
-    if (!moves.length) return [0, 0];
-    if ((moves.length % 2 === 0 ? C.X : C.O) !== p) return null; // Rapfi tính bên đi theo số quân
+  /**
+   * Khung đặt các quân vào bàn Rapfi cỡ n: { ox, oy, margin } (toạ độ Rapfi = toạ độ game − o; margin = số ô trống ít
+   * nhất giữa quân ngoài cùng và mép), hoặc null nếu không vừa (cách mép < 1 ô).
+   */
+  function frame(moves, n) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of moves) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    const w = x1 - x0 + 1, h = y1 - y0 + 1;
+    if (w > n - 2 || h > n - 2) return null;
+    const lx = Math.floor((n - w) / 2), ly = Math.floor((n - h) / 2);
+    return { ox: x0 - lx, oy: y0 - ly, margin: Math.min(lx, n - w - lx, ly, n - h - ly) };
+  }
+
+  /** Hỏi Rapfi một thế (moves: [[x, y], …] toạ độ game, X đi trước). Chưa sẵn sàng / lỗi / không vừa bàn → null. */
+  async function ask(rule, moves, ms) {
+    if (!moves.length) return { move: [0, 0], ev: { cp: 0, mate: 0 }, margin: SIZE[rule] >> 1 };
     const n = SIZE[rule], f = frame(moves, n);
-    if (!f) return null;
-    const st = ensure(rule);
-    if (!st) return null;
-    const ok = st.state === 'ready' || (await Promise.race([st.ready, wait(LOAD_WAIT)]));
-    if (!ok || cur !== st) return null;
-    const ms = bot.rapfi.ms, id = ++seq;
+    if (!f || !(await ready(rule, 0))) return null;
+    const st = cur, id = ++seq;
     const res = await new Promise((resolve) => {
       const timer = setTimeout(() => { st.worker.removeEventListener('message', onMsg); resolve(null); }, ms * 2 + 8000);
       function onMsg(e) {
         if (e.data.type !== 'move' || e.data.id !== id) return;
         clearTimeout(timer);
         st.worker.removeEventListener('message', onMsg);
-        resolve(e.data.move);
+        resolve(e.data);
       }
       st.worker.addEventListener('message', onMsg);
-      st.worker.postMessage({ type: 'move', id, size: n, ms, moves: moves.map((m) => [m.x - f.ox, m.y - f.oy]) });
+      st.worker.postMessage({ type: 'move', id, size: n, ms, moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
     });
-    if (!res) { if (cur === st) stop(); return null; } // treo / lỗi: lần sau dựng Worker mới (mạng lấy lại từ Cache Storage)
-    const x = res[0] + f.ox, y = res[1] + f.oy;
-    if (res[0] < 0 || res[1] < 0 || res[0] >= n || res[1] >= n || board.get(x, y) !== C.EMPTY) return null;
-    if (C.forbidden && C.forbidden(board, x, y, p)) return null; // Renju: Rapfi không đi nước cấm, kiểm lại cho chắc
+    if (!res || !res.move) { if (cur === st && !res) stop(); return null; } // treo: lần sau dựng Worker mới
+    const [rx, ry] = res.move;
+    if (rx < 0 || ry < 0 || rx >= n || ry >= n) return null;
+    return { move: [rx + f.ox, ry + f.oy], ev: res.ev, margin: f.margin };
+  }
+
+  // Engine của game (ai-worker.js) trong Worker riêng để kiểm thế sát mép – không tranh với Worker máy đánh của app.js
+  let checker = null;
+  function check(rule, moves, ms) {
+    if (!checker) { try { checker = new Worker('ai-worker.js'); } catch (e) { return Promise.resolve(null); } }
+    const w = checker, id = 'rchk' + ++seq;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => { w.removeEventListener('message', onMsg); resolve(null); }, ms * 4 + 5000);
+      function onMsg(e) {
+        if (e.data.id !== id) return;
+        clearTimeout(timer);
+        w.removeEventListener('message', onMsg);
+        resolve(e.data.ev || null);
+      }
+      w.addEventListener('message', onMsg);
+      w.postMessage({ type: 'eval', id, gid: 'rapfi-check-' + rule, rule, ms, moves });
+    });
+  }
+
+  // Đếm số nước Rapfi đi / phải nhường engine của game / engine sửa nước Rapfi sát mép (kiểm thử, gỡ lỗi)
+  const stats = { rapfi: 0, fallback: 0, fixed: 0 };
+
+  async function move(board, p, botId) {
+    const bot = botOf(botId);
+    if (!handles(bot, board.rule)) return null;
+    const m = await think(board, p, bot);
+    stats[m ? 'rapfi' : 'fallback']++;
+    game[m ? 'rapfi' : 'fallback']++;
+    return m;
+  }
+
+  async function think(board, p, bot) {
+    const rule = board.rule, moves = board.moves.map((m) => [m.x, m.y]);
+    if (!moves.length) return [0, 0];
+    if ((moves.length % 2 === 0 ? C.X : C.O) !== p) return null; // Rapfi tính bên đi theo số quân
+    const f = frame(moves, SIZE[rule]);
+    if (!f || !(await ready(rule, FIRST_WAIT))) return null;
+    const near = f.margin < SAFE_EDGE;
+    // Sát mép: chừa thời gian cho engine kiểm lại (tổng vẫn ≈ thời gian nghĩ của BOAT)
+    const r = await ask(rule, moves, near ? Math.max(800, bot.rapfi.ms - 2 * CHECK_MS) : bot.rapfi.ms);
+    if (!r) return null;
+    let [x, y] = r.move;
+    if (board.get(x, y) !== C.EMPTY || (C.forbidden && C.forbidden(board, x, y, p))) return null;
+    if (r.margin < SAFE_EDGE) {
+      const [mine, after] = await Promise.all([check(rule, moves, CHECK_MS), check(rule, moves.concat([[x, y]]), CHECK_MS)]);
+      const keeps = after && after.mate < 0; // sau nước Rapfi, đối thủ thua chắc
+      const ok = (m) => m && board.get(m[0], m[1]) === C.EMPTY && !(C.forbidden && C.forbidden(board, m[0], m[1], p));
+      // Engine thấy ta có chuỗi thắng mà nước Rapfi không giữ được / nước Rapfi để đối thủ có chuỗi thắng trong khi
+      // engine chưa thấy ta thua: đi nước của engine (Rapfi đọc sai vì mép bàn)
+      if (mine && ok(mine.move) && ((mine.mate > 0 && !keeps) || (after && after.mate > 0 && !(mine.mate < 0)))) {
+        if (mine.move[0] !== x || mine.move[1] !== y) { stats.fixed++; [x, y] = mine.move; }
+      }
+    }
     return [x, y];
   }
 
-  global.CaroRapfi = { handles, prepare, move, frame, stats, SIZE };
+  global.CaroRapfi = { handles, available, prepare, ready, move, ask, check, frame, stats, game, SIZE, SAFE_EDGE };
 })(window);

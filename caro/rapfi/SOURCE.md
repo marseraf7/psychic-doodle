@@ -24,16 +24,21 @@ Phần còn lại của game chỉ trao đổi với Rapfi qua thông điệp Wo
   `worker.js` ghi `config.toml` và mạng vào bộ nhớ ảo.
 - `build/build.sh` – lệnh dựng (Emscripten 6.0.12, cmake; 1 luồng, WebAssembly SIMD, không gói sẵn mạng).
 
-Dựng lại:
+Dựng lại (mặc định dùng chính gói nguồn kèm theo, không cần mạng):
 
 ```bash
 # cần emsdk: git clone https://github.com/emscripten-core/emsdk && cd emsdk && ./emsdk install 6.0.12 && ./emsdk activate 6.0.12 && source emsdk_env.sh
-mkdir rapfi-src && tar xzf caro/rapfi/build/rapfi-src-3c94c2a.tar.gz -C rapfi-src --strip-components=1
-RAPFI_SRC=$PWD/rapfi-src bash caro/rapfi/build/build.sh      # ghi đè caro/rapfi/rapfi-single-simd128.{js,wasm}
+bash caro/rapfi/build/build.sh                 # ghi đè caro/rapfi/rapfi-single-simd128.{js,wasm}, in SHA-256
+RAPFI_CLONE=1 bash caro/rapfi/build/build.sh   # hoặc: clone đúng commit từ fork marseraf7/rapfi (lỗi thì kho gốc)
 ```
 
-(Không đặt `RAPFI_SRC` thì script tự clone đúng commit từ bản sao lưu marseraf7/rapfi, lỗi thì từ kho gốc.) Mạng NNUE của Rapfi bắt buộc có SIMD nên không có bản
-vô hướng: trình duyệt không hỗ trợ WebAssembly SIMD thì BOAT dùng engine của game.
+Đã kiểm (10/2026, Emscripten 6.0.12): dựng từ gói nguồn và từ fork đều ra **trùng từng byte** với bản trong app –
+`rapfi-single-simd128.wasm` SHA-256 `92d29800714f4ba68105e4229850b5c6d7062fb6ab39c42e5457cb1416288b07`,
+`rapfi-single-simd128.js` `dfa7b76abf414c5a6c02cb2ee80174d4e45267fcafab4715c09252500d21b013`.
+
+Mạng NNUE của Rapfi bắt buộc có SIMD nên không có bản vô hướng: trình duyệt không hỗ trợ WebAssembly SIMD thì BOAT dùng
+engine của game. **Bản iOS không kèm Rapfi** (điều khoản App Store xung khắc với GPL): hook `capacitor:copy:after`
+(`app/scripts/strip-rapfi-ios.js`) xoá thư mục này khỏi bản chép vào `ios/` và bật `CARO_NO_RAPFI`.
 
 ## Mạng NNUE (tải khi cần)
 
@@ -51,4 +56,8 @@ vô hướng: trình duyệt không hỗ trợ WebAssembly SIMD thì BOAT dùng 
    `…/gh/dhbloo/rapfi-networks@e32ad77…` (kho gốc);
 3. GitHub raw: `https://raw.githubusercontent.com/marseraf7/rapfi-networks/e32ad77…/mix9svq/…`, rồi kho gốc.
 
-Tải xong giữ trong Cache Storage `caro-rapfi-nets-v1` (sw.js không xoá khi app cập nhật) – lần sau không tải lại.
+Mỗi file được kiểm **kích thước + SHA-256** (`worker.js` · `SPEC`) trước khi dùng và trước khi lưu; khởi động xong
+Rapfi nghĩ thử một nước để chắc mạng NNUE nạp được (Rapfi nạp hỏng thì lặng lẽ tắt mạng, chơi yếu hẳn) – không được thì
+xoá khỏi bộ nhớ đệm, báo lỗi và BOAT dùng engine của game (1 phút sau thử lại). Tải xong giữ trong Cache Storage
+`caro-rapfi-nets-v1` (sw.js không xoá khi app cập nhật) – lần sau không tải lại. Mạng nén trong bộ nhớ ảo được xoá ngay
+sau khi Rapfi giải nén.

@@ -8,10 +8,13 @@
  * chỉ tải khi cần, rồi giữ trong Cache Storage.
  *
  * Mỗi Worker chỉ phục vụ một luật (đổi luật thì trang tạo Worker mới). Giao tiếp:
- *   vào  { type: 'init', rule }                         – tải mạng + khởi động Rapfi
- *        { type: 'move', id, size, moves, ms }          – moves: [[x, y], …] toạ độ 0..size-1, X đi trước
+ *   vào  { type: 'init', rule }                  – tải mạng (kiểm SHA-256) + khởi động Rapfi + thử nạp mạng NNUE
+ *        { type: 'move', id, size, moves, ms }   – moves: [[x, y], …] toạ độ 0..size-1, X đi trước (BOAT đi, hoặc
+ *                                                  phân tích chấm thế – cùng một lệnh)
  *   ra   { type: 'progress', pct } · { type: 'ready' } · { type: 'error', msg }
- *        { type: 'move', id, move: [x, y] | null, ev }  – ev: điểm Rapfi (góc nhìn bên đi), ±20000 = thắng / thua chắc
+ *        { type: 'move', id, move: [x, y] | null, ev: { cp, mate } | null }
+ *          cp: điểm Rapfi (góc nhìn bên đi; khả năng thắng = 1 / (1 + e^(−cp / 200))),
+ *          mate: ±số nửa nước tới thắng (+) / thua (−) chắc, 0 = chưa thấy
  */
 'use strict';
 const NETS_COMMIT = 'e32ad77a5364363b3e3a02b3f9e8610ade19ea98'; // rapfi-networks, ghim để mạng khớp bản engine
@@ -21,6 +24,16 @@ const NETS = {
   renju: ['mix9svqrenju_bs15_black.bin.lz4', 'mix9svqrenju_bs15_white.bin.lz4'],
 };
 const RULE_N = { free: 0, std: 1, renju: 4 }; // mã luật trong giao thức Piskvork của Rapfi
+const SIZE = { free: 20, std: 15, renju: 15 }; // cỡ bàn đúng với mạng đã học (boat-rapfi.js dùng cùng số)
+// Kích thước + SHA-256 từng file (commit NETS_COMMIT): tải đứt / sai thì không lưu, không dùng – nếu không Rapfi lặng lẽ
+// tắt mạng NNUE và chơi yếu hẳn mà không báo lỗi
+const SPEC = {
+  'mix9svqfreestyle_bsmix.bin.lz4': [10030398, '6bc0d1b0ff8e1d857f7f412923cd458f38f1a435087c91ae71fec3676c23ef62'],
+  'mix9svqstandard_bs15.bin.lz4': [10345775, '84334f5db96f45b3e36ebdde06d2259d878ae1eb347b7cf74574ac908b8d9e7d'],
+  'mix9svqrenju_bs15_black.bin.lz4': [9984172, '7ab8c974c30da07717ce6a504616a62ac8c981500503f0ced0fadefd3f46c5ec'],
+  'mix9svqrenju_bs15_white.bin.lz4': [9844944, 'a31f318518d3b5630489054d9eb013fd5353c553999640c2bcfd8d95e6fe4e4e'],
+  'model210901.bin': [30109, '34061bca4031a786a4b0ff52470fa9f316013c4c2239db0d70581a3c35d0a72a'],
+};
 const NET_CACHE = 'caro-rapfi-nets-v1'; // tách khỏi bộ nhớ đệm của sw.js nên không bị xoá khi app cập nhật
 // Thứ tự thử: cùng máy chủ (nếu người triển khai đặt sẵn vào rapfi/nets/), rồi jsDelivr / GitHub raw của bản sao lưu
 // (fork marseraf7/rapfi-networks), cuối cùng kho gốc dhbloo/rapfi-networks – cùng commit nên cùng nội dung
@@ -33,7 +46,7 @@ const sources = (f) => [
 // Khoá trong Cache Storage: giữ như bản đầu (URL jsDelivr của kho gốc) để mạng đã tải không phải tải lại
 const cacheKey = (f) => `https://cdn.jsdelivr.net/gh/dhbloo/rapfi-networks@${NETS_COMMIT}/mix9svq/${f}`;
 
-let mod = null, out = [], lastEval = null;
+let mod = null, out = [];
 
 /** Trình duyệt có WebAssembly SIMD không (kiểm bằng một hàm nhỏ dùng lệnh v128). */
 function hasSimd() {
@@ -42,14 +55,34 @@ function hasSimd() {
   } catch (e) { return false; }
 }
 
-/** Tải một file mạng (có báo tiến độ) – lấy từ Cache Storage nếu đã tải trước đó. */
+/** File đúng kích thước và đúng SHA-256 (không có crypto.subtle – trang không an toàn – thì chỉ kiểm kích thước). */
+async function intact(file, buf) {
+  const [size, sha] = SPEC[file];
+  if (buf.byteLength !== size) return false;
+  const subtle = self.crypto && self.crypto.subtle;
+  if (!subtle) return true;
+  const h = new Uint8Array(await subtle.digest('SHA-256', buf));
+  return Array.from(h, (b) => b.toString(16).padStart(2, '0')).join('') === sha;
+}
+
+async function openCache() { try { return await caches.open(NET_CACHE); } catch (e) { return null; } }
+/** Xoá mạng của luật khỏi Cache Storage (Rapfi không nạp được dù đã qua kiểm tra) – lần sau tải lại. */
+async function evict(files) {
+  const cache = await openCache();
+  if (cache) await Promise.all(files.map((f) => cache.delete(cacheKey(f)).catch(() => {})));
+}
+
+/** Tải một file mạng (có báo tiến độ) – lấy từ Cache Storage nếu đã tải trước đó và còn nguyên vẹn. */
 async function fetchNet(file, onBytes) {
   const key = cacheKey(file);
-  let cache = null;
-  try { cache = await caches.open(NET_CACHE); } catch (e) { cache = null; }
+  const cache = await openCache();
   if (cache) {
     const hit = await cache.match(key).catch(() => null);
-    if (hit) { const buf = await hit.arrayBuffer(); onBytes(buf.byteLength, true); return new Uint8Array(buf); }
+    if (hit) {
+      const buf = new Uint8Array(await hit.arrayBuffer());
+      if (await intact(file, buf)) { onBytes(buf.byteLength); return buf; }
+      await cache.delete(key).catch(() => {}); // hỏng: tải lại
+    }
   }
   for (const url of sources(file)) {
     try {
@@ -60,13 +93,16 @@ async function fetchNet(file, onBytes) {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        parts.push(value); n += value.length; onBytes(value.length, false);
+        parts.push(value); n += value.length; onBytes(value.length);
       }
-      if (n < 1e6) continue; // không phải file mạng (vd. trang lỗi)
+      onBytes(-n); // nguồn này hỏng thì tiến độ lùi về như trước
       const buf = new Uint8Array(n);
       let o = 0;
       for (const p of parts) { buf.set(p, o); o += p.length; }
-      if (cache) cache.put(key, new Response(buf, { headers: { 'content-type': 'application/octet-stream' } })).catch(() => {});
+      parts.length = 0;
+      if (!(await intact(file, buf))) continue; // tải đứt / file lạ: thử nguồn kế tiếp
+      onBytes(n);
+      if (cache) await cache.put(key, new Response(buf, { headers: { 'content-type': 'application/octet-stream' } })).catch(() => {});
       return buf;
     } catch (e) { /* thử nguồn kế tiếp */ }
   }
@@ -114,68 +150,83 @@ move_horizon = 64
 `;
 }
 
+/** Điểm cuối cùng Rapfi in ra ("Eval 123", "Eval +M7", "Eval -M4", "+M*" = thắng theo cơ sở dữ liệu) → { cp, mate }. */
+function parseEval(lines) {
+  let ev = null;
+  for (const l of lines) {
+    const m = /Eval ([+-]?)(M?)(\d+|\*)/.exec(l);
+    if (!m) continue;
+    const sign = m[1] === '-' ? -1 : 1;
+    if (m[2]) ev = { cp: sign * 20000, mate: sign * (m[3] === '*' ? 99 : Number(m[3])) };
+    else ev = { cp: sign * Number(m[3]), mate: 0 };
+  }
+  return ev;
+}
+
 /** Gửi lệnh Piskvork; bản 1 luồng chạy đồng bộ nên khi hàm trả về, mọi dòng trả lời đã nằm trong `out`. */
 function send(cmd) { out = []; mod.sendCommand(cmd); return out; }
+
+/** Một lượt nghĩ: { move: [x, y] | null, ev, lines }. */
+function think(moves, ms) {
+  send('INFO timeout_turn ' + ms);
+  const side = moves.length % 2;
+  // Cả khối BOARD … DONE gửi một lần: Rapfi đọc hết các dòng rồi nghĩ, in nước đi dạng "x,y"
+  const res = send(['BOARD', ...moves.map(([x, y], i) => `${x},${y},${i % 2 === side ? 1 : 2}`), 'DONE'].join('\n'));
+  const mv = res.map((l) => /^(\d+),(\d+)$/.exec(l.trim())).find(Boolean);
+  return { move: mv ? [Number(mv[1]), Number(mv[2])] : null, ev: parseEval(res), lines: res };
+}
 
 async function init(rule) {
   const files = NETS[rule];
   if (!files) throw new Error('rule ' + rule);
   if (!hasSimd()) throw new Error('simd'); // báo ngay, không tải mạng vô ích
-  const total = { free: 10030398, std: 10345775, renju: 9984172 + 9844944 }[rule];
+  const total = files.reduce((t, f) => t + SPEC[f][0], 0);
   let got = 0, lastPct = -1;
   const onBytes = (n) => {
     got += n;
-    const pct = Math.min(99, Math.floor((got / total) * 100));
+    const pct = Math.max(0, Math.min(99, Math.floor((got / total) * 100)));
     if (pct !== lastPct) { lastPct = pct; self.postMessage({ type: 'progress', pct }); }
   };
-  const [model, ...nets] = await Promise.all([
-    fetch('model210901.bin').then((r) => { if (!r.ok) throw new Error('model'); return r.arrayBuffer(); }),
+  let data = await Promise.all([
+    fetch('model210901.bin').then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('model')))).then(async (b) => {
+      const u = new Uint8Array(b);
+      if (!(await intact('model210901.bin', u))) throw new Error('model');
+      return u;
+    }),
     ...files.map((f) => fetchNet(f, onBytes)),
   ]);
   importScripts('rapfi-single-simd128.js');
+  let fs = null;
   mod = await self.Rapfi({
     // expose-fs.js (lúc dựng) gọi hàm này trước main(): ghi file vào bộ nhớ ảo để Rapfi đọc khi khởi động
     onFS(FS) {
+      fs = FS;
       FS.writeFile('/config.toml', config(rule));
-      FS.writeFile('/model210901.bin', new Uint8Array(model));
-      files.forEach((f, i) => FS.writeFile('/' + f, nets[i]));
+      FS.writeFile('/model210901.bin', data[0]);
+      files.forEach((f, i) => FS.writeFile('/' + f, data[i + 1]));
+      data = null; // bộ nhớ ảo đã có bản sao: bỏ bản tải về
     },
-    onReceiveStdout(line) {
-      const em = /Eval ([+-]?M?\d+)/.exec(line);
-      if (em) lastEval = /M/.test(em[1]) ? (em[1][0] === '-' ? -20000 : 20000) : Number(em[1]);
-      out.push(line);
-    },
+    onReceiveStdout(line) { out.push(line); },
     onReceiveStderr() {},
     onExit() { mod = null; },
   });
+  if (!send('START ' + SIZE[rule]).includes('OK')) throw new Error('start');
+  for (const c of [`INFO rule ${RULE_N[rule]}`, 'INFO timeout_match 0', 'INFO thread_num 1', 'INFO max_memory 0']) send(c);
+  // Rapfi chỉ nạp mạng NNUE khi nghĩ nước đầu: nghĩ thử một nước ngắn để chắc mạng dùng được
+  const c = SIZE[rule] >> 1;
+  const probe = think([[c, c]], 60);
+  const bad = probe.lines.some((l) => /Failed to load|Evaluator .* disabled/.test(l));
+  if (bad || !probe.move) { await evict(files); throw new Error('weights'); }
+  // Mạng đã giải nén vào bộ nhớ của Rapfi: xoá file nén trong bộ nhớ ảo (~10–20 MB)
+  for (const f of files) { try { fs.unlink('/' + f); } catch (e) { /* đã xoá */ } }
 }
 
-let size = 0;
-function move(d) {
-  if (size !== d.size) {
-    const r = send('START ' + d.size);
-    if (!r.includes('OK')) throw new Error('START ' + d.size);
-    size = d.size;
-    for (const c of [`INFO rule ${RULE_N[d.rule]}`, 'INFO timeout_match 0', 'INFO thread_num 1', 'INFO max_memory 0']) send(c);
-  }
-  send('INFO timeout_turn ' + d.ms);
-  const side = d.moves.length % 2;
-  lastEval = null;
-  // Cả khối BOARD … DONE gửi một lần: Rapfi đọc hết các dòng rồi nghĩ, in nước đi dạng "x,y"
-  const lines = ['BOARD', ...d.moves.map(([x, y], i) => `${x},${y},${i % 2 === side ? 1 : 2}`), 'DONE'];
-  const res = send(lines.join('\n'));
-  const mv = res.map((l) => /^(\d+),(\d+)$/.exec(l.trim())).find(Boolean);
-  return mv ? [Number(mv[1]), Number(mv[2])] : null;
-}
-
-let rule = null;
-if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, config }; // cho script đo sức (Node)
+if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, config, parseEval }; // cho Node
 else self.onmessage = async (e) => {
   const d = e.data;
   if (d.type === 'init') {
-    rule = d.rule;
     try {
-      await init(rule);
+      await init(d.rule);
       self.postMessage({ type: 'ready' });
     } catch (err) {
       self.postMessage({ type: 'error', msg: String((err && err.message) || err) });
@@ -183,8 +234,8 @@ else self.onmessage = async (e) => {
     return;
   }
   if (d.type === 'move') {
-    let m = null;
-    try { if (mod) m = move({ ...d, rule }); } catch (err) { m = null; }
-    self.postMessage({ type: 'move', id: d.id, move: m, ev: lastEval });
+    let r = { move: null, ev: null };
+    try { if (mod) r = think(d.moves, d.ms); } catch (err) { /* trả null: trang dùng engine của game */ }
+    self.postMessage({ type: 'move', id: d.id, move: r.move, ev: r.ev });
   }
 };

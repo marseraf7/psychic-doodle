@@ -22,3 +22,39 @@ jobs:
       - name: Kiểm thử + độ phủ
         run: npm run coverage
         working-directory: server
+
+  # BOAT chạy Rapfi (WebAssembly) trong trình duyệt thật: 3 luật, luật Việt Nam, bộ nhớ đệm mạng, phân tích bằng Rapfi,
+  # mạng hỏng, trang giấy phép (caro/tests/e2e/boat-rapfi.e2e.js). Mạng NNUE (CC0, ~40 MB) tải 1 lần rồi giữ trong cache.
+  rapfi-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: server
+      - name: Cài Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Bộ nhớ đệm mạng Rapfi
+        uses: actions/cache@v4
+        with:
+          path: ~/rapfi-nets
+          key: rapfi-nets-e32ad77
+      - name: Tải mạng Rapfi (lần đầu)
+        run: |
+          mkdir -p ~/rapfi-nets && cd ~/rapfi-nets
+          for f in mix9svqfreestyle_bsmix mix9svqstandard_bs15 mix9svqrenju_bs15_black mix9svqrenju_bs15_white; do
+            [ -s $f.bin.lz4 ] || curl -fsSLO https://raw.githubusercontent.com/marseraf7/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq/$f.bin.lz4 \
+              || curl -fsSLO https://raw.githubusercontent.com/dhbloo/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq/$f.bin.lz4
+          done
+          sha256sum *.lz4
+      - name: Kiểm thử trình duyệt BOAT – Rapfi
+        run: RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: boat-rapfi-e2e-screenshots
+          path: ${{ runner.temp }}/shots
