@@ -40,6 +40,8 @@ LOG="$WORK/logs/progress.log"
 log() { echo "$(date -u '+%F %T') $*" | tee -a "$LOG"; }
 # Ngủ mà vẫn nhận tín hiệu ngay (bash hoãn trap khi đang chạy lệnh ở tiền cảnh)
 nap() { sleep "$1" & wait $!; }
+# Chạy lệnh dài (huấn luyện, xuất, đấu) ở nền rồi chờ: tín hiệu dừng được xử lý ngay thay vì đợi lệnh xong (có thể hàng giờ)
+bg() { "$@" & wait $!; }
 
 # ---------------------------------------------------------------- tự đấu (chạy nền)
 selfplay_worker() { # $1 = số hiệu
@@ -121,9 +123,9 @@ EOF
   sed -i "s/^learning_rate: .*/learning_rate: $lr/" "$R/config.yaml"
   log "Vòng $round: huấn luyện trên $(ls "$R/train" | wc -l) file (~$last_games ván đã có), LR $lr, từ ${prev:-đầu}"
   if [ $GPU = 1 ]; then
-    (cd "$WORK/trainer" && accelerate launch --num_processes 1 train.py -c "$R/config.yaml") > "$R/train.log" 2>&1
+    bg bash -c 'cd "$1/trainer" && exec accelerate launch --num_processes 1 train.py -c "$2/config.yaml" > "$2/train.log" 2>&1' _ "$WORK" "$R"
   else
-    (cd "$WORK/trainer" && OMP_NUM_THREADS=$TRAIN_THREADS nice accelerate launch --cpu --num_processes 1 train.py -c "$R/config.yaml" --use_cpu) > "$R/train.log" 2>&1
+    bg bash -c 'cd "$1/trainer" && OMP_NUM_THREADS=$3 exec nice accelerate launch --cpu --num_processes 1 train.py -c "$2/config.yaml" --use_cpu > "$2/train.log" 2>&1' _ "$WORK" "$R" "$TRAIN_THREADS"
   fi
   ck=$(ls "$R"/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | tail -1)
   if [ -z "$ck" ]; then log "Vòng $round: huấn luyện lỗi – xem $R/train.log"; nap 600; continue; fi
@@ -136,28 +138,30 @@ for l in open(sys.argv[1]):
     if l and 'train_loss' in l: v = json.loads(l)['train_loss'].get('value_loss')
 print('?' if v is None else round(v, 4))" "$R/training_log.jsonl" 2> /dev/null)
   net="$WORK/nets/r$round.bin.lz4"
-  (cd "$WORK/trainer" && OMP_NUM_THREADS=$TRAIN_THREADS python export.py -c "$R/run_config.yaml" -p "$ck" -o "$net" \
-    --export_type bin-lz4 --export_args "{rule: caro, board_size: 20}") > "$R/export.log" 2>&1
+  bg bash -c 'cd "$1/trainer" && OMP_NUM_THREADS=$5 exec python export.py -c "$2/run_config.yaml" -p "$3" -o "$4" \
+    --export_type bin-lz4 --export_args "{rule: caro, board_size: 20}" > "$2/export.log" 2>&1' _ "$WORK" "$R" "$ck" "$net" "$TRAIN_THREADS"
   [ -s "$net" ] || { log "Vòng $round: xuất mạng lỗi – xem $R/export.log"; continue; }
 
   # Đấu: mạng mới (cand) với mạng tốt nhất (best)
   C="$WORK/engines/cand"; rm -rf "$C"; mkdir -p "$C"
   ln -sf "$WORK/bin/pbrain-rapfi" "$WORK/bin/model210901.bin" "$WORK/bin/model-caro.bin" "$C/"
   cp "$net" "$C/caro-nnue.bin.lz4"; node "$HERE/make-config.js" "$C" caro-nnue.bin.lz4
-  # Rapfi nạp mạng hỏng thì lặng lẽ chơi bằng bảng cổ điển: phải thấy "weight loaded" mới cho đấu
-  if ! printf 'START 20\nINFO rule 8\nINFO timeout_turn 100\nBEGIN\nEND\n' | (cd "$C" && timeout 60 ./pbrain-rapfi) 2>&1 |
-    grep -q 'weight loaded'; then
+  # Rapfi nạp mạng hỏng thì lặng lẽ chơi bằng bảng cổ điển: phải thấy "weight loaded" mới cho đấu (lưu đầu ra rồi mới
+  # tìm – grep -q thoát sớm làm Rapfi nhận SIGPIPE, với pipefail cả đường ống bị coi là lỗi)
+  probe=$(printf 'START 20\nINFO rule 8\nINFO timeout_turn 100\nBEGIN\nEND\n' | (cd "$C" && timeout 60 ./pbrain-rapfi) 2>&1)
+  if ! echo "$probe" | grep -q 'weight loaded'; then
     log "Vòng $round: Rapfi-CARO không nạp được mạng $net – bỏ qua vòng này"; continue
   fi
-  res=$(node "$HERE/arena.js" "$C" "$WORK/engines/best" "$ARENA_OPENINGS" "$ARENA_MS" 2>> "$R/arena.err" | tee "$R/arena.out" | tail -1)
+  bg bash -c 'exec node "$1/arena.js" "$2" "$3/engines/best" "$4" "$5" > "$6/arena.out" 2>> "$6/arena.err"' _ "$HERE" "$C" "$WORK" "$ARENA_OPENINGS" "$ARENA_MS" "$R"
+  res=$(tail -1 "$R/arena.out")
   score=$(echo "$res" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['score'])" 2> /dev/null || echo 0)
   if python3 -c "import sys; sys.exit(0 if float('$score') >= $PROMOTE else 1)"; then
     cp "$net" "$WORK/engines/best/caro-nnue.bin.lz4.new" && mv "$WORK/engines/best/caro-nnue.bin.lz4.new" "$WORK/engines/best/caro-nnue.bin.lz4"
     node "$HERE/make-config.js" "$WORK/engines/best" caro-nnue.bin.lz4
     cp "$net" "$WORK/nets/best.bin.lz4"
     # Đo với engine của game (như bảng trong README): Rapfi-CARO + mạng 1 giây vs engine 3 giây
-    vs=$(cd "$ROOT" && CHECK=0 RAPFI=native RAPFI_DIR="$WORK/engines/best" node server/scripts/rapfi/boat-match.js vn "$VS_OPENINGS" 1000 3000 2> /dev/null |
-      node -e 'let w=0,t=0;for(const l of require("fs").readFileSync(0,"utf8").trim().split("\n")){const g=JSON.parse(l);t++;if(g.winner===g.boatSide)w++}console.log(w+"/"+t)')
+    bg bash -c 'cd "$1" && CHECK=0 RAPFI=native RAPFI_DIR="$2/engines/best" exec node server/scripts/rapfi/boat-match.js vn "$3" 1000 3000 > "$4/vs-engine.out" 2> /dev/null' _ "$ROOT" "$WORK" "$VS_OPENINGS" "$R"
+    vs=$(node -e 'let w=0,t=0;for(const l of require("fs").readFileSync(0,"utf8").trim().split("\n")){const g=JSON.parse(l);t++;if(g.winner===g.boatSide)w++}console.log(w+"/"+t)' < "$R/vs-engine.out")
     log "Vòng $round: loss giá trị $loss · đấu mạng cũ $res → THAY mạng tốt nhất · vs engine của game: $vs"
   else
     log "Vòng $round: loss giá trị $loss · đấu mạng cũ $res → giữ mạng cũ"
