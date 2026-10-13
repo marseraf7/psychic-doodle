@@ -197,6 +197,23 @@
       const a = d === 0 ? np : pt[base], b1 = d === 1 ? np : pt[base + 1], c2 = d === 2 ? np : pt[base + 2], d3 = d === 3 ? np : pt[base + 3];
       return PT.COMBO[a * 729 + b1 * 81 + c2 * 9 + d3];
     }
+    /**
+     * Thêm quân p ở ô trống m có tạo ô "bốn mở" mới cho p trên 4 đường qua m không (tra mẫu, không đặt thật). Ô bốn mở mới
+     * sau nước m chỉ có thể nằm trên đường qua m (quân khác không đổi) – điều kiện cần để chuỗi bốn còn 2 nước công thắng.
+     */
+    makesFlex4(m, p) {
+      const W = this.W, H = this.H, cells = this.cells, mx = m % W, my = (m / W) | 0;
+      for (let d = 0; d < 4; d++) {
+        for (let k = -5; k <= 5; k++) {
+          if (!k) continue;
+          const x = mx + k * DX[d], y = my + k * DY[d];
+          if (x < 0 || y < 0 || x >= W || y >= H) continue;
+          const c = y * W + x;
+          if (cells[c] === EMPTY && this.p4[p][c] !== P4.B_FLEX4 && this.p4With(p, c, m, p) === P4.B_FLEX4) return true;
+        }
+      }
+      return false;
+    }
     /** p có ô "bốn mở" (B_FLEX4) hợp lệ không. */
     hasFlex4(p) {
       return this.p4cnt[p][P4.B_FLEX4] > 0 && this.cellsAtLeast(p, P4.B_FLEX4).some((i) => this.p4[p][i] === P4.B_FLEX4);

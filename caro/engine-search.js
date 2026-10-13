@@ -18,7 +18,9 @@
       this.tt = opts.tt || new Map();
       this.qtt = opts.qtt || new Map();
       this.vtt = opts.vtt || new Map();
-      this.leafVcf = opts.leafVcf || 3;  // độ sâu chuỗi ép thử ở lá
+      // Độ sâu chuỗi bốn thử ở lá: luật Việt Nam (ba mở đã là đe doạ thắng – rất nhiều nước bốn) chỉ xét bốn mở – tự đấu 66%
+      // so với 3 nước nhờ tìm sâu hơn; luật khác giữ 3 (ngang nhau)
+      this.leafVcf = opts.leafVcf || (pos.rule === 'vn' ? 1 : 3);
       this.nodes = 0;
       // Xem giờ mỗi 1024 nút; opts.strict: mỗi 128 nút – một nút có thể tốn ~0,1 ms nên 1024 nút trễ hạn cả trăm ms
       // (lượt phân tích nhanh cần đúng giờ; máy đánh và phân tích kỹ giữ cách cũ để sức cờ không đổi)
@@ -110,7 +112,12 @@
       const key = pos.key, e = this.vtt.get(key);
       if (e !== undefined && (e > 0 || -e >= depth)) return e > 0 ? e : 0;
       let found = 0;
+      // Còn 2 nước công: nước bốn m chỉ thắng được nếu (sau khi bị chặn) có ô bốn mở – ô đó phải mới sinh trên đường qua m
+      // (Allis: nước công sau phụ thuộc nước trước). Kiểm bằng tra mẫu trước khi đặt thử. Renju khi X phòng: X có thể không
+      // chặn được vì ô chặn bị cấm, nên không cắt.
+      const dep = this.patterns && depth === 2 && !(pos.rule === 'renju' && q === X);
       for (const m of pos.threatMoves(p, 14)) {
+        if (dep && !pos.makesFlex4(m, p)) continue;
         const r = this.vcfTry(m, depth);
         if (this.stop) return 0;
         if (r) { found = r; break; }

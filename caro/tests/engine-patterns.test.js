@@ -111,6 +111,35 @@ const tests = {
     const q = new E.Position([[0, 0], [5, 5], [1, 0], [5, 7], [2, 0], [9, 9]], 'free');
     assert.ok(q.quickWin(X) && !q.quickWin(O));
   },
+  'makesFlex4 (tra mẫu) = đặt thật rồi tìm ô bốn mở mới; p4With = đặt thật (3 luật không cấm)'() {
+    const rng = seeded(21);
+    let n = 0;
+    for (const rule of ['vn', 'free', 'std']) {
+      for (let g = 0; g < 10; g++) {
+        const pos = new E.Position(randomGame(rule, rng, 26), rule);
+        for (let m = 0; m < pos.cells.length; m++) {
+          if (pos.cells[m] || !pos.near[m]) continue;
+          for (const p of [X, O]) {
+            const before = Uint8Array.from(pos.p4[p]);
+            const c0 = pos.count; pos.count = p === X ? 0 : 1;
+            pos.play(m, p);
+            let made = false;
+            for (let c = 0; c < pos.cells.length; c++) if (!pos.cells[c] && pos.p4[p][c] === P4.B_FLEX4 && before[c] !== P4.B_FLEX4) made = true;
+            const after = Uint8Array.from(pos.p4[p]);
+            pos.undo(); pos.count = c0;
+            assert.strictEqual(pos.makesFlex4(m, p), made, `${rule} makesFlex4 ô ${m}`);
+            // p4With của vài ô trên đường qua m
+            for (const c of [m - 1, m + 1, m - pos.W, m + pos.W + 1]) {
+              if (c < 0 || c >= pos.cells.length || pos.cells[c] || c === m) continue;
+              assert.strictEqual(pos.p4With(p, c, m, p), after[c], `${rule} p4With ô ${c}`);
+            }
+            n++;
+          }
+        }
+      }
+    }
+    assert.ok(n > 1000, String(n));
+  },
   'VCT: hai "hai" giao nhau → ba kép (không có chuỗi bốn) – tìm thấy và đúng ở luật tự do / tiêu chuẩn'() {
     const mv = [[1, 0], [10, 10], [2, 0], [10, 12], [0, 1], [12, 10], [0, 2], [12, 12]];
     for (const rule of ['free', 'std']) {
