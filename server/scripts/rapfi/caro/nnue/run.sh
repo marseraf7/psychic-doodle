@@ -92,7 +92,14 @@ EOF
   fi
   ck=$(ls "$R"/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | tail -1)
   if [ -z "$ck" ]; then log "Vòng $round: huấn luyện lỗi – xem $R/train.log"; sleep 600; continue; fi
-  loss=$(tail -1 "$R/training_log.jsonl" | python3 -c "import json,sys; d=json.loads(sys.stdin.read()); print(round(d.get('train_loss',{}).get('value_loss',0),4))" 2> /dev/null)
+  # Loss giá trị (value) của lần ghi cuối có train_loss
+  loss=$(python3 -c "
+import json, sys
+v = None
+for l in open(sys.argv[1]):
+    l = l.strip()
+    if l and 'train_loss' in l: v = json.loads(l)['train_loss'].get('value_loss')
+print('?' if v is None else round(v, 4))" "$R/training_log.jsonl" 2> /dev/null)
   net="$WORK/nets/r$round.bin.lz4"
   (cd "$WORK/trainer" && OMP_NUM_THREADS=$TRAIN_THREADS python export.py -c "$R/run_config.yaml" -p "$ck" -o "$net" \
     --export_type bin-lz4 --export_args "{rule: caro, board_size: 20}") > "$R/export.log" 2>&1
