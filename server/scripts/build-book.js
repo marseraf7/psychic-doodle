@@ -8,6 +8,9 @@
  * <ms> và ghi nước tốt nhất; ở lượt đối thủ: rẽ nhánh theo <nhánh> nước hay gặp nhất (nước tốt nhất của engine nghĩ
  * nhanh + các ứng viên điểm cao), gộp các thế giống nhau sau khi xoay / lật (book.js canon).
  * Ghi đè caro/book-data.js; giữ lại các mục cũ của luật không dựng lại.
+ *
+ * Luật Việt Nam bằng Rapfi-CARO (mạnh hơn engine của game – BOAT luật Việt Nam chạy nó): BOOK_RAPFI_DIR=<thư mục chạy
+ * bản gốc Rapfi-CARO, xem server/scripts/rapfi/caro/README.md> – mỗi luồng một tiến trình Rapfi-CARO, bàn 20×20.
  */
 'use strict';
 const fs = require('fs');
@@ -16,9 +19,24 @@ const { Worker, isMainThread, parentPort, workerData } = require('worker_threads
 const CARO = path.join(__dirname, '../../caro');
 const OUT = path.join(CARO, 'book-data.js');
 
+const RAPFI_DIR = process.env.BOOK_RAPFI_DIR;
+
 if (!isMainThread) {
   const EN = require(path.join(CARO, 'engine.js'));
-  parentPort.on('message', ({ id, moves, rule, ms }) => {
+  let rapfi = null;
+  parentPort.on('message', async ({ id, moves, rule, ms }) => {
+    if (RAPFI_DIR && rule === 'vn') {
+      // Rapfi-CARO: đặt thế vào giữa bàn 20×20 (khai cuộc nhỏ, luôn vừa); điểm ±20000 = thắng / thua chắc
+      if (!rapfi) { const { Rapfi } = require('./rapfi/driver.js'); rapfi = new Rapfi(20, 8, ms); await rapfi.init(); }
+      rapfi.ms = ms; rapfi.send('INFO timeout_turn ' + ms);
+      let x0 = Infinity, y0 = Infinity;
+      for (const [x, y] of moves) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); }
+      const ox = x0 - 7, oy = y0 - 7;
+      const r = await rapfi.move(moves.map(([x, y]) => [x - ox, y - oy]));
+      const ev = r.ev || 0, mate = Math.abs(ev) >= 20000 ? Math.sign(ev) : null;
+      parentPort.postMessage({ id, move: [r[0] + ox, r[1] + oy], mate, score: ev });
+      return;
+    }
     const r = EN.analyse(moves, { ms, rule });
     parentPort.postMessage({ id, move: r.move, mate: r.mate, score: r.score });
   });
@@ -123,6 +141,7 @@ async function build(rule, bookSide, ms, maxPly, branch, book) {
     write(data);
   }
   pool.forEach((w) => w.terminate());
+  setTimeout(() => process.exit(0), 500); // tiến trình Rapfi-CARO của các luồng
 })();
 
 function write(data) {
@@ -130,7 +149,8 @@ function write(data) {
     `  ${rule}: {\n${Object.entries(book).map(([k, m]) => `    '${k}': [${m[0]}, ${m[1]}],`).join('\n')}\n  },`).join('\n');
   fs.writeFileSync(OUT, `/*
  * Sách khai cuộc (sinh tự động bởi server/scripts/build-book.js – đừng sửa tay): { luật: { khoá thế cờ: [x, y] } }.
- * Khoá và toạ độ theo dạng chuẩn hoá của book.js (canon). Engine nghĩ ${MS} ms mỗi thế, tối đa ${MAXPLY} nước, ${BRANCH} nhánh.
+ * Khoá và toạ độ theo dạng chuẩn hoá của book.js (canon). Lần dựng gần nhất (${RULES}): ${RAPFI_DIR ? 'luật Việt Nam bằng Rapfi-CARO, ' : ''}nghĩ ${MS} ms
+ * mỗi thế, tối đa ${MAXPLY} nước, ${BRANCH} nhánh.
  */
 (function (global) {
   'use strict';
