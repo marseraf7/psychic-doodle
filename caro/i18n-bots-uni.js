@@ -1,7 +1,7 @@
 /*
  * Chuỗi 4 ngôn ngữ cho lối đánh Toàn diện (bots.js: style 'uni') và 6 nhân vật của lối này, đổi tên GOAT cũ (id 'rong',
  * lối Tấn công) thành Y Đững – tên GOAT chuyển cho nhân vật Toàn diện mạnh nhất. Ghi đè các câu cũ nói "24 nhân vật",
- * "4 lối". Nạp sau i18n-bots.js.
+ * "4 lối"; thêm trùm cuối BOAT (mức 7). Nạp sau i18n-bots.js.
  */
 (function () {
   'use strict';
@@ -14,7 +14,7 @@
     style_uni_s: 'Mạnh nhất mỗi mức',
     tier_unlocked: 'Đã mở khoá mức ~{elo}: 5 đối thủ mới!',
     badge_beat_rong_d: 'Thắng một nhân vật mức ~2350 (Y Đững, UEFAlona, Penaldo, Hai Ngón, GOAT)',
-    rule_styles_1: 'Mỗi nhân vật máy có một lối đánh. Ở mỗi mức sức cờ (~600 tới ~2350) đều có đủ 5 lối, tổng cộng 30 đối thủ. Thắng một nhân vật bất kỳ ở một mức là mở khoá cả mức tiếp theo.',
+    rule_styles_1: 'Mỗi nhân vật máy có một lối đánh. Ở mỗi mức sức cờ (~600 tới ~2350) đều có đủ 5 lối, tổng cộng 30 đối thủ. Thắng một nhân vật bất kỳ ở một mức là mở khoá cả mức tiếp theo. Thắng được một nhân vật mức ~2350 thì gặp trùm cuối BOAT.',
     rule_styles_6: 'Toàn diện: không thiên về lối nào – công thủ cân bằng, biết dồn ép, biết chặn chắc, biết tạo nước đôi, và ít mắc lỗi nhất. Đây là đối thủ mạnh nhất ở mỗi mức. Cách đối phó: chơi chắc từng nước, không để lộ sơ hở; muốn thắng phải tự tạo được chuỗi ép.',
     bot_rong: 'Y Đững',
     bot_rong_desc: 'Trùm tấn công: dồn ép không ngừng, tìm chuỗi ép rất sâu.',
@@ -51,6 +51,15 @@
     bot_goat_hi: 'Dám thách đấu GOAT à?',
     bot_goat_win: 'GOAT vẫn là GOAT!',
     bot_goat_lose: 'Không thể nào… Bạn mới là GOAT!',
+    bot_boat: 'BOAT',
+    bot_boat_desc: 'Trùm cuối – Best of All Time: mạnh nhất cả 4 luật. Học từ hàng trăm nghìn ván của các engine vô địch Gomocup, tìm chuỗi đe doạ sâu nhất, nghĩ lâu nhất. Đi trước gần như không thể thua.',
+    bot_boat_hi: 'Chào mừng tới trận cuối. Thuyền đã ra khơi ⛵',
+    bot_boat_win: 'BOAT – Best of All Time. Hẹn bạn lần sau!',
+    bot_boat_lose: 'Bạn vừa đánh chìm BOAT… Huyền thoại thật sự!',
+    boss_unlocked: 'Đã mở khoá trùm cuối BOAT (~{elo})!',
+    badge_beat_rong: 'Hạ cao thủ ~2350',
+    badge_beat_boat: 'Đánh chìm BOAT',
+    badge_beat_boat_d: 'Thắng trùm cuối BOAT (Best of All Time)',
   });
 
   X('en', {
@@ -60,7 +69,7 @@
     style_uni_s: 'Strongest on each level',
     tier_unlocked: 'Level ~{elo} unlocked: 5 new opponents!',
     badge_beat_rong_d: 'Beat a ~2350 opponent (Y Đững, UEFAlona, Penaldo, Hai Ngón, GOAT)',
-    rule_styles_1: 'Each computer opponent has a play style. Every strength level (~600 to ~2350) has all 5 styles – 30 opponents in total. Beat any opponent on a level to unlock the next level.',
+    rule_styles_1: 'Each computer opponent has a play style. Every strength level (~600 to ~2350) has all 5 styles – 30 opponents in total. Beat any opponent on a level to unlock the next level. Beat a ~2350 opponent to face the final boss, BOAT.',
     rule_styles_6: 'All-round: no bias towards any style – balanced attack and defence, pressing, blocking and double threats, with the fewest mistakes. The strongest opponent on each level. Counter: play every move solidly and leave no gaps; to win you must build your own forcing line.',
     bot_rong: 'Y Đững',
     bot_rong_desc: 'The attacking boss: relentless pressure and very deep forcing lines.',
@@ -97,6 +106,15 @@
     bot_goat_hi: 'You dare to challenge the GOAT?',
     bot_goat_win: 'The GOAT is still the GOAT!',
     bot_goat_lose: 'Impossible… You are the GOAT now!',
+    bot_boat: 'BOAT',
+    bot_boat_desc: 'The final boss – Best of All Time: the strongest in all 4 rules. Trained on hundreds of thousands of games by Gomocup champion engines, searches the deepest threat sequences and thinks the longest. Almost unbeatable when moving first.',
+    bot_boat_hi: 'Welcome to the final match. The boat has set sail ⛵',
+    bot_boat_win: 'BOAT – Best of All Time. See you next time!',
+    bot_boat_lose: 'You just sank the BOAT… A true legend!',
+    boss_unlocked: 'Final boss BOAT (~{elo}) unlocked!',
+    badge_beat_rong: 'Master slayer (~2350)',
+    badge_beat_boat: 'Sank the BOAT',
+    badge_beat_boat_d: 'Beat the final boss BOAT (Best of All Time)',
   });
 
   X('ru', {
@@ -106,7 +124,7 @@
     style_uni_s: 'Сильнейший на уровне',
     tier_unlocked: 'Открыт уровень ~{elo}: 5 новых соперников!',
     badge_beat_rong_d: 'Победить соперника ~2350 (Y Đững, UEFAlona, Penaldo, Hai Ngón, GOAT)',
-    rule_styles_1: 'У каждого компьютерного соперника свой стиль. На каждом уровне силы (от ~600 до ~2350) есть все 5 стилей – всего 30 соперников. Победите любого на уровне, чтобы открыть следующий.',
+    rule_styles_1: 'У каждого компьютерного соперника свой стиль. На каждом уровне силы (от ~600 до ~2350) есть все 5 стилей – всего 30 соперников. Победите любого на уровне, чтобы открыть следующий. Победите соперника уровня ~2350 – и вас ждёт финальный босс BOAT.',
     rule_styles_6: 'Универсал: без перекоса в какой-либо стиль – баланс атаки и защиты, давление, блоки и двойные угрозы при минимуме ошибок. Сильнейший соперник на каждом уровне. Как играть: каждый ход надёжно, без брешей; чтобы победить, нужно самому построить форсированную атаку.',
     bot_rong: 'Y Đững',
     bot_rong_desc: 'Босс атаки: непрерывное давление и очень глубокие форсированные линии.',
@@ -143,6 +161,15 @@
     bot_goat_hi: 'Осмелитесь бросить вызов GOAT?',
     bot_goat_win: 'GOAT остаётся GOAT!',
     bot_goat_lose: 'Не может быть… Теперь GOAT – вы!',
+    bot_boat: 'BOAT',
+    bot_boat_desc: 'Финальный босс – Best of All Time: сильнейший во всех 4 правилах. Обучен на сотнях тысяч партий движков-чемпионов Gomocup, ищет самые глубокие цепочки угроз и думает дольше всех. Играя первым, почти не проигрывает.',
+    bot_boat_hi: 'Добро пожаловать на финальный матч. Лодка вышла в море ⛵',
+    bot_boat_win: 'BOAT – лучший всех времён. До встречи!',
+    bot_boat_lose: 'Вы потопили BOAT… Настоящая легенда!',
+    boss_unlocked: 'Открыт финальный босс BOAT (~{elo})!',
+    badge_beat_rong: 'Победитель мастера (~2350)',
+    badge_beat_boat: 'Потопил BOAT',
+    badge_beat_boat_d: 'Победа над финальным боссом BOAT (лучший всех времён)',
   });
 
   X('zh', {
@@ -152,7 +179,7 @@
     style_uni_s: '每级最强',
     tier_unlocked: '已解锁约 {elo} 等级：5 位新对手！',
     badge_beat_rong_d: '战胜约 2350 级对手（Y Đững、UEFAlona、Penaldo、Hai Ngón、GOAT）',
-    rule_styles_1: '每位电脑对手都有自己的风格。每个棋力等级（约 600 到约 2350）都有全部 5 种风格，共 30 位对手。战胜某一等级的任意对手即可解锁下一等级。',
+    rule_styles_1: '每位电脑对手都有自己的风格。每个棋力等级（约 600 到约 2350）都有全部 5 种风格，共 30 位对手。战胜某一等级的任意对手即可解锁下一等级。战胜约 2350 等级的对手后，将迎战最终头目 BOAT。',
     rule_styles_6: '全能型：不偏向任何风格——攻守平衡，会施压、会封堵、会做双杀，失误最少，是每个等级中最强的对手。应对：每一步都下稳，不留破绽；想赢就要自己做出连续的冲四/活三攻势。',
     bot_rong: 'Y Đững',
     bot_rong_desc: '进攻之王：不停施压，算杀极深。',
@@ -189,5 +216,14 @@
     bot_goat_hi: '敢挑战 GOAT 吗？',
     bot_goat_win: 'GOAT 依然是 GOAT！',
     bot_goat_lose: '不可能……你才是 GOAT！',
+    bot_boat: 'BOAT',
+    bot_boat_desc: '最终头目——Best of All Time（史上最强）：四种规则下最强。学习了 Gomocup 冠军引擎的数十万盘对局，搜索最深的威胁序列，思考时间最长。执先手几乎不败。',
+    bot_boat_hi: '欢迎来到最终决战。帆船已经起航 ⛵',
+    bot_boat_win: 'BOAT——史上最强。下次再见！',
+    bot_boat_lose: '你击沉了 BOAT……真正的传奇！',
+    boss_unlocked: '已解锁最终头目 BOAT（约 {elo}）！',
+    badge_beat_rong: '击败约 2350 高手',
+    badge_beat_boat: '击沉 BOAT',
+    badge_beat_boat_d: '战胜最终头目 BOAT（史上最强）',
   });
 })();

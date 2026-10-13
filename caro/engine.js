@@ -40,6 +40,7 @@
     const pos = new Position(moves, opts.rule);
     if (opts.style) Object.assign(pos.style, opts.style);
     if (opts.patOrder === false) pos.patOrder = false;
+    if (opts.policy === false) pos.policy = false;
     pos.rootSide = pos.side; pos.rootCount = pos.count;
     const p = pos.side;
     if (!moves.length) return { move: [0, 0], score: 0, depth: 0, nodes: 0, pv: [[0, 0]], mate: null };

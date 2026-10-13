@@ -9,6 +9,8 @@
   const CP = global.CaroPosition || (typeof require === 'function' ? require('./engine-position.js') : null);
   const { EMPTY, X, DX, DY, POW3 } = CP.K;
   const P4 = PT.P4;
+  // Trọng số chính sách nước đi theo luật (policy-data.js); thiếu file thì xếp theo mẫu đường
+  const POLICY = global.CaroPolicyData || (typeof require === 'function' ? (() => { try { return require('./policy-data.js'); } catch (e) { return null; } })() : null);
   // Điểm xếp ứng viên theo mẫu đường (NONE, B2, F2, B3, F3, F3S, B4, F4, F5) – cùng thang với quickScore
   const LS = [0, 6, 20, 40, 220, 260, 600, 1200, 5000];
 
@@ -74,7 +76,23 @@
       if (!this.count) return [this.idx(0, 0)];
       // Thưởng theo lối đánh chỉ cho nước của nhân vật máy ở gốc (pure: bỏ qua, chỉ theo điểm)
       const root = !pure && this.count === this.rootCount;
-      if (this.patOrder) {
+      const pw = this.policy && POLICY && POLICY[this.rule];
+      if (pw) {
+        // Chính sách nước đi học từ ván vô địch Gomocup (server/scripts/train-policy.js – như mạng policy của AlphaGo nhưng
+        // log-linear trên mẫu hình): điểm = tổng trọng số các đặc trưng của ô (×100 cho cùng thang với thưởng lối đánh)
+        const pp = this.pat[p], pq = this.pat[q], p4p = this.p4[p], p4q = this.p4[q], cells = this.cells, near = this.near, W = this.W;
+        const st = this.stack, lo = st.length ? st[st.length - 1] : -1, lw = st.length > 1 ? st[st.length - 2] : -1;
+        const lox = lo % W, loy = (lo / W) | 0, lwx = lw % W, lwy = (lw / W) | 0;
+        for (let i = 0; i < cells.length; i++) {
+          if (cells[i] !== EMPTY || !near[i]) continue;
+          const b = i * 4, x = i % W, y = (i / W) | 0;
+          let s = pw[p4p[i] * 13 + p4q[i]] + pw[199 + Math.min(8, near[i])];
+          for (let d = 0; d < 4; d++) { const a = pp[b + d], c = pq[b + d]; s += pw[169 + a] + pw[178 + c] + pw[208 + a * 9 + c]; }
+          s += pw[187 + (lo < 0 ? 5 : Math.min(5, Math.max(Math.abs(x - lox), Math.abs(y - loy)) - 1))];
+          s += pw[193 + (lw < 0 ? 5 : Math.min(5, Math.max(Math.abs(x - lwx), Math.abs(y - lwy)) - 1))];
+          list.push({ i, s: s * 100 });
+        }
+      } else if (this.patOrder) {
         // Điểm theo mẫu đường đã có sẵn của ô (Rapfi / Wine: xếp nước theo mẫu) – rẻ hơn quickScore nhiều
         const pp = this.pat[p], pq = this.pat[q], cells = this.cells, near = this.near;
         for (let i = 0; i < cells.length; i++) {

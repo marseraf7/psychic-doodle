@@ -141,9 +141,15 @@ const tests = {
     r.moves.forEach((m, i) => assert.strictEqual(m.p, i % 2 ? O : X));
     for (const p2 of [X, O]) assert.ok(r.acc[p2] >= 0 && r.acc[p2] <= 100);
   },
-  'bots: 30 nhân vật = 6 mức × 5 lối đánh, Elo tăng theo mức, 3 mức đầu mở sẵn'() {
-    assert.strictEqual(B.BOTS.length, 30);
-    assert.strictEqual(new Set(B.BOTS.map((b) => b.id)).size, 30);
+  'bots: 30 nhân vật = 6 mức × 5 lối đánh + trùm cuối BOAT, Elo tăng theo mức, 3 mức đầu mở sẵn'() {
+    assert.strictEqual(B.BOTS.length, 31);
+    assert.strictEqual(new Set(B.BOTS.map((b) => b.id)).size, 31);
+    // Trùm cuối: mức 7 chỉ có BOAT (lối Toàn diện), mạnh hơn GOAT – không lỗi, nghĩ lâu hơn, có sách khai cuộc
+    const boat = B.get('boat'), goat = B.get('goat');
+    assert.deepStrictEqual(B.byTier(7).map((b) => b.id), ['boat']);
+    assert.ok(boat.style === 'uni' && boat.tier === B.TIERS.length && B.TIERS[6].boss && boat.book);
+    assert.ok(boat.elo > goat.elo && boat.engine.ms > goat.engine.ms && !boat.noise && !boat.missBlock && !boat.missWin);
+    assert.strictEqual(B.of(7, 'atk').id, 'boat');
     assert.deepStrictEqual(B.STYLES, ['atk', 'def', 'dbl', 'trap', 'uni']);
     for (let t = 1; t <= 6; t++) {
       const row = B.byTier(t);

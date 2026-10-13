@@ -45,6 +45,7 @@
       this.ev = this.weights(this.rule);   // trọng số chấm điểm của luật này (engine-eval.js)
       this.acc = new Float64Array(4);      // [công X, thủ X, công O, thủ O]: tổng trọng số cửa sổ của X / O (a… / d…)
       this.patOrder = true;                // xếp ứng viên theo mẫu đường (false: theo quickScore như cũ)
+      this.policy = true;                  // xếp ứng viên theo chính sách học được (policy-data.js) nếu có
       this.style = { a: 1, d: 1, dbl: 0, trap: 0 }; // lối đánh (bots.js): trọng số thế mình / thế đối thủ, thưởng xếp nước
       // Mẫu đường (ô × 4 hướng) và mẫu chéo của mỗi ô trống cho X / O, kèm số ô theo từng mẫu chéo
       this.pat = [null, new Uint8Array(n * 4), new Uint8Array(n * 4)];

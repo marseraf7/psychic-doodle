@@ -1,5 +1,5 @@
 /*
- * Ngoại hình của 30 nhân vật máy: ảnh đại diện, biểu tượng, màu riêng. File này chỉ có dữ liệu – sửa thoải mái.
+ * Ngoại hình của 31 nhân vật máy (30 + trùm cuối BOAT): ảnh đại diện, biểu tượng, màu riêng. File này chỉ có dữ liệu – sửa thoải mái.
  *
  *   avatar – đường dẫn ảnh đại diện (svg / png / jpg / webp, nên là ảnh vuông, từ 128×128 trở lên).
  *            Ảnh mặc định nằm trong img/bots/ (sinh bằng server/scripts/gen-bot-avatars.js).
@@ -49,6 +49,8 @@
     long: { avatar: 'img/bots/long.svg', icon: '🥅', color: '#dc2626' },
     ao: { avatar: 'img/bots/ao.svg', icon: '✌️', color: '#a855f7' },
     goat: { avatar: 'img/bots/goat.svg', icon: '🐐', color: '#ca8a04' },
+    // ---- Trùm cuối ~2700
+    boat: { avatar: 'img/bots/boat.svg', icon: '⛵', color: '#1d4ed8' }, // BOAT – Best of All Time
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = LOOKS;
   else global.CaroBotLooks = LOOKS;

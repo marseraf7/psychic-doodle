@@ -33,6 +33,10 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(cards.length === 6, 'mỗi lối đánh 6 nhân vật (6 mức) trong bảng Ván mới');
     ok(cards.filter((c) => c.locked).length === 3, 'mới vào: 3 mức đầu mở, 3 mức sau khoá');
     ok((await p.$$('#ng-picker .style-tabs label')).length === 5, '5 lối đánh: Tấn công / Phòng thủ / Nước đôi / Gài bẫy / Toàn diện');
+    await p.click('#ng-picker .style-tabs label:nth-child(5)'); // Toàn diện: 6 mức + trùm cuối BOAT (khoá)
+    await sleep(100);
+    const uni = await p.$$eval('#ng-picker .bot-grid .bot-card', (els) => els.map((e) => ({ locked: e.classList.contains('locked'), name: e.querySelector('b').textContent })));
+    ok(uni.length === 7 && uni[6].name === 'BOAT' && uni[6].locked, 'lối Toàn diện: thêm trùm cuối BOAT (đang khoá)');
     await p.click('#ng-picker .style-tabs label:nth-child(4)'); // Gài bẫy
     await sleep(100);
     ok((await p.$$eval('#ng-picker .bot-grid .bot-card b', (els) => els.map((e) => e.textContent))).join(',') === 'Sa Tị,Phượng Lên Đồ,Ba Sáu,Tú Sena,Đi Bộ Vuốt Râu,Hai Ngón', 'lối Gài bẫy: 6 nhân vật theo mức');

@@ -1,4 +1,4 @@
-importScripts('rules.js', 'book-data.js', 'book.js', 'bots.js', 'engine-patterns.js', 'engine-position.js', 'engine-renju.js', 'engine-eval.js', 'engine-moves.js', 'engine-search.js', 'engine-vct.js', 'engine.js', 'analysis.js');
+importScripts('rules.js', 'book-data.js', 'book.js', 'bots.js', 'policy-data.js', 'engine-patterns.js', 'engine-position.js', 'engine-renju.js', 'engine-eval.js', 'engine-moves.js', 'engine-search.js', 'engine-vct.js', 'engine.js', 'analysis.js');
 // Phân tích ngầm lúc chơi (live-analysis.js): giữ bảng nhớ của engine suốt ván để thế sau chấm nhanh hơn
 let live = { gid: null, shared: null };
 self.onmessage = (e) => {

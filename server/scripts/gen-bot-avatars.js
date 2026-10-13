@@ -1,7 +1,7 @@
-// Sinh ảnh đại diện mặc định (SVG) cho 30 nhân vật máy vào caro/img/bots/<id>.svg.
+// Sinh ảnh đại diện mặc định (SVG) cho 31 nhân vật máy (30 + trùm cuối BOAT) vào caro/img/bots/<id>.svg.
 // Mỗi ảnh: nền màu riêng của nhân vật, khuôn mặt (màu da, mắt, miệng khác nhau theo id), kiểu tóc / mũ theo lối đánh
 // (Tấn công: tóc dựng + băng đô, Phòng thủ: mũ giáp, Nước đôi: tóc hai màu, Gài bẫy: mũ trùm, Toàn diện: vương miện nhỏ)
-// và phụ kiện theo mức.
+// và phụ kiện theo mức (trùm cuối: vương miện lớn, kính râm, huy hiệu thuyền buồm).
 // Muốn thay ảnh: chép ảnh mới (svg / png / jpg / webp, vuông) vào caro/img/bots/ rồi sửa đường dẫn trong
 // caro/bot-looks.js – không cần chạy lại script này.
 //   node server/scripts/gen-bot-avatars.js
@@ -65,6 +65,11 @@ function extra(tier) {
   if (tier === 4) return `<g fill="#facc15"><path d="M80 14 l2 4.2 4.6 .6 -3.3 3.2 .8 4.6 -4.1 -2.2 -4.1 2.2 .8 -4.6 -3.3 -3.2 4.6 -.6 z"/><path d="M86 28 l2 4.2 4.6 .6 -3.3 3.2 .8 4.6 -4.1 -2.2 -4.1 2.2 .8 -4.6 -3.3 -3.2 4.6 -.6 z"/></g>`;
   if (tier === 5) return `<g fill="#111827"><rect x="29" y="44" width="18" height="11" rx="4"/><rect x="53" y="44" width="18" height="11" rx="4"/><rect x="46" y="47" width="8" height="3"/></g>`;
   if (tier === 6) return `<path d="M30 22 l8 10 l12 -16 l12 16 l8 -10 v14 h-40 z" fill="#facc15" stroke="#b45309" stroke-width="1.5"/>`;
+  // 7 – trùm cuối BOAT: vương miện lớn đính đá + kính râm + huy hiệu thuyền buồm (Best of All Time)
+  if (tier === 7) return `<path d="M24 26 l9 11 l9 -17 l8 15 l8 -15 l9 17 l9 -11 v15 h-52 z" fill="#facc15" stroke="#a16207" stroke-width="1.6"/>
+    <circle cx="42" cy="34" r="2.4" fill="#ef4444"/><circle cx="50" cy="31" r="2.8" fill="#22d3ee"/><circle cx="58" cy="34" r="2.4" fill="#ef4444"/>
+    <g fill="#0f172a"><rect x="28" y="44" width="19" height="11" rx="4"/><rect x="53" y="44" width="19" height="11" rx="4"/><rect x="46" y="47" width="8" height="3"/></g>
+    <g transform="translate(70 70)"><circle r="14" fill="#fff" stroke="#1d4ed8" stroke-width="2"/><path d="M-1 -9 v13 h-8 z M1 -7 l8 11 h-8 z" fill="#1d4ed8"/><path d="M-10 6 h20 l-4 4 h-12 z" fill="#92400e"/></g>`;
   return '';
 }
 

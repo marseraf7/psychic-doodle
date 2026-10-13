@@ -1,5 +1,5 @@
 /*
- * Các "nhân vật" máy: 6 mức sức cờ (Elo ước tính) × 5 lối đánh = 30 nhân vật.
+ * Các "nhân vật" máy: 6 mức sức cờ (Elo ước tính) × 5 lối đánh = 30 nhân vật, cộng trùm cuối BOAT (mức 7, Toàn diện).
  * Sức cờ được tạo bằng cách pha trộn AI của rules.js (mức cao nhất: engine.js) với các lỗi có chủ đích:
  *   noise     – xác suất đánh 1 nước "cho vui" trong k ô đẹp nhất
  *   missBlock – xác suất quên chặn khi đối thủ sắp thắng
@@ -27,6 +27,9 @@
     { elo: 1500, level: 2, noise: 0.1, k: 3, engine: { ms: 30, maxDepth: 1, vcfDepth: 2, safeRoot: false, vct: false } },
     { elo: 1800, level: 3, vcfMs: 300, engine: { ms: 80, maxDepth: 3, vcfDepth: 5 } },
     { elo: 2350, level: 3, vcfDepth: 7, vcfMs: 900, defDepth: 5, defMs: 400, engine: { ms: 900 }, book: true },
+    // Mức trùm cuối: chỉ một nhân vật – BOAT (Best of All Time), lối Toàn diện, nghĩ lâu nhất. Thắng nhân vật mức ~2350 bất
+    // kỳ thì mở khoá.
+    { elo: 2700, level: 3, vcfDepth: 9, vcfMs: 1500, defDepth: 6, defMs: 600, engine: { ms: 3000, vctDepth: 10 }, book: true, boss: true },
   ];
   const STYLES = ['atk', 'def', 'dbl', 'trap', 'uni'];
   // Lối Toàn diện: ghi đè thông số của mức – ít lỗi hơn, nghĩ lâu / sâu hơn các nhân vật cùng mức
@@ -65,13 +68,16 @@
       BOTS.push({ id, tier: t + 1, style, ...TIERS[t], ...extra, styleW: STYLE_W[style] }); // ảnh, biểu tượng, màu: bot-looks.js
     }
   });
+  // Trùm cuối (mức 7, chỉ lối Toàn diện)
+  BOTS.push({ id: 'boat', tier: TIERS.length, style: 'uni', ...TIERS[TIERS.length - 1], styleW: STYLE_W.uni });
   const START_UNLOCKED = 3; // số mức mở sẵn
   // Mức cũ (1 Dễ / 2 Vừa / 3 Khó) -> nhân vật tương ứng.
   const FROM_LEVEL = { 1: 'ti', 2: 'mai', 3: 'minh' };
 
   function get(id) { return BOTS.find((b) => b.id === id) || BOTS.find((b) => b.id === 'ti'); }
   const byTier = (tier) => BOTS.filter((b) => b.tier === tier);
-  const of = (tier, style) => BOTS.find((b) => b.tier === tier && b.style === style);
+  // Mức trùm cuối chỉ có một nhân vật: lối nào cũng trả về nhân vật đó
+  const of = (tier, style) => BOTS.find((b) => b.tier === tier && b.style === style) || BOTS.find((b) => b.tier === tier);
 
   function topCells(board, p, k, exclude, bot) {
     const opp = C.other(p);

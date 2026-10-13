@@ -53,7 +53,7 @@
     const st = styleNow();
     const ts = tiers();
     $('home-bots').innerHTML = RULES.map((rule) => ts.map((tier) => {
-      const b = Bots.BOTS.find((o) => o.style === st && o.tier === tier);
+      const b = Bots.of(tier, st); // mức trùm cuối chỉ có BOAT
       return `<button type="button" class="qm-tile" data-bot-rule="${rule}" data-bot="${b.id}" title="${esc(T('bot_' + b.id))}">
         <b>~${b.elo}</b><small>${esc(T('grule_s_' + rule))}</small></button>`;
     }).join('')).join('');
