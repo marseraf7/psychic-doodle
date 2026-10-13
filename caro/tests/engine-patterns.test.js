@@ -131,7 +131,22 @@ const tests = {
       assert.strictEqual(winner, X, rule);
     }
   },
-  'VCT ở gốc: chỉ nhận khi chứng minh thắng; phòng thủ VCT không bỏ hết nước'() {
+  'chấm điểm luật tiêu chuẩn cộng điểm mẫu chéo; lối đánh vẫn nhất quán (đổi dấu theo bên)'() {
+    const mv = [[0, 0], [5, 5], [1, 0], [5, 6], [2, 0], [9, 9]];
+    const a = new E.Position(mv, 'std');
+    const [ax, dx, ao, dO] = a.acc, s = a.side;
+    assert.ok(a.ev.pa && a.patScore(X, true) !== 0);
+    assert.strictEqual(a.evaluate(), Math.round(s === X ? ax - dO : ao - dx) + a.patScore(s, true) - a.patScore(3 - s, false) + a.ev.tempo);
+    const st = new E.Position(mv, 'std');
+    st.style = { a: 1.2, d: 0.9, dbl: 1, trap: 1 };
+    st.rootSide = st.side;
+    const e0 = st.evaluate();
+    st.play(st.candidates(st.side, 1)[0], st.side);
+    assert.ok(Number.isFinite(e0) && Number.isFinite(st.evaluate()));
+    const r = E.analyse(mv, { ms: 150, rule: 'std', style: st.style });
+    assert.ok(r.move && r.move.length === 2);
+  },
+  'VCT ở gốc + kiểm nước định đi: nước luôn hợp lệ, không cấm, ở mọi luật'() {
     const rng = seeded(9);
     for (const rule of RULES) {
       for (let g = 0; g < 4; g++) {

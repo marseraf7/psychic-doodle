@@ -109,10 +109,33 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - `server/scripts/selfplay.js` – engine tự đấu sinh thêm ván (luật ít dữ liệu như luật Việt Nam)
   - `server/scripts/tune-eval.js` – học trọng số (hồi quy logistic, Adam; 80% học / 20% kiểm tra)
   - `server/scripts/build-book.js` – dựng sách khai cuộc (`book-data.js`): engine nghĩ 6 giây mỗi thế đầu ván
-  - `server/scripts/bot-match.js` – đấu kiểm chứng (chỉ nhận trọng số / thay đổi nào thắng bản cũ)
+  - `server/scripts/bot-match.js` – đấu kiểm chứng (chỉ nhận trọng số / thay đổi nào thắng bản cũ); tham số `bal` dùng bộ
+    khai cuộc cân bằng
+  - `server/scripts/gen-openings.js` – sinh bộ khai cuộc cân bằng (`openings.json`) cho tự đấu
 
   Tìm kiếm: LMR (giảm độ sâu nước xếp cuối, như Stockfish / Rapfi) bật cho luật tiêu chuẩn – tự đấu 60% trên 192 ván;
   luật khác không lợi nên tắt. Mỗi thay đổi chỉ được giữ khi thắng bản trước trong tự đấu.
+  **Nâng cấp theo tài liệu** (Allis "Go-Moku and Threat-Space Search"; Wine – arXiv 2111.01016; ý tưởng của Rapfi / Yixin –
+  chỉ học ý tưởng, tự viết, không dùng mã GPL của họ):
+  - *Mẫu hình theo ô* (`engine-patterns.js`): với mỗi ô trống, mỗi bên, mỗi hướng: đánh vào thì đường 11 ô thành gì (năm,
+    bốn mở, bốn, ba mở, ba, hai…) – phân loại bằng **vét cạn đúng luật thắng** nên đúng cả 4 luật (kể cả "bốn mở thắng ngay",
+    "năm bị chặn hai đầu" của luật Việt Nam), ghi nhớ theo mã 3^11; gộp 4 hướng thành mẫu chéo (bốn mở, bốn-ba, ba kép…).
+    Mỗi nước chỉ cộng / trừ một chữ số vào mã 11 ô giữ sẵn của 44 (ô, hướng) quanh nó. Đã kiểm khớp tuyệt đối với luật thật
+    trên hàng trăm nghìn ô của ván Gomocup (ô thắng, ô "bốn", "bốn mở", ô chặn, ô phòng thủ).
+  - *Chuỗi bốn nhanh hơn*: còn 1 nước công thì chỉ "bốn mở" mới thắng (tra mẫu, khỏi đặt thử); ô chặn duy nhất của một nước
+    bốn là chính ô thắng (trừ luật Việt Nam – chặn đầu cũng được, tra mẫu); ứng viên xếp theo mẫu đường thay cho đếm cửa sổ.
+    Kết quả: luật tự do tìm sâu ~6,8 lớp trong 300 ms (bản trước ~5), luật Việt Nam ~4,9 (trước ~3,6).
+  - *Phòng thủ bắt buộc* (Rapfi / Allis): đối thủ có ô "bốn mở" thì chỉ xét nước làm đối thủ hết ô đó + nước bốn phản công;
+    *thắng nhanh*: có ô bốn mở mà đối thủ không có nước bốn nào → thắng chắc.
+  - *VCT – chuỗi đe doạ ba / bốn* (`engine-vct.js`, threat-space search của Allis): bên công chỉ đi nước ba / bốn, bên thủ
+    xét **mọi** cách phòng (kể cả phản công bằng bốn); chỉ nhận khi mọi nhánh đều thắng (kiểm 75 lần báo thắng bằng cách đánh
+    tiếp với engine cũ nghĩ lâu: đúng 75/75). Dùng ở gốc (tìm thắng) và để **kiểm nước định đi**: sau mỗi lớp làm sâu dần,
+    nếu sau nước tốt nhất đối thủ có VCT thì bỏ nước đó và tìm lại.
+  - *Đo công bằng*: khai cuộc ngẫu nhiên 3 quân lợi cho X tới mức X thắng ~80% bất kể engine nào, nên tự đấu dùng **bộ khai
+    cuộc cân bằng** (`server/scripts/gen-openings.js` → `openings.json`, như Gomocup / Stockfish). Bản mới thắng bản trước:
+    tự do 72%, Việt Nam 68%, tiêu chuẩn 73%, Renju 71% (192 ván mỗi luật, 300 ms/nước, đổi bên mỗi khai cuộc).
+    Đã thử và **không giữ** (không thắng hơn trong tự đấu): bỏ lượt thử (null move), LMR cho mọi luật, độ rộng 8 / 12,
+    trọng số mẫu chéo học từ Gomocup, tìm thêm một nước phòng ở lá.
   **Phân tích song song** (`an-pool.js`): các thế của ván chia cho min(4, lõi − 1) Web Worker (như Lichess chạy Stockfish
   nhiều luồng) – ván 36 nước trên máy 4 lõi: kết quả nhanh 1,4 giây (trước 2,9), phân tích kỹ xong 6,8 giây (trước 18,4).
   Phân tích ngầm gắn khoá thế cờ vào từng kết quả: đi lại / rẽ nhánh bao nhiêu lần cũng không dùng nhầm (e2e: 300 lần).
@@ -256,7 +279,12 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `bots.js` | 30 nhân vật máy (6 mức × 5 lối đánh): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
 | `an-pool.js` | Phân tích ván song song trên nhiều Web Worker (chấm thế + thế sau nước tốt nhất), `study.js` chỉ còn xếp loại |
 | `book.js`, `book-data.js` | Sách khai cuộc của nhân vật mức cao: tra thế cờ (chuẩn hoá xoay / lật / dời) → nước đã phân tích sẵn |
-| `engine.js` | Engine phân tích: Alpha-Beta + chuỗi ép, đủ 4 luật (kể cả nước cấm Renju), trọng số lối đánh (dùng chung trình duyệt, Worker, Node) |
+| `engine.js` | Engine phân tích (hub): `analyse()` – chuỗi ép ở gốc, làm sâu dần có kiểm nước định đi; gom các phần `engine-*.js` (dùng chung trình duyệt, Worker, Node) |
+| `engine-patterns.js` | Mẫu đường / mẫu chéo theo ô (vét cạn đúng luật cả 4 luật, bảng tra theo mã 11 ô) |
+| `engine-position.js` | Thế cờ của engine: đi / lùi, cập nhật dần mẫu hình, ô thắng, khoá Zobrist |
+| `engine-renju.js`, `engine-eval.js`, `engine-moves.js` | Gắn vào thế cờ: nước cấm Renju; chấm điểm (trọng số học từ Gomocup, lối đánh); sinh nước, nước bốn, ô chặn, phòng thủ bắt buộc |
+| `engine-search.js` | Alpha-Beta (PVS) làm sâu dần, bảng ghi nhớ, chuỗi bốn (VCF) ở lá và ở gốc |
+| `engine-vct.js` | Chuỗi đe doạ ba / bốn (VCT – threat-space search của Allis): tìm thắng và kiểm nước định đi |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
 | `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |

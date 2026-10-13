@@ -24,7 +24,7 @@
     { elo: 1200, level: 2, noise: 0.12, k: 4, missBlock: 0.04 },
     // Từ mức 4 dùng engine.js (Alpha-Beta + chuỗi ép) với độ sâu / thời gian giới hạn – như các mức Stockfish của Lichess:
     // yếu hơn vì nhìn nông hơn chứ không phải vì đánh bừa. level / vcf… là AI dự phòng khi không nạp được engine.
-    { elo: 1500, level: 2, noise: 0.1, k: 3, engine: { ms: 30, maxDepth: 1, vcfDepth: 2, safeRoot: false } },
+    { elo: 1500, level: 2, noise: 0.1, k: 3, engine: { ms: 30, maxDepth: 1, vcfDepth: 2, safeRoot: false, vct: false } },
     { elo: 1800, level: 3, vcfMs: 300, engine: { ms: 80, maxDepth: 3, vcfDepth: 5 } },
     { elo: 2350, level: 3, vcfDepth: 7, vcfMs: 900, defDepth: 5, defMs: 400, engine: { ms: 900 }, book: true },
   ];
