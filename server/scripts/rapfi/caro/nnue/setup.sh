@@ -24,7 +24,9 @@ if ! command -v node > /dev/null || [ "$(node -p 'process.versions.node.split(".
 fi
 
 say "2/5 Dựng Rapfi-CARO bản gốc (gói nguồn Rapfi kèm repo + bản vá luật Việt Nam)"
-if [ ! -x "$WORK/bin/pbrain-rapfi" ]; then
+# Dựng lại khi bản vá đổi (sau git pull) – so SHA-256 của gói nguồn + bản vá với lần dựng trước
+SRC_SHA=$(cat "$ROOT/caro/rapfi/build/rapfi-src-3c94c2a.tar.gz" "$ROOT/caro/rapfi/build/rapfi-caro.patch" | sha256sum | cut -d' ' -f1)
+if [ ! -x "$WORK/bin/pbrain-rapfi" ] || [ "$(cat "$WORK/bin/source.sha256" 2> /dev/null)" != "$SRC_SHA" ]; then
   SRC="$(mktemp -d)"
   tar xzf "$ROOT/caro/rapfi/build/rapfi-src-3c94c2a.tar.gz" -C "$SRC" --strip-components=1
   (cd "$SRC" && patch -s -p1 < "$ROOT/caro/rapfi/build/rapfi-caro.patch")
@@ -32,7 +34,9 @@ if [ ! -x "$WORK/bin/pbrain-rapfi" ]; then
   (cd "$SRC/Rapfi" && CC=clang CXX=clang++ cmake --preset x64-clang-Native > "$WORK/logs/build-rapfi.log" 2>&1 &&
     cmake --build build/x64-clang-Native -j"$(nproc)" >> "$WORK/logs/build-rapfi.log" 2>&1) ||
     { echo "Dựng Rapfi lỗi – xem $WORK/logs/build-rapfi.log"; exit 1; }
-  cp "$SRC/Rapfi/build/x64-clang-Native/pbrain-rapfi" "$WORK/bin/"
+  cp "$SRC/Rapfi/build/x64-clang-Native/pbrain-rapfi" "$WORK/bin/pbrain-rapfi.new"
+  mv "$WORK/bin/pbrain-rapfi.new" "$WORK/bin/pbrain-rapfi"
+  echo "$SRC_SHA" > "$WORK/bin/source.sha256"
   rm -rf "$SRC"
 fi
 cp "$ROOT/caro/rapfi/model210901.bin" "$ROOT/caro/rapfi/model-caro.bin" "$WORK/bin/"

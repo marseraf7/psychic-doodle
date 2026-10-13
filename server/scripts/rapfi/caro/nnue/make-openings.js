@@ -1,9 +1,10 @@
 /*
  * File khai cuộc cho Rapfi selfplay (--opening): mỗi dòng một thế "h8i9…" (chữ = cột từ a, số = hàng từ 1), bàn 20×20.
  *   node make-openings.js <ra.txt> [ván.jsonl …]
- * Nguồn: sách khai cuộc luật Việt Nam (caro/book-data.js: vn, vn-rapfi – thế và thế sau nước trong sách), khai cuộc
- * cân bằng server/scripts/openings.json từ 32 trở đi (0–31 để dành đo sức), và 4 / 6 / 8 nước đầu của các ván jsonl nếu
- * có (vd. ván Gomocup bảng Caro từ server/scripts/gomocup-import.js). Bỏ thế trùng (sau xoay / lật) và thế đã có người thắng.
+ * Nguồn: sách khai cuộc luật Việt Nam (caro/book-data.js: vn, vn-rapfi – thế và thế sau nước trong sách) và 4 / 6 / 8
+ * nước đầu của các ván jsonl nếu có (vd. ván Gomocup bảng Caro từ server/scripts/gomocup-import.js). Không dùng
+ * server/scripts/openings.json: khai cuộc 0–31 để đo với engine của game, 32–95 để đấu chọn mạng (arena.js) – mạng
+ * không được học trước trên chính các thế dùng để chấm nó. Bỏ thế trùng (sau xoay / lật) và thế đã có người thắng.
  */
 'use strict';
 const fs = require('fs');
@@ -11,7 +12,9 @@ const C = require('../../../../../caro/rules.js');
 const B = require('../../../../../caro/book.js');
 const OPEN = require('../../../openings.json').vn;
 const [out, ...jsonl] = process.argv.slice(2);
-const N = 20, seen = new Set(), lines = [];
+const N = 20, lines = [];
+// Đánh dấu sẵn mọi khai cuộc đo là "đã có" để không thế nào trùng chúng (kể cả thế trong sách)
+const seen = new Set(OPEN.map((op) => B.canon(op).key));
 
 function add(mv) {
   if (mv.length < 2) return;
@@ -48,6 +51,5 @@ for (const f of jsonl) {
     for (const k of [4, 6, 8]) if (g.length > k + 6) add(g.slice(0, k));
   }
 }
-for (const op of OPEN.slice(32)) add(op);
 fs.writeFileSync(out, lines.join('\n') + '\n');
 console.log(`${lines.length} khai cuộc → ${out}`);

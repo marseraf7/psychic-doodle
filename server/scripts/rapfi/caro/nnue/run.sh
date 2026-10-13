@@ -7,6 +7,8 @@
 #   - Mỗi vòng (khi có thêm ít nhất ROUND_GAMES ván): huấn luyện tiếp ITERS bước trên WINDOW file dữ liệu mới nhất → xuất
 #     mạng nets/rN.bin.lz4 → đấu với mạng tốt nhất (arena.js, ARENA_OPENINGS × 2 ván, ARENA_MS ms / nước) → điểm ≥ PROMOTE
 #     thì thay mạng tốt nhất (tự đấu dùng mạng mới từ lô sau) và đo với engine của game (boat-match.js, như README).
+#     128 ván, ngưỡng 0,57: hai mạng ngang sức chỉ ~6% lần lọt ngưỡng (64 ván / 0,55 là ~20% – mạng tốt nhất trôi dạt).
+#   - Tốc độ học giảm dần: LR × LR_DECAY sau mỗi LR_EVERY vòng, không dưới LR_MIN.
 # Nhật ký: logs/progress.log (mỗi vòng một dòng). Mạng tốt nhất: engines/best/caro-nnue.bin.lz4. Dừng: Ctrl-C (tự đấu
 # dừng theo), hoặc tạo file WORK/STOP (dừng sau vòng hiện tại).
 set -uo pipefail
@@ -25,9 +27,12 @@ WINDOW=${WINDOW:-1000}                     # số file dữ liệu mới nhất 
 ITERS=${ITERS:-$([ $GPU = 1 ] && echo 20000 || echo 1500)}
 BATCH=${BATCH:-$([ $GPU = 1 ] && echo 1024 || echo 128)}
 LR=${LR:-0.001}
-ARENA_OPENINGS=${ARENA_OPENINGS:-32}
+LR_DECAY=${LR_DECAY:-0.8}
+LR_EVERY=${LR_EVERY:-5}
+LR_MIN=${LR_MIN:-0.0001}
+ARENA_OPENINGS=${ARENA_OPENINGS:-64}       # khai cuộc 32–95 của openings.json (không dùng cho tự đấu), × 2 ván
 ARENA_MS=${ARENA_MS:-300}
-PROMOTE=${PROMOTE:-0.55}
+PROMOTE=${PROMOTE:-0.57}
 VS_OPENINGS=${VS_OPENINGS:-16}             # đo với engine của game: số khai cuộc (× 2 ván)
 LOG="$WORK/logs/progress.log"
 # shellcheck disable=SC1091
@@ -36,16 +41,27 @@ log() { echo "$(date -u '+%F %T') $*" | tee -a "$LOG"; }
 
 # ---------------------------------------------------------------- tự đấu (chạy nền)
 selfplay_worker() { # $1 = số hiệu
-  local b=0
+  local b=0 fails=0 eng
   while [ ! -f "$WORK/STOP" ]; do
     b=$((b + 1))
     local out="$WORK/data/sp-$(date +%s)-$1-$b.binpack.lz4" op=""
     [ $((b % 2)) -eq 0 ] && op="--opening $WORK/openings.txt"
-    # Mỗi lô đọc lại engines/best: thay mạng tốt nhất thì lô sau dùng ngay
-    (cd "$WORK/engines/best" && ./pbrain-rapfi selfplay --rule caro -n "$GAMES" --boardsize 20 $op \
+    # Mỗi lô đọc lại engines/best: thay mạng tốt nhất thì lô sau dùng ngay. Lỗi 3 lô liền (vd. mạng hỏng): dùng bản cổ
+    # điển, cứ 10 lô thử lại best một lần
+    eng=best
+    if [ $fails -ge 3 ] && [ $((b % 10)) -ne 0 ]; then eng=classic; fi
+    if (cd "$WORK/engines/$eng" && ./pbrain-rapfi selfplay --rule caro -n "$GAMES" --boardsize 20 $op \
       --budget-unit nodes --budget-distribution fixed --budget-value "$NODES" \
       --seed $(( $1 * 1000003 + b * 7919 + $(date +%s) % 100000 )) -o "$out.tmp" --report-interval 3600000 \
-      > /dev/null 2>&1) && mv "$out.tmp" "$out" || { rm -f "$out.tmp"; sleep 30; }
+      > "$WORK/logs/selfplay-$1.log" 2>&1) && [ -s "$out.tmp" ]; then
+      mv "$out.tmp" "$out"
+      [ "$eng" = best ] && fails=0
+    else
+      rm -f "$out.tmp"
+      [ "$eng" = best ] && fails=$((fails + 1))
+      log "Tự đấu $1 lỗi ($eng, lần $fails) – xem logs/selfplay-$1.log$([ $fails -eq 3 ] && echo ' · chuyển sang bản cổ điển')"
+      sleep 30
+    fi
   done
 }
 PIDS=()
@@ -84,7 +100,9 @@ weight_decay: 1.0e-7
 clip_grad_norm: 1.0
 EOF
   [ -n "$prev" ] && echo "load_from: $prev" >> "$R/config.yaml"
-  log "Vòng $round: huấn luyện trên $(ls "$R/train" | wc -l) file (~$last_games ván đã có), từ ${prev:-đầu}"
+  lr=$(python3 -c "print(max($LR_MIN, $LR * $LR_DECAY ** (($round - 1) // $LR_EVERY)))")
+  sed -i "s/^learning_rate: .*/learning_rate: $lr/" "$R/config.yaml"
+  log "Vòng $round: huấn luyện trên $(ls "$R/train" | wc -l) file (~$last_games ván đã có), LR $lr, từ ${prev:-đầu}"
   if [ $GPU = 1 ]; then
     (cd "$WORK/trainer" && accelerate launch --num_processes 1 train.py -c "$R/config.yaml") > "$R/train.log" 2>&1
   else

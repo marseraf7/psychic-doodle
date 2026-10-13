@@ -20,4 +20,7 @@ draw_ratio = 1.0
 [[model.evaluator.weights]]
 weight_file = "${net}"`);
 }
-fs.writeFileSync(path.join(dir, 'config.toml'), cfg);
+// Ghi file tạm rồi đổi tên: tiến trình tự đấu đang khởi động không đọc phải file ghi dở
+const tmp = path.join(dir, `config.toml.${process.pid}.tmp`);
+fs.writeFileSync(tmp, cfg);
+fs.renameSync(tmp, path.join(dir, 'config.toml'));

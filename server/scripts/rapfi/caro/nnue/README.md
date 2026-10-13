@@ -4,7 +4,8 @@ Mục tiêu: BOAT luật Việt Nam thắng engine của game **trên 90%** (hi�
 `../README.md`). Ba luật kia mạnh nhờ mạng NNUE "mix9svq" của Rapfi; luật Việt Nam chưa có mạng nào nên phải tự luyện:
 Rapfi-CARO tự đấu sinh ván → bộ huấn luyện [pytorch-nnue-trainer](https://github.com/dhbloo/pytorch-nnue-trainer) (của tác
 giả Rapfi; tải về khi cài, thêm luật caro bằng `trainer-add-caro.py`) học mạng mix9svq → mạng mới đấu với mạng tốt nhất,
-hơn thì thay và tự đấu tiếp bằng mạng mới (càng về sau dữ liệu càng tốt). Đã kiểm trọn vòng trên máy 4 lõi: Rapfi-CARO nạp
+thắng ≥ 57% trong 128 ván (khai cuộc 32–95 của `openings.json`, không có trong dữ liệu tự đấu) thì thay và tự đấu
+tiếp bằng mạng mới (càng về sau dữ liệu càng tốt); tốc độ học giảm dần theo vòng. Đã kiểm trọn vòng trên máy 4 lõi: Rapfi-CARO nạp
 và chơi được bằng mạng luyện ra.
 
 ## Cần gì
@@ -12,9 +13,11 @@ và chơi được bằng mạng luyện ra.
 - Máy Linux x86-64 chạy liên tục (VPS), Ubuntu 22.04+ / Debian 12+, tài khoản có `sudo`, ~20 GB đĩa trống.
 - CPU càng nhiều lõi càng tốt (tự đấu dùng mọi lõi). **GPU NVIDIA giúp phần huấn luyện nhanh ~100 lần** – không có thì
   vẫn chạy được bằng CPU, chỉ chậm hơn.
-- Ước tính trên CPU (đo trên máy 4 lõi): tự đấu ~10 ván / phút / lõi (~14.000 ván / lõi / ngày); huấn luyện ~40 thế / giây
-  (4 lõi). Một mạng khá cần vài trăm nghìn ván và vài chục triệu lượt thế → **vài tuần trên VPS chỉ có CPU**, vài ngày nếu
-  có GPU.
+- Ước tính trên CPU (đo trên máy 4 lõi, cả khâu nạp dữ liệu): tự đấu ~10 ván / phút / lõi (~14.000 ván / lõi / ngày);
+  huấn luyện ~15 thế / giây (4 lõi, ~4,5 giây mỗi bước lô 64). Một mạng khá cần vài trăm nghìn ván và vài chục triệu lượt
+  thế → **một đến vài tháng trên VPS chỉ có CPU** (tuỳ số lõi), vài ngày nếu có GPU.
+- Sau `git pull` chạy lại `setup.sh`: Rapfi-CARO được dựng lại nếu bản vá đổi. Dữ liệu tự đấu không bao giờ bị xoá (vài MB
+  mỗi ngày); muốn dọn thì xoá bớt file cũ trong `~/caro-nnue/data`.
 
 ## Chạy
 
@@ -56,5 +59,5 @@ Sau đó Claude đo lại (bản WebAssembly như trên điện thoại), dựng
 | `run.sh` | Vòng luyện liên tục: tự đấu nền, huấn luyện, xuất, đấu chọn mạng, đo với engine của game |
 | `trainer-add-caro.py` | Thêm luật caro vào bộ huấn luyện (mã luật 7 trong dữ liệu, bit 8 trong file mạng) |
 | `make-config.js` | `config.toml` cho Rapfi-CARO (giống app: `caro/rapfi/worker.js`), có / không mạng NNUE |
-| `make-openings.js` | Khai cuộc cho tự đấu: sách luật Việt Nam, `openings.json` từ 32 trở đi, ván Gomocup (tuỳ chọn) |
+| `make-openings.js` | Khai cuộc cho tự đấu: sách luật Việt Nam, ván Gomocup (tuỳ chọn); loại mọi thế trùng `openings.json` (bộ đo) |
 | `arena.js` | Đấu hai bản Rapfi-CARO (khai cuộc 32+; 0–31 để dành đo với engine của game) |
