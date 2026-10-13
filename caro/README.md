@@ -158,6 +158,9 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     Alpha-Beta 40–44% (96 ván / cấu hình) – không có mạng giá trị mạnh (cần GPU, hàng triệu ván) thì MCTS kém Alpha-Beta
     + chuỗi đe doạ ở cờ caro, nên không dùng.
   - Đo: BOAT thắng GOAT 63% (Việt Nam) / 58% (tự do) – 48 ván mỗi luật, cùng engine nên lợi thế đến từ nghĩ lâu hơn.
+  - So với nhà vô địch Gomocup **Rapfi** (chạy cục bộ bằng `server/scripts/rapfi/`, không nằm trong app): Rapfi nghĩ
+    40 ms / nước vẫn thắng BOAT nghĩ 3 giây (BOAT được 19% tự do, 38% tiêu chuẩn, 38% Renju). Học hàm đánh giá tuyến tính
+    theo điểm của Rapfi làm engine kém đi (33–41%) – muốn tới mức vô địch cần mạng nơ-ron (NNUE hoặc CNN + MCTS).
   **Phân tích song song** (`an-pool.js`): các thế của ván chia cho min(4, lõi − 1) Web Worker (như Lichess chạy Stockfish
   nhiều luồng) – ván 36 nước trên máy 4 lõi: kết quả nhanh 1,4 giây (trước 2,9), phân tích kỹ xong 6,8 giây (trước 18,4).
   Phân tích ngầm gắn khoá thế cờ vào từng kết quả: đi lại / rẽ nhánh bao nhiêu lần cũng không dùng nhầm (e2e: 300 lần).

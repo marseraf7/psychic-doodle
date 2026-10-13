@@ -41,8 +41,16 @@ LABEL=ev EVSCALE=150 node server/scripts/tune-eval.js rapfi-free.jsonl free
 
 ## Kết quả đã đo (10/2026, máy 4 lõi)
 
-KET_QUA_RAPFI
+BOAT (engine của game, 3 giây / nước) với Rapfi 1 luồng, 16 ván mỗi ô (8 khai cuộc cân bằng × 2 bên):
 
-Học hàm đánh giá tuyến tính theo điểm Rapfi (2.400 ván Rapfi tự đấu, luật tự do) khớp điểm Rapfi tốt hơn nhiều (sai số
-0,38 → 0,17) nhưng chơi **kém** hơn (41% / 192 ván) – muốn mang được sức của Rapfi vào app cần mạng nơ-ron (NNUE / CNN),
+| Luật | Rapfi 40 ms / nước | Rapfi 100 ms / nước |
+|---|---|---|
+| Tự do | 19% | 6% |
+| Tiêu chuẩn | 38% | 25% |
+| Renju | 38% | 19% |
+
+Rapfi chỉ cần ~1/75 thời gian vẫn thắng BOAT – khoảng cách đến từ mạng NNUE và tốc độ C++ / SIMD.
+
+Học hàm đánh giá tuyến tính theo điểm Rapfi (2.400 ván Rapfi tự đấu mỗi luật) khớp điểm Rapfi tốt hơn nhiều (sai số
+0,38 → 0,17 luật tự do) nhưng chơi **kém** hơn bản hiện tại (tự do 41%, tiêu chuẩn 33% / 192 ván) – muốn mang được sức của Rapfi vào app cần mạng nơ-ron (NNUE / CNN),
 không phải hàm đánh giá tuyến tính. Chính sách nước đi học thêm ván Rapfi cũng không khá hơn (đã bão hoà với bộ đặc trưng).
