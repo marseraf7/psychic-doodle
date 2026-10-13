@@ -5,6 +5,8 @@
  *
  *   node server/scripts/tune-eval.js <file .jsonl> <luật của app: vn|free|std|renju> [số ván tối đa=40000]
  *   TEMPO=<số> node … : giữ cố định lợi thế được đi (dữ liệu tự đấu lệch về bên đi trước có thể kéo nó âm vô lý)
+ *   LABEL=ev EVSCALE=<số> node … : học theo điểm của engine thầy ghi trong ván (trường ev, vd. ván Rapfi tự đấu) thay
+ *   cho kết quả ván
  *   → in bộ trọng số { a5, d5, a6, d6, pa, pd, tempo } để dán vào EVAL trong caro/engine.js, kèm sai số trước / sau.
  *
  * Mỗi thế cờ (bỏ khai cuộc cho sẵn và các thế đang có ô thắng – thế "động", điểm tĩnh không nói lên gì) được đếm số
@@ -81,7 +83,11 @@ function loadPositions(file, rule, maxGames) {
         // Thế "động" (bên nào đang có ô thắng): bỏ
         const P = new EN.Position(moves.slice(0, i), rule === 'vn' ? 'vn' : rule);
         if (!P.winCount[X] && !P.winCount[O]) {
-          const res = g.w === 0 ? 0.5 : g.w === (s === X ? 1 : 2) ? 1 : 0;
+          // Nhãn: kết quả ván; LABEL=ev và ván có điểm của engine thầy (vd. Rapfi – ev[i] theo góc nhìn bên tới lượt) thì dùng
+          // nhãn mềm = khả năng thắng theo điểm đó (EVSCALE: thang điểm của thầy) – ít nhiễu hơn kết quả ván nhiều
+          const res = process.env.LABEL === 'ev' && g.ev && g.ev[i] != null
+            ? 1 / (1 + Math.exp(-g.ev[i] / Number(process.env.EVSCALE || 300)))
+            : g.w === 0 ? 0.5 : g.w === (s === X ? 1 : 2) ? 1 : 0;
           const f = features(grid, n, s, vn);
           for (let v = 1; v <= NP; v++) { f[12 + v] = P.p4cnt[s][v]; f[12 + NP + v] = P.p4cnt[3 - s][v]; }
           pos.push({ f, r: res });

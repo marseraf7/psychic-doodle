@@ -138,8 +138,8 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     nếu sau nước tốt nhất đối thủ có VCT thì bỏ nước đó và tìm lại.
   - *Đo công bằng*: khai cuộc ngẫu nhiên 3 quân lợi cho X tới mức X thắng ~80% bất kể engine nào, nên tự đấu dùng **bộ khai
     cuộc cân bằng** (`server/scripts/gen-openings.js` → `openings.json`, như Gomocup / Stockfish). Bản mới thắng bản trước
-    đợt nâng cấp: **Việt Nam 80%, tự do 70%, tiêu chuẩn 82%, Renju 71%** (192 ván mỗi luật, 300 ms/nước, đổi bên mỗi khai
-    cuộc). GOAT (Toàn diện, 1,3 giây) với các nhân vật cùng mức 2350 (luật Việt Nam, thời gian thật của nhân vật, 96 ván):
+    đợt nâng cấp: **Việt Nam 81%, tự do 76%, tiêu chuẩn 82%, Renju 74%** (192 ván mỗi luật, 300 ms/nước, đổi bên mỗi khai
+    cuộc; bản cuối, gồm cả chính sách nước đi và học tăng cường bên dưới). GOAT (Toàn diện, 1,3 giây) với các nhân vật cùng mức 2350 (luật Việt Nam, thời gian thật của nhân vật, 96 ván):
     Y Đững 74%, Pháo 76%, Long 76%, Áo 52% (Áo – lối gài bẫy – gần như dùng engine thuần, chỉ nghĩ ít hơn; cho GOAT nghĩ
     2,5 giây cũng chỉ 59% nên giữ 1,3 giây cho người chơi khỏi chờ).
     Đã thử và **không giữ** (không thắng hơn trong tự đấu): bỏ lượt thử (null move), LMR cho mọi luật, độ rộng 8 / 12,
