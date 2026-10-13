@@ -38,6 +38,8 @@ LOG="$WORK/logs/progress.log"
 # shellcheck disable=SC1091
 . "$WORK/venv/bin/activate"
 log() { echo "$(date -u '+%F %T') $*" | tee -a "$LOG"; }
+# Ngủ mà vẫn nhận tín hiệu ngay (bash hoãn trap khi đang chạy lệnh ở tiền cảnh)
+nap() { sleep "$1" & wait $!; }
 
 # ---------------------------------------------------------------- tự đấu (chạy nền)
 selfplay_worker() { # $1 = số hiệu
@@ -53,21 +55,36 @@ selfplay_worker() { # $1 = số hiệu
     if (cd "$WORK/engines/$eng" && ./pbrain-rapfi selfplay --rule caro -n "$GAMES" --boardsize 20 $op \
       --budget-unit nodes --budget-distribution fixed --budget-value "$NODES" \
       --seed $(( $1 * 1000003 + b * 7919 + $(date +%s) % 100000 )) -o "$out.tmp" --report-interval 3600000 \
-      > "$WORK/logs/selfplay-$1.log" 2>&1) && [ -s "$out.tmp" ]; then
+      > "$WORK/logs/selfplay-$1.log" 2>&1) && [ -s "$out.tmp" ] &&
+      ! grep -qE 'Failed to load|Evaluator .* disabled' "$WORK/logs/selfplay-$1.log"; then
+      # (Rapfi nạp mạng hỏng không thoát lỗi mà lặng lẽ tắt mạng, chơi bằng bảng cổ điển – coi như lỗi)
       mv "$out.tmp" "$out"
       [ "$eng" = best ] && fails=0
     else
       rm -f "$out.tmp"
       [ "$eng" = best ] && fails=$((fails + 1))
       log "Tự đấu $1 lỗi ($eng, lần $fails) – xem logs/selfplay-$1.log$([ $fails -eq 3 ] && echo ' · chuyển sang bản cổ điển')"
-      sleep 30
+      nap 30
     fi
   done
 }
 PIDS=()
 for i in $(seq 1 "$SP_PROCS"); do selfplay_worker "$i" & PIDS+=($!); done
-cleanup() { kill "${PIDS[@]}" 2> /dev/null; pkill -P $$ 2> /dev/null; exit 0; }
-trap cleanup INT TERM
+# Dừng cả cây tiến trình con / cháu (tự đấu, huấn luyện, đấu chọn) – không để Rapfi mồ côi chạy tiếp. SIGKILL: Rapfi
+# tự đấu bỏ qua SIGTERM (cố chơi hết rồi mới thoát). Cha trước con: vòng tự đấu không kịp mở lô mới.
+killtree() { local c kids; kids=$(pgrep -P "$1"); kill -9 "$1" 2> /dev/null; for c in $kids; do killtree "$c"; done; }
+# Ctrl-C / timeout gửi tín hiệu cho cả nhóm: vòng tự đấu chết ngay, Rapfi bị mồ côi trước khi kịp dọn – giết thêm mọi
+# pbrain-rapfi đang chạy trong WORK/engines (nhận qua thư mục làm việc, không đụng tiến trình khác)
+cleanup() {
+  trap - INT TERM EXIT
+  local c p
+  for c in $(pgrep -P $$); do killtree "$c"; done
+  for p in $(pgrep -x pbrain-rapfi); do
+    case "$(readlink "/proc/$p/cwd" 2> /dev/null)" in "$(cd "$WORK" && pwd -P)"/engines/*) kill -9 "$p" 2> /dev/null ;; esac
+  done
+  exit 0
+}
+trap cleanup INT TERM EXIT
 log "Bắt đầu: $CORES lõi, GPU=$GPU · tự đấu $SP_PROCS tiến trình × $NODES nút · huấn luyện $TRAIN_THREADS luồng, $ITERS bước × lô $BATCH mỗi vòng"
 
 count_games() { echo $(( $(ls "$WORK/data"/*.binpack.lz4 2> /dev/null | wc -l) * GAMES )); }
@@ -76,7 +93,7 @@ count_games() { echo $(( $(ls "$WORK/data"/*.binpack.lz4 2> /dev/null | wc -l) *
 round=$(ls -d "$WORK"/runs/r* 2> /dev/null | sed 's/.*\/r//' | sort -n | tail -1); round=${round:-0}
 last_games=$(cat "$WORK/runs/last_games" 2> /dev/null || echo 0)
 while [ ! -f "$WORK/STOP" ]; do
-  if [ $(( $(count_games) - last_games )) -lt "$ROUND_GAMES" ]; then sleep 300; continue; fi
+  if [ $(( $(count_games) - last_games )) -lt "$ROUND_GAMES" ]; then nap 300; continue; fi
   round=$((round + 1)); R="$WORK/runs/r$round"; mkdir -p "$R/train"
   last_games=$(count_games); echo "$last_games" > "$WORK/runs/last_games"
   ls -t "$WORK/data"/*.binpack.lz4 | head -n "$WINDOW" | while read -r f; do ln -sf "$f" "$R/train/"; done
@@ -109,7 +126,7 @@ EOF
     (cd "$WORK/trainer" && OMP_NUM_THREADS=$TRAIN_THREADS nice accelerate launch --cpu --num_processes 1 train.py -c "$R/config.yaml" --use_cpu) > "$R/train.log" 2>&1
   fi
   ck=$(ls "$R"/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | tail -1)
-  if [ -z "$ck" ]; then log "Vòng $round: huấn luyện lỗi – xem $R/train.log"; sleep 600; continue; fi
+  if [ -z "$ck" ]; then log "Vòng $round: huấn luyện lỗi – xem $R/train.log"; nap 600; continue; fi
   # Loss giá trị (value) của lần ghi cuối có train_loss
   loss=$(python3 -c "
 import json, sys
@@ -127,6 +144,11 @@ print('?' if v is None else round(v, 4))" "$R/training_log.jsonl" 2> /dev/null)
   C="$WORK/engines/cand"; rm -rf "$C"; mkdir -p "$C"
   ln -sf "$WORK/bin/pbrain-rapfi" "$WORK/bin/model210901.bin" "$WORK/bin/model-caro.bin" "$C/"
   cp "$net" "$C/caro-nnue.bin.lz4"; node "$HERE/make-config.js" "$C" caro-nnue.bin.lz4
+  # Rapfi nạp mạng hỏng thì lặng lẽ chơi bằng bảng cổ điển: phải thấy "weight loaded" mới cho đấu
+  if ! printf 'START 20\nINFO rule 8\nINFO timeout_turn 100\nBEGIN\nEND\n' | (cd "$C" && timeout 60 ./pbrain-rapfi) 2>&1 |
+    grep -q 'weight loaded'; then
+    log "Vòng $round: Rapfi-CARO không nạp được mạng $net – bỏ qua vòng này"; continue
+  fi
   res=$(node "$HERE/arena.js" "$C" "$WORK/engines/best" "$ARENA_OPENINGS" "$ARENA_MS" 2>> "$R/arena.err" | tee "$R/arena.out" | tail -1)
   score=$(echo "$res" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['score'])" 2> /dev/null || echo 0)
   if python3 -c "import sys; sys.exit(0 if float('$score') >= $PROMOTE else 1)"; then
