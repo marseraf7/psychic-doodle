@@ -42,7 +42,7 @@ const SPEC = {
   'mix9svqrenju_bs15_black.bin.lz4': [9984172, '7ab8c974c30da07717ce6a504616a62ac8c981500503f0ced0fadefd3f46c5ec'],
   'mix9svqrenju_bs15_white.bin.lz4': [9844944, 'a31f318518d3b5630489054d9eb013fd5353c553999640c2bcfd8d95e6fe4e4e'],
   'model210901.bin': [30109, '34061bca4031a786a4b0ff52470fa9f316013c4c2239db0d70581a3c35d0a72a'],
-  'model-caro.bin': [26717, 'fea17abc5c7663fce5e1384323596e61cf88366fe78bd0af74e7b4b4f65d31df'],
+  'model-caro.bin': [26819, '0bc9cc3f6e3099144b19240252ff89c11d3d68578252fe306e32320a20638dae'],
 };
 const NET_CACHE = 'caro-rapfi-nets-v1'; // tách khỏi bộ nhớ đệm của sw.js nên không bị xoá khi app cập nhật
 // Thứ tự thử: cùng máy chủ (nếu người triển khai đặt sẵn vào rapfi/nets/), rồi jsDelivr / GitHub raw của bản sao lưu

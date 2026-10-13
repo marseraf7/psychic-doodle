@@ -172,10 +172,11 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - **Luật Việt Nam – Rapfi-CARO**: Rapfi không có luật chặn hai đầu, nên Cờ Caro thêm vào bằng bản vá
     `rapfi/build/rapfi-caro.patch` (GPL-3; nhận dạng mẫu hình, sinh nước chặn, tìm kiếm – chi tiết, kiểm đúng luật và đo
     sức: `server/scripts/rapfi/caro/README.md`) → `rapfi/rapfi-caro-simd128.{js,wasm}` (1,3 MB). Không mạng NNUE: đánh giá
-    cổ điển với bảng học từ 1.000 ván Rapfi-CARO tự đấu (`rapfi/model-caro.bin`, 27 KB, đi kèm app – không tải gì).
+    cổ điển với bảng học từ 2.000 ván Rapfi-CARO tự đấu (`rapfi/model-caro.bin`, 27 KB, đi kèm app – không tải gì).
     Kiểm đúng luật: 0 sai khác với `rules.js` trên hàng trăm nghìn lần so. Đo như bảng dưới (bàn Rapfi 20×20): Rapfi-CARO
-    1 giây (bản gốc) **71%** (48 ván), bản WebAssembly 0,6 giây **56%** (32 ván) – đối thủ vẫn là engine của game nghĩ 3
-    giây (gấp 3–5 lần thời gian); cho engine kiểm mọi nước của Rapfi-CARO không mạnh hơn (72%) nên chỉ kiểm khi sát mép.
+    1 giây (bản gốc) **73%** (64 ván), bản WebAssembly 0,6 giây (≈ BOAT 2,5 giây trên điện thoại) **78%** (32 ván) – đối
+    thủ vẫn là engine của game nghĩ 3 giây (gấp 3–5 lần thời gian); cho engine kiểm mọi nước của Rapfi-CARO không mạnh
+    hơn nên chỉ kiểm khi sát mép.
   - Đo đúng như trong app (`server/scripts/rapfi/boat-match.js`: bàn vô hạn, đặt thế vào bàn Rapfi, engine kiểm khi
     sát mép; 24 ván mỗi ô, khai cuộc cân bằng, đối thủ là engine của game nghĩ 3 giây):
 

@@ -36,11 +36,19 @@ Kết quả kiểm (10/2026): 245.048 lần so ô thắng ngay trên 1.500 thế
 
 Bản đầu (độ sâu 7–9 trong 1 giây) **thua** engine của game: 2/7 ván (bảng của luật tự do), 1/16 (bảng học từ 1.000 ván
 tự đấu). Sau khi sửa độ sâu (ở trên) – Rapfi-CARO 1 giây vs engine của game 3 giây, bàn vô hạn như trong app
-(`boat-match.js vn`, `CHECK=0`): bảng học từ 1.000 ván tự đấu **34/48 (71%)**; bảng mượn của luật tự do 17/32 (53%);
-bảng học từ 2.000 ván 16/32 (50%) – app dùng bảng đầu (`caro/rapfi/model-caro.bin`). Thêm engine của game kiểm mọi nước
-(`CHECK=1`): 23/32 (72%) – không hơn, nên app chỉ kiểm khi sát mép như 3 luật kia. Bản WebAssembly của app
-(`RAPFI=wasm`) 0,6 giây – ≈ BOAT 2,5 giây trên điện thoại – vs engine 3 giây: 18/32 (56%). **Đã dùng cho BOAT và phân
-tích luật Việt Nam.**
+(`boat-match.js vn`, `CHECK=0`), theo bảng đánh giá:
+
+| Bảng | Dữ liệu tự đấu | Kết quả |
+|---|---|---|
+| mượn của luật tự do | – | 17/32 (53%) |
+| c1 | 1.000 ván của bản cũ (nông) | 75/112 (67%) |
+| c2 | 2.000 ván của bản cũ | 16/32 (50%) |
+| c3 | 1.000 ván của bản đã sửa độ sâu (ván dài gấp đôi: 45 nửa nước) | 22/32 (69%) |
+| **c4 – trong app** | c1 + c3 (2.000 ván) | **47/64 (73%)**; cùng khai cuộc c1 được 41/64 |
+
+Bản WebAssembly của app (`RAPFI=wasm`) 0,6 giây – ≈ BOAT 2,5 giây trên điện thoại – vs engine 3 giây: **25/32 (78%)**
+với c4 (c1: 18/32). Thêm engine của game kiểm mọi nước (`CHECK=1`, bảng c1): 23/32 (72%) – không hơn, nên app chỉ kiểm
+khi sát mép như 3 luật kia. **Đã dùng cho BOAT và phân tích luật Việt Nam.**
 
 Học bảng đánh giá (`model-caro.bin` trong `caro/rapfi/`):
 
