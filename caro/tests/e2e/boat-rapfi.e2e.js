@@ -85,7 +85,9 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   ok(await waitFor(async () => /Rapfi/.test(await p.textContent('#toasts')), 4000), 'lần đầu: báo đang tải bộ não Rapfi');
   ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật tự do: BOAT đi nước 2 ngay (engine của game, mạng chưa tải xong)');
   let s = await stats();
-  ok(s.rapfi === 0 && s.fallback === 1, `nước 2 nhường engine (rapfi ${s.rapfi}, nhường ${s.fallback})`);
+  // WebKit không làm chậm được tải mạng (request của Worker) – mạng có thể xong trước nước 2: bộ đếm sau tính từ r0
+  okNet(s.rapfi === 0 && s.fallback === 1, `nước 2 nhường engine (rapfi ${s.rapfi}, nhường ${s.fallback})`);
+  const r0 = s.rapfi, f0 = s.fallback;
   ok(await warm('free'), 'mạng tải xong: Rapfi sẵn sàng');
   okNet(downloads === 1, `tải đúng 1 file mạng (${downloads})`);
   // Người đi tiếp một nước, BOAT (Rapfi) trả lời trong thời gian nghĩ (~2,5 giây)
@@ -95,20 +97,20 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   ok(await waitFor(async () => (await stones()) === 4, 20000), 'BOAT trả lời nước người chơi');
   const took = Date.now() - t0;
   s = await stats();
-  ok(s.rapfi === 1 && took < 9000, `nước 4 do Rapfi đi (${took} ms)`);
+  ok(s.rapfi === r0 + 1 && took < 9000, `nước 4 do Rapfi đi (${took} ms)`);
   await shot(p, 'boat-rapfi-free.png');
 
   // ---------------------------------------------------------------- Tiêu chuẩn và Renju: Worker mới, mạng của luật đó
   ok(await warm('std'), 'luật tiêu chuẩn: mạng sẵn sàng');
   await start('std', [[0, 0], [1, 0], [0, 1]]); // bày sẵn 3 quân → tới BOAT (O) đi nước 4
-  ok(await waitFor(async () => (await stones()) === 4, 30000) && (await stats()).rapfi === 2, 'luật tiêu chuẩn: Rapfi đi');
+  ok(await waitFor(async () => (await stones()) === 4, 30000) && (await stats()).rapfi === r0 + 2, 'luật tiêu chuẩn: Rapfi đi');
   // Thế rộng 10 ô trên bàn 15×15 (cách mép 2 ô): Rapfi đi, engine của game kiểm chuỗi ép (thời gian vẫn như thường)
   const t1 = Date.now();
   await start('std', [[0, 0], [9, 0], [0, 1]]);
-  ok(await waitFor(async () => (await stones()) === 4, 30000) && (await stats()).rapfi === 3, `sát mép: Rapfi đi, engine kiểm lại (${Date.now() - t1} ms)`);
+  ok(await waitFor(async () => (await stones()) === 4, 30000) && (await stats()).rapfi === r0 + 3, `sát mép: Rapfi đi, engine kiểm lại (${Date.now() - t1} ms)`);
   ok(await warm('renju'), 'Renju: mạng sẵn sàng');
   await start('renju');
-  ok(await waitFor(async () => (await stones()) === 2, 30000) && (await stats()).rapfi === 4, 'Renju: Rapfi đi (2 mạng đen / trắng)');
+  ok(await waitFor(async () => (await stones()) === 2, 30000) && (await stats()).rapfi === r0 + 4, 'Renju: Rapfi đi (2 mạng đen / trắng)');
   okNet(downloads === 4, `tự do 1 + tiêu chuẩn 1 + Renju 2 file mạng (${downloads})`);
 
   // ---------------------------------------------------------------- Luật Việt Nam: Rapfi-CARO (không mạng NNUE)
@@ -117,7 +119,7 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   await start('vn');
   ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật Việt Nam: BOAT đi');
   s = await stats();
-  ok(s.rapfi === 5 && s.fallback === 1, `luật Việt Nam: Rapfi-CARO đi (rapfi ${s.rapfi}, nhường ${s.fallback})`);
+  ok(s.rapfi === r0 + 5 && s.fallback === f0, `luật Việt Nam: Rapfi-CARO đi (rapfi ${s.rapfi}, nhường ${s.fallback})`);
   // Luật Việt Nam: bốn quân trống hai đầu là thắng – X có ba mở (0,0)–(0,2) nên đi (0,3) hoặc (0,−1) là thắng ngay
   // (Rapfi đi ngay, không in điểm – phân tích tự chấm là thắng)
   const vn = await p.evaluate(async () => {
