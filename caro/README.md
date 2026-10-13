@@ -52,7 +52,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
 ## Học cờ: máy có tính cách, phân tích ván, giải đố (học theo chess.com / Lichess)
 
-- **30 nhân vật máy** (`bots.js`) = 6 mức sức cờ × 5 lối đánh, mỗi người một tên và lời thoại riêng:
+- **31 nhân vật máy** (`bots.js`) = 6 mức sức cờ × 5 lối đánh + trùm cuối **BOAT**, mỗi người một tên và lời thoại riêng:
 
   | Mức | Tấn công | Phòng thủ – phản công | Nước đôi | Gài bẫy (dương đông kích tây) | Toàn diện |
   |---|---|---|---|---|---|
@@ -62,6 +62,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   | ~1500 | Khá Bảnh | Trà Từ Tay | Người Tày | Tú Sena | Sách Thể Thao |
   | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu | The Liems |
   | ~2350 | Y Đững | UEFAlona | Penaldo | Hai Ngón | GOAT |
+  | ~2700 (trùm cuối) | | | | | **BOAT** |
 
   **Toàn diện** (`uni`, `i18n-bots-uni.js`): không thiên lối nào, ít lỗi hơn / nghĩ lâu hơn các nhân vật cùng mức – mạnh
   nhất mỗi mức. Đo bằng `bot-match.js` (2 ván đổi bên mỗi khai cuộc): thắng các nhân vật cùng mức 65–82% (mức 1–4),
@@ -112,6 +113,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - `server/scripts/bot-match.js` – đấu kiểm chứng (chỉ nhận trọng số / thay đổi nào thắng bản cũ); tham số `bal` dùng bộ
     khai cuộc cân bằng
   - `server/scripts/gen-openings.js` – sinh bộ khai cuộc cân bằng (`openings.json`) cho tự đấu
+  - `server/scripts/train-policy.js` – học chính sách nước đi từ ván (`policy-data.js`)
 
   Tìm kiếm: LMR (giảm độ sâu nước xếp cuối, như Stockfish / Rapfi) bật cho luật tiêu chuẩn – tự đấu 60% trên 192 ván;
   luật khác không lợi nên tắt. Mỗi thay đổi chỉ được giữ khi thắng bản trước trong tự đấu.
@@ -143,6 +145,19 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     Đã thử và **không giữ** (không thắng hơn trong tự đấu): bỏ lượt thử (null move), LMR cho mọi luật, độ rộng 8 / 12,
     trọng số mẫu chéo học từ Gomocup cho luật tự do / Renju / Việt Nam (chỉ giữ cho luật tiêu chuẩn), tìm thêm một nước
     phòng ở lá, bỏ lọc chuỗi bốn ở gốc, cửa sổ khát vọng (aspiration window).
+  **Trùm cuối BOAT** (Best of All Time – mức 7, lối Toàn diện, nghĩ 3 giây, mở khoá khi thắng một nhân vật ~2350; ảnh
+  `img/bots/boat.svg`, chuỗi 4 ngôn ngữ trong `i18n-bots-uni.js`, huy hiệu *Đánh chìm BOAT*). Học máy dùng cho BOAT (và mọi
+  nhân vật dùng engine):
+  - *Chính sách nước đi học từ ván vô địch* (`server/scripts/train-policy.js` → `policy-data.js`): như mạng policy của
+    AlphaGo nhưng thay CNN bằng mô hình log-linear trên mẫu hình (chạy nhanh bằng JavaScript, không cần GPU), học từ ~200
+    nghìn thế mỗi luật của ván Gomocup: đoán đúng nước của engine vô địch 31–34% (top-3 55–59%), cách xếp cũ 24–28%
+    (top-3 46–51%). Dùng để xếp ứng viên: tự đấu 53% trên 768 ván.
+  - *Học tăng cường bằng tự đấu* (luật Việt Nam – ít ván thật nhất): engine tự đấu 4.000 ván → học lại hàm đánh giá từ kết
+    quả → lặp lại. Vòng 1 thắng bộ trước 58% (192 ván), vòng 2 thắng vòng 1 53% (384 ván).
+  - *MCTS (PUCT như AlphaZero)* dùng chính sách trên làm xác suất tiên nghiệm, tìm kiếm ngắn làm hàm giá trị: **thua**
+    Alpha-Beta 40–44% (96 ván / cấu hình) – không có mạng giá trị mạnh (cần GPU, hàng triệu ván) thì MCTS kém Alpha-Beta
+    + chuỗi đe doạ ở cờ caro, nên không dùng.
+  - Đo: BOAT thắng GOAT 63% (Việt Nam) / 58% (tự do) – 48 ván mỗi luật, cùng engine nên lợi thế đến từ nghĩ lâu hơn.
   **Phân tích song song** (`an-pool.js`): các thế của ván chia cho min(4, lõi − 1) Web Worker (như Lichess chạy Stockfish
   nhiều luồng) – ván 36 nước trên máy 4 lõi: kết quả nhanh 1,4 giây (trước 2,9), phân tích kỹ xong 6,8 giây (trước 18,4).
   Phân tích ngầm gắn khoá thế cờ vào từng kết quả: đi lại / rẽ nhánh bao nhiêu lần cũng không dùng nhầm (e2e: 300 lần).
@@ -284,7 +299,8 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `rules.js` | 4 luật thắng, nước cấm Renju + AI (dùng chung cho trình duyệt và Node) |
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
-| `bots.js` | 30 nhân vật máy (6 mức × 5 lối đánh): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
+| `bots.js` | 31 nhân vật máy (6 mức × 5 lối đánh + trùm cuối BOAT): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
+| `policy-data.js` | Trọng số chính sách nước đi theo luật (sinh bởi `server/scripts/train-policy.js`) – engine dùng để xếp ứng viên |
 | `an-pool.js` | Phân tích ván song song trên nhiều Web Worker (chấm thế + thế sau nước tốt nhất), `study.js` chỉ còn xếp loại |
 | `book.js`, `book-data.js` | Sách khai cuộc của nhân vật mức cao: tra thế cờ (chuẩn hoá xoay / lật / dời) → nước đã phân tích sẵn |
 | `engine.js` | Engine phân tích (hub): `analyse()` – chuỗi ép ở gốc, làm sâu dần có kiểm nước định đi; gom các phần `engine-*.js` (dùng chung trình duyệt, Worker, Node) |

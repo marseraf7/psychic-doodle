@@ -84,12 +84,13 @@ const tests = {
     // Cùng thế cờ theo luật Việt Nam: X chặn được ở (0,0)
     assert.ok(new E.Position(t, 'vn').blocks(X).length > 0);
   },
-  'lối đánh: trọng số mặc định = thế mình (trọng số công) − thế đối thủ (trọng số thủ) + tempo; lối phòng thủ khác điểm'() {
+  'lối đánh: trọng số mặc định = thế mình (trọng số công) − thế đối thủ (trọng số thủ) + điểm mẫu chéo + tempo; lối phòng thủ khác điểm'() {
     const mv = [[0, 0], [5, 5], [1, 0], [5, 6], [2, 0], [9, 9]];
     const a = new E.Position(mv), d = new E.Position(mv);
     d.style = { a: 0.9, d: 1.25, dbl: 0, trap: 0 };
     const [ax, dx, ao, dO] = a.acc;
-    assert.strictEqual(a.evaluate(), Math.round(a.side === X ? ax - dO : ao - dx) + a.ev.tempo);
+    const s = a.side;
+    assert.strictEqual(a.evaluate(), Math.round(s === X ? ax - dO : ao - dx) + a.patScore(s, true) - a.patScore(3 - s, false) + a.ev.tempo);
     // Trọng số học riêng từng luật (Gomocup): thủ ≠ công
     assert.notDeepStrictEqual(a.ev.a5, a.ev.d5);
     assert.ok(['free', 'std', 'renju', 'vn'].every((r) => new E.Position(mv, r).ev.tempo > 30));
