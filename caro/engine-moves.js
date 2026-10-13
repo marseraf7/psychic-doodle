@@ -163,8 +163,9 @@
         }
       }
       const out = [];
-      if (this.rule === 'renju') {
-        // Renju: quân chặn của O có thể làm ô bốn-bốn (cấm) của X thành ô bốn mở hợp lệ – đặt thật mới chắc
+      // Renju: quân chặn của O có thể làm ô bốn-bốn đang bị cấm của X thành ô bốn mở hợp lệ – khi X có ô như vậy thì đặt thật
+      // mới chắc; còn lại tra mẫu như các luật khác (rồi lọc nước cấm của X)
+      if (this.rule === 'renju' && q === X && threats.length < this.p4cnt[q][P4.B_FLEX4]) {
         for (const m of this.legal(Array.from(cand), p)) {
           this.play(m, p);
           const ok = !this.p4cnt[q][P4.B_FLEX4] || !this.cellsAtLeast(q, P4.B_FLEX4).some((i) => this.p4[q][i] === P4.B_FLEX4);
@@ -175,6 +176,7 @@
         // Không cần đặt thật: quân chặn ở e chỉ đổi mẫu đường của ô đe doạ c trên đúng một hướng → tra bảng mẫu cho đường
         // đó (e là quân của p) rồi gộp lại với 3 hướng kia; mọi ô đe doạ đều hết B_FLEX4 thì e là nước phòng
         for (const e of cand) if (threats.every((c) => c === e || this.p4With(q, c, e, p) < P4.B_FLEX4)) out.push(e);
+        if (this.rule === 'renju' && p === X) out.splice(0, out.length, ...this.legal(out, X));
       }
       for (const m of this.threatMoves(p)) if (!out.includes(m)) out.push(m);
       if (!out.length) return null;

@@ -58,6 +58,7 @@
       this.lazy = 0;                       // > 0: đang tìm chuỗi ép, không cập nhật điểm thế cờ
       this.evs = [];                       // từng nước đã đặt có cập nhật điểm không (để undo khớp)
       this.count = 0;
+      this.ver = 0;                        // phiên bản bàn cờ: tăng mỗi lần đi / lùi (cho các bộ ghi nhớ theo thế, vd. nước cấm)
       for (const [x, y] of moves) this.play(this.idx(x, y), this.count % 2 ? O : X);
     }
     idx(x, y) { return (y - this.oy) * this.W + (x - this.ox); }
@@ -153,6 +154,7 @@
         for (let x = Math.max(0, cx - 2); x <= Math.min(this.W - 1, cx + 2); x++) this.near[y * this.W + x]++;
       }
       this.refreshWins(cx, cy, p, 1);
+      this.ver++;
       this.stack.push(i);
       this.count++;
     }
@@ -170,6 +172,7 @@
         for (let x = Math.max(0, cx - 2); x <= Math.min(this.W - 1, cx + 2); x++) this.near[y * this.W + x]--;
       }
       this.refreshWins(cx, cy, p, -1);
+      this.ver++;
       this.count--;
     }
 

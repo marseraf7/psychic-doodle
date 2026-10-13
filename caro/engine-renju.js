@@ -72,6 +72,14 @@
     /** Ô trống i có cấm với p không (chỉ Renju, chỉ X)? */
     forbidden(i, p) {
       if (this.rule !== 'renju' || p !== X) return false;
+      // Ghi nhớ theo phiên bản bàn cờ (Position.ver tăng mỗi lần đi / lùi): cùng một thế, ô được hỏi nhiều lần
+      if (!this._fcv) { this._fcv = new Int32Array(this.cells.length).fill(-1); this._fcr = new Uint8Array(this.cells.length); }
+      if (this._fcv[i] === this.ver) return this._fcr[i] === 1;
+      const r = this.forbiddenNow(i);
+      this._fcv[i] = this.ver; this._fcr[i] = r ? 1 : 0;
+      return r;
+    }
+    forbiddenNow(i) {
       const cx = i % this.W, cy = (i / this.W) | 0;
       // lọc nhanh như rules.js
       let lines = 0, maybe = false;
