@@ -5,10 +5,12 @@
  *
  *   node server/scripts/tune-eval.js <file .jsonl> <luật của app: vn|free|std|renju> [số ván tối đa=40000]
  *   TEMPO=<số> node … : giữ cố định lợi thế được đi (dữ liệu tự đấu lệch về bên đi trước có thể kéo nó âm vô lý)
- *   → in bộ trọng số { a5, d5, a6, d6, tempo } để dán vào EVAL trong caro/engine.js, kèm sai số trước / sau.
+ *   → in bộ trọng số { a5, d5, a6, d6, pa, pd, tempo } để dán vào EVAL trong caro/engine.js, kèm sai số trước / sau.
  *
  * Mỗi thế cờ (bỏ khai cuộc cho sẵn và các thế đang có ô thắng – thế "động", điểm tĩnh không nói lên gì) được đếm số
  * cửa sổ 5 ô / 6 ô theo số quân của bên tới lượt và của đối thủ. Điểm = Σ a·(thế mình) − Σ d·(thế đối thủ) + tempo,
+ * Thêm đặc trưng mẫu chéo (engine-patterns.js, ý tưởng Rapfi): số ô có mẫu L_FLEX2 … B_FLEX4 của bên tới lượt (pa) và
+ * của đối thủ (pd), lấy từ Position.p4cnt của engine.
  * khả năng thắng = 1 / (1 + e^(−điểm/360)) như engine.winChance. Tối ưu sai số log-loss bằng Adam.
  * Bàn của Gomocup có biên (15×15 / 20×20) còn bàn của app vô hạn: cửa sổ chạm biên không tính.
  */
@@ -19,8 +21,9 @@ const path = require('path');
 const EN = require(path.join(__dirname, '../../caro/engine.js'));
 const X = 1, O = 2, WALL = 3;
 const DIRS = [[1, 0], [0, 1], [1, 1], [1, -1]];
-// Đặc trưng: own5[1..4], opp5[1..4], own6[2..3], opp6[2..3]
-const NF = 13; // + đặc trưng 12: bên tới lượt là X (chỉ để hấp thụ lợi thế đi trước của dữ liệu, không đưa vào engine)
+// Đặc trưng: own5[1..4], opp5[1..4], own6[2..3], opp6[2..3]; 12: bên tới lượt là X (chỉ để hấp thụ lợi thế đi trước của
+// dữ liệu, không đưa vào engine); 13..23: số ô mẫu chéo 1..11 của bên tới lượt; 24..34: của đối thủ
+const NP = 11, NF = 13 + 2 * NP, NV = 14 + 2 * NP;
 const fi = { own5: (k) => k - 1, opp5: (k) => 3 + k, own6: (k) => 6 + k, opp6: (k) => 8 + k };
 
 /** Đếm đặc trưng của thế cờ (grid n×n, bên tới lượt s). */
@@ -79,7 +82,9 @@ function loadPositions(file, rule, maxGames) {
         const P = new EN.Position(moves.slice(0, i), rule === 'vn' ? 'vn' : rule);
         if (!P.winCount[X] && !P.winCount[O]) {
           const res = g.w === 0 ? 0.5 : g.w === (s === X ? 1 : 2) ? 1 : 0;
-          pos.push({ f: features(grid, n, s, vn), r: res });
+          const f = features(grid, n, s, vn);
+          for (let v = 1; v <= NP; v++) { f[12 + v] = P.p4cnt[s][v]; f[12 + NP + v] = P.p4cnt[3 - s][v]; }
+          pos.push({ f, r: res });
         }
       }
       const [x, y] = moves[i];
@@ -90,20 +95,25 @@ function loadPositions(file, rule, maxGames) {
   return out;
 }
 
-// Tham số: a5[1..4], d5[1..4], a6[2..3], d6[2..3], tempo → vector 13 chiều
-const toVec = (e) => [e.a5[1], e.a5[2], e.a5[3], e.a5[4], e.d5[1], e.d5[2], e.d5[3], e.d5[4], e.a6[2], e.a6[3], e.d6[2], e.d6[3], e.tempo, e.xBias || 0];
+// Tham số: a5[1..4], d5[1..4], a6[2..3], d6[2..3], tempo, xBias, pa[1..11], pd[1..11] → vector NV chiều
+const zeros = () => new Array(12).fill(0);
+const toVec = (e) => [e.a5[1], e.a5[2], e.a5[3], e.a5[4], e.d5[1], e.d5[2], e.d5[3], e.d5[4], e.a6[2], e.a6[3], e.d6[2], e.d6[3], e.tempo, e.xBias || 0,
+  ...(e.pa || zeros()).slice(1, NP + 1), ...(e.pd || zeros()).slice(1, NP + 1)];
 const fromVec = (v) => {
   const r = (x) => Math.max(0, Math.round(x));
   return { a5: [0, r(v[0]), r(v[1]), r(v[2]), r(v[3]), 0], d5: [0, r(v[4]), r(v[5]), r(v[6]), r(v[7]), 0],
-    a6: [0, 0, r(v[8]), r(v[9]), 0], d6: [0, 0, r(v[10]), r(v[11]), 0], tempo: Math.round(v[12]) };
+    a6: [0, 0, r(v[8]), r(v[9]), 0], d6: [0, 0, r(v[10]), r(v[11]), 0],
+    pa: [0, ...v.slice(14, 14 + NP).map(Math.round), 0], pd: [0, ...v.slice(14 + NP, 14 + 2 * NP).map(Math.round), 0], tempo: Math.round(v[12]) };
 };
-// Đặc trưng → hệ số của từng tham số (thế đối thủ mang dấu trừ)
+// Tham số j (khác tempo / xBias) ↔ đặc trưng FJ[j], dấu SIGN[j] (thế đối thủ mang dấu trừ)
+const FJ = [], SIGN = [];
+for (let j = 0; j < 12; j++) { FJ[j] = j; SIGN[j] = [1, 1, 1, 1, -1, -1, -1, -1, 1, 1, -1, -1][j]; }
+for (let v = 0; v < NP; v++) { FJ[14 + v] = 13 + v; SIGN[14 + v] = 1; FJ[14 + NP + v] = 13 + NP + v; SIGN[14 + NP + v] = -1; }
 function score(v, f) {
-  return v[0] * f[0] + v[1] * f[1] + v[2] * f[2] + v[3] * f[3]
-    - v[4] * f[4] - v[5] * f[5] - v[6] * f[6] - v[7] * f[7]
-    + v[8] * f[8] + v[9] * f[9] - v[10] * f[10] - v[11] * f[11] + v[12] + (v[13] || 0) * f[12];
+  let s = v[12] + (v[13] || 0) * f[12];
+  for (let j = 0; j < NV; j++) if (j !== 12 && j !== 13) s += SIGN[j] * v[j] * f[FJ[j]];
+  return s;
 }
-const SIGN = [1, 1, 1, 1, -1, -1, -1, -1, 1, 1, -1, -1];
 const K = 1 / 360;
 function loss(v, data) {
   let L = 0;
@@ -116,23 +126,26 @@ function loss(v, data) {
 
 function tune(data, start, iters = 400) {
   const v = start.slice();
+  while (v.length < NV) v.push(0);
   // Đặc trưng hiếm gặp (vd. 4 quân, 3 mở – thường đã có ô thắng nên thế bị bỏ): không đủ dữ liệu, giữ trọng số cũ
-  const seen = new Float64Array(12);
-  for (const d of data) for (let j = 0; j < 12; j++) if (d.f[j]) seen[j]++;
-  const frozen = Array.from(seen, (c) => c < data.length * 0.02);
-  const m = new Float64Array(14), s2 = new Float64Array(14);
-  const lr = [2, 4, 8, 20, 2, 4, 8, 20, 4, 15, 4, 15, 4, 4];
+  const seen = new Float64Array(NV);
+  for (const d of data) for (let j = 0; j < NV; j++) if (j !== 12 && j !== 13 && d.f[FJ[j]]) seen[j]++;
+  const frozen = Array.from(seen, (c, j) => j !== 12 && j !== 13 && c < data.length * (j < 12 ? 0.02 : 0.003));
+  // PAT=0: chỉ học trọng số cửa sổ (như trước)
+  if (process.env.PAT === '0') for (let j = 14; j < NV; j++) frozen[j] = true;
+  const m = new Float64Array(NV), s2 = new Float64Array(NV);
+  const lr = [2, 4, 8, 20, 2, 4, 8, 20, 4, 15, 4, 15, 4, 4, ...new Array(2 * NP).fill(4)];
   for (let it = 1; it <= iters; it++) {
-    const g = new Float64Array(14);
+    const g = new Float64Array(NV);
     for (const d of data) {
       const p = 1 / (1 + Math.exp(-score(v, d.f) * K));
       const e = (p - d.r) * K;
-      for (let j = 0; j < 12; j++) g[j] += e * SIGN[j] * d.f[j];
+      for (let j = 0; j < NV; j++) if (j !== 12 && j !== 13) g[j] += e * SIGN[j] * d.f[FJ[j]];
       g[12] += e;
       g[13] += e * d.f[12];
     }
-    for (let j = 0; j < 14; j++) {
-      if (j < 12 && frozen[j]) continue;
+    for (let j = 0; j < NV; j++) {
+      if (frozen[j]) continue;
       if (j === 12 && process.env.TEMPO) continue; // TEMPO=<số>: giữ cố định lợi thế được đi
       g[j] /= data.length;
       m[j] = 0.9 * m[j] + 0.1 * g[j];
@@ -152,7 +165,9 @@ function main() {
   // 80% để học, 20% để kiểm tra (tránh học thuộc lòng)
   const cut = Math.floor(data.length * 0.8);
   const train = data.slice(0, cut), test = data.slice(cut);
-  const base = toVec({ a5: [0, 2, 12, 60, 450, 0], d5: [0, 2, 12, 60, 450, 0], a6: [0, 0, 24, 420, 0], d6: [0, 0, 24, 420, 0], tempo: 30 });
+  // Điểm xuất phát: bộ trọng số hiện tại của luật trong engine (START=base: bộ cũ công = thủ)
+  const cur = process.env.START === 'base' ? EN.EVAL.base : EN.EVAL[rule] || EN.EVAL.base;
+  const base = toVec(cur);
   console.log(`${data.length} thế cờ (${train.length} học / ${test.length} kiểm tra)`);
   console.log('Sai số trước:', loss(base, train).toFixed(4), '/', loss(base, test).toFixed(4));
   if (process.env.TEMPO) base[12] = Number(process.env.TEMPO);

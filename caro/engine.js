@@ -39,6 +39,13 @@
   };
   const evalOf = (rule) => EVAL[rule] || EVAL[rule === 'vn' ? 'vn' : 'base'] || EVAL.base;
 
+  // Mẫu hình theo ô (engine-patterns.js – ý tưởng từ Rapfi / Wine)
+  const PT = global.CaroPatterns || (typeof require === 'function' ? require('./engine-patterns.js') : null);
+  const P4 = PT.P4;
+  const SWAP = [0, 2, 1]; // đổi góc nhìn X ↔ O của một ô
+  const F5 = PT.F5;
+  const POW3 = [1, 3, 9, 27, 81, 243, 729, 2187, 6561, 19683, 59049];
+
   // Bộ sinh số giả ngẫu nhiên cố định (khoá Zobrist giống nhau mọi lần chạy)
   let seed = 0x9e3779b9;
   const rnd = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return seed >>> 0; };
@@ -66,6 +73,13 @@
       this.ev = evalOf(this.rule);         // trọng số chấm điểm của luật này
       this.acc = new Float64Array(4);      // [công X, thủ X, công O, thủ O]: tổng trọng số cửa sổ của X / O (a… / d…)
       this.style = { a: 1, d: 1, dbl: 0, trap: 0 }; // lối đánh (bots.js): trọng số thế mình / thế đối thủ, thưởng xếp nước
+      // Mẫu đường (ô × 4 hướng) và mẫu chéo của mỗi ô trống cho X / O, kèm số ô theo từng mẫu chéo
+      this.pat = [null, new Uint8Array(n * 4), new Uint8Array(n * 4)];
+      this.keyX = new Int32Array(n * 4); this.keyO = new Int32Array(n * 4); // mã 11 ô của (ô, hướng) – xem refreshWins
+      this.p4 = [null, new Uint8Array(n), new Uint8Array(n)];
+      this.p4cnt = [null, new Int32Array(13), new Int32Array(13)];
+      this.ptab = [null, PT.table(this.rule, true), PT.table(this.rule, false)];
+      this._stamp = new Int32Array(n); this._stampN = 1; this._touched = [];
       this.stack = [];
       this._line = new Int8Array(13);
       this._wline = new Int8Array(25);
@@ -226,42 +240,72 @@
     get evalX() { return this.acc[0] - this.acc[2]; }
 
     // ---- cập nhật ô thắng trên 4 đường qua (cx, cy): ô khác trên đường d chỉ có thể đổi theo hướng d
-    refreshWins(cx, cy) {
-      // Đọc 25 ô trên mỗi đường một lần (L[12] = ô vừa đổi), rồi xét lại 11 ô k = -5..5 như winDir
-      const L = this._wline, W = this.W, H = this.H;
+    refreshWins(cx, cy, p, sign) {
+      // Mỗi (ô, hướng) giữ sẵn mã 11 ô quanh nó (cơ số 3; quân ở độ lệch j so với ô có trọng số 3^(5+j)) theo góc nhìn X
+      // (chữ số = giá trị ô) và O (đổi 1 ↔ 2): đặt / lùi quân p ở (cx, cy) chỉ cộng / trừ một chữ số vào mã của 11 ô trên mỗi
+      // đường. Mẫu đường của ô trống tra bảng theo mã (engine-patterns.js); ô thắng = mẫu F5 (khớp winDir, đã kiểm trên ván thật).
+      const W = this.W, H = this.H, rule = this.rule, cells = this.cells;
+      const patX = this.pat[X], patO = this.pat[O], tX = this.ptab[X], tO = this.ptab[O], keyX = this.keyX, keyO = this.keyO;
+      const stamp = this._stamp, sn = this._stampN, touched = this._touched;
+      const vx = sign * p, vo = sign * SWAP[p];
       for (let d = 0; d < 4; d++) {
         const dx = DX[d], dy = DY[d], bit = 1 << d;
-        this.readLine(cx, cy, dx, dy, L);
         for (let k = -5; k <= 5; k++) {
           const x = cx + k * dx, y = cy + k * dy;
           if (x < 0 || y < 0 || x >= W || y >= H) continue;
-          const i = y * W + x, c = k + 12, empty = L[c] === EMPTY;
-          const lft = L[c - 1], rgt = L[c + 1];
-          for (let p = 1; p <= 2; p++) {
-            const w = this.win[p], was = w[i];
-            // Ô thắng phải kề quân p trên hướng này (lọc nhanh trước khi đếm hàng)
-            const on = empty && (lft === p || rgt === p) && this.winLine(L, c, p);
-            const now = on ? was | bit : was & ~bit;
-            if (now !== was) { w[i] = now; if (!was) { this.winCount[p]++; this.winSet[p].add(i); } else if (!now) { this.winCount[p]--; this.winSet[p].delete(i); } }
+          const i = y * W + x, pi = i * 4 + d, w = POW3[5 - k];
+          const kx = (keyX[pi] += vx * w), ko = (keyO[pi] += vo * w);
+          let px = 0, po = 0;
+          if (cells[i] === EMPTY) {
+            px = tX[kx]; if (px < 0) px = PT.lookup(tX, kx, rule, true);
+            po = tO[ko]; if (po < 0) po = PT.lookup(tO, ko, rule, false);
           }
+          const ox = patX[pi], oo = patO[pi];
+          // Mẫu không đổi thì ô thắng / mẫu chéo của ô này (theo hướng d) cũng không đổi: bỏ qua
+          if (ox === px && oo === po && k) continue;
+          patX[pi] = px; patO[pi] = po;
+          if ((ox === F5) !== (px === F5)) this.setWin(X, i, bit, px === F5);
+          if ((oo === F5) !== (po === F5)) this.setWin(O, i, bit, po === F5);
+          if (stamp[i] !== sn) { stamp[i] = sn; touched.push(i); }
         }
       }
+      this.refreshP4();
+    }
+    /** Bật / tắt bit hướng của ô thắng i cho p, giữ winCount / winSet. */
+    setWin(p, i, bit, on) {
+      const w = this.win[p], was = w[i], now = on ? was | bit : was & ~bit;
+      if (now === was) return;
+      w[i] = now;
+      if (!was) { this.winCount[p]++; this.winSet[p].add(i); } else if (!now) { this.winCount[p]--; this.winSet[p].delete(i); }
+    }
+    /** Tính lại mẫu chéo của các ô vừa đổi mẫu đường (this._touched) và bộ đếm theo mẫu chéo. */
+    refreshP4() {
+      const T = this._touched, cells = this.cells, CB = PT.COMBO;
+      for (let p = 1; p <= 2; p++) {
+        const pt = this.pat[p], p4 = this.p4[p], cnt = this.p4cnt[p];
+        for (let t = 0; t < T.length; t++) {
+          const i = T[t], b = i * 4;
+          // (Renju: ô cấm của X không loại ở đây – trạng thái cấm phụ thuộc cả quân ở xa; nơi dùng tự lọc bằng legal())
+          const v = cells[i] !== EMPTY ? 0 : CB[pt[b] * 729 + pt[b + 1] * 81 + pt[b + 2] * 9 + pt[b + 3]];
+          const old = p4[i];
+          if (old !== v) { p4[i] = v; cnt[old]--; cnt[v]++; }
+        }
+      }
+      T.length = 0;
+      this._stampN++;
     }
     /** Đọc 25 ô trên đường qua (cx, cy) theo hướng (dx, dy) vào L (L[12] = ô giữa); ngoài mảng = trống. */
     readLine(cx, cy, dx, dy, L) {
       const W = this.W, H = this.H;
-      const x0 = cx - 12 * dx, y0 = cy - 12 * dy, x1 = cx + 12 * dx, y1 = cy + 12 * dy;
-      if (x0 >= 0 && x1 >= 0 && x0 < W && x1 < W && y0 >= 0 && y1 >= 0 && y0 < H && y1 < H) {
-        // Cả đoạn nằm trong mảng: đọc thẳng theo bước chỉ số
-        const step = dy * W + dx, cells = this.cells;
-        let j = y0 * W + x0;
-        for (let k = 0; k < 25; k++, j += step) L[k] = cells[j];
-        return;
-      }
-      for (let k = -12; k <= 12; k++) {
-        const x = cx + k * dx, y = cy + k * dy;
-        L[k + 12] = x < 0 || y < 0 || x >= W || y >= H ? EMPTY : this.cells[y * W + x];
-      }
+      // Đoạn k ∈ [lo, hi] nằm trong mảng: đọc thẳng theo bước chỉ số; phần ngoài mảng là ô trống
+      let lo = -12, hi = 12;
+      if (dx === 1) { if (-cx > lo) lo = -cx; if (W - 1 - cx < hi) hi = W - 1 - cx; }
+      if (dy === 1) { if (-cy > lo) lo = -cy; if (H - 1 - cy < hi) hi = H - 1 - cy; } else if (dy === -1) { if (cy - H + 1 > lo) lo = cy - H + 1; if (cy < hi) hi = cy; }
+      for (let k = -12; k < lo; k++) L[k + 12] = EMPTY;
+      for (let k = hi + 1; k <= 12; k++) L[k + 12] = EMPTY;
+      const step = dy * W + dx, cells = this.cells;
+      let j = (cy + lo * dy) * W + cx + lo * dx;
+      for (let k = lo; k <= hi; k++, j += step) L[k + 12] = cells[j];
     }
     /** Như winDir nhưng trên mảng một đường L (ô c đang trống); ngoài mảng coi như bị chặn (chỉ xảy ra khi hàng ≥ 8 quân). */
     winLine(L, c, p) {
@@ -291,7 +335,7 @@
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {
         for (let x = Math.max(0, cx - 2); x <= Math.min(this.W - 1, cx + 2); x++) this.near[y * this.W + x]++;
       }
-      this.refreshWins(cx, cy);
+      this.refreshWins(cx, cy, p, 1);
       this.stack.push(i);
       this.count++;
     }
@@ -308,7 +352,7 @@
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {
         for (let x = Math.max(0, cx - 2); x <= Math.min(this.W - 1, cx + 2); x++) this.near[y * this.W + x]--;
       }
-      this.refreshWins(cx, cy);
+      this.refreshWins(cx, cy, p, -1);
       this.count--;
     }
 
@@ -344,6 +388,9 @@
     blocks(p) {
       const q = 3 - p, W = this.winCells(q);
       if (!W.length) return [];
+      // Luật tự do / tiêu chuẩn / Renju: quân đặt ở ô khác không làm hỏng được hàng 5 qua ô thắng → chặn được khi và chỉ khi
+      // chỉ có một ô thắng (đặt vào chính ô đó). Luật Việt Nam còn chặn được bằng cách bịt đầu (hàng 5 bị chặn hai đầu).
+      if (this.rule !== 'vn') return W.length === 1 ? this.legal(W, p) : [];
       // cand: ô → số ô thắng mà nó trùng hoặc cùng đường (≤ 5 ô). Ô chặn được hết phải dính tới mọi ô thắng.
       const cand = new Map();
       for (const w of W) {
@@ -362,14 +409,9 @@
       const out = [];
       for (const [b, n] of cand) {
         if (n < W.length) continue;
-        // Đặt tạm quân p ở b: còn ô thắng nào của q không? (q chỉ có thể thắng ở các ô thắng cũ)
-        this.cells[b] = p;
+        // Quân p ở b: còn ô thắng nào của q không? (q chỉ có thể thắng ở các ô thắng cũ; tra mẫu, không cần đặt thật)
         let still = false;
-        for (const w of W) {
-          if (w === b) continue;
-          if (this.wouldWin(w % this.W, (w / this.W) | 0, q)) { still = true; break; }
-        }
-        this.cells[b] = EMPTY;
+        for (const w of W) if (w !== b && this.p4With(q, w, b, p) === P4.A_FIVE) { still = true; break; }
         if (!still) out.push(b);
       }
       return this.legal(out, p);
@@ -401,32 +443,106 @@
       return (limit ? list.slice(0, limit) : list).map((o) => o.i);
     }
 
-    /** Nước tạo ô thắng mới cho p (đe doạ buộc đối thủ phải chặn). */
+    /** Nước tạo "bốn" cho p (ô có mẫu chéo ≥ E_BLOCK4 – đe doạ buộc đối thủ phải chặn), mạnh trước. */
     threatMoves(p, limit) {
-      const out = [];
-      const W = this.W, H = this.H, wp = this.win[p];
-      for (let i = 0; i < this.cells.length; i++) {
-        if (this.cells[i] !== EMPTY || !this.near[i]) continue;
-        const cx = i % W, cy = (i / W) | 0;
-        if (!this.mayThreat(cx, cy, p)) continue;
-        this.cells[i] = p;
-        let made = 0;
-        const L = this._wline;
-        for (let d = 0; d < 4; d++) {
-          const dx = DX[d], dy = DY[d], bit = 1 << d;
-          this.readLine(cx, cy, dx, dy, L);
-          for (let k = -5; k <= 5; k++) {
-            if (!k || L[k + 12] !== EMPTY || (L[k + 11] !== p && L[k + 13] !== p)) continue;
-            const x = cx + k * dx, y = cy + k * dy;
-            if (x < 0 || y < 0 || x >= W || y >= H || (wp[y * W + x] & bit)) continue;
-            if (this.winLine(L, k + 12, p)) made++;
-          }
+      const c = this.p4cnt[p];
+      if (!c[P4.E_BLOCK4] && !c[P4.D_BLOCK4_PLUS] && !c[P4.C_BLOCK4_FLEX3] && !c[P4.B_FLEX4]) return [];
+      // Xếp: mẫu chéo mạnh trước, rồi tổng mẫu đường 4 hướng (thay cho quickScore – rẻ hơn nhiều, như Rapfi)
+      const out = [], p4 = this.p4[p], pt = this.pat[p], cells = this.cells;
+      for (let i = 0; i < p4.length; i++) {
+        const v = p4[i];
+        if (v >= P4.E_BLOCK4 && v !== P4.A_FIVE && cells[i] === EMPTY) {
+          const b = i * 4;
+          out.push({ i, s: v * 64 + pt[b] + pt[b + 1] + pt[b + 2] + pt[b + 3] });
         }
-        this.cells[i] = EMPTY;
-        if (made) out.push({ i, s: this.quickScore(i, p) + made * 60 });
       }
       out.sort((a, b) => b.s - a.s);
-      return this.legal(out.slice(0, limit).map((o) => o.i), p);
+      const list = out.map((o) => o.i);
+      return this.legal(list, p).slice(0, limit || list.length);
+    }
+    /** Các ô trống của p có mẫu chéo ≥ min (đã lọc nước cấm Renju). */
+    cellsAtLeast(p, min) {
+      if (!this.hasAtLeast(p, min)) return [];
+      const out = [], p4 = this.p4[p], cells = this.cells;
+      for (let i = 0; i < p4.length; i++) if (p4[i] >= min && cells[i] === EMPTY) out.push(i);
+      return this.legal(out, p);
+    }
+    /**
+     * p thắng chắc trong 2 nước của mình: có ô "bốn mở" (B_FLEX4, hợp lệ) mà đối thủ không có ô thắng / nước bốn nào để
+     * phản công (Rapfi: quickWinCheck). Đối thủ không có nước bốn thì không thể làm gì ngoài chặn – mà bốn mở không chặn nổi.
+     */
+    quickWin(p) {
+      const q = 3 - p;
+      if (!this.p4cnt[p][P4.B_FLEX4] || this.winCount[q] || this.hasAtLeast(q, P4.E_BLOCK4)) return false;
+      return this.hasFlex4(p);
+    }
+    /**
+     * Phòng thủ bắt buộc (Rapfi / Allis: đối thủ doạ "bốn mở" thì chỉ có hai cách – chặn hoặc phản công bằng nước bốn):
+     * đối thủ q có ô B_FLEX4 hợp lệ → các nước của p làm q hết ô B_FLEX4 hợp lệ, cùng mọi nước bốn của p (xếp theo điểm
+     * ứng viên; fast: xếp rẻ theo mẫu chéo). null = q không có đe doạ đó (hoặc không tìm được nước nào – để tìm kiếm thường
+     * tự xử lý).
+     */
+    threatDefense(p, fast) {
+      const q = 3 - p;
+      if (!this.p4cnt[q][P4.B_FLEX4]) return null;
+      const threats = this.cellsAtLeast(q, P4.B_FLEX4).filter((i) => this.p4[q][i] === P4.B_FLEX4);
+      if (!threats.length) return null;
+      // Ô có thể chặn: chính ô đe doạ và các ô trống trong ±5 ô trên đường "bốn" của nó (luật Việt Nam: chặn đầu cũng được)
+      const W = this.W, H = this.H, pq = this.pat[q], cand = new Set(threats);
+      for (const c of threats) {
+        const cx = c % W, cy = (c / W) | 0;
+        for (let d = 0; d < 4; d++) {
+          if (pq[c * 4 + d] < PT.B4) continue;
+          for (let k = -5; k <= 5; k++) {
+            const x = cx + k * DX[d], y = cy + k * DY[d];
+            if (k && x >= 0 && y >= 0 && x < W && y < H && this.cells[y * W + x] === EMPTY) cand.add(y * W + x);
+          }
+        }
+      }
+      const out = [];
+      if (this.rule === 'renju') {
+        // Renju: quân chặn của O có thể làm ô bốn-bốn (cấm) của X thành ô bốn mở hợp lệ – đặt thật mới chắc
+        for (const m of this.legal(Array.from(cand), p)) {
+          this.play(m, p);
+          const ok = !this.p4cnt[q][P4.B_FLEX4] || !this.cellsAtLeast(q, P4.B_FLEX4).some((i) => this.p4[q][i] === P4.B_FLEX4);
+          this.undo();
+          if (ok) out.push(m);
+        }
+      } else {
+        // Không cần đặt thật: quân chặn ở e chỉ đổi mẫu đường của ô đe doạ c trên đúng một hướng → tra bảng mẫu cho đường
+        // đó (e là quân của p) rồi gộp lại với 3 hướng kia; mọi ô đe doạ đều hết B_FLEX4 thì e là nước phòng
+        for (const e of cand) if (threats.every((c) => c === e || this.p4With(q, c, e, p) < P4.B_FLEX4)) out.push(e);
+      }
+      for (const m of this.threatMoves(p)) if (!out.includes(m)) out.push(m);
+      if (!out.length) return null;
+      // fast (VCT): xếp rẻ theo mẫu chéo của hai bên ở ô đó; còn lại theo điểm ứng viên
+      const p4p = this.p4[p], p4q = this.p4[q];
+      const sc = new Map(out.map((m) => [m, fast ? p4p[m] * 16 + p4q[m] : this.quickScore(m, p) + 0.85 * this.quickScore(m, q)]));
+      return out.sort((a, b) => sc.get(b) - sc.get(a));
+    }
+    /** Mẫu chéo của ô trống c cho bên q nếu ô e (khác c) có quân của bên b (không đặt thật; e ngoài 11 ô quanh c: như cũ). */
+    p4With(q, c, e, b) {
+      const W = this.W, cx = c % W, cy = (c / W) | 0, ex = e % W, ey = (e / W) | 0, dx = ex - cx, dy = ey - cy;
+      let d, k;
+      if (!dy) { d = 0; k = dx; } else if (!dx) { d = 1; k = dy; } else if (dx === dy) { d = 2; k = dx; } else if (dx === -dy) { d = 3; k = dx; } else return this.p4[q][c];
+      if (k < -5 || k > 5) return this.p4[q][c];
+      // Mã 11 ô của đường d qua c theo góc nhìn q (giữ sẵn – xem refreshWins), thêm quân b ở ô e (độ lệch k, đang trống)
+      const key = (q === X ? this.keyX : this.keyO)[c * 4 + d] + (b === q ? 1 : 2) * POW3[5 + k];
+      const T = this.ptab[q];
+      let np = T[key]; if (np < 0) np = PT.lookup(T, key, this.rule, q === X);
+      const pt = this.pat[q], base = c * 4;
+      const a = d === 0 ? np : pt[base], b1 = d === 1 ? np : pt[base + 1], c2 = d === 2 ? np : pt[base + 2], d3 = d === 3 ? np : pt[base + 3];
+      return PT.COMBO[a * 729 + b1 * 81 + c2 * 9 + d3];
+    }
+    /** p có ô "bốn mở" (B_FLEX4) hợp lệ không. */
+    hasFlex4(p) {
+      return this.p4cnt[p][P4.B_FLEX4] > 0 && this.cellsAtLeast(p, P4.B_FLEX4).some((i) => this.p4[p][i] === P4.B_FLEX4);
+    }
+    /** p có ô nào mẫu chéo ≥ min không (theo bộ đếm – chưa lọc nước cấm). */
+    hasAtLeast(p, min) {
+      const c = this.p4cnt[p];
+      for (let v = min; v <= P4.A_FIVE; v++) if (c[v] > 0) return true;
+      return false;
     }
     /** Lọc nhanh: đánh vào (cx, cy) có thể tạo ô thắng nếu một đường có ≥ 2 quân p trong 4 ô mỗi bên (chưa bị chặn). */
     mayThreat(cx, cy, p) {
@@ -444,13 +560,29 @@
     /** Điểm thế cờ theo bên tới lượt: thế của mình (trọng số công) trừ thế của đối thủ (trọng số thủ) + lợi thế được đi. */
     evaluate() {
       const st = this.style, acc = this.acc, tempo = this.ev.tempo;
-      if (st.a === 1 && st.d === 1) return Math.round(this.side === X ? acc[0] - acc[3] : acc[2] - acc[1]) + tempo;
+      if (st.a === 1 && st.d === 1) {
+        const s = this.side;
+        return Math.round(s === X ? acc[0] - acc[3] : acc[2] - acc[1]) + this.patScore(s, true) - this.patScore(3 - s, false) + tempo;
+      }
       // Lối đánh (a – trọng số thế mình, d – thế đối thủ) theo góc nhìn bên đi ở gốc (nhân vật máy), đổi dấu cho bên kia:
       // điểm vẫn nhất quán khi tìm (negamax)
       const rs = this.rootSide || this.side;
-      const mine = rs === X ? acc[0] : acc[2], theirs = rs === X ? acc[3] : acc[1];
+      const mine = (rs === X ? acc[0] : acc[2]) + this.patScore(rs, rs === this.side);
+      const theirs = (rs === X ? acc[3] : acc[1]) + this.patScore(3 - rs, rs !== this.side);
       const e = Math.round(st.a * mine - st.d * theirs);
       return (this.side === rs ? e : -e) + tempo;
+    }
+    /**
+     * Điểm mẫu chéo của p (Rapfi / Wine: chấm theo số ô có từng loại mẫu – ô "bốn", "ba mở", "ba kép"…):
+     * toMove – p là bên tới lượt (trọng số pa) hay bên vừa đi (pd). Trọng số học từ ván thật (tune-eval.js).
+     */
+    patScore(p, toMove) {
+      const w = toMove ? this.ev.pa : this.ev.pd;
+      if (!w) return 0;
+      const c = this.p4cnt[p];
+      let s = 0;
+      for (let v = 1; v < 12; v++) s += w[v] * c[v];
+      return s;
     }
     /** Thưởng xếp thứ tự ứng viên theo lối đánh: nước đôi (nhiều đường có quân mình), gài bẫy (nước nhảy cách quãng). */
     styleScore(i, p) {
@@ -496,6 +628,8 @@
       // LMR: tự đấu (bot-match.js, 192 ván / luật) cho thấy có lợi ở luật tiêu chuẩn (+60%), ngang ở luật Việt Nam (53%),
       // hơi kém ở luật tự do / Renju (47–48%) → mặc định chỉ bật cho luật tiêu chuẩn; opts.lmr ghi đè
       this.lmr = opts.lmr != null ? !!opts.lmr : pos.rule === 'std';
+      this.patterns = opts.patterns !== false; // phòng thủ bắt buộc + thắng nhanh theo mẫu hình (tắt: { patterns: false })
+      this.defExt = this.patterns && opts.defExt != null ? opts.defExt : 0; // ở lá bị doạ bốn mở, ≤ defExt cách phòng: tìm thêm 1 nước
       this.stop = false;
       this.killers = [];
       this.width = opts.width || 10;   // số ứng viên ở các nút bên trong
@@ -558,6 +692,7 @@
       // Không bị doạ: chuỗi ép ngắn cho bên tới lượt, không có thì lấy điểm tĩnh
       const r = this.vcfSolve(this.leafVcf, ply);
       if (r) return WIN - (ply + 2 * r - 1);
+      if (this.patterns && pos.quickWin(p)) return WIN - (ply + 3);
       return pos.evaluate();
     }
 
@@ -571,6 +706,10 @@
       if (pos.winCount[p]) return 1;
       if (pos.winCount[q] || depth <= 0) return 0;
       if (this.timeUp()) return 0;
+      // Có ô bốn mở: thắng sau 2 nước công (không chặn nổi, đối thủ chưa có ô thắng để phản công)
+      if (this.patterns && pos.hasFlex4(p)) return 2;
+      // Còn 1 nước công: chỉ bốn mở mới thắng – không có thì khỏi thử (trừ Renju: X có thể không chặn được vì ô chặn bị cấm)
+      if (this.patterns && depth === 1 && !(pos.rule === 'renju' && q === X)) return 0;
       const key = pos.key, e = this.vtt.get(key);
       if (e !== undefined && (e > 0 || -e >= depth)) return e > 0 ? e : 0;
       let found = 0;
@@ -592,6 +731,8 @@
     vcfTry2(m, depth) {
       const pos = this.pos, p = pos.side, q = 3 - p;
       pos.play(m, p);
+      // Mẫu hình chỉ nhìn 11 ô: kiểm lại bằng ô thắng thật (không tạo ô thắng nào thì không phải nước bốn)
+      if (!pos.winCount[p]) { pos.undo(); return 0; }
       const bl = pos.blocks(q);
       let worst = 1, ok = true;
       for (const b of bl) {
@@ -675,8 +816,18 @@
         if (!moves.length) return -(WIN - ply - 1);
         if (moves.length === 1 && ply < 40) ext = 1; // nước chặn duy nhất: không tính vào độ sâu
       } else {
-        if (depth <= 0) return this.qsearch(alpha, beta, ply, this.qDepth);
-        moves = ply === 0 && this.rootMoves ? this.rootMoves : pos.candidates(p, ply === 0 ? this.rootWidth : this.width);
+        if (depth <= 0 && !this.defExt) return this.qsearch(alpha, beta, ply, this.qDepth);
+        if (this.patterns && ply > 0 && pos.quickWin(p)) return WIN - (ply + 3);
+        // Đối thủ doạ bốn mở: chỉ xét nước chặn + nước bốn (Rapfi); ở gốc giữ thứ tự / bộ lọc của rootMoves
+        const def = this.patterns ? pos.threatDefense(p) : null;
+        if (depth <= 0) {
+          // Ở lá mà đang bị doạ bốn mở: tìm thêm một nước phòng (điểm tĩnh không nói lên gì) nếu ít cách phòng
+          if (!def || def.length > this.defExt || ply >= 30) return this.qsearch(alpha, beta, ply, this.qDepth);
+          ext = 1;
+        }
+        if (ply === 0 && this.rootMoves) moves = def ? this.rootMoves.filter((m) => def.includes(m)) : this.rootMoves;
+        else moves = def || pos.candidates(p, ply === 0 ? this.rootWidth : this.width);
+        if (!moves.length) moves = def || this.rootMoves;
       }
       if (depth <= 0 && !ext) return this.qsearch(alpha, beta, ply, this.qDepth);
       // Thứ tự: nước trong bảng ghi nhớ, nước sát thủ, rồi theo điểm
@@ -718,6 +869,10 @@
     }
   }
 
+  // Tìm chuỗi đe doạ VCT (engine-vct.js – theo threat-space search của Allis)
+  const VCT = global.CaroVct || (typeof require === 'function' ? require('./engine-vct.js') : null);
+  if (VCT) VCT.install(Search.prototype);
+
   /**
    * Phân tích một thế cờ (moves: [[x, y], …], bên tới lượt = X nếu số nước chẵn).
    * opts: { ms (thời gian, mặc định 500), maxDepth (mặc định 20), tt (Map dùng lại giữa các lần gọi), rule }.
@@ -740,18 +895,49 @@
       const plies = 2 * v.len - 1;
       return { move: pos.xy(v.move), score: WIN - plies, depth: plies, nodes: S.nodes, pv: [pos.xy(v.move)], mate: v.len };
     }
+    // Chuỗi đe doạ ba / bốn (VCT) – thắng chắc nếu tìm thấy
+    if (opts.vct !== false && S.vctRoot) {
+      const t = S.vctRoot(opts.vctDepth || 8, Date.now() + (opts.ms || 500) * (opts.vctTime || 0.2));
+      if (t) {
+        const plies = 2 * t.len - 1;
+        return { move: pos.xy(t.move), score: WIN - plies, depth: plies, nodes: S.nodes, pv: [pos.xy(t.move)], mate: t.len };
+      }
+    }
     // Lọc nước để đối thủ có chuỗi ép (tốn tối đa ~30% thời gian)
     if (opts.safeRoot !== false) S.rootMoves = S.safeRoot(opts.defDepth || 6, Date.now() + (opts.ms || 500) * 0.3);
+    // Làm sâu dần; sau mỗi lớp, nước tốt nhất mới được kiểm (như "blunder check"): sau nước đó đối thủ có chuỗi đe doạ (VCT)
+    // không – có thì bỏ nước đó và tìm lại lớp này (bảng ghi nhớ còn nóng nên nhanh). Mỗi nước kiểm một lần.
+    const ms = opts.ms || 500;
+    const verify = opts.vct !== false && opts.safeRoot !== false && !!S.vctFind;
+    const checked = new Map(); // nước → an toàn?
     let result = null;
     const maxDepth = opts.maxDepth || 20;
-    for (let d = 1; d <= maxDepth; d++) {
+    for (let d = 1, bad = 0; d <= maxDepth; d++) {
       const pv = [];
       const s = S.negamax(d, -WIN - 1, WIN + 1, 0, pv);
       if (S.stop && result) break;
       if (pv.length) result = { score: s, depth: d, pv: pv.slice() };
-      else if (!result) result = { score: s, depth: d, pv: [pos.candidates(p, 1)[0]] };
-      if (Math.abs(s) >= MATE || S.stop) break;
+      else if (!result) result = { score: s, depth: d, pv: [(S.rootMoves || pos.candidates(p, 1))[0]] };
+      if (S.stop) break;
+      const m = result.pv[0];
+      if (verify && s > -MATE && s < MATE && !checked.has(m) && bad < 6) {
+        const end = S.deadline;
+        S.deadline = Math.min(end, Date.now() + ms * (opts.vctVerify || 0.25));
+        pos.play(m, p);
+        const t = pos.winCount[p] ? null : S.vctFind(opts.vctDepth || 8);
+        pos.undo();
+        S.stop = false;
+        S.deadline = end;
+        checked.set(m, !t);
+        if (t) {
+          // m thua chắc: bỏ khỏi gốc rồi tìm lại lớp này (nếu còn nước khác)
+          const rest = (S.rootMoves || pos.candidates(p, S.rootWidth)).filter((i) => i !== m);
+          if (rest.length) { S.rootMoves = rest; bad++; result = null; d--; continue; }
+        }
+      }
+      if (Math.abs(s) >= MATE) break;
     }
+    if (!result) result = { score: 0, depth: 0, pv: [(S.rootMoves || pos.candidates(p, 1))[0]] };
     const mate = result.score >= MATE ? Math.ceil((WIN - result.score) / 2) : result.score <= -MATE ? -Math.ceil((WIN + result.score) / 2) : null;
     return { move: pos.xy(result.pv[0]), score: result.score, depth: result.depth, nodes: S.nodes, pv: result.pv.map((i) => pos.xy(i)), mate };
   }
@@ -763,7 +949,7 @@
     return 1 / (1 + Math.exp(-score / 360));
   }
 
-  const CaroEngine = { analyse, winChance, Position, WIN, MATE };
+  const CaroEngine = { analyse, winChance, Position, Search, WIN, MATE, EVAL };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroEngine;
   else global.CaroEngine = CaroEngine;
 })(typeof window !== 'undefined' ? window : globalThis);
