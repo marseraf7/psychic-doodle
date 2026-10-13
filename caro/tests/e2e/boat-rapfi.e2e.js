@@ -120,6 +120,9 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật Việt Nam: BOAT đi');
   s = await stats();
   ok(s.rapfi === r0 + 5 && s.fallback === f0, `luật Việt Nam: Rapfi-CARO đi (rapfi ${s.rapfi}, nhường ${s.fallback})`);
+  // Nước đầu ván lấy từ sách 'vn-rapfi' (Rapfi-CARO nghĩ 10 giây mỗi thế – book-data.js)
+  const bk = await p.evaluate(() => { const mv = window.CaroApp.board.moves.map((m) => [m.x, m.y]); return { got: mv[1], want: window.CaroBook.lookup(mv.slice(0, 1), 'vn-rapfi') }; });
+  ok(bk.want && bk.got[0] === bk.want[0] && bk.got[1] === bk.want[1], 'luật Việt Nam: BOAT đi nước trong sách vn-rapfi — ' + JSON.stringify(bk));
   // Luật Việt Nam: bốn quân trống hai đầu là thắng – X có ba mở (0,0)–(0,2) nên đi (0,3) hoặc (0,−1) là thắng ngay
   // (Rapfi đi ngay, không in điểm – phân tích tự chấm là thắng)
   const vn = await p.evaluate(async () => {

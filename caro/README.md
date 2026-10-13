@@ -177,6 +177,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     1 giây (bản gốc) **73%** (64 ván), bản WebAssembly 0,6 giây (≈ BOAT 2,5 giây trên điện thoại) **78%** (32 ván) – đối
     thủ vẫn là engine của game nghĩ 3 giây (gấp 3–5 lần thời gian); cho engine kiểm mọi nước của Rapfi-CARO không mạnh
     hơn nên chỉ kiểm khi sát mép.
+    12 nước đầu ván lấy từ sách `vn-rapfi` (`book-data.js`: cây khai cuộc của sách cũ, Rapfi-CARO nghĩ 10 giây mỗi thế).
   - Đo đúng như trong app (`server/scripts/rapfi/boat-match.js`: bàn vô hạn, đặt thế vào bàn Rapfi, engine kiểm khi
     sát mép; 24 ván mỗi ô, khai cuộc cân bằng, đối thủ là engine của game nghĩ 3 giây):
 

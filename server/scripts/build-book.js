@@ -10,7 +10,8 @@
  * Ghi đè caro/book-data.js; giữ lại các mục cũ của luật không dựng lại.
  *
  * Luật Việt Nam bằng Rapfi-CARO (mạnh hơn engine của game – BOAT luật Việt Nam chạy nó): BOOK_RAPFI_DIR=<thư mục chạy
- * bản gốc Rapfi-CARO, xem server/scripts/rapfi/caro/README.md> – mỗi luồng một tiến trình Rapfi-CARO, bàn 20×20.
+ * bản gốc Rapfi-CARO, xem server/scripts/rapfi/caro/README.md> – mỗi luồng một tiến trình Rapfi-CARO, bàn 20×20. Ghi vào
+ * khoá 'vn-rapfi' (chỉ BOAT dùng – boat-rapfi.js); sách 'vn' của các nhân vật máy khác giữ nguyên để không lệch mức Elo.
  */
 'use strict';
 const fs = require('fs');
@@ -141,7 +142,7 @@ async function build(rule, bookSide, ms, maxPly, branch, book) {
     // Sách X: X mở ở (0, 0) (nhân vật máy cầm X luôn mở ở đó) – nước đầu không cần sách
     await build(rule, 0, Number(MS), Number(MAXPLY), Number(BRANCH), book);
     await build(rule, 1, Number(MS), Number(MAXPLY), Number(BRANCH), book);
-    data[rule] = book;
+    data[RAPFI_DIR && rule === 'vn' ? 'vn-rapfi' : rule] = book;
     console.log(`${rule}: ${Object.keys(book).length} mục · ${Math.round((Date.now() - t0) / 1000)} giây`);
     write(data);
   }
@@ -151,11 +152,12 @@ async function build(rule, bookSide, ms, maxPly, branch, book) {
 
 function write(data) {
   const body = Object.entries(data).map(([rule, book]) =>
-    `  ${rule}: {\n${Object.entries(book).map(([k, m]) => `    '${k}': [${m[0]}, ${m[1]}],`).join('\n')}\n  },`).join('\n');
+    `  ${/^[a-z]+$/.test(rule) ? rule : `'${rule}'`}: {\n${Object.entries(book).map(([k, m]) => `    '${k}': [${m[0]}, ${m[1]}],`).join('\n')}\n  },`).join('\n');
   fs.writeFileSync(OUT, `/*
  * Sách khai cuộc (sinh tự động bởi server/scripts/build-book.js – đừng sửa tay): { luật: { khoá thế cờ: [x, y] } }.
- * Khoá và toạ độ theo dạng chuẩn hoá của book.js (canon). Lần dựng gần nhất (${RULES}): ${RAPFI_DIR ? 'luật Việt Nam bằng Rapfi-CARO, ' : ''}nghĩ ${MS} ms
- * mỗi thế, tối đa ${MAXPLY} nước, ${BRANCH} nhánh.
+ * Khoá và toạ độ theo dạng chuẩn hoá của book.js (canon). Các nhân vật máy dùng sách của luật;
+ * vn-rapfi: chỉ BOAT (Rapfi-CARO). Lần dựng gần nhất (${RULES}${RAPFI_DIR ? ' – Rapfi-CARO' : ''}): nghĩ ${MS} ms mỗi thế, tối đa
+ * ${MAXPLY} nước, ${BRANCH} nhánh.
  */
 (function (global) {
   'use strict';

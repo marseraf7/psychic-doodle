@@ -45,10 +45,25 @@ tự đấu). Sau khi sửa độ sâu (ở trên) – Rapfi-CARO 1 giây vs eng
 | c2 | 2.000 ván của bản cũ | 16/32 (50%) |
 | c3 | 1.000 ván của bản đã sửa độ sâu (ván dài gấp đôi: 45 nửa nước) | 22/32 (69%) |
 | **c4 – trong app** | c1 + c3 (2.000 ván) | **47/64 (73%)**; cùng khai cuộc c1 được 41/64 |
+| c5 | c4 + 1.000 ván tự đấu bằng c4 (3.000 ván Rapfi) | 23/32 (72%) |
+| c6 | c5 + 13.995 ván tự đấu của engine cũ + 864 ván Gomocup Caro (`games-to-binpack.js`) | 47/64 (73%) |
+| c7 | c5, học thêm điểm xếp nước (`tuning -m`) | 25/32 (78%) |
+| c8 | c6, học thêm điểm xếp nước | 48/64 (75%) |
+
+Từ c4 trở đi các bảng ngang nhau trong mức nhiễu (±5–6 ván / 64): thêm ván tự đấu, ván của engine cũ, ván Gomocup hay
+học điểm xếp nước đều không tăng rõ – bảng đánh giá cổ điển đã bão hoà, app giữ c4. Muốn mạnh hơn nữa cần đánh giá kiểu
+mạng nơ-ron (như NNUE của 3 luật kia) học từ hàng trăm nghìn ván.
 
 Bản WebAssembly của app (`RAPFI=wasm`) 0,6 giây – ≈ BOAT 2,5 giây trên điện thoại – vs engine 3 giây: **25/32 (78%)**
 với c4 (c1: 18/32). Thêm engine của game kiểm mọi nước (`CHECK=1`, bảng c1): 23/32 (72%) – không hơn, nên app chỉ kiểm
 khi sát mép như 3 luật kia. **Đã dùng cho BOAT và phân tích luật Việt Nam.**
+
+**Sách khai cuộc cho BOAT luật Việt Nam** (`caro/book-data.js`, khoá `vn-rapfi`): cây khai cuộc của sách cũ
+(`server/scripts/build-book.js`) dựng lại bằng Rapfi-CARO nghĩ 10 giây mỗi thế (`BOOK_RAPFI_DIR=<thư mục chạy>
+node server/scripts/build-book.js vn 10000 8 4`, 131 thế, 12 nước đầu). So sách cũ (engine cũ nghĩ 6 giây) với Rapfi-CARO
+nghĩ 0,3 giây (≈ BOAT trên điện thoại), trọng tài Rapfi-CARO 5 giây, 197 thế: trùng 109; khác 88 – sách cũ tốt hơn 13,
+kém hơn 28, ngang 47; có thế Rapfi nghĩ nhanh đi vào thua chắc mà sách giữ được – nên BOAT tra sách mới (vừa nhanh vừa
+chính xác hơn nghĩ 2,5 giây). Sách `vn` cũ giữ nguyên cho các nhân vật máy khác (không lệch mức Elo đã cân).
 
 Học bảng đánh giá (`model-caro.bin` trong `caro/rapfi/`):
 

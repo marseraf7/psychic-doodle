@@ -30,6 +30,7 @@
   const FIRST_WAIT = 1500; // mạng chưa sẵn sàng: chờ ngần này (đủ cho lần nạp từ bộ nhớ đệm), quá thì nước này dùng engine
   const RETRY_MS = 60000; // tải lỗi (mạng chập chờn): sau 1 phút cho thử lại
   const CHECK_MS = 400; // thời gian engine của game kiểm một thế sát mép
+  const BOOK_PLY = 12; // luật Việt Nam: tra sách khai cuộc 'vn-rapfi' (book-data.js – Rapfi-CARO nghĩ 10 giây / thế) tới nước này
   const T = (k, v) => (global.I18N ? global.I18N.t(k, v) : k);
   const toast = (m, ms) => global.CaroOnline && global.CaroOnline.toast(m, ms);
 
@@ -198,6 +199,11 @@
     const rule = board.rule, moves = board.moves.map((m) => [m.x, m.y]);
     if (!moves.length) return [0, 0];
     if ((moves.length % 2 === 0 ? C.X : C.O) !== p) return null; // Rapfi tính bên đi theo số quân
+    // Luật Việt Nam: nước đầu ván lấy từ sách (Rapfi-CARO nghĩ 10 giây mỗi thế – hơn nghĩ 2,5 giây trên điện thoại)
+    if (rule === 'vn' && moves.length <= BOOK_PLY && global.CaroBook) {
+      const m = global.CaroBook.lookup(moves, 'vn-rapfi');
+      if (m && board.get(m[0], m[1]) === C.EMPTY) return m;
+    }
     const f = frame(moves, SIZE[rule]);
     if (!f || !(await ready(rule, FIRST_WAIT))) return null;
     const near = f.margin < SAFE_EDGE;
