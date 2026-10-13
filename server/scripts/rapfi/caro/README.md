@@ -57,3 +57,11 @@ pbrain-rapfi selfplay --rule caro -n 250 --boardsize-min 20 --boardsize-max 20 -
   --budget-distribution fixed --budget-value 20000 --seed <hạt giống> -o <thư mục dữ liệu>/<tên>.binpack.lz4
 pbrain-rapfi tuning -d <thư mục dữ liệu> -r caro -o <thư mục ra> -n c -e 3000 -i 1000   # → c-e03000.bin
 ```
+
+Ván có sẵn của game (jsonl `{"m":[[x,y],…],"w":…}` – ván tự đấu của engine cũ `server/scripts/selfplay.js`, ván Gomocup
+bảng Caro từ `server/scripts/gomocup-import.js`) chuyển sang dữ liệu học của Rapfi bằng `games-to-binpack.js` (đặt vào bàn
+20×20, cắt ván ở nước thắng theo luật Việt Nam – luật Caro của Gomocup cần đủ 5 quân):
+
+```bash
+node server/scripts/rapfi/caro/games-to-binpack.js <thư mục dữ liệu>/old.bin sp-vn.jsonl caro.jsonl
+```
