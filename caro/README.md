@@ -122,9 +122,12 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     "năm bị chặn hai đầu" của luật Việt Nam), ghi nhớ theo mã 3^11; gộp 4 hướng thành mẫu chéo (bốn mở, bốn-ba, ba kép…).
     Mỗi nước chỉ cộng / trừ một chữ số vào mã 11 ô giữ sẵn của 44 (ô, hướng) quanh nó. Đã kiểm khớp tuyệt đối với luật thật
     trên hàng trăm nghìn ô của ván Gomocup (ô thắng, ô "bốn", "bốn mở", ô chặn, ô phòng thủ).
-  - *Chuỗi bốn nhanh hơn*: còn 1 nước công thì chỉ "bốn mở" mới thắng (tra mẫu, khỏi đặt thử); ô chặn duy nhất của một nước
-    bốn là chính ô thắng (trừ luật Việt Nam – chặn đầu cũng được, tra mẫu); ứng viên xếp theo mẫu đường thay cho đếm cửa sổ.
-    Kết quả: luật tự do tìm sâu ~6,8 lớp trong 300 ms (bản trước ~5), luật Việt Nam ~4,9 (trước ~3,6).
+  - *Chuỗi bốn nhanh hơn*: còn 1 nước công thì chỉ "bốn mở" mới thắng (tra mẫu, khỏi đặt thử); còn 2 nước công thì nước
+    bốn chỉ thử khi tạo được ô bốn mở mới trên đường qua nó (Allis: nước sau phụ thuộc nước trước – giữ nguyên kết quả trên
+    ~7.000 thế); ô chặn duy nhất của một nước bốn là chính ô thắng (trừ luật Việt Nam – chặn đầu cũng được, tra mẫu); ứng
+    viên xếp theo mẫu đường thay cho đếm cửa sổ; luật Việt Nam chỉ thử bốn mở ở lá (ba mở đã là đe doạ thắng nên nước bốn
+    rất nhiều – tìm sâu hơn có lợi hơn); Renju ghi nhớ nước cấm theo thế. Kết quả trong 300 ms: luật tự do tìm sâu ~6,8 lớp
+    (bản trước ~5), Việt Nam ~5,4 (trước ~3,6), Renju ~5,8.
   - *Phòng thủ bắt buộc* (Rapfi / Allis): đối thủ có ô "bốn mở" thì chỉ xét nước làm đối thủ hết ô đó + nước bốn phản công;
     *thắng nhanh*: có ô bốn mở mà đối thủ không có nước bốn nào → thắng chắc.
   - *VCT – chuỗi đe doạ ba / bốn* (`engine-vct.js`, threat-space search của Allis): bên công chỉ đi nước ba / bốn, bên thủ
@@ -132,14 +135,19 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     tiếp với engine cũ nghĩ lâu: đúng 75/75). Dùng ở gốc (tìm thắng) và để **kiểm nước định đi**: sau mỗi lớp làm sâu dần,
     nếu sau nước tốt nhất đối thủ có VCT thì bỏ nước đó và tìm lại.
   - *Đo công bằng*: khai cuộc ngẫu nhiên 3 quân lợi cho X tới mức X thắng ~80% bất kể engine nào, nên tự đấu dùng **bộ khai
-    cuộc cân bằng** (`server/scripts/gen-openings.js` → `openings.json`, như Gomocup / Stockfish). Bản mới thắng bản trước:
-    tự do 72%, Việt Nam 68%, tiêu chuẩn 73%, Renju 71% (192 ván mỗi luật, 300 ms/nước, đổi bên mỗi khai cuộc).
+    cuộc cân bằng** (`server/scripts/gen-openings.js` → `openings.json`, như Gomocup / Stockfish). Bản mới thắng bản trước
+    đợt nâng cấp: **Việt Nam 80%, tự do 70%, tiêu chuẩn 82%, Renju 71%** (192 ván mỗi luật, 300 ms/nước, đổi bên mỗi khai
+    cuộc). GOAT (Toàn diện, 1,3 giây) với các nhân vật cùng mức 2350 (luật Việt Nam, thời gian thật của nhân vật, 96 ván):
+    Y Đững 74%, Pháo 76%, Long 76%, Áo 52% (Áo – lối gài bẫy – gần như dùng engine thuần, chỉ nghĩ ít hơn; cho GOAT nghĩ
+    2,5 giây cũng chỉ 59% nên giữ 1,3 giây cho người chơi khỏi chờ).
     Đã thử và **không giữ** (không thắng hơn trong tự đấu): bỏ lượt thử (null move), LMR cho mọi luật, độ rộng 8 / 12,
-    trọng số mẫu chéo học từ Gomocup, tìm thêm một nước phòng ở lá.
+    trọng số mẫu chéo học từ Gomocup cho luật tự do / Renju / Việt Nam (chỉ giữ cho luật tiêu chuẩn), tìm thêm một nước
+    phòng ở lá, bỏ lọc chuỗi bốn ở gốc, cửa sổ khát vọng (aspiration window).
   **Phân tích song song** (`an-pool.js`): các thế của ván chia cho min(4, lõi − 1) Web Worker (như Lichess chạy Stockfish
   nhiều luồng) – ván 36 nước trên máy 4 lõi: kết quả nhanh 1,4 giây (trước 2,9), phân tích kỹ xong 6,8 giây (trước 18,4).
   Phân tích ngầm gắn khoá thế cờ vào từng kết quả: đi lại / rẽ nhánh bao nhiêu lần cũng không dùng nhầm (e2e: 300 lần).
-  **Sách khai cuộc** (`book-data.js`, 783 thế cho 4 luật): engine nghĩ 6 giây mỗi thế (gấp ~7 lần thời gian GOAT được nghĩ).
+  **Sách khai cuộc** (`book-data.js`, 814 thế cho 4 luật, dựng lại bằng engine mới): engine nghĩ 6 giây mỗi thế (gấp ~5 lần
+  thời gian GOAT được nghĩ).
   Lấy thêm ván để học: Gomocup – mỗi năm một file `https://gomocup.org/static/tournaments/<năm>/results/gomocup<năm>results.zip`
   (bảng Caro có từ 2021); Renju – cơ sở dữ liệu ván của RenjuNet (renju.net, định dạng RIF); ván Caro Việt Nam của
   người chơi: xuất ván từ chính app (Lịch sử đấu / API `/api/replay/<mã>`) hoặc gửi dãy nước dạng `x,y` mỗi dòng.
