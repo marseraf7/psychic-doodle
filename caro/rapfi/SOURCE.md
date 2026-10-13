@@ -41,7 +41,7 @@ RAPFI_CLONE=1 bash caro/rapfi/build/build.sh   # hoặc: clone đúng commit t�
 Đã kiểm (10/2026, Emscripten 6.0.12): dựng từ gói nguồn và từ fork đều ra **trùng từng byte** với bản trong app –
 `rapfi-single-simd128.wasm` SHA-256 `92d29800714f4ba68105e4229850b5c6d7062fb6ab39c42e5457cb1416288b07`,
 `rapfi-single-simd128.js` `dfa7b76abf414c5a6c02cb2ee80174d4e45267fcafab4715c09252500d21b013`. Rapfi-CARO:
-`rapfi-caro-simd128.wasm` `ec57f7b7498b5e7bceb52ad825b2f92399026e14aba9badea4bd77ae87c36d0f`,
+`rapfi-caro-simd128.wasm` `639c09ddb65c83f9a93ebf3e3146a7dbf5be35a12ae43f2fb174cac793596566`,
 `rapfi-caro-simd128.js` `44023d8aeac6cfbcd808e05690ff0bd71a45a5dfb5ac566f00a631d300d268ff`.
 
 Mạng NNUE của Rapfi bắt buộc có SIMD nên không có bản vô hướng: trình duyệt không hỗ trợ WebAssembly SIMD thì BOAT dùng

@@ -304,6 +304,28 @@ index cfd4604..6375842 100644
  }
  
  /// Lookup eval table with color and pcode of rule R.
+diff --git a/Rapfi/eval/weightloader.h b/Rapfi/eval/weightloader.h
+index 778ef48..0901d4a 100644
+--- a/Rapfi/eval/weightloader.h
++++ b/Rapfi/eval/weightloader.h
+@@ -118,7 +118,7 @@ struct StandardHeaderLoader
+             uint32_t magic;      // 0xacd8cc6a = crc32("gomoku network weight version 1")
+             uint32_t arch_hash;  // architecture hash, which is hash of the network architecture
+                                  // (network type, num of channels, layers, ...)
+-            uint32_t rule_mask;  // applicable rule bitmask (1=gomoku, 2=standard, 4=renju)
++            uint32_t rule_mask;  // applicable rule bitmask (1=gomoku, 2=standard, 4=renju, 8=caro)
+             uint32_t boardsize_mask;  // applicable board size bitmask (lsb set at index i means
+                                       // board size i+1 is usable for this weight)
+             uint32_t desc_len;        // length of desc string (=0 for no description)
+@@ -160,6 +160,8 @@ private:
+             rules.push_back(STANDARD);
+         if (ruleMask & 0x4)
+             rules.push_back(RENJU);
++        if (ruleMask & 0x8)
++            rules.push_back(CARO);  // Rapfi-CARO: Vietnamese rule
+         return rules;
+     }
+ 
 diff --git a/Rapfi/game/board.cpp b/Rapfi/game/board.cpp
 index af131a4..a13c3f4 100644
 --- a/Rapfi/game/board.cpp
