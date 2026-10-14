@@ -4,7 +4,7 @@
  *   node caro/tests/e2e/tour-basic.e2e.js     (CLB, Arena, loại trực tiếp)
  *   node caro/tests/e2e/tour-stages.e2e.js    (vòng bảng → playoff, xếp bảng, Thụy Sĩ → nhánh thắng – thua)
  * Mở trang: vào Trang chủ (khung 5 tab – shell.js); bàn cờ hiện khi vào ván. tab(p, id) chuyển tab.
- * Ảnh chụp màn hình lưu ở E2E_OUT (mặc định: thư mục tạm, in ra khi chạy xong).
+ * Ảnh chụp màn hình lưu ở E2E_OUT (mặc định: thư mục tạm, in ra khi chạy xong). E2E_BROWSER: chromium (mặc định) | firefox | webkit.
  */
 'use strict';
 const fs = require('fs');
@@ -27,7 +27,9 @@ async function setup(port, timers = {}) {
   await new Promise((r) => (app.server.listening ? r() : app.server.once('listening', r)));
   const out = process.env.E2E_OUT || fs.mkdtempSync(path.join(os.tmpdir(), 'caro-e2e-shots-'));
   fs.mkdirSync(out, { recursive: true });
-  const browser = await loadPlaywright().chromium.launch({ args: ['--no-sandbox'] });
+  // E2E_BROWSER=firefox | webkit (WebKit ≈ Safari) để chạy trên trình duyệt khác; mặc định Chromium
+  const kind = process.env.E2E_BROWSER || 'chromium';
+  const browser = await loadPlaywright()[kind].launch(kind === 'chromium' ? { args: ['--no-sandbox'] } : {});
   const errors = [];
   let failed = 0;
   const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' ' + m); if (!c) { failed++; process.exitCode = 1; } };

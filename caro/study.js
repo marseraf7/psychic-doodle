@@ -38,9 +38,31 @@
   const cache = new Map(); // khoá: chuỗi nước đi -> kết quả
   const an = { result: null, running: false, seq: 0, refining: null, job: 0, key: null, prog: 0 };
 
-  /** opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế (bỏ trống = mặc định của analysis.js) }. */
-  function runAnalysis(moves, rule, onProgress, opts) {
+  /**
+   * opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế }. Có nhiều Worker (an-pool.js): chấm song song rồi xếp loại
+   * ngay trên trang; không thì một Worker chạy cả analyzeGame (cách cũ).
+   */
+  async function runAnalysis(moves, rule, onProgress, opts) {
     opts = opts || {};
+    // Lượt kỹ do Rapfi chấm (luật Việt Nam: Rapfi-CARO) (rapfi-analysis.js); Rapfi lỗi thì engine của game
+    if (opts.rapfi && window.CaroRapfiAn) {
+      const job = an.job;
+      const evals = await window.CaroRapfiAn.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress });
+      if (job !== an.job) return null;
+      if (evals) return { ...A.analyzeGame(moves, { rule, ms: opts.ms, evals }), engine: 'rapfi' };
+      an.rapfi = false;
+      return runAnalysis(moves, rule, onProgress, { evals: opts.evals, ms: fullMs(moves.length) });
+    }
+    const Pool = window.CaroAnPool;
+    if (Pool && opts.ms && Pool.size > 1) {
+      const job = an.job;
+      const evals = await Pool.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress });
+      if (job !== an.job) return null; // đã huỷ
+      if (evals) return A.analyzeGame(moves, { rule, ms: opts.ms, evals });
+    }
+    return runSingle(moves, rule, onProgress, opts);
+  }
+  function runSingle(moves, rule, onProgress, opts) {
     const w = getWorker();
     if (!w) {
       // Không có Web Worker: tính trên luồng chính (sau 1 khung hình để kịp vẽ thanh tiến trình).
@@ -66,6 +88,7 @@
   const QUICK_MIN = 8; // còn ít thế chưa chấm hơn thế này thì làm luôn lượt kỹ
   const quickMs = (n) => Math.max(15, Math.min(40, Math.round(2000 / (n + 1))));
   const fullMs = (n) => Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // như mặc định của analysis.js
+  const rapfiMs = (n) => Math.max(150, Math.min(500, Math.round(16000 / (n + 1)))); // Rapfi WASM cần ≥ ~100 ms / thế
 
   const pending = new Set();
   /** Huỷ phân tích đang chạy (mở ván khác): dừng Worker (không dừng giữa chừng được), các lần chờ nhận null. */
@@ -75,6 +98,8 @@
     an.running = false;
     an.key = null;
     if (worker) { worker.terminate(); worker = null; }
+    if (window.CaroAnPool) window.CaroAnPool.cancel();
+    if (window.CaroRapfiAn) window.CaroRapfiAn.cancel();
     for (const res of pending) res(null);
     pending.clear();
   }
@@ -113,12 +138,14 @@
     an.prog = 0;
     const same = () => mine() && App.replay && App.replay.data.moves === moves; // chưa đóng xem lại / mở ván khác
     const progress = (f) => { if (!mine()) return; an.prog = f; if (an.refining != null) renderRefine(f); else if (same()) renderProgress(f); };
-    const n = moves.length, ms = fullMs(n);
+    const n = moves.length;
+    an.rapfi = !!(window.CaroRapfiAn && window.CaroRapfiAn.handles(r.data.rule || 'vn'));
+    const ms = an.rapfi ? rapfiMs(n) : fullMs(n);
     const live = window.CaroLive ? window.CaroLive.evalsFor(moves, r.data.rule) : null;
     const missing = Array.from({ length: n + 1 }, (_, i) => !(live && live[i] && (live[i].q || 0) >= ms)).filter(Boolean).length;
     let evals = live || undefined;
     try {
-      if (missing > QUICK_MIN) {
+      if (missing > QUICK_MIN || an.rapfi) { // Rapfi chấm lại mọi thế: luôn hiện trước kết quả nhanh của engine
         // Lượt nhanh
         renderProgress(0);
         const quick = await runAnalysis(moves, r.data.rule, progress, { evals, ms: quickMs(n) });
@@ -127,7 +154,7 @@
         evals = quick.evals;
       } else if (missing) renderProgress(0); // không thiếu thế nào: đã phân tích ngầm xong, chỉ còn xếp loại nước đi
       // Lượt kỹ: chỉ chấm lại các thế mới chấm nhanh / còn thiếu
-      const res = await runAnalysis(moves, r.data.rule, progress, { evals, ms });
+      const res = await runAnalysis(moves, r.data.rule, progress, { evals, ms, rapfi: an.rapfi });
       if (!res || !mine()) return;
       cache.set(key, res);
       if (!same()) return;
@@ -143,7 +170,7 @@
   function renderRefine(f) {
     an.refining = f;
     const el = $('an-refine');
-    if (el) el.textContent = T('an_refining', { p: Math.round(f * 100) });
+    if (el) el.textContent = T(an.rapfi ? 'an_refining_rapfi' : 'an_refining', { p: Math.round(f * 100) });
   }
 
   function renderProgress(f) {
@@ -195,7 +222,8 @@
     });
     if (res.moves.length % 2) list += '<span class="an-mv empty"></span>';
     $('an-body').innerHTML = `<div class="an-players">${player(C.X)}${player(C.O)}</div>
-      ${an.refining != null ? `<p class="an-refine muted" id="an-refine" role="status">${esc(T('an_refining', { p: Math.round(an.refining * 100) }))}</p>` : ''}
+      ${an.refining != null ? `<p class="an-refine muted" id="an-refine" role="status">${esc(T(an.rapfi ? 'an_refining_rapfi' : 'an_refining', { p: Math.round(an.refining * 100) }))}</p>` : ''}
+      ${res.engine === 'rapfi' ? `<p class="an-eng muted">${esc(T('an_by_rapfi'))}</p>` : ''}
       <div class="an-gwrap" id="an-gwrap">${graphSvg(res, App.replay.idx)}</div>
       <div class="an-moves" id="an-moves" role="list" aria-label="${esc(T('an_moves'))}">${list}</div>
       <div class="an-now" id="an-now"></div>`;

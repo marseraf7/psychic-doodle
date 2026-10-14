@@ -11,7 +11,7 @@
   const Bots = window.CaroBots;
   const T = window.I18N.t;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const STYLE_ICON = { atk: 'bolt', def: 'shield', dbl: 'fork', trap: 'eye' };
+  const STYLE_ICON = { atk: 'bolt', def: 'shield', dbl: 'fork', trap: 'eye', uni: 'star' };
   const FALLBACK = { avatar: '', icon: '', color: '#64748b' };
 
   const look = (id) => (window.CaroBotLooks && window.CaroBotLooks[id]) || FALLBACK;
@@ -33,11 +33,21 @@
   }
   const styleTag = (st) => `<span class="style-tag st-${st}"><svg class="ico i-in" aria-hidden="true"><use href="#i-${STYLE_ICON[st]}"/></svg>${esc(T('style_' + st))}</span>`;
 
+  /**
+   * Nhãn sức cờ. BOAT chạy Rapfi (engine vô địch Gomocup; luật Việt Nam: Rapfi-CARO) thì mạnh hơn hẳn ~2700 – không gán
+   * một con số Elo bịa ra: ghi "Rapfi" (đủ chỗ thì ghi rõ Rapfi-CARO ở luật Việt Nam).
+   */
+  function eloText(b, long) {
+    const R = window.CaroRapfi;
+    if (!(b.rapfi && R && R.available('free'))) return long ? `~${b.elo} Elo` : '~' + b.elo;
+    return long ? T('boat_elo_rapfi') : 'Rapfi';
+  }
+
   /** Khung giới thiệu nhân vật id. */
   function sayHtml(id) {
     const b = Bots.get(id);
     return `${avatarHtml(id, 'lg')}<div class="bs-text">
-      <b style="color:var(--c)">${esc(name(id))}</b> <span class="bs-meta">~${b.elo} Elo · ${styleTag(b.style)}</span>
+      <b style="color:var(--c)">${esc(name(id))}</b> <span class="bs-meta">${esc(eloText(b, true))} · ${styleTag(b.style)}</span>
       <span class="bs-desc">${esc(T('bot_' + id + '_desc'))}</span>
       <small>${esc(T('style_' + b.style + '_d'))}</small></div>`;
   }
@@ -70,7 +80,7 @@
       const locked = b.tier - 1 >= n;
       return `<label class="bot-card${locked ? ' locked' : ''}" style="--c:${esc(look(b.id).color)}" title="${esc(locked ? T('tier_locked', { elo: Bots.TIERS[b.tier - 2].elo }) : '')}">
         <input type="radio" name="bot" value="${b.id}"${locked ? ' disabled' : ''}${b.id === selected ? ' checked' : ''}>
-        ${avatarHtml(b.id)}<b>${esc(name(b.id))}</b><small>${locked ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-lock"/></svg>' : '~' + b.elo}</small></label>`;
+        ${avatarHtml(b.id)}<b>${esc(name(b.id))}</b><small>${locked ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-lock"/></svg>' : esc(eloText(b, false))}</small></label>`;
     }).join('');
     renderSay(root);
   }

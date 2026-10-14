@@ -836,6 +836,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .an-prog { height: 6px; border-radius: 3px; background: rgba(127, 127, 127, 0.18); overflow: hidden; margin: 8px 0 6px; }
 .an-prog i { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
 .an-refine { margin: 2px 0 6px; font-size: var(--fs-xs); }
+.an-eng { margin: 2px 0 6px; font-size: var(--fs-xs); }
 
 /* Người chơi: tên · số lỗi theo loại (bấm để nhảy tới) · độ chính xác */
 .an-players { display: grid; gap: 4px; flex: none; }
@@ -969,7 +970,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .style-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; font-weight: var(--fw-semibold);
   background: color-mix(in srgb, var(--st) 16%, transparent); color: color-mix(in srgb, var(--st) 80%, var(--text)); }
 .style-tag .ico.i-in { width: 12px; height: 12px; margin: 0; }
-.st-atk { --st: #ef4444; } .st-def { --st: #3b82f6; } .st-dbl { --st: #a855f7; } .st-trap { --st: #f59e0b; }
+.st-atk { --st: #ef4444; } .st-def { --st: #3b82f6; } .st-dbl { --st: #a855f7; } .st-trap { --st: #f59e0b; } .st-uni { --st: #ca8a04; }
 
 /* ============================ Hộp thoại Giải đố */
 dialog div.dlg { padding: 16px 18px 18px; }

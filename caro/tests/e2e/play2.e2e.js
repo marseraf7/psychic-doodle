@@ -198,7 +198,7 @@ const { setup } = require('./helpers');
   await shot(p, 'play2-opening-practice-430.png');
   await p.evaluate(() => window.CaroLearn.open());
   await sleep(200);
-  ok((await p.$$('#style-cards .style-card')).length === 4 && (await p.$$('#page-learn [data-practice]')).length >= 10, 'Học chơi: 4 thẻ lối đánh, nút Luyện ở các mục');
+  ok((await p.$$('#style-cards .style-card')).length === 5 && (await p.$$('#page-learn [data-practice]')).length >= 10, 'Học chơi: 5 thẻ lối đánh, nút Luyện ở các mục');
   await p.click('#style-cards [data-style-step="3"]');
   await sleep(300);
   ok((await p.$$('#rule-bots .rb-bot')).length === 6 && /Nước đôi/.test(await p.textContent('#rule-bots')), 'lối Nước đôi: phim + 6 nhân vật của lối đó');

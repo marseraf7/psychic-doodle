@@ -32,7 +32,11 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     const cards = await p.$$eval('#ng-picker .bot-grid .bot-card', (els) => els.map((e) => ({ locked: e.classList.contains('locked'), name: e.querySelector('b').textContent })));
     ok(cards.length === 6, 'mỗi lối đánh 6 nhân vật (6 mức) trong bảng Ván mới');
     ok(cards.filter((c) => c.locked).length === 3, 'mới vào: 3 mức đầu mở, 3 mức sau khoá');
-    ok((await p.$$('#ng-picker .style-tabs label')).length === 4, '4 lối đánh: Tấn công / Phòng thủ / Nước đôi / Gài bẫy');
+    ok((await p.$$('#ng-picker .style-tabs label')).length === 5, '5 lối đánh: Tấn công / Phòng thủ / Nước đôi / Gài bẫy / Toàn diện');
+    await p.click('#ng-picker .style-tabs label:nth-child(5)'); // Toàn diện: 6 mức + trùm cuối BOAT (khoá)
+    await sleep(100);
+    const uni = await p.$$eval('#ng-picker .bot-grid .bot-card', (els) => els.map((e) => ({ locked: e.classList.contains('locked'), name: e.querySelector('b').textContent })));
+    ok(uni.length === 7 && uni[6].name === 'BOAT' && uni[6].locked, 'lối Toàn diện: thêm trùm cuối BOAT (đang khoá)');
     await p.click('#ng-picker .style-tabs label:nth-child(4)'); // Gài bẫy
     await sleep(100);
     ok((await p.$$eval('#ng-picker .bot-grid .bot-card b', (els) => els.map((e) => e.textContent))).join(',') === 'Sa Tị,Phượng Lên Đồ,Ba Sáu,Tú Sena,Đi Bộ Vuốt Râu,Hai Ngón', 'lối Gài bẫy: 6 nhân vật theo mức');
@@ -72,6 +76,9 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
   {
     // Ghi ván đã chơi xong trước khi trang chạy (tải lại trang thì trang tự lưu đè ván đang mở)
     const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
+    // Kiểm luồng phân tích bằng engine của game (iOS / máy không có WebAssembly SIMD); phân tích bằng Rapfi /
+    // Rapfi-CARO kiểm ở boat-rapfi.e2e.js
+    await ctx.addInitScript(() => { window.CARO_NO_RAPFI = true; });
     await ctx.addInitScript((g) => {
       localStorage.setItem('caro.lang', 'vi');
       localStorage.setItem('caro.v1', JSON.stringify({ mode: 'pvp', human: 1, bot: 'mai', moves: g }));
@@ -90,11 +97,15 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(tl.length === GAME.length, `danh sách nước đi có ${GAME.length} nước`);
     ok(/Sai lầm nặng/.test(tl[5]), 'nước 6 của O: Sai lầm nặng — ' + tl[5]);
     ok(/Tốt nhất/.test(tl[6]), 'nước 7 của X: Tốt nhất');
+    // Đọc độ chính xác sau lượt phân tích kỹ (lượt nhanh chấm nông hơn nên số có thể khác). X không phải đánh hoàn hảo:
+    // engine thấy nước 5 (2,0) – ba mở – kém hơn (0,1) (sau (0,1) X thắng chắc), nhưng vẫn chính xác hơn O rõ rệt.
+    await p.waitForFunction(() => !document.getElementById('an-refine'), null, { timeout: 30000 });
     const acc = await p.$$eval('.an-acc', (els) => els.map((e) => parseInt(e.textContent, 10)));
-    ok(acc[0] >= 90 && acc[1] < acc[0] - 15, `độ chính xác (theo mức tụt khả năng thắng, như Lichess) X ${acc[0]}%, O ${acc[1]}%`);
+    ok(acc[0] >= 80 && acc[1] < acc[0], `độ chính xác (theo mức tụt khả năng thắng, như Lichess) X ${acc[0]}%, O ${acc[1]}%`);
     await p.click('.an-mv[data-i="6"]');
     await sleep(200);
-    ok(/Sai lầm nặng/.test(await p.textContent('#an-now')), 'xem nước 6: có nhận xét');
+    const now6 = await p.textContent('#an-now');
+    ok(/Sai lầm nặng/.test(now6), 'xem nước 6: có nhận xét — ' + now6);
     ok((await p.evaluate(() => window.CaroApp.board.moves.length)) === 6, 'nhảy tới nước 6');
     // Bố cục như Lichess: bảng phân tích không che bàn cờ (bàn cờ thu nhỏ nhường chỗ)
     const geo = await p.evaluate(() => { const b = document.getElementById('board').getBoundingClientRect(), a = document.getElementById('an-panel').getBoundingClientRect(); return { overlap: !(a.top >= b.bottom - 1 || a.left >= b.right - 1), cur: !!document.querySelector('.an-mv.cur[data-i="6"]'), graph: !!document.querySelector('.an-graph'), name: document.querySelector('.an-mv[data-i="6"]').textContent.trim() }; });

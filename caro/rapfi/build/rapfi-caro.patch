@@ -1,0 +1,1280 @@
+diff --git a/Rapfi/command/argutils.cpp b/Rapfi/command/argutils.cpp
+index 7d784b4..69f526b 100644
+--- a/Rapfi/command/argutils.cpp
++++ b/Rapfi/command/argutils.cpp
+@@ -43,6 +43,9 @@ Rule Command::parseRule(std::string_view ruleStr)
+     else if (ruleStr == "renju" || ruleStr == "Renju" || ruleStr == "r" || ruleStr == "R"
+              || ruleStr == "2" || ruleStr == "4")
+         return Rule::RENJU;
++    else if (ruleStr == "caro" || ruleStr == "Caro" || ruleStr == "c" || ruleStr == "C"
++             || ruleStr == "8")
++        return Rule::CARO;
+     else
+         throw std::invalid_argument("unknown rule " + std::string(ruleStr));
+ }
+diff --git a/Rapfi/command/command.cpp b/Rapfi/command/command.cpp
+index c781af6..4e796ef 100644
+--- a/Rapfi/command/command.cpp
++++ b/Rapfi/command/command.cpp
+@@ -164,13 +164,13 @@ std::filesystem::path getModelFullPath(std::filesystem::path modelPath)
+     return modelPath;
+ }
+ 
+-bool loadModelFromFile(std::filesystem::path modelPath)
++bool loadModelFromFile(std::filesystem::path modelPath, bool caroOnly)
+ {
+     modelPath = getModelFullPath(modelPath);
+     std::ifstream modelFile(modelPath, std::ios::binary);
+ 
+     if (modelFile.is_open()) {
+-        if (Config::loadModel(modelFile))
++        if (caroOnly ? Config::loadCaroModel(modelFile) : Config::loadModel(modelFile))
+             return true;
+         else
+             ERRORL("Failed to load model from ["
+diff --git a/Rapfi/command/command.h b/Rapfi/command/command.h
+index a781235..7be5632 100644
+--- a/Rapfi/command/command.h
++++ b/Rapfi/command/command.h
+@@ -61,7 +61,7 @@ bool loadConfig();
+ std::filesystem::path getModelFullPath(std::filesystem::path modelPath);
+ 
+ /// loadModelFromFile() trys to load model from modelPath.
+-bool loadModelFromFile(std::filesystem::path modelPath);
++bool loadModelFromFile(std::filesystem::path modelPath, bool caroOnly = false);
+ 
+ // -------------------------------------------------
+ // Command modules entry
+diff --git a/Rapfi/command/gomocup.cpp b/Rapfi/command/gomocup.cpp
+index 79bd31c..dbaae93 100644
+--- a/Rapfi/command/gomocup.cpp
++++ b/Rapfi/command/gomocup.cpp
+@@ -218,6 +218,7 @@ void getOption()
+         case 1: options.rule = {Rule::STANDARD, GameRule::FREEOPEN}; break;
+         case 2:  // Yixin-Board Extension
+         case 4: options.rule = {Rule::RENJU, GameRule::FREEOPEN}; break;
++        case 8: options.rule = {Rule::CARO, GameRule::FREEOPEN}; break;  // Gomocup bit 8: caro
+         case 5: options.rule = {Rule::FREESTYLE, GameRule::SWAP1}; break;
+         case 6: options.rule = {Rule::FREESTYLE, GameRule::SWAP2}; break;
+         default:
+diff --git a/Rapfi/command/tuning.cpp b/Rapfi/command/tuning.cpp
+index f9d2e76..e018675 100644
+--- a/Rapfi/command/tuning.cpp
++++ b/Rapfi/command/tuning.cpp
+@@ -63,7 +63,8 @@ void validateConfig(size_t epochs, const TuningConfig &cfg)
+ {
+     if (epochs < 1)
+         throw std::invalid_argument("epochs must be greater than 0");
+-    if (!(cfg.tuneRule[FREESTYLE] || cfg.tuneRule[STANDARD] || cfg.tuneRule[RENJU]))
++    if (!(cfg.tuneRule[FREESTYLE] || cfg.tuneRule[STANDARD] || cfg.tuneRule[RENJU]
++          || cfg.tuneRule[CARO]))
+         throw std::invalid_argument("there must be at least one rule to tune");
+     if (!(cfg.tuneEval || cfg.tuneMoveScore))
+         throw std::invalid_argument("at least one tuning objective must be enabled");
+@@ -408,7 +409,7 @@ int Command::tuning(int argc, char *argv[])
+                 std::ofstream model(outpath / modelFileName, std::ios::binary);
+                 if (!model)
+                     throw std::runtime_error("unable to open model output " + modelFileName);
+-                Config::exportModel(model);
++                Config::exportModel(model, cfg.tuneRule[CARO]);
+                 model.flush();
+                 if (!model)
+                     throw std::runtime_error("failed to write model output " + modelFileName);
+diff --git a/Rapfi/config.cpp b/Rapfi/config.cpp
+index 92fe068..fdc6d0b 100644
+--- a/Rapfi/config.cpp
++++ b/Rapfi/config.cpp
+@@ -395,6 +395,10 @@ void Config::readModel(const cpptoml::table &t, PendingConfig &pending)
+     if (!modelPath.empty()) {
+         if (!Command::loadModelFromFile(modelPath))
+             throw std::runtime_error("failed to load classic model file");
++        // Optional caro model: its freestyle slot becomes the caro slot (e.g. tuned on caro games)
++        std::string caroPath = t.get_as<std::string>("caro_binary_file").value_or("");
++        if (!caroPath.empty() && !Command::loadModelFromFile(caroPath, true))
++            throw std::runtime_error("failed to load caro model file");
+     }
+     else {
+         // Read Eval & Score
+@@ -476,6 +480,7 @@ void Config::readModel(const cpptoml::table &t, PendingConfig &pending)
+                 }
+             }
+         }
++        copyFreestyleToCaro();  // text model has no caro section: start from freestyle
+     }
+ 
+     // Read scalingFactor
+@@ -766,12 +771,15 @@ bool Config::loadModel(std::istream &inStream)
+     in->read(reinterpret_cast<char *>(&scalingFactorF64), sizeof(scalingFactorF64));
+     Evaluation::ScalingFactor = scalingFactorF64;
+ 
+-    in->read(reinterpret_cast<char *>(Evaluation::EVALS), sizeof(Evaluation::EVALS));
++    // The file holds Evaluation::MODEL_FILE_SLOTS slots (freestyle, standard, renju black / white); the caro
++    // slot is not stored and starts as a copy of the freestyle slot (see copyFreestyleToCaro).
++    in->read(reinterpret_cast<char *>(Evaluation::EVALS),
++             Evaluation::MODEL_FILE_SLOTS * sizeof(Evaluation::EVALS[0]));
+     in->read(reinterpret_cast<char *>(Evaluation::EVALS_THREAT),
+-             sizeof(Evaluation::EVALS_THREAT));
++             Evaluation::MODEL_FILE_SLOTS * sizeof(Evaluation::EVALS_THREAT[0]));
+ 
+     Score scores[PCODE_NB][2];
+-    for (int rule = 0; rule < RULE_NB + 1; rule++) {
++    for (int rule = 0; rule < Evaluation::MODEL_FILE_SLOTS; rule++) {
+         in->read(reinterpret_cast<char *>(scores), sizeof(scores));
+ 
+         // Set score table to P4SCORES
+@@ -781,23 +789,79 @@ bool Config::loadModel(std::istream &inStream)
+         }
+     }
+ 
+-    return *in && in->peek() == std::ios::traits_type::eof();
++    bool ok = *in && in->peek() == std::ios::traits_type::eof();
++    copyFreestyleToCaro();
++    return ok;
+ }
+ 
+-void Config::exportModel(std::ostream &outStream)
++void Config::copyFreestyleToCaro()
+ {
++    using namespace Evaluation;
++    std::copy(std::begin(EVALS[0]), std::end(EVALS[0]), std::begin(EVALS[CARO_SLOT]));
++    std::copy(std::begin(EVALS_THREAT[0]), std::end(EVALS_THREAT[0]),
++              std::begin(EVALS_THREAT[CARO_SLOT]));
++    std::copy(std::begin(P4SCORES[0]), std::end(P4SCORES[0]), std::begin(P4SCORES[CARO_SLOT]));
++}
++
++bool Config::loadCaroModel(std::istream &inStream)
++{
++    // Load a whole model file, keep its freestyle slot as the caro slot, restore the rest.
++    using namespace Evaluation;
++    static Eval          savedEvals[RULE_NB + 1][PCODE_NB];
++    static Eval          savedThreat[RULE_NB + 1][THREAT_NB];
++    static MoveScorePair savedScores[RULE_NB + 1][PCODE_NB];
++    float                savedScaling = ScalingFactor;
++    std::copy(&EVALS[0][0], &EVALS[0][0] + sizeof(EVALS) / sizeof(Eval), &savedEvals[0][0]);
++    std::copy(&EVALS_THREAT[0][0], &EVALS_THREAT[0][0] + sizeof(EVALS_THREAT) / sizeof(Eval),
++              &savedThreat[0][0]);
++    std::copy(&P4SCORES[0][0], &P4SCORES[0][0] + sizeof(P4SCORES) / sizeof(MoveScorePair),
++              &savedScores[0][0]);
++    bool ok = loadModel(inStream);
++    std::copy(std::begin(EVALS[0]), std::end(EVALS[0]), std::begin(savedEvals[CARO_SLOT]));
++    std::copy(std::begin(EVALS_THREAT[0]), std::end(EVALS_THREAT[0]),
++              std::begin(savedThreat[CARO_SLOT]));
++    std::copy(std::begin(P4SCORES[0]), std::end(P4SCORES[0]), std::begin(savedScores[CARO_SLOT]));
++    std::copy(&savedEvals[0][0], &savedEvals[0][0] + sizeof(EVALS) / sizeof(Eval), &EVALS[0][0]);
++    std::copy(&savedThreat[0][0], &savedThreat[0][0] + sizeof(EVALS_THREAT) / sizeof(Eval),
++              &EVALS_THREAT[0][0]);
++    std::copy(&savedScores[0][0], &savedScores[0][0] + sizeof(P4SCORES) / sizeof(MoveScorePair),
++              &P4SCORES[0][0]);
++    ScalingFactor = savedScaling;
++    return ok;
++}
++
++void Config::exportModel(std::ostream &outStream, bool caroAsFreestyle)
++{
++    if (caroAsFreestyle) {
++        // Swap the caro and freestyle slots around the export
++        using namespace Evaluation;
++        std::swap_ranges(std::begin(EVALS[0]), std::end(EVALS[0]), std::begin(EVALS[CARO_SLOT]));
++        std::swap_ranges(std::begin(EVALS_THREAT[0]), std::end(EVALS_THREAT[0]),
++                         std::begin(EVALS_THREAT[CARO_SLOT]));
++        std::swap_ranges(std::begin(P4SCORES[0]), std::end(P4SCORES[0]),
++                         std::begin(P4SCORES[CARO_SLOT]));
++        exportModel(outStream, false);
++        std::swap_ranges(std::begin(EVALS[0]), std::end(EVALS[0]), std::begin(EVALS[CARO_SLOT]));
++        std::swap_ranges(std::begin(EVALS_THREAT[0]), std::end(EVALS_THREAT[0]),
++                         std::begin(EVALS_THREAT[CARO_SLOT]));
++        std::swap_ranges(std::begin(P4SCORES[0]), std::end(P4SCORES[0]),
++                         std::begin(P4SCORES[CARO_SLOT]));
++        return;
++    }
++
+     Compressor    compressor(outStream, Compressor::Type::LZ4_DEFAULT);
+     std::ostream *out = compressor.openOutputStream();
+     assert(out);
+ 
+     double scalingFactorF64 = Evaluation::ScalingFactor;
+     out->write(reinterpret_cast<char *>(&scalingFactorF64), sizeof(scalingFactorF64));
+-    out->write(reinterpret_cast<char *>(Evaluation::EVALS), sizeof(Evaluation::EVALS));
++    out->write(reinterpret_cast<char *>(Evaluation::EVALS),
++               Evaluation::MODEL_FILE_SLOTS * sizeof(Evaluation::EVALS[0]));
+     out->write(reinterpret_cast<char *>(Evaluation::EVALS_THREAT),
+-               sizeof(Evaluation::EVALS_THREAT));
++               Evaluation::MODEL_FILE_SLOTS * sizeof(Evaluation::EVALS_THREAT[0]));
+ 
+     Score scores[PCODE_NB][2];
+-    for (int rule = 0; rule < RULE_NB + 1; rule++) {
++    for (int rule = 0; rule < Evaluation::MODEL_FILE_SLOTS; rule++) {
+         // Get score table out of P4SCORES
+         for (size_t pcode = 0; pcode < PCODE_NB; pcode++) {
+             scores[pcode][0] = (Score)Evaluation::P4SCORES[rule][pcode][0];
+diff --git a/Rapfi/config.h b/Rapfi/config.h
+index 8219382..c4a4f95 100644
+--- a/Rapfi/config.h
++++ b/Rapfi/config.h
+@@ -77,7 +77,15 @@ bool loadConfig(std::istream &configStream);
+ /// @return Returns true if loaded successfully, otherwise returns false.
+ bool loadModel(std::istream &inStream);
+ 
++/// Load a model file and use its freestyle slot as the caro slot, leaving other slots intact.
++bool loadCaroModel(std::istream &inStream);
++
++/// Initialize the caro table slot from the freestyle slot (done after every model load).
++void copyFreestyleToCaro();
++
+ /// Exports current classic evaluation model to a binary stream.
+-void exportModel(std::ostream &outStream);
++/// @param caroAsFreestyle Write the caro tables in the freestyle slot (a caro model file for
++///     the `caro_binary_file` config key).
++void exportModel(std::ostream &outStream, bool caroAsFreestyle = false);
+ 
+ }  // namespace Config
+diff --git a/Rapfi/core/iohelper.cpp b/Rapfi/core/iohelper.cpp
+index 84c8d18..3fe33f8 100644
+--- a/Rapfi/core/iohelper.cpp
++++ b/Rapfi/core/iohelper.cpp
+@@ -147,7 +147,7 @@ std::ostream &operator<<(std::ostream &out, Rule rule)
+ {
+     assert(rule >= FREESTYLE && rule < RULE_NB);
+ 
+-    static const char *const Names[] = {"Freestyle", "Standard", "Renju"};
++    static const char *const Names[] = {"Freestyle", "Standard", "Renju", "Caro"};
+     return out << Names[rule];
+ }
+ 
+diff --git a/Rapfi/core/types.h b/Rapfi/core/types.h
+index a9a0103..0e39e45 100644
+--- a/Rapfi/core/types.h
++++ b/Rapfi/core/types.h
+@@ -259,6 +259,8 @@ enum Rule : uint8_t {
+     FREESTYLE,  ///< Free Gomoku: five or more in a row wins; no other restrictions.
+     STANDARD,   ///< Standard Gomoku: exactly five wins (overlines do not).
+     RENJU,      ///< Renju: black is forbidden from 3-3, 4-4, and overlines; white unrestricted.
++    CARO,       ///< Vietnamese caro: five or more wins only if not blocked at both ends; an open
++                ///< four (empty on both ends) also wins. Threats may have several defences.
+     RULE_NB
+ };
+ 
+diff --git a/Rapfi/eval/eval.cpp b/Rapfi/eval/eval.cpp
+index a5575c7..4b7e40e 100644
+--- a/Rapfi/eval/eval.cpp
++++ b/Rapfi/eval/eval.cpp
+@@ -120,6 +120,7 @@ Value evaluate(const Board &board, Value alpha, Value beta)
+ template Value evaluate<FREESTYLE>(const Board &, Value, Value);
+ template Value evaluate<STANDARD>(const Board &, Value, Value);
+ template Value evaluate<RENJU>(const Board &, Value, Value);
++template Value evaluate<CARO>(const Board &, Value, Value);
+ 
+ /// A safe but slower version of evaluate().
+ /// Similar to evaluate(), but can be called for all board states.
+@@ -131,6 +132,7 @@ Value evaluate(const Board &board, Rule rule)
+         case Rule::FREESTYLE: return evaluate<Rule::FREESTYLE>(board);
+         case Rule::STANDARD: return evaluate<Rule::STANDARD>(board);
+         case Rule::RENJU: return evaluate<Rule::RENJU>(board);
++        case Rule::CARO: return evaluate<Rule::CARO>(board);
+         }
+     }
+     else {
+@@ -144,6 +146,7 @@ Value evaluate(const Board &board, Rule rule)
+         case Rule::FREESTYLE: threatEval = evaluateThreat<Rule::FREESTYLE>(st, self); break;
+         case Rule::STANDARD: threatEval = evaluateThreat<Rule::STANDARD>(st, self); break;
+         case Rule::RENJU: threatEval = evaluateThreat<Rule::RENJU>(st, self); break;
++        case Rule::CARO: threatEval = evaluateThreat<Rule::CARO>(st, self); break;
+         }
+ 
+         Value eval = basicEval + threatEval;
+diff --git a/Rapfi/eval/scoretables.h b/Rapfi/eval/scoretables.h
+index cfd4604..6375842 100644
+--- a/Rapfi/eval/scoretables.h
++++ b/Rapfi/eval/scoretables.h
+@@ -80,10 +80,16 @@ extern Eval          EVALS[RULE_NB + 1][PCODE_NB];
+ extern Eval          EVALS_THREAT[RULE_NB + 1][THREAT_NB];
+ extern MoveScorePair P4SCORES[RULE_NB + 1][PCODE_NB];
+ 
++/// Number of table slots stored in a classical model file (freestyle, standard, renju black,
++/// renju white). The caro slot (index RULE_NB) is not part of the file format: it starts as a
++/// copy of the freestyle slot and can be overridden by a separate caro model file.
++constexpr int MODEL_FILE_SLOTS = 4;
++constexpr int CARO_SLOT        = RULE_NB;
++
+ /// Get table index for rule and color.
+ constexpr int tableIndex(Rule r, Color c)
+ {
+-    return r + (r == Rule::RENJU ? c : 0);
++    return r == Rule::CARO ? CARO_SLOT : r + (r == Rule::RENJU ? c : 0);
+ }
+ 
+ /// Lookup eval table with color and pcode of rule R.
+diff --git a/Rapfi/eval/weightloader.h b/Rapfi/eval/weightloader.h
+index 778ef48..0901d4a 100644
+--- a/Rapfi/eval/weightloader.h
++++ b/Rapfi/eval/weightloader.h
+@@ -118,7 +118,7 @@ struct StandardHeaderLoader
+             uint32_t magic;      // 0xacd8cc6a = crc32("gomoku network weight version 1")
+             uint32_t arch_hash;  // architecture hash, which is hash of the network architecture
+                                  // (network type, num of channels, layers, ...)
+-            uint32_t rule_mask;  // applicable rule bitmask (1=gomoku, 2=standard, 4=renju)
++            uint32_t rule_mask;  // applicable rule bitmask (1=gomoku, 2=standard, 4=renju, 8=caro)
+             uint32_t boardsize_mask;  // applicable board size bitmask (lsb set at index i means
+                                       // board size i+1 is usable for this weight)
+             uint32_t desc_len;        // length of desc string (=0 for no description)
+@@ -160,6 +160,8 @@ private:
+             rules.push_back(STANDARD);
+         if (ruleMask & 0x4)
+             rules.push_back(RENJU);
++        if (ruleMask & 0x8)
++            rules.push_back(CARO);  // Rapfi-CARO: Vietnamese rule
+         return rules;
+     }
+ 
+diff --git a/Rapfi/game/board.cpp b/Rapfi/game/board.cpp
+index af131a4..a13c3f4 100644
+--- a/Rapfi/game/board.cpp
++++ b/Rapfi/game/board.cpp
+@@ -208,6 +208,7 @@ void Board::newGame()
+ template void Board::newGame<FREESTYLE>();
+ template void Board::newGame<STANDARD>();
+ template void Board::newGame<RENJU>();
++template void Board::newGame<CARO>();
+ 
+ template <Rule R, Board::MoveType MT>
+ void Board::move(Pos pos)
+@@ -390,6 +391,8 @@ template void Board::move<STANDARD, Board::MoveType::NORMAL>(Pos pos);
+ template void Board::move<STANDARD, Board::MoveType::NO_EVAL>(Pos pos);
+ template void Board::move<RENJU, Board::MoveType::NORMAL>(Pos pos);
+ template void Board::move<RENJU, Board::MoveType::NO_EVAL>(Pos pos);
++template void Board::move<CARO, Board::MoveType::NORMAL>(Pos pos);
++template void Board::move<CARO, Board::MoveType::NO_EVAL>(Pos pos);
+ 
+ template <Rule R, Board::MoveType MT>
+ void Board::undo()
+@@ -470,6 +473,8 @@ template void Board::undo<STANDARD, Board::MoveType::NORMAL>();
+ template void Board::undo<STANDARD, Board::MoveType::NO_EVAL>();
+ template void Board::undo<RENJU, Board::MoveType::NORMAL>();
+ template void Board::undo<RENJU, Board::MoveType::NO_EVAL>();
++template void Board::undo<CARO, Board::MoveType::NORMAL>();
++template void Board::undo<CARO, Board::MoveType::NO_EVAL>();
+ 
+ bool Board::checkForbiddenPoint(Pos pos) const
+ {
+diff --git a/Rapfi/game/board.h b/Rapfi/game/board.h
+index b95dd27..d00a711 100644
+--- a/Rapfi/game/board.h
++++ b/Rapfi/game/board.h
+@@ -544,6 +544,7 @@ inline void Board::newGame(Rule rule)
+     case FREESTYLE: return newGame<FREESTYLE>();
+     case STANDARD: return newGame<STANDARD>();
+     case RENJU: return newGame<RENJU>();
++    case CARO: return newGame<CARO>();
+     default: assert(false && "invalid rule");
+     }
+ }
+@@ -554,6 +555,7 @@ inline void Board::move(Rule rule, Pos pos)
+     case FREESTYLE: return move<FREESTYLE>(pos);
+     case STANDARD: return move<STANDARD>(pos);
+     case RENJU: return move<RENJU>(pos);
++    case CARO: return move<CARO>(pos);
+     default: assert(false && "invalid rule");
+     }
+ }
+@@ -564,6 +566,7 @@ inline void Board::undo(Rule rule)
+     case FREESTYLE: return undo<FREESTYLE>();
+     case STANDARD: return undo<STANDARD>();
+     case RENJU: return undo<RENJU>();
++    case CARO: return undo<CARO>();
+     default: assert(false && "invalid rule");
+     }
+ }
+diff --git a/Rapfi/game/movegen.cpp b/Rapfi/game/movegen.cpp
+index 196f41f..463e5ed 100644
+--- a/Rapfi/game/movegen.cpp
++++ b/Rapfi/game/movegen.cpp
+@@ -798,3 +798,135 @@ bool validateOpponentCMove(const Board &board)
+     ScopedMove<Rule::RENJU, Board::MoveType::NO_EVAL> probe(board, lastB4F3Pos);
+     return board.p4Count(BLACK, B_FLEX4);
+ }
++
++// -------------------------------------------------
++// Caro five defence
++
++namespace {
++
++/// Cells that stop the opponent's five at `fivePos`: the point itself, plus — when the five lies
++/// on a single line — the cells of that line where a defender stone leaves a non-winning
++/// (blocked) five. A five on two lines at once can only be stopped on the point itself.
++int caroFiveKillers(const Board &board, Color oppo, Pos fivePos, Pos out[])
++{
++    constexpr int H = PatternConfig::HalfLineLen<CARO>;
++    int           n = 0;
++    out[n++]        = fivePos;
++
++    int fiveDir = -1, fiveDirs = 0;
++    for (int dir = 0; dir < 4; dir++) {
++        if (board.pattern(fivePos, oppo, dir) == F5) {
++            fiveDir = dir;
++            fiveDirs++;
++        }
++    }
++    if (fiveDirs != 1)
++        return n;
++
++    uint64_t key  = board.getKeyAt<CARO>(fivePos, fiveDir);
++    uint16_t mask = PatternConfig::lookupFiveKill(key, oppo);
++    for (int i = 0; i < 2 * H; i++) {
++        if (!((mask >> i) & 0x1))
++            continue;
++        Pos pos = i < H ? fivePos - (H - i) * DIRECTION[fiveDir]
++                        : fivePos + (i - H + 1) * DIRECTION[fiveDir];
++        if (board.isEmpty(pos))
++            out[n++] = pos;
++    }
++    return n;
++}
++
++}  // namespace
++
++ScoredMove *generateCaroFiveDefence(const Board &board, ScoredMove *moveList)
++{
++    Color oppo = ~board.sideToMove();
++    assert(board.p4Count(oppo, A_FIVE) > 0);
++
++    // All opponent five-points (they are next to its stones, so inside the candidate area).
++    constexpr int MaxFives = 32;
++    Pos           fives[MaxFives];
++    int           numFives = 0;
++    FOR_EVERY_CAND_POS(&board, pos)
++    {
++        if (board.pattern4(pos, oppo) == A_FIVE && numFives < MaxFives)
++            fives[numFives++] = pos;
++    }
++    if (!numFives)
++        return moveList;
++
++    // A defence must stop every five: intersect the killer sets, starting from the first one.
++    constexpr int MaxKillers = 1 + 2 * PatternConfig::HalfLineLen<CARO>;
++    Pos           cand[MaxKillers];
++    int           numCand = caroFiveKillers(board, oppo, fives[0], cand);
++    for (int f = 1; f < numFives && numCand > 0; f++) {
++        Pos killers[MaxKillers];
++        int numKillers = caroFiveKillers(board, oppo, fives[f], killers);
++        int kept       = 0;
++        for (int c = 0; c < numCand; c++)
++            if (std::find(killers, killers + numKillers, cand[c]) != killers + numKillers)
++                cand[kept++] = cand[c];
++        numCand = kept;
++    }
++
++    for (int c = 0; c < numCand; c++)
++        *moveList++ = cand[c];
++    return moveList;
++}
++
++bool isCaroFiveDefence(const Board &board, Pos move)
++{
++    if (!board.isEmpty(move))
++        return false;
++    ScoredMove list[1 + 2 * PatternConfig::HalfLineLen<CARO>];
++    ScoredMove *end = generateCaroFiveDefence(board, list);
++    for (ScoredMove *m = list; m < end; m++)
++        if (m->pos == move)
++            return true;
++    return false;
++}
++
++ScoredMove *generateCaroFourDefence(const Board &board, ScoredMove *moveList)
++{
++    Color self = board.sideToMove(), oppo = ~self;
++    assert(board.p4Count(oppo, B_FLEX4) > 0);
++    constexpr int H = PatternConfig::HalfLineLen<CARO>;
++
++    constexpr int MaxFlex = 16;
++    Pos           flex[MaxFlex];
++    int           numFlex = 0;
++    FOR_EVERY_CAND_POS(&board, pos)
++    {
++        if (board.pattern4(pos, oppo) == B_FLEX4 && numFlex < MaxFlex)
++            flex[numFlex++] = pos;
++    }
++    if (!numFlex)
++        return moveList;
++
++    // Candidates: the first point and the empty cells of its four lines
++    Pos cand[1 + 4 * 2 * H];
++    int numCand = 0;
++    cand[numCand++] = flex[0];
++    for (int dir = 0; dir < 4; dir++) {
++        for (int k = -H; k <= H; k++) {
++            Pos pos = flex[0] + k * DIRECTION[dir];
++            if (k != 0 && board.isEmpty(pos))
++                cand[numCand++] = pos;
++        }
++    }
++
++    for (int c = 0; c < numCand; c++) {
++        Pos d = cand[c];
++        if (board.pattern4(d, self) >= E_BLOCK4)
++            continue;  // our own four: produced by the VCF generator
++        bool ok = true;
++        {
++            ScopedMove<CARO, Board::MoveType::NO_EVAL> probe(board, d);
++            for (int f = 0; f < numFlex && ok; f++)
++                ok = flex[f] == d || board.pattern4(flex[f], oppo) < B_FLEX4;
++        }
++        if (ok)
++            *moveList++ = d;
++    }
++    return moveList;
++}
+diff --git a/Rapfi/game/movegen.h b/Rapfi/game/movegen.h
+index cb588f9..fd0710e 100644
+--- a/Rapfi/game/movegen.h
++++ b/Rapfi/game/movegen.h
+@@ -115,3 +115,21 @@ ScoredMove *generateNeighbors(const Board     &board,
+ /// flex-three follow-up may be forbidden, making the move only a pseudo-threat).
+ /// @return True if the threat is real, otherwise false.
+ bool validateOpponentCMove(const Board &board);
++
++/// Caro only: every move that stops all of the opponent's fives (A_FIVE points). Unlike gomoku a
++/// caro five can also be stopped by blocking the far end of the line (a five blocked at both ends
++/// does not win), and one end block may stop several five-points at once (e.g. both five-points
++/// of an open three). Returns an empty list when no single move stops them all (a lost position).
++/// @note Board state must satisfy `board.p4Count(oppo, A_FIVE) > 0`.
++ScoredMove *generateCaroFiveDefence(const Board &board, ScoredMove *moveList);
++
++/// Caro only: whether `move` is one of the moves generateCaroFiveDefence() would return.
++bool isCaroFiveDefence(const Board &board, Pos move);
++
++/// Caro only: moves that stop every opponent B_FLEX4 point (where the opponent would make an
++/// unstoppable four / double four): the point itself, or a cell on one of its four lines after
++/// which the point is no longer B_FLEX4 (checked by playing it). A cell off those lines cannot
++/// change the point's patterns, so with our own four-making moves (generated separately) this
++/// is the complete set of defences. Our own four-making moves are excluded.
++/// @note Board state must satisfy `board.p4Count(oppo, B_FLEX4) > 0`.
++ScoredMove *generateCaroFourDefence(const Board &board, ScoredMove *moveList);
+diff --git a/Rapfi/game/pattern.cpp b/Rapfi/game/pattern.cpp
+index b328ed9..1039854 100644
+--- a/Rapfi/game/pattern.cpp
++++ b/Rapfi/game/pattern.cpp
+@@ -93,6 +93,9 @@ void fillPatternCodeLUT(
+ template <Rule R>
+ void fillDefenceLUT(uint8_t table[DenseKeyCnt<R>][2]);
+ 
++/// Fill the caro (dense line index + attacker -> five-kill bitmask) lookup table.
++void fillFiveKillLUT(uint16_t table[DenseKeyCnt<CARO>][2]);
++
+ }  // namespace
+ 
+ namespace PatternConfig {
+@@ -105,11 +108,14 @@ static_assert(PATTERN4_NB <= (1 << (16 - PCODE_BITS)), "Pattern4 must fit in the
+ alignas(64) Pattern2x PATTERN2x[DenseKeyCnt<FREESTYLE>];
+ alignas(64) Pattern2x PATTERN2xStandard[DenseKeyCnt<STANDARD>];
+ alignas(64) Pattern2x PATTERN2xRenju[DenseKeyCnt<RENJU>];
++alignas(64) Pattern2x PATTERN2xCaro[DenseKeyCnt<CARO>];
+ alignas(64) PCodeP4 PCODE[PATTERN_NB][PATTERN_NB][PATTERN_NB][PATTERN_NB];
+ alignas(64) PCodeP4 PCODERenjuBlack[PATTERN_NB][PATTERN_NB][PATTERN_NB][PATTERN_NB];
+ alignas(64) uint8_t DEFENCE[DenseKeyCnt<FREESTYLE>][2];
+ alignas(64) uint8_t DEFENCEStandard[DenseKeyCnt<STANDARD>][2];
+ alignas(64) uint8_t DEFENCERenju[DenseKeyCnt<RENJU>][2];
++alignas(64) uint8_t DEFENCECaro[DenseKeyCnt<CARO>][2];
++alignas(64) uint16_t FIVEKILLCaro[DenseKeyCnt<CARO>][2];
+ 
+ // Populate every lookup table before main() runs.
+ [[maybe_unused]] static const bool init = []() {
+@@ -119,10 +125,13 @@ alignas(64) uint8_t DEFENCERenju[DenseKeyCnt<RENJU>][2];
+     fillPattern2xLUT<FREESTYLE>(PATTERN2x);
+     fillPattern2xLUT<STANDARD>(PATTERN2xStandard);
+     fillPattern2xLUT<RENJU>(PATTERN2xRenju);
++    fillPattern2xLUT<CARO>(PATTERN2xCaro);
+ 
+     fillDefenceLUT<FREESTYLE>(DEFENCE);
+     fillDefenceLUT<STANDARD>(DEFENCEStandard);
+     fillDefenceLUT<RENJU>(DEFENCERenju);
++    fillDefenceLUT<CARO>(DEFENCECaro);
++    fillFiveKillLUT(FIVEKILLCaro);
+     return true;
+ }();
+ 
+@@ -260,6 +269,105 @@ constexpr Pattern getPattern(PatternMemo<R> &patMemo, const Line<R> &line)
+     auto [realLen, fullLen, start, end] = countLine<R>(line);
+     Pattern p                           = DEAD;
+ 
++    if constexpr (R == Rule::CARO) {
++        // Caro (Vietnamese rule): a run of five or more wins only if at least one end is empty,
++        // and a run of four with both ends empty also wins. A five blocked at both ends is dead.
++        // Unlike gomoku, the five-points of a line are not independent: one defender stone at
++        // an end can kill several of them (e.g. both five-points of an open three), so a line is
++        // an unstoppable four (F4) only if no single defender stone kills all its five-points.
++        constexpr int Len = LineLen<R>;
++        int           a = Mid, b = Mid;
++        while (a > 0 && line[a - 1] == SELF)
++            a--;
++        while (b < Len - 1 && line[b + 1] == SELF)
++            b++;
++        const int  run   = b - a + 1;
++        const bool openA = a > 0 && line[a - 1] == EMPT;
++        const bool openB = b < Len - 1 && line[b + 1] == EMPT;
++
++        if ((run >= 5 && (openA || openB)) || (run >= 4 && openA && openB))
++            p = F5;
++        else if (run >= 5 || fullLen < 6)
++            p = DEAD;  // blocked five, or not enough room for any win
++        else {
++            int patCnt[PATTERN_NB] = {0};
++            int f5Idx              = -1;
++            for (int i = start; i <= end; i++) {
++                if (line[i] == EMPT) {
++                    Line<R> sl = shiftLine<R>(line, i);
++                    sl[Mid]    = SELF;
++                    Pattern slp = getPattern<R, Side>(patMemo, sl);
++                    if (slp == F5 && f5Idx < 0)
++                        f5Idx = i;
++                    patCnt[slp]++;
++                }
++            }
++
++            if (patCnt[F5]) {
++                // Number of five-points left in a line after the defender's stones.
++                auto fiveCount = [&](const Line<R> &l) {
++                    int n = 0;
++                    for (int i = start; i <= end; i++) {
++                        if (l[i] == EMPT) {
++                            Line<R> sl = shiftLine<R>(l, i);
++                            sl[Mid]    = SELF;
++                            n += getPattern<R, Side>(patMemo, sl) == F5;
++                        }
++                    }
++                    return n;
++                };
++                // Look for one defender stone killing every five-point (try the first five-point
++                // itself first, so a plain four is blocked on its five-point as in gomoku).
++                int killAt = -1;
++                {
++                    Line<R> blocked = line;
++                    blocked[f5Idx]  = OPPO;
++                    if (fiveCount(blocked) == 0)
++                        killAt = f5Idx;
++                }
++                for (int i = start; i <= end && killAt < 0; i++) {
++                    if (line[i] != EMPT || i == f5Idx)
++                        continue;
++                    Line<R> blocked = line;
++                    blocked[i]      = OPPO;
++                    if (fiveCount(blocked) == 0)
++                        killAt = i;
++                }
++
++                if (killAt < 0)
++                    p = F4;
++                else {
++                    // Blockable four: chaining if the line still holds a four-making move after
++                    // the block.
++                    Line<R> blocked = line;
++                    blocked[killAt] = OPPO;
++                    p               = getPattern<R, Side>(patMemo, blocked) >= B3 ? B4S : B4;
++                }
++            }
++            else if (patCnt[F4] >= 2)
++                p = F3S;
++            else if (patCnt[F4])
++                p = F3;
++            else if (patCnt[B4S])
++                p = B3S;
++            else if (patCnt[B4])
++                p = B3;
++            else if (patCnt[F3S] + patCnt[F3] >= 4)
++                p = F2B;
++            else if (patCnt[F3S] + patCnt[F3] >= 3)
++                p = F2A;
++            else if (patCnt[F3S] + patCnt[F3])
++                p = F2;
++            else if (patCnt[B3] + patCnt[B3S])
++                p = B2;
++            else if (patCnt[F2] + patCnt[F2A] + patCnt[F2B])
++                p = F1;
++            else if (patCnt[B2])
++                p = B1;
++        }
++        return patMemorized = p;
++    }
++
+     if (CheckOverline && realLen >= 6)
+         p = OL;
+     else if (realLen >= 5)
+@@ -546,4 +654,35 @@ void fillDefenceLUT(uint8_t table[DenseKeyCnt<R>][2])
+     }
+ }
+ 
++void fillFiveKillLUT(uint16_t table[DenseKeyCnt<CARO>][2])
++{
++    constexpr int H          = HalfLineLen<CARO>;
++    const auto   &pattern2xs = PatternConfig::pattern2xTable<CARO>();
++
++    for (int lo = 0; lo < DenseHalfCnt<CARO>; lo++) {
++        const uint64_t loHalf = rawHalfFromDense<H, false>(lo);
++        for (int hi = 0; hi < DenseHalfCnt<CARO>; hi++) {
++            const uint64_t key = loHalf | uint64_t(rawHalfFromDense<H, true>(hi)) << (2 * H);
++            const uint32_t idx = uint32_t(lo) * DenseHalfCnt<CARO> + hi;
++
++            for (Color attacker : {BLACK, WHITE}) {
++                uint16_t killMask = 0;
++                if (pattern2xs[idx][attacker] == F5) {
++                    // Place a defender stone on each empty cell; it kills the five if the
++                    // attacker's center placement no longer completes a winning five.
++                    for (int i = 0; i < 2 * H; i++) {
++                        const uint64_t cellMask = uint64_t(0b11) << (2 * i);
++                        if ((key & cellMask) != cellMask)
++                            continue;
++                        const uint64_t probeKey = key ^ (uint64_t(0x1 + ~attacker) << (2 * i));
++                        if (pattern2xs[denseFusedIndex<CARO>(probeKey)][attacker] != F5)
++                            killMask |= 1 << i;
++                    }
++                }
++                table[idx][attacker] = killMask;
++            }
++        }
++    }
++}
++
+ }  // namespace
+diff --git a/Rapfi/game/pattern.h b/Rapfi/game/pattern.h
+index 9983178..d918209 100644
+--- a/Rapfi/game/pattern.h
++++ b/Rapfi/game/pattern.h
+@@ -49,7 +49,8 @@ static_assert(sizeof(Pattern2x) == sizeof(uint8_t));
+ namespace PatternConfig {
+ 
+ /// Number of cells on each side of the center cell in a line. Freestyle only cares about five in
+-/// a row (4 neighbours suffice); standard and renju must also detect overlines, needing 5.
++/// a row (4 neighbours suffice); standard and renju must also detect overlines, and caro must see
++/// the cell beyond a five to know whether it is blocked, all needing 5.
+ template <Rule R>
+ constexpr int HalfLineLen = R == Rule::FREESTYLE ? 4 : 5;
+ 
+@@ -135,16 +136,19 @@ alignas(64) inline constexpr auto HALF_CODE_HI_S =
+ alignas(64) extern Pattern2x PATTERN2x[DenseKeyCnt<FREESTYLE>];
+ alignas(64) extern Pattern2x PATTERN2xStandard[DenseKeyCnt<STANDARD>];
+ alignas(64) extern Pattern2x PATTERN2xRenju[DenseKeyCnt<RENJU>];
++alignas(64) extern Pattern2x PATTERN2xCaro[DenseKeyCnt<CARO>];
+ 
+ /// Select the per-rule (dense line index -> Pattern2x) table.
+ template <Rule R>
+ inline const auto &pattern2xTable()
+ {
+-    static_assert(R == FREESTYLE || R == STANDARD || R == RENJU);
++    static_assert(R == FREESTYLE || R == STANDARD || R == RENJU || R == CARO);
+     if constexpr (R == Rule::FREESTYLE)
+         return PATTERN2x;
+     else if constexpr (R == Rule::STANDARD)
+         return PATTERN2xStandard;
++    else if constexpr (R == Rule::CARO)
++        return PATTERN2xCaro;
+     else
+         return PATTERN2xRenju;
+ }
+@@ -194,20 +198,31 @@ inline const auto &pcodeTable()
+ alignas(64) extern uint8_t DEFENCE[DenseKeyCnt<FREESTYLE>][2];
+ alignas(64) extern uint8_t DEFENCEStandard[DenseKeyCnt<STANDARD>][2];
+ alignas(64) extern uint8_t DEFENCERenju[DenseKeyCnt<RENJU>][2];
++alignas(64) extern uint8_t DEFENCECaro[DenseKeyCnt<CARO>][2];
+ 
+ /// Select the per-rule (dense line index + attacker -> defence bitmask) table.
+ template <Rule R>
+ inline const auto &defenceTable()
+ {
+-    static_assert(R == FREESTYLE || R == STANDARD || R == RENJU);
++    static_assert(R == FREESTYLE || R == STANDARD || R == RENJU || R == CARO);
+     if constexpr (R == Rule::FREESTYLE)
+         return DEFENCE;
+     else if constexpr (R == Rule::STANDARD)
+         return DEFENCEStandard;
++    else if constexpr (R == Rule::CARO)
++        return DEFENCECaro;
+     else
+         return DEFENCERenju;
+ }
+ 
++/// Caro only: dense line index (center empty) + attacker -> bitmask of the 2H line cells (bit i:
++/// i < H is H - i cells in the negative direction, i >= H is i - H + 1 cells in the positive
++/// direction) where a defender stone stops the attacker's five at the center. A caro five can be
++/// stopped not only on its own cell but also by blocking the far end, since a five blocked at
++/// both ends does not win. Zero when the attacker has no five at the center.
++alignas(64) extern uint16_t FIVEKILLCaro[DenseKeyCnt<CARO>][2];
++
++
+ /// Debug helper: check the two invariants every runtime line key satisfies — the center
+ /// cell is empty, and each half is wall-contiguous. Keys violating either cannot be
+ /// produced by getKeyAt / the move() window for an in-board empty cell.
+@@ -257,4 +272,11 @@ inline uint8_t lookupDefenceTable(uint64_t key, Color attackSide)
+     return defenceTable<R>()[denseKey<R>(key)][attackSide];
+ }
+ 
++/// Look up the caro five-kill bitmask for `attackSide` from a raw 64-bit line key.
++inline uint16_t lookupFiveKill(uint64_t key, Color attackSide)
++{
++    assert(attackSide == BLACK || attackSide == WHITE);
++    return FIVEKILLCaro[denseKey<CARO>(key)][attackSide];
++}
++
+ }  // namespace PatternConfig
+diff --git a/Rapfi/game/wincheck.h b/Rapfi/game/wincheck.h
+index 8659d12..c2d2468 100644
+--- a/Rapfi/game/wincheck.h
++++ b/Rapfi/game/wincheck.h
+@@ -21,6 +21,8 @@
+ #include "../core/pos.h"
+ #include "../core/types.h"
+ #include "board.h"
++#include "movegen.h"
++#include "pattern.h"
+ #include "scopedmove.h"
+ 
+ /// Statically detect a forced win or loss for the side to move from the pattern counts the board
+@@ -41,16 +43,29 @@ inline Value quickWinCheck(const Board &board, int ply, Value beta = VALUE_INFIN
+         return mate_in(ply + 1);
+ 
+     // Opponent threatens a five next move: we can parry a single one, but two or more is a loss.
++    // In caro one end block can parry several five-points, so check for a common defence.
+     switch (board.p4Count(oppo, A_FIVE)) {
+     case 0: break;
+     case 1: return VALUE_ZERO;
+-    default: return mated_in(ply + 2);
++    default:
++        if constexpr (R == Rule::CARO) {
++            ScoredMove defences[1 + 2 * PatternConfig::HalfLineLen<CARO>];
++            return generateCaroFiveDefence(board, defences) == defences ? mated_in(ply + 2)
++                                                                         : VALUE_ZERO;
++        }
++        else
++            return mated_in(ply + 2);
+     }
+ 
+     // A flex four is an unstoppable double threat: we win in two of our moves.
+     if (board.p4Count(self, B_FLEX4))
+         return mate_in(ply + 3);
+ 
++    // The deeper static mate types below assume a four has a single defence (its five-point),
++    // which does not hold in caro: leave those to the search.
++    if constexpr (R == Rule::CARO)
++        return VALUE_ZERO;
++
+     auto block4Count = [&](Color side) {
+         return board.p4Count(side, C_BLOCK4_FLEX3) + board.p4Count(side, D_BLOCK4_PLUS)
+                + board.p4Count(side, E_BLOCK4);
+@@ -119,5 +134,6 @@ quickWinCheck(Rule rule, const Board &board, int ply, Value beta = VALUE_MATE_IN
+     case FREESTYLE: return quickWinCheck<FREESTYLE>(board, ply, beta);
+     case STANDARD: return quickWinCheck<STANDARD>(board, ply, beta);
+     case RENJU: return quickWinCheck<RENJU>(board, ply, beta);
++    case CARO: return quickWinCheck<CARO>(board, ply, beta);
+     }
+ }
+diff --git a/Rapfi/search/ab/parameter.h b/Rapfi/search/ab/parameter.h
+index bb0b016..9c2e8d2 100644
+--- a/Rapfi/search/ab/parameter.h
++++ b/Rapfi/search/ab/parameter.h
+@@ -87,11 +87,18 @@ constexpr Value razorMargin(Depth d)
+     return d < 2.6f ? Value(std::max(int(0.17f * d * d + 14 * d) + 19, 0)) : MARGIN_INFINITE;
+ }
+ 
++/// Caro: maximum number of attacking moves in the quiescence VCF search (caro fours have several
++/// defences, so an unbounded VCF tree grows exponentially).
++constexpr int CARO_VCF_MAX_ATTACKS = 6;
++/// Caro: extension for a defence against an opponent five that has several defences (gomoku's
++/// OPPO5_EXT assumes the defence is unique; extending every caro defence blows the tree up)
++constexpr Depth CARO_MULTI_DEFENCE_EXT = 0.0f;
++
+ /// Static futility pruning depth & margins
+ template <Rule R>
+ constexpr Value futilityMargin(Depth d, bool noTTCutNode, bool improving)
+ {
+-    constexpr int FutilityScale[RULE_NB] = {63, 61, 80};
++    constexpr int FutilityScale[RULE_NB] = {63, 61, 80, 63};
+     return Value(std::max(int((FutilityScale[R] - 12 * noTTCutNode) * (d - improving)), 0));
+ }
+ 
+@@ -99,9 +106,9 @@ constexpr Value futilityMargin(Depth d, bool noTTCutNode, bool improving)
+ template <Rule R>
+ constexpr Value nullMoveMargin(Depth d)
+ {
+-    constexpr int NMMDepth[RULE_NB] = {10, 11, 8};
+-    constexpr int NMMBias[RULE_NB]  = {585, 538, 624};
+-    constexpr int NMMMax[RULE_NB]   = {315, 345, 230};
++    constexpr int NMMDepth[RULE_NB] = {10, 11, 8, 10};
++    constexpr int NMMBias[RULE_NB]  = {585, 538, 624, 585};
++    constexpr int NMMMax[RULE_NB]   = {315, 345, 230, 315};
+     return d >= NMMDepth[R] ? Value(NMMBias[R] - std::min(28 * int(d), NMMMax[R]))
+                             : MARGIN_INFINITE;
+ }
+@@ -111,8 +118,8 @@ constexpr Value nullMoveMargin(Depth d)
+ template <Rule R>
+ constexpr Depth nullMoveReduction(Depth d)
+ {
+-    constexpr float NMRBias[RULE_NB]  = {3.67f, 4.07f, 4.29f};
+-    constexpr float NMRScale[RULE_NB] = {0.135f, 0.134f, 0.17f};
++    constexpr float NMRBias[RULE_NB]  = {3.67f, 4.07f, 4.29f, 3.67f};
++    constexpr float NMRScale[RULE_NB] = {0.135f, 0.134f, 0.17f, 0.135f};
+     return NMRBias[R] + NMRScale[R] * d;
+ }
+ 
+@@ -120,8 +127,8 @@ constexpr Depth nullMoveReduction(Depth d)
+ template <Rule R>
+ constexpr Depth iidDepthReduction(Depth d)
+ {
+-    constexpr Depth IDRBias[RULE_NB]  = {7.6f, 8.2f, 10.0f};
+-    constexpr Depth IDRScale[RULE_NB] = {0.67f, 0.60f, 0.57f};
++    constexpr Depth IDRBias[RULE_NB]  = {7.6f, 8.2f, 10.0f, 7.6f};
++    constexpr Depth IDRScale[RULE_NB] = {0.67f, 0.60f, 0.57f, 0.67f};
+     return IDRBias[R] + IDRScale[R] * d;
+ }
+ 
+@@ -151,7 +158,7 @@ constexpr int futilityMoveCount(Depth d, bool improving)
+ template <Rule R>
+ constexpr Value singularMargin(Depth d, bool formerPv)
+ {
+-    constexpr float SEScale[RULE_NB] = {0.91f, 0.86f, 0.94f};
++    constexpr float SEScale[RULE_NB] = {0.91f, 0.86f, 0.94f, 0.91f};
+     return Value((SEScale[R] + formerPv) * d);
+ }
+ 
+@@ -171,8 +178,8 @@ constexpr Value doubleSEMargin(Depth d)
+ template <Rule R>
+ constexpr Value qvcfDeltaMargin(Depth d)  // note: d <= 0
+ {
+-    constexpr int QVCFBias[RULE_NB]  = {2086, 1818, 2158};
+-    constexpr int QVCFScale[RULE_NB] = {60, 64, 57};
++    constexpr int QVCFBias[RULE_NB]  = {2086, 1818, 2158, 2086};
++    constexpr int QVCFScale[RULE_NB] = {60, 64, 57, 60};
+ 
+     return Value(std::max(QVCFBias[R] + QVCFScale[R] * int(d), 768));
+ }
+@@ -183,7 +190,7 @@ constexpr int
+ lmrExtension(Depth newDepth, Depth searchedDepth, Value value, Value alpha, Value bestValue)
+ {
+     constexpr int LMRExt1Bias          = 34;
+-    constexpr int LMRExt2Bias[RULE_NB] = {349, 311, 288};
++    constexpr int LMRExt2Bias[RULE_NB] = {349, 311, 288, 349};
+ 
+     bool doDeeperSearch = value > (alpha + LMRExt1Bias + Value(11 * (newDepth - searchedDepth)));
+     bool doEvenDeeperSearch =
+@@ -195,7 +202,7 @@ lmrExtension(Depth newDepth, Depth searchedDepth, Value value, Value alpha, Valu
+ /// Init Reductions table according to num threads.
+ inline void initReductionLUT(std::array<Depth, MAX_MOVES + 1> (&lut)[RULE_NB], int numThreads = 1)
+ {
+-    constexpr double Factor[RULE_NB] = {1.0, 0.78, 0.75};
++    constexpr double Factor[RULE_NB] = {1.0, 0.78, 0.75, 1.0};
+     double           threadBias      = 0.1 * std::log(numThreads);
+     for (int r = 0; r < RULE_NB; r++) {
+         lut[r][0] = 0.0f;
+@@ -226,10 +233,10 @@ constexpr Depth reduction(const std::array<Depth, MAX_MOVES + 1> (&lut)[RULE_NB]
+ template <Rule R>
+ constexpr Depth complexityReduction(bool trivialMove, bool importantMove, bool distract)
+ {
+-    constexpr Depth CR1[RULE_NB] = {0.0968f, 0.075f, 0.063f};
+-    constexpr Depth CR2[RULE_NB] = {0.0385f, 0.024f, 0.028f};
+-    constexpr Depth CR3[RULE_NB] = {0.0222f, 0.020f, 0.023f};
+-    constexpr Depth CR4[RULE_NB] = {0.0055f, 0.007f, 0.007f};
++    constexpr Depth CR1[RULE_NB] = {0.0968f, 0.075f, 0.063f, 0.0968f};
++    constexpr Depth CR2[RULE_NB] = {0.0385f, 0.024f, 0.028f, 0.0385f};
++    constexpr Depth CR3[RULE_NB] = {0.0222f, 0.020f, 0.023f, 0.0222f};
++    constexpr Depth CR4[RULE_NB] = {0.0055f, 0.007f, 0.007f, 0.0055f};
+     return (trivialMove ? (distract ? CR1 : CR2) : !importantMove ? CR3 : CR4)[R];
+ }
+ 
+@@ -237,9 +244,9 @@ constexpr Depth complexityReduction(bool trivialMove, bool importantMove, bool d
+ template <Rule R>
+ constexpr Depth policyReduction(float normalizedPolicyScore)
+ {
+-    constexpr Depth PolicyReductionScale[RULE_NB] = {3.14f, 2.95f, 3.2f};
+-    constexpr Depth PolicyReductionBias[RULE_NB]  = {2.21f, 3.81f, 4.0f};
+-    constexpr Depth PolicyReductionMax[RULE_NB]   = {5.00f, 3.76f, 5.1f};
++    constexpr Depth PolicyReductionScale[RULE_NB] = {3.14f, 2.95f, 3.2f, 3.14f};
++    constexpr Depth PolicyReductionBias[RULE_NB]  = {2.21f, 3.81f, 4.0f, 2.21f};
++    constexpr Depth PolicyReductionMax[RULE_NB]   = {5.00f, 3.76f, 5.1f, 5.00f};
+ 
+     Depth r = PolicyReductionBias[R] - PolicyReductionScale[R] * normalizedPolicyScore;
+     return std::min(std::max(r, 0.0f), PolicyReductionMax[R]);
+@@ -249,8 +256,8 @@ constexpr Depth policyReduction(float normalizedPolicyScore)
+ template <Rule R>
+ constexpr int policyPruningScore(Depth d)
+ {
+-    constexpr int PPBias[RULE_NB]  = {394, 370, 376};
+-    constexpr int PPScale[RULE_NB] = {46, 55, 63};
++    constexpr int PPBias[RULE_NB]  = {394, 370, 376, 394};
++    constexpr int PPScale[RULE_NB] = {46, 55, 63, 46};
+     return PPBias[R] - int(d * PPScale[R]);
+ }
+ 
+diff --git a/Rapfi/search/ab/search.cpp b/Rapfi/search/ab/search.cpp
+index 1346b90..947a6eb 100644
+--- a/Rapfi/search/ab/search.cpp
++++ b/Rapfi/search/ab/search.cpp
+@@ -516,6 +516,7 @@ Value search(Rule         rule,
+         case Rule::STANDARD:
+             return search<Rule::STANDARD, NT>(board, ss, alpha, beta, depth, cutNode);
+         case Rule::RENJU: return search<Rule::RENJU, NT>(board, ss, alpha, beta, depth, cutNode);
++        case Rule::CARO: return search<Rule::CARO, NT>(board, ss, alpha, beta, depth, cutNode);
+         }
+     };
+ 
+@@ -899,8 +900,9 @@ Depth computeLmrReduction(Board            &board,
+     if (cutNode && !(!oppo4 && ss->isKiller(move) && ss->moveP4[self] < H_FLEX3))
+         r += NOKILLER_CUTNODE_REDUCTION;
+ 
+-    // Increase reduction for useless defend move (~6 elo)
+-    if (oppo4 && ss->moveP4[oppo] < E_BLOCK4) {
++    // Increase reduction for useless defend move (~6 elo); in caro an end block reads as
++    // "useless" by pattern but may be the defence.
++    if (Rule != Rule::CARO && oppo4 && ss->moveP4[oppo] < E_BLOCK4) {
+         r += (mt.distOppo > 4 ? OPPO_USELESS_DEFEND_REDUCTION : 0);
+         r += (mt.distSelf > 4 ? SELF_USELESS_DEFEND_REDUCTION : 0);
+     }
+@@ -1218,6 +1220,15 @@ moves_loop:
+                       &searchData->counterMoveHistory,
+                   });
+ 
++    // Caro: number of defences against the opponent's five (for the extension below)
++    int caroDefences = 0;
++    if constexpr (Rule == Rule::CARO) {
++        if (oppo5) {
++            ScoredMove defences[1 + 2 * PatternConfig::HalfLineLen<CARO>];
++            caroDefences = int(generateCaroFiveDefence(board, defences) - defences);
++        }
++    }
++
+     // Step 11. Loop through all legal moves until no moves remain
+     // or a beta cutoff occurs.
+     while (Pos move = mp()) {
+@@ -1287,17 +1298,20 @@ moves_loop:
+             if (mp.hasPolicyScore() && mp.curMoveScore() < policyPruningScore<Rule>(depth))
+                 continue;
+ 
+-            // Prun distract defence move which is likely to delay a winning (~2 elo)
+-            if (oppo4 && depth < TRIVIAL_PRUN_DEPTH && ss->moveP4[oppo] < E_BLOCK4 && mt.distract)
++            // Prun distract defence move which is likely to delay a winning (~2 elo). Not in
++            // caro, where an end block far from the five-point can be the only defence.
++            if (Rule != Rule::CARO && oppo4 && depth < TRIVIAL_PRUN_DEPTH
++                && ss->moveP4[oppo] < E_BLOCK4 && mt.distract)
+                 continue;
+         }
+ 
+         // Step 13. Extensions
+         Depth extension = 0;
+ 
+-        // Singular response extension for opponent B4 attack (~77 elo)
++        // Singular response extension for opponent B4 attack (~77 elo). Caro: a five usually has
++        // several defences, extending each one blows the tree up; extend only a unique defence.
+         if (oppo5)
+-            extension = OPPO5_EXT;
++            extension = Rule == Rule::CARO && caroDefences > 1 ? CARO_MULTI_DEFENCE_EXT : OPPO5_EXT;
+ 
+         // Singular extension: only one move fails high while other moves fails low on a search of
+         // (alpha-s, beta-s), then this move is singular and should be extended. (~52 elo)
+@@ -1646,6 +1660,13 @@ Value vcfsearch(Board &board, SearchStack *ss, Value alpha, Value beta, Depth de
+         return value;
+     }
+ 
++    // Caro: fours have several defences, so the VCF tree branches on both sides and can blow up.
++    // Bound the number of attacking moves (the main search still finds longer wins).
++    if constexpr (Rule == Rule::CARO) {
++        if (depth <= -CARO_VCF_MAX_ATTACKS)
++            return Evaluation::evaluate<Rule>(board, alpha, beta);
++    }
++
+     // Step 3. Mate distance pruning
+     alpha = std::max(mated_in(ss->ply), alpha);
+     beta  = std::min(mate_in(ss->ply + 1), beta);
+@@ -1828,6 +1849,49 @@ Value vcfdefend(Board &board, SearchStack *ss, Value alpha, Value beta, Depth de
+     if (ss->ply >= MAX_PLY)
+         return Evaluation::evaluate<Rule>(board, alpha, beta);
+ 
++    // Caro: a five may have several defences (its point, or an end block); try them all.
++    if constexpr (Rule == Rule::CARO) {
++        ScoredMove  defences[1 + 2 * PatternConfig::HalfLineLen<CARO>];
++        ScoredMove *end = generateCaroFiveDefence(board, defences);
++        if (end == defences)
++            return mated_in(ss->ply + 2);
++        // Try first the defences that also make our own threat (they refute the attack fastest)
++        std::stable_sort(defences, end, [&](const ScoredMove &a, const ScoredMove &b) {
++            return board.pattern4(a.pos, self) > board.pattern4(b.pos, self);
++        });
++
++        Value bestValue = -VALUE_INFINITE;
++        for (ScoredMove *m = defences; m < end; m++) {
++            Pos move          = m->pos;
++            ss->currentMove   = move;
++            ss->moveCount     = int(m - defences) + 1;
++            ss->moveP4[BLACK] = board.pattern4(move, BLACK);
++            ss->moveP4[WHITE] = board.pattern4(move, WHITE);
++            if (PvNode)
++                (ss + 1)->pv[0] = Pos::NONE;
++
++            TT.prefetch(board.zobristKeyAfter(move));
++            board.move<Rule>(move);
++            value = -vcfsearch<Rule, NT>(board, ss + 1, -beta, -alpha, depth);
++            board.undo<Rule>();
++
++            if (thisThread->engine.isTerminating())
++                return value;
++            if (value > bestValue) {
++                bestValue = value;
++                if (value > alpha) {
++                    if (PvNode)
++                        ss->updatePv(move);
++                    if (value >= beta)
++                        break;
++                    if (PvNode)
++                        alpha = value;
++                }
++            }
++        }
++        return bestValue;
++    }
++
+     // Step 3. Search the only defence move
+     Pos move = board.stateInfo().lastPattern4(oppo, A_FIVE);
+     assert(board.pattern4(move, oppo) == A_FIVE);
+diff --git a/Rapfi/search/mcts/search.cpp b/Rapfi/search/mcts/search.cpp
+index 647aa42..745d431 100644
+--- a/Rapfi/search/mcts/search.cpp
++++ b/Rapfi/search/mcts/search.cpp
+@@ -64,7 +64,7 @@ Value vcf(Rule rule, Board &board, int ply)
+         case FREESTYLE: return vcfdefend<FREESTYLE>(board, ss, ply, alpha, beta, depth);
+         case STANDARD: return vcfdefend<STANDARD>(board, ss, ply, alpha, beta, depth);
+         case RENJU: return vcfdefend<RENJU>(board, ss, ply, alpha, beta, depth);
+-        default: break;
++        default: break;  // Caro: not supported by MCTS VCF (several five defences); AB search only
+         }
+     }
+     else {
+diff --git a/Rapfi/search/movepick.cpp b/Rapfi/search/movepick.cpp
+index a45fbfa..dcd1867 100644
+--- a/Rapfi/search/movepick.cpp
++++ b/Rapfi/search/movepick.cpp
+@@ -128,7 +128,8 @@ MovePicker::MovePicker(Rule rule, const Board &board, ExtraArgs<MovePicker::ROOT
+             markFirstMoveOneHot(curMove, endMove);
+     }
+     else if (board.p4Count(oppo, A_FIVE)) {
+-        endMove = generate<DEFEND_FIVE>(board, curMove);
++        endMove = rule == Rule::CARO ? generateCaroFiveDefence(board, curMove)
++                                     : generate<DEFEND_FIVE>(board, curMove);
+         if (useNormalizedPolicy)
+             markFirstMoveOneHot(curMove, endMove);
+     }
+@@ -137,13 +138,19 @@ MovePicker::MovePicker(Rule rule, const Board &board, ExtraArgs<MovePicker::ROOT
+         if (useNormalizedPolicy)
+             markFirstMoveOneHot(curMove, endMove);
+     }
+-    else if (board.p4Count(oppo, B_FLEX4)) {
++    else if (rule == Rule::CARO && board.p4Count(oppo, B_FLEX4)) {
++        endMove = generateCaroFourDefence(board, curMove);
++        endMove = generateVCFMoves(rule, board, endMove);
++        if (useNormalizedPolicy)
++            scoreAllMoves<ScoreType(BALANCED | POLICY)>();
++    }
++    else if (rule != Rule::CARO && board.p4Count(oppo, B_FLEX4)) {
+         endMove = generate<DEFEND_FOUR | ALL>(board, curMove);
+         endMove = generateVCFMoves(rule, board, endMove);
+         if (useNormalizedPolicy)
+             scoreAllMoves<ScoreType(BALANCED | POLICY)>();
+     }
+-    else if (board.p4Count(oppo, C_BLOCK4_FLEX3)
++    else if (rule != Rule::CARO && board.p4Count(oppo, C_BLOCK4_FLEX3)
+              && (rule != Rule::RENJU || validateOpponentCMove(board))) {
+         endMove = generateDefendB4F3Moves(rule, board, curMove);
+ 
+@@ -182,7 +189,8 @@ MovePicker::MovePicker(Rule rule, const Board &board, ExtraArgs<MovePicker::MAIN
+ 
+     if (board.p4Count(oppo, A_FIVE)) {
+         stage    = DEFENDFIVE_TT;
+-        ttmValid = board.pattern4(args.ttMove, oppo) == A_FIVE;
++        ttmValid = rule == Rule::CARO ? isCaroFiveDefence(board, args.ttMove)
++                                      : board.pattern4(args.ttMove, oppo) == A_FIVE;
+     }
+     else if (board.p4Count(oppo, B_FLEX4)) {
+         stage = DEFENDFOUR_TT;
+@@ -191,7 +199,7 @@ MovePicker::MovePicker(Rule rule, const Board &board, ExtraArgs<MovePicker::MAIN
+                    || board.pattern4(args.ttMove, BLACK) == FORBID
+                    || board.pattern4(args.ttMove, WHITE) >= E_BLOCK4;
+     }
+-    else if (board.p4Count(oppo, C_BLOCK4_FLEX3)
++    else if (rule != Rule::CARO && board.p4Count(oppo, C_BLOCK4_FLEX3)
+              && (rule != Rule::RENJU || validateOpponentCMove(board))) {
+         stage    = DEFENDB4F3_TT;
+         ttmValid = true;
+@@ -226,7 +234,8 @@ MovePicker::MovePicker(Rule rule, const Board &board, ExtraArgs<MovePicker::QVCF
+ 
+     if (board.p4Count(oppo, A_FIVE)) {
+         stage    = DEFENDFIVE_TT;
+-        ttmValid = board.pattern4(args.ttMove, oppo) == A_FIVE;
++        ttmValid = rule == Rule::CARO ? isCaroFiveDefence(board, args.ttMove)
++                                      : board.pattern4(args.ttMove, oppo) == A_FIVE;
+     }
+     else {
+         stage    = QVCF_TT;
+@@ -405,7 +414,11 @@ top:
+         assert(board.p4Count(~board.sideToMove(), A_FIVE));
+ 
+         curMove = moves;
+-        endMove = !ttMove ? generate<DEFEND_FIVE>(board, moves) : moves;
++        // Caro has several five defences: always generate them (the TT move is skipped by the
++        // picker); gomoku's unique defence is exactly the TT move when that is valid.
++        endMove = rule == Rule::CARO ? generateCaroFiveDefence(board, moves)
++                  : !ttMove          ? generate<DEFEND_FIVE>(board, moves)
++                                     : moves;
+         if (useNormalizedPolicy) {
+             markFirstMoveOneHot(curMove, endMove);
+             hasPolicy = true;
+@@ -418,7 +431,8 @@ top:
+         assert(board.p4Count(~board.sideToMove(), B_FLEX4));
+ 
+         curMove = moves;
+-        endMove = generate<DEFEND_FOUR>(board, curMove);
++        endMove = rule == Rule::CARO ? generateCaroFourDefence(board, curMove)
++                                     : generate<DEFEND_FOUR>(board, curMove);
+         endMove = generateVCFMoves(rule, board, endMove);
+         scoreAndSortMoves<MAIN_HISTORY>();
+ 
+diff --git a/Rapfi/tuning/dataformat.h b/Rapfi/tuning/dataformat.h
+index 6cdf2e8..9101e3d 100644
+--- a/Rapfi/tuning/dataformat.h
++++ b/Rapfi/tuning/dataformat.h
+@@ -49,7 +49,9 @@ struct DatasetError : ::std::runtime_error
+ /// the internal Rule enum: 0=freestyle, 1=standard, 4=renju.
+ constexpr uint32_t encodeWireRule(Rule rule)
+ {
+-    return rule == RENJU ? 4 : uint32_t(rule);
++    // Caro is not a Gomocup dataset rule; this build stores it as 7 (the field is 3 bits wide,
++    // so the protocol number 8 does not fit).
++    return rule == RENJU ? 4 : rule == CARO ? 7 : uint32_t(rule);
+ }
+ 
+ /// Decode a wire rule number back to the internal Rule enum.
+@@ -59,6 +61,8 @@ constexpr Rule decodeWireRule(uint32_t wireRule)
+ {
+     if (wireRule == 4)
+         return RENJU;
++    if (wireRule == 7)
++        return CARO;
+     return wireRule < 2 ? Rule(wireRule) : RULE_NB;
+ }
+ 
+diff --git a/Rapfi/tuning/tuner.cpp b/Rapfi/tuning/tuner.cpp
+index f07d840..e8c4ca4 100644
+--- a/Rapfi/tuning/tuner.cpp
++++ b/Rapfi/tuning/tuner.cpp
+@@ -294,7 +294,7 @@ void collectEvalCoeffs(Rule r, const Evaluation::EvalInfo &evalInfo, Collector c
+         else {
+             collect(coeff[0][self] - coeff[0][oppo] + coeff[1][self] - coeff[1][oppo],
+                     2,
+-                    &Evaluation::EVALS[r][pcode]);
++                    &Evaluation::EVALS[Evaluation::tableIndex(r, self)][pcode]);
+         }
+     }
+ 
+@@ -757,6 +757,8 @@ void Tuner::initParams()
+         ruleSetIdx.push_back(RENJU + BLACK);
+         ruleSetIdx.push_back(RENJU + WHITE);
+     }
++    if (config.tuneRule[CARO])
++        ruleSetIdx.push_back(Evaluation::CARO_SLOT);
+ 
+     // The tuner intentionally mutates the LIVE Evaluation:: tables in place
+     // through these stored addresses: evaluation during tuning always sees the

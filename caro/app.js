@@ -53,16 +53,16 @@
   function unlockedCount() {
     try { return Math.max(Bots.START_UNLOCKED, Math.min(TIER_N, JSON.parse(localStorage.getItem(BOT_STORE) || '{}').unlocked || 0)); } catch (e) { return Bots.START_UNLOCKED; }
   }
-  /** Chỉ số mức (0…5) của nhân vật, -1 nếu không có. */
+  /** Chỉ số mức (0…6, 6 = trùm cuối BOAT) của nhân vật, -1 nếu không có. */
   const botIndex = (id) => { const b = Bots.BOTS.find((o) => o.id === id); return b ? b.tier - 1 : -1; };
   const botAllowed = (id) => botIndex(id) >= 0 && botIndex(id) < unlockedCount();
   const botName = (id) => T('bot_' + id);
-  /** Thắng một nhân vật ở mức i thì mở khoá cả mức i+1. Trả về Elo của mức vừa mở (nếu có). */
+  /** Thắng một nhân vật ở mức i thì mở khoá cả mức i+1. Trả về mức vừa mở (bots.js TIERS – có elo, boss) nếu có. */
   function unlockAfter(id) {
     const next = botIndex(id) + 1;
     if (next < unlockedCount() || next >= TIER_N) return null;
     try { localStorage.setItem(BOT_STORE, JSON.stringify({ unlocked: next + 1 })); } catch (e) { /* riêng tư */ }
-    return Bots.TIERS[next].elo;
+    return Bots.TIERS[next];
   }
   const toast = (msg, ms) => window.CaroOnline && window.CaroOnline.toast(msg, ms);
   /** Báo khung trang (shell.js): người chơi vào bàn cờ → ẩn các trang. */
@@ -158,8 +158,8 @@
     // Chuỗi ngày chơi / thành tích (habits.js)
     window.dispatchEvent(new CustomEvent('caro:gameover', { detail: { mode: state.mode, won: state.mode === 'ai' && state.winner === state.human, bot: state.bot } }));
     if (state.mode !== 'ai' || state.winner !== state.human) return;
-    const elo = unlockAfter(state.bot);
-    if (elo) setTimeout(() => toast(T('tier_unlocked', { elo }), 4500), 900);
+    const t = unlockAfter(state.bot);
+    if (t) setTimeout(() => toast(T(t.boss ? 'boss_unlocked' : 'tier_unlocked', { elo: t.elo }), 4500), 900);
   }
 
   // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
@@ -168,6 +168,13 @@
   try { if (window.Worker && location.protocol.startsWith('http')) aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
 
   function askAI(p, bot) {
+    // BOAT ở luật tự do / tiêu chuẩn / Renju: Rapfi (boat-rapfi.js); không chạy được thì engine của game như mọi bot
+    const R = window.CaroRapfi;
+    if (R && R.handles(bot, state.board.rule)) return R.move(state.board, p, bot).then((m) => m || askEngine(p, bot));
+    return askEngine(p, bot);
+  }
+
+  function askEngine(p, bot) {
     const moves = state.board.moves.map((m) => [m.x, m.y, m.p]);
     if (!aiWorker) return new Promise((resolve) => setTimeout(() => resolve(Bots.botMove(state.board, p, bot)), 30));
     const id = ++aiSeq;
@@ -252,6 +259,7 @@
     maybeAI();
     resetClock();
     if (state.mode === 'ai') toast(`${botName(state.bot)}: ${T('bot_' + state.bot + '_hi')}`, 3500);
+    if (state.mode === 'ai' && window.CaroRapfi) window.CaroRapfi.prepare(state.bot, state.rule); // tải trước mạng của BOAT
   }
 
   // ------------------------------------------------------------ Đồng hồ mỗi nước

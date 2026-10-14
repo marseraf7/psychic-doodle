@@ -1,9 +1,11 @@
 /*
  * Đấu thử giữa các cấu hình máy để đo sức cờ (công cụ cho người phát triển, không chạy trên máy chủ).
- *   node server/scripts/bot-match.js <A> <B> [số khai cuộc=12] [ms=200] [luật=vn] [bên của A: both | X | O]
+ *   node server/scripts/bot-match.js <A> <B> [số khai cuộc=12] [ms=200] [luật=vn] [bên của A: both | X | O] [khai cuộc: rand | bal]
  * ms = 0: nhân vật máy dùng đúng thời gian của mình (engine thuần dùng 500 ms).
- * A / B: 'eng' (engine.js thuần) | 'old:<đường dẫn engine.js khác>' | id nhân vật máy (vd. rong, phao) | 'eng:<json opts>'.
- * Mỗi khai cuộc (3 nước ngẫu nhiên quanh tâm) đánh 2 ván đổi bên; chạy song song theo số lõi CPU.
+ * A / B: 'eng' (engine.js thuần) | 'old:<đường dẫn engine.js khác>' | id nhân vật máy (vd. rong, phao) | 'eng:<json opts>'
+ *        | 'old:<đường dẫn>#<json opts>' (engine khác kèm tuỳ chọn).
+ * Mỗi khai cuộc đánh 2 ván đổi bên; chạy song song theo số lõi CPU. Khai cuộc: rand – 3 nước ngẫu nhiên quanh tâm (lợi
+ * cho X), bal – bộ khai cuộc cân bằng trong openings.json (gen-openings.js) – nên dùng khi so sức hai engine.
  */
 'use strict';
 const path = require('path');
@@ -13,9 +15,10 @@ const CARO = path.join(__dirname, '../../caro');
 function player(spec, ms) {
   const C = require(path.join(CARO, 'rules.js'));
   if (spec === 'eng' || spec.startsWith('eng:') || spec.startsWith('old:')) {
-    const file = spec.startsWith('old:') ? path.resolve(spec.slice(4)) : path.join(CARO, 'engine.js');
+    const [file0, json] = spec.startsWith('old:') ? spec.slice(4).split('#') : [null, spec.startsWith('eng:') ? spec.slice(4) : null];
+    const file = file0 ? path.resolve(file0) : path.join(CARO, 'engine.js');
     const EN = require(file);
-    const extra = spec.startsWith('eng:') ? JSON.parse(spec.slice(4)) : {};
+    const extra = json ? JSON.parse(json) : {};
     return (moves, rule) => EN.analyse(moves, { ms, rule, ...extra }).move;
   }
   const B = require(path.join(CARO, 'bots.js'));
@@ -53,12 +56,14 @@ if (!isMainThread) {
     parentPort.postMessage({ ...r, a: r.winner === 0 ? 0.5 : r.winner === aSide ? 1 : 0 });
   }
 } else {
-  const [A = 'eng', B = 'rong', N = '12', MS = '200', RULE = 'vn', SIDE = 'both'] = process.argv.slice(2);
+  const [A = 'eng', B = 'rong', N = '12', MS = '200', RULE = 'vn', SIDE = 'both', OPEN = 'rand'] = process.argv.slice(2);
   let s = 12345;
   const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
   const jobs = [];
-  for (let k = 0; k < +N; k++) {
-    const op = [[0, 0]];
+  const bal = OPEN === 'bal' ? require(path.join(__dirname, 'openings.json'))[RULE] : null;
+  if (bal && bal.length < +N) console.warn(`openings.json chỉ có ${bal.length} khai cuộc cho luật ${RULE}`);
+  for (let k = 0; k < (bal ? Math.min(+N, bal.length) : +N); k++) {
+    const op = bal ? bal[k] : [[0, 0]];
     while (op.length < 3) { const c = [Math.floor(rnd() * 5) - 2, Math.floor(rnd() * 5) - 2]; if (!op.some((m) => m[0] === c[0] && m[1] === c[1])) op.push(c); }
     if (SIDE !== 'O') jobs.push({ opening: op, swap: false });
     if (SIDE !== 'X') jobs.push({ opening: op, swap: true });

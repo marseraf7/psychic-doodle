@@ -52,17 +52,22 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
 ## Học cờ: máy có tính cách, phân tích ván, giải đố (học theo chess.com / Lichess)
 
-- **24 nhân vật máy** (`bots.js`) = 6 mức sức cờ × 4 lối đánh, mỗi người một tên và lời thoại riêng:
+- **31 nhân vật máy** (`bots.js`) = 6 mức sức cờ × 5 lối đánh + trùm cuối **BOAT**, mỗi người một tên và lời thoại riêng:
 
-  | Mức | Tấn công | Phòng thủ – phản công | Nước đôi | Gài bẫy (dương đông kích tây) |
-  |---|---|---|---|---|
-  | ~600 | Bé Bưởi | Chị Bảy | Cocobay | Sa Tị |
-  | ~900 | Anh Độ | Khô Gà | Bã Mía | Phượng Lên Đồ |
-  | ~1200 | Mân Đàn | Phấn Đào | Vardrid | Ba Sáu |
-  | ~1500 | Khá Bảnh | Trà Từ Tay | Người Tày | Tú Sena |
-  | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu |
-  | ~2350 | GOAT | UEFAlona | Penaldo | Hai Ngón |
+  | Mức | Tấn công | Phòng thủ – phản công | Nước đôi | Gài bẫy (dương đông kích tây) | Toàn diện |
+  |---|---|---|---|---|---|
+  | ~600 | Bé Bưởi | Chị Bảy | Cocobay | Sa Tị | Trình |
+  | ~900 | Anh Độ | Khô Gà | Bã Mía | Phượng Lên Đồ | Tê Liệt |
+  | ~1200 | Mân Đàn | Phấn Đào | Vardrid | Ba Sáu | Con Gái FIFA |
+  | ~1500 | Khá Bảnh | Trà Từ Tay | Người Tày | Tú Sena | Sách Thể Thao |
+  | ~1800 | Rung Động | Độc Tày | SVBK | Đi Bộ Vuốt Râu | The Liems |
+  | ~2350 | Y Đững | UEFAlona | Penaldo | Hai Ngón | GOAT |
+  | ~2700 (trùm cuối) | | | | | **BOAT** |
 
+  **Toàn diện** (`uni`, `i18n-bots-uni.js`): không thiên lối nào, ít lỗi hơn / nghĩ lâu hơn các nhân vật cùng mức – mạnh
+  nhất mỗi mức. Đo bằng `bot-match.js` (2 ván đổi bên mỗi khai cuộc): thắng các nhân vật cùng mức 65–82% (mức 1–4),
+  60–65% (mức 5); GOAT thắng Y Đững 60%, Hai Ngón 56%, UEFAlona / Penaldo 58%. GOAT, các nhân vật mức ~2350 và The Liems
+  dùng sách khai cuộc (`book.js`). Ở mức ~2350 bên đi trước thắng ~80–85% số ván máy – máy.
   Sức cờ: mức 1–3 dùng AI của `rules.js`; từ mức ~1500 dùng `engine.js` với độ sâu / thời gian giới hạn (như các mức Stockfish
   của Lichess – yếu hơn vì nhìn nông hơn, không phải vì đánh bừa): ~1500 sâu 1 + 30 ms, ~1800 sâu 3 + 80 ms, ~2350 900 ms.
   Đo bằng `node server/scripts/bot-match.js` (2 ván đổi bên mỗi khai cuộc): mức trên thắng mức dưới ~71% ở mỗi bậc.
@@ -96,6 +101,111 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   khả năng thắng; nước đi xếp loại theo mức tụt (?! ≥ 10%, ? ≥ 18%, ?? ≥ 30%) hoặc theo chuỗi thắng chắc (bỏ lỡ / để thua chắc);
   độ chính xác theo công thức Lichess. Đo được: giải 300/300 bài đố (TB ~9 ms/bài, bộ cũ 288/300 với 300 ms), 57 nước thắng
   mà bộ cũ không xác nhận được đã kiểm bằng bộ vét cạn độc lập; GOAT dùng engine thắng GOAT cũ 9–1.
+  **Học từ ván vô địch** (cách các engine cờ vua như Stockfish chỉnh hàm đánh giá – Texel tuning – và vòng "tự đấu – học
+  lại" của các engine Gomoku vô địch Gomocup; chỉ học ý tưởng, không dùng mã của họ): mỗi luật có bộ trọng số riêng,
+  tách "thế của mình" và "thế của đối thủ" (`EVAL` trong `engine.js`), học từ ~340 nghìn ván Gomocup 2016–2025
+  (Freestyle → luật tự do, Standard, Renju, Caro → luật Việt Nam) và ván tự đấu. Engine học xong thắng bản cũ 72%
+  (tự do), 61% (tiêu chuẩn), 67% (Renju), 63% rồi thêm 61% sau vòng tự đấu (Việt Nam). Công cụ (chỉ cho người phát triển):
+  - `server/scripts/gomocup-import.js` – đọc ván Gomocup (.psq) → `<luật>.jsonl`
+  - `server/scripts/selfplay.js` – engine tự đấu sinh thêm ván (luật ít dữ liệu như luật Việt Nam)
+  - `server/scripts/tune-eval.js` – học trọng số (hồi quy logistic, Adam; 80% học / 20% kiểm tra)
+  - `server/scripts/build-book.js` – dựng sách khai cuộc (`book-data.js`): engine nghĩ 6 giây mỗi thế đầu ván
+  - `server/scripts/bot-match.js` – đấu kiểm chứng (chỉ nhận trọng số / thay đổi nào thắng bản cũ); tham số `bal` dùng bộ
+    khai cuộc cân bằng
+  - `server/scripts/gen-openings.js` – sinh bộ khai cuộc cân bằng (`openings.json`) cho tự đấu
+  - `server/scripts/train-policy.js` – học chính sách nước đi từ ván (`policy-data.js`)
+
+  Tìm kiếm: LMR (giảm độ sâu nước xếp cuối, như Stockfish / Rapfi) bật cho luật tiêu chuẩn – tự đấu 60% trên 192 ván;
+  luật khác không lợi nên tắt. Mỗi thay đổi chỉ được giữ khi thắng bản trước trong tự đấu.
+  **Nâng cấp theo tài liệu** (Allis "Go-Moku and Threat-Space Search"; Wine – arXiv 2111.01016; ý tưởng của Rapfi / Yixin –
+  chỉ học ý tưởng, tự viết, không dùng mã GPL của họ):
+  - *Mẫu hình theo ô* (`engine-patterns.js`): với mỗi ô trống, mỗi bên, mỗi hướng: đánh vào thì đường 11 ô thành gì (năm,
+    bốn mở, bốn, ba mở, ba, hai…) – phân loại bằng **vét cạn đúng luật thắng** nên đúng cả 4 luật (kể cả "bốn mở thắng ngay",
+    "năm bị chặn hai đầu" của luật Việt Nam), ghi nhớ theo mã 3^11; gộp 4 hướng thành mẫu chéo (bốn mở, bốn-ba, ba kép…).
+    Mỗi nước chỉ cộng / trừ một chữ số vào mã 11 ô giữ sẵn của 44 (ô, hướng) quanh nó. Đã kiểm khớp tuyệt đối với luật thật
+    trên hàng trăm nghìn ô của ván Gomocup (ô thắng, ô "bốn", "bốn mở", ô chặn, ô phòng thủ).
+  - *Chuỗi bốn nhanh hơn*: còn 1 nước công thì chỉ "bốn mở" mới thắng (tra mẫu, khỏi đặt thử); còn 2 nước công thì nước
+    bốn chỉ thử khi tạo được ô bốn mở mới trên đường qua nó (Allis: nước sau phụ thuộc nước trước – giữ nguyên kết quả trên
+    ~7.000 thế); ô chặn duy nhất của một nước bốn là chính ô thắng (trừ luật Việt Nam – chặn đầu cũng được, tra mẫu); ứng
+    viên xếp theo mẫu đường thay cho đếm cửa sổ; luật Việt Nam chỉ thử bốn mở ở lá (ba mở đã là đe doạ thắng nên nước bốn
+    rất nhiều – tìm sâu hơn có lợi hơn); Renju ghi nhớ nước cấm theo thế. Kết quả trong 300 ms: luật tự do tìm sâu ~6,8 lớp
+    (bản trước ~5), Việt Nam ~5,4 (trước ~3,6), Renju ~5,8.
+  - *Phòng thủ bắt buộc* (Rapfi / Allis): đối thủ có ô "bốn mở" thì chỉ xét nước làm đối thủ hết ô đó + nước bốn phản công;
+    *thắng nhanh*: có ô bốn mở mà đối thủ không có nước bốn nào → thắng chắc.
+  - *VCT – chuỗi đe doạ ba / bốn* (`engine-vct.js`, threat-space search của Allis): bên công chỉ đi nước ba / bốn, bên thủ
+    xét **mọi** cách phòng (kể cả phản công bằng bốn); chỉ nhận khi mọi nhánh đều thắng (kiểm 75 lần báo thắng bằng cách đánh
+    tiếp với engine cũ nghĩ lâu: đúng 75/75). Dùng ở gốc (tìm thắng) và để **kiểm nước định đi**: sau mỗi lớp làm sâu dần,
+    nếu sau nước tốt nhất đối thủ có VCT thì bỏ nước đó và tìm lại.
+  - *Đo công bằng*: khai cuộc ngẫu nhiên 3 quân lợi cho X tới mức X thắng ~80% bất kể engine nào, nên tự đấu dùng **bộ khai
+    cuộc cân bằng** (`server/scripts/gen-openings.js` → `openings.json`, như Gomocup / Stockfish). Bản mới thắng bản trước
+    đợt nâng cấp: **Việt Nam 81%, tự do 76%, tiêu chuẩn 82%, Renju 74%** (192 ván mỗi luật, 300 ms/nước, đổi bên mỗi khai
+    cuộc; bản cuối, gồm cả chính sách nước đi và học tăng cường bên dưới). GOAT (Toàn diện, 1,3 giây) với các nhân vật cùng mức 2350 (luật Việt Nam, thời gian thật của nhân vật, 96 ván):
+    Y Đững 74%, Pháo 76%, Long 76%, Áo 52% (Áo – lối gài bẫy – gần như dùng engine thuần, chỉ nghĩ ít hơn; cho GOAT nghĩ
+    2,5 giây cũng chỉ 59% nên giữ 1,3 giây cho người chơi khỏi chờ).
+    Đã thử và **không giữ** (không thắng hơn trong tự đấu): bỏ lượt thử (null move), LMR cho mọi luật, độ rộng 8 / 12,
+    trọng số mẫu chéo học từ Gomocup cho luật tự do / Renju / Việt Nam (chỉ giữ cho luật tiêu chuẩn), tìm thêm một nước
+    phòng ở lá, bỏ lọc chuỗi bốn ở gốc, cửa sổ khát vọng (aspiration window).
+  **Trùm cuối BOAT** (Best of All Time – mức 7, lối Toàn diện, nghĩ 3 giây, mở khoá khi thắng một nhân vật ~2350; ảnh
+  `img/bots/boat.svg`, chuỗi 4 ngôn ngữ trong `i18n-bots-uni.js`, huy hiệu *Đánh chìm BOAT*). Học máy dùng cho BOAT (và mọi
+  nhân vật dùng engine):
+  - *Chính sách nước đi học từ ván vô địch* (`server/scripts/train-policy.js` → `policy-data.js`): như mạng policy của
+    AlphaGo nhưng thay CNN bằng mô hình log-linear trên mẫu hình (chạy nhanh bằng JavaScript, không cần GPU), học từ ~200
+    nghìn thế mỗi luật của ván Gomocup: đoán đúng nước của engine vô địch 31–34% (top-3 55–59%), cách xếp cũ 24–28%
+    (top-3 46–51%). Dùng để xếp ứng viên: tự đấu 53% trên 768 ván.
+  - *Học tăng cường bằng tự đấu* (luật Việt Nam – ít ván thật nhất): engine tự đấu 4.000 ván → học lại hàm đánh giá từ kết
+    quả → lặp lại. Vòng 1 thắng bộ trước 58% (192 ván), vòng 2 thắng vòng 1 53% (384 ván).
+  - *MCTS (PUCT như AlphaZero)* dùng chính sách trên làm xác suất tiên nghiệm, tìm kiếm ngắn làm hàm giá trị: **thua**
+    Alpha-Beta 40–44% (96 ván / cấu hình) – không có mạng giá trị mạnh (cần GPU, hàng triệu ván) thì MCTS kém Alpha-Beta
+    + chuỗi đe doạ ở cờ caro, nên không dùng.
+  - Đo: BOAT thắng GOAT 63% (Việt Nam) / 58% (tự do) – 48 ván mỗi luật, cùng engine nên lợi thế đến từ nghĩ lâu hơn.
+  - So với nhà vô địch Gomocup **Rapfi** (chạy cục bộ bằng `server/scripts/rapfi/`): Rapfi nghĩ 40 ms / nước vẫn thắng
+    engine của game nghĩ 3 giây (engine được 19% tự do, 38% tiêu chuẩn, 38% Renju). Học hàm đánh giá tuyến tính theo
+    điểm của Rapfi làm engine kém đi (33–41%) – muốn tới mức vô địch cần mạng nơ-ron (NNUE hoặc CNN + MCTS).
+  **BOAT chạy Rapfi (WebAssembly) ở cả 4 luật** (`boat-rapfi.js` + `rapfi/`, như trang Gomocalc; luật Việt Nam: Rapfi-CARO):
+  - Rapfi (GPL-3) dựng bằng Emscripten thành `rapfi/rapfi-single-simd128.{js,wasm}` (1,2 MB, 1 luồng, WebAssembly SIMD),
+    chạy trong Worker riêng `rapfi/worker.js`, nói giao thức Piskvork; BOAT nghĩ 2,5 giây / nước (`bots.js`: `rapfi.ms`).
+  - Mạng NNUE "mix9svq" (CC0, ~10 MB; Renju 2 file) chỉ tải khi bắt đầu ván với BOAT – thử `rapfi/nets/` trên máy chủ,
+    rồi jsDelivr, rồi GitHub raw (fork của mình trước, kho gốc sau) – giữ trong Cache Storage `caro-rapfi-nets-v1` (sw.js không xoá), lần sau không tải lại.
+  - Bàn vô hạn → bàn Rapfi (tự do 20×20, tiêu chuẩn / Renju 15×15): mỗi nước đặt khung bao các quân vào giữa, chừa ≥ 1 ô
+    mỗi bên. Không vừa bàn, trình duyệt không có WebAssembly SIMD, tải mạng lỗi / quá 6 giây, Rapfi treo hay trả nước
+    sai, bản iOS → nước đó dùng engine của game.
+  - **Luật Việt Nam – Rapfi-CARO**: Rapfi không có luật chặn hai đầu, nên Cờ Caro thêm vào bằng bản vá
+    `rapfi/build/rapfi-caro.patch` (GPL-3; nhận dạng mẫu hình, sinh nước chặn, tìm kiếm – chi tiết, kiểm đúng luật và đo
+    sức: `server/scripts/rapfi/caro/README.md`) → `rapfi/rapfi-caro-simd128.{js,wasm}` (1,3 MB). Không mạng NNUE: đánh giá
+    cổ điển với bảng học từ 2.000 ván Rapfi-CARO tự đấu (`rapfi/model-caro.bin`, 27 KB, đi kèm app – không tải gì).
+    Kiểm đúng luật: 0 sai khác với `rules.js` trên hàng trăm nghìn lần so. Đo như bảng dưới (bàn Rapfi 20×20): Rapfi-CARO
+    1 giây (bản gốc) **73%** (64 ván), bản WebAssembly 0,6 giây (≈ BOAT 2,5 giây trên điện thoại) **78%** (32 ván) – đối
+    thủ vẫn là engine của game nghĩ 3 giây (gấp 3–5 lần thời gian); cho engine kiểm mọi nước của Rapfi-CARO không mạnh
+    hơn nên chỉ kiểm khi sát mép.
+    12 nước đầu ván lấy từ sách `vn-rapfi` (`book-data.js`: cây khai cuộc của sách cũ, Rapfi-CARO nghĩ 10 giây mỗi thế).
+    Mạng NNUE riêng cho luật Việt Nam (mục tiêu > 90% với engine của game) đang luyện trên VPS bằng
+    `server/scripts/rapfi/caro/nnue/` (tự đấu → huấn luyện → đấu chọn mạng, chạy liên tục); xong sẽ đưa vào BOAT và phân tích.
+  - Đo đúng như trong app (`server/scripts/rapfi/boat-match.js`: bàn vô hạn, đặt thế vào bàn Rapfi, engine kiểm khi
+    sát mép; 24 ván mỗi ô, khai cuộc cân bằng, đối thủ là engine của game nghĩ 3 giây):
+
+    | Luật | Rapfi 2,5 giây (máy tính) | Rapfi 0,6 giây (≈ điện thoại chậm hơn ~4 lần) |
+    |---|---|---|
+    | Tự do | **88%** | **83%** |
+    | Tiêu chuẩn | **75%** | **75%** |
+    | Renju | **75%** | **79%** |
+
+    Trên bàn cố định 15×15 / 20×20 (không phải đặt thế vào khung) Rapfi 1 giây được 94 / 81 / 81%: phần chênh là do thế
+    rộng hơn bàn Rapfi phải nhường engine của game, và mép bàn.
+  - Phân tích ván: lượt kỹ do Rapfi chấm (`rapfi-analysis.js`; luật Việt Nam: Rapfi-CARO); thế sát mép bàn Rapfi có engine
+    của game kiểm chuỗi ép cùng lúc; Rapfi đi ngay không in điểm (có nước thắng ngay / chỉ một nước) thì tự chấm.
+  - Giấy phép: trang `licenses.html` (Xem thêm / Cài đặt → *Giấy phép mã nguồn mở*, 4 ngôn ngữ) ghi công Rapfi, toàn văn
+    GPL-3 (`rapfi/COPYING.txt`), mã nguồn đúng commit đang dùng (`rapfi/build/rapfi-src-3c94c2a.tar.gz`), cách dựng lại
+    (`rapfi/build/build.sh`, `rapfi/SOURCE.md`). CSP máy chủ thêm `'wasm-unsafe-eval'` và 2 CDN của mạng.
+  - Bản sao lưu (fork): https://github.com/marseraf7/rapfi và https://github.com/marseraf7/rapfi-networks – Worker tải mạng
+    từ fork trước, kho gốc sau; script dựng clone từ fork trước.
+  **Phân tích song song** (`an-pool.js`): các thế của ván chia cho min(4, lõi − 1) Web Worker (như Lichess chạy Stockfish
+  nhiều luồng) – ván 36 nước trên máy 4 lõi: kết quả nhanh 1,4 giây (trước 2,9), phân tích kỹ xong 6,8 giây (trước 18,4).
+  Phân tích ngầm gắn khoá thế cờ vào từng kết quả: đi lại / rẽ nhánh bao nhiêu lần cũng không dùng nhầm (e2e: 300 lần).
+  **Sách khai cuộc** (`book-data.js`, 814 thế cho 4 luật, dựng lại bằng engine mới): engine nghĩ 6 giây mỗi thế (gấp ~5 lần
+  thời gian GOAT được nghĩ).
+  Lấy thêm ván để học: Gomocup – mỗi năm một file `https://gomocup.org/static/tournaments/<năm>/results/gomocup<năm>results.zip`
+  (bảng Caro có từ 2021); Renju – cơ sở dữ liệu ván của RenjuNet (renju.net, định dạng RIF); ván Caro Việt Nam của
+  người chơi: xuất ván từ chính app (Lịch sử đấu / API `/api/replay/<mã>`) hoặc gửi dãy nước dạng `x,y` mỗi dòng.
   Tối ưu (cùng kết quả, nhanh ~2,5 lần): đọc mỗi đường một lần rồi trượt cửa sổ, ô chặn chỉ xét trên hướng làm thành ô thắng,
   bỏ tính điểm khi đang tìm chuỗi ép; ở gốc bỏ các nước để đối thủ có chuỗi ép. Lối đánh của nhân vật máy chỉ tính theo góc
   nhìn của máy và chỉ đổi thứ tự trong nhóm nước tốt nhất (trước đây làm GOAT "Gài bẫy" yếu hẳn).
@@ -219,6 +329,7 @@ node caro/tests/e2e/attention.e2e.js     # tiêu đề tab báo lượt, hết v
 node caro/tests/e2e/live.e2e.js          # phân tích ngầm khi chơi (hết ván có ngay), phân tích hai lượt, công tắc trong Cài đặt
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
 node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, ván giải mất kết nối, Storm, ảnh og
+node caro/tests/e2e/boat-rapfi.e2e.js    # BOAT chạy Rapfi ở 3 luật + Rapfi-CARO ở luật Việt Nam, mạng lấy từ bộ nhớ đệm, trang giấy phép (RAPFI_NETS=<thư mục mạng> nếu không ra được Internet)
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
 ```
 
@@ -229,8 +340,19 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `rules.js` | 4 luật thắng, nước cấm Renju + AI (dùng chung cho trình duyệt và Node) |
 | `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
-| `bots.js` | 24 nhân vật máy (6 mức × 4 lối đánh): số liệu sức cờ, trọng số lối đánh, `botMove` |
-| `engine.js` | Engine phân tích: Alpha-Beta + chuỗi ép, đủ 4 luật (kể cả nước cấm Renju), trọng số lối đánh (dùng chung trình duyệt, Worker, Node) |
+| `bots.js` | 31 nhân vật máy (6 mức × 5 lối đánh + trùm cuối BOAT): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
+| `policy-data.js` | Trọng số chính sách nước đi theo luật (sinh bởi `server/scripts/train-policy.js`) – engine dùng để xếp ứng viên |
+| `an-pool.js` | Phân tích ván song song trên nhiều Web Worker (chấm thế + thế sau nước tốt nhất), `study.js` chỉ còn xếp loại |
+| `book.js`, `book-data.js` | Sách khai cuộc của nhân vật mức cao: tra thế cờ (chuẩn hoá xoay / lật / dời) → nước đã phân tích sẵn |
+| `engine.js` | Engine phân tích (hub): `analyse()` – chuỗi ép ở gốc, làm sâu dần có kiểm nước định đi; gom các phần `engine-*.js` (dùng chung trình duyệt, Worker, Node) |
+| `engine-patterns.js` | Mẫu đường / mẫu chéo theo ô (vét cạn đúng luật cả 4 luật, bảng tra theo mã 11 ô) |
+| `engine-position.js` | Thế cờ của engine: đi / lùi, cập nhật dần mẫu hình, ô thắng, khoá Zobrist |
+| `engine-renju.js`, `engine-eval.js`, `engine-moves.js` | Gắn vào thế cờ: nước cấm Renju; chấm điểm (trọng số học từ Gomocup, lối đánh); sinh nước, nước bốn, ô chặn, phòng thủ bắt buộc |
+| `engine-search.js` | Alpha-Beta (PVS) làm sâu dần, bảng ghi nhớ, chuỗi bốn (VCF) ở lá và ở gốc |
+| `engine-vct.js` | Chuỗi đe doạ ba / bốn (VCT – threat-space search của Allis): tìm thắng và kiểm nước định đi |
+| `boat-rapfi.js`, `i18n-rapfi.js` | BOAT gọi Rapfi (Worker) ở 4 luật (luật Việt Nam: Rapfi-CARO): tải mạng khi cần, đặt thế vào bàn Rapfi, dự phòng engine của game |
+| `rapfi/` | Rapfi WebAssembly (GPL-3): `worker.js`, `rapfi-single-simd128.{js,wasm}`, `rapfi-caro-simd128.{js,wasm}` (Rapfi-CARO), mô hình cổ điển + `model-caro.bin`, `COPYING.txt`, `SOURCE.md`, `build/` (mã nguồn, bản vá Rapfi-CARO, cách dựng) |
+| `licenses.html` | Giấy phép mã nguồn mở (Rapfi GPL-3, mạng CC0, phông OFL) – 4 ngôn ngữ, dùng `privacy.js` |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
 | `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
