@@ -178,6 +178,8 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     thủ vẫn là engine của game nghĩ 3 giây (gấp 3–5 lần thời gian); cho engine kiểm mọi nước của Rapfi-CARO không mạnh
     hơn nên chỉ kiểm khi sát mép.
     12 nước đầu ván lấy từ sách `vn-rapfi` (`book-data.js`: cây khai cuộc của sách cũ, Rapfi-CARO nghĩ 10 giây mỗi thế).
+    Mạng NNUE riêng cho luật Việt Nam (mục tiêu > 90% với engine của game) đang luyện trên VPS bằng
+    `server/scripts/rapfi/caro/nnue/` (tự đấu → huấn luyện → đấu chọn mạng, chạy liên tục); xong sẽ đưa vào BOAT và phân tích.
   - Đo đúng như trong app (`server/scripts/rapfi/boat-match.js`: bàn vô hạn, đặt thế vào bàn Rapfi, engine kiểm khi
     sát mép; 24 ván mỗi ô, khai cuộc cân bằng, đối thủ là engine của game nghĩ 3 giây):
 
