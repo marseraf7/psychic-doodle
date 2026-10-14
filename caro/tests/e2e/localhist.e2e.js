@@ -36,7 +36,9 @@ const WIN = [3, 0];
     p.on('pageerror', (e) => errors.push(e.message));
     p.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION/.test(m.text())) errors.push('console: ' + m.text()); });
     p.on('dialog', (d) => d.accept());
-    await p.goto(`http://localhost:${PORT}/`);
+    // Chờ app dựng xong thay vì sự kiện load: Firefox có khi trễ load rất lâu khi đã mở nhiều hồ sơ trình duyệt
+    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
+    await p.waitForFunction(() => window.CaroLocalSave && window.CaroShell && window.CaroApp, null, { timeout: 30000 });
     await sleep(600);
     return p;
   }
