@@ -8,7 +8,7 @@
  *   node caro/tests/e2e/localhist.e2e.js
  */
 'use strict';
-const { setup, play, roomOf } = require('./helpers');
+const { setup, play, roomOf, gotoRetry } = require('./helpers');
 
 const PORT = 8106;
 // X xếp 4 quân hàng 0, O đánh hàng 5; nước cuối (3, 0) của X thắng (luật Việt Nam: 4 quân hai đầu trống – bị chặn thì thêm)
@@ -41,7 +41,7 @@ const WIN = [3, 0];
     p.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION/.test(m.text())) errors.push('console: ' + m.text()); });
     p.on('dialog', (d) => d.accept());
     // Chờ app dựng xong thay vì sự kiện load: Firefox có khi trễ load rất lâu khi đã mở nhiều hồ sơ trình duyệt
-    await p.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
+    await gotoRetry(p, `http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
     await p.waitForFunction(() => window.CaroLocalSave && window.CaroShell && window.CaroApp, null, { timeout: 30000 });
     await sleep(600);
     return p;

@@ -19,6 +19,18 @@ function loadPlaywright() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Mở trang, quá hạn thì thử lại một lần: Firefox (Playwright, CI) đôi khi không xong điều hướng khi đã mở nhiều hồ sơ
+ * trình duyệt – lần thử lại vẫn trong cùng hồ sơ nên vẫn kiểm đúng dữ liệu đã lưu.
+ */
+async function gotoRetry(p, url, opts = {}) {
+  try { return await p.goto(url, opts); } catch (e) {
+    if (e.name !== 'TimeoutError') throw e;
+    console.log('     (mở trang quá hạn – thử lại 1 lần: ' + url + ')');
+    return p.goto(url, opts);
+  }
+}
+
 async function setup(port, timers = {}) {
   const { start } = require('../../../server/server.js');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-e2e-'));
@@ -48,7 +60,7 @@ async function setup(port, timers = {}) {
     // Đếm số bản vá trang giải nhận được (cập nhật chỉ gửi phần đổi)
     p.patches = 0;
     p.on('websocket', (ws) => ws.on('framereceived', (f) => { if (typeof f.payload === 'string' && f.payload.startsWith('{"t":"tourPatch"')) p.patches++; }));
-    await p.goto(`http://localhost:${port}/`);
+    await gotoRetry(p, `http://localhost:${port}/`);
     await sleep(400);
     await p.click('#tabbar [data-tab="more"]'); // thẻ tài khoản nằm ở tab Xem thêm
     await sleep(500);
@@ -96,4 +108,4 @@ async function play(w, l) {
   }
 }
 
-module.exports = { setup, play, roomOf, sleep };
+module.exports = { setup, play, roomOf, sleep, gotoRetry };
