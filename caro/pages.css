@@ -68,7 +68,7 @@
 #history-local > .hint { margin: 0; }
 /* Hỏi lưu ván */
 #lh-ask .dlg { gap: 10px; max-width: 420px; }
-#lh-ask p { margin: 0; }
+#lh-ask p { margin: 0; text-align: start; }
 .lh-why { font-weight: var(--fw-semibold); }
 .lh-ask-list { max-height: 40vh; overflow-y: auto; margin: 0; padding: 0; }
 .lh-ask-list li { flex-wrap: nowrap; }

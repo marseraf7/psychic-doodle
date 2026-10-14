@@ -61,6 +61,10 @@ jobs:
       - name: Kiểm thử trình duyệt Lịch sử đấu trên máy + Thiết bị
         if: success() || failure()
         run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/localhist.e2e.js
+      # Giả lập điện thoại cảm ứng (isMobile + hasTouch, UA Android)
+      - name: Kiểm thử trình duyệt Lịch sử đấu trên máy – giả lập điện thoại
+        if: success() || failure()
+        run: E2E_MOBILE=1 E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots-mobile node caro/tests/e2e/localhist.e2e.js
       - uses: actions/upload-artifact@v7
         if: always()
         with:

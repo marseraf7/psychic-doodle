@@ -19,8 +19,13 @@ const WIN = [3, 0];
   const { browser, user, ok, shot, sleep, finish } = await setup(PORT);
   const errors = [];
 
+  // E2E_MOBILE=1: giả lập điện thoại cảm ứng (isMobile, hasTouch, UA Android) – bấm vẫn qua mouse.click / tap của Playwright
+  const MOBILE = process.env.E2E_MOBILE ? {
+    isMobile: process.env.E2E_BROWSER !== 'firefox', hasTouch: true,
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36',
+  } : {};
   async function page(init, width = 430) {
-    const ctx = await browser.newContext({ viewport: { width, height: 860 } });
+    const ctx = await browser.newContext({ viewport: { width, height: 860 }, ...MOBILE });
     await ctx.addInitScript(() => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
     if (init) await ctx.addInitScript(init);
     const p = await ctx.newPage();
@@ -117,6 +122,19 @@ const WIN = [3, 0];
   await click(p, ...WIN);
   await sleep(400);
   ok(await count(p) === 3, 'thắng lại: lưu 1 ván, không trùng');
+  // Tải lại trang rồi mới Đi lại: vẫn tìm đúng ván đã lưu để xoá
+  await p.reload({ waitUntil: 'commit' });
+  await sleep(2500);
+  await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
+  await p.evaluate(() => window.dispatchEvent(new Event('caro:board')));
+  await sleep(200);
+  ok(await p.evaluate(() => window.CaroApp.local.winner === 1), 'tải lại trang: ván đã thắng vẫn trên bàn');
+  await p.evaluate(() => document.getElementById('btn-undo').click());
+  await sleep(300);
+  ok(await count(p) === 2, 'tải lại trang rồi Đi lại: xoá ván đã tự lưu');
+  await click(p, ...WIN);
+  await sleep(400);
+  ok(await count(p) === 3, 'thắng lại: lưu lại 1 ván');
 
   // ---------------------------------------------------------------- Thẻ "Trên máy này"
   await p.evaluate(() => window.CaroShell.open('more'));
@@ -219,8 +237,9 @@ const WIN = [3, 0];
     // Mở lại app khi còn ván chờ: hỏi tiếp
     await q.keyboard.press('Escape');
     await winLocal(q);
-    await q.reload();
-    await sleep(2500);
+    // Không chờ sự kiện load: Firefox (Playwright) có khi chờ mãi khi trang cũ còn Worker (như boat-rapfi.e2e.js)
+    await q.reload({ waitUntil: 'commit' });
+    await sleep(3000);
     ok(await askOpen(q), 'đóng app khi chưa trả lời: mở lại thì hỏi tiếp');
     await q.context().close();
   }
@@ -336,9 +355,94 @@ const WIN = [3, 0];
     await b.context().close();
   }
 
+  // ---------------------------------------------------------------- Quét 4 ngôn ngữ × 2 cỡ (có dữ liệu thật)
+  /** Khoá i18n lọt ra màn hình, phần tử tràn ngang, chữ tràn khỏi nút / nhãn (như journey.e2e.js). */
+  const audit = (pg) => pg.evaluate(() => {
+    const keyRe = /^[a-z][a-z0-9]*(_[a-z0-9-]+)+$/;
+    const raw = [], wide = [], clip = [];
+    const vis = (el) => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n; (n = walk.nextNode());) {
+      const t = n.textContent.trim();
+      if (t && keyRe.test(t) && n.parentElement && vis(n.parentElement) && !n.parentElement.closest('script,style')) raw.push(t);
+    }
+    document.querySelectorAll('[aria-label],[title]').forEach((el) => {
+      for (const a of ['aria-label', 'title']) { const v = el.getAttribute(a); if (v && keyRe.test(v)) raw.push(a + ':' + v); }
+    });
+    const vw = document.documentElement.clientWidth;
+    document.querySelectorAll('dialog[open] *').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (!r.width || !vis(el) || r.right <= vw + 1) return;
+      for (let q = el.parentElement; q; q = q.parentElement) if (['auto', 'scroll', 'hidden'].includes(getComputedStyle(q).overflowX)) return;
+      wide.push((el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + el.className) + ' ' + Math.round(r.right) + '>' + vw);
+    });
+    document.querySelectorAll('dialog[open] button, dialog[open] label, .page:not([hidden]) button, .page:not([hidden]) label').forEach((el) => {
+      if (!vis(el)) return;
+      const r = el.getBoundingClientRect();
+      for (const c of el.querySelectorAll('*')) {
+        const q = c.getBoundingClientRect();
+        if (vis(c) && q.width && (q.right > r.right + 1 || q.left < r.left - 1)) { clip.push('tràn "' + el.textContent.trim().slice(0, 30) + '"'); break; }
+      }
+    });
+    return [...new Set(raw)].concat([...new Set(wide)].slice(0, 4), [...new Set(clip)]);
+  });
+  for (const lang of ['vi', 'en', 'ru', 'zh']) {
+    for (const width of [360, 1280]) {
+      const q = await page(null, width);
+      await q.evaluate((l) => window.I18N.setLang(l), lang);
+      await q.evaluate(() => {
+        const s = window.CaroLocalHist.store;
+        const mv = (n) => Array.from({ length: n }, (_, i) => [i, i % 2]);
+        const id = s.add({ at: 1, kind: 'bot', bot: 'boat', me: 2, winner: 1, reason: 'timeout', rule: 'renju', timeLimit: 30, moves: mv(41) });
+        s.setAnalysis(id, { moves: [], evals: [] });
+        s.add({ at: 2, kind: 'pvp', me: 0, winner: 2, reason: 'win', rule: 'free', clock: '5+3', moves: mv(23) });
+        s.add({ at: 3, kind: 'online', account: true, me: 1, x: 'Người chơi có tên rất rất dài', o: 'Đối thủ cũng dài không kém', winner: 3, reason: 'draw', rule: 'vn', moves: mv(120), share: 'abc' });
+      });
+      const bad = [];
+      const check = async (where) => { const a = await audit(q); if (a.length) bad.push(where + ': ' + a.join(', ')); };
+      await q.evaluate(() => window.CaroHistory.openTab('local'));
+      await sleep(250);
+      await check('thẻ Trên máy này');
+      await q.click('#history-local [data-lh="select"]');
+      await q.click('#history-local [data-lh="all"]');
+      await sleep(150);
+      await check('chọn để xoá');
+      if (width === 360) await shot(q, `lh-${lang}-select-360.png`);
+      await q.evaluate(() => window.CaroHistory.openTab('online'));
+      await sleep(200);
+      await check('thẻ Online (khách)');
+      await q.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
+      // Hỏi lưu nhiều ván
+      await q.evaluate(() => {
+        const mv = (n) => Array.from({ length: n }, (_, i) => [i, i % 2]);
+        window.CaroLocalHist.store.setPending([
+          { at: 10, kind: 'bot', bot: 'ti', me: 1, winner: 1, reason: 'win', rule: 'vn', moves: mv(9) },
+          { at: 11, kind: 'online', me: 2, x: 'Khách-AB12', o: 'Khách-CD34', winner: 1, reason: 'resign', rule: 'std', moves: mv(30) },
+        ]);
+      });
+      await q.reload({ waitUntil: 'commit' });
+      await sleep(2500);
+      await q.evaluate((l) => window.I18N.setLang(l), lang);
+      await q.evaluate(() => window.CaroShell.open('more'));
+      await sleep(700);
+      ok(await askOpen(q), `${lang} ${width}px: hỏi lưu 2 ván chờ`);
+      await check('hỏi lưu 2 ván');
+      if (width === 360) await shot(q, `lh-${lang}-ask-360.png`);
+      await q.click('#lh-ask button[value=no]');
+      await q.click('#more-settings');
+      await sleep(200);
+      await q.click('#settings-form [data-go="localhist"]');
+      await sleep(200);
+      await check('Cài đặt → Lịch sử đấu trên máy này');
+      if (width === 360) await shot(q, `lh-${lang}-settings-360.png`);
+      ok(!bad.length, `${lang} ${width}px: lịch sử trên máy sạch (khoá dịch, tràn)` + (bad.length ? '\n    ' + bad.join('\n    ') : ''));
+      await q.context().close();
+    }
+  }
+
   // ---------------------------------------------------------------- Thiết bị
   {
-    const pc = await user('vi', 'dev_e2e');
+    const pc = await user('vi', 'maythu2');
     // Đăng nhập cùng tài khoản trên "điện thoại" khác
     const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0 Mobile Safari/537.36' });
     const phone = await phoneCtx.newPage();
@@ -346,7 +450,7 @@ const WIN = [3, 0];
     await phone.goto(`http://localhost:${PORT}/`);
     await sleep(500);
     await waitFor(phone, () => window.CaroOnline.connected);
-    await phone.evaluate(() => window.CaroOnline.send({ t: 'login', username: 'dev_e2e', password: 'caro-pass1' }));
+    await phone.evaluate(() => window.CaroOnline.send({ t: 'login', username: 'maythu2', password: 'caro-pass1' }));
     await sleep(800);
     ok(await phone.evaluate(() => !window.CaroOnline.state.me.guest), 'điện thoại đã đăng nhập');
     await pc.click('#tabbar [data-tab="more"]');
@@ -357,6 +461,13 @@ const WIN = [3, 0];
     const txt = (await pc.textContent('#devices-list')).replace(/\s+/g, ' ');
     ok(/Thiết bị này/.test(txt) && /Samsung Internet trên Android 14/.test(txt) && /SM-S918B/.test(txt) && /Đang trực tuyến/.test(txt) && /IP /.test(txt), 'tên thiết bị, trạng thái, IP: ' + txt.slice(0, 200));
     await shot(pc, 'devices.png');
+    // Mục Thiết bị ở 4 ngôn ngữ: không lọt khoá dịch, không tràn
+    for (const lang of ['en', 'ru', 'zh', 'vi']) {
+      await pc.evaluate((l) => window.I18N.setLang(l), lang);
+      await sleep(200);
+      const a = await audit(pc);
+      ok(!a.length && !/dev_|lh_/.test(await pc.textContent('#devices-card')), `Thiết bị (${lang}): sạch` + (a.length ? ' – ' + a.join(', ') : ''));
+    }
     await pc.click('#devices-list [data-drop]');
     await sleep(800);
     ok(await pc.locator('#devices-list li.dev').count() === 1, 'đăng xuất điện thoại: còn 1 thiết bị');

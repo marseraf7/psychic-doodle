@@ -28,7 +28,12 @@
   let pend = store.pending(); // các ván vừa xong chờ hỏi (còn từ lần mở app trước thì hỏi khi vào trang đầu tiên)
   const setPend = (list) => { pend = list; store.setPending(list); };
   let asking = []; // các ván đang hiện trong hộp thoại hỏi
-  let lastLocal = null; // ván trên máy vừa xong: { at, id (nếu đã tự lưu) } – để "Đi lại" huỷ
+  // Ván trên máy vừa xong: { at, id (nếu đã tự lưu) } – để "Đi lại" huỷ đúng ván đó. Giữ trong localStorage: tải lại trang
+  // (ván đã xong vẫn trên bàn) rồi mới đi lại vẫn tìm đúng ván, không đoán theo nước đi (2 ván có thể trùng nước đi).
+  const LAST = 'caro.lg.last';
+  let lastLocal = null;
+  try { lastLocal = JSON.parse(localStorage.getItem(LAST) || 'null'); } catch (e) { /* riêng tư */ }
+  const setLast = (v) => { lastLocal = v; try { if (v) localStorage.setItem(LAST, JSON.stringify(v)); else localStorage.removeItem(LAST); } catch (e) { /* riêng tư */ } };
 
   /** Ván online của tài khoản (máy chủ đã lưu) hay ván chỉ có trên máy. */
   const isAccount = (rec) => rec.kind === 'online' && !!rec.account;
@@ -52,12 +57,13 @@
   function capture(rec) {
     if (!LG.valid(rec)) return;
     const m = mode(rec);
-    if (rec.kind !== 'online') lastLocal = { at: rec.at, id: null };
+    const local = rec.kind !== 'online';
+    if (local) setLast({ at: rec.at, id: null });
     if (m === 'skip') return;
     if (m === 'save') {
       const id = store.add(rec);
       if (!id) toast(T('lh_full'), 4500);
-      else { changed(); if (lastLocal && rec.kind !== 'online') lastLocal.id = id; }
+      else { changed(); if (local) setLast({ at: rec.at, id }); }
       return;
     }
     setPend(pend.filter((p) => p.at !== rec.at).concat([rec]));
@@ -129,7 +135,7 @@
   window.addEventListener('caro:resultundo', () => {
     if (!lastLocal) return;
     const { at, id } = lastLocal;
-    lastLocal = null;
+    setLast(null);
     if (pend.some((r) => r.at === at)) setPend(pend.filter((r) => r.at !== at));
     if (id && store.remove([id])) changed();
   });
@@ -158,7 +164,7 @@
   }
 
   // Thoát ván: ván mới trên máy, về trang (cả khi mở lại app: trang đầu tiên hiện ra)
-  window.addEventListener('caro:newgame', exitGame);
+  window.addEventListener('caro:newgame', () => { setLast(null); exitGame(); }); // ván mới: không còn "đi lại" được ván cũ
   window.addEventListener('caro:page', (e) => { if (e.detail.id) setTimeout(exitGame, 300); });
   if (pend.length && !(window.CaroShell && window.CaroShell.visible)) setTimeout(exitGame, 1500); // mở app thẳng vào bàn cờ
 
@@ -207,7 +213,7 @@
       if (!n || !confirm(T('lh_confirm_clear', { n }))) return;
       store.clear();
       pend = [];
-      lastLocal = null;
+      setLast(null);
       toast(T('lh_deleted', { n }));
       changed();
     };
