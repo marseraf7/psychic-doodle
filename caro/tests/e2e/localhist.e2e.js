@@ -431,17 +431,18 @@ const WIN = [3, 0];
       await q.evaluate(() => window.CaroHistory.openTab('online'));
       await sleep(200);
       await check('thẻ Online (khách)');
-      await q.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
-      // Hỏi lưu nhiều ván
-      await q.evaluate(() => {
+      await q.context().close();
+      // Hỏi lưu nhiều ván: mở app với 2 ván chờ có sẵn (hồ sơ trình duyệt mới – không mở trang thứ hai trong cùng hồ sơ:
+      // Playwright-Firefox có khi không xong điều hướng)
+      q = await page(() => {
         const mv = (n) => Array.from({ length: n }, (_, i) => [i, i % 2]);
-        window.CaroLocalHist.store.setPending([
-          { at: 10, kind: 'bot', bot: 'ti', me: 1, winner: 1, reason: 'win', rule: 'vn', moves: mv(9) },
-          { at: 11, kind: 'online', me: 2, x: 'Khách-AB12', o: 'Khách-CD34', winner: 1, reason: 'resign', rule: 'std', moves: mv(30) },
-        ]);
-      });
-      q = await reopen(q);
-      await sleep(1000);
+        if (!localStorage.getItem('caro.lg.pending')) {
+          localStorage.setItem('caro.lg.pending', JSON.stringify([
+            { at: 10, kind: 'bot', bot: 'ti', me: 1, winner: 1, reason: 'win', rule: 'vn', moves: mv(9) },
+            { at: 11, kind: 'online', me: 2, x: 'Khách-AB12', o: 'Khách-CD34', winner: 1, reason: 'resign', rule: 'std', moves: mv(30) },
+          ]));
+        }
+      }, width);
       await q.evaluate((l) => window.I18N.setLang(l), lang);
       await q.evaluate(() => window.CaroShell.open('more'));
       await sleep(700);
