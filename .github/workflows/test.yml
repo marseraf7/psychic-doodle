@@ -24,7 +24,7 @@ jobs:
         working-directory: server
 
   # BOAT chạy Rapfi (WebAssembly) trong trình duyệt thật: 3 luật, luật Việt Nam, bộ nhớ đệm mạng, phân tích bằng Rapfi,
-  # mạng hỏng, trang giấy phép (caro/tests/e2e/boat-rapfi.e2e.js). Mạng NNUE (CC0, ~40 MB) tải 1 lần rồi giữ trong cache.
+  # mạng hỏng, trang giấy phép (caro/tests/e2e/boat-rapfi.e2e.js); Lịch sử đấu trên máy + Thiết bị (localhist.e2e.js). Mạng NNUE (CC0, ~40 MB) tải 1 lần rồi giữ trong cache.
   rapfi-e2e:
     runs-on: ubuntu-latest
     strategy:
@@ -57,6 +57,16 @@ jobs:
           sha256sum *.lz4
       - name: Kiểm thử trình duyệt BOAT – Rapfi
         run: E2E_BROWSER=${{ matrix.browser }} RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js
+      # Lịch sử đấu trên máy này (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, Cài đặt) + Thiết bị (localhist.e2e.js)
+      - name: Kiểm thử trình duyệt Lịch sử đấu trên máy + Thiết bị
+        timeout-minutes: 25
+        if: success() || failure()
+        run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/localhist.e2e.js
+      # Giả lập điện thoại cảm ứng (isMobile + hasTouch, UA Android)
+      - name: Kiểm thử trình duyệt Lịch sử đấu trên máy – giả lập điện thoại
+        timeout-minutes: 25
+        if: success() || failure()
+        run: E2E_MOBILE=1 E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots-mobile node caro/tests/e2e/localhist.e2e.js
       - uses: actions/upload-artifact@v7
         if: always()
         with:

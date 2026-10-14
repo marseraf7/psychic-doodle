@@ -135,11 +135,11 @@ npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu d
 ```
 
 Mã máy chủ: `server.js` (WebSocket), `src/web.js` (HTTP: file tĩnh, ảnh xem trước, thẻ og, API công khai),
-`src/png.js` (vẽ ảnh PNG), `src/store.js` (SQLite), `src/room.js` (một phòng chơi; đồng hồ ở
+`src/png.js` (vẽ ảnh PNG), `src/store.js` (SQLite; phiên đăng nhập + thông tin thiết bị ở `src/store-sessions.js`), `src/useragent.js` (đọc User-Agent cho mục Thiết bị), `src/room.js` (một phòng chơi; đồng hồ ở
 `src/room-clock.js`, luật Swap2 ở `src/room-swap2.js`, huỷ ván / thêm giờ / đi lại / Berserk ở `src/room-extras.js`),
 `src/rating.js` (Glicko-2), `src/perf.js` (thống kê sâu, hoạt động), `src/moderation.js` (kiểm duyệt nội dung),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
-`auth.js` (tài khoản, mật khẩu, email), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),
+`auth.js` (tài khoản, mật khẩu, email), `devices.js` (Thiết bị: tài khoản đang đăng nhập ở đâu, đăng xuất từ xa), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),
 `rooms.js` (phòng, ván đấu, thách đấu, điểm, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
 `watch.js` (xem trực tiếp, danh sách ván hay), `playban.js` (chống bỏ ván), `disputes.js` (ván giải đấu mất kết nối), `api.js` (số liệu quản trị, API công khai),
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),

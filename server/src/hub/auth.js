@@ -2,6 +2,7 @@
 'use strict';
 const crypto = require('crypto');
 const { hashPassword, checkPassword } = require('../store.js');
+const { sessionId } = require('../store-sessions.js');
 const { E, note } = require('../msg.js');
 const { weakPassword, isOffensiveName } = require('../moderation.js');
 const { cleanPublicName, USERNAME_RE, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanName, userPid, uidOf, compareVersions } = require('./shared.js');
@@ -13,6 +14,7 @@ class Auth {
   on_hello(conn, { token, guestKey, guestName, client }) {
     // App điện thoại quá cũ: không cho vào online (tránh lỗi khó hiểu khi giao thức đã đổi)
     const platform = client && typeof client.platform === 'string' ? client.platform : 'web';
+    conn.platform = ['web', 'android', 'ios'].includes(platform) ? platform : 'web'; // mục Thiết bị (devices.js)
     // Múi giờ của máy (phút lệch so với UTC): nhật ký hoạt động trên hồ sơ tính ngày theo giờ của người chơi
     const tz = client && Number(client.tz);
     conn.tz = Number.isInteger(tz) && tz >= -720 && tz <= 840 ? tz : null;
@@ -24,6 +26,7 @@ class Auth {
     const user = this.store.userByToken(token);
     if (user) {
       conn.token = token;
+      this.store.touchSession(token, { ip: conn.ip, ua: conn.ua, platform: conn.platform }); // lần hoạt động cuối của thiết bị
       this.attach(conn, userPid(user.id));
     } else {
       if (typeof guestKey !== 'string' || guestKey.length < 16 || guestKey.length > 128) throw E('no_guest_key');
@@ -135,6 +138,8 @@ class Auth {
     me.pass = hashPassword(next);
     this.store.touch(me);
     this.store.dropOtherSessions(me.id, conn.token); // đăng xuất các thiết bị khác
+    const keep = sessionId(conn.token);
+    this.kickSessions(me.id, (sid) => sid !== keep);
     for (const c of this.byPid.get(conn.pid) || []) c.send({ t: 'me', me: this.meView(conn.pid) });
     conn.send(note('password_changed'));
   }
@@ -234,6 +239,7 @@ class Auth {
     u.pass = hashPassword(password);
     this.store.touch(u);
     this.store.dropOtherSessions(u.id, null); // mật khẩu cũ có thể đã lộ: đăng xuất mọi nơi
+    this.kickSessions(u.id, () => true);
     this.loginConn(conn, u);
     conn.send(note('password_changed'));
   }

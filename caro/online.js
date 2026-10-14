@@ -727,17 +727,23 @@
     try { await navigator.clipboard.writeText(url); } catch (e) { prompt(T('share_game'), url); return; }
     toast(T('replay_copied'));
   }
+  /** Ván đã lưu trên máy chủ: dữ liệu, 'missing' (không còn) hoặc null (lỗi mạng). Dùng cả cho "Lưu về máy" (history.js). */
+  async function fetchReplay(share) {
+    if (!base || noServer) return null;
+    try {
+      const r = await fetch(base + '/api/replay/' + encodeURIComponent(share), { cache: 'no-store' });
+      if (r.status === 404) return 'missing';
+      if (!r.ok) throw new Error();
+      return await r.json();
+    } catch (e) { return null; }
+  }
   /** Tải ván đã lưu từ máy chủ rồi mở chế độ xem lại. */
   async function openReplay(share) {
     if (!base || noServer) return toast(T('replay_offline'));
     if (App.online) return toast(T('replay_leave_room'));
-    let data;
-    try {
-      const r = await fetch(base + '/api/replay/' + encodeURIComponent(share), { cache: 'no-store' });
-      if (r.status === 404) return toast(T('replay_not_found'));
-      if (!r.ok) throw new Error();
-      data = await r.json();
-    } catch (e) { return toast(T('replay_offline')); }
+    const data = await fetchReplay(share);
+    if (data === 'missing') return toast(T('replay_not_found'));
+    if (!data) return toast(T('replay_offline'));
     closeDlg('history');
     closeDlg('online');
     return App.openReplay(data);
@@ -750,7 +756,7 @@
   document.querySelectorAll('.licenses-link').forEach((a) => { a.href = privacyUrl.replace('privacy.html', 'licenses.html'); });
 
   window.CaroOnline = {
-    send, showBanner, shareReplay, renderInvites, roomActive, openReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
+    send, showBanner, shareReplay, renderInvites, roomActive, openReplay, fetchReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
     /** Kết nối (khi mở Trang chủ / Xem) – chỉ sau khi đã biết có máy chủ game. */
     connect: () => { if (serverChecked) connect(); },
     get connected() { return S.status === 'online'; },

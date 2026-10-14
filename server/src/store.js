@@ -15,8 +15,8 @@ const crypto = require('crypto');
 // Các lệnh chạy (npm start, Dockerfile, caro.service) dùng --disable-warning=ExperimentalWarning để ẩn.
 const { DatabaseSync } = require('node:sqlite');
 const { upgradePools } = require('./rating.js');
+const { Sessions, SESSION_TTL } = require('./store-sessions.js');
 
-const SESSION_TTL = 180 * 24 * 3600 * 1000;
 const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
 const RATING_POINTS_PER_USER = 400; // điểm vẽ biểu đồ trên trang hồ sơ
 const DM_PER_PAIR = 100;
@@ -56,7 +56,9 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS games_pair ON games (x_id, o_id, id);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
-const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT'], ['games', 'rule', 'TEXT']];
+// Phiên đăng nhập: thông tin thiết bị (mục Thiết bị – store-sessions.js)
+const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT'], ['games', 'rule', 'TEXT'],
+  ['sessions', 'platform', 'TEXT'], ['sessions', 'ua', 'TEXT'], ['sessions', 'ip', 'TEXT'], ['sessions', 'seen', 'INTEGER']];
 
 class Store {
   /**
@@ -81,8 +83,12 @@ class Store {
     const q = (sql) => this.db.prepare(sql);
     this.q = {
       upsertUser: q('INSERT INTO users (id, username, data) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET username = excluded.username, data = excluded.data'),
-      addSession: q('INSERT INTO sessions (hash, uid, created) VALUES (?, ?, ?)'),
-      getSession: q('SELECT uid, created FROM sessions WHERE hash = ?'),
+      addSession: q('INSERT INTO sessions (hash, uid, created, platform, ua, ip, seen) VALUES (?, ?, ?, ?, ?, ?, ?)'),
+      getSession: q('SELECT uid, created, seen, ip, ua, platform FROM sessions WHERE hash = ?'),
+      touchSession: q('UPDATE sessions SET seen = ?, ip = ?, ua = ?, platform = ? WHERE hash = ?'),
+      userSessions: q('SELECT hash, created, seen, platform, ua, ip FROM sessions WHERE uid = ? ORDER BY COALESCE(seen, created) DESC'),
+      dropSessionPrefix: q('DELETE FROM sessions WHERE uid = ? AND hash LIKE ?'),
+      pruneSessions: q('DELETE FROM sessions WHERE created < ?'),
       dropSession: q('DELETE FROM sessions WHERE hash = ?'),
       dropUserSessions: q('DELETE FROM sessions WHERE uid = ? AND hash <> ?'),
       addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves, clock, opening, rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'),
@@ -128,7 +134,7 @@ class Store {
       upsertTour: q('INSERT INTO tours (id, status, created, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data'),
     };
     for (const row of this.db.prepare('SELECT data FROM users').all()) this.index(this.upgrade(JSON.parse(row.data)));
-    this.db.prepare('DELETE FROM sessions WHERE created < ?').run(Date.now() - SESSION_TTL);
+    this.pruneSessions(Date.now(), true);
     if (legacyJson && !this.users.size) this.importLegacy(legacyJson);
   }
 
@@ -160,7 +166,7 @@ class Store {
         this.q.upsertUser.run(u.id, u.username, JSON.stringify(u));
       }
       for (const [hash, s] of Object.entries(data.sessions || {})) {
-        if (Date.now() - s.created < SESSION_TTL) this.q.addSession.run(hash, s.uid, s.created);
+        if (Date.now() - s.created < SESSION_TTL) this.q.addSession.run(hash, s.uid, s.created, null, null, null, s.created);
       }
       this.db.exec('COMMIT');
     } catch (e) {
@@ -285,29 +291,7 @@ class Store {
     return name;
   }
 
-  // ------------------------------------------------------------ Phiên đăng nhập
-  newSession(uid) {
-    const token = crypto.randomBytes(24).toString('base64url');
-    this.q.addSession.run(sha256(token), uid, Date.now());
-    return token;
-  }
-
-  userByToken(token) {
-    if (typeof token !== 'string' || !token || token.length > 100) return null;
-    const s = this.q.getSession.get(sha256(token));
-    if (!s) return null;
-    if (Date.now() - s.created > SESSION_TTL) { this.q.dropSession.run(sha256(token)); return null; }
-    return this.users.get(s.uid) || null;
-  }
-
-  dropSession(token) {
-    if (typeof token === 'string') this.q.dropSession.run(sha256(token));
-  }
-
-  /** Đăng xuất mọi thiết bị khác (sau khi đổi mật khẩu). */
-  dropOtherSessions(uid, keepToken) {
-    this.q.dropUserSessions.run(uid, keepToken ? sha256(keepToken) : '');
-  }
+  // Phiên đăng nhập: store-sessions.js (trộn vào cuối file)
 
   // ------------------------------------------------------------ Trận đấu
   /** Lưu một ván đã kết thúc; xId/oId là id tài khoản (null nếu là khách). Trả về mã chia sẻ. */
@@ -474,6 +458,11 @@ function checkPassword(password, pass) {
   if (!pass) return false;
   const h = crypto.scryptSync(password, pass.salt, 32);
   return crypto.timingSafeEqual(h, Buffer.from(pass.hash, 'hex'));
+}
+
+// Phiên đăng nhập / thiết bị (store-sessions.js)
+for (const name of Object.getOwnPropertyNames(Sessions.prototype)) {
+  if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(Sessions.prototype, name));
 }
 
 module.exports = { Store, hashPassword, checkPassword };

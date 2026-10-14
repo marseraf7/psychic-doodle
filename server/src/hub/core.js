@@ -210,7 +210,7 @@ class Hub {
   loginConn(conn, user) {
     const oldPid = conn.pid;
     const newPid = userPid(user.id);
-    const token = this.store.newSession(user.id);
+    const token = this.store.newSession(user.id, { platform: conn.platform, ua: conn.ua, ip: conn.ip }); // mục Thiết bị
     conn.token = token;
     if (oldPid !== newPid) {
       this.migrate(oldPid, newPid);
@@ -290,6 +290,7 @@ class Hub {
 
   sweep() {
     const now = Date.now();
+    this.store.pruneSessions(now); // phiên hết hạn (kèm IP, trình duyệt của mục Thiết bị): xoá mỗi ngày một lần
     for (const room of [...this.rooms.values()]) {
       for (const p of [...room.players]) {
         const off = this.offlineAt.get(p.id);

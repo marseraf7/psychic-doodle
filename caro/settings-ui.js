@@ -1,6 +1,6 @@
 /*
  * Trang Cài đặt dạng danh sách (như app Lichess): trang gốc gồm các hàng, bấm hàng có dấu › để mở trang con
- * (Âm thanh, Giao diện, Cài đặt bàn cờ, Ngôn ngữ, Ván cờ mặc định, Đối thủ máy).
+ * (Âm thanh, Giao diện, Cài đặt bàn cờ, Ngôn ngữ, Ván cờ mặc định, Đối thủ máy, Lịch sử đấu trên máy này – local-save.js).
  *   - Hàng ở trang gốc hiện giá trị đang chọn bên phải (chữ nhỏ, màu nhạt).
  *   - Trang Giao diện có bàn cờ xem trước, vẽ lại ngay khi đổi nền / màu bàn / kiểu quân.
  *   - Nút ‹ ở trang con: về trang gốc của Cài đặt; ở trang gốc: về Xem thêm (shell.js).
@@ -29,6 +29,7 @@
       lang: checkedText('lang'),
       game: [form.mode.value === 'pvp' ? T('mode_pvp') : T('mode_ai'), T('grule_s_' + form.rule.value), form.tc ? tcText(form.tc.value) : ''].filter(Boolean).join(' · '),
       bot: form.bot ? T('bot_' + form.bot.value) : '',
+      localhist: window.CaroLocalSave ? window.CaroLocalSave.valueText() : '', // Lịch sử đấu trên máy này (local-save.js)
     };
     form.querySelectorAll('[data-val]').forEach((el) => { el.textContent = v[el.dataset.val] || ''; });
   }
