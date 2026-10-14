@@ -469,7 +469,7 @@ const WIN = [3, 0];
     const phoneCtx = await browser.newContext({ ...NOSW, viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0 Mobile Safari/537.36' });
     const phone = await phoneCtx.newPage();
     phone.on('pageerror', (e) => errors.push('phone: ' + e.message));
-    await phone.goto(`http://localhost:${PORT}/`);
+    await gotoRetry(phone, `http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
     await sleep(500);
     await waitFor(phone, () => window.CaroOnline.connected);
     await phone.evaluate(() => window.CaroOnline.send({ t: 'login', username: 'maythu2', password: 'caro-pass1' }));
