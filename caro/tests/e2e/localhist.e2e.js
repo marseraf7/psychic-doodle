@@ -26,8 +26,12 @@ const WIN = [3, 0];
   } : {};
   async function page(init, width = 430) {
     const ctx = await browser.newContext({ viewport: { width, height: 860 }, ...MOBILE });
-    await ctx.addInitScript(() => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
+    // Xoá dữ liệu một lần cho mỗi hồ sơ trình duyệt (mở trang mới trong cùng hồ sơ thì giữ – như mở lại app)
+    await ctx.addInitScript(() => { if (!localStorage.getItem('e2e.init')) { localStorage.clear(); localStorage.setItem('e2e.init', '1'); localStorage.setItem('caro.lang', 'vi'); } });
     if (init) await ctx.addInitScript(init);
+    return open(ctx);
+  }
+  async function open(ctx) {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(e.message));
     p.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION/.test(m.text())) errors.push('console: ' + m.text()); });
@@ -36,6 +40,18 @@ const WIN = [3, 0];
     await sleep(600);
     return p;
   }
+  /**
+   * Đóng app rồi mở lại: trang mới trong cùng hồ sơ trình duyệt (localStorage giữ nguyên). Không dùng reload: Firefox
+   * (Playwright) có khi không bao giờ xong điều hướng khi trang cũ còn Worker (phân tích ngầm) – như boat-rapfi.e2e.js.
+   */
+  async function reopen(old) {
+    const p = await open(old.context());
+    await old.close();
+    await sleep(1500);
+    return p;
+  }
+  // Treo (page.evaluate không có giới hạn thời gian): báo lỗi thay vì chạy tới khi CI tự huỷ – bước cuối là dòng OK cuối
+  setTimeout(() => { console.log('FAIL kịch bản treo quá 20 phút'); process.exit(1); }, 20 * 60 * 1000).unref();
   const click = async (p, x, y) => {
     const [sx, sy] = await p.evaluate(([x, y]) => window.CaroApp.screenOf(x, y), [x, y]);
     await p.mouse.click(sx, sy);
@@ -59,7 +75,7 @@ const WIN = [3, 0];
   }
 
   // ---------------------------------------------------------------- Khách: hỏi lưu khi thoát ván
-  const p = await page();
+  let p = await page();
   ok(await waitFor(p, () => window.CaroOnline.connected), 'khách đã kết nối máy chủ');
   await winLocal(p);
   ok(await p.evaluate(() => window.CaroApp.local.winner === 1), 'X thắng ván 2 người trên máy');
@@ -123,8 +139,7 @@ const WIN = [3, 0];
   await sleep(400);
   ok(await count(p) === 3, 'thắng lại: lưu 1 ván, không trùng');
   // Tải lại trang rồi mới Đi lại: vẫn tìm đúng ván đã lưu để xoá
-  await p.reload({ waitUntil: 'commit' });
-  await sleep(2500);
+  p = await reopen(p);
   await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
   await p.evaluate(() => window.dispatchEvent(new Event('caro:board')));
   await sleep(200);
@@ -219,7 +234,7 @@ const WIN = [3, 0];
   // ---------------------------------------------------------------- Offline
   {
     // Không kết nối được máy chủ (mất mạng)
-    const q = await page(() => {
+    let q = await page(() => {
       window.WebSocket = function () { const o = { readyState: 3, send() {}, close() {} }; setTimeout(() => o.onclose && o.onclose(), 20); return o; };
     });
     await winLocal(q);
@@ -237,9 +252,8 @@ const WIN = [3, 0];
     // Mở lại app khi còn ván chờ: hỏi tiếp
     await q.keyboard.press('Escape');
     await winLocal(q);
-    // Không chờ sự kiện load: Firefox (Playwright) có khi chờ mãi khi trang cũ còn Worker (như boat-rapfi.e2e.js)
-    await q.reload({ waitUntil: 'commit' });
-    await sleep(3000);
+    q = await reopen(q);
+    await sleep(1500);
     ok(await askOpen(q), 'đóng app khi chưa trả lời: mở lại thì hỏi tiếp');
     await q.context().close();
   }
@@ -388,7 +402,7 @@ const WIN = [3, 0];
   });
   for (const lang of ['vi', 'en', 'ru', 'zh']) {
     for (const width of [360, 1280]) {
-      const q = await page(null, width);
+      let q = await page(null, width);
       await q.evaluate((l) => window.I18N.setLang(l), lang);
       await q.evaluate(() => {
         const s = window.CaroLocalHist.store;
@@ -420,8 +434,8 @@ const WIN = [3, 0];
           { at: 11, kind: 'online', me: 2, x: 'Khách-AB12', o: 'Khách-CD34', winner: 1, reason: 'resign', rule: 'std', moves: mv(30) },
         ]);
       });
-      await q.reload({ waitUntil: 'commit' });
-      await sleep(2500);
+      q = await reopen(q);
+      await sleep(1000);
       await q.evaluate((l) => window.I18N.setLang(l), lang);
       await q.evaluate(() => window.CaroShell.open('more'));
       await sleep(700);

@@ -59,10 +59,12 @@ jobs:
         run: E2E_BROWSER=${{ matrix.browser }} RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js
       # Lịch sử đấu trên máy này (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, Cài đặt) + Thiết bị (localhist.e2e.js)
       - name: Kiểm thử trình duyệt Lịch sử đấu trên máy + Thiết bị
+        timeout-minutes: 25
         if: success() || failure()
         run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/localhist.e2e.js
       # Giả lập điện thoại cảm ứng (isMobile + hasTouch, UA Android)
       - name: Kiểm thử trình duyệt Lịch sử đấu trên máy – giả lập điện thoại
+        timeout-minutes: 25
         if: success() || failure()
         run: E2E_MOBILE=1 E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots-mobile node caro/tests/e2e/localhist.e2e.js
       - uses: actions/upload-artifact@v7
