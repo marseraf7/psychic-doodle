@@ -155,11 +155,21 @@
 
   /** Hết ván với máy: người thắng thì mở khoá nhân vật kế tiếp. */
   function botGameOver() {
-    // Chuỗi ngày chơi / thành tích (habits.js)
-    window.dispatchEvent(new CustomEvent('caro:gameover', { detail: { mode: state.mode, won: state.mode === 'ai' && state.winner === state.human, bot: state.bot } }));
+    // Chuỗi ngày chơi / thành tích (habits.js); record: ván vừa xong cho Lịch sử đấu trên máy (local-save.js)
+    window.dispatchEvent(new CustomEvent('caro:gameover', { detail: { mode: state.mode, won: state.mode === 'ai' && state.winner === state.human, bot: state.bot, record: localRecord() } }));
     if (state.mode !== 'ai' || state.winner !== state.human) return;
     const t = unlockAfter(state.bot);
     if (t) setTimeout(() => toast(T(t.boss ? 'boss_unlocked' : 'tier_unlocked', { elo: t.elo }), 4500), 900);
+  }
+
+  /** Ván trên máy vừa kết thúc → bản ghi cho Lịch sử đấu trên máy (local-games.js). Tên bot / "Bạn" dịch lúc hiển thị. */
+  function localRecord() {
+    const ai = state.mode === 'ai';
+    return {
+      at: Date.now(), kind: ai ? 'bot' : 'pvp', bot: ai ? state.bot : null, me: ai ? state.human : 0, x: '', o: '',
+      winner: state.winner, reason: state.winReason === 'time' ? 'timeout' : 'win', rule: state.rule,
+      timeLimit: state.timeLimit || 0, clock: state.clockSpec || null, moves: state.board.moves.map((m) => [m.x, m.y]),
+    };
   }
 
   // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
@@ -243,6 +253,7 @@
 
   function newGame() {
     if (state.online || state.replay || state.ext) return;
+    window.dispatchEvent(new Event('caro:newgame')); // rời ván cũ: local-save.js hỏi lưu ván vừa xong
     state.board = new Board(state.rule);
     state.turn = X;
     state.winner = null;

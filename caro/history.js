@@ -4,7 +4,9 @@
  *   - Của người khác: mở từ hồ sơ; nếu họ để riêng tư thì hiện thông báo.
  *   - Mỗi ván: Xem lại, Phân tích (mở xem lại rồi bật bảng phân tích – chạy trên máy mình, không tốn máy chủ), Chia sẻ.
  *   - Mỗi lần tải 20 ván, nút "Tải thêm" lấy trang sau.
- * API: window.CaroHistory = { open(uid?, name?) }
+ * Lịch sử của mình có 2 thẻ: "Trên máy này" (ván lưu trong máy – local-history.js, mở được cả khi offline / là khách)
+ * và "Online" (ván lưu trên máy chủ – cần đăng nhập + có mạng). Mặc định: Online nếu đã đăng nhập và có mạng.
+ * API: window.CaroHistory = { open(uid?, name?), openTab('local' | 'online') }
  */
 (function () {
   'use strict';
@@ -26,14 +28,52 @@
   // Đang xem: { uid (null = của mình), name, owner, games, more, hidden, loading }
   let V = null;
 
+  const canOnline = () => !!(N.connected && S.me && !S.me.guest);
+
   function open(uid, name) {
-    if (!N.connected) return N.send({ t: 'noop' }); // báo chưa kết nối và thử kết nối lại
     const self = !uid || (S.me && uid === S.me.uid);
-    V = { uid: self ? null : uid, name: name || '', owner: null, games: [], more: false, hidden: false, loading: true };
+    if (self) return openTab(canOnline() ? 'online' : 'local');
+    if (!N.connected) return N.send({ t: 'noop' }); // báo chưa kết nối và thử kết nối lại
+    showTab('online', false);
+    V = { uid, name: name || '', owner: null, games: [], more: false, hidden: false, loading: true };
     render();
     N.openDlg('history');
-    N.send(self ? { t: 'history' } : { t: 'history', uid });
+    N.send({ t: 'history', uid });
   }
+
+  /** Lịch sử của mình, mở ở thẻ tab. */
+  function openTab(tab) {
+    N.openDlg('history');
+    showTab(tab, true);
+    $('history-title').textContent = T('history_title');
+    if (tab === 'local') { V = null; if (window.CaroLocalHist) window.CaroLocalHist.render(); return; }
+    if (!canOnline()) {
+      // Khách / không có mạng: giải thích, ván đã lưu trên máy ở thẻ bên cạnh
+      V = null;
+      const note = $('history-note');
+      note.hidden = false;
+      note.textContent = T(N.connected ? 'lh_online_need' : 'lh_online_offline');
+      $('history-vis').hidden = true;
+      $('history-list').innerHTML = '';
+      $('history-more').hidden = true;
+      if (!N.connected) N.connect();
+      return;
+    }
+    V = { uid: null, name: '', owner: null, games: [], more: false, hidden: false, loading: true };
+    render();
+    N.send({ t: 'history' });
+  }
+
+  /** Hiện thẻ tab; tabs = có thanh chọn thẻ (chỉ ở lịch sử của mình). */
+  function showTab(tab, tabs) {
+    $('history-tabs').hidden = !tabs;
+    const r = document.querySelector(`input[name="hist-tab"][value="${tab}"]`);
+    if (r) r.checked = true;
+    $('history-local').hidden = tab !== 'local';
+    $('history-online').hidden = tab !== 'online';
+    $('history-note').hidden = true;
+  }
+  document.querySelectorAll('input[name="hist-tab"]').forEach((r) => { r.onchange = () => openTab(r.value); });
   function loadMore() {
     if (!V || V.loading || !V.more || !V.games.length) return;
     V.loading = true;
@@ -114,7 +154,11 @@
     if (e.target.name === 'hist-vis') N.send({ t: 'setHistVis', vis: e.target.value });
   });
   $('history-more').onclick = loadMore;
-  window.addEventListener('langchange', () => { if (V && N.isOpen('history')) render(); });
+  window.addEventListener('langchange', () => {
+    if (!N.isOpen('history')) return;
+    if (V) render();
+    else if (!$('history-online').hidden) openTab('online');
+  });
 
-  window.CaroHistory = { open };
+  window.CaroHistory = { open, openTab };
 })();

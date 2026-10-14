@@ -157,6 +157,8 @@
       const res = await runAnalysis(moves, r.data.rule, progress, { evals, ms, rapfi: an.rapfi });
       if (!res || !mine()) return;
       cache.set(key, res);
+      // Lịch sử đấu trên máy (local-save.js) lưu kèm kết quả: mở lại ván không phải phân tích lại
+      window.dispatchEvent(new CustomEvent('caro:analyzed', { detail: { moves, rule: r.data.rule || 'vn', lg: r.data.lg || null, result: res } }));
       if (!same()) return;
       an.result = res;
       an.refining = null;
@@ -693,5 +695,8 @@
   document.querySelectorAll('.pz-mode').forEach((b) => { b.onclick = () => startMode(b.dataset.pz); });
   window.addEventListener('langchange', () => { if (an.result) renderPanel(); if (Trainer.active) Trainer.refresh(); });
 
-  window.CaroStudy = { analyze, openPuzzles, startMode, Trainer, loadPuzzles, pickNear, dailyPuzzle, get puzzles() { return puzzles; } };
+  /** Kết quả phân tích đã lưu sẵn (Lịch sử đấu trên máy): analyze() hiện ngay, không chạy lại. */
+  function prime(moves, rule, result) { if (result) cache.set((rule || 'vn') + JSON.stringify(moves), result); }
+
+  window.CaroStudy = { analyze, prime, openPuzzles, startMode, Trainer, loadPuzzles, pickNear, dailyPuzzle, get puzzles() { return puzzles; } };
 })();

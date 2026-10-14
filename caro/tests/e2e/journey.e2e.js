@@ -240,6 +240,9 @@ const { setup } = require('./helpers');
     await p.tap('#newgame-form input[name=mode][value=ai]');
     await p.tap('#newgame-form input[name=human][value="1"]');
     await p.tap('#newgame-form button[value=start]'); await sleep(300);
+    // Thoát ván vừa xong (khách): hỏi lưu vào Lịch sử đấu trên máy này (local-save.js)
+    ok(await p.isVisible('#lh-ask') && /khách/.test(await p.textContent('#lh-ask-why')), 'ván mới sau ván vừa xong: hỏi lưu lịch sử đấu trên máy');
+    await p.tap('#lh-ask button[value=no]'); await sleep(200);
     await tapCell(p, 0, 0);
     for (let k = 0; k < 40 && await nMoves(p) < 2; k++) await sleep(100);
     ok(await nMoves(p) === 2, 'đánh với máy: máy trả lời');

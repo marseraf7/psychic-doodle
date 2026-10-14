@@ -210,7 +210,7 @@ class Hub {
   loginConn(conn, user) {
     const oldPid = conn.pid;
     const newPid = userPid(user.id);
-    const token = this.store.newSession(user.id);
+    const token = this.store.newSession(user.id, { platform: conn.platform, ua: conn.ua, ip: conn.ip }); // mục Thiết bị
     conn.token = token;
     if (oldPid !== newPid) {
       this.migrate(oldPid, newPid);

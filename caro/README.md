@@ -298,6 +298,18 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 - **Lịch sử đấu** (`history.js`, máy chủ `server/src/hub/history.js`): lưu tối đa 300 ván / tài khoản, mỗi lần tải 20 ván.
   Chủ lịch sử chọn ai xem được: Công khai · Bạn bè · Chỉ mình tôi. Xem lịch sử người khác từ hồ sơ của họ;
   mỗi ván có Xem lại, Phân tích (chạy trên máy người xem), Chia sẻ.
+- **Lịch sử đấu trên máy này** (`local-games.js` kho, `local-history.js` danh sách, `local-save.js` hỏi lưu + cài đặt):
+  hộp thoại Lịch sử đấu có 2 thẻ *Trên máy này* · *Online*; mở được cả khi offline / là khách. Ván với máy, 2 người trên
+  một máy và ván online chơi bằng tài khoản khách (máy chủ không lưu) được lưu ngay trên thiết bị – localStorage, khoá
+  `caro.lg.*`, tối đa 200 ván, không gửi lên máy chủ. Chơi xong rồi thoát ván (ván mới, rời phòng, về trang, mở lại app)
+  thì hỏi "Bạn đang offline / đang chơi bằng tài khoản khách… lưu lịch sử đấu trên máy này?" (có "Luôn lưu, không hỏi lại").
+  Phân tích ván đã lưu thì lưu kèm kết quả (mở lại hiện ngay). Đầu thẻ ghi nơi lưu + dung lượng; "Chọn để xoá" chọn nhiều
+  ván / tất cả – xoá là xoá hẳn khỏi bộ nhớ máy, không cần thêm bước nào. Cài đặt → *Lịch sử đấu trên máy này*: bật / tắt lưu,
+  bật / tắt hỏi, nơi lưu + dung lượng, mở danh sách, xoá toàn bộ.
+- **Thiết bị** (`devices.js`, máy chủ `server/src/hub/devices.js`): Cài đặt tài khoản (hoặc Xem thêm → Thiết bị) liệt kê
+  nơi tài khoản đang đăng nhập như Google / Telegram – app hay trình duyệt, hệ điều hành, đời máy, IP, đăng nhập lúc nào,
+  hoạt động lần cuối / đang trực tuyến; đăng xuất từng thiết bị hoặc mọi thiết bị khác (thiết bị đó về làm khách ngay).
+  Đổi mật khẩu cũng đăng xuất ngay các thiết bị khác đang mở.
 - Các hộp thoại cũ (Online, Giải đố, Học chơi, Cài đặt) được `CaroShell.proxy()` chuyển thành trang: mã cũ vẫn gọi
   `showModal()` / `close()` như trước.
 - **Phông Noto Sans** (giống Lichess), lưu trong `fonts/`, không tải từ dịch vụ ngoài; đủ dấu tiếng Việt và chữ Nga,
@@ -330,6 +342,7 @@ node caro/tests/e2e/live.e2e.js          # phân tích ngầm khi chơi (hết v
 node caro/tests/e2e/play2.e2e.js         # đồng hồ + Swap2, xem trực tiếp, hồ sơ, học chơi, thành tích, chia sẻ ảnh/GIF, bàn cờ
 node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại, +15 giây, thống kê sâu, số liệu máy chủ, ván giải mất kết nối, Storm, ảnh og
 node caro/tests/e2e/boat-rapfi.e2e.js    # BOAT chạy Rapfi ở 3 luật + Rapfi-CARO ở luật Việt Nam, mạng lấy từ bộ nhớ đệm, trang giấy phép (RAPFI_NETS=<thư mục mạng> nếu không ra được Internet)
+node caro/tests/e2e/localhist.e2e.js     # Lịch sử đấu trên máy (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, phân tích lưu kèm, Cài đặt), Thiết bị
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
 ```
 
@@ -383,7 +396,9 @@ node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét m�
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |
-| `history.js`, `i18n-history.js` | Lịch sử đấu: quyền xem, danh sách ván, xem lại, phân tích |
+| `history.js`, `i18n-history.js` | Lịch sử đấu: thẻ Trên máy này / Online, quyền xem, danh sách ván, xem lại, phân tích |
+| `local-games.js`, `local-history.js`, `local-save.js`, `i18n-local.js` | Lịch sử đấu trên máy này: kho ván (localStorage), danh sách + chọn nhiều để xoá, hỏi lưu khi thoát ván, Cài đặt |
+| `devices.js`, `i18n-devices.js` | Thiết bị: nơi tài khoản đang đăng nhập, đăng xuất từ xa |
 | `timectl.js`, `tc-picker.js`, `local-clock.js`, `setup.css` | Mức thời gian cho phép (dùng chung máy chủ); bộ chọn thời gian; đồng hồ tổng khi chơi trên máy; giao diện Thiết lập ván đấu |
 | `player-strips.js`, `game.css`, `puzzle-home.js`, `pages.css` | Thẻ người chơi + thanh công cụ màn chơi; thẻ Câu đố hôm nay; kiểu danh sách của tab Câu đố / Học tập / Xem |
 | `index.html`, `style.css` | Giao diện |

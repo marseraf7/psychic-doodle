@@ -168,6 +168,7 @@
     $('email-form').email.value = (S.me && S.me.email) || '';
     $('email-form').password.value = '';
     N.openDlg('account-dlg');
+    if (window.CaroDevices) window.CaroDevices.load(); // Thiết bị đang đăng nhập (devices.js)
   }
   function fillAccount() {
     const me = S.me;
@@ -326,10 +327,16 @@
   }
 
   function open(what) {
+    // Lịch sử đấu mở được cả khi offline: thẻ "Trên máy này" (local-history.js)
+    if (what === 'history') return window.CaroHistory.open();
     if (!N.connected) return N.send({ t: 'noop' }); // báo chưa kết nối và thử kết nối lại
-    if (what === 'history') window.CaroHistory.open();
-    else if (what === 'leaderboard') openLeaderboard();
-    else if (what === 'account') openAccount();
+    if (what === 'leaderboard') openLeaderboard();
+    else if (what === 'account' || what === 'devices') {
+      if (!S.me || S.me.guest) return N.toast(T('srv_need_account'));
+      openAccount();
+      // Hàng "Thiết bị" ở Xem thêm: cuộn tới mục Thiết bị trong Cài đặt tài khoản
+      if (what === 'devices') setTimeout(() => $('devices-card').scrollIntoView({ block: 'start' }), 60);
+    }
   }
 
   window.CaroSocial = { open, openChat, openReport, errorTarget };

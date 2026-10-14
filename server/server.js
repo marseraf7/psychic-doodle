@@ -72,6 +72,7 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
     };
     const conn = {
       ip,
+      ua: String(req.headers['user-agent'] || '').slice(0, 300), // mục Thiết bị (hub/devices.js)
       send: (obj) => sendRaw(JSON.stringify(obj)),
       // Tin đã chuyển JSON sẵn (trang giải, người xem ván: phần chung dựng một lần cho mọi người)
       sendRaw,
