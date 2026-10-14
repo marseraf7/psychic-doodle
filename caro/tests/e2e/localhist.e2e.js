@@ -24,8 +24,11 @@ const WIN = [3, 0];
     isMobile: process.env.E2E_BROWSER !== 'firefox', hasTouch: true,
     userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36',
   } : {};
+  // Chặn Service Worker (sw.js – không phải thứ đang kiểm thử): Playwright hỗ trợ Service Worker trên Firefox rất hạn
+  // chế, mở trang thứ hai trong cùng hồ sơ có khi không bao giờ xong điều hướng (CI Firefox)
+  const NOSW = { serviceWorkers: 'block' };
   async function page(init, width = 430) {
-    const ctx = await browser.newContext({ viewport: { width, height: 860 }, ...MOBILE });
+    const ctx = await browser.newContext({ viewport: { width, height: 860 }, ...MOBILE, ...NOSW });
     // Xoá dữ liệu một lần cho mỗi hồ sơ trình duyệt (mở trang mới trong cùng hồ sơ thì giữ – như mở lại app)
     await ctx.addInitScript(() => { if (!localStorage.getItem('e2e.init')) { localStorage.clear(); localStorage.setItem('e2e.init', '1'); localStorage.setItem('caro.lang', 'vi'); } });
     if (init) await ctx.addInitScript(init);
@@ -34,6 +37,7 @@ const WIN = [3, 0];
   async function open(ctx) {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(e.message));
+    p.on('crash', () => { errors.push('trang bị sập (crash)'); console.log('FAIL trang bị sập (crash)'); });
     p.on('console', (m) => { if (m.type() === 'error' && !/WebSocket|ERR_CONNECTION/.test(m.text())) errors.push('console: ' + m.text()); });
     p.on('dialog', (d) => d.accept());
     // Chờ app dựng xong thay vì sự kiện load: Firefox có khi trễ load rất lâu khi đã mở nhiều hồ sơ trình duyệt
@@ -311,8 +315,8 @@ const WIN = [3, 0];
 
   // ---------------------------------------------------------------- Ván online của tài khoản
   {
-    const a = await user('vi', 'lh_acc_a');
-    const b = await user('vi', 'lh_acc_b');
+    const a = await user('vi', 'lh_acc_a', 430, NOSW);
+    const b = await user('vi', 'lh_acc_b', 430, NOSW);
     await a.evaluate(() => window.CaroLocalHist.store.setSettings({ online: 'off' }));
     async function onlineGame() {
       await a.evaluate(() => window.CaroOnline.send({ t: 'createRoom', timeLimit: 0, public: true }));
@@ -458,9 +462,9 @@ const WIN = [3, 0];
 
   // ---------------------------------------------------------------- Thiết bị
   {
-    const pc = await user('vi', 'maythu2');
+    const pc = await user('vi', 'maythu2', 430, NOSW);
     // Đăng nhập cùng tài khoản trên "điện thoại" khác
-    const phoneCtx = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0 Mobile Safari/537.36' });
+    const phoneCtx = await browser.newContext({ ...NOSW, viewport: { width: 390, height: 844 }, userAgent: 'Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/25.0 Chrome/121.0 Mobile Safari/537.36' });
     const phone = await phoneCtx.newPage();
     phone.on('pageerror', (e) => errors.push('phone: ' + e.message));
     await phone.goto(`http://localhost:${PORT}/`);

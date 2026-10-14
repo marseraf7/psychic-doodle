@@ -36,11 +36,13 @@ async function setup(port, timers = {}) {
   const shot = (page, name) => page.screenshot({ path: path.join(out, name), fullPage: true });
 
   /** Người chơi mới: mở trang, vào Online, đăng ký tài khoản. */
-  async function user(lang, name, width = 430) {
-    const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+  /** ctxOpts: thêm tuỳ chọn hồ sơ trình duyệt (vd. { serviceWorkers: 'block' }). */
+  async function user(lang, name, width = 430, ctxOpts = {}) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 }, ...ctxOpts });
     await ctx.addInitScript((l) => { localStorage.setItem('caro.lang', l); }, lang);
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(name + ': ' + e.message));
+    p.on('crash', () => errors.push(name + ': trang bị sập (crash)'));
     p.on('console', (m) => { if (m.type() === 'error') errors.push(name + ' console: ' + m.text()); });
     p.on('dialog', (d) => d.accept(d.type() === 'prompt' ? 'Tên chưa phù hợp' : undefined));
     // Đếm số bản vá trang giải nhận được (cập nhật chỉ gửi phần đổi)
