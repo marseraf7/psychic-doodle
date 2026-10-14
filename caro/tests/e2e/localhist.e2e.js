@@ -406,12 +406,14 @@ const WIN = [3, 0];
     });
     return [...new Set(raw)].concat([...new Set(wide)].slice(0, 4), [...new Set(clip)]);
   });
-  for (const lang of ['vi', 'en', 'ru', 'zh']) {
-    for (const width of [360, 1280]) {
-      let q = await page(null, width);
+  // Mỗi cỡ màn hình một hồ sơ trình duyệt (Firefox – Playwright kẹt khi mở quá nhiều hồ sơ), đổi ngôn ngữ ngay trong trang
+  for (const width of [360, 1280]) {
+    const q = await page(null, width);
+    for (const lang of ['vi', 'en', 'ru', 'zh']) {
       await q.evaluate((l) => window.I18N.setLang(l), lang);
       await q.evaluate(() => {
         const s = window.CaroLocalHist.store;
+        s.clear();
         const mv = (n) => Array.from({ length: n }, (_, i) => [i, i % 2]);
         const id = s.add({ at: 1, kind: 'bot', bot: 'boat', me: 2, winner: 1, reason: 'timeout', rule: 'renju', timeLimit: 30, moves: mv(41) });
         s.setAnalysis(id, { moves: [], evals: [] });
@@ -422,6 +424,7 @@ const WIN = [3, 0];
       const check = async (where) => { const a = await audit(q); if (a.length) bad.push(where + ': ' + a.join(', ')); };
       await q.evaluate(() => window.CaroHistory.openTab('local'));
       await sleep(250);
+      if (await q.isVisible('#history-local [data-lh="done"]')) await q.click('#history-local [data-lh="done"]'); // lần trước còn đang chọn
       await check('thẻ Trên máy này');
       await q.click('#history-local [data-lh="select"]');
       await q.click('#history-local [data-lh="all"]');
@@ -431,25 +434,21 @@ const WIN = [3, 0];
       await q.evaluate(() => window.CaroHistory.openTab('online'));
       await sleep(200);
       await check('thẻ Online (khách)');
-      await q.context().close();
-      // Hỏi lưu nhiều ván: mở app với 2 ván chờ có sẵn (hồ sơ trình duyệt mới – không mở trang thứ hai trong cùng hồ sơ:
-      // Playwright-Firefox có khi không xong điều hướng)
-      q = await page(() => {
+      await q.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
+      // Hỏi lưu nhiều ván: 2 ván vừa xong (như khi chơi thật), rồi thoát ván (về trang)
+      await q.evaluate(() => {
         const mv = (n) => Array.from({ length: n }, (_, i) => [i, i % 2]);
-        if (!localStorage.getItem('caro.lg.pending')) {
-          localStorage.setItem('caro.lg.pending', JSON.stringify([
-            { at: 10, kind: 'bot', bot: 'ti', me: 1, winner: 1, reason: 'win', rule: 'vn', moves: mv(9) },
-            { at: 11, kind: 'online', me: 2, x: 'Khách-AB12', o: 'Khách-CD34', winner: 1, reason: 'resign', rule: 'std', moves: mv(30) },
-          ]));
-        }
-      }, width);
-      await q.evaluate((l) => window.I18N.setLang(l), lang);
-      await q.evaluate(() => window.CaroShell.open('more'));
+        window.CaroLocalSave.capture({ at: 10, kind: 'bot', bot: 'ti', me: 1, winner: 1, reason: 'win', rule: 'vn', moves: mv(9) });
+        window.CaroLocalSave.capture({ at: 11, kind: 'online', me: 2, x: 'Khách-AB12', o: 'Khách-CD34', winner: 1, reason: 'resign', rule: 'std', moves: mv(30) });
+        window.CaroShell.open('more');
+      });
       await sleep(700);
       ok(await askOpen(q), `${lang} ${width}px: hỏi lưu 2 ván chờ`);
       await check('hỏi lưu 2 ván');
       if (width === 360) await shot(q, `lh-${lang}-ask-360.png`);
       await q.click('#lh-ask button[value=no]');
+      await sleep(600);
+      ok(!(await askOpen(q)), `${lang} ${width}px: Không lưu – không hỏi lại`);
       await q.click('#more-settings');
       await sleep(200);
       await q.click('#settings-form [data-go="localhist"]');
@@ -457,8 +456,10 @@ const WIN = [3, 0];
       await check('Cài đặt → Lịch sử đấu trên máy này');
       if (width === 360) await shot(q, `lh-${lang}-settings-360.png`);
       ok(!bad.length, `${lang} ${width}px: lịch sử trên máy sạch (khoá dịch, tràn)` + (bad.length ? '\n    ' + bad.join('\n    ') : ''));
-      await q.context().close();
+      await q.evaluate(() => { document.querySelectorAll('dialog[open]').forEach((d) => d.close()); window.CaroShell.open('home'); });
+      await sleep(200);
     }
+    await q.context().close();
   }
 
   // ---------------------------------------------------------------- Thiết bị

@@ -77,7 +77,7 @@
 
   /** Người chơi rời ván: có ván chờ thì hỏi lưu (một lần cho mọi ván chờ). */
   function exitGame() {
-    if (!pend.length || $('lh-ask').open || busy()) return;
+    if (!pend.length || asking.length || $('lh-ask').open || busy()) return; // đang hỏi dở: không hỏi chồng
     const auto = pend.filter((r) => mode(r) === 'save');
     const ask = pend.filter((r) => mode(r) === 'ask');
     if (auto.length) save(auto, true);
@@ -107,14 +107,25 @@
     }).join('');
     $('lh-ask-form').always.checked = false;
     const d = $('lh-ask');
-    d.returnValue = '';
     if (d.showModal) d.showModal(); else d.setAttribute('open', '');
   }
-  $('lh-ask').addEventListener('close', () => {
+  /**
+   * Trả lời ngay khi bấm nút (không đợi sự kiện close: WebKit phát close trễ một nhịp – trong lúc đó một lần "thoát ván"
+   * khác có thể thấy hộp thoại đã đóng mà ván chờ chưa bỏ, rồi hỏi lại lần nữa).
+   */
+  $('lh-ask-form').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ans]');
+    if (!b || !asking.length) return;
+    answer(b.dataset.ans);
+    const d = $('lh-ask');
+    if (d.close) d.close(); else d.removeAttribute('open');
+  });
+  // Esc / chạm ra ngoài: giữ ván chờ, hỏi lại lần thoát sau
+  // (close đến trễ: nếu đã mở câu hỏi mới thì không xoá nó)
+  $('lh-ask').addEventListener('close', () => { if (!$('lh-ask').open) asking = []; });
+  function answer(rv) {
     const list = asking;
     asking = [];
-    const rv = $('lh-ask').returnValue;
-    if (rv !== 'yes' && rv !== 'no') return; // Esc / chạm ra ngoài: giữ ván chờ, hỏi lại lần thoát sau
     const done = new Set(list.map((r) => r.at));
     setPend(pend.filter((r) => !done.has(r.at)));
     if (rv === 'no') return;
@@ -126,7 +137,7 @@
       fillSettings();
     }
     save(chosen);
-  });
+  }
 
   // ---------------------------------------------------------------- Bắt ván vừa xong
   // Ván trên máy (với máy / 2 người): app.js gửi kèm bản ghi
