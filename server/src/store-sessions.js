@@ -58,6 +58,13 @@ class Sessions {
     return Number(this.q.dropSessionPrefix.run(uid, id + '%').changes) > 0;
   }
 
+  /** Xoá phiên quá hạn (gọi mỗi phút từ hub.sweep, chỉ chạy thật mỗi ngày một lần). Trả về số phiên đã xoá. */
+  pruneSessions(now = Date.now(), force = false) {
+    if (!force && now - (this.sessionsPrunedAt || 0) < 24 * 3600 * 1000) return 0;
+    this.sessionsPrunedAt = now;
+    return Number(this.q.pruneSessions.run(now - SESSION_TTL).changes);
+  }
+
   dropSession(token) {
     if (typeof token === 'string') this.q.dropSession.run(sha256(token));
   }

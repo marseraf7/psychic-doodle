@@ -398,6 +398,14 @@
         <label class="li"><span class="li-t"><span data-i18n="lh_set_on"></span><small data-i18n="lh_set_on_hint"></small></span><input type="checkbox" class="tog" name="lhOn"></label>
         <label class="li" id="lh-ask-row"><span class="li-t"><span data-i18n="lh_set_ask"></span><small data-i18n="lh_set_ask_hint"></small></span><input type="checkbox" class="tog" name="lhAsk"></label>
       </div>
+      <!-- Ván online của tài khoản (máy chủ đã lưu): có lưu thêm bản trên máy không -->
+      <h3 class="list-h" data-i18n="lh_set_online"></h3>
+      <div class="list" id="lh-online-list">
+        <label class="li"><span class="li-t"><span data-i18n="lh_online_off"></span></span><input type="radio" name="lhOnline" value="off"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="lh_online_all"></span></span><input type="radio" name="lhOnline" value="all"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="lh_online_ask"></span><small data-i18n="lh_online_ask_hint"></small></span><input type="radio" name="lhOnline" value="ask"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <p class="hint pad" data-i18n="lh_set_online_hint"></p>
       <h3 class="list-h" data-i18n="lh_where"></h3>
       <div class="list">
         <div class="li lh-store"><svg class="ico li-ic" aria-hidden="true"><use href="#i-disk"/></svg><span class="li-t"><span id="lh-set-where"></span><small id="lh-set-usage"></small></span></div>
@@ -674,6 +682,7 @@
         <!-- Lịch sử đấu online (history.js): quyền xem (của mình), danh sách ván, tải thêm -->
         <p class="hint" id="history-note" hidden></p>
         <div class="hist-vis" id="history-vis" hidden></div>
+        <div class="row lh-tools" id="history-save-all" hidden><button type="button" class="ghost sm"><svg class="ico i-in" aria-hidden="true"><use href="#i-disk"/></svg><span data-i18n="lh_save_all_dev"></span></button></div>
         <ul class="games" id="history-list"></ul>
         <button type="button" class="ghost wide" id="history-more" data-i18n="hist_more" hidden></button>
       </div>
@@ -875,8 +884,9 @@
         <h2 data-i18n="lh_ask_title" tabindex="-1" autofocus></h2>
       </div>
       <p class="lh-why" id="lh-ask-why"></p>
-      <p class="lh-game" id="lh-ask-game"></p>
-      <p data-i18n="lh_ask_q"></p>
+      <ul class="games lh-list lh-ask-list" id="lh-ask-list"></ul>
+      <p id="lh-ask-q"></p>
+      <p class="hint" id="lh-ask-pick" data-i18n="lh_ask_pick" hidden></p>
       <label class="li lh-always"><span class="li-t"><span data-i18n="lh_ask_always"></span></span><input type="checkbox" class="tog" name="always"></label>
       <p class="hint" data-i18n="lh_ask_hint"></p>
       <div class="row end">

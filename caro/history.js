@@ -111,6 +111,10 @@
         `<label><input type="radio" name="hist-vis" value="${v}"${o.vis === v ? ' checked' : ''}> <span>${esc(T('hist_vis_' + v))}</span></label>`).join('')}</div>`;
     }
     const el = $('history-list');
+    // Của mình: lưu ván online về máy (Lịch sử đấu trên máy này – local-history.js), từng ván hoặc tất cả ván đang hiện
+    const LH = window.CaroLocalHist;
+    const mine = !!(o && o.self);
+    $('history-save-all').hidden = !(mine && LH && V.games.some((g) => !LH.store.findShare(g.share)));
     if (V.hidden) el.innerHTML = `<li class="empty">${esc(T('hist_hidden', { name }))}</li>`;
     else if (V.loading && !V.games.length) el.innerHTML = '<li class="empty">…</li>';
     else if (!V.games.length) el.innerHTML = `<li class="empty">${esc(T('no_history'))}</li>`;
@@ -122,6 +126,9 @@
           <div class="pn"><b>${esc(T('vs', { name: g.opponent || T('deleted_player') }))}</b>
             <small>${esc(when(g.created))} · ${esc(window.I18N.tc(g.timeLimit, g.clock))}${esc(window.I18N.ruleTag(g.rule))} · ${esc(T('n_moves', { n: g.moves }))}${esc(how)}</small></div>
           <div class="hist-acts">
+            ${mine && LH ? (LH.store.findShare(g.share)
+    ? `<span class="lh-an lh-saved" title="${esc(T('lh_saved_dev'))}"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>`
+    : `<button type="button" class="ghost sm icon" data-save="${i}" title="${esc(T('lh_save_dev'))}" aria-label="${esc(T('lh_save_dev'))}"><svg class="ico" aria-hidden="true"><use href="#i-disk"/></svg></button>`) : ''}
             <button type="button" class="ghost sm icon" data-share="${i}" title="${esc(T('share_game'))}" aria-label="${esc(T('share_game'))}"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg></button>
             <button type="button" class="ghost sm" data-analyze="${i}"><svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg>${esc(T('hist_analyze'))}</button>
             <button type="button" class="primary sm" data-replay="${i}">${esc(T('replay'))}</button>
@@ -140,11 +147,37 @@
     return g.mySide === 1 ? { x: ownerName, o: opp } : { x: opp, o: ownerName };
   }
 
+  /** Lưu các ván online (của mình) về máy: tải nước đi từ máy chủ rồi ghi vào Lịch sử đấu trên máy này. */
+  async function saveLocal(games) {
+    const LH = window.CaroLocalHist;
+    if (!LH || saving) return;
+    saving = true;
+    let n = 0, fail = false;
+    for (const g of games) {
+      if (LH.store.findShare(g.share)) continue;
+      const d = await N.fetchReplay(g.share);
+      if (!d) { fail = true; break; }
+      if (d === 'missing') continue;
+      const id = LH.store.add({
+        at: g.created, kind: 'online', account: true, me: g.mySide, x: d.x, o: d.o, winner: d.winner, reason: d.reason,
+        rule: d.rule, timeLimit: d.timeLimit, clock: d.clock, moves: d.moves, share: g.share,
+      });
+      if (id) n++; else if (d.moves && d.moves.length) { N.toast(T('lh_full'), 4500); break; }
+    }
+    saving = false;
+    if (fail) N.toast(T('replay_offline'));
+    if (n) { N.toast(T('lh_saved_n', { n })); window.dispatchEvent(new CustomEvent('caro:localhist')); }
+    if (V) render();
+  }
+  let saving = false;
+  $('history-save-all').onclick = () => { if (V) saveLocal(V.games); };
+
   $('history-list').addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-replay], [data-analyze], [data-share]');
+    const b = e.target.closest('[data-replay], [data-analyze], [data-share], [data-save]');
     if (!b || !V) return;
-    const g = V.games[Number(b.dataset.replay ?? b.dataset.analyze ?? b.dataset.share)];
+    const g = V.games[Number(b.dataset.replay ?? b.dataset.analyze ?? b.dataset.share ?? b.dataset.save)];
     if (!g) return;
+    if (b.dataset.save !== undefined) return saveLocal([g]);
     if (b.dataset.share !== undefined) return N.shareReplay({ share: g.share, ...names(g) });
     const ok = await N.openReplay(g.share);
     // Phân tích: chạy trên máy người xem (Web Worker), máy chủ chỉ gửi danh sách nước

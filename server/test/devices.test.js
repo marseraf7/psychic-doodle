@@ -100,6 +100,12 @@ test('store: phiên có thông tin thiết bị, cập nhật lần hoạt độ
   assert.strictEqual(s.dropSessionById(u.id, id2), true);
   assert.strictEqual(s.userByToken(t2), null);
   assert.strictEqual(s.userByToken(t1), u);
+  // Phiên quá hạn bị dọn định kỳ (cả IP / trình duyệt đi kèm), mỗi ngày một lần
+  s.db.prepare('UPDATE sessions SET created = 1').run();
+  const day = Date.now();
+  assert.strictEqual(s.pruneSessions(day), 0, 'vừa dọn lúc mở CSDL: chưa tới hạn dọn lại');
+  assert.strictEqual(s.pruneSessions(day + 25 * 3600 * 1000), 1);
+  assert.deepStrictEqual(s.sessionsOf(u.id), []);
 });
 
 test('Thiết bị: xem danh sách, đăng xuất một thiết bị, đăng xuất mọi thiết bị khác', async () => {

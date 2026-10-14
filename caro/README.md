@@ -303,9 +303,12 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   một máy và ván online chơi bằng tài khoản khách (máy chủ không lưu) được lưu ngay trên thiết bị – localStorage, khoá
   `caro.lg.*`, tối đa 200 ván, không gửi lên máy chủ. Chơi xong rồi thoát ván (ván mới, rời phòng, về trang, mở lại app)
   thì hỏi "Bạn đang offline / đang chơi bằng tài khoản khách… lưu lịch sử đấu trên máy này?" (có "Luôn lưu, không hỏi lại").
+  Nhiều ván chờ (tái đấu, loạt Bo3) thì hỏi một lần khi rời phòng, mỗi ván một ô chọn; không bao giờ hỏi khi đang có ván
+  online. Esc / chạm ra ngoài: giữ ván, hỏi lại lần sau. "Đi lại" sau khi hết ván: bỏ ván đó (đã tự lưu thì xoá).
   Phân tích ván đã lưu thì lưu kèm kết quả (mở lại hiện ngay). Đầu thẻ ghi nơi lưu + dung lượng; "Chọn để xoá" chọn nhiều
   ván / tất cả – xoá là xoá hẳn khỏi bộ nhớ máy, không cần thêm bước nào. Cài đặt → *Lịch sử đấu trên máy này*: bật / tắt lưu,
-  bật / tắt hỏi, nơi lưu + dung lượng, mở danh sách, xoá toàn bộ.
+  bật / tắt hỏi, **ván online của tài khoản** (Không lưu trên máy · Lưu tất cả · Hỏi từng ván), nơi lưu + dung lượng, mở
+  danh sách, xoá toàn bộ. Thẻ Online có nút "Lưu về máy" từng ván và "Lưu tất cả ván đang hiện về máy" (không lưu trùng).
 - **Thiết bị** (`devices.js`, máy chủ `server/src/hub/devices.js`): Cài đặt tài khoản (hoặc Xem thêm → Thiết bị) liệt kê
   nơi tài khoản đang đăng nhập như Google / Telegram – app hay trình duyệt, hệ điều hành, đời máy, IP, đăng nhập lúc nào,
   hoạt động lần cuối / đang trực tuyến; đăng xuất từng thiết bị hoặc mọi thiết bị khác (thiết bị đó về làm khách ngay).

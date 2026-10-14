@@ -34,7 +34,7 @@ const game = (n, extra = {}) => ({
 test('lưu, đọc, danh sách mới nhất trước, không lưu trùng', () => {
   let t = 1000;
   const s = LG.create(fakeStorage(), () => t++);
-  assert.deepStrictEqual(s.settings(), { on: true, ask: true });
+  assert.deepStrictEqual(s.settings(), { on: true, ask: true, online: 'off' });
   const a = s.add(game(9));
   const b = s.add(game(11, { winner: 2, kind: 'online', x: 'An', o: 'Bình', me: 2 }));
   assert.ok(a && b && a !== b);
@@ -73,11 +73,22 @@ test('phân tích: gắn vào ván, tìm ván theo nước đi', () => {
   assert.strictEqual(s.usage().analyzed, 1);
 });
 
+test('ván online của tài khoản: không lưu trùng theo mã share', () => {
+  const s = LG.create(fakeStorage());
+  const a = s.add(game(9, { kind: 'online', share: 'abc', at: 5 }));
+  assert.strictEqual(s.add(game(9, { kind: 'online', share: 'abc', at: 99 })), a, 'cùng mã share: trả về ván đã có');
+  assert.strictEqual(s.findShare('abc'), a);
+  assert.strictEqual(s.findShare('xyz'), null);
+  assert.strictEqual(s.findShare(null), null);
+  assert.ok(s.add(game(9, { kind: 'online', share: 'def', at: 5 })) !== a);
+  assert.strictEqual(s.count(), 2);
+});
+
 test('xoá nhiều ván, xoá tất cả: xoá hẳn khỏi bộ nhớ', () => {
   const st = fakeStorage();
   const s = LG.create(st);
   const ids = [1, 2, 3, 4].map((i) => s.add(game(5 + i, { at: i })));
-  s.setPending(game(5));
+  s.setPending([game(5)]);
   assert.strictEqual(s.remove([ids[0], ids[2], 'khong-co']), 2);
   assert.deepStrictEqual(s.list().map((g) => g.id).sort(), [ids[1], ids[3]].sort());
   assert.strictEqual(st.getItem(LG.KEYS.game(ids[0])), null, 'dữ liệu ván đã xoá không còn trong máy');
@@ -128,12 +139,19 @@ test('bộ nhớ đầy: bỏ phân tích ván cũ trước, rồi tới ván c�
 test('ván chờ hỏi lưu, cài đặt, dữ liệu hỏng', () => {
   const st = fakeStorage();
   const s = LG.create(st);
-  assert.strictEqual(s.pending(), null);
-  s.setPending(game(6));
-  assert.strictEqual(s.pending().moves.length, 6);
-  s.setPending(null);
-  assert.strictEqual(s.pending(), null);
-  assert.deepStrictEqual(s.setSettings({ on: false }), { on: false, ask: true });
+  assert.deepStrictEqual(s.pending(), []);
+  s.setPending([game(6), { bad: 1 }, game(7)]);
+  assert.deepStrictEqual(s.pending().map((g) => g.moves.length), [6, 7], 'bỏ bản ghi hỏng');
+  s.setPending(Array.from({ length: LG.MAX_PENDING + 5 }, (_, i) => game(5 + i)));
+  assert.strictEqual(s.pending().length, LG.MAX_PENDING, 'giữ tối đa MAX_PENDING ván chờ (mới nhất)');
+  assert.strictEqual(s.pending()[0].moves.length, 10);
+  s.setPending([]);
+  assert.deepStrictEqual(s.pending(), []);
+  st.setItem(LG.KEYS.pending, JSON.stringify(game(8))); // bản cũ: 1 ván, không phải mảng
+  assert.strictEqual(s.pending()[0].moves.length, 8);
+  assert.deepStrictEqual(s.setSettings({ on: false }), { on: false, ask: true, online: 'off' });
+  assert.strictEqual(s.setSettings({ online: 'all' }).online, 'all');
+  assert.strictEqual(s.setSettings({ online: 'lạ' }).online, 'off', 'giá trị lạ: về mặc định');
   st.setItem(LG.KEYS.index, '{hỏng');
   assert.deepStrictEqual(s.list(), []);
   st.setItem(LG.KEYS.index, '{"a":1}');
@@ -143,7 +161,7 @@ test('ván chờ hỏi lưu, cài đặt, dữ liệu hỏng', () => {
   const b = LG.create(blocked);
   assert.deepStrictEqual(b.list(), []);
   assert.strictEqual(b.add(game(5)), null);
-  assert.deepStrictEqual(b.setSettings({ on: false }), { on: false, ask: true });
-  b.setPending(game(5));
+  assert.deepStrictEqual(b.setSettings({ on: false }), { on: false, ask: true, online: 'off' });
+  b.setPending([game(5)]);
   assert.strictEqual(b.clear(), 0);
 });

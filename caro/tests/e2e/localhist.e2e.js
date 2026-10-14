@@ -64,11 +64,32 @@ const WIN = [3, 0];
   await sleep(700);
   ok(await askOpen(p), 'thoát ván: hỏi có lưu không');
   ok(/tài khoản khách/.test(await p.textContent('#lh-ask-why')), 'khách: "Bạn đang chơi bằng tài khoản khách"');
-  ok(/X thắng/.test(await p.textContent('#lh-ask-game')), 'tóm tắt ván: ' + await p.textContent('#lh-ask-game'));
+  ok(/X thắng/.test(await p.textContent('#lh-ask-list')), 'tóm tắt ván: ' + (await p.textContent('#lh-ask-list')).replace(/\s+/g, ' ').trim());
+  ok(await p.locator('#lh-ask-list .lh-pick').count() === 0, '1 ván: không cần ô chọn');
   await shot(p, 'lh-ask.png');
   await p.click('#lh-ask button[value=yes]');
   await sleep(300);
   ok(await count(p) === 1 && !(await askOpen(p)), 'Lưu: có 1 ván trên máy');
+
+  // Esc / chạm ra ngoài: giữ ván chờ, hỏi lại lần thoát sau
+  await winLocal(p);
+  await p.click('#btn-home');
+  await sleep(700);
+  ok(await askOpen(p), 'ván thứ hai: hỏi');
+  await p.keyboard.press('Escape');
+  await sleep(300);
+  ok(!(await askOpen(p)) && await p.evaluate(() => window.CaroLocalSave.pending.length === 1) && await count(p) === 1, 'Esc: chưa lưu nhưng vẫn giữ ván chờ');
+  await p.evaluate(() => window.CaroShell.open('more'));
+  await sleep(700);
+  ok(await askOpen(p), 'lần thoát sau: hỏi lại');
+  await p.click('#lh-ask button[value=no]');
+  await sleep(300);
+  // Đi lại sau khi thắng: kết quả bị huỷ – bỏ ván chờ
+  await winLocal(p);
+  ok(await p.evaluate(() => window.CaroLocalSave.pending.length === 1), 'thắng: có ván chờ');
+  await p.evaluate(() => document.getElementById('btn-undo').click());
+  await sleep(300);
+  ok(await p.evaluate(() => window.CaroLocalSave.pending.length === 0 && !window.CaroApp.local.winner), 'Đi lại sau khi thắng: bỏ ván chờ (kết quả đã huỷ)');
 
   // Không lưu
   await winLocal(p);
@@ -89,6 +110,13 @@ const WIN = [3, 0];
   ok(await count(p) === 2 && await p.evaluate(() => window.CaroLocalHist.store.settings().ask === false), '"Luôn lưu": lưu + tắt hỏi');
   await winLocal(p);
   ok(await count(p) === 3 && !(await askOpen(p)), 'đã tắt hỏi: hết ván là tự lưu, không hỏi');
+  // Đi lại sau khi đã tự lưu: xoá ván vừa lưu; thắng lại thì lưu lại – không trùng
+  await p.evaluate(() => document.getElementById('btn-undo').click());
+  await sleep(300);
+  ok(await count(p) === 2, 'đã tự lưu rồi Đi lại: xoá ván vừa lưu');
+  await click(p, ...WIN);
+  await sleep(400);
+  ok(await count(p) === 3, 'thắng lại: lưu 1 ván, không trùng');
 
   // ---------------------------------------------------------------- Thẻ "Trên máy này"
   await p.evaluate(() => window.CaroShell.open('more'));
@@ -214,14 +242,96 @@ const WIN = [3, 0];
     const [w, l] = r.seats.x === a.uid ? [a, b] : [b, a];
     await play(w, l);
     await sleep(500);
-    ok(await a.evaluate(() => window.CaroLocalSave.pending && window.CaroLocalSave.pending.kind === 'online'), 'khách hết ván online: giữ làm ván chờ');
+    ok(await a.evaluate(() => window.CaroLocalSave.pending.length === 1 && window.CaroLocalSave.pending[0].kind === 'online'), 'khách hết ván online: giữ làm ván chờ');
+    // Tái đấu: ván sau bắt đầu – không hỏi giữa ván
+    await a.evaluate(() => window.CaroOnline.send({ t: 'rematch' }));
+    await b.evaluate(() => window.CaroOnline.send({ t: 'rematch' }));
+    ok(await waitFor(a, (n) => { const r = window.CaroOnline.state.room; return r && r.gameNo > n && !r.winner; }, r.gameNo), 'tái đấu: ván sau bắt đầu');
+    await sleep(500);
+    ok(!(await askOpen(a)) && !(await askOpen(b)), 'đang có ván online: không hỏi lưu');
+    await a.evaluate(() => window.CaroShell.open('more')); // về trang giữa ván: vẫn chưa hỏi
+    await sleep(700);
+    ok(!(await askOpen(a)), 'về trang khi ván online đang diễn ra: chưa hỏi');
+    await a.evaluate(() => window.dispatchEvent(new Event('caro:board')));
+    const r2 = await roomOf(a);
+    const [w2, l2] = r2.seats.x === a.uid ? [a, b] : [b, a];
+    await play(w2, l2);
+    await sleep(500);
+    ok(await a.evaluate(() => window.CaroLocalSave.pending.length === 2), '2 ván chờ (không ghi đè nhau)');
+    // Đang trong phòng: mở ván đã lưu trên máy thì báo rời phòng trước
     await a.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
-    await sleep(800);
-    ok(await askOpen(a), 'rời phòng: hỏi lưu ván online');
+    await sleep(900);
+    ok(await askOpen(a), 'rời phòng: hỏi lưu một lần cho cả 2 ván');
+    ok(await a.locator('#lh-ask-list .lh-pick').count() === 2 && await a.isVisible('#lh-ask-pick'), 'nhiều ván: mỗi ván một ô chọn (tuỳ ván)');
+    await a.locator('#lh-ask-list .lh-pick').nth(0).uncheck();
+    await shot(a, 'lh-ask-many.png');
     await a.click('#lh-ask button[value=yes]');
     await sleep(300);
-    const g = await a.evaluate(() => window.CaroLocalHist.store.list()[0]);
-    ok(g && g.kind === 'online' && g.x && g.o && g.n >= 7, 'ván online của khách lưu trên máy (tên 2 bên, nước đi): ' + JSON.stringify(g));
+    const g = await a.evaluate(() => window.CaroLocalHist.store.list());
+    ok(g.length === 1 && g[0].kind === 'online' && g[0].x && g[0].o && g[0].n >= 7, 'chỉ lưu ván được chọn (tên 2 bên, nước đi): ' + JSON.stringify(g[0]));
+    ok(await a.evaluate(() => window.CaroLocalSave.pending.length === 0), 'đã trả lời: hết ván chờ');
+    await a.context().close();
+    await b.context().close();
+  }
+
+  // ---------------------------------------------------------------- Ván online của tài khoản
+  {
+    const a = await user('vi', 'lh_acc_a');
+    const b = await user('vi', 'lh_acc_b');
+    await a.evaluate(() => window.CaroLocalHist.store.setSettings({ online: 'off' }));
+    async function onlineGame() {
+      await a.evaluate(() => window.CaroOnline.send({ t: 'createRoom', timeLimit: 0, public: true }));
+      await sleep(500);
+      const r0 = await roomOf(a);
+      await a.keyboard.press('Escape');
+      await b.evaluate((code) => window.CaroOnline.send({ t: 'joinRoom', code }), r0.code);
+      await sleep(600);
+      const r = await roomOf(a);
+      const [w, l] = r.seats.x === a.uid ? [a, b] : [b, a];
+      await play(w, l);
+      await sleep(500);
+      await a.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+      await b.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
+      await sleep(900);
+    }
+    await onlineGame();
+    ok(await count(a) === 0 && !(await askOpen(a)), 'tài khoản, mặc định "Không lưu trên máy": không lưu, không hỏi');
+    // Cài đặt: Hỏi từng ván
+    await a.evaluate(() => window.CaroShell.open('more'));
+    await sleep(300);
+    await a.click('#more-settings');
+    await sleep(300);
+    await a.click('#settings-form [data-go="localhist"]');
+    await sleep(200);
+    ok(await a.isChecked('#settings-form input[name=lhOnline][value=off]'), 'Cài đặt: ván online của tài khoản – Không lưu trên máy');
+    await a.click('#settings-form label:has(input[name=lhOnline][value=ask])');
+    await sleep(200);
+    ok(await a.evaluate(() => window.CaroLocalHist.store.settings().online === 'ask'), 'chọn "Hỏi từng ván"');
+    await shot(a, 'lh-settings-online.png');
+    await a.evaluate(() => window.dispatchEvent(new Event('caro:board')));
+    await onlineGame();
+    ok(await askOpen(a) && /tài khoản/.test(await a.textContent('#lh-ask-why')), 'Hỏi từng ván: rời phòng thì hỏi ("đã có trong lịch sử tài khoản")');
+    await a.click('#lh-ask button[value=yes]');
+    await sleep(300);
+    ok(await count(a) === 1 && await a.evaluate(() => !!window.CaroLocalHist.store.list()[0].share), 'lưu ván online của tài khoản (kèm mã ván trên máy chủ)');
+    // Lưu tất cả
+    await a.evaluate(() => window.CaroLocalHist.store.setSettings({ online: 'all' }));
+    await onlineGame();
+    ok(await count(a) === 2 && !(await askOpen(a)), '"Lưu tất cả": tự lưu, không hỏi');
+    // Thẻ Online: lưu từng ván / tất cả về máy – ván đã lưu có dấu ✓, không lưu trùng
+    await a.evaluate(() => window.CaroLocalHist.store.clear());
+    await a.evaluate(() => window.CaroHistory.open());
+    await sleep(700);
+    ok(await a.isChecked('input[name=hist-tab][value=online]'), 'tài khoản: mở thẻ Online');
+    ok(await a.locator('#history-list [data-save]').count() === 3 && await a.isVisible('#history-save-all'), 'mỗi ván online có nút "Lưu về máy" + nút lưu tất cả');
+    await a.click('#history-list [data-save="0"]');
+    ok(await waitFor(a, () => window.CaroLocalHist.store.count() === 1), 'Lưu về máy: 1 ván');
+    await sleep(300);
+    ok(await a.locator('#history-list .lh-saved').count() === 1, 'ván đã lưu có dấu ✓');
+    await a.click('#history-save-all button');
+    ok(await waitFor(a, () => window.CaroLocalHist.store.count() === 3), 'Lưu tất cả: đủ 3 ván, không trùng');
+    await sleep(300);
+    ok(!(await a.isVisible('#history-save-all')), 'đã lưu hết: ẩn nút lưu tất cả');
     await a.context().close();
     await b.context().close();
   }

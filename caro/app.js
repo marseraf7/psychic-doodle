@@ -220,6 +220,8 @@
   function undo() {
     if (state.thinking || state.online || state.replay || state.ext || !state.allowUndo) return;
     const b = state.board;
+    // Ván đã xong mà đi lại: kết quả bị huỷ – Lịch sử đấu trên máy bỏ ván vừa ghi (local-save.js)
+    if (state.winner) window.dispatchEvent(new Event('caro:resultundo'));
     if (state.winReason === 'time') {
       // Thua vì hết giờ: "Đi lại" chỉ huỷ kết quả, cho đánh tiếp lượt đó.
       state.score[state.winner] = Math.max(0, state.score[state.winner] - 1);

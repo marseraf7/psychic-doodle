@@ -96,6 +96,7 @@
 
   /** Mở ván đã lưu: xem lại (analyze = mở luôn bảng phân tích). */
   function openGame(id, analyze) {
+    if (App.online) { toast(T('replay_leave_room')); return false; } // đang trong phòng online: rời phòng trước
     const g = store.get(id);
     if (!g) { toast(T('lh_gone')); render(); return false; }
     const n = names(g);
@@ -148,5 +149,5 @@
     return { cls: r.cls, res: r.text, opp: opponent(g) };
   }
 
-  window.CaroLocalHist = { store, render, openGame, where, sizeText, usageText, describe };
+  window.CaroLocalHist = { store, render, openGame, where, sizeText, usageText, describe, when };
 })();

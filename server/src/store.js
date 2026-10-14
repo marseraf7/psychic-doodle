@@ -88,6 +88,7 @@ class Store {
       touchSession: q('UPDATE sessions SET seen = ?, ip = ?, ua = ?, platform = ? WHERE hash = ?'),
       userSessions: q('SELECT hash, created, seen, platform, ua, ip FROM sessions WHERE uid = ? ORDER BY COALESCE(seen, created) DESC'),
       dropSessionPrefix: q('DELETE FROM sessions WHERE uid = ? AND hash LIKE ?'),
+      pruneSessions: q('DELETE FROM sessions WHERE created < ?'),
       dropSession: q('DELETE FROM sessions WHERE hash = ?'),
       dropUserSessions: q('DELETE FROM sessions WHERE uid = ? AND hash <> ?'),
       addGame: q('INSERT INTO games (share, created, kind, time_limit, x_id, o_id, x_name, o_name, winner, reason, moves, clock, opening, rule) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'),
@@ -133,7 +134,7 @@ class Store {
       upsertTour: q('INSERT INTO tours (id, status, created, data) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, data = excluded.data'),
     };
     for (const row of this.db.prepare('SELECT data FROM users').all()) this.index(this.upgrade(JSON.parse(row.data)));
-    this.db.prepare('DELETE FROM sessions WHERE created < ?').run(Date.now() - SESSION_TTL);
+    this.pruneSessions(Date.now(), true);
     if (legacyJson && !this.users.size) this.importLegacy(legacyJson);
   }
 

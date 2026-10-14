@@ -6,8 +6,9 @@
  * Khoá trong localStorage (đều bắt đầu bằng "caro.lg."):
  *   caro.lg.index    – danh sách ván (thông tin tóm tắt, mới nhất trước)
  *   caro.lg.g.<id>   – nước đi + kết quả phân tích của từng ván (tách riêng để mở danh sách không phải đọc cả kho)
- *   caro.lg.set      – cài đặt { on: lưu lịch sử trên máy, ask: hỏi trước khi lưu }
- *   caro.lg.pending  – ván vừa xong đang chờ người chơi trả lời "có lưu không"
+ *   caro.lg.set      – cài đặt { on: lưu lịch sử trên máy, ask: hỏi trước khi lưu (ván khách / offline / với máy),
+ *                      online: ván online của tài khoản – 'off' không lưu | 'all' lưu tất cả | 'ask' hỏi từng ván }
+ *   caro.lg.pending  – các ván vừa xong đang chờ người chơi trả lời "có lưu không" (tối đa MAX_PENDING)
  * Xoá ván = xoá hẳn các khoá đó khỏi máy (không còn bản nào, không cần thêm bước nào).
  * Giữ tối đa MAX ván (ván cũ nhất tự xoá); bộ nhớ đầy thì bỏ phần phân tích của ván cũ trước, rồi tới ván cũ.
  *
@@ -22,9 +23,12 @@
   const PRE = 'caro.lg.';
   const K = { index: PRE + 'index', set: PRE + 'set', pending: PRE + 'pending', game: (id) => PRE + 'g.' + id };
   const MAX = 200;
-  const DEFAULTS = { on: true, ask: true };
+  const MAX_PENDING = 20;
+  const ONLINE = ['off', 'all', 'ask'];
+  const DEFAULTS = { on: true, ask: true, online: 'off' };
   // Thông tin tóm tắt giữ trong danh sách (nước đi + phân tích nằm ở khoá riêng của ván)
-  const META = ['id', 'at', 'kind', 'bot', 'me', 'x', 'o', 'winner', 'reason', 'rule', 'timeLimit', 'clock', 'n', 'an'];
+  // share: mã ván trên máy chủ (ván online của tài khoản) – để không lưu trùng và biết ván nào đã có trên máy
+  const META = ['id', 'at', 'kind', 'bot', 'me', 'x', 'o', 'winner', 'reason', 'rule', 'timeLimit', 'clock', 'n', 'an', 'share'];
 
   const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
   const isQuota = (e) => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
@@ -79,8 +83,17 @@
     const api = {
       MAX,
       /** Cài đặt: { on, ask }. */
-      settings() { return { ...DEFAULTS, ...read(K.set, {}) }; },
-      setSettings(patch) { const s = { ...api.settings(), ...patch }; try { write(K.set, s); } catch (e) { /* riêng tư */ } return s; },
+      settings() {
+        const s = { ...DEFAULTS, ...read(K.set, {}) };
+        if (!ONLINE.includes(s.online)) s.online = DEFAULTS.online;
+        return s;
+      },
+      setSettings(patch) {
+        const s = { ...api.settings(), ...patch };
+        if (!ONLINE.includes(s.online)) s.online = DEFAULTS.online;
+        try { write(K.set, s); } catch (e) { /* riêng tư */ }
+        return s;
+      },
 
       /** Danh sách ván (tóm tắt), mới nhất trước. */
       list() { return index(); },
@@ -98,7 +111,7 @@
         if (!valid(rec)) return null;
         const at = Number(rec.at) || now();
         const list = index();
-        const same = list.find((g) => g.at === at && g.n === rec.moves.length && g.rule === (rec.rule || 'vn'));
+        const same = list.find((g) => (rec.share ? g.share === rec.share : g.at === at && g.n === rec.moves.length && g.rule === (rec.rule || 'vn')));
         if (same) return same.id;
         const id = at.toString(36) + Math.random().toString(36).slice(2, 6);
         const meta = pick({ ...rec, id, at, rule: rec.rule || 'vn', n: rec.moves.length, an: !!rec.analysis }, META);
@@ -130,6 +143,9 @@
         if (m2) { m2.an = !!analysis; saveIndex(fresh); }
         return true;
       },
+
+      /** Ván online (mã share trên máy chủ) đã có trên máy chưa: id hoặc null. */
+      findShare(share) { const g = share && index().find((x) => x.share === share); return g ? g.id : null; },
 
       /** Ván đã lưu có cùng luật + nước đi (để gắn phân tích khi người chơi phân tích ván vừa chơi). */
       findByMoves(rule, moves) {
@@ -171,15 +187,18 @@
         return { games: list.length, bytes: chars * 2, analyzed: list.filter((g) => g.an).length };
       },
 
-      // Ván vừa xong chờ hỏi "có lưu không" (còn giữ khi đóng app giữa chừng: lần mở sau hỏi tiếp)
-      pending() { const p = read(K.pending, null); return valid(p) ? p : null; },
-      setPending(rec) {
-        if (!rec) return drop(K.pending);
-        try { write(K.pending, rec); } catch (e) { /* đầy: lần này không giữ được */ }
+      // Các ván vừa xong chờ hỏi "có lưu không" (còn giữ khi đóng app giữa chừng: lần mở sau hỏi tiếp)
+      pending() {
+        const p = read(K.pending, []);
+        return (Array.isArray(p) ? p : [p]).filter(valid); // bản cũ lưu 1 ván (không phải mảng)
+      },
+      setPending(list) {
+        if (!list || !list.length) return drop(K.pending);
+        try { write(K.pending, list.slice(-MAX_PENDING)); } catch (e) { /* đầy: lần này không giữ được */ }
       },
     };
     return api;
   }
 
-  return { create, MAX, KEYS: K, valid };
+  return { create, MAX, MAX_PENDING, KEYS: K, valid };
 });

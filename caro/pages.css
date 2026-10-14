@@ -70,7 +70,11 @@
 #lh-ask .dlg { gap: 10px; max-width: 420px; }
 #lh-ask p { margin: 0; }
 .lh-why { font-weight: var(--fw-semibold); }
-.lh-game { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sm); }
+.lh-ask-list { max-height: 40vh; overflow-y: auto; margin: 0; padding: 0; }
+.lh-ask-list li { flex-wrap: nowrap; }
+#lh-ask-pick[hidden], #history-save-all[hidden] { display: none; }
+.lh-saved { display: inline-flex; align-items: center; padding: 0 6px; }
+.lh-saved .ico { width: 18px; height: 18px; }
 .lh-always { border-radius: 12px; padding: 8px 10px; background: color-mix(in srgb, var(--text) 5%, transparent); }
 .row.end { justify-content: flex-end; }
 /* Cài đặt */
