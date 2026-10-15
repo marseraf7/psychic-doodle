@@ -1,0 +1,9 @@
+# Vùng quan trọng – Claude Code (Quản trị viên) review trước khi merge, xem AGENTS.md mục "Vai trò".
+# Hiện mọi agent dùng chung tài khoản @marseraf7 nên file này chỉ ghi nhận vùng phụ trách.
+# Khi Antigravity có tài khoản GitHub riêng: bật "Require review from Code Owners" trong ruleset nhánh chính.
+/.github/        @marseraf7
+/server/         @marseraf7
+/caro/rapfi/     @marseraf7
+/caro/engine*.js @marseraf7
+/CLAUDE.md       @marseraf7
+/AGENTS.md       @marseraf7
