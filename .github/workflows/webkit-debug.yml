@@ -15,11 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lan: [1, 2, 3, 4, 5, 6]
-        # Đối chứng: tắt "fast memory" của WebAssembly (vùng nhớ ảo lớn mỗi Memory) trong JavaScriptCore
-        wasm: [macdinh, nofast]
-    env:
-      JSC_useWasmFastMemory: ${{ matrix.wasm == 'nofast' && 'false' || 'true' }}
+        lan: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        # Đối chứng: máy CI không có thiết bị âm thanh (ALSA "Unknown PCM default") – thử cấp thiết bị âm thanh null
+        # (lần trước: tắt Wasm fast memory không đỡ sập – 1/6 vẫn sập)
+        amthanh: [macdinh, rong]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -41,9 +40,12 @@ jobs:
           for f in mix9svqfreestyle_bsmix mix9svqstandard_bs15 mix9svqrenju_bs15_black mix9svqrenju_bs15_white; do
             [ -s $f.bin.lz4 ] || curl -fsSLO https://raw.githubusercontent.com/dhbloo/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq/$f.bin.lz4
           done
+      - name: Thiết bị âm thanh null (nhóm đối chứng)
+        if: matrix.amthanh == 'rong'
+        run: printf 'pcm.!default { type null }\n' > ~/.asoundrc && cat ~/.asoundrc
       - name: Máy chạy
         run: |
-          nproc; free -m; echo "JSC_useWasmFastMemory=[$JSC_useWasmFastMemory]"; ulimit -a | grep -i -E "virtual|memory|open"
+          nproc; free -m;  ulimit -a | grep -i -E "virtual|memory|open"
       - name: Theo dõi bộ nhớ (chạy nền)
         run: |
           nohup bash -c 'while sleep 1; do echo "$(date +%T) $(free -m | awk "/Mem/{print \"used=\"\$3\" avail=\"\$7}") $(ps -eo rss=,comm= | grep -i -E "WPEWeb|webkit|MiniBrowser" | sort -rn | head -3 | awk "{printf \"%s:%dMB \", \$2, \$1/1024}")"; done' > $RUNNER_TEMP/mem.log 2>&1 &
@@ -67,6 +69,6 @@ jobs:
           grep -o -E "[A-Za-z_]+:[0-9]+MB" $RUNNER_TEMP/mem.log | sort -t: -k2 -n -r | head -5
           grep -o -E "avail=[0-9]+" $RUNNER_TEMP/mem.log | sort -t= -k2 -n | head -3
           tail -40 $RUNNER_TEMP/mem.log
-          echo "===== KẾT QUẢ (wasm=${{ matrix.wasm }}): $(grep -c -E "traps: WPE" <(sudo dmesg) || true) lần WebProcess sập"
+          echo "===== KẾT QUẢ (amthanh=${{ matrix.amthanh }}): $(grep -c -E "traps: WPE" <(sudo dmesg) || true) lần WebProcess sập"
           echo "===== nhật ký hệ thống (OOM / segfault)"
           sudo dmesg -T | grep -i -E "oom|killed process|segfault|out of memory|traps" | tail -20 || true
