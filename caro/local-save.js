@@ -81,7 +81,8 @@
     const auto = pend.filter((r) => mode(r) === 'save');
     const ask = pend.filter((r) => mode(r) === 'ask');
     if (auto.length) save(auto, true);
-    if (!ask.length) return setPend([]);
+    setPend(ask);
+    if (!ask.length) return;
     asking = ask;
     open(ask);
   }
