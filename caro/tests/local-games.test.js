@@ -165,3 +165,32 @@ test('ván chờ hỏi lưu, cài đặt, dữ liệu hỏng', () => {
   b.setPending([game(5)]);
   assert.strictEqual(b.clear(), 0);
 });
+
+test('ca biên: toạ độ không nguyên, ván quá 2000 nước, kết quả lạ, dữ liệu pending dị thường', () => {
+  const s = LG.create(fakeStorage());
+  // Ván quá 2000 nước
+  assert.strictEqual(s.add(game(2001)), null);
+  // Toạ độ không nguyên / NaN / Infinity / string
+  assert.strictEqual(s.add({ ...game(5), moves: [[0, 0], [1.5, 2]] }), null);
+  assert.strictEqual(s.add({ ...game(5), moves: [[0, 0], [NaN, 2]] }), null);
+  assert.strictEqual(s.add({ ...game(5), moves: [[0, 0], [Infinity, 2]] }), null);
+  assert.strictEqual(s.add({ ...game(5), moves: [[0, 0], ['0', '1']] }), null);
+  // Kết quả ngoài 1, 2, 3
+  assert.strictEqual(s.add({ ...game(5), winner: 4 }), null);
+  assert.strictEqual(s.add({ ...game(5), winner: -1 }), null);
+  assert.strictEqual(s.add({ ...game(5), winner: 0 }), null);
+  // Pending với các kiểu dữ liệu dị thường
+  const st = fakeStorage();
+  const s2 = LG.create(st);
+  st.setItem(LG.KEYS.pending, '123'); // số nguyên
+  assert.deepStrictEqual(s2.pending(), []);
+  st.setItem(LG.KEYS.pending, '"string"'); // chuỗi
+  assert.deepStrictEqual(s2.pending(), []);
+  st.setItem(LG.KEYS.pending, 'true'); // boolean
+  assert.deepStrictEqual(s2.pending(), []);
+  st.setItem(LG.KEYS.pending, '{"not":"valid"}'); // object không hợp lệ
+  assert.deepStrictEqual(s2.pending(), []);
+  st.setItem(LG.KEYS.pending, '[null, undefined, 123, "abc"]'); // mảng phần tử rác
+  assert.deepStrictEqual(s2.pending(), []);
+});
+
