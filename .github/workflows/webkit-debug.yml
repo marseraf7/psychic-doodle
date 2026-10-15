@@ -1,0 +1,67 @@
+# Chẩn đoán tạm: trang WebKit thỉnh thoảng sập trong rapfi-e2e (webkit). Chạy lặp nhiều lần, ghi log trình duyệt,
+# bộ nhớ (RSS) của tiến trình WebKit và nhật ký hệ thống, in ra log job để đọc. Xoá file này khi tìm ra nguyên nhân.
+name: Chẩn đoán WebKit sập
+
+on:
+  push:
+    branches: ['claude/webkit-crash']
+    paths: ['.github/workflows/webkit-debug.yml']
+  workflow_dispatch:
+
+jobs:
+  webkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        lan: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: server
+      - name: Cài Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps webkit
+      - uses: actions/cache@v4
+        with:
+          path: ~/rapfi-nets
+          key: rapfi-nets-e32ad77
+      - name: Tải mạng Rapfi (lần đầu)
+        run: |
+          mkdir -p ~/rapfi-nets && cd ~/rapfi-nets
+          for f in mix9svqfreestyle_bsmix mix9svqstandard_bs15 mix9svqrenju_bs15_black mix9svqrenju_bs15_white; do
+            [ -s $f.bin.lz4 ] || curl -fsSLO https://raw.githubusercontent.com/dhbloo/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq/$f.bin.lz4
+          done
+      - name: Máy chạy
+        run: |
+          nproc; free -m; ulimit -a | grep -i -E "virtual|memory|open"
+      - name: Theo dõi bộ nhớ (chạy nền)
+        run: |
+          nohup bash -c 'while sleep 1; do echo "$(date +%T) $(free -m | awk "/Mem/{print \"used=\"\$3\" avail=\"\$7}") $(ps -eo rss=,comm= | grep -i -E "webkit|pw_run|MiniBrowser" | sort -rn | head -3 | awk "{printf \"%s:%dMB \", \$2, \$1/1024}")"; done' > $RUNNER_TEMP/mem.log 2>&1 &
+      - name: BOAT – Rapfi (webkit)
+        continue-on-error: true
+        run: DEBUG=pw:browser E2E_BROWSER=webkit RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js 2> $RUNNER_TEMP/boat-browser.log
+      - name: Lịch sử đấu – điện thoại (webkit)
+        continue-on-error: true
+        timeout-minutes: 25
+        run: DEBUG=pw:browser E2E_MOBILE=1 E2E_BROWSER=webkit E2E_OUT=$RUNNER_TEMP/shots-m node caro/tests/e2e/localhist.e2e.js 2> $RUNNER_TEMP/lh-browser.log
+      - name: Kết quả chẩn đoán
+        if: always()
+        run: |
+          for f in boat lh; do
+            echo "===== $f: dòng đáng chú ý trong log trình duyệt"
+            grep -a -i -E "crash|signal|kill|memory|abort|terminat|exceed|jetsam|OOM|SIG|closed" $RUNNER_TEMP/$f-browser.log | grep -v -i "DevTools" | tail -40 || true
+            echo "===== $f: 30 dòng cuối log trình duyệt"
+            tail -30 $RUNNER_TEMP/$f-browser.log || true
+          done
+          echo "===== bộ nhớ: đỉnh WebKit (MB) và 40 mẫu cuối"
+          grep -o -E "[A-Za-z_]+:[0-9]+MB" $RUNNER_TEMP/mem.log | sort -t: -k2 -n -r | head -5
+          grep -o -E "avail=[0-9]+" $RUNNER_TEMP/mem.log | sort -t= -k2 -n | head -3
+          tail -40 $RUNNER_TEMP/mem.log
+          echo "===== nhật ký hệ thống (OOM / segfault)"
+          sudo dmesg -T | grep -i -E "oom|killed process|segfault|out of memory|traps" | tail -20 || true
