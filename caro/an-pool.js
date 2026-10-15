@@ -14,7 +14,13 @@
   let job = 0; // tăng mỗi lần huỷ: kết quả của lượt cũ bị bỏ
   const pending = new Set();
 
-  const size = () => Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
+  // Điện thoại (màn cảm ứng / RAM ≤ 4 GB): tối đa 2 Worker – mỗi Worker giữ bảng nhớ engine riêng (hàng trăm MB khi phân
+  // tích ván dài), Safari trên iPhone đóng tab dùng quá nhiều RAM
+  const small = () => (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) ||
+    !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  const size = () => Math.max(1, Math.min(small() ? 2 : 4, (navigator.hardwareConcurrency || 2) - 1));
+  const IDLE_MS = 15000; // phân tích xong mà không có lượt mới trong ngần này: dừng các Worker, trả RAM
+  let idleTimer = 0;
   const reusable = (e, ms) => !!e && typeof e.score === 'number' && (e.q || 0) >= ms;
 
   function ensure() {
@@ -65,7 +71,22 @@
    * Chấm mọi thế của ván (và thế sau nước tốt nhất khi cần) với ms mỗi thế; dùng lại thế đã chấm đủ kỹ trong evals.
    * → mảng evals cho analyzeGame, hoặc null (không có Worker / đã huỷ).
    */
-  async function evaluate({ moves, rule, ms, evals, onProgress }) {
+  /** Rảnh (không lượt nào đang chạy) quá IDLE_MS thì dừng Worker – lượt nhanh → lượt kỹ cách nhau ít nên vẫn dùng lại. */
+  function idleLater() {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (pending.size || !workers.length) return;
+      workers.forEach((w) => w.terminate()); // đang rảnh: không có thế nào đang chấm
+      workers = [];
+    }, IDLE_MS);
+  }
+
+  async function evaluate(opts) {
+    clearTimeout(idleTimer);
+    try { return await evaluateAll(opts); } finally { idleLater(); }
+  }
+
+  async function evaluateAll({ moves, rule, ms, evals, onProgress }) {
     if (!ensure()) return null;
     const my = job;
     const n = moves.length;
