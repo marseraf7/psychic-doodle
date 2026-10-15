@@ -15,10 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        lan: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        # Đối chứng: máy CI không có thiết bị âm thanh (ALSA "Unknown PCM default") – thử cấp thiết bị âm thanh null
-        # (lần trước: tắt Wasm fast memory không đỡ sập – 1/6 vẫn sập)
-        amthanh: [macdinh, rong]
+        lan: [1, 2, 3, 4, 5]
+        # Giả thuyết: WebKit sập khi terminate() Worker đang bận (A: engine JS, B: Rapfi-CARO WebAssembly)
+        # (đã loại: hết RAM máy, Wasm fast memory; thiết bị âm thanh null: 0/10 vs 0/10 – chưa kết luận)
+        kieu: [A, B]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -40,26 +40,20 @@ jobs:
           for f in mix9svqfreestyle_bsmix mix9svqstandard_bs15 mix9svqrenju_bs15_black mix9svqrenju_bs15_white; do
             [ -s $f.bin.lz4 ] || curl -fsSLO https://raw.githubusercontent.com/dhbloo/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq/$f.bin.lz4
           done
-      - name: Thiết bị âm thanh null (nhóm đối chứng)
-        if: matrix.amthanh == 'rong'
-        run: printf 'pcm.!default { type null }\n' > ~/.asoundrc && cat ~/.asoundrc
       - name: Máy chạy
         run: |
           nproc; free -m;  ulimit -a | grep -i -E "virtual|memory|open"
       - name: Theo dõi bộ nhớ (chạy nền)
         run: |
           nohup bash -c 'while sleep 1; do echo "$(date +%T) $(free -m | awk "/Mem/{print \"used=\"\$3\" avail=\"\$7}") $(ps -eo rss=,comm= | grep -i -E "WPEWeb|webkit|MiniBrowser" | sort -rn | head -3 | awk "{printf \"%s:%dMB \", \$2, \$1/1024}")"; done' > $RUNNER_TEMP/mem.log 2>&1 &
-      - name: BOAT – Rapfi (webkit)
-        continue-on-error: true
-        run: DEBUG=pw:browser E2E_BROWSER=webkit RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js 2> $RUNNER_TEMP/boat-browser.log
-      - name: Lịch sử đấu – điện thoại (webkit)
+      - name: Terminate Worker đang bận (kiểu ${{ matrix.kieu }})
         continue-on-error: true
         timeout-minutes: 25
-        run: DEBUG=pw:browser E2E_MOBILE=1 E2E_BROWSER=webkit E2E_OUT=$RUNNER_TEMP/shots-m node caro/tests/e2e/localhist.e2e.js 2> $RUNNER_TEMP/lh-browser.log
+        run: DEBUG=pw:browser E2E_BROWSER=webkit KIEU=${{ matrix.kieu }} N=300 node caro/tests/e2e/diag-terminate.js 2> $RUNNER_TEMP/boat-browser.log
       - name: Kết quả chẩn đoán
         if: always()
         run: |
-          for f in boat lh; do
+          for f in boat; do
             echo "===== $f: dòng đáng chú ý trong log trình duyệt"
             grep -a -i -E "crash|signal|kill|memory|abort|terminat|exceed|jetsam|OOM|SIG|closed" $RUNNER_TEMP/$f-browser.log | grep -v -i "DevTools" | tail -40 || true
             echo "===== $f: 30 dòng cuối log trình duyệt"
@@ -69,6 +63,6 @@ jobs:
           grep -o -E "[A-Za-z_]+:[0-9]+MB" $RUNNER_TEMP/mem.log | sort -t: -k2 -n -r | head -5
           grep -o -E "avail=[0-9]+" $RUNNER_TEMP/mem.log | sort -t= -k2 -n | head -3
           tail -40 $RUNNER_TEMP/mem.log
-          echo "===== KẾT QUẢ (amthanh=${{ matrix.amthanh }}): $(grep -c -E "traps: WPE" <(sudo dmesg) || true) lần WebProcess sập"
+          echo "===== KẾT QUẢ (kieu=${{ matrix.kieu }}): $(grep -c -E "traps: WPE" <(sudo dmesg) || true) lần WebProcess sập"
           echo "===== nhật ký hệ thống (OOM / segfault)"
           sudo dmesg -T | grep -i -E "oom|killed process|segfault|out of memory|traps" | tail -20 || true
