@@ -67,6 +67,8 @@
   function stop() {
     if (cur) retire(cur);
     cur = null;
+    // Worker kiểm thế sát mép (engine JS – terminate lúc đang chấm không gây sập): đổi luật / dừng Rapfi thì trả RAM luôn
+    if (checker) { checker.terminate(); checker = null; }
   }
 
   /**
@@ -79,6 +81,7 @@
     if (st.state !== 'loading' && !st.busy) return kill();
     // Các listener của ensure() / ask() đăng ký trước nên đã cập nhật state / busy khi tới listener này
     st.worker.addEventListener('message', () => { if (st.state !== 'loading' && !st.busy) kill(); });
+    st.worker.addEventListener('error', kill); // lỗi trong Worker: dừng ngay, khỏi chờ hết RETIRE_MS
     st.retireTimer = setTimeout(kill, RETIRE_MS);
   }
 
