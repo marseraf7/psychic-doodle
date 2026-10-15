@@ -190,7 +190,9 @@ test('ca biên: toạ độ không nguyên, ván quá 2000 nước, kết quả 
   assert.deepStrictEqual(s2.pending(), []);
   st.setItem(LG.KEYS.pending, '{"not":"valid"}'); // object không hợp lệ
   assert.deepStrictEqual(s2.pending(), []);
-  st.setItem(LG.KEYS.pending, '[null, undefined, 123, "abc"]'); // mảng phần tử rác
+  st.setItem(LG.KEYS.pending, JSON.stringify([null, 123, 'abc', { invalid: true }, []])); // mảng JSON hợp lệ chứa các phần tử không phải ván hợp lệ
+  assert.deepStrictEqual(s2.pending(), []);
+  st.setItem(LG.KEYS.pending, '{hỏng JSON'); // chuỗi JSON hỏng cú pháp
   assert.deepStrictEqual(s2.pending(), []);
 });
 
