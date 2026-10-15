@@ -34,7 +34,7 @@
   const T = (k, v) => (global.I18N ? global.I18N.t(k, v) : k);
   const toast = (m, ms) => global.CaroOnline && global.CaroOnline.toast(m, ms);
 
-  let cur = null; // { rule, worker, ready: Promise<bool>, state, pct, toasted }
+  let cur = null; // { rule, worker, ready: Promise<bool>, state, pct, toasted, busy: số thế đang nghĩ }
   const failedAt = {}; // luật → thời điểm tải lỗi gần nhất
   let seq = 0;
 
@@ -62,9 +62,24 @@
   }
   const emit = (detail) => global.dispatchEvent(new CustomEvent('caro:rapfi', { detail }));
 
+  const RETIRE_MS = 30000; // Worker thôi việc mà vẫn chưa xong việc sau ngần này (treo): dừng hẳn
+
   function stop() {
-    if (cur) { try { cur.worker.terminate(); } catch (e) { /* đã dừng */ } }
+    if (cur) retire(cur);
     cur = null;
+  }
+
+  /**
+   * Cho Worker thôi việc. Đang tính (nạp mạng / nghĩ nước) thì đợi tính xong mới terminate(): terminate() lúc
+   * WebAssembly của Rapfi đang chạy có lúc làm sập cả trang trên WebKit (Safari) – đo trên CI, kịch bản tắt Worker
+   * đang nghĩ. Kết quả của Worker đã thôi việc bị bỏ qua (ask() / ready() so cur === st).
+   */
+  function retire(st) {
+    const kill = () => { clearTimeout(st.retireTimer); try { st.worker.terminate(); } catch (e) { /* đã dừng */ } };
+    if (st.state !== 'loading' && !st.busy) return kill();
+    // Các listener của ensure() / ask() đăng ký trước nên đã cập nhật state / busy khi tới listener này
+    st.worker.addEventListener('message', () => { if (st.state !== 'loading' && !st.busy) kill(); });
+    st.retireTimer = setTimeout(kill, RETIRE_MS);
   }
 
   /** Worker cho luật `rule` (mỗi Worker một luật: đổi luật thì dựng lại). */
@@ -73,7 +88,7 @@
     stop();
     let worker;
     try { worker = new Worker('rapfi/worker.js'); } catch (e) { failedAt[rule] = Date.now(); return null; }
-    const st = { rule, worker, state: 'loading', pct: 0, toasted: false };
+    const st = { rule, worker, state: 'loading', pct: 0, toasted: false, busy: 0 };
     // Chỉ báo "đang tải" khi chưa xong sau 0,7 giây (mạng đã có trong Cache Storage thì nạp gần như tức thì)
     const slow = setTimeout(() => {
       if (st.state === 'loading' && cur === st) { st.toasted = true; toast(T('rapfi_loading', { mb: MB[rule] }), 5000); }
@@ -148,18 +163,21 @@
     const n = SIZE[rule], f = frame(moves, n);
     if (!f || !(await ready(rule, 0))) return null;
     const st = cur, id = ++seq;
+    st.busy++;
     const res = await new Promise((resolve) => {
-      const timer = setTimeout(() => { st.worker.removeEventListener('message', onMsg); resolve(null); }, ms * 2 + 8000);
+      const timer = setTimeout(() => { st.busy--; st.worker.removeEventListener('message', onMsg); resolve(null); }, ms * 2 + 8000);
       function onMsg(e) {
         if (e.data.type !== 'move' || e.data.id !== id) return;
         clearTimeout(timer);
+        st.busy--;
         st.worker.removeEventListener('message', onMsg);
         resolve(e.data);
       }
       st.worker.addEventListener('message', onMsg);
       st.worker.postMessage({ type: 'move', id, size: n, ms, moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
     });
-    if (!res || !res.move) { if (cur === st && !res) stop(); return null; } // treo: lần sau dựng Worker mới
+    if (cur !== st) return null; // Worker đã thôi việc (đổi luật) trong lúc nghĩ: nước này thuộc thế cũ
+    if (!res || !res.move) { if (!res) stop(); return null; } // treo: lần sau dựng Worker mới
     const [rx, ry] = res.move;
     if (rx < 0 || ry < 0 || rx >= n || ry >= n) return null;
     return { move: [rx + f.ox, ry + f.oy], ev: res.ev, margin: f.margin };
