@@ -66,6 +66,26 @@ Giao việc → Plan → Output → Review → Sửa lỗi → Cập nhật lu�
 5. **Sửa lỗi**: commit thêm vào cùng PR, không mở PR mới.
 6. **Cập nhật luật**: bài học rút ra ghi vào file này hoặc `CLAUDE.md`.
 
+### Nộp kết quả qua PR (để Claude Code tự nhận, không cần người dùng chuyển lời)
+
+Claude Code chỉ tự thức dậy theo sự kiện của **PR** (bình luận, review, CI), không theo Issue. Vì vậy:
+
+- Việc có sửa code → PR như thường, ghi `Closes #<số Issue>`.
+- Việc **chỉ báo cáo** (đo, audit, chạy test, review không sửa code) → mở một PR nhỏ thêm file
+  `reports/<số-issue>-<tên-ngắn>.md` (nhánh `agy/report-<số-issue>`), ghi `Closes #<số Issue>`.
+  Claude Code đọc, xử lý, rồi merge hoặc đóng PR báo cáo.
+- Review PR của Claude Code → bình luận thẳng trên PR đó.
+
+### Báo cáo gọn (tiết kiệm token cho agent đọc)
+
+- Mở đầu bằng **kết luận 1–3 dòng**, sau đó là **bảng** (lệnh / số lần chạy / số lần lỗi / ghi chú).
+- **Không dán log dài.** Mỗi lỗi chỉ trích: bước `OK` cuối cùng, dòng lỗi, tối đa 20 dòng log liên quan.
+  Bỏ dòng rác (ALSA, libEGL, MESA, git config…).
+- Ghi rõ môi trường: hệ điều hành, trình duyệt + phiên bản, commit đã chạy (`git rev-parse --short HEAD`).
+- Trên CI, lỗi e2e có sẵn annotation (`::error`): đọc qua
+  `gh api repos/<owner>/<repo>/check-runs/<id>/annotations` thay vì tải cả log.
+- Việc chưa làm được / không chắc → ghi rõ "chưa kiểm" thay vì đoán.
+
 ### Ghi danh tính
 
 Các agent có thể dùng chung tài khoản GitHub, nên mỗi commit ghi dòng cuối
