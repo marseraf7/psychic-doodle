@@ -82,7 +82,8 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
 
   // ---------------------------------------------------------------- Luật tự do: lần đầu tải chậm → nước đầu không phải chờ
   await start('free');
-  ok(await waitFor(async () => /Rapfi/.test(await p.textContent('#toasts')), 4000), 'lần đầu: báo đang tải bộ não Rapfi');
+  // Thông báo chỉ hiện khi tải quá 0,7 giây: cần mạng chậm giả lập – WebKit không làm chậm được request của Worker
+  okNet(await waitFor(async () => /Rapfi/.test(await p.textContent('#toasts')), 4000), 'lần đầu: báo đang tải bộ não Rapfi');
   ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật tự do: BOAT đi nước 2 ngay (engine của game, mạng chưa tải xong)');
   let s = await stats();
   // WebKit không làm chậm được tải mạng (request của Worker) – mạng có thể xong trước nước 2: bộ đếm sau tính từ r0
