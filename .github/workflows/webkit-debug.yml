@@ -16,6 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         lan: [1, 2, 3, 4, 5, 6]
+        # Đối chứng: tắt "fast memory" của WebAssembly (vùng nhớ ảo lớn mỗi Memory) trong JavaScriptCore
+        wasm: [macdinh, nofast]
+    env:
+      JSC_useWasmFastMemory: ${{ matrix.wasm == 'nofast' && 'false' || 'true' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -39,10 +43,10 @@ jobs:
           done
       - name: Máy chạy
         run: |
-          nproc; free -m; ulimit -a | grep -i -E "virtual|memory|open"
+          nproc; free -m; echo "JSC_useWasmFastMemory=[$JSC_useWasmFastMemory]"; ulimit -a | grep -i -E "virtual|memory|open"
       - name: Theo dõi bộ nhớ (chạy nền)
         run: |
-          nohup bash -c 'while sleep 1; do echo "$(date +%T) $(free -m | awk "/Mem/{print \"used=\"\$3\" avail=\"\$7}") $(ps -eo rss=,comm= | grep -i -E "webkit|pw_run|MiniBrowser" | sort -rn | head -3 | awk "{printf \"%s:%dMB \", \$2, \$1/1024}")"; done' > $RUNNER_TEMP/mem.log 2>&1 &
+          nohup bash -c 'while sleep 1; do echo "$(date +%T) $(free -m | awk "/Mem/{print \"used=\"\$3\" avail=\"\$7}") $(ps -eo rss=,comm= | grep -i -E "WPEWeb|webkit|MiniBrowser" | sort -rn | head -3 | awk "{printf \"%s:%dMB \", \$2, \$1/1024}")"; done' > $RUNNER_TEMP/mem.log 2>&1 &
       - name: BOAT – Rapfi (webkit)
         continue-on-error: true
         run: DEBUG=pw:browser E2E_BROWSER=webkit RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/boat-rapfi.e2e.js 2> $RUNNER_TEMP/boat-browser.log
@@ -63,5 +67,6 @@ jobs:
           grep -o -E "[A-Za-z_]+:[0-9]+MB" $RUNNER_TEMP/mem.log | sort -t: -k2 -n -r | head -5
           grep -o -E "avail=[0-9]+" $RUNNER_TEMP/mem.log | sort -t= -k2 -n | head -3
           tail -40 $RUNNER_TEMP/mem.log
+          echo "===== KẾT QUẢ (wasm=${{ matrix.wasm }}): $(grep -c -E "traps: WPE" <(sudo dmesg) || true) lần WebProcess sập"
           echo "===== nhật ký hệ thống (OOM / segfault)"
           sudo dmesg -T | grep -i -E "oom|killed process|segfault|out of memory|traps" | tail -20 || true
