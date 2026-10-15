@@ -4,8 +4,8 @@ name: Test Caro
 on:
   push:
     paths: ['caro/**', 'server/**', '.github/workflows/test.yml']
+  # PR nào cũng chạy (kể cả PR chỉ sửa tài liệu): nhánh chính bắt buộc các check này xanh mới cho merge
   pull_request:
-    paths: ['caro/**', 'server/**', '.github/workflows/test.yml']
 
 jobs:
   test:

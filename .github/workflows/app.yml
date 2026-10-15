@@ -8,8 +8,8 @@ name: App Caro (Android / iOS)
 on:
   push:
     paths: ['app/**', 'caro/**', 'server/**', '.github/workflows/app.yml']
+  # PR nào cũng chạy (kể cả PR chỉ sửa tài liệu): nhánh chính bắt buộc các check này xanh mới cho merge
   pull_request:
-    paths: ['app/**', 'caro/**', 'server/**', '.github/workflows/app.yml']
   workflow_dispatch:
 
 concurrency:
