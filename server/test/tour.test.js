@@ -24,6 +24,9 @@ test.before(async () => {
 });
 test.after(() => app.stop());
 
+// Đăng ký / đăng nhập băm mật khẩu bằng scrypt (đồng bộ): máy chậm hoặc chạy chung đo độ phủ có thể quá 3 giây
+const AUTH_MS = 15000;
+
 class Client {
   constructor() { this.msgs = []; this.waiters = []; this.tours = {}; this.patches = 0; }
   static async open(u = url) {
@@ -54,7 +57,7 @@ class Client {
     });
     await new Promise((r) => c.ws.on('open', r));
     c.send({ t: 'hello', guestKey: crypto.randomBytes(16).toString('hex') });
-    await c.wait('welcome');
+    await c.wait('welcome', undefined, AUTH_MS);
     return c;
   }
   send(m) { this.ws.send(JSON.stringify(m)); }
@@ -67,7 +70,7 @@ class Client {
       });
     });
   }
-  async req(m, t, pred) { const p = this.wait(t, pred); this.send(m); return p; }
+  async req(m, t, pred, ms) { const p = this.wait(t, pred, ms); this.send(m); return p; }
   close() { this.ws.close(); }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -88,7 +91,7 @@ async function account(prefix, rating) {
   for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
   const c = await Client.open();
   const username = (prefix + '_' + (++seq)).slice(0, 20);
-  await c.req({ t: 'register', username, password: 'caro-pass1', name: prefix + seq }, 'welcome');
+  await c.req({ t: 'register', username, password: 'caro-pass1', name: prefix + seq }, 'welcome', undefined, AUTH_MS);
   if (rating) app.hub.store.users.get(c.me.uid).rating = rating;
   return c;
 }
@@ -97,7 +100,7 @@ async function admin() {
   if (boss) return boss;
   for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
   boss = await Client.open();
-  await boss.req({ t: 'register', username: 'boss', password: 'caro-pass1', name: 'Boss' }, 'welcome');
+  await boss.req({ t: 'register', username: 'boss', password: 'caro-pass1', name: 'Boss' }, 'welcome', undefined, AUTH_MS);
   return boss;
 }
 const soon = () => Date.now() + 5 * 60 * 1000;
@@ -479,6 +482,7 @@ test('chống spam mở trang giải: dùng lại phần chung đã lưu, giới
   try {
     const cs = [await Client.open(), await Client.open(), await Client.open()]; // cùng IP 127.0.0.1
     app.hub.fullBuckets?.clear();
+    const t0 = Date.now();
     const got = cs.map(() => 0);
     cs.forEach((c, i) => c.ws.on('message', (d) => { if (String(d).startsWith('{"t":"tour",')) got[i]++; }));
     // Đợt 1: mở trang lần đầu (dựng phần chung + mốc so sánh cho cập nhật)
@@ -491,8 +495,10 @@ test('chống spam mở trang giải: dùng lại phần chung đã lưu, giới
     await sleep(150);
     assert.strictEqual(builds, b1, `spam mở trang khi giải không đổi không được dựng lại phần chung (${b1} -> ${builds})`);
     const now = got.reduce((a, b) => a + b, 0);
-    // 40 lượt theo IP + mỗi kết nối nhận thêm tối đa 1 bản ở nhịp cập nhật kế tiếp (trong kiểm thử: 20 ms)
-    assert.ok(now >= 40 && now <= 40 + 2 * cs.length, `trả ngay khoảng 40 lần (hết lượt theo IP): ${now}`);
+    // 40 lượt theo IP + lượt hồi lại theo thời gian đã trôi (4 lượt/giây – máy chậm thì nhiều hơn)
+    // + mỗi kết nối nhận thêm tối đa 1 bản ở nhịp cập nhật kế tiếp (trong kiểm thử: 20 ms)
+    const refill = Math.ceil(((Date.now() - t0) / 1000) * 4);
+    assert.ok(now >= 40 && now <= 40 + refill + 2 * cs.length, `trả ngay khoảng 40 lần (hết lượt theo IP): ${now}, hồi ${refill}`);
     // Người hết lượt vẫn nhận trang giải ở nhịp cập nhật kế tiếp
     const waiting = () => [...app.hub.byPid.values()].flatMap((set) => [...set]).filter((c) => c.watchTour === id && c.tourFull);
     await until(() => got.every((n) => n > 0) && !waiting().length, 3000);
@@ -521,7 +527,7 @@ async function organizer() {
 /** Người chơi mất kết nối rồi vào lại (đăng nhập ở kết nối mới). */
 async function reconnect(c) {
   const n = await Client.open();
-  await n.req({ t: 'login', username: c.me.username, password: 'caro-pass1' }, 'welcome');
+  await n.req({ t: 'login', username: c.me.username, password: 'caro-pass1' }, 'welcome', undefined, AUTH_MS);
   return n;
 }
 
@@ -584,16 +590,25 @@ test('Arena: mất kết nối -> điểm tính ngay; ban tổ chức cho đấu
   await waitRoom(a, newGame);
   const t = app.hub.tours.get(id);
   const P = (uid) => t.players.find((p) => p.uid === uid);
-  b.close();
-  await until(() => P(a.me.uid).games === 1);
-  assert.strictEqual(P(a.me.uid).score, 2, 'thắng vì đối thủ mất kết nối: được điểm ngay');
-  const d = t.disputes[t.disputes.length - 1];
-  assert.deepStrictEqual([d.kind, d.status], ['arena', 'open']);
-  b = await reconnect(b);
-  await sleep(100);
-  const again = waitRoom(b, newGame, 3000);
-  await B.req({ t: 'tourDispute', id, dispute: d.id, action: 'replay' }, 'toast', (x) => x.code === 'tour_dispute_saved');
-  await again;
+  // Máy chậm: đăng nhập lại (scrypt) lâu hơn ARENA_REPEAT_MS thì Arena tự ghép lại hai người trước khi ban tổ chức
+  // xử lý -> nhận 'replay_later' thay vì ghép ngay. Không cho tự ghép lại trong lúc test.
+  const keep = app.hub.T.ARENA_REPEAT_MS;
+  app.hub.T.ARENA_REPEAT_MS = 60000;
+  let d;
+  try {
+    b.close();
+    await until(() => P(a.me.uid).games === 1);
+    assert.strictEqual(P(a.me.uid).score, 2, 'thắng vì đối thủ mất kết nối: được điểm ngay');
+    d = t.disputes[t.disputes.length - 1];
+    assert.deepStrictEqual([d.kind, d.status], ['arena', 'open']);
+    b = await reconnect(b);
+    await sleep(100);
+    const again = waitRoom(b, newGame, 3000);
+    await B.req({ t: 'tourDispute', id, dispute: d.id, action: 'replay' }, 'toast', (x) => x.code === 'tour_dispute_saved');
+    await again;
+  } finally {
+    app.hub.T.ARENA_REPEAT_MS = keep;
+  }
   assert.strictEqual(P(a.me.uid).score, 0, 'điểm được trả lại');
   assert.strictEqual(P(a.me.uid).games, 0);
   assert.strictEqual(P(b.me.uid).losses, 0);
@@ -679,7 +694,7 @@ test('giải và câu lạc bộ được lưu: máy chủ khởi động lại 
   await new Promise((r) => srv.server.on('listening', r));
   let u = `ws://127.0.0.1:${srv.server.address().port}/ws`;
   const c = await Client.open(u);
-  await c.req({ t: 'register', username: 'boss', password: 'caro-pass1', name: 'Boss' }, 'welcome');
+  await c.req({ t: 'register', username: 'boss', password: 'caro-pass1', name: 'Boss' }, 'welcome', undefined, AUTH_MS);
   const { id: club } = await c.req({ t: 'clubCreate', name: 'CLB Bền', join: 'open' }, 'clubCreated');
   const { id } = await c.req({ t: 'tourCreate', name: 'Giải Bền', format: 'knockout', startsAt: soon(), access: 'club', club }, 'tourCreated');
   c.close();
@@ -688,7 +703,7 @@ test('giải và câu lạc bộ được lưu: máy chủ khởi động lại 
   await new Promise((r) => srv.server.on('listening', r));
   u = `ws://127.0.0.1:${srv.server.address().port}/ws`;
   const d = await Client.open(u);
-  await d.req({ t: 'login', username: 'boss', password: 'caro-pass1' }, 'welcome');
+  await d.req({ t: 'login', username: 'boss', password: 'caro-pass1' }, 'welcome', undefined, AUTH_MS);
   const v = await d.req({ t: 'tourGet', id }, 'tour');
   assert.strictEqual(v.tour.name, 'Giải Bền');
   assert.strictEqual(v.tour.club.name, 'CLB Bền');
