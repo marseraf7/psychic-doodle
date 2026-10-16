@@ -9,6 +9,7 @@
 #     thì thay mạng tốt nhất (tự đấu dùng mạng mới từ lô sau) và đo với engine của game (boat-match.js, như README).
 #     128 ván, ngưỡng 0,57: hai mạng ngang sức chỉ ~6% lần lọt ngưỡng (64 ván / 0,55 là ~20% – mạng tốt nhất trôi dạt).
 #   - Tốc độ học giảm dần: LR × LR_DECAY sau mỗi LR_EVERY vòng, không dưới LR_MIN.
+# MODE=gen chỉ sinh ván, MODE=train chỉ học (tách việc giữa laptop và máy GPU thuê – xem HUONG-DAN-TACH-MAY.md).
 # Nhật ký: logs/progress.log (mỗi vòng một dòng). Mạng tốt nhất: engines/best/caro-nnue.bin.lz4. Dừng: Ctrl-C (tự đấu
 # dừng theo), hoặc tạo file WORK/STOP (dừng sau vòng hiện tại).
 set -uo pipefail
@@ -17,9 +18,22 @@ ROOT="$(cd "$HERE/../../../../.." && pwd)"
 WORK="${WORK:-$HOME/caro-nnue}"
 CORES=$(nproc)
 if command -v nvidia-smi > /dev/null && nvidia-smi > /dev/null 2>&1; then GPU=1; else GPU=0; fi
+# Chế độ: all = tự đấu + huấn luyện trên cùng một máy (mặc định) · gen = chỉ sinh ván (laptop / máy nhiều lõi, không cần
+# GPU) · train = chỉ huấn luyện + đấu chọn mạng (máy có GPU, dữ liệu chép từ máy gen – xem chuyen.sh)
+MODE=${MODE:-all}
+case "$MODE" in all | gen | train) ;; *) echo "MODE phải là all, gen hoặc train"; exit 1 ;; esac
 # Mặc định theo phần cứng (đặt biến môi trường để đổi)
-TRAIN_THREADS=${TRAIN_THREADS:-$([ $GPU = 1 ] && echo 2 || echo $(( CORES > 3 ? CORES / 2 : 1 )))}
-SP_PROCS=${SP_PROCS:-$(( CORES - TRAIN_THREADS > 0 ? CORES - TRAIN_THREADS : 1 ))}
+if [ "$MODE" = train ] && [ $GPU = 0 ]; then TT_DEFAULT=$CORES
+elif [ $GPU = 1 ]; then TT_DEFAULT=2
+else TT_DEFAULT=$(( CORES > 3 ? CORES / 2 : 1 )); fi
+TRAIN_THREADS=${TRAIN_THREADS:-$TT_DEFAULT}
+case "$MODE" in
+  gen) SP_DEFAULT=$(( CORES > 1 ? CORES - 1 : 1 )) ;;   # chừa 1 luồng cho hệ thống
+  train) SP_DEFAULT=0 ;;
+  *) SP_DEFAULT=$(( CORES - TRAIN_THREADS > 0 ? CORES - TRAIN_THREADS : 1 )) ;;
+esac
+SP_PROCS=${SP_PROCS:-$SP_DEFAULT}
+MAX_ROUNDS=${MAX_ROUNDS:-0}                # 0 = không giới hạn; >0 = dừng khi đủ số vòng (hợp với máy GPU thuê theo giờ)
 NODES=${NODES:-20000}
 GAMES=${GAMES:-200}
 ROUND_GAMES=${ROUND_GAMES:-$([ $GPU = 1 ] && echo 20000 || echo 5000)}
@@ -87,15 +101,29 @@ cleanup() {
   exit 0
 }
 trap cleanup INT TERM EXIT
-log "Bắt đầu: $CORES lõi, GPU=$GPU · tự đấu $SP_PROCS tiến trình × $NODES nút · huấn luyện $TRAIN_THREADS luồng, $ITERS bước × lô $BATCH mỗi vòng"
+log "Bắt đầu (MODE=$MODE): $CORES lõi, GPU=$GPU · tự đấu $SP_PROCS tiến trình × $NODES nút · huấn luyện $TRAIN_THREADS luồng, $ITERS bước × lô $BATCH mỗi vòng"
 
 count_games() { echo $(( $(ls "$WORK/data"/*.binpack.lz4 2> /dev/null | wc -l) * GAMES )); }
+
+# Chế độ gen: chỉ sinh ván – mỗi giờ ghi một dòng số ván; dừng bằng WORK/STOP hoặc Ctrl-C
+if [ "$MODE" = gen ]; then
+  n=0
+  while [ ! -f "$WORK/STOP" ]; do
+    nap 60; n=$((n + 1))
+    [ $((n % 60)) -eq 0 ] && log "Sinh ván: đã có ~$(count_games) ván"
+  done
+  cleanup
+fi
 
 # ---------------------------------------------------------------- các vòng luyện
 round=$(ls -d "$WORK"/runs/r* 2> /dev/null | sed 's/.*\/r//' | sort -n | tail -1); round=${round:-0}
 last_games=$(cat "$WORK/runs/last_games" 2> /dev/null || echo 0)
 while [ ! -f "$WORK/STOP" ]; do
-  if [ $(( $(count_games) - last_games )) -lt "$ROUND_GAMES" ]; then nap 300; continue; fi
+  if [ "$MAX_ROUNDS" -gt 0 ] && [ "$round" -ge "$MAX_ROUNDS" ]; then log "Đủ $MAX_ROUNDS vòng – dừng"; break; fi
+  if [ "$MODE" = train ]; then
+    # Máy chỉ học: không chờ thêm ván mới, mỗi vòng học tiếp ITERS bước trên dữ liệu đã chép vào WORK/data
+    if [ "$(count_games)" -eq 0 ]; then nap 300; continue; fi
+  elif [ $(( $(count_games) - last_games )) -lt "$ROUND_GAMES" ]; then nap 300; continue; fi
   round=$((round + 1)); R="$WORK/runs/r$round"; mkdir -p "$R/train"
   last_games=$(count_games); echo "$last_games" > "$WORK/runs/last_games"
   ls -t "$WORK/data"/*.binpack.lz4 | head -n "$WINDOW" | while read -r f; do ln -sf "$f" "$R/train/"; done

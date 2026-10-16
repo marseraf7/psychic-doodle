@@ -16,6 +16,9 @@ và chơi được bằng mạng luyện ra.
 - Ước tính trên CPU (đo trên máy 4 lõi, cả khâu nạp dữ liệu): tự đấu ~10 ván / phút / lõi (~14.000 ván / lõi / ngày);
   huấn luyện ~15 thế / giây (4 lõi, ~4,5 giây mỗi bước lô 64). Một mạng khá cần vài trăm nghìn ván và vài chục triệu lượt
   thế → **một đến vài tháng trên VPS chỉ có CPU** (tuỳ số lõi), vài ngày nếu có GPU.
+- **Laptop yếu (2 lõi) hoặc không có GPU:** tách việc – laptop chỉ sinh ván (`MODE=gen`), phần học chạy trên máy GPU thuê
+  theo giờ (`MODE=train`), chép dữ liệu / mạng qua lại bằng `chuyen.sh`. Windows: xem `HUONG-DAN-WSL2.md`; quy trình hai
+  máy: `HUONG-DAN-TACH-MAY.md`. Đo tốc độ thật bằng `bench.sh` trước khi chạy lâu.
 - Sau `git pull` chạy lại `setup.sh`: Rapfi-CARO được dựng lại nếu bản vá đổi. Dữ liệu tự đấu không bao giờ bị xoá (vài MB
   mỗi ngày); muốn dọn thì xoá bớt file cũ trong `~/caro-nnue/data`.
 
@@ -61,3 +64,10 @@ Sau đó Claude đo lại (bản WebAssembly như trên điện thoại), dựng
 | `make-config.js` | `config.toml` cho Rapfi-CARO (giống app: `caro/rapfi/worker.js`), có / không mạng NNUE |
 | `make-openings.js` | Khai cuộc cho tự đấu: sách luật Việt Nam, ván Gomocup (tuỳ chọn); loại mọi thế trùng `openings.json` (bộ đo) |
 | `arena.js` | Đấu hai bản Rapfi-CARO (khai cuộc 32+; 0–31 để dành đo với engine của game) |
+| `bench.sh` | Đo tốc độ tự đấu thật trên máy này, tính số ngày cần cho mục tiêu (mặc định 1 triệu ván) |
+| `chuyen.sh` | Gói / nhập ván mới và mạng tốt nhất giữa máy sinh ván và máy học |
+| `HUONG-DAN-WSL2.md` | Chạy trên laptop Windows qua WSL2 (từng bước) |
+| `HUONG-DAN-TACH-MAY.md` | Laptop sinh ván + máy GPU thuê học |
+
+`run.sh` có ba chế độ: `MODE=all` (mặc định: tự đấu + học một máy), `MODE=gen` (chỉ sinh ván), `MODE=train` (chỉ học;
+`MAX_ROUNDS=N` dừng khi đủ N vòng).
