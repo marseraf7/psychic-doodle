@@ -76,6 +76,14 @@ Claude Code chỉ tự thức dậy theo sự kiện của **PR** (bình luận,
   Claude Code đọc, xử lý, rồi merge hoặc đóng PR báo cáo.
 - Review PR của Claude Code → bình luận thẳng trên PR đó.
 
+### Nhóm Lark chung
+
+Người dùng, Claude Code và Antigravity có một nhóm Lark; mỗi agent gửi tin qua bot webhook riêng của mình.
+- Dùng để **báo tin ngắn**: nhận việc, xong việc, bị chặn, cần người dùng duyệt (tag người dùng). Mỗi tin 1–3 dòng, kèm số Issue / PR.
+- **Kết quả và trao đổi kỹ thuật vẫn đi qua Issue / PR trên GitHub.** Claude Code không đọc được tin trong nhóm
+  và chỉ nhận sự kiện từ PR.
+- Link webhook là bí mật: không ghi vào repo, Issue, PR hay log.
+
 ### Báo cáo gọn (tiết kiệm token cho agent đọc)
 
 - Mở đầu bằng **kết luận 1–3 dòng**, sau đó là **bảng** (lệnh / số lần chạy / số lần lỗi / ghi chú).
