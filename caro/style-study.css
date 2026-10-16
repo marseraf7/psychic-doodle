@@ -1,0 +1,207 @@
+/* Giảm chuyển động, nút "Về giữa" nổi, giải đố, bảng phân tích ván (như Lichess), chọn nhân vật máy,
+ * hộp thoại Giải đố.
+ * Tách từ style.css (giữ nguyên thứ tự: nạp ngay sau style.css theo thứ tự style-online → style-tour →
+ * style-study → style-extras, trước shell.css). */
+/* ============================ Bớt chuyển động khi người dùng chọn "giảm chuyển động" trong máy */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after, ::backdrop { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}
+
+/* ============================ Nút "Về giữa" nổi (thanh dưới dành chỗ cho Giải đố) */
+.fab-center {
+  position: fixed; right: 12px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 11;
+  width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--panel); border: 1px solid var(--panel-border); box-shadow: var(--shadow); color: var(--text);
+}
+.fab-center .ico { width: 22px; height: 22px; }
+.fab-center:active { transform: scale(0.94); }
+body.online .fab-center { display: none; }
+body.analysis .fab-center { display: none; }
+
+/* ============================ Giải đố / Thử lại (bàn cờ do study.js điều khiển) */
+.ext-only { display: none !important; }
+body.ext .ext-only { display: flex !important; }
+body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-panel { display: none !important; }
+.bar.bottom button.hl { color: var(--accent); }
+.bar.bottom button.hl .ico { color: var(--accent); }
+.tr-msg { display: inline-flex; align-items: center; gap: 2px; }
+.tr-msg.solved { color: #2f9a4c; }
+.tr-msg.wrong { color: #d2382f; }
+.tr-msg .ico { margin-inline-end: 0.2em; }
+.score .up { color: #2f9a4c; font-weight: var(--fw-semibold); }
+.score .down { color: #d2382f; font-weight: var(--fw-semibold); }
+.bot-tag { color: var(--muted); font-weight: var(--fw-regular); }
+
+/* ============================ Bảng phân tích ván – bố cục như Lichess
+ * Máy tính (≥ 860px): bàn cờ bên trái, cột phân tích cố định bên phải (người chơi + độ chính xác, biểu đồ lợi thế,
+ * danh sách nước đi 2 cột, nhận xét, nút điều khiển). Điện thoại: bàn cờ ở trên, bảng ở dưới ngay trên thanh điều khiển.
+ * Bàn cờ (canvas) thu nhỏ nhường chỗ nên bảng không bao giờ che bàn cờ. */
+:root { --an-w: clamp(320px, 30vw, 400px); --an-h: min(38vh, 268px); }
+.an-panel[hidden] { display: none; }
+.an-panel {
+  position: fixed; z-index: 11; display: flex; flex-direction: column; gap: 10px;
+  background: var(--panel); color: var(--text); font-size: var(--fs-sm); overflow: hidden;
+}
+.an-head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-md); flex: none; }
+.an-head .ico { color: var(--accent); }
+.an-head .x-close { margin-left: auto; width: 32px; height: 32px; }
+.an-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+.an-prog { height: 6px; border-radius: 3px; background: rgba(127, 127, 127, 0.18); overflow: hidden; margin: 8px 0 6px; }
+.an-prog i { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
+.an-refine { margin: 2px 0 6px; font-size: var(--fs-xs); }
+.an-eng { margin: 2px 0 6px; font-size: var(--fs-xs); }
+
+/* Người chơi: tên · số lỗi theo loại (bấm để nhảy tới) · độ chính xác */
+.an-players { display: grid; gap: 4px; flex: none; }
+.an-player { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px; }
+.an-player .dot { font-size: var(--fs-md); font-weight: var(--fw-bold); }
+.an-player .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-semibold); }
+.an-acc { font-size: var(--fs-md); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.an-chips { display: flex; gap: 4px; }
+.an-chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 5px 2px 2px; border-radius: 999px; font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text); }
+@media (hover: hover) { .an-chip:hover { background: rgba(127, 127, 127, 0.14); } }
+.an-chip i, .an-badge {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 1.45em; height: 1.45em; padding: 0 3px;
+  border-radius: 999px; background: var(--c); color: #fff; font-style: normal; font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 1;
+}
+
+/* Biểu đồ lợi thế */
+.an-gwrap { flex: none; border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.an-graph { display: block; width: 100%; height: 96px; cursor: pointer; }
+/* Cùng màu với quân cờ: phía trên (X hơn) đỏ cam như quân X, phía dưới (O hơn) xanh như quân O */
+.an-ga-x { fill: color-mix(in srgb, var(--x) 38%, transparent); }
+.an-ga-o { fill: color-mix(in srgb, var(--o) 34%, transparent); }
+.an-gl-x, .an-gl-o { fill: none; stroke-width: 1.6; stroke-linejoin: round; }
+.an-gl-x { stroke: var(--x); }
+.an-gl-o { stroke: var(--o); }
+.an-mid { stroke: var(--grid-strong); stroke-width: 1; }
+.an-cur { stroke: var(--accent); stroke-width: 2; }
+
+/* Danh sách nước đi: 2 cột (X | O) với số thứ tự, nước đang xem tô nền màu nhấn */
+.an-moves {
+  display: grid; grid-template-columns: 2.6em 1fr 1fr; align-content: start; flex: 1; min-height: 0; overflow-y: auto;
+  border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); scrollbar-width: thin;
+  font-variant-numeric: tabular-nums;
+}
+.an-no { padding: 5px 6px; color: var(--muted); text-align: right; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.an-mv { display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 0; text-align: left; font-weight: var(--fw-medium); min-height: 30px; }
+.an-mv b { font-weight: var(--fw-bold); }
+@media (hover: hover) { .an-mv:not(.empty):hover { background: rgba(127, 127, 127, 0.14); } }
+.an-mv.cur { background: var(--accent); color: #fff; }
+.an-mv.cur b { color: #fff !important; }
+
+/* Nhận xét nước đang xem */
+.an-now { display: flex; align-items: center; gap: 8px; min-height: 40px; line-height: 1.35; flex: none; }
+.an-now > span:nth-child(2) { flex: 1; min-width: 0; }
+.an-now .dot { font-weight: var(--fw-bold); }
+
+/* Nút điều khiển trong bảng (máy tính) */
+.an-nav { display: flex; align-items: center; gap: 2px; flex: none; }
+.an-nav button { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 40px; border-radius: 10px; color: var(--text); }
+@media (hover: hover) { .an-nav button:hover { background: rgba(127, 127, 127, 0.14); } }
+.an-nav .ico { width: 22px; height: 22px; }
+.an-nav-gap { flex: 1; }
+.ico.flip { transform: scaleX(-1); }
+
+/* ---- Máy tính: cột bên phải, bàn cờ chiếm phần còn lại */
+@media (min-width: 860px) {
+  .an-panel { top: 0; right: 0; bottom: 0; width: var(--an-w); padding: 14px 14px calc(10px + env(safe-area-inset-bottom)); border-left: 1px solid var(--panel-border); box-shadow: -6px 0 24px rgba(0, 0, 0, 0.06); }
+  body.analysis:not(.ext) #board { width: calc(100% - var(--an-w)); }
+  body.analysis:not(.ext) .bar.top { left: calc((100% - var(--an-w)) / 2); max-width: calc(100% - var(--an-w) - 2 * var(--edge)); }
+  body.analysis:not(.ext) .bar.bottom.replay-only { display: none !important; }
+}
+/* ---- Điện thoại / màn hẹp: bảng dưới bàn cờ, ngay trên thanh điều khiển; danh sách nước đi cuộn ngang */
+@media (max-width: 859px) {
+  .an-panel {
+    left: max(var(--edge), env(safe-area-inset-left)); right: max(var(--edge), env(safe-area-inset-right));
+    bottom: calc(84px + env(safe-area-inset-bottom)); height: var(--an-h); padding: 10px 12px;
+    border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow); gap: 8px;
+  }
+  body.analysis:not(.ext) #board { height: calc(100% - var(--an-h) - 92px - env(safe-area-inset-bottom)); }
+  .an-nav { display: none; }
+  .an-head { font-size: var(--fs-sm); }
+  .an-head .x-close { width: 28px; height: 28px; }
+  .an-body { gap: 8px; overflow-y: auto; }
+  .an-gwrap { order: 1; }
+  .an-graph { height: 56px; }
+  .an-now { order: 2; min-height: 0; }
+  .an-moves { order: 3; display: flex; flex: none; overflow-x: auto; overflow-y: hidden; white-space: nowrap; min-height: 38px; }
+  .an-no { display: flex; align-items: center; background: none; padding: 5px 2px 5px 8px; }
+  .an-mv { border-radius: 8px; padding: 5px 7px; flex: none; }
+  .an-mv.empty { display: none; }
+  .an-players { order: 4; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .an-player { gap: 6px; }
+  .an-player .an-chips { display: none; }
+}
+.primary.sm { padding: 7px 12px; font-size: var(--fs-sm); border-radius: 10px; white-space: nowrap; display: inline-flex; align-items: center; }
+
+/* ============================ Chọn nhân vật máy */
+.bot-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; } /* cột luôn đều nhau, kể cả tên rất dài */
+.bot-card {
+  position: relative; display: flex !important; flex-direction: column; align-items: center; gap: 2px; margin: 0 !important;
+  padding: 8px 4px 6px; border: 1px solid var(--panel-border); border-radius: 12px; cursor: pointer; text-align: center;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.bot-card input { position: absolute; opacity: 0; pointer-events: none; }
+.bot-card:has(input:checked) { border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); box-shadow: 0 0 0 1px var(--c) inset; }
+.bot-card:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bot-card b { font-size: var(--fs-sm); font-weight: var(--fw-semibold); max-width: 100%; overflow-wrap: anywhere; text-align: center; line-height: 1.25; }
+.bot-card:has(input:checked) b { color: color-mix(in srgb, var(--c) 70%, var(--text)); }
+.bot-card small { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.bot-card.locked { opacity: 0.45; cursor: not-allowed; }
+.bot-card.locked .bot-av { filter: grayscale(1); }
+.bot-card small svg.ico.i-in { margin: 0; }
+.bot-card .bot-av { margin-bottom: 9px; } /* chừa chỗ cho biểu tượng ở góc dưới ảnh, không đè lên tên */
+/* Ảnh đại diện: ảnh vuông bo góc, viền màu riêng; biểu tượng (emoji / ảnh nhỏ) ở góc dưới phải */
+.bot-av {
+  position: relative; flex: none; width: 44px; height: 44px; border-radius: 30%; display: flex; align-items: center; justify-content: center;
+  background: var(--c); color: #fff; font-weight: var(--fw-bold); font-size: var(--fs-md);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--c);
+}
+.bot-av > img:first-child { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block; }
+.bot-av .bot-ic {
+  position: absolute; right: -6px; bottom: -6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--panel); box-shadow: 0 0 0 1.5px var(--c); font-style: normal; font-size: 12px; line-height: 1; object-fit: cover;
+}
+.bot-av.lg { width: 64px; height: 64px; font-size: var(--fs-xl); }
+.bot-av.lg .bot-ic { width: 26px; height: 26px; font-size: 15px; right: -7px; bottom: -7px; }
+.bot-av.sm { width: 28px; height: 28px; font-size: var(--fs-sm); box-shadow: 0 0 0 1.5px var(--panel), 0 0 0 2.5px var(--c); }
+.bot-av.sm .bot-ic { display: none; }
+/* Khung giới thiệu nhân vật đang chọn */
+.bot-say {
+  display: flex; gap: 14px; align-items: flex-start; margin: 10px 0 0; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--c, var(--accent)) 35%, var(--panel-border));
+  background: color-mix(in srgb, var(--c, var(--accent)) 7%, transparent);
+  font-size: var(--fs-sm); color: var(--muted); line-height: 1.4; min-height: 84px;
+}
+.bot-say:empty { display: none; }
+.bot-say .bs-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.bot-say b { font-size: var(--fs-md); }
+.bot-say .bs-meta { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.bot-say .bs-desc { color: var(--text); }
+.bot-say small { font-size: var(--fs-xs); }
+.style-tag { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; font-weight: var(--fw-semibold);
+  background: color-mix(in srgb, var(--st) 16%, transparent); color: color-mix(in srgb, var(--st) 80%, var(--text)); }
+.style-tag .ico.i-in { width: 12px; height: 12px; margin: 0; }
+.st-atk { --st: #ef4444; } .st-def { --st: #3b82f6; } .st-dbl { --st: #a855f7; } .st-trap { --st: #f59e0b; } .st-uni { --st: #ca8a04; }
+
+/* ============================ Hộp thoại Giải đố */
+dialog div.dlg { padding: 16px 18px 18px; }
+.pz-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 12px 0; text-align: center; }
+.pz-stats div { padding: 8px 4px; border-radius: 12px; background: rgba(127, 127, 127, 0.1); }
+.pz-stats b { display: block; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
+.pz-stats small { font-size: var(--fs-xs); color: var(--muted); }
+.pz-modes { display: grid; gap: 8px; }
+.pz-mode {
+  display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left;
+  border: 1px solid var(--panel-border); border-radius: 14px; transition: background-color 0.15s, transform 0.1s;
+}
+.pz-mode .ico { width: 26px; height: 26px; flex: 0 0 auto; color: var(--accent); }
+.pz-mode[data-pz="streak"] .ico { color: #f0702a; }
+.pz-mode span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pz-mode b { font-size: var(--fs-md); }
+.pz-mode small { font-size: var(--fs-sm); color: var(--muted); }
+@media (hover: hover) { .pz-mode:hover { background: rgba(127, 127, 127, 0.1); } }
+.pz-mode:active { transform: scale(0.98); }
+@media (max-width: 560px) { .wide-only { display: none !important; } }
+

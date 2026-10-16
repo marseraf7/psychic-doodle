@@ -1,0 +1,164 @@
+/* Giải đấu & câu lạc bộ: thẻ giải, nhánh đấu, giai đoạn, bảng xếp hạng, xếp bảng; biểu tượng cạnh chữ.
+ * Tách từ style.css (giữ nguyên thứ tự: nạp ngay sau style.css theo thứ tự style-online → style-tour →
+ * style-study → style-extras, trước shell.css). */
+/* ============================ Giải đấu & câu lạc bộ */
+.codes[hidden] { display: none; }
+.count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: #e5392f; color: #fff; font-size: var(--fs-2xs); font-style: normal; font-weight: var(--fw-bold); line-height: 1;
+}
+.count[hidden] { display: none; }
+#tour-dlg { width: min(560px, calc(100% - 16px)); }
+.tour-dlg { max-height: calc(100dvh - 32px); }
+.tour-dlg .dlg-head h2 { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0; }
+.tour-tabs[hidden], #tour-back[hidden] { display: none; }
+.tour-body { display: flex; flex-direction: column; gap: 10px; }
+.tour-body h4 { margin: 8px 0 0; font-size: var(--fs-sm); color: var(--muted); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: 0.04em; }
+.tour-body h5 { margin: 0 0 4px; font-size: var(--fs-xs); color: var(--muted); font-weight: var(--fw-semibold); }
+.tour-body .row > input { flex: 1; min-width: 120px; }
+.tlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tlist li.empty { color: var(--muted); font-size: var(--fs-sm); }
+.titem {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left; padding: 10px 12px;
+  border: 1px solid var(--panel-border); border-radius: 12px; background: transparent; color: inherit;
+}
+.titem:hover { border-color: var(--accent); }
+.titem .pn small { white-space: normal; }
+.ticon { font-size: var(--fs-lg); flex: none; }
+.tags { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.pill {
+  display: inline-block; font-size: var(--fs-2xs); font-weight: var(--fw-semibold); padding: 2px 8px; border-radius: 999px;
+  background: rgba(127, 127, 127, 0.15); color: var(--muted); white-space: nowrap;
+}
+.pill.live { background: color-mix(in srgb, #e5392f 15%, transparent); color: #e5392f; }
+.pill.soon { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.pill.wait { background: color-mix(in srgb, #f0a800 18%, transparent); color: #b07a00; }
+.pill.mine { background: color-mix(in srgb, #2fb45a 16%, transparent); color: #1f8a43; }
+.pill.club { background: color-mix(in srgb, #8a5cf6 15%, transparent); color: #7a4fe0; }
+.muted { color: var(--muted); font-size: var(--fs-sm); }
+.thead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.tour-body > p { margin: 0; }
+.tdesc { white-space: pre-wrap; font-size: var(--fs-sm); margin: 4px 0; }
+.note { background: color-mix(in srgb, #f0a800 12%, transparent); border-radius: 10px; padding: 8px 10px; font-size: var(--fs-sm); }
+.note.bad { background: color-mix(in srgb, #e5392f 12%, transparent); }
+.announce { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 10px; padding: 8px 10px; font-size: var(--fs-sm); white-space: pre-wrap; }
+.tactions { gap: 6px; }
+.ghost.danger, .danger { color: #e5392f; }
+.mycard {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--panel-border); background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.mycard b { flex: 1; font-weight: var(--fw-semibold); font-size: var(--fs-sm); }
+.mycard.live { border-color: #e5392f; }
+.podium { display: flex; gap: 8px; justify-content: center; }
+.podium .pl { flex: 1; max-width: 160px; text-align: center; border: 1px solid var(--panel-border); border-radius: 12px; padding: 8px; }
+.podium .pl span { display: block; font-size: var(--fs-xl); }
+.podium .pl b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.podium .p1 { border-color: #d4a300; }
+.bracket { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+.b-col { display: flex; flex-direction: column; justify-content: space-around; gap: 8px; min-width: 150px; flex: 1; }
+.b-match { border: 1px solid var(--panel-border); border-radius: 10px; overflow: hidden; font-size: var(--fs-sm); }
+.b-match.live { border-color: #e5392f; }
+.b-match small { display: block; padding: 3px 8px; color: var(--muted); font-size: var(--fs-2xs); }
+.b-match small a { color: var(--accent); text-decoration: none; margin-right: 4px; }
+.b-p { display: flex; align-items: center; gap: 6px; padding: 5px 8px; }
+.b-p + .b-p { border-top: 1px solid var(--panel-border); }
+.b-p .seed { width: 16px; color: var(--muted); font-size: var(--fs-2xs); text-align: right; flex: none; }
+.b-p .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.b-p b { font-variant-numeric: tabular-nums; }
+.b-p.win { font-weight: var(--fw-bold); background: color-mix(in srgb, #2fb45a 10%, transparent); }
+.b-p.me .nm { color: var(--accent); }
+.b-p.empty { color: var(--muted); }
+.tstand .pts, .ranks .pts { font-weight: var(--fw-bold); }
+.tgames a { color: var(--accent); text-decoration: none; font-size: var(--fs-lg); padding: 0 6px; }
+.chead { display: flex; align-items: center; gap: 12px; }
+.chead .club-logo { width: 52px; height: 52px; font-size: var(--fs-xl); }
+.club-logo {
+  width: 38px; height: 38px; border-radius: 12px; flex: none; display: grid; place-items: center;
+  color: #fff; font-weight: var(--fw-bold); font-size: var(--fs-lg);
+}
+.role { font-size: var(--fs-2xs); color: var(--accent); font-weight: var(--fw-semibold); }
+.mops { width: auto; padding: 4px 6px; font-size: var(--fs-sm); flex: none; }
+.code { letter-spacing: 2px; font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
+.tform { display: flex; flex-direction: column; gap: 10px; }
+.tform textarea, .tour-body select {
+  font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--panel-border); border-radius: 10px; padding: 9px 11px; width: 100%;
+}
+.tform fieldset { margin: 0; }
+details.card summary { cursor: pointer; font-weight: var(--fw-semibold); }
+details.card[open] summary { margin-bottom: 8px; }
+.rv { border: 1px solid var(--panel-border); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.rv .pn small { white-space: normal; }
+.rv .row { justify-content: flex-end; }
+.tour-body .ranks { max-height: none; overflow: visible; }
+.titem .pn { flex: 1; }
+.tour-body select.mops { width: auto; max-width: 44px; }
+.tform [hidden], .check[hidden] { display: none !important; }
+
+/* ---- Giải nhiều giai đoạn: trình sửa giai đoạn, bảng xếp hạng vòng tròn / Thụy Sĩ, danh sách trận */
+.stage-card { border: 1px solid var(--panel-border); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.sc-head { display: flex; align-items: center; gap: 6px; }
+.sc-head button { margin-left: auto; }
+.sc-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; align-items: end; }
+.sc-body input[type="number"] { width: 100%; }
+.sc-body .check { grid-column: 1 / -1; }
+.sc-arrow { text-align: center; color: var(--muted); line-height: 1; }
+.pts3 { display: flex; gap: 4px; }
+.pts3 input { min-width: 0; }
+.flow { font-size: var(--fs-sm); margin: 0 0 8px; }
+#tf-stages:not([hidden]) { display: flex; flex-direction: column; gap: 8px; }
+details.fold { border-top: 1px solid var(--panel-border); padding-top: 8px; }
+details.fold > summary { cursor: pointer; font-size: var(--fs-sm); padding: 2px 0 6px; }
+.tour-body h6 { margin: 8px 0 4px; font-size: var(--fs-xs); color: var(--muted); font-weight: var(--fw-semibold); text-transform: uppercase; }
+.br-h { margin: 12px 0 4px; font-size: var(--fs-sm); color: var(--text); font-weight: var(--fw-bold); }
+.mlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.mrow { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--panel-border); border-radius: 10px; font-size: var(--fs-sm); }
+.mrow .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .nm:first-child { text-align: right; }
+.mrow .nm.win { font-weight: var(--fw-bold); }
+.mrow .nm.me { color: var(--accent); }
+.mrow .sc { text-align: center; font-variant-numeric: tabular-nums; min-width: 40px; }
+.mrow small { grid-column: 1 / -1; text-align: center; color: var(--muted); font-size: var(--fs-2xs); }
+.mrow small a { color: var(--accent); text-decoration: none; margin: 0 2px; }
+.tscroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.stand { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+table.stand th, table.stand td { padding: 5px 6px; text-align: center; border-bottom: 1px solid var(--panel-border); white-space: nowrap; }
+table.stand th { color: var(--muted); font-weight: var(--fw-medium); font-size: var(--fs-xs); }
+table.stand .l { text-align: left; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+table.stand tr.adv td:first-child { box-shadow: inset 3px 0 0 #2fb45a; }
+table.stand tr.adv .l { font-weight: var(--fw-semibold); }
+table.stand tr.me td { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sc-body input[type="number"], .sc-body select { height: 40px; padding: 6px 8px; font-size: var(--fs-sm); }
+.sc-body .field:has(.pts3) { grid-column: span 2; }
+.pts3 input { flex: 1; text-align: center; }
+
+/* ---- Xếp bảng (ban tổ chức, trước khi bắt đầu) */
+.grp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin: 6px 0; }
+.grp-card { border: 1px solid var(--panel-border); border-radius: 12px; padding: 6px 8px; min-height: 60px; }
+.grp-card h5 { margin: 2px 0 4px; }
+.grp-card.bad { border-color: #e5392f; }
+.grp-card.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.grp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.grp-list li { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); padding: 3px 2px; border-radius: 8px; }
+.grp-list li[draggable] { cursor: grab; }
+.grp-list li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.grp-list .grip { color: var(--muted); font-size: var(--fs-2xs); letter-spacing: -2px; }
+.tour-body select.grp-move { width: auto; max-width: 92px; padding: 3px 4px; font-size: var(--fs-xs); flex: none; }
+
+/* ============================ Biểu tượng nằm cạnh chữ (giải đấu, câu lạc bộ) */
+svg.ico.i-in { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.2em; margin-inline-end: 0.35em; }
+.pn b svg.ico.i-in, .b-p svg.ico.i-in { margin-inline: 0.3em 0; }
+button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.15em; }
+.ticon svg.ico.i-in { width: 1.3em; height: 1.3em; margin: 0; color: var(--accent); }
+#tour-title svg.ico.i-in { color: var(--accent); }
+.ico.m1 { color: #d4a300; }
+.ico.m2 { color: #9aa3ae; }
+.ico.m3 { color: #c07a3c; }
+.ico.fire { color: #f26b1d; }
+.ico.star { color: #f0a800; }
+.ico.ok { color: #2fb45a; }
+.ico.muted { color: var(--muted); }
+.podium .pl svg.ico.i-in { width: var(--fs-xl); height: var(--fs-xl); margin: 0 auto 4px; display: block; }
+.b-match small a svg.ico.i-in, .mrow small a svg.ico.i-in, .tgames a svg.ico.i-in { width: 0.9em; height: 0.9em; margin-inline-end: 0.1em; vertical-align: -0.1em; }
+.announce svg.ico.i-in { color: var(--accent); }
+
