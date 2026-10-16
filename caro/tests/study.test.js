@@ -114,10 +114,16 @@ const tests = {
     assert.strictEqual(r.moves[6].cls, 'best');
     // Độ chính xác tính theo mức tụt khả năng thắng (như Lichess): X mất ít, O mất nhiều hơn. X không hoàn hảo: engine thấy
     // nước 5 (2,0) – ba mở – kém (0,1) (sau (0,1) X thắng chắc); số cụ thể dao động theo tốc độ máy nên chỉ kiểm thứ tự
-    assert.ok(r.acc[X] >= 80, 'X ' + r.acc[X]);
+    assert.ok(r.acc[X] >= 70, 'X ' + r.acc[X]);
     assert.ok(r.acc[O] < r.acc[X], 'O ' + r.acc[O]);
-    // Lỗi nặng chỉ ở nước 6 (các nước "chưa chính xác" nhỏ có thể dao động theo thời gian tìm của engine)
-    assert.deepStrictEqual(A.keyMoments(r).filter((m) => m.cls !== 'inacc').map((m) => m.i), [5]);
+    // Nước 6 là thời điểm đáng chú ý cuối cùng, xếp loại theo chuỗi thắng chắc (không theo điểm) nên không đổi theo tốc độ
+    // máy. Các nước khai cuộc rải rác (nước 2–4) không có thế ép, điểm phụ thuộc độ sâu tìm được: máy chậm (CI, đo độ phủ)
+    // có lúc chấm "chưa chính xác" / "sai lầm" / "sai lầm nặng" theo điểm – không kiểm chúng
+    // (tái hiện: đồng hồ chạy nhanh 8–12 lần – bản cũ đỏ 7/24, xem reports/41-flaky-tests.md)
+    const key = A.keyMoments(r);
+    const k5 = key.find((m) => m.i === 5);
+    assert.ok(k5 && k5.cls === 'blunder' && !k5.ev && k5.len >= 1, JSON.stringify(key));
+    assert.ok(key.every((m) => m.i <= 5), JSON.stringify(key));
   },
   'analyzeGame: bỏ lỡ nước thắng ngay = bỏ lỡ'() {
     // X có 4 quân mở 2 đầu ở nước 7 nhưng đánh chỗ khác
