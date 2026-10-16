@@ -347,6 +347,7 @@ node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại
 node caro/tests/e2e/boat-rapfi.e2e.js    # BOAT chạy Rapfi ở 3 luật + Rapfi-CARO ở luật Việt Nam, mạng lấy từ bộ nhớ đệm, trang giấy phép (RAPFI_NETS=<thư mục mạng> nếu không ra được Internet)
 node caro/tests/e2e/localhist.e2e.js     # Lịch sử đấu trên máy (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, phân tích lưu kèm, Cài đặt), Thiết bị
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
+node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện thoại (360/390/430 px), iPad dọc/ngang (768/820/1024/1180 px), xoay màn hình, 4 ngôn ngữ
 ```
 
 ## Cấu trúc
