@@ -1,5 +1,8 @@
 # Ghi nhớ cho repo Cờ Caro
 
+- **Đầu mỗi việc mới: kiểm model + effort** theo skill `.claude/skills/chon-model-effort/SKILL.md`. Đặt sai (yếu quá
+  cho việc khó / bảo mật, hoặc `xhigh`/`max` cho việc vặt) thì **không làm**, cảnh báo ngay và chỉ cách đổi `/model`, `/effort`.
+  Chỉ làm khi người dùng đã đổi hoặc nói "cứ làm". Áp dụng cho mọi model, kể cả model ra sau này.
 - Trả lời / báo cáo bằng tiếng Việt; chú thích code bằng tiếng Việt.
 - **Luôn chia file và gom qua hub** khi viết hoặc sửa code: làm theo skill `.claude/skills/chia-file-hub/SKILL.md`
   (một file một việc, ~400 dòng; máy chủ gom ở `server/src/hub/index.js`; trình duyệt mỗi tính năng một module
