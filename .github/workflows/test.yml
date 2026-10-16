@@ -68,6 +68,11 @@ jobs:
         timeout-minutes: 25
         if: success() || failure()
         run: E2E_MOBILE=1 E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots-mobile node caro/tests/e2e/retry-crash.js caro/tests/e2e/localhist.e2e.js
+      # Bố cục 8 kích thước thiết bị (điện thoại → desktop), xoay màn hình, 4 ngôn ngữ ở 360 px (devices.e2e.js)
+      - name: Kiểm thử trình duyệt Bố cục đa thiết bị
+        timeout-minutes: 15
+        if: success() || failure()
+        run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/devices.e2e.js
       - uses: actions/upload-artifact@v7
         if: always()
         with:

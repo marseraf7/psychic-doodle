@@ -58,4 +58,6 @@ Sau khi tạo: báo người dùng số Issue trong một dòng; không chờ �
 
 - Test tái hiện lỗi phải chứng minh **đỏ trên code cũ** – ghi rõ yêu cầu này trong Issue.
 - Cùng một tài khoản GitHub cho hai agent: phân biệt bằng dòng `Agent: agy` trong commit.
+- PR có test phải kèm dòng kết quả cuối của từng trình duyệt; vẫn tự chạy lại ít nhất Chromium trước khi duyệt.
+  Ví dụ đã gặp (PR #27): bài bấm tab `study` không tồn tại, dừng ở mục 2 – lần nộp đầu chưa từng chạy hết bài.
 - Việc cần WebKit / Safari / iPhone: luôn giao Antigravity (máy session của Claude Code chỉ có Chromium).

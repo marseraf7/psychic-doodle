@@ -79,6 +79,8 @@ Claude Code chỉ tự thức dậy theo sự kiện của **PR** (bình luận,
 ### Báo cáo gọn (tiết kiệm token cho agent đọc)
 
 - Mở đầu bằng **kết luận 1–3 dòng**, sau đó là **bảng** (lệnh / số lần chạy / số lần lỗi / ghi chú).
+- PR có thêm / sửa test: dán **dòng kết quả cuối** của từng lần chạy (`Tất cả đạt` / `N bước KHÔNG đạt`) cho mỗi
+  trình duyệt đã chạy. Chưa chạy hết bài thì ghi rõ "chưa chạy", không tự đánh dấu đạt.
 - **Không dán log dài.** Mỗi lỗi chỉ trích: bước `OK` cuối cùng, dòng lỗi, tối đa 20 dòng log liên quan.
   Bỏ dòng rác (ALSA, libEGL, MESA, git config…).
 - Ghi rõ môi trường: hệ điều hành, trình duyệt + phiên bản, commit đã chạy (`git rev-parse --short HEAD`).
