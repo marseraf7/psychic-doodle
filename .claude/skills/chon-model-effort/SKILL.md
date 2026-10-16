@@ -27,8 +27,8 @@ nguyên). Trả lời ngay bằng một cảnh báo theo mẫu ở mục 4, rồ
 - **Model**: gọi `get_session` (máy chủ claude-code-remote, không truyền `session_id`), đọc `session_context.model` và
   `external_metadata.last_served_model`. Hai giá trị khác nhau nghĩa là đã bị chuyển model (fallback): nói cho người dùng biết.
   Không có công cụ này thì dùng ID model ghi trong prompt hệ thống và nói rõ model thực chạy có thể khác.
-- **Effort**: lấy từ mức người dùng đặt (`/effort`, thanh trạng thái, cấu hình phiên). Không biết chắc thì không đoán.
-  Với việc cần `high` trở lên (mục 3), hỏi người dùng xác nhận effort trước khi làm.
+- **Effort**: cũng có trong `get_session`: `session_context.effort_level` (hoặc `external_metadata.effort_level`).
+  Không đọc được thì không đoán. Với việc cần `high` trở lên (mục 3), hỏi người dùng xác nhận effort trước khi làm.
 
 ## 2. Hai núm khác nhau
 
