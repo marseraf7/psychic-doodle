@@ -448,15 +448,19 @@ class Store {
   }
 }
 
-// ---- Mật khẩu (scrypt, không cần thư viện ngoài)
-function hashPassword(password) {
+// ---- Mật khẩu (scrypt, không cần thư viện ngoài). Bản bất đồng bộ: băm chạy ở luồng phụ của libuv, không chặn
+// vòng sự kiện – trong lúc một người đăng nhập, mọi ván đang chơi vẫn chạy bình thường.
+const scrypt = (password, salt) => new Promise((resolve, reject) => {
+  crypto.scrypt(password, salt, 32, (err, key) => (err ? reject(err) : resolve(key)));
+});
+async function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 32).toString('hex');
+  const hash = (await scrypt(password, salt)).toString('hex');
   return { salt, hash };
 }
-function checkPassword(password, pass) {
+async function checkPassword(password, pass) {
   if (!pass) return false;
-  const h = crypto.scryptSync(password, pass.salt, 32);
+  const h = await scrypt(password, pass.salt);
   return crypto.timingSafeEqual(h, Buffer.from(pass.hash, 'hex'));
 }
 

@@ -24,7 +24,7 @@ test.before(async () => {
 });
 test.after(() => app.stop());
 
-// Đăng ký / đăng nhập băm mật khẩu bằng scrypt (đồng bộ): máy chậm hoặc chạy chung đo độ phủ có thể quá 3 giây
+// Đăng ký / đăng nhập băm mật khẩu bằng scrypt: máy chậm hoặc chạy chung đo độ phủ có thể quá 3 giây
 const AUTH_MS = 15000;
 
 class Client {
