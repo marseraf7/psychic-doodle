@@ -1,0 +1,55 @@
+# Mẫu giao việc cho agent (Claude Code / Antigravity / Gemini) – xem AGENTS.md mục "Vòng làm việc"
+name: Nhiệm vụ cho agent
+description: Giao một việc nhỏ, rõ phạm vi cho một agent
+title: "[Nhiệm vụ] "
+body:
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent nhận việc
+      description: Sau khi tạo, gắn thêm nhãn tương ứng (agent:claude / agent:agy / agent:gemini)
+      options:
+        - Claude Code
+        - Antigravity
+        - Gemini
+    validations:
+      required: true
+  - type: textarea
+    id: muc-tieu
+    attributes:
+      label: Mục tiêu
+      description: Việc cần làm và vì sao
+    validations:
+      required: true
+  - type: textarea
+    id: pham-vi
+    attributes:
+      label: File / thư mục được sửa
+      description: Chỉ sửa trong phạm vi này. File dễ xung đột (caro/sw.js, caro/index.html, caro/i18n-*.js) ghi rõ nếu cần.
+      placeholder: |
+        - caro/local-save.js
+        - caro/tests/local-games.test.js
+    validations:
+      required: true
+  - type: textarea
+    id: xong-khi
+    attributes:
+      label: Tiêu chí xong
+      description: Điều kiện cụ thể, kiểm tra được
+      placeholder: |
+        - [ ] ...
+        - [ ] CI xanh
+    validations:
+      required: true
+  - type: textarea
+    id: kiem-thu
+    attributes:
+      label: Lệnh kiểm thử phải chạy
+      value: |
+        cd server && npm run coverage
+        node caro/tests/e2e/<tên>.e2e.js
+  - type: textarea
+    id: luu-y
+    attributes:
+      label: Lưu ý thêm
+      description: Không ghi mật khẩu, token hay khoá bí mật vào đây.

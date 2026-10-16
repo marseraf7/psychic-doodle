@@ -19,6 +19,30 @@ function loadPlaywright() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/*
+ * Trên GitHub Actions: mỗi bước không đạt / trang sập / dừng giữa chừng in thêm một annotation (::error) – đọc nhanh qua
+ * API check-runs/<id>/annotations (vài trăm token) thay vì tải cả log job (hàng chục nghìn dòng).
+ */
+const GH = !!process.env.GITHUB_ACTIONS;
+const SCRIPT = path.basename((require.main && require.main.filename) || 'e2e');
+const ghEsc = (s, prop) => {
+  const t = String(s).replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  return prop ? t.replace(/:/g, '%3A').replace(/,/g, '%2C') : t;
+};
+let lastOk = '(chưa có)';
+function annotate(msg) {
+  if (GH) console.log(`::error title=${ghEsc(SCRIPT + ' · ' + (process.env.E2E_BROWSER || 'chromium') + (process.env.E2E_MOBILE ? ' · điện thoại' : ''), true)}::${ghEsc(msg)}`);
+}
+if (GH) {
+  const fatal = (e) => {
+    annotate(`dừng giữa chừng sau bước "${lastOk}": ${String((e && e.message) || e).split('\n')[0]}`);
+    console.error(e);
+    process.exit(1);
+  };
+  process.on('uncaughtException', fatal);
+  process.on('unhandledRejection', fatal);
+}
+
 /**
  * Mở trang, quá hạn thì thử lại một lần: Firefox (Playwright, CI) đôi khi không xong điều hướng khi đã mở nhiều hồ sơ
  * trình duyệt – lần thử lại vẫn trong cùng hồ sơ nên vẫn kiểm đúng dữ liệu đã lưu.
@@ -44,7 +68,10 @@ async function setup(port, timers = {}) {
   const browser = await loadPlaywright()[kind].launch(kind === 'chromium' ? { args: ['--no-sandbox'] } : {});
   const errors = [];
   let failed = 0;
-  const ok = (c, m) => { console.log((c ? 'OK  ' : 'FAIL') + ' ' + m); if (!c) { failed++; process.exitCode = 1; } };
+  const ok = (c, m) => {
+    console.log((c ? 'OK  ' : 'FAIL') + ' ' + m);
+    if (c) lastOk = m; else { failed++; process.exitCode = 1; annotate('FAIL ' + m); }
+  };
   const shot = (page, name) => page.screenshot({ path: path.join(out, name), fullPage: true });
 
   /** Người chơi mới: mở trang, vào Online, đăng ký tài khoản. */
@@ -54,7 +81,7 @@ async function setup(port, timers = {}) {
     await ctx.addInitScript((l) => { localStorage.setItem('caro.lang', l); }, lang);
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(name + ': ' + e.message));
-    p.on('crash', () => errors.push(name + ': trang bị sập (crash)'));
+    p.on('crash', () => { errors.push(name + ': trang bị sập (crash)'); annotate(`${name}: trang bị sập (crash) sau bước "${lastOk}"`); });
     p.on('console', (m) => { if (m.type() === 'error') errors.push(name + ' console: ' + m.text()); });
     p.on('dialog', (d) => d.accept(d.type() === 'prompt' ? 'Tên chưa phù hợp' : undefined));
     // Đếm số bản vá trang giải nhận được (cập nhật chỉ gửi phần đổi)

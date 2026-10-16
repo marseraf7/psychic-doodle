@@ -32,14 +32,64 @@ Các file dễ xung đột nhất:
 | `caro/i18n-*.js` | Chuỗi dịch 4 ngôn ngữ |
 
 Quy tắc: **mỗi lúc chỉ một agent được sửa một vùng**. Nếu cả hai cần
-sửa cùng file, bên này làm xong và merge trước, bên kia rebase rồi mới
+sửa cùng file, bên này làm xong và merge trước, bên kia **merge nhánh chính
+vào nhánh của mình** (không rebase, không force-push nhánh đã đẩy) rồi mới
 làm tiếp. Hoặc để tăng `CACHE` ở bước cuối khi gộp.
 
-### Review chéo
+### Vai trò
+
+| Ai | Phụ trách |
+| -- | --------- |
+| Người dùng | Giao việc, quyết định hướng đi, có quyền dừng mọi việc |
+| Claude Code (Quản trị viên) | Server, engine, Rapfi/NNUE, thuật toán; sửa lỗi CI, đọc log; **review và merge PR** |
+| Antigravity | Debug, soi code, review PR của Claude Code; nhận việc phụ được giao |
+| Gemini (qua MCP) | Ý kiến thứ hai khi được hỏi; không tự đẩy code |
+
+### Review chéo và merge
 
 - Agent này viết → agent kia review PR.
-- Người dùng (bạn) là người quyết định merge cuối cùng.
-- **Không tự merge** nếu người dùng chưa cho phép.
+- Claude Code merge khi: 5 check bắt buộc xanh, không còn nhận xét chặn
+  chưa xử lý, PR đúng phạm vi Issue. Thay đổi `.github/`, quyền truy cập,
+  bí mật hay phụ thuộc mới thì hỏi người dùng trước.
+- Antigravity **không tự merge** vào nhánh chính.
+- Nhánh chính được bảo vệ: chỉ vào qua PR, cấm force-push, cấm xoá.
+
+### Vòng làm việc
+
+Giao việc → Plan → Output → Review → Sửa lỗi → Cập nhật luật → giao việc tiếp.
+
+1. **Giao việc**: mở Issue bằng mẫu *Nhiệm vụ cho agent*, gắn nhãn
+   `agent:claude` / `agent:agy` / `agent:gemini`.
+2. **Plan**: agent nhận việc bình luận kế hoạch ngắn vào Issue trước khi code.
+3. **Output**: PR từ nhánh riêng, mô tả theo mẫu PR, ghi `Closes #<số Issue>`.
+4. **Review**: agent còn lại review; lỗi chặn đánh dấu 🔴, gợi ý nhỏ 🟡.
+5. **Sửa lỗi**: commit thêm vào cùng PR, không mở PR mới.
+6. **Cập nhật luật**: bài học rút ra ghi vào file này hoặc `CLAUDE.md`.
+
+### Nộp kết quả qua PR (để Claude Code tự nhận, không cần người dùng chuyển lời)
+
+Claude Code chỉ tự thức dậy theo sự kiện của **PR** (bình luận, review, CI), không theo Issue. Vì vậy:
+
+- Việc có sửa code → PR như thường, ghi `Closes #<số Issue>`.
+- Việc **chỉ báo cáo** (đo, audit, chạy test, review không sửa code) → mở một PR nhỏ thêm file
+  `reports/<số-issue>-<tên-ngắn>.md` (nhánh `agy/report-<số-issue>`), ghi `Closes #<số Issue>`.
+  Claude Code đọc, xử lý, rồi merge hoặc đóng PR báo cáo.
+- Review PR của Claude Code → bình luận thẳng trên PR đó.
+
+### Báo cáo gọn (tiết kiệm token cho agent đọc)
+
+- Mở đầu bằng **kết luận 1–3 dòng**, sau đó là **bảng** (lệnh / số lần chạy / số lần lỗi / ghi chú).
+- **Không dán log dài.** Mỗi lỗi chỉ trích: bước `OK` cuối cùng, dòng lỗi, tối đa 20 dòng log liên quan.
+  Bỏ dòng rác (ALSA, libEGL, MESA, git config…).
+- Ghi rõ môi trường: hệ điều hành, trình duyệt + phiên bản, commit đã chạy (`git rev-parse --short HEAD`).
+- Trên CI, lỗi e2e có sẵn annotation (`::error`): đọc qua
+  `gh api repos/<owner>/<repo>/check-runs/<id>/annotations` thay vì tải cả log.
+- Việc chưa làm được / không chắc → ghi rõ "chưa kiểm" thay vì đoán.
+
+### Ghi danh tính
+
+Các agent có thể dùng chung tài khoản GitHub, nên mỗi commit ghi dòng cuối
+cho biết agent nào viết, ví dụ `Agent: agy` hoặc `Co-Authored-By: Claude …`.
 
 ### Viết nhiệm vụ rõ ràng
 

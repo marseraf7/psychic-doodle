@@ -309,6 +309,29 @@ const WIN = [3, 0];
     const g = await a.evaluate(() => window.CaroLocalHist.store.list());
     ok(g.length === 1 && g[0].kind === 'online' && g[0].x && g[0].o && g[0].n >= 7, 'chỉ lưu ván được chọn (tên 2 bên, nước đi): ' + JSON.stringify(g[0]));
     ok(await a.evaluate(() => window.CaroLocalSave.pending.length === 0), 'đã trả lời: hết ván chờ');
+
+    // Ca biên (#25): ván tự lưu được gỡ khỏi ván chờ ngay, ván đã xoá không bị tự lưu lại
+    await a.evaluate(() => {
+      const s = window.CaroLocalHist.store;
+      s.setSettings({ on: true, ask: true, online: 'all' });
+      const mv = (n) => Array.from({ length: n }, (_, i) => [i, i % 2]);
+      window.CaroLocalSave.capture({ at: 901, kind: 'online', account: true, winner: 1, rule: 'vn', moves: mv(5) });
+      window.CaroLocalSave.capture({ at: 902, kind: 'bot', bot: 'ti', winner: 1, rule: 'vn', moves: mv(7) });
+      window.CaroLocalSave.exitGame();
+    });
+    await sleep(300);
+    ok(await a.evaluate(() => window.CaroLocalSave.pending.length === 1 && window.CaroLocalSave.pending[0].at === 902), 'chỉ còn ván hỏi trong ván chờ');
+    await a.evaluate(() => {
+      const s = window.CaroLocalHist.store;
+      const g901 = s.list().find((x) => x.at === 901);
+      if (g901) s.remove([g901.id]);
+      const d = document.getElementById('lh-ask');
+      if (d.close) d.close(); else d.removeAttribute('open');
+      window.CaroLocalSave.exitGame();
+    });
+    await sleep(300);
+    ok(await a.evaluate(() => !window.CaroLocalHist.store.list().some((x) => x.at === 901)), 'ván đã xoá không bị tự lưu lại');
+
     await a.context().close();
     await b.context().close();
   }
