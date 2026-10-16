@@ -40,7 +40,7 @@ class Auth {
     this.welcome(conn);
   }
 
-  on_register(conn, { username, password, name }) {
+  async on_register(conn, { username, password, name }) {
     const rules = [['reg:' + conn.ip, 30]];
     this.limit(rules);
     username = String(username || '').trim().toLowerCase();
@@ -51,19 +51,31 @@ class Auth {
     name = cleanPublicName(name);
     if (this.store.byUsername.has(username)) throw E('username_taken');
     this.fail(rules); // giới hạn số tài khoản tạo từ 1 IP
-    const user = this.store.createUser({ username, name: name || username, pass: hashPassword(password) });
+    const pass = await hashPassword(password);
+    if (this.store.byUsername.has(username)) throw E('username_taken'); // có người lấy mất tên trong lúc băm
+    const user = this.store.createUser({ username, name: name || username, pass });
     this.loginConn(conn, user);
   }
 
-  on_login(conn, { username, password }) {
+  /**
+   * Kiểm mật khẩu. Băm chạy bất đồng bộ nên tính trước là một lần sai rồi mới băm, đúng thì hoàn lại: nhiều lần thử
+   * gửi dồn cùng lúc vẫn bị limit() đếm đủ, không lọt qua giới hạn trong lúc các lần trước còn đang băm.
+   */
+  async passOk(rules, password, pass) {
+    this.fail(rules);
+    if (typeof password !== 'string') return false;
+    const ok = await checkPassword(password, pass);
+    if (ok) this.unfail(rules);
+    return ok;
+  }
+
+  async on_login(conn, { username, password }) {
     const name = String(username || '').trim().toLowerCase().slice(0, 40);
     const rules = [['login:' + conn.ip + ':' + name, 8], ['login-user:' + name, 30], ['login-ip:' + conn.ip, 100]];
     this.limit(rules);
     const user = this.store.byUsername.get(name);
-    if (!user || typeof password !== 'string' || !checkPassword(password, user.pass)) {
-      this.fail(rules);
-      throw E('bad_login');
-    }
+    if (!user) { this.fail(rules); throw E('bad_login'); }
+    if (!(await this.passOk(rules, password, user.pass))) throw E('bad_login');
     this.loginConn(conn, user);
   }
 
@@ -126,16 +138,18 @@ class Auth {
     if (room) { room.rename(pid, name); this.broadcastRoom(room); }
   }
 
-  on_changePassword(conn, { current, next }) {
+  async on_changePassword(conn, { current, next }) {
     const me = this.requireUser(conn);
     if (typeof next !== 'string' || next.length < 6 || next.length > 100) throw E('short_password');
     if (weakPassword(next, me.username)) throw E('weak_password');
     if (me.pass) {
       const rules = [['pw:' + me.id, 8]];
       this.limit(rules);
-      if (typeof current !== 'string' || !checkPassword(current, me.pass)) { this.fail(rules); throw E('wrong_password'); }
+      if (!(await this.passOk(rules, current, me.pass))) throw E('wrong_password');
     }
-    me.pass = hashPassword(next);
+    const pass = await hashPassword(next);
+    if (this.store.users.get(me.id) !== me) throw E('need_account'); // tài khoản bị xoá trong lúc băm
+    me.pass = pass;
     this.store.touch(me);
     this.store.dropOtherSessions(me.id, conn.token); // đăng xuất các thiết bị khác
     const keep = sessionId(conn.token);
@@ -149,7 +163,7 @@ class Auth {
    * (không để ai nhập email của người khác rồi khiến thư khôi phục mật khẩu gửi nhầm tới họ).
    * Email trống = xoá email, có hiệu lực ngay.
    */
-  on_setEmail(conn, { email, password, lang }) {
+  async on_setEmail(conn, { email, password, lang }) {
     const me = this.requireUser(conn);
     email = String(email || '').trim().toLowerCase();
     if (email && !EMAIL_RE.test(email)) throw E('email_invalid');
@@ -161,7 +175,8 @@ class Auth {
     if (me.pass) {
       const rules = [['pw:' + me.id, 8]];
       this.limit(rules);
-      if (typeof password !== 'string' || !checkPassword(password, me.pass)) { this.fail(rules); throw E('wrong_password'); }
+      if (!(await this.passOk(rules, password, me.pass))) throw E('wrong_password');
+      if (this.store.users.get(me.id) !== me) throw E('need_account');
     }
     const owner = email && this.store.byEmail.get(email);
     if (owner && owner !== me) throw E('email_taken');
@@ -228,7 +243,7 @@ class Auth {
     conn.send({ t: 'forgotSent' });
   }
 
-  on_reset(conn, { login, code, password }) {
+  async on_reset(conn, { login, code, password }) {
     if (!this.sendMail) throw E('reset_unavailable');
     const rules = [['reset-ip:' + conn.ip, 20]];
     this.limit(rules);
@@ -236,7 +251,9 @@ class Auth {
     const u = this.findByLogin(login);
     if (u && weakPassword(password, u.username)) throw E('weak_password');
     if (!u || !this.store.checkReset(u.id, String(code || '').trim())) { this.fail(rules); throw E('reset_bad_code'); }
-    u.pass = hashPassword(password);
+    const pass = await hashPassword(password);
+    if (this.store.users.get(u.id) !== u) throw E('reset_bad_code'); // tài khoản bị xoá trong lúc băm
+    u.pass = pass;
     this.store.touch(u);
     this.store.dropOtherSessions(u.id, null); // mật khẩu cũ có thể đã lộ: đăng xuất mọi nơi
     this.kickSessions(u.id, () => true);
@@ -248,12 +265,13 @@ class Auth {
    * Xoá hẳn tài khoản (yêu cầu của Google Play / App Store với app có tạo tài khoản).
    * Có mật khẩu: nhập mật khẩu. Chỉ có Google: gõ lại tên đăng nhập để xác nhận.
    */
-  on_deleteAccount(conn, { password, confirm }) {
+  async on_deleteAccount(conn, { password, confirm }) {
     const me = this.requireUser(conn);
     const rules = [['del:' + me.id, 8]];
     this.limit(rules);
     if (me.pass) {
-      if (typeof password !== 'string' || !checkPassword(password, me.pass)) { this.fail(rules); throw E('wrong_password'); }
+      if (!(await this.passOk(rules, password, me.pass))) throw E('wrong_password');
+      if (this.store.users.get(me.id) !== me) return; // đã xoá ở thiết bị khác trong lúc băm
     } else if (String(confirm || '').trim().toLowerCase() !== me.username) {
       this.fail(rules);
       throw E('confirm_username');

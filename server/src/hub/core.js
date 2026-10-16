@@ -58,6 +58,7 @@ class Hub {
   }
 
   disconnect(conn) {
+    conn.gone = true; // lệnh bất đồng bộ (băm mật khẩu, Google) xong sau khi đóng: không gắn lại kết nối đã đóng
     const pid = conn.pid;
     this.conns = Math.max(0, (this.conns || 0) - 1);
     this.lobbyWatchers.delete(conn);
@@ -208,6 +209,7 @@ class Hub {
 
   /** Đăng nhập thành công trên kết nối đang là khách: chuyển sang tài khoản. */
   loginConn(conn, user) {
+    if (conn.gone) return;
     const oldPid = conn.pid;
     const newPid = userPid(user.id);
     const token = this.store.newSession(user.id, { platform: conn.platform, ua: conn.ua, ip: conn.ip }); // mục Thiết bị
@@ -267,6 +269,14 @@ class Hub {
       const f = this.fails.get(key);
       if (!f || now - f.t > FAIL_WINDOW_MS) this.fails.set(key, { n: 1, t: now });
       else f.n++;
+    }
+  }
+
+  /** Hoàn lại một lần đã đếm trước bằng fail() (lần thử hoá ra đúng). */
+  unfail(rules) {
+    for (const [key] of rules) {
+      const f = this.fails.get(key);
+      if (f && f.n > 0) f.n--;
     }
   }
 
