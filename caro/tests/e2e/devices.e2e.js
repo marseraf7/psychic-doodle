@@ -84,7 +84,7 @@ const { setup } = require('./helpers');
 
   // ---------------------------------------------------------------- 2. Chuyển đổi qua lại các tab trên Mobile & iPad
   console.log('--- 2. Kiểm tra chuyển tab trên Mobile & iPad ---');
-  const testTabs = ['home', 'study', 'more'];
+  const testTabs = ['home', 'learn', 'more'];
   for (const tname of testTabs) {
     await p.click(`#tabbar [data-tab="${tname}"]`);
     await sleep(200);
