@@ -2,6 +2,8 @@
  * Giao diện Cờ Caro – điều phối: trạng thái ván, luật, máy đánh, đồng hồ, chơi online / xem ván, thanh trên, kết quả,
  * Ván mới / Cài đặt, bàn cờ cho module khác (enterExt), window.CaroApp. Phần bàn cờ ở file riêng (nạp trước file này):
  * board-view.js (vẽ canvas + camera), board-replay.js (xem lại ván), board-input.js (chuột, cảm ứng, bàn phím).
+ * Phần ván: app-clock.js (đồng hồ), app-online.js (chơi / xem online), app-dialogs.js (Ván mới, Cài đặt),
+ * app-ext.js (bàn cờ cho module khác, thông tin thẻ người chơi).
  */
 (function () {
   'use strict';
@@ -16,6 +18,11 @@
   const MIN_SIZE = 14, MAX_SIZE = 96;
 
   const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const glyph = (p) => (p === X ? '<b class="dot x">X</b>' : '<b class="dot o">O</b>');
+  /** Nhãn nhỏ cho luật khác luật Việt Nam (cạnh tỉ số). */
+  const ruleChip = (rule) => (rule && rule !== 'vn' ? `<span class="rule-chip" title="${esc(T('grule_' + rule))}">${esc(T('grule_s_' + rule))}</span> ` : '');
+  const net = () => window.CaroOnline;
   const canvas = $('board');
 
   // ------------------------------------------------------------ Trạng thái
@@ -48,7 +55,7 @@
   const cam = { x: 0, y: 0, size: 36 };
 
   // Vẽ + camera (board-view.js): kích thước bàn cờ đọc qua V.W, V.H
-  const V = window.CaroBoardView({ canvas, cam, state, canPlaceNow, save, MIN_SIZE, MAX_SIZE });
+  const V = window.CaroBoardView({ canvas, cam, state, canPlaceNow: () => canPlaceNow(), save, MIN_SIZE, MAX_SIZE }); // canPlaceNow: app-online.js
   const { readColors, resize, requestDraw, animateCamera, ensureVisible, centerView, clamp, colName } = V;
 
   // ------------------------------------------------------------ Nhân vật máy: mở khoá dần theo mức sức cờ
@@ -280,274 +287,19 @@
     if (state.mode === 'ai' && window.CaroRapfi) window.CaroRapfi.prepare(state.bot, state.rule); // tải trước mạng của BOAT
   }
 
-  // ------------------------------------------------------------ Đồng hồ mỗi nước
-  // Offline: đếm trên máy, tạm dừng khi mở hộp thoại hoặc chuyển sang app khác.
-  // Online: máy chủ quyết định hết giờ, ở đây chỉ hiển thị thời gian còn lại.
-  let clockLast = performance.now();
-  const clockPaused = () => document.hidden || shellOn() || !!document.querySelector('dialog[open]');
+  // ------------------------------------------------------------ Đồng hồ mỗi nước (app-clock.js)
+  const { resetClock, fmtClock, renderClock } = window.CaroAppClock({
+    state, sfx, shellOn, isAITurn, botGameOver, save, updateUI, requestDraw, showBanner, vibrate,
+  });
 
-  function resetClock() {
-    if (state.online || state.replay || state.ext) return;
-    syncTotalClock();
-    const needs = !state.clockSpec && state.timeLimit && !state.winner && !state.thinking && !isAITurn();
-    state.clock = needs ? { endsAt: performance.now() + state.timeLimit * 1000, local: true } : null;
-    renderClock();
-  }
-
-  /** Đồng hồ tổng offline: tạo khi cần, cho bên tới lượt chạy (chưa chạy trước nước đầu và khi ván đã xong). */
-  function syncTotalClock() {
-    const now = performance.now();
-    if (!state.clockSpec) { if (state.clocks && state.clocks.local) state.clocks = null; return; }
-    if (!state.clocks || !state.clocks.local || state.clocks.spec !== state.clockSpec) state.clocks = LC.create(state.clockSpec, now);
-    LC.run(state.clocks, state.winner || !state.board.moves.length ? 0 : state.turn, now);
-  }
-
-  /** 125000 ms -> '2:05'; dưới 10 giây hiện thêm phần mười: '7.4'. */
-  const fmtClock = (ms) => {
-    ms = Math.max(0, ms);
-    if (ms < 10000) return (Math.floor(ms / 100) / 10).toFixed(1);
-    const s = Math.ceil(ms / 1000);
-    return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-  };
-
-  /** Đồng hồ tổng 2 bên (ván online có đồng hồ, như cờ vua 3+2). */
-  function renderClocks() {
-    const box = $('clocks');
-    const c = state.clocks;
-    if (!c) { box.hidden = true; return; }
-    box.hidden = false;
-    const el = performance.now() - c.at;
-    for (const [k, p] of [['x', X], ['o', O]]) {
-      const run = c.running === p;
-      const ms = c[k] - (run ? el : 0);
-      const node = $('ck-' + k);
-      node.textContent = fmtClock(ms);
-      node.classList.toggle('run', run);
-      node.classList.toggle('low', run && ms < 10000);
-      const mine = state.online ? state.online.side === p : !(state.mode === 'ai' && p !== state.human);
-      if (run && ms < 10000 && ms > 0 && mine) {
-        const sec = Math.ceil(ms / 1000);
-        if (sec !== c.lastTick) { c.lastTick = sec; if (sec <= 5) sfx('tick'); }
-      }
-    }
-  }
-
-  function renderClock() {
-    const el = $('clock');
-    const c = state.clock;
-    renderClocks();
-    if (!c || state.winner || state.clocks) { el.hidden = true; return; }
-    const left = Math.max(0, Math.ceil((c.endsAt - performance.now()) / 1000));
-    el.hidden = false;
-    $('clock-n').textContent = left;
-    el.classList.toggle('low', left <= 5);
-    const mine = c.local || (state.online && state.online.room.actor === state.online.me);
-    if (left <= 5 && left > 0 && left !== c.lastTick && mine) sfx('tick');
-    c.lastTick = left;
-  }
-
-  function tickClock() {
-    const now = performance.now();
-    const dt = now - clockLast;
-    clockLast = now;
-    const c = state.clock;
-    if (c && c.local) {
-      if (clockPaused()) c.endsAt += dt;
-      else if (!state.winner && now >= c.endsAt) return timeUp();
-    }
-    const t = state.clocks;
-    if (t && t.local && !state.online && !state.replay && !state.ext) {
-      if (clockPaused()) LC.pause(t, dt);
-      else if (!state.winner && t.running && LC.left(t, t.running, now) <= 0) return timeUp();
-    }
-    renderClock();
-  }
-  setInterval(tickClock, 200);
-
-  /** Hết giờ khi chơi offline: người đang tới lượt thua. */
-  function timeUp() {
-    state.clock = null;
-    if (state.clocks && state.clocks.local) LC.run(state.clocks, 0, performance.now());
-    state.winner = other(state.turn);
-    state.winReason = 'time';
-    state.winCells = null;
-    state.pending = null;
-    state.score[state.winner]++;
-    vibrate(60);
-    sfx(state.mode === 'ai' && state.winner !== state.human ? 'lose' : 'win');
-    botGameOver();
-    save();
-    updateUI();
-    renderClock();
-    requestDraw();
-    setTimeout(showBanner, 200);
-  }
-
-  // ------------------------------------------------------------ Online
-  const net = () => window.CaroOnline;
-
-  // Người chơi có được đánh lúc này không.
-  function canPlaceNow() {
-    if (state.ext) return !state.winner && !!state.ext.canPlay;
-    if (state.winner || state.thinking || state.replay) return false;
-    if (!state.online) return !isAITurn();
-    const { room, side, me, watch } = state.online;
-    if (watch) return false; // người xem
-    if (room.players.length !== 2 || room.seriesWinner) return false;
-    // Máy chủ cho biết ai phải hành động (luật Swap2: một người đặt cả quân X lẫn O; lúc chọn bên thì không đặt quân)
-    if (room.actor !== undefined) return room.actor === me && !/^choose/.test(room.phase || '');
-    return room.turn === side;
-  }
-
-  function playOnline(x, y) {
-    if (!canPlaceNow()) return;
-    // Hiện ngay nước đi (máy chủ sẽ xác nhận lại).
-    sfx(state.turn === X ? 'placeX' : 'placeO');
-    placeRaw(x, y);
-    state.optimistic = [x, y];
-    state.lastPlacedAt = performance.now();
-    vibrate(8);
-    updateUI();
-    requestDraw();
-    ensureVisible(x, y);
-    net().send({ t: 'move', x, y });
-  }
-
-  /** Dựng lại bàn cờ theo trạng thái phòng từ máy chủ. */
-  function applyRoom(room, me, watch) {
-    const prev = state.online && state.online.room;
-    const isNewGame = !prev || prev.gameNo !== room.gameNo || room.moves.length < prev.moves.length;
-    const b = new Board(room.rule);
-    room.moves.forEach(([x, y], i) => b.play(x, y, i % 2 === 0 ? X : O));
-    const side = room.seats.x === me ? X : room.seats.o === me ? O : 0;
-    state.board = b;
-    state.turn = room.turn;
-    state.winner = room.winner;
-    state.winCells = room.winCells;
-    state.pending = null;
-    state.thinking = false;
-    state.online = { room, me, side: watch ? 0 : side, watch: !!watch };
-    state.clock = room.turnLeft != null && !room.winner ? { endsAt: performance.now() + room.turnLeft, local: false } : null;
-    state.clocks = room.clocks ? { ...room.clocks, running: room.winner ? 0 : room.clocks.running, at: performance.now() } : null;
-    renderClock();
-    const last = b.moves[b.moves.length - 1];
-    const grew = prev && !isNewGame && room.moves.length > prev.moves.length;
-    if (isNewGame && prev) animateCamera(0, 0, Math.max(cam.size, 32));
-    if (last && grew) {
-      const mine = state.optimistic && state.optimistic[0] === last.x && state.optimistic[1] === last.y;
-      if (!mine) {
-        state.lastPlacedAt = performance.now();
-        ensureVisible(last.x, last.y);
-        vibrate(15);
-        sfx(last.p === X ? 'placeX' : 'placeO');
-      }
-    }
-    state.optimistic = null;
-    if (room.winner && (!prev || !prev.winner || isNewGame)) {
-      state.winAt = performance.now();
-      vibrate(40);
-      setTimeout(() => sfx(room.winner === 3 ? 'draw' : watch || room.winner === side ? 'win' : 'lose'), 150);
-      if (!watch) setTimeout(showBanner, 300);
-    }
-    if (!room.winner) hideBanner();
-    updateUI();
-    requestDraw();
-  }
-
-  /** watch = true: chỉ xem (không phải người chơi). */
-  function enterOnline(room, me, watch) {
-    if (state.replay) closeReplay(true);
-    if (state.ext) exitExt(true);
-    const was = state.online;
-    if (!was) {
-      save();
-      document.body.classList.add('online');
-      hideBanner();
-      animateCamera(0, 0, Math.max(cam.size, 32));
-    }
-    if (was && !!was.watch !== !!watch) { state.online = null; hideBanner(); } // đổi giữa xem và chơi: coi như phòng mới
-    document.body.classList.toggle('watching', !!watch);
-    applyRoom(room, me, watch);
-    if (!was || !!was.watch !== !!watch) toBoard();
-  }
-
-  function leaveOnline() {
-    if (!state.online) return;
-    state.online = null;
-    state.clocks = null;
-    document.body.classList.remove('online', 'watching');
-    restoreLocal();
-  }
-
-  /** Quay lại ván chơi trên máy (sau khi rời phòng online hoặc thoát xem lại). */
-  function restoreLocal() {
-    state.clocks = null; // load() khôi phục đồng hồ tổng đã lưu
-    state.board = new Board(state.rule);
-    state.turn = X;
-    state.winner = null;
-    state.winReason = null;
-    state.winCells = null;
-    state.pending = null;
-    state.clock = null;
-    hideBanner();
-    load();
-    updateUI();
-    requestDraw();
-    maybeAI();
-    resetClock();
-  }
-
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-  const rated = (p) => (p && p.rating ? ` <span class="rating">${p.rating}${p.prov ? '?' : ''}</span>` : '');
-
-  function updateOnlineUI() {
-    const { room, me, side, watch } = state.online;
-    if (watch) return updateWatchUI(room);
-    const opp = room.players.find((p) => p.id !== me);
-    const t = $('turn');
-    const myTurn = room.actor !== undefined ? room.actor === me : room.turn === side;
-    if (room.phase && !room.winner && opp) {
-      // Luật Swap2: đang đặt quân khai cuộc / chọn bên
-      t.innerHTML = myTurn ? `${esc(T('swap_' + room.phase + '_you'))} ${glyph(room.turn)}`
-        : `${esc(T('swap_wait', { name: opp.name }))}`;
-    } else if (!opp) {
-      t.innerHTML = `${esc(T('waiting_opp'))} <span class="thinking">${esc(T('room_code', { code: room.code }))}</span>`;
-    } else if (room.winner === 3) {
-      t.innerHTML = `🤝 ${esc(T('draw_short'))}`;
-    } else if (room.winner) {
-      t.innerHTML = room.winner === side ? `${glyph(side)} ${esc(T('you_won_short'))}` : `${glyph(room.winner)} ${esc(T('you_lost_short'))}`;
-    } else if (myTurn) {
-      t.innerHTML = `${esc(T('your_turn'))} ${glyph(side)}`;
-    } else {
-      t.innerHTML = esc(T('turn_of', { name: '\u0000' })).replace('\u0000', `<span class="name" title="${esc(opp.name)}">${esc(opp.name)}</span>`) +
-        ` ${glyph(room.turn)}` + (opp.online ? '' : ` <span class="thinking">${esc(T('disconnected'))}</span>`);
-    }
-    const oppScore = opp ? room.score[opp.id] || 0 : 0;
-    $('score').innerHTML = ruleChip(room.rule) + `${esc(T('you'))} ${room.score[me] || 0} : ${oppScore} <span class="name" title="${esc(opp ? opp.name : '')}">${esc(opp ? opp.name : '?')}</span>` +
-      (room.kind === 'series' ? ` · Bo${room.bestOf}` : '') + watchers(room);
-  }
-
-  const watchers = (room) => (room.watchers ? ` <span class="watchers" title="${esc(T('watchers', { n: room.watchers }))}"><svg class="ico i-in" aria-hidden="true"><use href="#i-eye"/></svg>${room.watchers}</span>` : '');
-
-  /** Người xem: tên 2 bên (kèm điểm), kết quả khi ván xong. */
-  function updateWatchUI(room) {
-    const who = (s) => {
-      const p = room.players.find((q) => q.id === (s === X ? room.seats.x : room.seats.o));
-      return `${glyph(s)} <span class="name" title="${esc(p ? p.name : '?')}">${esc(p ? p.name : '?')}</span>${rated(p)}`;
-    };
-    const t = $('turn');
-    if (room.winner === 3) t.innerHTML = `${who(X)} <span class="thinking">½–½</span> ${who(O)}`;
-    else if (room.winner) t.innerHTML = `${who(X)} <span class="thinking">${room.winner === X ? '1–0' : '0–1'}</span> ${who(O)}`;
-    else t.innerHTML = `${who(X)} <span class="thinking">–</span> ${who(O)}`;
-    let sub = room.winner ? T(room.winner === 3 ? 'draw_short' : 'p_wins_plain', { p: room.winner === X ? 'X' : 'O' })
-      : room.phase ? T('swap_phase_' + room.phase) : T('watching_tag');
-    if (room.tour) sub = room.tour.name + ' · ' + sub;
-    $('score').innerHTML = ruleChip(room.rule) + `${esc(sub)} · ${esc(T('n_moves', { n: room.moves.length }))}` + watchers(room);
-  }
+  // ------------------------------------------------------------ Online / xem ván (app-online.js)
+  const { canPlaceNow, playOnline, applyRoom, enterOnline, leaveOnline, restoreLocal, updateOnlineUI } = window.CaroAppOnline({
+    state, cam, esc, glyph, ruleChip, net, sfx, placeRaw, vibrate, updateUI, requestDraw, ensureVisible, animateCamera, renderClock,
+    resetClock, showBanner, hideBanner, toBoard, save, load, maybeAI, isAITurn,
+    closeReplay: (silent) => closeReplay(silent), exitExt: (silent) => exitExt(silent), // tạo ở phía dưới
+  });
 
   // ------------------------------------------------------------ Giao diện
-  const glyph = (p) => (p === X ? '<b class="dot x">X</b>' : '<b class="dot o">O</b>');
 
   function updateUI() {
     drawStatus();
@@ -589,9 +341,6 @@
     cueKey = key;
   }
 
-  /** Nhãn nhỏ cho luật khác luật Việt Nam (cạnh tỉ số). */
-  const ruleChip = (rule) => (rule && rule !== 'vn' ? `<span class="rule-chip" title="${esc(T('grule_' + rule))}">${esc(T('grule_s_' + rule))}</span> ` : '');
-
   function drawStatus() {
     const t = $('turn');
     if (state.online) return updateOnlineUI();
@@ -618,7 +367,7 @@
 
   // ------------------------------------------------------------ Xem lại ván đã lưu (board-replay.js)
   const { openReplay, fitReplayView, seekReplay, stopReplay, toggleReplayPlay, closeReplay, updateReplayUI } = window.CaroBoardReplay({
-    state, V, MIN_SIZE, save, toBoard, renderClock, hideBanner, updateUI, exitExt, restoreLocal, glyph, esc, ruleChip, net, sfx,
+    state, V, MIN_SIZE, save, toBoard, renderClock, hideBanner, updateUI, exitExt: (silent) => exitExt(silent), restoreLocal, glyph, esc, ruleChip, net, sfx,
   });
 
   function showBanner() {
@@ -652,249 +401,23 @@
 
   // ------------------------------------------------------------ Nhập liệu (board-input.js)
   window.CaroBoardInput({
-    canvas, cam, state, V, MIN_SIZE, MAX_SIZE, canPlaceNow, play, showBanner, vibrate, shellOn, undo, openNewGame,
+    canvas, cam, state, V, MIN_SIZE, MAX_SIZE, canPlaceNow, play, showBanner, vibrate, shellOn, undo, openNewGame: () => openNewGame(),
     seekReplay, toggleReplayPlay, closeReplay, stopReplay,
   });
 
-  // ------------------------------------------------------------ Nút & cài đặt
-  $('btn-new').onclick = () => openNewGame();
-
-  // Bảng chọn nhanh khi bấm "Ván mới": chế độ, cầm quân, độ khó, thời gian – rồi bắt đầu ngay.
-  // Thời gian ván trên máy dạng chữ của bộ chọn thời gian (tc-picker.js): 't0' | 't20' | 'c5+3'
-  const tcValue = () => TC.toValue({ timeLimit: state.timeLimit, clock: state.clockSpec });
-  function setTc(v) {
-    const t = TC.fromValue(v);
-    state.timeLimit = t.timeLimit;
-    state.clockSpec = t.clock;
-  }
-  const ngDlg = $('newgame');
-  const ngForm = $('newgame-form');
-  function openNewGame() {
-    if (state.online) return;
-    ngForm.mode.value = state.mode;
-    ngForm.human.value = state.sidePick;
-    ngForm.rule.value = state.rule;
-    renderRuleHint();
-    renderBotPicker();
-    window.CaroTcPicker.set($('ng-tc'), tcValue());
-    ngForm.classList.toggle('pvp', state.mode === 'pvp');
-    if (ngDlg.showModal) ngDlg.showModal(); else ngDlg.setAttribute('open', '');
-  }
-  ngForm.addEventListener('change', () => { ngForm.classList.toggle('pvp', ngForm.mode.value === 'pvp'); renderRuleHint(); });
-  function renderRuleHint() { $('ng-rule-hint').textContent = T('grule_' + ngForm.rule.value + '_d'); }
-  ngForm.addEventListener('submit', () => {
-    state.mode = ngForm.mode.value;
-    state.sidePick = ngForm.human.value;
-    state.human = state.sidePick === 'r' ? (Math.random() < 0.5 ? X : O) : Number(state.sidePick); // Ngẫu nhiên: bốc thăm mỗi ván
-    state.rule = ruleOf(ngForm.rule.value);
-    if (botAllowed(ngForm.bot.value)) state.bot = ngForm.bot.value;
-    setTc(ngForm.tc.value);
-    newGame();
-    toBoard();
-  });
-  // Bảng chọn nhân vật (lối đánh, ảnh, mô tả) nằm ở bot-picker.js, dùng chung cho Ván mới và Cài đặt
-  const renderBotPicker = () => window.CaroBotPicker.render($('ng-picker'), state.bot);
+  // ------------------------------------------------------------ Ván mới & Cài đặt (app-dialogs.js)
+  const { openNewGame } = window.CaroAppDialogs({ state, botAllowed, newGame, toBoard, save, updateUI, requestDraw, resetClock, maybeAI });
 
   $('btn-undo').onclick = undo;
   $('btn-center').onclick = centerView;
   $('banner-new').onclick = newGame;
   $('banner-view').onclick = hideBanner;
 
-  const dlg = $('settings');
-  const form = $('settings-form');
-  // Ngôn ngữ: mỗi thứ tiếng một hàng chọn (trang con "Ngôn ngữ" của Cài đặt)
-  $('lang-list').innerHTML = window.I18N.LANGS.map(([code, label]) => `<label class="li"><span class="li-t">${label}</span><input type="radio" name="lang" value="${code}"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>`).join('');
-  function fillForm() {
-    form.mode.value = state.mode;
-    form.human.value = String(state.human);
-    form.rule.value = state.rule;
-    window.CaroBotPicker.render($('set-picker'), state.bot);
-    window.CaroTcPicker.set($('set-tc'), tcValue());
-    form.allowUndo.checked = state.allowUndo;
-    form.sound.checked = window.CaroSound.enabled;
-    form.soundStyle.value = window.CaroSound.style;
-    form.board.value = window.CaroStyle.board;
-    form.pieces.value = window.CaroStyle.pieces;
-    form.theme.value = window.CaroTheme.get();
-    form.elements.lang.value = window.I18N.lang;
-    form.confirm.checked = state.confirm;
-    form.classList.toggle('pvp', state.mode === 'pvp');
-  }
-  $('btn-settings').onclick = () => {
-    fillForm();
-    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
-  };
-  form.addEventListener('change', () => {
-    const prevMode = state.mode, prevHuman = state.human, prevTime = tcValue(), prevRule = state.rule;
-    state.mode = form.mode.value;
-    state.rule = ruleOf(form.rule.value);
-    state.human = Number(form.human.value);
-    if (botAllowed(form.bot.value)) state.bot = form.bot.value;
-    setTc(form.tc.value);
-    state.sidePick = String(state.human);
-    state.allowUndo = form.allowUndo.checked;
-    window.CaroSound.enabled = form.sound.checked;
-    if (window.CaroSound.style !== form.soundStyle.value) { window.CaroSound.style = form.soundStyle.value; window.CaroSound.play('placeX'); }
-    if (window.CaroStyle.board !== form.board.value || window.CaroStyle.pieces !== form.pieces.value) window.CaroStyle.set({ board: form.board.value, pieces: form.pieces.value });
-    state.confirm = form.confirm.checked;
-    window.CaroTheme.set(form.theme.value);
-    window.I18N.setLang(form.elements.lang.value);
-    if (prevTime !== tcValue()) { if (state.clocks && state.clocks.local) state.clocks = null; resetClock(); }
-    state.pending = null;
-    form.classList.toggle('pvp', state.mode === 'pvp');
-    const changedSides = prevMode !== state.mode || prevHuman !== state.human;
-    save();
-    updateUI();
-    requestDraw();
-    if (prevRule !== state.rule) newGame(); // đổi luật: bắt đầu ván mới theo luật mới
-    else if (changedSides && state.board.moves.length && !state.winner) newGame();
+  // ------------------------------------------------------------ Bàn cờ do module khác điều khiển (app-ext.js)
+  const { enterExt, extSet, extPlace, exitExt, setMarks, setCoords, cellName, fitView, attentionInfo, playersInfo } = window.CaroAppExt({
+    state, V, MIN_SIZE, animateCamera, clamp, colName, ensureVisible, requestDraw, hideBanner, renderClock, save, toBoard, updateUI,
+    sfx, vibrate, botName, openReplay, seekReplay, stopReplay, restoreLocal,
   });
-  dlg.addEventListener('close', () => { updateUI(); maybeAI(); if (!state.clock) resetClock(); });
-  $('reset-score').onclick = () => {
-    state.score = { 1: 0, 2: 0 };
-    save();
-    updateUI();
-  };
-
-  // ------------------------------------------------------------ Bàn cờ do module khác điều khiển
-  // (giải đố, "Thử lại" trong phân tích). ctrl: { moves, canPlay, onMove(x, y), onExit(), render() -> { turn, score } }
-  function enterExt(ctrl) {
-    if (state.online) return false;
-    if (!state.replay && !state.ext) save();
-    if (state.replay) stopReplay();
-    state.ext = ctrl;
-    if (state.clocks && state.clocks.local) state.clocks = null; // đồng hồ ván trên máy đã lưu, khôi phục khi quay lại
-    toBoard();
-    state.thinking = false;
-    state.pending = null;
-    state.clock = null;
-    renderClock();
-    hideBanner();
-    document.body.classList.add('ext');
-    extSet(ctrl.moves || []);
-    fitView(ctrl.moves || []);
-    return true;
-  }
-  /** Dựng lại bàn cờ từ danh sách nước (X đi trước). */
-  function extSet(moves) {
-    const b = new Board(state.ext && state.ext.rule);
-    moves.forEach(([x, y], i) => b.play(x, y, i % 2 ? O : X));
-    state.board = b;
-    state.turn = moves.length % 2 ? O : X;
-    state.winner = null;
-    state.winCells = null;
-    state.pending = null;
-    updateUI();
-    requestDraw();
-  }
-  /** Đặt 1 quân cho bên tới lượt (có âm thanh, hiệu ứng). Trả về true nếu thắng. */
-  function extPlace(x, y) {
-    const p = state.turn;
-    state.board.play(x, y, p);
-    state.lastPlacedAt = performance.now();
-    sfx(p === X ? 'placeX' : 'placeO');
-    const win = checkWin(state.board, x, y, p);
-    if (win) { state.winner = p; state.winCells = win; state.winAt = performance.now(); vibrate(40); }
-    else { state.turn = other(p); vibrate(8); }
-    updateUI();
-    requestDraw();
-    ensureVisible(x, y);
-    return !!win;
-  }
-  function exitExt(silent) {
-    if (!state.ext) return;
-    state.ext = null;
-    state.marks = null;
-    document.body.classList.remove('ext');
-    if (silent) return;
-    if (state.replay) seekReplay(state.replay.idx, true);
-    else restoreLocal();
-  }
-  function setMarks(marks) { state.marks = marks && marks.length ? marks : null; requestDraw(); }
-  /** Bật / tắt toạ độ trên bàn: { minX, maxX, minY, maxY } của ván (null: tắt). */
-  function setCoords(c) { state.coords = c || null; requestDraw(); }
-  /** Tên ô theo toạ độ đang bật, vd. "e7" (cột chữ cái, hàng số đếm từ dưới lên như cờ vua). */
-  const cellName = (x, y) => {
-    const c = state.coords;
-    if (!c || x < c.minX || x > c.maxX || y < c.minY || y > c.maxY) return `${x},${y}`;
-    return colName(x - c.minX) + (c.maxY - y + 1);
-  };
-  /** Khung nhìn vừa đủ các quân. */
-  function fitView(moves) {
-    if (!moves.length) return animateCamera(0, 0, 36);
-    const xs = moves.map((m) => m[0]), ys = moves.map((m) => m[1]);
-    const w = Math.max(...xs) - Math.min(...xs) + 5, h = Math.max(...ys) - Math.min(...ys) + 5;
-    const size = clamp(Math.min((V.W - 24) / w, (V.H - 220) / h), MIN_SIZE, 48);
-    animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2 + 40 / size, size);
-  }
-
-  /** Mở xem lại ván vừa chơi trên máy (để phân tích). */
-  function replayLocal() {
-    const moves = state.board.moves.map((m) => [m.x, m.y]);
-    const nm = (p) => (state.mode === 'ai' ? (p === state.human ? T('you') : botName(state.bot)) : p === X ? 'X' : 'O');
-    return openReplay({ local: true, x: nm(X), o: nm(O), winner: state.winner, reason: state.winReason === 'time' ? 'timeout' : 'win', moves, rule: state.rule });
-  }
-  // Thanh dưới: Phân tích ván đang chơi (mở xem lại + bảng phân tích), Về giữa
-  $('btn-analyze').onclick = () => {
-    if (state.online || state.board.moves.length < 2) return;
-    if (replayLocal() && window.CaroStudy) window.CaroStudy.analyze();
-  };
-  $('btn-center-l').onclick = () => $('btn-center').click();
-  $('banner-analyze').onclick = () => {
-    if (state.online) return;
-    if (replayLocal() && window.CaroStudy) window.CaroStudy.analyze();
-  };
-
-  /**
-   * Trạng thái ván cho attention.js (tiêu đề tab, giữ màn hình sáng):
-   * { active: đang có ván dở (không phải xem lại / giải đố), online, myTurn: tới lượt mình (null = 2 người một máy), over }.
-   */
-  function attentionInfo() {
-    if (state.replay || state.ext) return { active: false };
-    if (state.online) {
-      const { room, side, watch } = state.online;
-      const ready = room.players.length >= 2;
-      return { online: true, active: !watch && ready && !room.winner, myTurn: !watch && room.turn === side, over: !watch && ready && !!room.winner };
-    }
-    const started = state.board.moves.length > 0;
-    return { active: started && !state.winner, myTurn: state.mode === 'ai' ? state.turn === state.human : null, over: started && !!state.winner };
-  }
-
-  /**
-   * Hai người chơi cho thẻ trên / dưới bàn cờ (player-strips.js): dưới là mình (hoặc X khi 2 người / xem ván), trên là đối thủ.
-   * Mỗi bên: { side, name, me, bot, rating, prov, offline, turn }. null khi bàn cờ đang do giải đố / bài học điều khiển.
-   */
-  function playersInfo() {
-    if (state.ext) return null;
-    let bottom, top, turn = 0;
-    if (state.online) {
-      const { room, me, side, watch } = state.online;
-      const bs = watch ? X : side;
-      const as = (s) => {
-        const p = room.players.find((q) => q.id === (s === X ? room.seats.x : room.seats.o));
-        return { side: s, name: p ? p.name : '…', rating: p && p.rating, prov: p && p.prov, offline: !!p && p.online === false, me: !watch && s === side };
-      };
-      bottom = as(bs);
-      top = as(other(bs));
-      turn = room.winner || room.players.length < 2 ? 0 : room.turn;
-    } else if (state.replay) {
-      const d = state.replay.data;
-      bottom = { side: X, name: d.x || T('deleted_player') };
-      top = { side: O, name: d.o || T('deleted_player') };
-    } else {
-      if (state.mode === 'ai') {
-        bottom = { side: state.human, name: T('you'), me: true };
-        top = { side: other(state.human), name: botName(state.bot), bot: state.bot };
-      } else {
-        bottom = { side: X, name: T('strip_player', { p: 'X' }) };
-        top = { side: O, name: T('strip_player', { p: 'O' }) };
-      }
-      turn = state.winner ? 0 : state.turn;
-    }
-    bottom.turn = bottom.side === turn;
-    top.turn = top.side === turn;
-    return { top, bottom, thinking: !state.online && !state.replay && state.thinking };
-  }
 
   window.CaroApp = {
     enterExt,
