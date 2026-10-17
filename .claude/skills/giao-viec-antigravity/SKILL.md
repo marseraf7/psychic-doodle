@@ -77,3 +77,6 @@ Sau khi tạo: báo người dùng số Issue trong một dòng, và báo vào n
 - PR có test phải kèm dòng kết quả cuối của từng trình duyệt; vẫn tự chạy lại ít nhất Chromium trước khi duyệt.
   Ví dụ đã gặp (PR #27): bài bấm tab `study` không tồn tại, dừng ở mục 2 – lần nộp đầu chưa từng chạy hết bài.
 - Việc cần WebKit / Safari / iPhone: luôn giao Antigravity (máy session của Claude Code chỉ có Chromium).
+- Dẫn chứng bằng run ID / job ID phải ghi kèm **tên job** (vd. Android 34 / 35) và **commit** (`head_sha`), đã đối
+  chiếu qua API (`get_workflow_job`). Ghi rõ trong Issue. Ví dụ đã gặp (PR #55): 2 lần dẫn job "chạy lại cùng commit"
+  nhưng thật ra là commit khác, một job còn sai API; trước đó còn chép đoạn "nhật ký máy chủ" không có trong log thật.
