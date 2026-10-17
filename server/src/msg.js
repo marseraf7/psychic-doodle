@@ -1,6 +1,6 @@
 /*
  * Thông báo gửi cho người chơi. Máy chủ gửi kèm mã (code) + tham số (args) để giao diện
- * tự dịch sang ngôn ngữ người chơi chọn (caro/i18n.js, khoá "srv_<code>").
+ * tự dịch sang ngôn ngữ người chơi chọn (caro/i18n-*.js, khoá "srv_<code>").
  * Chữ tiếng Việt ở đây chỉ là bản dự phòng khi client chưa có bản dịch.
  */
 'use strict';
