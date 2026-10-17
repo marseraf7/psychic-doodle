@@ -215,7 +215,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   trong khi có nước tránh được), Sai lầm nặng `??` (để thua sau 1–2 nước), Thế đã thua. Có độ chính xác (%) từng bên,
   dải màu từng nước, thời điểm quan trọng; trên bàn cờ đánh dấu loại nước và khoanh xanh nước tốt hơn.
   **Thử lại**: bày lại thế cờ trước nước sai để tự tìm nước đúng (máy kiểm tra và tự chặn).
-- **Giải đố** (`study.js`, dữ liệu `puzzles.json`): tìm chuỗi nước ép thắng; máy tự chặn sau mỗi nước đúng.
+- **Giải đố** (`puzzles.js`, dữ liệu `puzzles.json`): tìm chuỗi nước ép thắng; máy tự chặn sau mỗi nước đúng.
   Các chế độ: *Có xếp hạng* (điểm giải đố kiểu Elo, chọn bài gần điểm của bạn), *Chuỗi đúng* (khó dần, sai là hết),
   *Bài của ngày* (giống nhau cho mọi người). Có Gợi ý, Đáp án (tự đi hết lời giải). Điểm, kỷ lục lưu trên máy.
   Bộ 300 bài sinh tự động: `node server/scripts/gen-puzzles.js [số bài] [hạt giống]` – cho các nhân vật máy
@@ -354,8 +354,9 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 
 | File | Nội dung |
 |---|---|
-| `rules.js` | 4 luật thắng, nước cấm Renju + AI (dùng chung cho trình duyệt và Node) |
-| `app.js` | Điều phối: trạng thái ván, lưu trạng thái, máy đánh, đồng hồ, online, Ván mới / Cài đặt, `window.CaroApp` |
+| `rules.js`, `rules-ai.js` | 4 luật thắng, nước cấm Renju; AI cục bộ (ứng viên, chấm điểm, VCF, chọn nước) – dùng chung cho trình duyệt, Worker và Node (Node: `rules.js` tự nạp `rules-ai.js`) |
+| `app.js` | Điều phối: trạng thái ván, lưu trạng thái, máy đánh, thanh trên, kết quả, `window.CaroApp` |
+| `app-clock.js`, `app-online.js`, `app-dialogs.js`, `app-ext.js` | Phần ván của `app.js`: đồng hồ; chơi / xem online; bảng Ván mới + Cài đặt; bàn cờ cho module khác (giải đố, bài học) + thông tin thẻ người chơi |
 | `board-view.js`, `board-input.js`, `board-replay.js` | Bàn cờ: vẽ canvas + camera (zoom, kéo, quán tính); chạm / chuột / phím; chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 31 nhân vật máy (6 mức × 5 lối đánh + trùm cuối BOAT): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
@@ -374,7 +375,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
 | `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
-| `study.js` | Bảng phân tích trong chế độ xem lại, "Thử lại", Giải đố (3 chế độ). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
+| `study.js`, `study-trainer.js`, `puzzles.js` | Bảng phân tích trong chế độ xem lại, "Thử lại"; luyện tập trên một thế cờ (dùng chung cho Thử lại / Giải đố / bài học); Giải đố (tính điểm, chuỗi, bài của ngày, VCF / VCT). Mượn bàn cờ của `app.js` qua `CaroApp.enterExt` |
 | `swap.js` | Luật Swap2: thẻ hướng dẫn đặt quân, nút chọn bên |
 | `watch.js` | Xem trực tiếp: danh sách "Đang diễn ra", nút Xem (bạn bè, trận trong giải), chế độ người xem |
 | `profile.js` | Hồ sơ người chơi: điểm từng loại + biểu đồ, thống kê, ván gần đây |
@@ -394,7 +395,8 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `storm.js` | Puzzle Storm (3 phút) |
 | `tour-disputes.js` | Trang giải: ván mất kết nối, ban tổ chức công nhận / huỷ kết quả / cho đấu lại |
 | `tour-patch.js` | Áp bản cập nhật trang giải (máy chủ chỉ gửi phần đổi); dùng chung với kiểm thử máy chủ |
-| `tour.js` | Giải đấu – phần lõi: điều hướng trong hộp thoại, danh sách giải, trang giải (thông tin, nút thao tác, người chơi, bảng xếp hạng Arena), trang duyệt của quản trị viên. Các file dưới cắm vào `window.CaroTourKit` |
+| `tour.js` | Giải đấu – phần lõi: điều hướng trong hộp thoại, danh sách giải, trang giải (thông tin, nút thao tác, người chơi, bảng xếp hạng Arena). Các file dưới cắm vào `window.CaroTourKit` |
+| `tour-admin.js` | Trang Duyệt của quản trị viên: hàng chờ duyệt giải / CLB, số liệu máy chủ |
 | `tour-stages.js` | Vẽ các giai đoạn của giải: nhánh loại trực tiếp, nhánh thắng – thua + chung kết tổng, bảng vòng tròn, bảng Thụy Sĩ, danh sách trận |
 | `tour-form.js` | Form tạo giải: mẫu có sẵn và trình ghép tối đa 3 giai đoạn |
 | `tour-groups.js` | Xếp bảng (ban tổ chức, trước khi bắt đầu): kéo thả hoặc chọn bảng cho từng người, lưu / chia tự động |

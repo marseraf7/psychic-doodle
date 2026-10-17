@@ -135,16 +135,16 @@ npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu d
 ```
 
 Mã máy chủ: `server.js` (WebSocket), `src/web.js` (HTTP: file tĩnh, ảnh xem trước, thẻ og, API công khai),
-`src/png.js` (vẽ ảnh PNG), `src/store.js` (SQLite; phiên đăng nhập + thông tin thiết bị ở `src/store-sessions.js`), `src/useragent.js` (đọc User-Agent cho mục Thiết bị), `src/room.js` (một phòng chơi; đồng hồ ở
+`src/png.js` (vẽ ảnh PNG), `src/store.js` (SQLite; bảng + câu lệnh SQL ở `src/store-schema.js`; phiên đăng nhập + thông tin thiết bị ở `src/store-sessions.js`), `src/useragent.js` (đọc User-Agent cho mục Thiết bị), `src/room.js` (một phòng chơi; đồng hồ ở
 `src/room-clock.js`, luật Swap2 ở `src/room-swap2.js`, huỷ ván / thêm giờ / đi lại / Berserk ở `src/room-extras.js`),
 `src/rating.js` (Glicko-2), `src/perf.js` (thống kê sâu, hoạt động), `src/moderation.js` (kiểm duyệt nội dung),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `devices.js` (Thiết bị: tài khoản đang đăng nhập ở đâu, đăng xuất từ xa), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),
-`rooms.js` (phòng, ván đấu, thách đấu, điểm, xin hoà), `matchmaking.js` (tìm trận nhanh, phòng công khai),
+`rooms.js` (phòng, ván đấu, điểm), `challenges.js` (thách đấu bạn bè, xin hoà, chat nhanh), `matchmaking.js` (tìm trận nhanh, phòng công khai),
 `watch.js` (xem trực tiếp, danh sách ván hay), `playban.js` (chống bỏ ván), `disputes.js` (ván giải đấu mất kết nối), `api.js` (số liệu quản trị, API công khai),
-`clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem, ban tổ chức, nhịp chạy),
+`clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem), `tour-run.js` (ban tổ chức, nhịp chạy, phòng cho ván của giải, kết thúc giải),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
-`stages.js` (logic thuần các thể thức: loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ),
+`stages.js` (logic thuần các thể thức; phần loại trực tiếp / nhánh thắng – thua ở `stages-elim.js`, vòng tròn / Thụy Sĩ / bảng điểm ở `stages-groups.js`, hằng số chung ở `stages-base.js`),
 `tourpush.js` (gửi cập nhật trang giải: gom, chỉ gửi phần đổi), `admin.js` (quản trị viên duyệt).
 Tin nhắn loại `X` do phương thức `on_X` xử lý.
 
