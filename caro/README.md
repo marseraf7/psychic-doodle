@@ -23,7 +23,7 @@ Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn 
   (offline: tạm dừng khi mở Cài đặt; online: máy chủ đếm giờ, người tạo phòng/người thách đấu chọn).
 - **Giao diện** Sáng / Tối / Theo hệ thống.
 - **Ngôn ngữ**: Tiếng Việt, English, Русский, 中文 (lần đầu tự chọn theo ngôn ngữ trình duyệt,
-  không khớp thì dùng tiếng Việt; đổi trong Cài đặt). Bản dịch nằm trong `i18n.js`.
+  không khớp thì dùng tiếng Việt; đổi trong Cài đặt). Bản dịch nằm trong `i18n.js` (lõi) và các file `i18n-<chủ đề>.js`.
 - Chế độ "chạm 2 lần để đánh" (bật sẵn trên điện thoại) để tránh bấm nhầm.
 - **Không dùng tài nguyên bên ngoài** (không CDN, không Google Fonts, không quảng cáo/analytics):
   mọi thứ nằm trong thư mục này, nên không bị chặn ở Việt Nam hay Nga.
@@ -355,7 +355,8 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | File | Nội dung |
 |---|---|
 | `rules.js` | 4 luật thắng, nước cấm Renju + AI (dùng chung cho trình duyệt và Node) |
-| `app.js` | Vẽ bàn cờ (canvas), xử lý chạm/chuột/phím, lưu trạng thái, chế độ xem lại ván |
+| `app.js` | Điều phối: trạng thái ván, lưu trạng thái, máy đánh, đồng hồ, online, Ván mới / Cài đặt, `window.CaroApp` |
+| `board-view.js`, `board-input.js`, `board-replay.js` | Bàn cờ: vẽ canvas + camera (zoom, kéo, quán tính); chạm / chuột / phím; chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 31 nhân vật máy (6 mức × 5 lối đánh + trùm cuối BOAT): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
 | `policy-data.js` | Trọng số chính sách nước đi theo luật (sinh bởi `server/scripts/train-policy.js`) – engine dùng để xếp ứng viên |
@@ -385,7 +386,8 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `puzzles.json` | 363 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải, chủ đề VCF / VCT, luật nếu khác luật Việt Nam) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
 | `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `i18n-demos.js`, `i18n-shell.js`, `i18n-tc.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-shell.js`: khung trang, Trang chủ, Cài đặt; `i18n-tc.js`: thời gian, Thiết lập ván đấu; `i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật, `i18n-demos.js`: phụ đề phim minh hoạ); giao diện Sáng/Tối/Hệ thống |
-| `online.js`, `config.js` | Chế độ online: kết nối máy chủ (ping mỗi 10 giây, trượt 2 lần liên tiếp thì tự kết nối lại; quá 10 giây chưa có "welcome" cũng kết nối lại; máy chủ cũ chưa có lệnh ping thì thôi ping, không báo lỗi), tài khoản, bạn bè, phòng, thách đấu |
+| `i18n-online.js`, `i18n-play.js`, `i18n-account.js`, `i18n-social.js`, `i18n-tour.js`, `i18n-tour-stages.js`, `i18n-club.js`, `i18n-study.js`, `i18n-learn.js` | Chuỗi 4 ngôn ngữ tách từ `i18n.js` theo chủ đề: phòng / sảnh / thách đấu; trong ván (hoà, Swap2, xem, phát lại, chia sẻ); tài khoản; bạn bè, tin nhắn, xếp hạng, hồ sơ; giải đấu; thể thức + khiếu nại; CLB; phân tích + giải đố; học chơi + huy hiệu. Nạp ngay sau `i18n.js` |
+| `online.js`, `online-auth.js`, `online-friends.js`, `online-room.js`, `config.js` | Chế độ online (lõi kết nối trong `online.js`; tài khoản / đăng nhập, bạn bè + lời mời, phòng + kết thúc ván ở 3 file `online-*.js`): kết nối máy chủ (ping mỗi 10 giây, trượt 2 lần liên tiếp thì tự kết nối lại; quá 10 giây chưa có "welcome" cũng kết nối lại; máy chủ cũ chưa có lệnh ping thì thôi ping, không báo lỗi), tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
 | `gamex.js` | Thao tác phụ trong ván: đếm ngược nước đầu, +15 giây, xin đi lại, Berserk |
@@ -405,5 +407,5 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `devices.js`, `i18n-devices.js` | Thiết bị: nơi tài khoản đang đăng nhập, đăng xuất từ xa |
 | `timectl.js`, `tc-picker.js`, `local-clock.js`, `setup.css` | Mức thời gian cho phép (dùng chung máy chủ); bộ chọn thời gian; đồng hồ tổng khi chơi trên máy; giao diện Thiết lập ván đấu |
 | `player-strips.js`, `game.css`, `puzzle-home.js`, `pages.css` | Thẻ người chơi + thanh công cụ màn chơi; thẻ Câu đố hôm nay; kiểu danh sách của tab Câu đố / Học tập / Xem |
-| `index.html`, `style.css` | Giao diện |
+| `index.html`, `style.css`, `style-online.css`, `style-tour.css`, `style-study.css`, `style-extras.css` | Giao diện (`style.css`: phông, biến màu, biểu tượng, khung chung; các file `style-*.css` nạp ngay sau theo đúng thứ tự cũ: online, giải đấu & CLB, giải đố + phân tích, phần còn lại) |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |

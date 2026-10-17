@@ -1,4 +1,8 @@
-/* Giao diện Cờ Caro: bàn cờ vô hạn vẽ bằng canvas, hỗ trợ chuột, cảm ứng, bàn phím. */
+/*
+ * Giao diện Cờ Caro – điều phối: trạng thái ván, luật, máy đánh, đồng hồ, chơi online / xem ván, thanh trên, kết quả,
+ * Ván mới / Cài đặt, bàn cờ cho module khác (enterExt), window.CaroApp. Phần bàn cờ ở file riêng (nạp trước file này):
+ * board-view.js (vẽ canvas + camera), board-replay.js (xem lại ván), board-input.js (chuột, cảm ứng, bàn phím).
+ */
 (function () {
   'use strict';
   const { Board, X, O, EMPTY, checkWin, other, forbidden, ruleOf } = window.Caro;
@@ -13,7 +17,6 @@
 
   const $ = (id) => document.getElementById(id);
   const canvas = $('board');
-  const ctx = canvas.getContext('2d');
 
   // ------------------------------------------------------------ Trạng thái
   const state = {
@@ -43,8 +46,10 @@
     marks: null, // đánh dấu thêm trên bàn: [{ x, y, kind: 'badge' | 'ghost' | 'bad', color, text }]
   };
   const cam = { x: 0, y: 0, size: 36 };
-  let W = 0, H = 0, dpr = 1;
-  let colors = {};
+
+  // Vẽ + camera (board-view.js): kích thước bàn cờ đọc qua V.W, V.H
+  const V = window.CaroBoardView({ canvas, cam, state, canPlaceNow, save, MIN_SIZE, MAX_SIZE });
+  const { readColors, resize, requestDraw, animateCamera, ensureVisible, centerView, clamp, colName } = V;
 
   // ------------------------------------------------------------ Nhân vật máy: mở khoá dần theo mức sức cờ
   // caro.bots.unlocked = số mức đã mở (bản cũ: số nhân vật đã mở – mỗi nhân vật cũ đúng một mức nên vẫn khớp).
@@ -611,131 +616,10 @@
     $('btn-analyze').disabled = state.board.moves.length < 2 || state.thinking;
   }
 
-  // ------------------------------------------------------------ Xem lại ván đã lưu
-  /** data: { share, x, o, winner, reason, moves: [[x, y], ...] } (từ máy chủ). */
-  function openReplay(data) {
-    if (state.online) return false;
-    if (!state.replay) save();
-    stopReplay();
-    state.replay = { data, idx: 0, timer: 0 };
-    if (state.clocks && state.clocks.local) state.clocks = null; // đồng hồ ván trên máy đã lưu, khôi phục khi quay lại
-    toBoard();
-    state.thinking = false;
-    state.pending = null;
-    state.clock = null;
-    renderClock();
-    hideBanner();
-    document.body.classList.add('replay');
-    seekReplay(data.moves.length, true);
-    fitReplayView();
-    return true;
-  }
-
-  /** Khung nhìn vừa đủ toàn bộ quân của ván đang xem lại (gọi lại khi bàn cờ đổi kích thước, vd. mở bảng phân tích). */
-  function fitReplayView() {
-    const r = state.replay;
-    if (!r) return;
-    const xs = r.data.moves.map((m) => m[0]), ys = r.data.moves.map((m) => m[1]);
-    if (!xs.length) return;
-    // Phân tích: thanh dưới nằm trong bảng (máy tính) hoặc ngoài bàn cờ (điện thoại) nên chỉ chừa chỗ cho thanh trên
-    const padY = document.body.classList.contains('analysis') ? 110 : 160;
-    const w = Math.max(...xs) - Math.min(...xs) + 4, h = Math.max(...ys) - Math.min(...ys) + 4;
-    const size = Math.max(MIN_SIZE, Math.min(48, (W - 24) / w, (H - padY) / h));
-    animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2 + (padY === 110 ? 20 / size : 0), size);
-  }
-
-  function seekReplay(i, quiet) {
-    const r = state.replay;
-    if (!r) return;
-    const moves = r.data.moves;
-    i = Math.max(0, Math.min(moves.length, i));
-    const forward = i === r.idx + 1;
-    r.idx = i;
-    const b = new Board(r.data.rule);
-    for (let k = 0; k < i; k++) b.play(moves[k][0], moves[k][1], k % 2 ? O : X);
-    state.board = b;
-    state.turn = i % 2 ? O : X;
-    state.winner = null;
-    state.winCells = null;
-    const last = b.moves[b.moves.length - 1];
-    if (i === moves.length && r.data.reason === 'win' && last) {
-      state.winCells = checkWin(b, last.x, last.y, last.p);
-      state.winAt = performance.now();
-    }
-    if (last && !quiet) {
-      state.lastPlacedAt = forward ? performance.now() : 0;
-      if (forward) { sfx(last.p === X ? 'placeX' : 'placeO'); ensureVisible(last.x, last.y); }
-    }
-    if (i === moves.length) stopReplay();
-    updateUI();
-    requestDraw();
-    window.dispatchEvent(new CustomEvent('caro:seek', { detail: { idx: i } }));
-  }
-
-  function stopReplay() {
-    const r = state.replay;
-    if (r && r.timer) { clearInterval(r.timer); r.timer = 0; }
-    renderReplayPlay();
-  }
-
-  function toggleReplayPlay() {
-    const r = state.replay;
-    if (!r) return;
-    if (r.timer) return stopReplay();
-    if (r.idx >= r.data.moves.length) seekReplay(0, true);
-    r.timer = setInterval(() => seekReplay(r.idx + 1), 700);
-    renderReplayPlay();
-  }
-
-  function renderReplayPlay() {
-    const playing = !!(state.replay && state.replay.timer);
-    $('rp-play-ico').firstElementChild.setAttribute('href', playing ? '#i-pause' : '#i-play');
-    $('rp-play-label').textContent = T(playing ? 'rp_pause' : 'rp_play');
-  }
-
-  function closeReplay(silent) {
-    if (!state.replay) return;
-    if (state.ext) exitExt(true);
-    stopReplay();
-    state.replay = null;
-    state.marks = null;
-    state.coords = null;
-    document.body.classList.remove('replay');
-    window.dispatchEvent(new CustomEvent('caro:replayclose'));
-    if (silent) return; // sắp vào phòng online: không cần dựng lại ván cục bộ
-    restoreLocal();
-  }
-
-  function updateReplayUI() {
-    const { data, idx } = state.replay;
-    const n = data.moves.length;
-    const nm = (s) => s || T('deleted_player'); // người chơi đã xoá tài khoản
-    const who = (p, name) => `${glyph(p)} <span class="name" title="${esc(nm(name))}">${esc(nm(name))}</span>`;
-    $('turn').innerHTML = `${who(X, data.x)} <span class="thinking">–</span> ${who(O, data.o)}`;
-    let result = '';
-    if (idx === n) {
-      result = data.winner === 3 ? T('draw_short') : T('replay_wins', { name: nm(data.winner === X ? data.x : data.o) });
-      if (data.reason && !['win', 'draw'].includes(data.reason)) result += ' · ' + T('end_' + data.reason);
-    }
-    $('score').innerHTML = ruleChip(data.rule) + `${idx}/${n}` + (result ? ` · ${esc(result)}` : '');
-    $('rp-first').disabled = $('rp-prev').disabled = idx === 0;
-    $('rp-next').disabled = idx === n;
-    renderReplayPlay();
-  }
-
-  $('rp-first').onclick = () => { stopReplay(); seekReplay(0, true); };
-  $('rp-prev').onclick = () => { stopReplay(); seekReplay(state.replay.idx - 1, true); };
-  $('rp-next').onclick = () => { stopReplay(); seekReplay(state.replay.idx + 1); };
-  $('rp-play').onclick = toggleReplayPlay;
-  $('rp-close').onclick = () => closeReplay();
-  // Chia sẻ: ảnh PNG / GIF động (share.js), và link xem lại nếu là ván đã lưu trên máy chủ
-  $('rp-share').onclick = () => {
-    const d = state.replay.data;
-    const nm = (v) => v || T('deleted_player');
-    let result = d.winner === 3 ? T('draw_short') : d.winner ? T('replay_wins', { name: nm(d.winner === X ? d.x : d.o) }) : '';
-    if (d.reason && !['win', 'draw'].includes(d.reason) && result) result += ' · ' + T('end_' + d.reason);
-    window.CaroShare.open({ moves: d.moves, x: nm(d.x), o: nm(d.o), result, rule: d.rule }, d.share && net() ? () => net().shareReplay(d) : null);
-  };
+  // ------------------------------------------------------------ Xem lại ván đã lưu (board-replay.js)
+  const { openReplay, fitReplayView, seekReplay, stopReplay, toggleReplayPlay, closeReplay, updateReplayUI } = window.CaroBoardReplay({
+    state, V, MIN_SIZE, save, toBoard, renderClock, hideBanner, updateUI, exitExt, restoreLocal, glyph, esc, ruleChip, net, sfx,
+  });
 
   function showBanner() {
     if (!state.winner) return;
@@ -765,465 +649,11 @@
     try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* không hỗ trợ */ }
   }
 
-  // ------------------------------------------------------------ Vẽ
-  function readColors() {
-    const cs = getComputedStyle(document.documentElement);
-    for (const k of ['bg', 'grid', 'grid-strong', 'x', 'o', 'last', 'win', 'muted']) {
-      colors[k] = cs.getPropertyValue('--' + k).trim();
-    }
-    // Màu bàn cờ riêng (Cài đặt → Bàn cờ)
-    colors.bg = cs.getPropertyValue('--board').trim() || colors.bg;
-    colors.grid = cs.getPropertyValue('--board-grid').trim() || colors.grid;
-    colors['grid-strong'] = cs.getPropertyValue('--board-grid-strong').trim() || colors['grid-strong'];
-  }
 
-  function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 3);
-    // Kích thước thật của bàn cờ: thường là cả màn hình; khi phân tích ván, bàn cờ nhường chỗ cho bảng phân tích
-    W = canvas.clientWidth || window.innerWidth;
-    H = canvas.clientHeight || window.innerHeight;
-    canvas.width = Math.round(W * dpr);
-    canvas.height = Math.round(H * dpr);
-    requestDraw();
-  }
-
-  const toScreen = (wx, wy) => [(wx - cam.x) * cam.size + W / 2, (wy - cam.y) * cam.size + H / 2];
-  const toCell = (sx, sy) => [
-    Math.round((sx - W / 2) / cam.size + cam.x),
-    Math.round((sy - H / 2) / cam.size + cam.y),
-  ];
-
-  let drawQueued = false;
-  function requestDraw() {
-    if (drawQueued) return;
-    drawQueued = true;
-    requestAnimationFrame(draw);
-  }
-
-  function drawStone(p, sx, sy, s, alpha) {
-    window.CaroStyle.drawStone(ctx, p, sx, sy, s, alpha, colors);
-  }
-
-  function draw() {
-    drawQueued = false;
-    const now = performance.now();
-    let again = false;
-    const s = cam.size;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = colors.bg;
-    ctx.fillRect(0, 0, W, H);
-
-    // Lưới: đường kẻ nằm giữa các ô (toạ độ nửa nguyên).
-    const x0 = Math.floor(cam.x - W / 2 / s) - 1, x1 = Math.ceil(cam.x + W / 2 / s) + 1;
-    const y0 = Math.floor(cam.y - H / 2 / s) - 1, y1 = Math.ceil(cam.y + H / 2 / s) + 1;
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = colors.grid;
-    ctx.beginPath();
-    for (let i = x0; i <= x1; i++) {
-      const sx = Math.round(toScreen(i + 0.5, 0)[0]) + 0.5;
-      ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
-    }
-    for (let j = y0; j <= y1; j++) {
-      const sy = Math.round(toScreen(0, j + 0.5)[1]) + 0.5;
-      ctx.moveTo(0, sy); ctx.lineTo(W, sy);
-    }
-    ctx.stroke();
-
-    // Đánh dấu gốc toạ độ để dễ định hướng.
-    const [ox, oy] = toScreen(0, 0);
-    ctx.fillStyle = colors['grid-strong'];
-    ctx.beginPath();
-    ctx.arc(ox, oy, Math.max(1.5, s * 0.05), 0, Math.PI * 2);
-    ctx.fill();
-
-    const moves = state.board.moves;
-    const last = moves[moves.length - 1];
-    if (last) {
-      const [sx, sy] = toScreen(last.x - 0.5, last.y - 0.5);
-      ctx.fillStyle = colors.last;
-      ctx.fillRect(sx + 1, sy + 1, s - 1, s - 1);
-      // Chấm nhỏ màu của người vừa đánh ở góc ô
-      ctx.fillStyle = last.p === X ? colors.x : colors.o;
-      ctx.beginPath();
-      ctx.arc(sx + s - s * 0.14, sy + s * 0.14, Math.max(2, s * 0.06), 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Ván thắng: các quân không thuộc đường thắng mờ dần (cùng nhịp với đường thắng) để 5 quân thắng nổi bật
-    let winSet = null, dim = 1;
-    if (state.winCells) {
-      winSet = new Set(state.winCells.map(([x, y]) => x + ',' + y));
-      const t = Math.min(1, (now - (state.winAt || 0)) / 450);
-      dim = 1 - 0.55 * (1 - Math.pow(1 - t, 3));
-    }
-    // Quân cờ (chỉ vẽ các quân trong khung nhìn).
-    for (let i = 0; i < moves.length; i++) {
-      const m = moves[i];
-      if (m.x < x0 || m.x > x1 || m.y < y0 || m.y > y1) continue;
-      const [sx, sy] = toScreen(m.x, m.y);
-      let scale = 1;
-      if (m === last) {
-        const t = Math.min(1, (now - state.lastPlacedAt) / 160);
-        if (t < 1) again = true;
-        scale = 0.5 + 0.5 * (1 - Math.pow(1 - t, 3));
-      }
-      drawStone(m.p, sx, sy, s * scale, winSet && !winSet.has(m.x + ',' + m.y) ? dim : 1);
-    }
-
-    if (state.marks) drawMarks(s, x0, x1, y0, y1);
-    drawForbidden(s, x0, x1, y0, y1);
-
-    // Quân mờ: chờ xác nhận hoặc rê chuột.
-    const ghost = state.pending || state.hover;
-    if (ghost && canPlaceNow() && state.board.get(ghost[0], ghost[1]) === EMPTY) {
-      const [sx, sy] = toScreen(ghost[0], ghost[1]);
-      if (state.pending) {
-        ctx.strokeStyle = state.turn === X ? colors.x : colors.o;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.strokeRect(sx - s / 2 + 2, sy - s / 2 + 2, s - 4, s - 4);
-        ctx.setLineDash([]);
-      }
-      drawStone(state.turn, sx, sy, s, state.pending ? 0.55 : 0.3);
-    }
-
-    // Đường thắng.
-    if (state.winCells) {
-      const a = state.winCells[0], b = state.winCells[state.winCells.length - 1];
-      const [ax, ay] = toScreen(a[0], a[1]);
-      const [bx, by] = toScreen(b[0], b[1]);
-      // Vẽ dần từ đầu tới cuối trong ~0,45 giây
-      const t = Math.min(1, (now - (state.winAt || 0)) / 450);
-      if (t < 1) again = true;
-      const e = 1 - Math.pow(1 - t, 3);
-      ctx.strokeStyle = colors.win;
-      ctx.lineWidth = Math.max(3, s * 0.12);
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(ax, ay); ctx.lineTo(ax + (bx - ax) * e, ay + (by - ay) * e);
-      ctx.stroke();
-    }
-
-    // Toạ độ khi phân tích (như bàn cờ Lichess): chữ cái theo cột ở mép dưới, số theo hàng ở mép trái
-    if (state.coords && s >= 14) {
-      const { minX, maxX, minY, maxY } = state.coords;
-      ctx.font = `600 ${Math.round(Math.min(13, s * 0.36))}px ${fontFamily || (fontFamily = getComputedStyle(document.body).fontFamily)}`;
-      ctx.fillStyle = colors.muted;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-      for (let x = Math.max(x0, minX); x <= Math.min(x1, maxX); x++) ctx.fillText(colName(x - minX), toScreen(x, 0)[0], H - 3);
-      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      for (let y = Math.max(y0, minY); y <= Math.min(y1, maxY); y++) ctx.fillText(String(maxY - y + 1), 4, toScreen(0, y)[1]);
-    }
-
-    if (camAnim || inertia) again = true;
-    if (again) requestDraw();
-    stepAnimations(now);
-  }
-
-  /** Renju: ô cấm của X (khi người chơi đang cầm X tới lượt) – dấu ✕ đỏ nhỏ, như các app Renju. */
-  let fbCache = { key: '', cells: [] };
-  function forbiddenCells() {
-    const b = state.board;
-    if (b.rule !== 'renju' || state.turn !== X || state.winner || state.replay || !canPlaceNow()) return [];
-    const key = b.moves.length + ':' + (b.moves.length ? b.moves[b.moves.length - 1].x + ',' + b.moves[b.moves.length - 1].y : '');
-    if (fbCache.key === key) return fbCache.cells;
-    const cells = window.Caro.candidates(b, 2).filter(([x, y]) => forbidden(b, x, y, X));
-    fbCache = { key, cells };
-    return cells;
-  }
-  function drawForbidden(s, x0, x1, y0, y1) {
-    const cells = forbiddenCells();
-    if (!cells.length) return;
-    ctx.strokeStyle = '#e5392f';
-    ctx.lineWidth = Math.max(1.5, s * 0.06);
-    ctx.lineCap = 'round';
-    const r = s * 0.14;
-    for (const [x, y] of cells) {
-      if (x < x0 || x > x1 || y < y0 || y > y1) continue;
-      const [sx, sy] = toScreen(x, y);
-      // Nền đỏ nhạt + ✕ nhỏ: khác hẳn quân X (to, không nền)
-      ctx.fillStyle = 'rgba(229, 57, 47, 0.14)';
-      ctx.fillRect(sx - s / 2 + 1, sy - s / 2 + 1, s - 1, s - 1);
-      ctx.beginPath();
-      ctx.moveTo(sx - r, sy - r); ctx.lineTo(sx + r, sy + r);
-      ctx.moveTo(sx + r, sy - r); ctx.lineTo(sx - r, sy + r);
-      ctx.stroke();
-    }
-  }
-
-  /** Đánh dấu của phân tích / giải đố: huy hiệu loại nước, nước gợi ý (vòng nét đứt), nước sai. */
-  /** Tên cột: a…z, rồi aa, ab… (bàn cờ vô hạn nên chỉ đặt tên trong phạm vi ván đang phân tích). */
-  const colName = (c) => (c < 26 ? String.fromCharCode(97 + c) : String.fromCharCode(96 + Math.floor(c / 26)) + String.fromCharCode(97 + (c % 26)));
-  let fontFamily = ''; // phông chữ của trang (đọc 1 lần, không gọi getComputedStyle mỗi khung hình)
-  function drawMarks(s, x0, x1, y0, y1) {
-    for (const m of state.marks) {
-      if (m.x < x0 || m.x > x1 || m.y < y0 || m.y > y1) continue;
-      const [sx, sy] = toScreen(m.x, m.y);
-      if (m.kind === 'ghost') {
-        ctx.strokeStyle = m.color;
-        ctx.lineWidth = Math.max(2, s * 0.08);
-        ctx.setLineDash([Math.max(3, s * 0.12), Math.max(3, s * 0.1)]);
-        ctx.beginPath();
-        ctx.arc(sx, sy, s * 0.4, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        if (m.p) drawStone(m.p, sx, sy, s, 0.35);
-      } else if (m.kind === 'bad') {
-        ctx.fillStyle = m.color;
-        ctx.globalAlpha = 0.18;
-        ctx.fillRect(sx - s / 2 + 1, sy - s / 2 + 1, s - 1, s - 1);
-        ctx.globalAlpha = 1;
-      }
-      if (m.text) {
-        // Huy hiệu tròn ở góc trên bên phải ô
-        const r = Math.max(7, s * 0.2);
-        const bx = sx + s * 0.38, by = sy - s * 0.38;
-        ctx.fillStyle = m.color;
-        ctx.beginPath();
-        ctx.arc(bx, by, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = colors.bg;
-        ctx.stroke();
-        ctx.fillStyle = '#fff';
-        ctx.font = `700 ${Math.round(r * (m.text.length > 1 ? 1.05 : 1.3))}px ${fontFamily || (fontFamily = getComputedStyle(document.body).fontFamily)}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(m.text, bx, by + 0.5);
-      }
-    }
-  }
-
-  // ------------------------------------------------------------ Camera
-  let camAnim = null;
-  function animateCamera(x, y, size) {
-    camAnim = { from: { ...cam }, to: { x, y, size: size || cam.size }, t0: performance.now(), dur: 320 };
-    requestDraw();
-  }
-  let inertia = null;
-
-  function stepAnimations(now) {
-    if (camAnim) {
-      const t = Math.min(1, (now - camAnim.t0) / camAnim.dur);
-      const e = 1 - Math.pow(1 - t, 3);
-      const { from, to } = camAnim;
-      cam.x = from.x + (to.x - from.x) * e;
-      cam.y = from.y + (to.y - from.y) * e;
-      cam.size = from.size + (to.size - from.size) * e;
-      if (t >= 1) { camAnim = null; saveSoon(); }
-    }
-    if (inertia) {
-      const dt = Math.min(40, now - inertia.t);
-      inertia.t = now;
-      cam.x -= (inertia.vx * dt) / cam.size;
-      cam.y -= (inertia.vy * dt) / cam.size;
-      const k = Math.pow(0.994, dt);
-      inertia.vx *= k;
-      inertia.vy *= k;
-      if (Math.hypot(inertia.vx, inertia.vy) < 0.02) { inertia = null; saveSoon(); }
-    }
-  }
-
-  function ensureVisible(x, y) {
-    const [sx, sy] = toScreen(x, y);
-    const m = cam.size * 1.5;
-    const top = 70, bottom = 90;
-    if (sx < m || sx > W - m || sy < top + m || sy > H - bottom - m) {
-      animateCamera(x, y - (top - bottom) / 2 / cam.size);
-    }
-  }
-
-  function centerView() {
-    const moves = state.board.moves;
-    if (!moves.length) return animateCamera(0, 0, 36);
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const m of moves) {
-      minX = Math.min(minX, m.x); maxX = Math.max(maxX, m.x);
-      minY = Math.min(minY, m.y); maxY = Math.max(maxY, m.y);
-    }
-    const w = maxX - minX + 5, h = maxY - minY + 5;
-    const size = clamp(Math.min(W / w, (H - 160) / h), MIN_SIZE, 48);
-    animateCamera((minX + maxX) / 2, (minY + maxY) / 2, size);
-  }
-
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-
-  function zoomAt(sx, sy, newSize) {
-    newSize = clamp(newSize, MIN_SIZE, MAX_SIZE);
-    const wx = (sx - W / 2) / cam.size + cam.x;
-    const wy = (sy - H / 2) / cam.size + cam.y;
-    cam.size = newSize;
-    cam.x = wx - (sx - W / 2) / newSize;
-    cam.y = wy - (sy - H / 2) / newSize;
-    requestDraw();
-    saveSoon();
-  }
-
-  let saveTimer = 0;
-  function saveSoon() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(save, 400);
-  }
-
-  // ------------------------------------------------------------ Nhập liệu
-  const pointers = new Map();
-  let gesture = null;
-
-  /** Ô nhỏ hơn mức này (px) thì ngón tay dễ chạm nhầm ô bên cạnh: chạm lần đầu chỉ phóng to tới chỗ đó. */
-  const TOUCH_MIN = 26, TOUCH_ZOOM = 36;
-  function tap(sx, sy, mouse) {
-    if (state.winner) { if (!state.ext) showBanner(); return; }
-    if (!canPlaceNow()) return;
-    const [x, y] = toCell(sx, sy);
-    if (state.board.get(x, y) !== EMPTY) return;
-    if (!mouse && cam.size < TOUCH_MIN) {
-      animateCamera(x, y, TOUCH_ZOOM);
-      // Chế độ chạm 2 lần: ô vừa chạm thành ô chờ xác nhận, chạm lần nữa là đặt quân (không tốn thêm lượt chạm)
-      if (state.confirm) state.pending = [x, y];
-      vibrate(5);
-      return;
-    }
-    if (state.confirm) {
-      if (state.pending && state.pending[0] === x && state.pending[1] === y) play(x, y);
-      else { state.pending = [x, y]; vibrate(5); requestDraw(); }
-    } else play(x, y);
-  }
-
-  function startPinch() {
-    const [a, b] = [...pointers.values()];
-    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    return {
-      type: 'pinch',
-      dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
-      size: cam.size,
-      wx: (mx - W / 2) / cam.size + cam.x,
-      wy: (my - H / 2) / cam.size + cam.y,
-    };
-  }
-
-  canvas.addEventListener('pointerdown', (e) => {
-    canvas.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    inertia = null;
-    camAnim = null;
-    if (pointers.size === 1) {
-      gesture = { type: 'tap', sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, lt: e.timeStamp, vx: 0, vy: 0, mouse: e.pointerType === 'mouse', button: e.button };
-    } else if (pointers.size === 2) {
-      gesture = startPinch();
-    }
-  });
-
-  canvas.addEventListener('pointermove', (e) => {
-    if (!pointers.has(e.pointerId)) {
-      if (e.pointerType === 'mouse') {
-        const c = toCell(e.clientX, e.clientY);
-        if (!state.hover || state.hover[0] !== c[0] || state.hover[1] !== c[1]) { state.hover = c; requestDraw(); }
-      }
-      return;
-    }
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (!gesture) return;
-
-    if (gesture.type === 'tap') {
-      const d = Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy);
-      if (d > (gesture.mouse ? 5 : 10)) { gesture.type = 'pan'; canvas.classList.add('grabbing'); }
-    }
-    if (gesture.type === 'pan') {
-      const dx = e.clientX - gesture.lx, dy = e.clientY - gesture.ly;
-      const dt = Math.max(1, e.timeStamp - gesture.lt);
-      cam.x -= dx / cam.size;
-      cam.y -= dy / cam.size;
-      gesture.vx = 0.7 * (dx / dt) + 0.3 * gesture.vx;
-      gesture.vy = 0.7 * (dy / dt) + 0.3 * gesture.vy;
-      gesture.lx = e.clientX; gesture.ly = e.clientY; gesture.lt = e.timeStamp;
-      state.hover = null;
-      requestDraw();
-    } else if (gesture.type === 'pinch' && pointers.size >= 2) {
-      const [a, b] = [...pointers.values()];
-      const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
-      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-      cam.size = clamp(gesture.size * (d / gesture.dist), MIN_SIZE, MAX_SIZE);
-      cam.x = gesture.wx - (mx - W / 2) / cam.size;
-      cam.y = gesture.wy - (my - H / 2) / cam.size;
-      requestDraw();
-    }
-  });
-
-  function endPointer(e) {
-    if (!pointers.has(e.pointerId)) return;
-    pointers.delete(e.pointerId);
-    canvas.classList.remove('grabbing');
-    if (!gesture) return;
-    if (gesture.type === 'tap' && pointers.size === 0) {
-      if (e.type === 'pointerup' && (!gesture.mouse || gesture.button === 0)) tap(e.clientX, e.clientY, gesture.mouse);
-      gesture = null;
-    } else if (gesture.type === 'pan' && pointers.size === 0) {
-      const idle = e.timeStamp - gesture.lt;
-      if (idle < 60 && Math.hypot(gesture.vx, gesture.vy) > 0.15) {
-        inertia = { vx: gesture.vx, vy: gesture.vy, t: performance.now() };
-        requestDraw();
-      }
-      gesture = null;
-      saveSoon();
-    } else if (gesture.type === 'pinch') {
-      if (pointers.size === 1) {
-        // Nhấc 1 ngón: chuyển sang kéo bằng ngón còn lại (không đặt quân).
-        const p = [...pointers.values()][0];
-        gesture = { type: 'pan', lx: p.x, ly: p.y, lt: e.timeStamp, vx: 0, vy: 0 };
-      } else if (pointers.size === 0) gesture = null;
-      saveSoon();
-    }
-  }
-  canvas.addEventListener('pointerup', endPointer);
-  canvas.addEventListener('pointercancel', endPointer);
-  canvas.addEventListener('pointerleave', (e) => {
-    if (e.pointerType === 'mouse' && state.hover) { state.hover = null; requestDraw(); }
-  });
-  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-  canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    camAnim = null;
-    if (e.ctrlKey || e.deltaMode !== 0 || Math.abs(e.deltaY) >= 40 && e.deltaX === 0) {
-      // Bánh xe chuột / chụm trên touchpad: phóng to thu nhỏ.
-      const f = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015) * (e.deltaMode === 1 ? 30 : 1));
-      zoomAt(e.clientX, e.clientY, cam.size * f);
-    } else {
-      // Vuốt 2 ngón trên touchpad: di chuyển.
-      cam.x += e.deltaX / cam.size;
-      cam.y += e.deltaY / cam.size;
-      requestDraw();
-      saveSoon();
-    }
-  }, { passive: false });
-
-  window.addEventListener('keydown', (e) => {
-    if (shellOn() || document.querySelector('dialog[open]') || /INPUT|TEXTAREA/.test(document.activeElement?.tagName)) return;
-    const step = 3;
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (state.ext) {
-      if (e.key === 'Escape') { e.preventDefault(); state.ext.onExit(); return; }
-    } else if (state.replay) {
-      // Xem lại: ← → từng nước, Home/End về đầu/cuối, Space phát/dừng, Esc thoát.
-      const r = state.replay;
-      const act = { ArrowLeft: () => seekReplay(r.idx - 1, true), ArrowRight: () => seekReplay(r.idx + 1),
-        Home: () => seekReplay(0, true), End: () => seekReplay(r.data.moves.length, true), ' ': toggleReplayPlay, Escape: () => closeReplay() }[e.key];
-      if (act) { e.preventDefault(); if (e.key !== ' ') stopReplay(); act(); return; }
-    }
-    switch (e.key) {
-      case 'ArrowLeft': cam.x -= step; break;
-      case 'ArrowRight': cam.x += step; break;
-      case 'ArrowUp': cam.y -= step; break;
-      case 'ArrowDown': cam.y += step; break;
-      case '+': case '=': zoomAt(W / 2, H / 2, cam.size * 1.2); return;
-      case '-': case '_': zoomAt(W / 2, H / 2, cam.size / 1.2); return;
-      case 'c': case 'C': centerView(); return;
-      case 'n': case 'N': if (!state.replay && !state.ext) openNewGame(); return;
-      default: return;
-    }
-    requestDraw();
-    saveSoon();
+  // ------------------------------------------------------------ Nhập liệu (board-input.js)
+  window.CaroBoardInput({
+    canvas, cam, state, V, MIN_SIZE, MAX_SIZE, canPlaceNow, play, showBanner, vibrate, shellOn, undo, openNewGame,
+    seekReplay, toggleReplayPlay, closeReplay, stopReplay,
   });
 
   // ------------------------------------------------------------ Nút & cài đặt
@@ -1394,7 +824,7 @@
     if (!moves.length) return animateCamera(0, 0, 36);
     const xs = moves.map((m) => m[0]), ys = moves.map((m) => m[1]);
     const w = Math.max(...xs) - Math.min(...xs) + 5, h = Math.max(...ys) - Math.min(...ys) + 5;
-    const size = clamp(Math.min((W - 24) / w, (H - 220) / h), MIN_SIZE, 48);
+    const size = clamp(Math.min((V.W - 24) / w, (V.H - 220) / h), MIN_SIZE, 48);
     animateCamera((Math.max(...xs) + Math.min(...xs)) / 2, (Math.max(...ys) + Math.min(...ys)) / 2 + 40 / size, size);
   }
 
@@ -1480,7 +910,7 @@
     seek: (i) => { stopReplay(); seekReplay(i, true); },
     get board() { return state.board; },
     /** Toạ độ màn hình của ô (x, y) – dùng cho kiểm thử bấm bàn cờ thật. */
-    screenOf: (x, y) => [(x - cam.x) * cam.size + W / 2, (y - cam.y) * cam.size + H / 2],
+    screenOf: (x, y) => [(x - cam.x) * cam.size + V.W / 2, (y - cam.y) * cam.size + V.H / 2],
     /** Chọn nhân vật máy (nếu đã mở khoá); unlockTo: mở khoá tới nhân vật thứ n (người chơi tự nhận là đã giỏi). */
     /**
      * Ván mới, bày sẵn vài nước đầu (luyện khai cuộc – learn-practice.js; ô chơi nhanh ở Trang chủ – home.js).
