@@ -36,7 +36,7 @@
 | **(c) Máy ảo / ADB treo** | 5 | `116895237048` (treo > 30p), `116723353781` (adb exit 1), `116715257255` (adb exit 1), `116705437025` (adb exit 1), `116684748669` (adb exit 1) |
 | **(d) Timeout mở app** | 2 | `116861566999`, `116723903381` |
 | **(e) Bị huỷ (cancelled)** | 16 | `117245281796`, `117245281894`, `116991359711`, `116991360095`, `116865244552`, `116861577075`, `116861577423`, `116861566943`, `116719159860`, `116719159889`, `116683988744`, `116683988793`, `116683879529`, `116683879676`, `116680362401`, `116680362660` |
-| **Xanh (PASS)** | 88 | *88 job IDs chi tiết có trong issue50_ci_data.json* (tiêu biểu: `117248557461`, `117248557688`, `116930516856`, `116895236686`...) |
+| **Xanh (PASS)** | 88 | *88 job IDs chi tiết có trong issue50_ci_data.json* (tiêu biểu: `117248557461`, `117248557688`, `116930516877`, `116895236686`...) |
 
 ---
 
@@ -86,9 +86,9 @@ Cờ Caro đang chạy: http://localhost:8790
 ### Giả thuyết 1: Cạc mạng ảo (QEMU loopback 10.0.2.2) của máy ảo Android 35 bị nghẽn ngắt quãng
 
 - **Bằng chứng thuận**: 
-  - Sau khi bài test fail, lượt chạy khác trên **chính commit đó** đều PASS bình thường:
-    - Trên commit `2467d16`: Run **#38888016220** (10:33:29 UTC) job API 35 đỏ, nhưng Run **#38888049420** (10:33:46 UTC, cùng commit `2467d16`) job API 35 (Job ID `116930516856`) **PASS xanh**.
-    - Trên commit `a23ebc9`: Run **#38875851037** (08:45:46 UTC) job API 35 đỏ, nhưng Run **#38877259408** (08:58:24 UTC, cùng commit `a23ebc9`) job API 35 (Job ID `116895236686`) **PASS xanh**.
+  - Trong mẫu khảo sát chưa có lượt re-run trên cùng commit; tuy nhiên ở các lượt chạy sau trên cùng nhánh (commit tiếp theo) thì bài Android 35 đều PASS bình thường:
+    - Nhánh `claude/scrypt-async`: Run #38888016220 (commit `2467d16`) job API 35 đỏ, nhưng ở commit kế tiếp `73069cf` (Run #38888049420) job `Android 35` (Job ID `116930516877`) **PASS xanh**.
+    - Nhánh `agy/report-41`: Run #38875851037 (commit `a23ebc9`) job API 35 đỏ, nhưng ở commit kế tiếp `719aeb6` (Run #38877259408) job `Android 35` (Job ID `116895236686`) **PASS xanh**.
   - Hoàn toàn không xuất hiện trên API 34 (0/60 job).
 - **Bằng chứng nghịch**: Chưa xác định được phía máy chủ có nhận được packet hay bị drop ở tầng TCP do `server.js` không ghi log socket handshake.
 
