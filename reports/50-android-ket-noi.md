@@ -4,7 +4,7 @@
 
 - **Tỉ lệ lỗi 'app kết nối máy chủ' (nhóm a) rất thấp**: Chỉ xuất hiện **2/120 job (1,67%)** tổng cộng (hoặc **2/104 = 1,92%** nếu loại trừ 16 job bị huỷ do concurrency).
 - **Chỉ xuất hiện trên Android API 35**, hoàn toàn **không xuất hiện trên Android API 34** (0/60 job).
-- Cả 2 lần bị lỗi máy chủ đều đã khởi động sẵn sàng trên cổng 8790 nhưng **không nhận được bất kỳ gói tin kết nối nào** từ app trong máy ảo trong suốt 45 giây.
+- **Về phía máy chủ**: Máy chủ đã khởi động xong (`Cờ Caro đang chạy: http://localhost:8790`), tuy nhiên hiện tại **chưa xác định được** máy chủ có nhận được yêu cầu kết nối TCP hay không do `server.js` không ghi log khi có kết nối WebSocket mới.
 - Nguyên nhân lớn nhất gây đỏ CI Android thực tế là **nhóm (b) bàn phím / ô nhập (7/120 = 5,83%)** và **nhóm (c) máy ảo / adb treo (5/120 = 4,17%)**.
 
 ---
@@ -27,9 +27,20 @@
 
 ---
 
-## Bảng chi tiết các job nhóm (a) – Lỗi kết nối máy chủ
+## Bảng tra cứu Job ID theo phân loại để đối chiếu
 
-Chỉ có 2 job duy nhất ghi nhận lỗi `FAIL app kết nối máy chủ`:
+| Nhóm | Số lượng | Danh sách Job ID |
+| :--- | :---: | :--- |
+| **(a) Kết nối máy chủ** | 2 | `116930414869` (API 35), `116890600397` (API 35) |
+| **(b) Bàn phím / Ô nhập** | 7 | `117233505514`, `117000460131`, `116992084205`, `116890600472`, `116697817871`, `116684180992`, `116684650975` |
+| **(c) Máy ảo / ADB treo** | 5 | `116895237048` (treo > 30p), `116723353781` (adb exit 1), `116715257255` (adb exit 1), `116705437025` (adb exit 1), `116684748669` (adb exit 1) |
+| **(d) Timeout mở app** | 2 | `116861566999`, `116723903381` |
+| **(e) Bị huỷ (cancelled)** | 16 | `117245281796`, `117245281894`, `116991359711`, `116991360095`, `116865244552`, `116861577075`, `116861577423`, `116861566943`, `116719159860`, `116719159889`, `116683988744`, `116683988793`, `116683879529`, `116683879676`, `116680362401`, `116680362660` |
+| **Xanh (PASS)** | 88 | *88 job IDs chi tiết có trong issue50_ci_data.json* (tiêu biểu: `117248557461`, `117248557688`, `116930516856`, `116895236686`...) |
+
+---
+
+## Bảng chi tiết các job nhóm (a) – Lỗi kết nối máy chủ
 
 | Run ID | Job ID | API | Thời gian chạy (UTC) | Nhánh / Commit | PASS cuối cùng | Số lần thử lại WS | Dòng logcat Capacitor/Console liên quan |
 | :--- | :--- | :---: | :--- | :--- | :--- | :---: | :--- |
@@ -46,7 +57,7 @@ Chỉ có 2 job duy nhất ghi nhận lỗi `FAIL app kết nối máy chủ`:
 
 ---
 
-## Trích xuất nhật ký thực tế (Log snippet)
+## Trích xuất nhật ký thực tế (Log nguyên văn)
 
 ### 1. Job 116890600397 (Run #38875851037, API 35)
 
@@ -58,26 +69,28 @@ Chỉ có 2 job duy nhất ghi nhận lỗi `FAIL app kết nối máy chủ`:
 2026-10-16T08:51:28.102 W/Capacitor/Console( 2099): File: https://localhost/online.js - Line 51 - Msg: Mixed Content: The page at 'https://localhost/' was loaded over HTTPS, but attempted to connect to the insecure WebSocket endpoint 'ws://10.0.2.2:8790/ws'. This endpoint should be available via WSS. Insecure access is deprecated.
 ```
 
-### 2. Bước 'Nhật ký máy chủ' của các job nhóm (a)
+### 2. Bước 'Nhật ký máy chủ' của job 116890600397 (`cat "$RUNNER_TEMP/server.log"`)
 
 ```text
-2026-10-16T08:51:29.8710321Z === Nhật ký máy chủ ===
-2026-10-16T08:51:29.8720194Z [server] Máy chủ Caro đang chạy tại port 8790
-2026-10-16T08:51:29.8721051Z [server] WebSocket handler sẵn sàng
+Cờ Caro đang chạy: http://localhost:8790
+(Chưa đặt GOOGLE_CLIENT_ID – nút đăng nhập Google sẽ được ẩn)
+(Chưa đặt SMTP_URL – tính năng quên mật khẩu qua email sẽ tắt)
 ```
-*(Ghi chú: Máy chủ hoàn toàn không nhận được yêu cầu kết nối TCP hay WebSocket nào từ máy ảo trong suốt thời gian bài test chạy).*
+
+*(Ghi chú: `server.js` hiện tại không in log khi có kết nối WebSocket mới, do đó từ log server không thể khẳng định máy chủ có nhận được packet TCP/WS từ emulator hay không).*
 
 ---
 
 ## Giả thuyết và Bằng chứng
 
-### Giả thuyết 1: Cạc mạng ảo (QEMU/KVM virtual network 10.0.2.2) của máy ảo Android 35 bị nghẽn ngắt quãng
+### Giả thuyết 1: Cạc mạng ảo (QEMU loopback 10.0.2.2) của máy ảo Android 35 bị nghẽn ngắt quãng
 
 - **Bằng chứng thuận**: 
-  - Máy chủ ở phía host đã mở port 8790 từ đầu, nhưng không có gói tin nào chạm tới máy chủ.
-  - Sau khi bài test fail, lượt chạy lại (re-run) trên chính commit đó lại PASS bình thường.
-  - Không xuất hiện trên API 34 (API 34 dùng image emulator khác, ít bị nghẽn card mạng ảo hơn).
-- **Bằng chứng nghịch**: Không có log kernel báo drop packet rõ ràng từ Android host.
+  - Sau khi bài test fail, lượt chạy khác trên **chính commit đó** đều PASS bình thường:
+    - Trên commit `2467d16`: Run **#38888016220** (10:33:29 UTC) job API 35 đỏ, nhưng Run **#38888049420** (10:33:46 UTC, cùng commit `2467d16`) job API 35 (Job ID `116930516856`) **PASS xanh**.
+    - Trên commit `a23ebc9`: Run **#38875851037** (08:45:46 UTC) job API 35 đỏ, nhưng Run **#38877259408** (08:58:24 UTC, cùng commit `a23ebc9`) job API 35 (Job ID `116895236686`) **PASS xanh**.
+  - Hoàn toàn không xuất hiện trên API 34 (0/60 job).
+- **Bằng chứng nghịch**: Chưa xác định được phía máy chủ có nhận được packet hay bị drop ở tầng TCP do `server.js` không ghi log socket handshake.
 
 ### Giả thuyết 2: Chromium WebView trên Android 35 siết cảnh báo Mixed Content (`https://` gọi `ws://`)
 
