@@ -5,10 +5,7 @@
  * postMessage. Bản iOS (CARO_NO_RAPFI – điều khoản App Store xung khắc với GPL), trình duyệt không có WebAssembly SIMD,
  * thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để app.js / phân tích dùng engine của game.
  *
- * Bàn của game vô hạn, Rapfi cần bàn cố định (tự do / Việt Nam 20×20, tiêu chuẩn / Renju 15×15 – đúng cỡ mạng đã học): mỗi
- * lần đặt khung bao các quân vào giữa bàn Rapfi. Rapfi coi mép bàn là tường chặn, nên khi quân cách mép < 4 ô (chuỗi năm
- * kéo ra ngoài mép, thế ba "chết" vì mép mà thật ra còn sống) thì engine của game – hiểu đúng bàn vô hạn – kiểm lại
- * chuỗi ép thắng của cả hai bên (check). Cách mép < 1 ô: không dùng Rapfi.
+ * Bàn của game vô hạn, Rapfi cần bàn cố định: đặt thế lên bàn Rapfi và kiểm lại thế sát mép – xem rapfi-board.js.
  *
  *   CaroRapfi.handles(botId, rule)   – BOAT + luật có Rapfi + trình duyệt chạy được
  *   CaroRapfi.available(rule)        – luật có Rapfi + trình duyệt chạy được (phân tích)
@@ -30,9 +27,9 @@
 (function (global) {
   'use strict';
   const C = global.Caro;
-  const SIZE = { free: 20, std: 15, renju: 15, vn: 20 };
+  const B = global.CaroRapfiBoard; // đặt thế lên bàn Rapfi, kiểm thế sát mép (rapfi-board.js)
+  const { SIZE, SAFE_EDGE, frame, place, check } = B;
   const MB = { free: 10, std: 10, renju: 20, vn: 1 }; // luật Việt Nam: chỉ bản dựng ~1,3 MB, không mạng NNUE
-  const SAFE_EDGE = 4; // cách mép ≥ 4 ô: mép bàn không ảnh hưởng chuỗi năm nào qua các quân → tin Rapfi hoàn toàn
   const FIRST_WAIT = 1500; // mạng chưa sẵn sàng: chờ ngần này (đủ cho lần nạp từ bộ nhớ đệm), quá thì nước này dùng engine
   const RETRY_MS = 60000; // tải lỗi (mạng chập chờn): sau 1 phút cho thử lại
   const CHECK_MS = 400; // thời gian engine của game kiểm một thế sát mép
@@ -75,8 +72,7 @@
     if (cur) retire(cur);
     if (aux) retire(aux);
     cur = aux = null;
-    // Worker kiểm thế sát mép (engine JS – terminate lúc đang chấm không gây sập): đổi luật / dừng Rapfi thì trả RAM luôn
-    if (checker) { checker.terminate(); checker = null; }
+    B.reset(); // Worker kiểm thế sát mép (rapfi-board.js): đổi luật / dừng Rapfi thì trả RAM luôn
   }
 
   /**
@@ -197,36 +193,6 @@
   }
 
   /**
-   * Khung đặt các quân vào bàn Rapfi cỡ n: { ox, oy, margin } (toạ độ Rapfi = toạ độ game − o; margin = số ô trống ít
-   * nhất giữa quân ngoài cùng và mép), hoặc null nếu không vừa (cách mép < 1 ô).
-   */
-  function frame(moves, n) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const [x, y] of moves) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-    const w = x1 - x0 + 1, h = y1 - y0 + 1;
-    if (w > n - 2 || h > n - 2) return null;
-    const lx = Math.floor((n - w) / 2), ly = Math.floor((n - h) / 2);
-    return { ox: x0 - lx, oy: y0 - ly, margin: Math.min(lx, n - w - lx, ly, n - h - ly) };
-  }
-
-  /**
-   * Khung cho thế moves: giữ khung lần trước nếu thế mới vẫn cách mép ≥ SAFE_EDGE với khung đó – thế cờ không bị dời trên
-   * bàn Rapfi nên bảng băm của nước trước / lúc nghĩ trước còn dùng được; không thì đặt lại vào giữa (frame).
-   */
-  const sticky = {}; // luật → { ox, oy }
-  function place(rule, moves) {
-    const n = SIZE[rule], s = sticky[rule];
-    if (s) {
-      let m = Infinity;
-      for (const [x, y] of moves) m = Math.min(m, x - s.ox, n - 1 - (x - s.ox), y - s.oy, n - 1 - (y - s.oy));
-      if (m >= SAFE_EDGE) return { ox: s.ox, oy: s.oy, margin: m };
-    }
-    const f = frame(moves, n);
-    if (f) sticky[rule] = { ox: f.ox, oy: f.oy };
-    return f;
-  }
-
-  /**
    * Hỏi Rapfi một thế (moves: [[x, y], …] toạ độ game, X đi trước). lane 1: Worker phụ (phân tích – auxReady).
    * Chưa sẵn sàng / lỗi / không vừa bàn → null.
    */
@@ -332,24 +298,6 @@
     if (cur && cur.state === 'ready' && !cur.mt && !small()) { ensureAux(cur.rule); auxDone(); }
   });
   global.document.addEventListener('visibilitychange', () => { if (global.document.hidden) pause(); else touched(); });
-
-  // Engine của game (ai-worker.js) trong Worker riêng để kiểm thế sát mép – không tranh với Worker máy đánh của app.js
-  let checker = null;
-  function check(rule, moves, ms) {
-    if (!checker) { try { checker = new Worker('ai-worker.js'); } catch (e) { return Promise.resolve(null); } }
-    const w = checker, id = 'rchk' + ++seq;
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => { w.removeEventListener('message', onMsg); resolve(null); }, ms * 4 + 5000);
-      function onMsg(e) {
-        if (e.data.id !== id) return;
-        clearTimeout(timer);
-        w.removeEventListener('message', onMsg);
-        resolve(e.data.ev || null);
-      }
-      w.addEventListener('message', onMsg);
-      w.postMessage({ type: 'eval', id, gid: 'rapfi-check-' + rule, rule, ms, moves });
-    });
-  }
 
   // Đếm số nước Rapfi đi / phải nhường engine của game / engine sửa nước Rapfi sát mép / số lần nghĩ trước / số thế Worker phụ chấm (kiểm thử, gỡ lỗi)
   // … / số lần tạm dừng nghĩ trước vì người chơi bỏ máy
