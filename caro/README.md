@@ -186,7 +186,8 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     dừng (pin, máy nóng); người chơi quay lại / mở lại app thì nghĩ tiếp đúng thế đó (bảng băm còn nguyên). Bản đa luồng: một lượt tìm liên tục, dừng ngay bằng YXSTOP; bản 1 luồng: lát 300 ms.
     Bảng băm giữ sang nước sau, khung bàn Rapfi giữ nguyên giữa các nước khi còn vừa. Đo (Rapfi-CARO WASM trong Node): nghĩ
     trước 1 giây + 250 ms ≈ nghĩ 500 ms (độ sâu 16,1 → 17,8); tự đấu cùng thời gian mỗi nước, bên nghĩ trước 600 ms thắng
-    76/128 ván (59%). Đã thử "kịch bản" (YXNBEST 3 nước dự đoán – trúng 85% – rồi chia thời gian nghĩ sẵn từng nước): 44%
+    76/128 ván (59%); bản 3 luồng nghĩ trước 1,2 giây (dừng bằng YXSTOP) với 3 luồng không nghĩ trước, cùng 200 ms / nước:
+    thắng 42/64 ván (66%). Đã thử "kịch bản" (YXNBEST 3 nước dự đoán – trúng 85% – rồi chia thời gian nghĩ sẵn từng nước): 44%
     / 64 ván so với nghĩ trên thế người chơi tới lượt; dành 1/3 đào sâu nước dự đoán đầu (trúng ~73%): 50% / 48 ván – giữ
     cách đơn giản (cây tìm kiếm của nó đã gồm các nước dự đoán).
   - **Phân tích hai Worker** (Rapfi 1 luồng): máy đủ RAM (không phải điện thoại) có thêm một Worker Rapfi – chấm hai thế cùng lúc, mỗi thế
