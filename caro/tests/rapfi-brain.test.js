@@ -36,7 +36,7 @@ test('lượt thường / phân tích theo số nút / nghĩ trước', () => {
   assert.strictEqual(an.turn, 400 * B.NODE_CAP);
   assert.deepStrictEqual(b.plan([[1, 1]], 400, { nodes: 300000, fresh: true }).cmds, ['YXHASHCLEAR', ...an.cmds]);
   assert.deepStrictEqual(b.plan([[1, 1]], 300).cmds, ['INFO timeout_match 0', 'INFO max_node 0', 'INFO timeout_turn 300']);
-  assert.strictEqual(B.fixedTime(2500), Math.round(0.75 * 2470));
+  assert.strictEqual(B.fixedTime(2500), 2470);
 });
 
 test('đoán trúng: đúng nước dự đoán, đúng thế, nghĩ trước đủ lâu → nghĩ HIT_FRAC thời gian', () => {

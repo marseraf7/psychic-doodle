@@ -5,11 +5,12 @@
  * bàn Rapfi (ván không vừa bàn thì bỏ). Chuẩn: Rapfi chấm hệ số × số nút mỗi thế, bảng băm mới (lưu đệm ở thư mục tạm).
  * Chế độ:
  *   time  – cách cũ: theo giờ (timeout_turn ms), bảng băm giữ suốt ván (thứ tự chấm làm đổi kết quả)
- *   node  – theo số nút (0,75 × (ms − 30) × KNPS: cùng thời gian thật như time), bảng băm mới mỗi thế (YXHASHCLEAR)
+ *   node  – theo số nút ((ms − 30) × KNPS: cùng thời gian thật như time), bảng băm mới mỗi thế (YXHASHCLEAR)
  *   nodec – theo số nút, bảng băm giữ suốt ván
  * In: tỉ lệ xếp loại trùng chuẩn, nước bị đánh dấu oan / bỏ sót, lệch độ chính xác, ổn định (chạy 2 lần), độ sâu TB,
  * thời gian, tốc độ (nghìn nút / giây – dùng đặt KNPS trong rapfi-analysis.js). Cần RAPFI_NETS (luật khác vn).
- * KNPS=…: đặt tốc độ chuẩn (khỏi đo lại) · NODE_MULT=…: số nút của node / nodec gấp ngần này (chuẩn giữ nguyên).
+ * KNPS=…: đặt tốc độ chuẩn (khỏi đo lại) · NODE_MULT=…: số nút của node / nodec gấp ngần này (chuẩn giữ nguyên) ·
+ * THREADS=…: số Worker song song (mặc định số lõi; 1 = đo tốc độ khi máy rảnh – dùng đặt KNPS của app).
  */
 'use strict';
 const fs = require('fs');
@@ -104,7 +105,7 @@ async function evalGame(e, moves, rule, ms, mode, knps) {
   const b = new C.Board(rule);
   let last = moves.length;
   for (let i = 0; i < moves.length; i++) { const [x, y] = moves[i], p = i % 2 ? C.O : C.X; b.play(x, y, p); if (C.checkWin(b, x, y, p)) { last = i; break; } }
-  const nodes = Math.round(require(path.join(RDIR, 'brain.js')).fixedTime(ms) * knps); // cùng thời gian thật như chế độ time
+  const nodes = Math.round(require(path.join(RDIR, 'brain.js')).fixedTime(ms) * knps); // cùng thời gian thật như chế độ time (knps: nút / ms)
   let depth = 0, cnt = 0, speed = 0, sn = 0;
   const one = (mv) => {
     if (!mv.length) return { move: [0, 0], score: 0, mate: null, q: ms, src: 'rapfi' };
@@ -113,8 +114,9 @@ async function evalGame(e, moves, rule, ms, mode, knps) {
     for (const c of cmds) e.send(c);
     const lines = e.send(W.boardCmd('BOARD', mv.map(([x, y]) => [x - f.ox, y - f.oy])));
     const m = lines.map((l) => /^(\d+),(\d+)$/.exec(l.trim())).find(Boolean);
-    const sp = lines.map((l) => /Speed (\d+)K \| Depth (\d+)/.exec(l)).find(Boolean);
-    if (sp) { speed += +sp[1]; sn++; depth += +sp[2]; cnt++; }
+    // "Speed 42976 | Depth 14-17 | … | Node 13K | Time 304ms" – dưới 100K Rapfi in số thường, từ 100K in kèm "K"
+    const sp = lines.map((l) => /Speed \d+K? \| Depth (\d+)-\d+ \| Eval \S+ \| Node (\d+)(K?) \| Time (\d+)ms/.exec(l)).find(Boolean);
+    if (sp) { depth += +sp[1]; cnt++; speed += (+sp[2]) * (sp[3] ? 1000 : 1); sn += +sp[4]; }
     const move = m ? [+m[1] + f.ox, +m[2] + f.oy] : null;
     let ev = W.parseEval(lines);
     if (!ev && move) { const bb = new C.Board(rule); mv.forEach(([x, y], i) => bb.play(x, y, i % 2 ? C.O : C.X)); if (C.winsIfPlaced(bb, move[0], move[1], mv.length % 2 ? C.O : C.X)) ev = { cp: 20000, mate: 1 }; }
@@ -124,7 +126,7 @@ async function evalGame(e, moves, rule, ms, mode, knps) {
   const ev = [];
   for (let i = 0; i <= last; i++) ev[i] = one(moves.slice(0, i));
   for (let i = 0; i < Math.min(last + 1, moves.length); i++) if (A.altNeeded(moves, ev, i)) ev[i] = { ...ev[i], alt: one(moves.slice(0, i).concat([ev[i].move])) };
-  return { ev, depth: depth / Math.max(1, cnt), speed: speed / Math.max(1, sn) };
+  return { ev, depth: depth / Math.max(1, cnt), nodes: speed, ms: sn };
 }
 
 if (!isMainThread) {
@@ -157,7 +159,7 @@ function runAll(games, data, threads) {
 
 (async () => {
   const [RULE = 'vn', N = '12', MS = '300', MODES = 'time,node,nodec', REFK = '8'] = process.argv.slice(2);
-  const ms = +MS, refK = +REFK, threads = Math.max(1, os.cpus().length);
+  const ms = +MS, refK = +REFK, threads = +process.env.THREADS || Math.max(1, os.cpus().length);
   const { A } = lib();
   const games = [];
   for (let k = 0; games.length < +N && k < 4 * +N; k++) {
@@ -167,7 +169,7 @@ function runAll(games, data, threads) {
   // Tốc độ chuẩn (nghìn nút / giây) cho chế độ theo số nút: đo bằng chế độ time trên máy này (KNPS=… để ghi đè)
   let knps = +process.env.KNPS || 0;
   const t1 = knps ? null : await runAll(games, { rule: RULE, ms, mode: 'time', knps: 1, refK }, threads);
-  if (!knps) knps = Math.round(t1.reduce((t, r) => t + r.speed, 0) / t1.length);
+  if (!knps) knps = Math.round(t1.reduce((t, r) => t + r.nodes, 0) / Math.max(1, t1.reduce((t, r) => t + r.ms, 0))); // nghìn nút / giây = nút / ms
   console.log(`${RULE} · ${games.length} ván · ${ms} ms / thế · tốc độ chuẩn ${knps}K nút / giây · chuẩn ×${refK}`);
   const cacheFile = path.join(os.tmpdir(), `caro-an-bench-rapfi-${RULE}-${ms}-${knps}-${refK}.json`);
   let ref = null;

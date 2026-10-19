@@ -26,10 +26,11 @@
   // nhau dùng lại được) – cùng ván, cùng số Worker thì cùng kết quả. Đo (server/scripts/rapfi/an-bench-rapfi.js, luật Việt
   // Nam, 12 ván, 300 ms / thế, so với chấm ×8 nút): trùng chuẩn 86,1% (theo giờ như trước: 82,8%; theo số nút mà xoá bảng
   // băm mỗi thế: 80,5%), đánh dấu oan 10 / bỏ sót 10 (trước 15 / 13), hai lần chạy ra cùng kết quả 100% (trước 89,4%).
-  // Số nút = thời gian Rapfi thật sự nghĩ khi chấm theo giờ ms (0,75 × (ms − 30) – brain.js fixedTime) × tốc độ chuẩn của
-  // Rapfi WebAssembly 1 luồng theo luật (nghìn nút / giây, đo trong Node): cùng thời gian như cách cũ trên máy chuẩn
-  const KNPS = { free: 139, std: 144, renju: 151, vn: 590 };
-  const nodesFor = (rule, ms) => Math.max(20000, Math.round(0.75 * (ms - 30) * KNPS[rule]));
+  // Số nút = thời gian Rapfi thật sự nghĩ khi chấm theo giờ ms (~ms − 30 – brain.js fixedTime) × tốc độ chuẩn của Rapfi
+  // WebAssembly 1 luồng theo luật (nghìn nút / giây = nút / ms: tổng nút / tổng thời gian trên các ván của công cụ đo, máy
+  // rảnh – Node 22): cùng thời gian như cách cũ trên máy chuẩn. Luật có mạng NNUE chậm hơn ~5 lần luật Việt Nam
+  const KNPS = { free: 99, std: 106, renju: 91, vn: 555 };
+  const nodesFor = (rule, ms) => Math.max(10000, Math.round((ms - 30) * KNPS[rule]));
   let job = 0;
 
   const handles = (rule) => !!(R() && R().available(rule));

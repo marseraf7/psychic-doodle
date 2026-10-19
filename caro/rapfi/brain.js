@@ -14,19 +14,21 @@
  *       nhất ổn định đi sớm, điểm tụt / nước tốt nhất đổi liên tục thì nghĩ thêm). Quỹ kiểu Fischer: mỗi nước cộng inc =
  *       thời gian một lượt thường (fixedTime) – trung bình như cũ; giới hạn cứng mỗi nước TM_CAP × ms. Nước đoán trúng
  *       không cộng / trừ quỹ (thời gian tiết kiệm là để BOAT đáp nhanh, không dồn sang nước khác).
- *     · Không thì như cũ: INFO timeout_turn ms (Rapfi dừng ở advanced_stop_ratio × (ms − 30) – fixedTime).
+ *     · Không thì như cũ: INFO timeout_turn ms (Rapfi nghĩ gần hết ms − 30 – fixedTime).
  */
 (function (root) {
   'use strict';
   const HIT_FRAC = 0.3, HIT_MIN = 250;
-  // Khớp config() trong worker.js: advanced_stop_ratio = 0.75, turn_time_reserved = 30 ms (mặc định của Rapfi)
-  const ADVANCED_STOP = 0.75, RESERVED = 30;
+  const RESERVED = 30; // turn_time_reserved mặc định của Rapfi
   const TM_CAP = 2, TM_SPACE = 22; // quỹ ban đầu = TM_SPACE × inc (match_space của Rapfi: quỹ ≈ 22 lượt)
   const TM_MATCH = 86400000; // timeout_match > 0 bất kỳ để Rapfi dùng quỹ giờ (tránh 100000000 – giá trị đặc biệt của Piskvork)
   const NODE_CAP = 5;
 
-  /** Thời gian một lượt nghĩ thường với timeout_turn = ms (Rapfi dừng sớm ở điểm "tối ưu"). */
-  const fixedTime = (ms) => Math.max(1, Math.round(ADVANCED_STOP * (ms - RESERVED)));
+  /**
+   * Thời gian một lượt nghĩ thường với timeout_turn = ms: Rapfi chỉ thôi bắt đầu lớp mới sau điểm "tối ưu" (0,75 × tối đa)
+   * nên lớp đang dở chạy gần tới tối đa ms − 30 – đo (Node, 300 ms / lượt): 213–304 ms, thường ~270 ms.
+   */
+  const fixedTime = (ms) => Math.max(1, Math.round(ms - RESERVED));
 
   /** "K10" (cột chữ A = 0, hàng số từ 1) → [10, 9] – toạ độ Piskvork như dòng nước đi "x,y" của Rapfi. */
   function cell(tok) {
