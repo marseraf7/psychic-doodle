@@ -87,7 +87,8 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 - **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
   **Nhanh như Lichess** (chạy hết trên máy người chơi, máy chủ không tốn gì thêm):
   - *Phân tích ngầm khi chơi* (`live-analysis.js`): mỗi nước mới được engine chấm ngay trong một Web Worker riêng
-    (200 ms/thế, giữ bảng nhớ engine suốt ván; tạm dừng khi máy đang nghĩ nước / app chạy nền; đi lại thì bỏ phần đã khác).
+    (200 ms/thế; tạm dừng khi máy đang nghĩ nước / app chạy nền; đi lại thì bỏ phần đã khác). Vừa hết ván thì tạo sẵn các
+    Worker phân tích song song (`an-pool.js`).
     Nước nào có thể bị đánh dấu thì chấm luôn thế sau nước tốt nhất để so (`altNeeded`). Hết ván bấm Phân tích là có kết quả
     gần như tức thì (đo ~0,2 giây với ván ngắn). Hoãn một nhịp sau mỗi nước và dừng hẳn Worker khi máy bắt đầu nghĩ, để máy
     có trọn CPU; đi lại / rẽ nhánh trong lúc đang chấm thì bỏ kết quả cũ. Tắt được ở Cài đặt › Cài đặt bàn cờ để tiết kiệm pin.
@@ -95,6 +96,11 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     (~15–40 ms/thế, hiện kết quả sau 1–2 giây kèm dòng "đang phân tích kỹ hơn"), rồi lượt kỹ chỉ chấm lại các thế
     mới chấm nhanh và thay kết quả. Các thế đã chấm đủ kỹ luôn được dùng lại (`analyzeGame({ evals })`).
     Mở phân tích ván khác khi ván trước còn chạy: huỷ ván trước (dừng Worker), không phải chờ, không hiện lẫn kết quả.
+  - *Tất định*: mỗi thế chấm theo **số nút** (130 nút cho mỗi ms của lượt; thời gian chỉ là giới hạn cứng cho máy quá
+    chậm) với bảng nhớ mới, điểm lấy trung bình hai lớp cuối (lá cộng điểm "được đi" nên điểm lệch theo độ sâu chẵn / lẻ).
+    Cùng ván → cùng kết quả trên mọi trình duyệt / máy / số Worker; các thế đã chấm được nhớ cho mọi ván (`an-pool.js`,
+    khoá theo thế dời về gốc toạ độ). Đo chất lượng: `node server/scripts/an-bench.js` (so với bản chấm sâu 400k nút / thế:
+    trùng 86,8%, trước đây chấm theo giờ 83,9% và chỉ 90% số nước ra cùng kết quả giữa hai lần chạy).
   Dùng **engine riêng của game** (`engine.js`, tự viết theo ý tưởng của các engine Gomoku mạnh, không dùng mã của họ):
   Alpha-Beta (PVS) làm sâu dần + bảng ghi nhớ thế cờ, chấm điểm theo cửa sổ 5 / 6 ô đúng luật Caro Việt Nam (hàng bị chặn
   hai đầu = 0 điểm, 3 quân không bị chặn = đe doạ thắng), bộ giải chuỗi ép (VCF) riêng có bảng ghi nhớ. Mỗi thế được đổi ra
