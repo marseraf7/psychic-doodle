@@ -45,12 +45,6 @@ test('nước 0 điểm không kéo cả ván về một nửa (trung bình đi�
   assert.ok(r.acc[2] > 30 && r.acc[2] < 100, String(r.acc[2]));
 });
 
-test('refineList: nước sát ngưỡng 10 / 18 / 30% (xếp theo mức tụt) – không lấy nước xếp theo chuỗi thắng chắc', () => {
-  const moves = [
-    { i: 0, cls: 'good', drop: 7 }, { i: 1, cls: 'good', drop: 5 }, { i: 2, cls: 'inacc', ev: true, drop: 15 },
-    { i: 3, cls: 'mistake', ev: true, drop: 21 }, { i: 4, cls: 'blunder', ev: false, drop: 30 }, { i: 5, cls: 'blunder', ev: true, drop: 60 },
-    { i: 6, cls: 'only', drop: 0 }, { i: 7, cls: 'inacc', ev: true, drop: 11 },
-  ];
-  assert.deepStrictEqual(A.refineList({ moves }), [0, 2, 3, 7]);
+test('keyMoments: có cả "Nước duy nhất"', () => {
   assert.deepStrictEqual(A.keyMoments({ moves: [{ cls: 'only' }, { cls: 'good' }] }), [{ cls: 'only' }]);
 });

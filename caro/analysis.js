@@ -269,23 +269,13 @@
     return { acc, counts };
   }
 
-  /**
-   * Nước sát ngưỡng xếp loại (mức tụt cách ngưỡng 10 / 18 / 30% không quá REFINE_BAND điểm) – chỉ nước xếp theo mức tụt,
-   * không phải theo chuỗi thắng chắc. Chấm kỹ hơn các thế quanh những nước này thì ít xếp nhầm hơn (study.js – lượt kỹ).
-   */
-  const REFINE_BAND = 4;
-  function refineList(result) {
-    const T = [DROP.inacc, DROP.mistake, DROP.blunder].map((d) => Math.round(d * 100));
-    return result.moves.filter((m) => (m.cls === 'good' || m.ev) && T.some((t) => Math.abs(m.drop - t) <= REFINE_BAND)).map((m) => m.i);
-  }
-
   const KEY = new Set(['blunder', 'mistake', 'miss', 'great', 'only', 'inacc']);
   /** Các thời điểm đáng xem lại. */
   function keyMoments(result) {
     return result.moves.filter((m) => KEY.has(m.cls));
   }
 
-  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, refineList, slim, altNeeded, evaluate, evalOpts, fullMs, MAX_DEPTH };
+  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, evaluate, evalOpts, fullMs, MAX_DEPTH };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroAnalysis;
   else global.CaroAnalysis = CaroAnalysis;
 })(typeof window !== 'undefined' ? window : globalThis);

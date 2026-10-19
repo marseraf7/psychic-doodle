@@ -8,7 +8,9 @@
  *   new@<ms> – như new nhưng mỗi thế <ms> (đo lợi của việc tăng số nút)
  *   raw – như new nhưng điểm lớp cuối (không lấy trung bình hai lớp)
  *   old – cách cũ: theo giờ, một bảng nhớ chung cả ván, điểm lớp cuối
- *   refine@<k> – như new, rồi chấm lại k × số nút các thế quanh nước sát ngưỡng xếp loại (analysis.js refineList)
+ *   refine@<k> – như new, rồi chấm lại k × số nút các thế quanh nước sát ngưỡng xếp loại (mức tụt cách ngưỡng 10 / 18 / 30%
+ *     không quá 4 điểm). Đo (16 ván, 300 ms): ×2 thêm 89% quỹ, trùng chuẩn 88,4% như cũ; ×3 thêm 134%, 88,7% – kém hơn tăng
+ *     đều quỹ mọi thế (gấp đôi: 86,8 → 88,4%) nên app không dùng
  * In: tỉ lệ xếp loại trùng chuẩn, nước bị đánh dấu oan / bỏ sót, sai số độ chính xác, độ ổn định (chạy 2 lần), thời gian.
  */
 'use strict';
@@ -83,7 +85,9 @@ function evalGame(moves, rule, ms, mode) {
     const k = +mode.slice(7), ev = evalGame(moves, rule, ms, 'new');
     const res = A.analyzeGame(moves, { rule, ms, evals: ev });
     let extra = 0;
-    for (const i of A.refineList(res)) {
+    const T = [10, 18, 30];
+    const near = res.moves.filter((m) => (m.cls === 'good' || m.ev) && T.some((t) => Math.abs(m.drop - t) <= 4)).map((m) => m.i);
+    for (const i of near) {
       for (const j of [i, i + 1]) if (ev[j]) { ev[j] = { ...A.evaluate(moves.slice(0, j), ms * k, rule), alt: ev[j].alt, q: ms }; extra++; }
       if (ev[i] && ev[i].move && ev[i + 1]) { ev[i].alt = { ...A.evaluate(moves.slice(0, i).concat([ev[i].move]), ms * k, rule), q: ms }; extra++; }
     }
