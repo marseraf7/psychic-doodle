@@ -9,6 +9,7 @@
  *   CaroRapfiBoard.frame(moves, n)        – khung { ox, oy, margin } đặt thế vào giữa bàn n × n, hoặc null
  *   CaroRapfiBoard.place(rule, moves)     – như frame nhưng giữ khung lần trước khi còn vừa (bảng băm Rapfi dùng lại được)
  *   CaroRapfiBoard.check(rule, moves, ms) – engine của game chấm thế (Worker riêng): Promise<{ move, score, mate } | null>
+ *   CaroRapfiBoard.safe(rule, moves, ms)  – lọc phòng thủ của engine (cùng Worker): Promise<[[x, y], …] | null>
  *   CaroRapfiBoard.reset()                – dừng Worker kiểm thế (đổi luật / dừng Rapfi)
  */
 (function (global) {
@@ -49,7 +50,7 @@
 
   // Engine của game (ai-worker.js) trong Worker riêng để kiểm thế sát mép – không tranh với Worker máy đánh của app.js
   let checker = null;
-  function check(rule, moves, ms) {
+  function ask(type, field, rule, moves, ms) {
     if (!checker) { try { checker = new Worker('ai-worker.js'); } catch (e) { return Promise.resolve(null); } }
     const w = checker, id = 'rchk' + ++seq;
     return new Promise((resolve) => {
@@ -58,17 +59,20 @@
         if (e.data.id !== id) return;
         clearTimeout(timer);
         w.removeEventListener('message', onMsg);
-        resolve(e.data.ev || null);
+        resolve(e.data[field] || null);
       }
       w.addEventListener('message', onMsg);
-      w.postMessage({ type: 'eval', id, gid: 'rapfi-check-' + rule, rule, ms, moves });
+      w.postMessage({ type, id, gid: 'rapfi-check-' + rule, rule, ms, moves });
     });
   }
+  const check = (rule, moves, ms) => ask('eval', 'ev', rule, moves, ms);
+  /** Lọc phòng thủ của engine (engine.js safeMoves) cho thế moves → [[x, y], …] | null – "Nước duy nhất" (rapfi-analysis.js). */
+  const safe = (rule, moves, ms) => ask('safe', 'safe', rule, moves, ms);
 
   /** Worker kiểm thế (engine JS – terminate lúc đang chấm không gây sập): trả RAM. */
   function reset() {
     if (checker) { checker.terminate(); checker = null; }
   }
 
-  global.CaroRapfiBoard = { SIZE, SAFE_EDGE, frame, place, check, reset };
+  global.CaroRapfiBoard = { SIZE, SAFE_EDGE, frame, place, check, safe, reset };
 })(window);

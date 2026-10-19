@@ -8,6 +8,7 @@
  *   new@<ms> – như new nhưng mỗi thế <ms> (đo lợi của việc tăng số nút)
  *   raw – như new nhưng điểm lớp cuối (không lấy trung bình hai lớp)
  *   old – cách cũ: theo giờ, một bảng nhớ chung cả ván, điểm lớp cuối
+ *   refine@<k> – như new, rồi chấm lại k × số nút các thế quanh nước sát ngưỡng xếp loại (analysis.js refineList)
  * In: tỉ lệ xếp loại trùng chuẩn, nước bị đánh dấu oan / bỏ sót, sai số độ chính xác, độ ổn định (chạy 2 lần), thời gian.
  */
 'use strict';
@@ -77,6 +78,18 @@ function lastPos(moves, rule) {
  */
 function evalGame(moves, rule, ms, mode) {
   const { EN, A } = lib();
+  if (typeof mode === 'string' && mode.startsWith('refine@')) {
+    // Lượt thường, rồi lượt kỹ cho các nước sát ngưỡng (như study.js): thế trước / sau nước đó và thế sau nước tốt nhất
+    const k = +mode.slice(7), ev = evalGame(moves, rule, ms, 'new');
+    const res = A.analyzeGame(moves, { rule, ms, evals: ev });
+    let extra = 0;
+    for (const i of A.refineList(res)) {
+      for (const j of [i, i + 1]) if (ev[j]) { ev[j] = { ...A.evaluate(moves.slice(0, j), ms * k, rule), alt: ev[j].alt, q: ms }; extra++; }
+      if (ev[i] && ev[i].move && ev[i + 1]) { ev[i].alt = { ...A.evaluate(moves.slice(0, i).concat([ev[i].move]), ms * k, rule), q: ms }; extra++; }
+    }
+    ev.extra = extra * k; // số thế quy đổi theo quỹ thường (để so cùng tổng thời gian)
+    return ev;
+  }
   const last = lastPos(moves, rule);
   const shared = { ms, tt: new Map(), qtt: new Map(), vtt: new Map(), rule }; // chế độ cũ: một bảng nhớ cả ván
   const one = (mv) => {
@@ -108,7 +121,7 @@ if (!isMainThread) {
   const moves = makeGame(k, rule);
   const t = Date.now();
   const ev = evalGame(moves, rule, ms, mode);
-  parentPort.postMessage({ k, moves, ev, t: Date.now() - t });
+  parentPort.postMessage({ k, moves, ev, extra: ev.extra || 0, t: Date.now() - t });
   return;
 }
 
@@ -161,13 +174,13 @@ function runAll(jobs, threads) {
       const jobs = Array.from({ length: n }, (_, k) => ({ k, rule: RULE, ms, mode }));
       const res = await runAll(jobs, threads);
       res.sort((a, b) => a.k - b.k);
-      runs.push(res.map((r) => ({ ...classify(r.moves, RULE, ms, r.ev), t: r.t, ev: r.ev })));
+      runs.push(res.map((r) => ({ ...classify(r.moves, RULE, ms, r.ev), t: r.t, ev: r.ev, extra: r.extra })));
     }
-    let same = 0, falseF = 0, missF = 0, stable = 0, accErr = 0, accN = 0, t = 0, wcErr = 0, wcN = 0;
+    let same = 0, falseF = 0, missF = 0, stable = 0, accErr = 0, accN = 0, t = 0, wcErr = 0, wcN = 0, extra = 0, npos = 0;
     const { EN } = lib();
     for (let k = 0; k < n; k++) {
       const a = runs[0][k], b = runs[1][k], r = R[k];
-      t += a.t;
+      t += a.t; extra += a.extra || 0; npos += a.ev.filter(Boolean).length + a.ev.filter((e) => e && e.alt).length;
       for (let i = 0; i < r.cls.length; i++) {
         if (a.cls[i] === r.cls[i]) same++;
         if (FLAG.has(a.cls[i]) && !FLAG.has(r.cls[i])) falseF++;
@@ -184,6 +197,7 @@ function runAll(jobs, threads) {
     }
     const pc = (x) => (100 * x / plies).toFixed(1) + '%';
     console.log(`${mode.padEnd(4)} trùng chuẩn ${pc(same)} · đánh dấu oan ${falseF} · bỏ sót ${missF} · lệch độ chính xác ${(accErr / accN).toFixed(1)} điểm` +
-      ` · lệch khả năng thắng ${(100 * wcErr / wcN).toFixed(1)}% · ổn định ${pc(stable)} · ${(t / n / 1000).toFixed(1)} s / ván`);
+      ` · lệch khả năng thắng ${(100 * wcErr / wcN).toFixed(1)}% · ổn định ${pc(stable)} · ${(t / n / 1000).toFixed(1)} s / ván` +
+      (extra ? ` · chấm thêm ${(100 * extra / npos).toFixed(0)}% quỹ` : ''));
   }
 })();

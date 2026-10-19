@@ -12,7 +12,7 @@ do Cờ Caro viết – dùng cho luật Việt Nam. Mọi phần khác của ga
 | `rapfi-single-simd128.js`, `rapfi-single-simd128.wasm` (dựng từ mã Rapfi) | GPL-3 (`COPYING.txt`) |
 | `rapfi-caro-simd128.js`, `rapfi-caro-simd128.wasm` (Rapfi-CARO – mã Rapfi + bản vá luật Việt Nam) | GPL-3 (`COPYING.txt`) |
 | `rapfi-multi-simd128.*`, `rapfi-caro-multi-simd128.*` (bản đa luồng của hai bản trên + bản vá `build/rapfi-mt.patch`) | GPL-3 (`COPYING.txt`) |
-| `worker.js` (cầu nối Worker ↔ Rapfi), `build/build.sh`, `build/expose-fs.js`, `build/rapfi-mt.patch` | GPL-3 (`COPYING.txt`) |
+| `worker.js` (cầu nối Worker ↔ Rapfi), `brain.js` (cách nghĩ mỗi lượt: đoán trúng, chia thời gian, số nút), `build/build.sh`, `build/expose-fs.js`, `build/rapfi-mt.patch` | GPL-3 (`COPYING.txt`) |
 | `model-caro.bin` (bảng đánh giá cổ điển cho luật Việt Nam, Cờ Caro học bằng tuner của Rapfi từ ván Rapfi-CARO tự đấu) | CC0 1.0 |
 | `model210901.bin` (mô hình cổ điển) và các mạng NNUE `mix9svq*.bin.lz4` tải khi cần | CC0 1.0 (https://github.com/dhbloo/rapfi-networks; bản sao lưu: https://github.com/marseraf7/rapfi-networks) |
 

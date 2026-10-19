@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const { openDb, prepareQueries } = require('./store-schema.js'); // bảng, cột, câu lệnh SQL dựng sẵn
 const { upgradePools } = require('./rating.js');
 const { Sessions, SESSION_TTL } = require('./store-sessions.js');
+const { EvalCache } = require('./evalcache.js');
 
 const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
 const RATING_POINTS_PER_USER = 400; // điểm vẽ biểu đồ trên trang hồ sơ
@@ -143,6 +144,7 @@ class Store {
       run('DELETE FROM dm WHERE a = ? OR b = ?', id, id);
       run('DELETE FROM dm_read WHERE uid = ? OR peer = ?', id, id);
       run('DELETE FROM resets WHERE uid = ?', id);
+      run('DELETE FROM eval_sub WHERE who = ?', EvalCache.who(id)); // các lần gửi điểm phân tích (evalcache.js)
       run('DELETE FROM rated_pairs WHERE a = ? OR b = ?', id, id);
       run('DELETE FROM rating_hist WHERE uid = ?', id);
       run('DELETE FROM reports WHERE reporter = ?', id);

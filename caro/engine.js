@@ -36,6 +36,8 @@
    *         nodes (giới hạn theo số nút thay cho thời gian; ms khi đó là giới hạn cứng – xem engine-search.js),
    *         smooth (điểm = trung bình hai lớp cuối – xem dưới), carry (máy đánh – bots.js: dùng lại bảng ghi nhớ của nước
    *         trước; tự đấu 576 ván với bản không dùng: 54,5%) }.
+   * Kết quả có thêm safe: số nước ở gốc không để đối thủ có chuỗi bốn (VCF) – lọc phòng thủ safeRoot; 0 = không lọc
+   * (đối thủ chưa có nước công / hết giờ). safe = 1: chỉ một nước giữ được thế (phân tích: "Nước duy nhất").
    * Trả về { move: [x, y], score, depth, nodes, pv: [[x, y]…], mate: số nước tới thắng (+ bên tới lượt thắng, − thua) | null }.
    */
   function analyse(moves, opts) {
@@ -70,6 +72,7 @@
     }
     // Lọc nước để đối thủ có chuỗi ép (tốn tối đa ~30% thời gian)
     if (opts.safeRoot !== false && opts.rootVcf !== false) S.rootMoves = S.safeRoot(opts.defDepth || 6, S.clock() + B * 0.3);
+    const safe = S.rootMoves ? S.rootMoves.length : 0;
     // Làm sâu dần; sau mỗi lớp, nước tốt nhất mới được kiểm (như "blunder check"): sau nước đó đối thủ có chuỗi đe doạ (VCT)
     // không – có thì bỏ nước đó và tìm lại lớp này (bảng ghi nhớ còn nóng nên nhanh). Mỗi nước kiểm một lần.
     const verify = opts.vct !== false && opts.safeRoot !== false && !!S.vctFind;
@@ -112,7 +115,23 @@
       result.score = Math.round((last + prev) / 2);
     }
     const mate = result.score >= MATE ? Math.ceil((WIN - result.score) / 2) : result.score <= -MATE ? -Math.ceil((WIN + result.score) / 2) : null;
-    return { move: pos.xy(result.pv[0]), score: result.score, depth: result.depth, nodes: S.nodes, pv: result.pv.map((i) => pos.xy(i)), mate };
+    return { move: pos.xy(result.pv[0]), score: result.score, depth: result.depth, nodes: S.nodes, pv: result.pv.map((i) => pos.xy(i)), mate, safe };
+  }
+
+  /**
+   * Chỉ chạy bước lọc phòng thủ ở gốc của analyse (safeRoot, cùng độ sâu, 30% quỹ như analyse): các nước của bên tới lượt
+   * không để đối thủ có chuỗi bốn → [[x, y], …], hoặc null (không cần lọc / hết giờ / mọi nước đều thua). Cho phân tích
+   * bằng Rapfi (rapfi-analysis.js) tìm "Nước duy nhất" đúng như analyse.
+   */
+  function safeMoves(moves, opts) {
+    opts = opts || {};
+    const pos = new Position(moves, opts.rule);
+    if (!moves.length || pos.winCells(pos.side).length) return null;
+    pos.rootSide = pos.side; pos.rootCount = pos.count;
+    const S = new Search(pos, opts);
+    const B = S.budget || opts.ms || 500;
+    const r = S.safeRoot(opts.defDepth || 6, S.clock() + B * 0.3);
+    return r ? r.map((i) => pos.xy(i)) : null;
   }
 
   /**
@@ -139,7 +158,7 @@
     return 1 / (1 + Math.exp(-score / 360));
   }
 
-  const CaroEngine = { analyse, winChance, Position, Search, WIN, MATE, EVAL };
+  const CaroEngine = { analyse, safeMoves, winChance, Position, Search, WIN, MATE, EVAL };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroEngine;
   else global.CaroEngine = CaroEngine;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -13,16 +13,21 @@
  *
  * Mỗi Worker chỉ phục vụ một luật (đổi luật thì trang tạo Worker mới). Giao tiếp:
  *   vào  { type: 'init', rule }                  – tải mạng (kiểm SHA-256) + khởi động Rapfi + thử nạp mạng NNUE
- *        { type: 'move', id, size, moves, ms }   – moves: [[x, y], …] toạ độ 0..size-1, X đi trước (BOAT đi, hoặc
- *                                                  phân tích chấm thế – cùng một lệnh)
+ *        { type: 'move', id, size, moves, ms, play, tm, nodes, fresh } – moves: [[x, y], …] toạ độ 0..size-1, X đi trước.
+ *                                                  play: BOAT đi (tm: tự chia thời gian; đoán trúng lúc nghĩ trước thì
+ *                                                  đáp nhanh) · nodes: phân tích chấm thế theo số nút – xem brain.js
+ *        { type: 'game' }                         – ván mới: quên lượt nghĩ trước và quỹ giờ
+ *        { type: 'threads', n }                   – đổi số luồng (bản đa luồng – máy nóng / pin yếu: rapfi-load.js)
  *        { type: 'ponder', id, moves, ms }        – nghĩ trước trên thế người chơi tới lượt (tối đa ms), từng lát
  *                                                  PONDER_SLICE ms; tin mới bất kỳ (kể cả { type: 'stop' }) làm dừng
  *   ra   { type: 'progress', pct } · { type: 'ready' } · { type: 'error', msg }
- *        { type: 'move', id, move: [x, y] | null, ev: { cp, mate } | null } · { type: 'pondered', id }
+ *        { type: 'move', id, move: [x, y] | null, ev: { cp, mate } | null, used: ms, hit } · { type: 'pondered', id }
  *          cp: điểm Rapfi (góc nhìn bên đi; khả năng thắng = 1 / (1 + e^(−cp / 200))),
  *          mate: ±số nửa nước tới thắng (+) / thua (−) chắc, 0 = chưa thấy
  */
 'use strict';
+// Quyết định cách nghĩ mỗi lượt (đoán trúng, tự chia thời gian, số nút) – dùng chung với công cụ đo trong Node
+const Brain = typeof module !== 'undefined' && module.exports ? require('./brain.js') : (importScripts('brain.js'), self.RapfiBrain);
 const NETS_COMMIT = 'e32ad77a5364363b3e3a02b3f9e8610ade19ea98'; // rapfi-networks, ghim để mạng khớp bản engine
 const NETS = {
   free: ['mix9svqfreestyle_bsmix.bin.lz4'],
@@ -216,11 +221,11 @@ const boardCmd = (head, moves) => {
   return [head, ...moves.map(([x, y], i) => `${x},${y},${i % 2 === side ? 1 : 2}`), 'DONE'].join('\n');
 };
 
-/** Một lượt nghĩ: { move: [x, y] | null, ev, lines }. */
-async function think(moves, ms) {
-  await send('INFO timeout_turn ' + ms);
+/** Một lượt nghĩ: { move: [x, y] | null, ev, lines }. cmds: lệnh INFO (giờ / số nút – brain.js plan), guard: ms tối đa. */
+async function think(moves, cmds, guard) {
+  for (const c of cmds) await send(c);
   // Cả khối BOARD … DONE gửi một lần: Rapfi đọc hết các dòng rồi nghĩ, in nước đi dạng "x,y"
-  const res = await send(boardCmd('BOARD', moves), isMove, ms * 3 + 15000);
+  const res = await send(boardCmd('BOARD', moves), isMove, guard * 3 + 15000);
   const mv = res.map((l) => /^(\d+),(\d+)$/.exec(l.trim())).find(Boolean);
   return { move: mv ? [Number(mv[1]), Number(mv[2])] : null, ev: parseEval(res), lines: res };
 }
@@ -237,6 +242,7 @@ async function think(moves, ms) {
  */
 const PONDER_SLICE = 300;
 let ponderGen = 0, pondering = false;
+const brain = Brain.create();
 async function ponder(d, gen) {
   const end = d.ms > 0 ? Date.now() + d.ms : Infinity;
   const live = () => gen === ponderGen && !!mod && Date.now() < end;
@@ -244,7 +250,12 @@ async function ponder(d, gen) {
   try {
     while (live()) {
       const ms = MT ? Math.min(end - Date.now(), 3600000) : Math.min(PONDER_SLICE, end - Date.now());
-      await exclusive(() => (live() ? think(d.moves, ms) : null));
+      // Ghi chuỗi nước tốt nhất ngay trong lượt (trước khi lượt sau – nước thật của BOAT – được chạy)
+      await exclusive(async () => {
+        if (!live()) return;
+        const t0 = Date.now(), r = await think(d.moves, brain.plan(d.moves, ms).cmds, ms);
+        brain.pondered(d.moves, r.lines, Date.now() - t0);
+      });
       await new Promise((r) => setTimeout(r, 0)); // nhường lượt cho tin mới
     }
   } catch (err) { /* bỏ qua: chỉ là nghĩ trước */ }
@@ -298,7 +309,7 @@ async function init(rule, o) {
   // Rapfi chỉ nạp mạng NNUE (và bảng caro) khi nghĩ nước đầu: nghĩ thử một nước ngắn để chắc nạp được (bản đa luồng: lần
   // này cũng dựng các luồng và bảng băm – sau đó YXSTOP mới dừng đúng lượt đang tìm)
   const c = SIZE[rule] >> 1;
-  const probe = await think([[c, c]], 60);
+  const probe = await think([[c, c]], brain.plan([[c, c]], 60).cmds, 60);
   const bad = probe.lines.some((l) => /Failed to load|Evaluator .* disabled/.test(l));
   if (bad || !probe.move) { await evict(files); throw new Error('weights'); }
   // Mạng đã giải nén vào bộ nhớ của Rapfi: xoá file nén trong bộ nhớ ảo (~10–20 MB)
@@ -306,7 +317,7 @@ async function init(rule, o) {
   return { threads };
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, ENGINE, ENGINE_MT, LOCAL, config, parseEval, wasmName }; // cho Node
+if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, ENGINE, ENGINE_MT, LOCAL, config, parseEval, wasmName, boardCmd }; // cho Node
 else self.onmessage = async (e) => {
   const d = e.data;
   ponderGen++; // tin mới bất kỳ: dừng nghĩ trước
@@ -315,6 +326,13 @@ else self.onmessage = async (e) => {
   if (MT && pondering && mod) { pondering = false; mod.sendCommand('YXSTOP'); }
   if (d.type === 'ponder') { ponder(d, ponderGen); return; } // không chờ: tin sau vẫn vào được
   if (d.type === 'stop') return;
+  if (d.type === 'game') { brain.reset(); return; }
+  if (d.type === 'threads') {
+    // Đổi giữa hai lượt nghĩ (Rapfi bỏ qua lệnh gửi trong lúc đang tìm, trừ YXSTOP – lượt nghĩ trước đã dừng ở trên)
+    if (MT && mod) await exclusive(() => send('INFO thread_num ' + Math.max(1, Math.min(8, d.n | 0))));
+    self.postMessage({ type: 'threads', n: MT ? d.n : 1 });
+    return;
+  }
   if (d.type === 'init') {
     try {
       const info = await init(d.rule, d);
@@ -325,8 +343,19 @@ else self.onmessage = async (e) => {
     return;
   }
   if (d.type === 'move') {
-    let r = { move: null, ev: null };
-    try { if (mod) r = await exclusive(() => think(d.moves, d.ms)); } catch (err) { /* trả null: trang dùng engine của game */ }
-    self.postMessage({ type: 'move', id: d.id, move: r.move, ev: r.ev });
+    let r = { move: null, ev: null }, used = 0, hit = false;
+    try {
+      if (mod) {
+        r = await exclusive(async () => {
+          // Lập kế hoạch ngay trước lượt nghĩ (lượt nghĩ trước xếp trước đã ghi xong chuỗi nước tốt nhất)
+          const plan = brain.plan(d.moves, d.ms, { play: d.play, tm: d.tm, nodes: d.nodes, fresh: d.fresh });
+          const t0 = Date.now(), res = await think(d.moves, plan.cmds, plan.turn);
+          used = Date.now() - t0; hit = plan.hit;
+          brain.done(plan, used, d.ms);
+          return res;
+        });
+      }
+    } catch (err) { /* trả null: trang dùng engine của game */ }
+    self.postMessage({ type: 'move', id: d.id, move: r.move, ev: r.ev, used, hit });
   }
 };

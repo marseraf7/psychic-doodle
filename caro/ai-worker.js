@@ -7,6 +7,11 @@ self.onmessage = (e) => {
     self.postMessage({ id: d.id, ev: self.CaroAnalysis.evaluate(d.moves, d.ms, d.rule) });
     return;
   }
+  if (d.type === 'safe') {
+    // Lọc phòng thủ ở gốc như analyse (cùng quỹ số nút) – "Nước duy nhất" cho phân tích bằng Rapfi (rapfi-analysis.js)
+    self.postMessage({ id: d.id, safe: self.CaroEngine.safeMoves(d.moves, self.CaroAnalysis.evalOpts(d.ms, d.rule)) });
+    return;
+  }
   if (d.type === 'analyze') {
     let last = 0;
     const res = self.CaroAnalysis.analyzeGame(d.moves, {

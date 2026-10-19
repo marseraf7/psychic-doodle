@@ -24,6 +24,10 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   async function context(mode) {
     const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
     await ctx.addInitScript(() => { if (!sessionStorage.getItem('init')) { sessionStorage.setItem('init', 1); localStorage.clear(); localStorage.setItem('caro.lang', 'vi'); } });
+    // Compute Pressure giả (rapfi-load.js): bước kiểm "máy nóng" gọi window.__press([{ state }])
+    await ctx.addInitScript(() => {
+      window.PressureObserver = class { constructor(cb) { window.__press = cb; } observe() { return Promise.resolve(); } disconnect() {} };
+    });
     if (nets || mode === 'bad') {
       await ctx.route(NET_RE, async (route) => {
         const url = route.request().url();
@@ -81,13 +85,15 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
     'đặt thế vào bàn Rapfi: cách mép 2 ô; rộng 14 ô thì không vừa bàn 15×15');
 
   // ---------------------------------------------------------------- Luật tự do: lần đầu tải chậm → nước đầu không phải chờ
-  await start('free');
+  // Thế 9 quân (ngoài sách khai cuộc – sách chỉ tới 7 quân): BOAT phải nghĩ, mà mạng chưa tải xong → engine của game
+  const FREE9 = [[0, 0], [1, 2], [2, 1], [-1, -1], [-2, 1], [3, 1], [0, 3], [-2, -2], [3, -2]];
+  await start('free', FREE9);
   // Thông báo chỉ hiện khi tải quá 0,7 giây: cần mạng chậm giả lập – WebKit không làm chậm được request của Worker
   okNet(await waitFor(async () => /Rapfi/.test(await p.textContent('#toasts')), 4000), 'lần đầu: báo đang tải bộ não Rapfi');
-  ok(await waitFor(async () => (await stones()) === 2, 20000), 'luật tự do: BOAT đi nước 2 ngay (engine của game, mạng chưa tải xong)');
+  ok(await waitFor(async () => (await stones()) === 10, 20000), 'luật tự do: BOAT đi ngay (engine của game, mạng chưa tải xong)');
   let s = await stats();
   // WebKit không làm chậm được tải mạng (request của Worker) – mạng có thể xong trước nước 2: bộ đếm sau tính từ r0
-  okNet(s.rapfi === 0 && s.fallback === 1, `nước 2 nhường engine (rapfi ${s.rapfi}, nhường ${s.fallback})`);
+  okNet(s.rapfi === 0 && s.fallback === 1, `nước 10 nhường engine (rapfi ${s.rapfi}, nhường ${s.fallback})`);
   let r0 = s.rapfi;
   const f0 = s.fallback;
   ok(await warm('free'), 'mạng tải xong: Rapfi sẵn sàng');
@@ -99,10 +105,10 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   const empty = await p.evaluate(() => { const b = window.CaroApp.board; for (const [x, y] of [[1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0]]) if (!b.get(x, y)) return [x, y]; return null; });
   const t0 = Date.now();
   await click(empty[0], empty[1]);
-  ok(await waitFor(async () => (await stones()) === 4, 20000), 'BOAT trả lời nước người chơi');
+  ok(await waitFor(async () => (await stones()) === 12, 20000), 'BOAT trả lời nước người chơi');
   const took = Date.now() - t0;
   s = await stats();
-  ok(s.rapfi === r0 + 1 && took < 9000, `nước 4 do Rapfi đi (${took} ms)`);
+  ok(s.rapfi === r0 + 1 && took < 9000, `nước 12 do Rapfi đi (${took} ms)`);
   // Sau nước của BOAT, Rapfi nghĩ trước trên thế người chơi tới lượt; đổi luật ngay sau đó (Worker đang nghĩ trước phải
   // dừng ở lát kế tiếp rồi mới terminate – xem retire) – các bước dưới kiểm Worker mới vẫn chạy bình thường
   ok(s.ponder >= 1, `BOAT nghĩ trước trong lúc người chơi nghĩ (${s.ponder} lần)`);
@@ -142,6 +148,22 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
     ok(await waitFor(async () => (await stones()) === 4, 20000), 'bật lại đa luồng: BOAT đi');
     r0 = (await stats()).rapfi - 1; // các bước sau đếm tiếp từ đây
   }
+  // Tự giảm tải (rapfi-load.js): máy rất nóng → thôi nghĩ trước, 1 luồng; hết nóng → như cũ, nghĩ trước tiếp
+  await start('free', FREE9.concat([[4, 4], [5, -3]])); // ngoài sách: BOAT nghĩ rồi nghĩ trước
+  ok(await waitFor(async () => (await stones()) === 12, 20000), 'giảm tải: BOAT đi');
+  const before = await stats();
+  await p.evaluate(() => window.__press([{ state: 'critical' }]));
+  // Worker dừng lượt nghĩ trước rồi mới báo xong (bất đồng bộ): chờ tới khi hết bận
+  await waitFor(() => p.evaluate(() => !window.CaroRapfi.working()), 3000);
+  const hot = await p.evaluate(() => ({ load: window.CaroRapfi.stats.load, threads: window.CaroRapfi.stats.threads, working: window.CaroRapfi.working(), lv: window.CaroRapfiLoad.level }));
+  ok(hot.load === 2 && hot.lv === 2 && hot.threads === 1 && !hot.working, 'máy rất nóng: 1 luồng, thôi nghĩ trước — ' + JSON.stringify(hot));
+  await p.evaluate(() => window.__press([{ state: 'serious' }]));
+  const warmish = await stats();
+  ok(warmish.load === 1 && warmish.threads === Math.max(1, Math.ceil(iso.threads / 2)), `máy căng: nửa số luồng (${warmish.threads})`);
+  await p.evaluate(() => window.__press([{ state: 'nominal' }]));
+  ok(await waitFor(async () => { const t = await stats(); return t.load === 0 && t.threads === iso.threads && t.ponder > before.ponder; }, 3000),
+    'hết nóng: đủ luồng, nghĩ trước tiếp');
+  r0 = (await stats()).rapfi - 1; // nước của bước này: các bước sau đếm tiếp từ đây
   await shot(p, 'boat-rapfi-free.png');
 
   // ---------------------------------------------------------------- Tiêu chuẩn và Renju: Worker mới, mạng của luật đó
@@ -255,7 +277,7 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   else {
     const bad = await context('bad');
     await start('renju', [[0, 0]], bad.p);
-    ok(await waitFor(async () => (await stones(bad.p)) === 2, 30000), 'mạng hỏng: BOAT vẫn đi (engine của game)');
+    ok(await waitFor(async () => (await stones(bad.p)) === 2, 30000), 'mạng hỏng: BOAT vẫn đi (sách khai cuộc / engine của game)');
     ok(await waitFor(async () => /Không tải được Rapfi/.test(await bad.p.textContent('#toasts')), 30000), 'mạng hỏng: báo không tải được Rapfi');
     const st = await bad.p.evaluate(async () => ({ avail: window.CaroRapfi.available('renju'), cached: (await (await caches.open('caro-rapfi-nets-v1')).keys()).length }));
     ok(!st.avail && st.cached === 0, `mạng hỏng không được lưu vào bộ nhớ đệm (${st.cached}), tạm tắt Rapfi luật Renju`);

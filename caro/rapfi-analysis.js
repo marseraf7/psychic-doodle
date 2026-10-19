@@ -21,6 +21,12 @@
   const WIN = 1000000, MATE = WIN - 1000;
   const SCALE = { vn: 360 / 400 }, SCALE_NNUE = 360 / 200; // thang điểm Rapfi theo luật (bảng caro học với K = 1/400)
   const LOAD_WAIT = 60000; // phân tích chờ tải mạng (có thông báo tiến độ) tối đa 1 phút
+  // Chấm theo số nút (rapfi/brain.js – INFO max_node), không theo giờ: cùng thế cho cùng kết quả dù máy nhanh / chậm, một
+  // hay nhiều luồng, một hay hai Worker (máy mạnh chỉ xong sớm hơn). Số nút = ms × tốc độ chuẩn của Rapfi WebAssembly 1
+  // luồng theo luật (nghìn nút / giây, đo trong Node – server/scripts/rapfi/an-bench-rapfi.js) × thời gian Rapfi thật sự
+  // nghĩ khi chấm theo giờ ms (0,75 × (ms − 30) – rapfi/brain.js fixedTime): cùng thời gian như cách cũ trên máy chuẩn
+  const KNPS = { free: 0, std: 0, renju: 0, vn: 0 };
+  const nodesFor = (rule, ms) => Math.max(20000, Math.round(0.75 * (ms - 30) * (KNPS[rule] || 300)));
   let job = 0;
 
   const handles = (rule) => !!(R() && R().available(rule));
@@ -44,7 +50,7 @@
     const f = moves.length ? Rp.frame(moves, Rp.SIZE[rule]) : { margin: 99 };
     const near = !f || f.margin < Rp.SAFE_EDGE;
     const chk = near ? Rp.check(rule, moves, Math.min(ms, 400)) : null; // chạy song song với Rapfi (Worker khác)
-    const r = f ? await Rp.ask(rule, moves, ms, lane) : null;
+    const r = f ? await Rp.ask(rule, moves, ms, lane, { nodes: nodesFor(rule, ms) }) : null;
     const e = chk ? await chk : null;
     if (!r) return e ? { ...e, q: ms, src: 'rapfi' } : null; // không vừa bàn: kết quả engine
     // Rapfi đi ngay không tìm kiếm (không in điểm) khi có nước thắng ngay – hoặc thế chỉ còn một nước: tự chấm
@@ -61,6 +67,8 @@
     }
     return out;
   }
+
+  const sameMove = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
 
   /** Bên đi đặt quân ở `move` là thắng ngay. */
   function winsNow(rule, moves, move) {
@@ -91,16 +99,24 @@
     if (!(await R().ready(rule, LOAD_WAIT)) || my !== job) return null;
     const n = moves.length, last = lastPos(moves, rule);
     const ev = Array.from({ length: n + 1 }, (_, i) => (evals && ours(evals[i], ms) ? evals[i] : null));
-    const todo = [];
+    let todo = [];
     for (let i = 0; i <= last; i++) if (!ev[i]) todo.push(i);
+    // Bộ nhớ điểm dùng chung (eval-cloud.js): thế đã có người chấm cùng số nút thì lấy luôn; thế chấm trên máy lượt này
+    // (fresh) gửi lên khi xong
+    const nodes = nodesFor(rule, ms), cloud = global.CaroEvalCloud, fresh = [];
+    if (cloud && todo.length) {
+      const got = await cloud.get(rule, nodes, todo.map((i) => moves.slice(0, i)));
+      if (my !== job) return null;
+      for (const [k, h] of got) ev[todo[k]] = { ...h, q: ms, src: 'rapfi' };
+      todo = todo.filter((i) => !ev[i]);
+    }
     // Tiến độ: chấm các thế 0 → 85%, thế sau nước tốt nhất 85 → 99%
     const prog = (f) => { if (onProgress) onProgress(Math.min(0.99, f)); };
-    // Máy đủ RAM: Worker Rapfi thứ hai, mỗi thế chấm gấp đôi thời gian, hai thế cùng lúc – tổng thời gian như cũ mà tìm sâu
-    // hơn (Rapfi-CARO, Node: 250 → 500 ms / thế: độ sâu TB 16,1 → 17,9). Kết quả dùng lại vẫn theo ms gốc (q = ms).
+    // Máy đủ RAM: Worker Rapfi thứ hai chấm hai thế cùng lúc – cùng số nút mỗi thế nên cùng kết quả, xong nhanh gấp đôi.
     // Worker phụ chưa sẵn sàng (lần đầu nạp mạng): không chờ, lượt này một Worker (boat-rapfi.js tạo sẵn khi hết ván)
     const two = todo.length >= 3 && (await R().auxReady(rule, 0));
     if (my !== job) return null;
-    const lanes = two ? 2 : 1, ms2 = ms * lanes;
+    const lanes = two ? 2 : 1;
     const run = async (list, at) => {
       let next = 0, bad = false, done = 0;
       await Promise.all(Array.from({ length: lanes }, async (_, lane) => {
@@ -116,9 +132,20 @@
       return !bad && my === job;
     };
     prog.step = (d, n) => prog((0.85 * d) / n);
+    // "Nước duy nhất" (analysis.js): người chơi đi đúng nước Rapfi chọn ở thế chưa ngã ngũ → lọc phòng thủ của engine
+    // (Worker kiểm thế, chạy song song với Rapfi) chỉ còn đúng nước đó thì ghi one = 1. Thế dùng lại đã có kết quả (one).
+    const onlyChecks = [];
+    const onlyCheck = (i) => {
+      const e = ev[i];
+      if (!e || 'one' in e || e.mate || i >= Math.min(last + 1, n) || !sameMove(e.move, moves[i]) || !global.CaroRapfiBoard) return;
+      onlyChecks.push(global.CaroRapfiBoard.safe(rule, moves.slice(0, i), ms).then((list) => {
+        if (my === job && ev[i]) ev[i] = { ...ev[i], one: list && list.length === 1 && sameMove(list[0], moves[i]) ? 1 : 0 };
+      }));
+    };
+    for (let i = 0; i <= last; i++) if (ev[i]) onlyCheck(i);
     const okPos = await run(todo, async (i, lane) => {
-      const e = await evalPos(rule, moves.slice(0, i), ms2, lane);
-      if (e) ev[i] = { ...e, q: ms };
+      const e = await evalPos(rule, moves.slice(0, i), ms, lane);
+      if (e) { ev[i] = { ...e, q: ms }; onlyCheck(i); fresh.push({ moves: moves.slice(0, i), e }); }
       return e;
     });
     if (!okPos) { if (two) R().auxDone(); return null; }
@@ -128,12 +155,20 @@
       if (A.altNeeded(moves, ev, i) && !ours(ev[i].alt, ms)) alts.push(i);
     }
     prog.step = (d, n) => prog(0.85 + (0.14 * d) / n);
-    await run(alts, async (i, lane) => {
-      const e = await evalPos(rule, moves.slice(0, i).concat([ev[i].move]), ms2, lane);
-      if (e) ev[i] = { ...ev[i], alt: { ...e, q: ms } };
+    const altMoves = (i) => moves.slice(0, i).concat([ev[i].move]);
+    if (cloud && alts.length) {
+      const got = await cloud.get(rule, nodes, alts.map(altMoves));
+      if (my !== job) return null;
+      for (const [k, h] of got) ev[alts[k]] = { ...ev[alts[k]], alt: { ...h, q: ms, src: 'rapfi' } };
+    }
+    await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane) => {
+      const mv = altMoves(i), e = await evalPos(rule, mv, ms, lane);
+      if (e) { ev[i] = { ...ev[i], alt: { ...e, q: ms } }; fresh.push({ moves: mv, e }); }
       return e || {}; // thế sau nước tốt nhất chấm lỗi: bỏ qua thế đó, không bỏ cả lượt
     });
     if (two) R().auxDone();
+    await Promise.all(onlyChecks);
+    if (cloud && my === job) cloud.put(rule, nodes, fresh.map(({ moves: mv, e }) => ({ moves: mv, move: e.move, score: e.score, mate: e.mate || null })));
     return my === job ? ev : null;
   }
 

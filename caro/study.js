@@ -17,6 +17,7 @@
   // Loại nước: màu + ký hiệu trên huy hiệu (giống chess.com: !! xuất sắc, ? sai lầm, ?? nước hỏng…)
   const CLS = {
     great: { color: '#1baca6', text: '!!' },
+    only: { color: '#3b82c4', text: '□' }, // ký hiệu "nước duy nhất" trong sách cờ
     best: { color: '#5c9e31', text: '!' },
     good: { color: '#8aa572', text: '' },
     miss: { color: '#e5664f', text: '×' },
@@ -25,7 +26,7 @@
     blunder: { color: '#ca3431', text: '??' },
     lost: { color: '#8b8b8b', text: '' },
   };
-  const ORDER = ['great', 'best', 'miss', 'inacc', 'mistake', 'blunder'];
+  const ORDER = ['great', 'only', 'best', 'miss', 'inacc', 'mistake', 'blunder'];
   const GOOD = '#5c9e31';
 
   // ================================================================ Phân tích ván

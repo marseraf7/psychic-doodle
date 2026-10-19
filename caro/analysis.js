@@ -4,6 +4,9 @@
  * Xếp loại nước đi:
  *   best    – nước thắng / giữ được thắng chắc
  *   great   – tự tìm ra chuỗi ép thắng dài (≥ 3 nước)
+ *   only    – nước duy nhất: đối thủ đang doạ, mọi nước khác đều để đối thủ có chuỗi bốn thắng (lọc phòng thủ của engine
+ *             chỉ còn một nước) và người chơi tìm ra đúng nước đó (như "Great" của chess.com; chặn bốn – nước bắt buộc,
+ *             ai cũng thấy – không tính)
  *   good    – nước bình thường, không làm hỏng thế cờ
  *   inacc   – chưa chính xác: khả năng thắng tụt ≥ 10%
  *   miss    – bỏ lỡ nước thắng (thắng ngay hoặc chuỗi ép)
@@ -200,6 +203,8 @@
         const cls = drop >= DROP.blunder ? 'blunder' : drop >= DROP.mistake ? 'mistake' : drop >= DROP.inacc ? 'inacc' : 'good';
         if (cls !== 'good') { rec.cls = cls; rec.ev = true; rec.best = r.move; }
       }
+      // Nước duy nhất: đúng nước engine chọn, thế chưa ngã ngũ, và lọc phòng thủ chỉ còn đúng nước đó (slim: one)
+      if (rec.cls === 'good' && isBest && r.one && !r.mate) rec.cls = 'only';
       rec.drop = rec.cls === 'lost' ? 0 : Math.round(drop * 100);
       // Biểu đồ: khả năng thắng của X sau nước này
       const wX = won ? (p === C.X ? 1 : 0) : p === C.X ? 1 - wc(i + 1) : wc(i + 1); // thế i+1: tới lượt bên kia
@@ -223,31 +228,64 @@
   }
 
   /** Bản gọn của kết quả engine (gửi qua lại giữa Web Worker và trang); q: số ms đã dùng để chấm. */
-  const slim = (r, q) => ({ move: r.move, score: r.score, mate: r.mate, q });
+  const slim = (r, q) => (r.safe === 1 ? { move: r.move, score: r.score, mate: r.mate, q, one: 1 } : { move: r.move, score: r.score, mate: r.mate, q });
   /** Thế đã chấm sẵn đủ kỹ (thời gian ≥ ms) thì không cần chấm lại. */
   const reusable = (e, ms) => !!e && typeof e.score === 'number' && (e.q || 0) >= ms;
 
-  /** Độ chính xác từng nước theo mức tụt khả năng thắng (công thức Lichess công bố), rồi lấy trung bình. */
+  /**
+   * Độ chính xác (theo cách Lichess công bố – lichess.org/page/accuracy; viết lại, không dùng mã của Lichess):
+   *   - từng nước: 103,1668 · e^(−0,04354 · mức tụt khả năng thắng tính bằng %) − 3,1669, kẹp 0..100;
+   *   - cả ván: trung bình của (a) trung bình có trọng số theo độ biến động – trọng số mỗi nước = độ lệch chuẩn khả năng
+   *     thắng (%) trong cửa sổ w thế gần nhất (w = n / 10 kẹp 2..8, kẹp 0,5..12) – và (b) trung bình điều hoà. Một nước
+   *     làm hỏng thế cờ kéo điểm xuống đúng mức (trung bình cộng bị các nước dễ – nước ép, nước chặn – che đi); nước ở thế
+   *     đang giằng co nặng ký hơn nước ở thế đã ngã ngũ.
+   * Nước ở thế đã thua (lost) không tính. Trung bình điều hoà: mỗi nước ít nhất 1 điểm (nước 0 điểm không kéo cả ván về
+   * một nửa).
+   */
   const moveAcc = (drop) => Math.max(0, Math.min(100, 103.1668 * Math.exp(-0.04354 * drop) - 3.1669));
+  function stdev(a) {
+    const mu = a.reduce((t, x) => t + x, 0) / a.length;
+    return Math.sqrt(a.reduce((t, x) => t + (x - mu) ** 2, 0) / a.length);
+  }
   function summarize(list) {
     const counts = { 1: {}, 2: {} }, acc = { 1: 100, 2: 100 };
+    // Khả năng thắng của X (%) ở thế đầu và sau từng nước (rec.e: −1…+1)
+    const win = [50, ...list.map((m) => 50 * (1 + (m.e || 0)))];
+    const w = Math.max(2, Math.min(8, Math.floor(list.length / 10)));
+    const weight = (j) => {
+      const hi = Math.max(j + 1, w - 1); // nước j: thế j → j + 1; cửa sổ w thế kết thúc ở j + 1 (đầu ván: w thế đầu tiên)
+      return Math.max(0.5, Math.min(12, stdev(win.slice(Math.max(0, hi - w + 1), hi + 1))));
+    };
     for (const p of [1, 2]) {
       const mine = list.filter((m) => m.p === p);
       for (const m of mine) counts[p][m.cls] = (counts[p][m.cls] || 0) + 1;
-      const rated = mine.filter((m) => m.cls !== 'lost');
+      const rated = [];
+      list.forEach((m, j) => { if (m.p === p && m.cls !== 'lost') rated.push({ a: moveAcc(m.drop || 0), wt: weight(j) }); });
       if (!rated.length) continue;
-      acc[p] = Math.round(rated.reduce((t, m) => t + moveAcc(m.drop || 0), 0) / rated.length);
+      const weighted = rated.reduce((t, r) => t + r.a * r.wt, 0) / rated.reduce((t, r) => t + r.wt, 0);
+      const harmonic = rated.length / rated.reduce((t, r) => t + 1 / Math.max(1, r.a), 0);
+      acc[p] = Math.round((weighted + harmonic) / 2);
     }
     return { acc, counts };
   }
 
-  const KEY = new Set(['blunder', 'mistake', 'miss', 'great', 'inacc']);
+  /**
+   * Nước sát ngưỡng xếp loại (mức tụt cách ngưỡng 10 / 18 / 30% không quá REFINE_BAND điểm) – chỉ nước xếp theo mức tụt,
+   * không phải theo chuỗi thắng chắc. Chấm kỹ hơn các thế quanh những nước này thì ít xếp nhầm hơn (study.js – lượt kỹ).
+   */
+  const REFINE_BAND = 4;
+  function refineList(result) {
+    const T = [DROP.inacc, DROP.mistake, DROP.blunder].map((d) => Math.round(d * 100));
+    return result.moves.filter((m) => (m.cls === 'good' || m.ev) && T.some((t) => Math.abs(m.drop - t) <= REFINE_BAND)).map((m) => m.i);
+  }
+
+  const KEY = new Set(['blunder', 'mistake', 'miss', 'great', 'only', 'inacc']);
   /** Các thời điểm đáng xem lại. */
   function keyMoments(result) {
     return result.moves.filter((m) => KEY.has(m.cls));
   }
 
-  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, evaluate, evalOpts, fullMs, MAX_DEPTH };
+  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, refineList, slim, altNeeded, evaluate, evalOpts, fullMs, MAX_DEPTH };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroAnalysis;
   else global.CaroAnalysis = CaroAnalysis;
 })(typeof window !== 'undefined' ? window : globalThis);

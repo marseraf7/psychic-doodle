@@ -39,6 +39,13 @@ const SCHEMA = `
     at INTEGER NOT NULL, r INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS rating_hist_uid ON rating_hist (uid, id);
   CREATE INDEX IF NOT EXISTS games_pair ON games (x_id, o_id, id);
+  CREATE TABLE IF NOT EXISTS eval_sub (key TEXT NOT NULL, who TEXT NOT NULL, nodes INTEGER NOT NULL, move TEXT NOT NULL,
+    score INTEGER NOT NULL, mate INTEGER, at INTEGER NOT NULL, PRIMARY KEY (key, who));
+  CREATE INDEX IF NOT EXISTS eval_sub_at ON eval_sub (at);
+  CREATE INDEX IF NOT EXISTS eval_sub_who ON eval_sub (who);
+  CREATE TABLE IF NOT EXISTS eval_cache (key TEXT PRIMARY KEY, nodes INTEGER NOT NULL, move TEXT NOT NULL, score INTEGER NOT NULL,
+    mate INTEGER, at INTEGER NOT NULL, used INTEGER NOT NULL);
+  CREATE INDEX IF NOT EXISTS eval_cache_used ON eval_cache (used);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
 // Phiên đăng nhập: thông tin thiết bị (mục Thiết bị – store-sessions.js)
