@@ -87,7 +87,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 - **Phân tích ván** (`analysis.js`, chạy trong Web Worker): bấm "Phân tích" ở thẻ kết quả hoặc khi xem lại ván.
   **Nhanh như Lichess** (chạy hết trên máy người chơi, máy chủ không tốn gì thêm):
   - *Phân tích ngầm khi chơi* (`live-analysis.js`): mỗi nước mới được engine chấm ngay trong một Web Worker riêng
-    (200 ms/thế; tạm dừng khi máy đang nghĩ nước / app chạy nền; đi lại thì bỏ phần đã khác). Vừa hết ván thì tạo sẵn các
+    (400 ms/thế – bằng lượt kỹ của ván ngắn, `analysis.js fullMs`: cả ván ~20 giây một luồng; tạm dừng khi máy đang nghĩ nước / app chạy nền; đi lại thì bỏ phần đã khác). Vừa hết ván thì tạo sẵn các
     Worker phân tích song song (`an-pool.js`).
     Nước nào có thể bị đánh dấu thì chấm luôn thế sau nước tốt nhất để so (`altNeeded`). Hết ván bấm Phân tích là có kết quả
     gần như tức thì (đo ~0,2 giây với ván ngắn). Hoãn một nhịp sau mỗi nước và dừng hẳn Worker khi máy bắt đầu nghĩ, để máy

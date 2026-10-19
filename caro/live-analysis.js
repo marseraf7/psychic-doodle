@@ -11,7 +11,8 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const KEY = 'caro.liveAn';
-  const MS = 200; // bằng thời gian mỗi thế của phân tích đầy đủ cho ván ngắn → dùng lại được cho mọi ván
+  // Bằng thời gian mỗi thế của phân tích kỹ cho ván ngắn (analysis.js fullMs) → dùng lại được cho mọi ván
+  const MS = window.CaroAnalysis ? window.CaroAnalysis.fullMs(0) : 400;
   let on = true;
   try { on = localStorage.getItem(KEY) !== '0'; } catch (e) { /* riêng tư */ }
 

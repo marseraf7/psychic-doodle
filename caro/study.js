@@ -87,7 +87,7 @@
   // Các thế đã được phân tích ngầm lúc chơi (live-analysis.js) đủ kỹ nên cả hai lượt đều dùng lại, không chấm lại.
   const QUICK_MIN = 8; // còn ít thế chưa chấm hơn thế này thì làm luôn lượt kỹ
   const quickMs = (n) => Math.max(15, Math.min(40, Math.round(2000 / (n + 1))));
-  const fullMs = (n) => Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // như mặc định của analysis.js
+  const fullMs = (n) => A.fullMs(n); // analysis.js: cả ván ~20 giây một luồng
   const rapfiMs = (n) => Math.max(150, Math.min(500, Math.round(16000 / (n + 1)))); // Rapfi WASM cần ≥ ~100 ms / thế
 
   const pending = new Set();

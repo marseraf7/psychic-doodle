@@ -124,6 +124,9 @@
   // một bảng nhớ mới). NODES_PER_MS: tốc độ trung vị đo ở chế độ 200 ms (Chromium 136, WebKit 163, Node 157 nút / ms) → máy
   // thường xong đúng ms; máy quá chậm dừng ở CAP × ms, ít nhất CAP_MIN ms (khi đó kết quả mới tuỳ máy).
   const NODES_PER_MS = 130, CAP = 5, CAP_MIN = 1000;
+  // Thời gian mỗi thế của lượt phân tích kỹ theo độ dài ván: cả ván ~20 giây một luồng (chia cho các Worker của an-pool.js).
+  // Gấp đôi mức cũ (~10 giây): đo bằng an-bench.js, trùng bản chấm sâu 86,8% → 88,4%, bỏ sót 25 → 17 nước / 372.
+  const fullMs = (n) => Math.max(120, Math.min(400, Math.round(20000 / (n + 1))));
   const evalOpts = (ms, rule) => ({ nodes: Math.round(ms * NODES_PER_MS), ms: Math.max(CAP_MIN, ms * CAP), rule, smooth: true });
   /** Chấm một thế cờ cho phân tích ván (bản gọn, xem slim). */
   const evaluate = (moves, ms, rule) => slim(engine().analyse(moves, evalOpts(ms, rule)), ms);
@@ -144,7 +147,7 @@
     opts = opts || {};
     const EN = engine();
     const n = moves.length;
-    const ms = opts.ms || Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // cả ván khoảng 10 giây
+    const ms = opts.ms || fullMs(n);
     const board = new C.Board(opts.rule);
     const evals = []; // evals[i]: thế cờ trước nước i (null = ván đã kết thúc)
     const pre = opts.evals || [];
@@ -243,7 +246,7 @@
     return result.moves.filter((m) => KEY.has(m.cls));
   }
 
-  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, evaluate, evalOpts, MAX_DEPTH };
+  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, evaluate, evalOpts, fullMs, MAX_DEPTH };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroAnalysis;
   else global.CaroAnalysis = CaroAnalysis;
 })(typeof window !== 'undefined' ? window : globalThis);
