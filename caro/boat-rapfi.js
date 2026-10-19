@@ -5,7 +5,7 @@
  * postMessage. Bản iOS (CARO_NO_RAPFI – điều khoản App Store xung khắc với GPL), trình duyệt không có WebAssembly SIMD,
  * thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để app.js / phân tích dùng engine của game.
  *
- * Bàn của game vô hạn, Rapfi cần bàn cố định: đặt thế lên bàn Rapfi và kiểm lại thế sát mép – xem rapfi-board.js.
+ * Bàn của game vô hạn, Rapfi cần bàn cố định: đặt thế lên bàn Rapfi và kiểm lại thế sát mép – xem rapfi-board.js. Nghĩ trước: rapfi-ponder.js.
  *
  *   CaroRapfi.handles(botId, rule)   – BOAT + luật có Rapfi + trình duyệt chạy được
  *   CaroRapfi.available(rule)        – luật có Rapfi + trình duyệt chạy được (phân tích)
@@ -246,77 +246,19 @@
     return (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) ||
       !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
   }
-  /**
-   * Rapfi nghĩ trước trên thế moves (người chơi tới lượt) – bảng băm giữ sang nước sau của BOAT (rapfi/worker.js). Giữ thế
-   * trong held: tạm dừng (ứng dụng chạy nền / người chơi bỏ máy IDLE.ms) rồi nghĩ tiếp đúng thế đó khi người chơi quay lại.
-   */
-  const IDLE = { ms: 600000 }; // giới hạn an toàn cho nghĩ trước không giới hạn: bỏ máy 10 phút thì thôi (pin, máy nóng)
-  let held = null, paused = false, lastInput = Date.now(), idleTimer = 0;
-  function ponder(rule, moves) {
-    held = { rule, moves };
-    paused = false;
-    run();
-  }
-  function run() {
-    const st = cur, { rule, moves } = held;
-    if (!st || st.state !== 'ready' || st.rule !== rule || global.document.hidden || level) { paused = true; return; }
-    armIdle();
-    const f = place(rule, moves);
-    if (paused || !f) return; // người chơi đã bỏ máy quá IDLE.ms: chờ họ quay lại
-    const id = ++seq;
-    stats.ponder++;
-    st.busy++; // đang chạy WebAssembly: retire() chờ xong lát hiện tại mới terminate()
-    const onMsg = (e) => {
-      if (e.data.type !== 'pondered' || e.data.id !== id) return;
-      st.busy--;
-      st.worker.removeEventListener('message', onMsg);
-    };
-    st.worker.addEventListener('message', onMsg);
-    // ms: 0 – không giới hạn: người chơi nghĩ càng lâu, BOAT càng xét nhiều kịch bản (dừng khi người chơi đi, hết ván,
-    // ván mới, ứng dụng chạy nền)
-    st.worker.postMessage({ type: 'ponder', id, ms: 0, moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
-  }
-  function halt() {
-    if (cur && cur.state === 'ready') try { cur.worker.postMessage({ type: 'stop' }); } catch (e) { /* đã dừng */ }
-  }
-  function stopPonder() {
-    held = null; paused = false;
-    clearTimeout(idleTimer);
-    halt();
-  }
-  /** Tạm dừng nghĩ trước, giữ thế để nghĩ tiếp (resume). */
-  function pause() {
-    if (!held || paused) return;
-    paused = true;
-    clearTimeout(idleTimer);
-    halt();
-  }
-  function resume() {
-    if (held && paused && !global.document.hidden) { paused = false; run(); }
-  }
-  function armIdle() {
-    clearTimeout(idleTimer);
-    const left = IDLE.ms - (Date.now() - lastInput);
-    if (left <= 0) { stats.idle++; pause(); } else idleTimer = setTimeout(armIdle, left);
-  }
-  // Người chơi còn ở đây (chạm, bấm phím, cuộn): tính lại giờ bỏ máy; đang tạm dừng vì bỏ máy thì nghĩ tiếp
-  const touched = () => {
-    lastInput = Date.now();
-    if (paused) resume(); else if (held) armIdle();
-  };
-  for (const t of ['pointerdown', 'keydown', 'touchstart', 'wheel']) global.addEventListener(t, touched, { capture: true, passive: true });
-  // Hết ván / ứng dụng chạy nền: thôi nghĩ trước (trả CPU cho phân tích, đỡ pin). Hết ván với Rapfi đang chạy (máy đủ
-  // RAM): tạo sẵn Worker phụ để bấm Phân tích là chấm hai thế cùng lúc
+  // Đếm (kiểm thử, gỡ lỗi): nước Rapfi đi / nhường engine của game / engine sửa nước Rapfi sát mép / lần nghĩ trước / thế
+  // Worker phụ chấm / số luồng / lần tạm nghĩ trước vì bỏ máy / mức tự giảm tải / nước đáp nhanh vì đoán trúng
+  const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0, threads: 0, idle: 0, load: 0, hit: 0 };
+  // Nghĩ trước trên thế người chơi tới lượt, tạm dừng / nghĩ tiếp (rapfi-ponder.js); level: đang tự giảm tải (load)
+  const P = global.CaroRapfiPonder.create({ cur: () => cur, place, blocked: () => level > 0, nextId: () => ++seq, stats });
+  const stopPonder = () => P.stop();
+  // Hết ván: thôi nghĩ trước (trả CPU cho phân tích, đỡ pin). Hết ván với Rapfi đang chạy (máy đủ RAM): tạo sẵn Worker
+  // phụ để bấm Phân tích là chấm hai thế cùng lúc
   global.addEventListener('caro:gameover', () => {
     stopPonder();
     if (cur && cur.state === 'ready' && !cur.mt && !small()) { ensureAux(cur.rule); auxDone(); }
   });
-  global.document.addEventListener('visibilitychange', () => { if (global.document.hidden) pause(); else touched(); });
 
-  // Đếm số nước Rapfi đi / phải nhường engine của game / engine sửa nước Rapfi sát mép / số lần nghĩ trước / số thế Worker phụ chấm (kiểm thử, gỡ lỗi)
-  // … / số lần tạm dừng nghĩ trước vì người chơi bỏ máy
-  // … / số nước đáp nhanh vì đoán trúng lúc nghĩ trước / mức tự giảm tải
-  const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0, threads: 0, idle: 0, load: 0, hit: 0 };
   // Cách BOAT nghĩ mỗi nước (rapfi/brain.js – số đo trong caro/README.md, cả hai tắt): hit – đoán trúng nước người chơi lúc
   // nghĩ trước thì đáp nhanh (tự đấu yếu hơn rõ); tm – Rapfi tự chia thời gian theo quỹ giờ cả ván (chưa đủ chứng cứ)
   const PLAY = { hit: false, tm: false };
@@ -329,7 +271,7 @@
   function setMt(v) {
     try { localStorage.setItem(MT_KEY, v ? '1' : '0'); } catch (e) { /* riêng tư */ }
     // Worker đang chạy khác lựa chọn mới: dừng, nước sau / lần phân tích sau dựng lại (mạng đã có trong Cache Storage)
-    if (cur && cur.state === 'ready' && cur.mt !== (!!v && global.crossOriginIsolated === true)) { held = null; stop(); }
+    if (cur && cur.state === 'ready' && cur.mt !== (!!v && global.crossOriginIsolated === true)) { P.drop(); stop(); }
   }
   const mtActive = () => !!(cur && cur.state === 'ready' && cur.mt);
 
@@ -346,24 +288,23 @@
     const lv = Math.max(0, Math.min(2, v | 0));
     if (lv === level) return;
     level = stats.load = lv;
-    if (level) pause(); // giữ thế: hết căng thì nghĩ trước tiếp
+    if (level) P.pause(); // giữ thế: hết căng thì nghĩ trước tiếp
     if (cur && cur.state === 'ready') setThreads(cur);
-    if (!level) resume();
+    if (!level) P.resume();
   }
   const working = () => !!(mtActive() && cur.busy > 0);
 
   async function move(board, p, botId) {
     const bot = botOf(botId);
     if (!handles(bot, board.rule)) return null;
-    held = null; // người chơi đã đi: thế nghĩ trước cũ hết dùng (tin 'move' dừng lượt nghĩ trước trong Worker)
-    clearTimeout(idleTimer);
+    P.drop(); // người chơi đã đi: thế nghĩ trước cũ hết dùng (tin 'move' dừng lượt nghĩ trước trong Worker)
     const m = await think(board, p, bot);
     stats[m ? 'rapfi' : 'fallback']++;
     game[m ? 'rapfi' : 'fallback']++;
     // Nghĩ trước trong lúc người chơi nghĩ (trừ khi nước này thắng luôn, hoặc nước sau của BOAT còn trong sách)
     const moves = board.moves.map((q) => [q.x, q.y]);
     if (m && !C.winsIfPlaced(board, m[0], m[1], p) && !(hasBook(board.rule) && moves.length + 2 <= BOOK_MAX)) {
-      ponder(board.rule, moves.concat([m]));
+      P.start(board.rule, moves.concat([m]));
     }
     return m;
   }
@@ -402,6 +343,6 @@
 
   global.CaroRapfi = {
     handles, available, supported, prepare, ready, auxReady, auxDone, move, ask, check, frame, stopPonder,
-    mtOn, setMt, mtActive, working, load, stats, game, IDLE, SIZE, SAFE_EDGE,
+    mtOn, setMt, mtActive, working, load, stats, game, IDLE: P.IDLE, SIZE, SAFE_EDGE,
   };
 })(window);

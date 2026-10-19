@@ -440,6 +440,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `boat-rapfi.js`, `i18n-rapfi.js` | BOAT gọi Rapfi (Worker) ở 4 luật (luật Việt Nam: Rapfi-CARO): tải mạng khi cần, đặt thế vào bàn Rapfi, dự phòng engine của game |
 | `rapfi-board.js` | Đặt thế cờ lên bàn cố định của Rapfi (giữ khung giữa các nước), engine của game kiểm thế sát mép |
 | `rapfi-settings.js` | Ô "Rapfi đa luồng" trong Cài đặt; đo khung hình khi bản đa luồng chạy, máy giật thì gợi ý tắt |
+| `rapfi-ponder.js` | Nghĩ trước của BOAT trên thế người chơi tới lượt: tạm dừng khi bỏ máy / chạy nền / máy căng, nghĩ tiếp đúng thế đó |
 | `rapfi-load.js` | Tự giảm tải Rapfi: Compute Pressure + pin yếu → thôi nghĩ trước, bớt luồng |
 | `rapfi-analysis.js` | Phân tích ván bằng Rapfi theo số nút, hai Worker, nhãn "Nước duy nhất" |
 | `eval-key.js`, `eval-cloud.js` | Bộ nhớ chấm dùng chung: khoá thế chuẩn hoá (dời / xoay / lật, dùng chung máy chủ); hỏi / gửi máy chủ khi đã đăng nhập |
