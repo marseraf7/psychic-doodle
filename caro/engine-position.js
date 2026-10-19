@@ -47,7 +47,6 @@
       }
       this.lo = 0; this.hi = 0;
       this.ev = this.weights(this.rule);   // trọng số chấm điểm của luật này (engine-eval.js)
-      this.win5 = !this.ev.la;             // chấm theo cửa sổ 5 / 6 ô (bộ cũ) – bộ có la chấm theo số ô từng mẫu đường
       this.acc = new Float64Array(4);      // [công X, thủ X, công O, thủ O]: tổng trọng số cửa sổ của X / O (a… / d…)
       this.patOrder = true;                // xếp ứng viên theo mẫu đường (false: theo quickScore như cũ)
       this.policy = true;                  // xếp ứng viên theo chính sách học được (policy-data.js) nếu có
@@ -57,7 +56,6 @@
       this.keyX = new Int32Array(n * 4); // mã 11 ô của (ô, hướng) theo góc nhìn X – xem refreshWins
       this.p4 = [null, new Uint8Array(n), new Uint8Array(n)];
       this.p4cnt = [null, new Int32Array(13), new Int32Array(13)];
-      this.lcnt = [null, new Int32Array(9), new Int32Array(9)]; // số (ô trống, hướng) theo từng mẫu đường của X / O (eval 'la')
       this.ptab = [null, PT.table(this.rule, true), PT.table(this.rule, false, true)]; // bảng của O tra theo mã góc nhìn X
       this._stamp = new Int32Array(n); this._stampN = 1; this._touched = [];
       this.stack = [];
@@ -105,7 +103,7 @@
       // mẫu F5 (khớp winDir, đã kiểm trên ván thật).
       const W = this.W, H = this.H, rule = this.rule, cells = this.cells;
       const patX = this.pat[X], patO = this.pat[O], tX = this.ptab[X], tO = this.ptab[O], keyX = this.keyX;
-      const stamp = this._stamp, sn = this._stampN, touched = this._touched, lX = this.lcnt[X], lO = this.lcnt[O];
+      const stamp = this._stamp, sn = this._stampN, touched = this._touched;
       const vx = sign * p;
       for (let d = 0; d < 4; d++) {
         const dx = DX[d], dy = DY[d], bit = 1 << d, step = dy * W + dx;
@@ -125,8 +123,6 @@
           // Mẫu không đổi thì ô thắng / mẫu chéo của ô này (theo hướng d) cũng không đổi: bỏ qua
           if (ox === px && oo === po && k) continue;
           patX[pi] = px; patO[pi] = po;
-          if (ox !== px) { lX[ox]--; lX[px]++; }
-          if (oo !== po) { lO[oo]--; lO[po]++; }
           if ((ox === F5) !== (px === F5)) this.setWin(X, i, bit, px === F5);
           if ((oo === F5) !== (po === F5)) this.setWin(O, i, bit, po === F5);
           if (stamp[i] !== sn) { stamp[i] = sn; touched.push(i); }
@@ -161,7 +157,7 @@
       const cx = i % this.W, cy = (i / this.W) | 0;
       // Trong lúc tìm chuỗi ép (lazy > 0) không cần điểm thế cờ: bỏ qua phần tính điểm (undo cũng bỏ qua theo evs)
       const ev = !this.lazy;
-      if (ev && this.win5) this.windowsSwap(cx, cy, p); // eval theo mẫu đường (bộ trọng số có la): không cần cửa sổ
+      if (ev) this.windowsSwap(cx, cy, p);
       this.cells[i] = p;
       this.evs.push(ev);
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
@@ -177,7 +173,7 @@
       const i = this.stack.pop();
       const p = this.cells[i];
       const cx = i % this.W, cy = (i / this.W) | 0;
-      if (this.evs.pop() && this.win5) this.windowsSwap(cx, cy, EMPTY);
+      if (this.evs.pop()) this.windowsSwap(cx, cy, EMPTY);
       this.cells[i] = EMPTY;
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {

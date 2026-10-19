@@ -177,6 +177,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - **Phân tích hai Worker**: máy đủ RAM (không phải điện thoại) có thêm một Worker Rapfi – chấm hai thế cùng lúc, mỗi thế
     gấp đôi thời gian (250 → 500 ms: độ sâu 16,1 → 17,9), tổng thời gian như cũ; tạo sẵn khi hết ván, rảnh 1 phút thì dừng.
     Đã thử, không giúp: chấm ngược từ cuối ván, bảng băm 64 MB (độ sâu như nhau ở 250 ms / thế).
+  - Engine của game – đã thử chấm điểm theo số ô từng mẫu đường thay cho cửa sổ 5 / 6 ô (học từ 1.421 ván Rapfi-CARO tự
+    đấu, nhãn = điểm Rapfi): khớp điểm Rapfi hơn (sai số 0,598 so với 0,672) và đi / lùi nhanh gấp ~2, nhưng tự đấu cùng
+    thời gian chỉ thắng 31% / 192 ván (mất thông tin số quân trong cửa sổ). Cửa sổ học lại theo cùng dữ liệu: 47% – nên
+    giữ bộ cũ; thay vào đó cửa sổ tính bằng mặt nạ bit (cùng kết quả, nhanh hơn ~15%).
   - Mạng NNUE "mix9svq" (CC0, ~10 MB; Renju 2 file) chỉ tải khi bắt đầu ván với BOAT – thử `rapfi/nets/` trên máy chủ,
     rồi jsDelivr, rồi GitHub raw (fork của mình trước, kho gốc sau) – giữ trong Cache Storage `caro-rapfi-nets-v1` (sw.js không xoá), lần sau không tải lại.
   - Bàn vô hạn → bàn Rapfi (tự do 20×20, tiêu chuẩn / Renju 15×15): mỗi nước đặt khung bao các quân vào giữa, chừa ≥ 1 ô

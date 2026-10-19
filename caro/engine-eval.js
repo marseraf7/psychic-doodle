@@ -8,6 +8,7 @@
   'use strict';
   const CP = global.CaroPosition || (typeof require === 'function' ? require('./engine-position.js') : null);
   const { EMPTY, X, O, DX, DY } = CP.K;
+  const POP = Array.from({ length: 32 }, (_, m) => (m & 1) + ((m >> 1) & 1) + ((m >> 2) & 1) + ((m >> 3) & 1) + ((m >> 4) & 1)); // số bit
 
   // Trọng số chấm điểm thế cờ theo từng luật. Cửa sổ 5 ô một màu có k quân → a5[k] nếu là quân của bên tới lượt
   // ("thế của mình"), d5[k] nếu là quân đối thủ ("thế của đối thủ"); cửa sổ 6 ô hai đầu trống, 4 ô giữa một màu: a6 / d6.
@@ -38,11 +39,12 @@
     // ---- điểm thế cờ: các cửa sổ chịu ảnh hưởng khi ô (cx, cy) đổi
     /**
      * Ô (cx, cy) sắp đổi thành v (chưa đặt): trừ điểm các cửa sổ qua ô theo giá trị hiện tại rồi cộng lại theo v, vào
-     * this.acc. Đọc 13 ô trên mỗi đường một lần cho cả hai lượt (trọng số là số nguyên nên thứ tự cộng không đổi kết quả).
+     * this.acc. Mỗi đường đọc 13 ô một lần thành hai mặt nạ bit (quân X / quân O, bit j = ô ở độ lệch j − 6); đếm quân
+     * trong cửa sổ bằng bảng POP thay cho vòng đếm từng ô. Thứ tự cộng như cũ (trọng số là số nguyên nên kết quả y hệt).
      */
     windowsSwap(cx, cy, v) {
       // Cửa sổ 5 ô: một màu, k quân (luật Việt Nam: bị chặn hai đầu = 0); cửa sổ 6 ô hai đầu trống, 4 ô giữa một màu
-      const L = this._line, vn = this.rule === 'vn', acc = this.acc, E = this.ev;
+      const vn = this.rule === 'vn', acc = this.acc, E = this.ev;
       const a5 = E.a5, d5 = E.d5, a6 = E.a6, d6 = E.d6;
       const W = this.W, H = this.H, cells = this.cells;
       for (let d = 0; d < 4; d++) {
@@ -51,31 +53,32 @@
         let k0 = -6, k1 = 6;
         if (dx) { if (-cx > k0) k0 = -cx; if (W - 1 - cx < k1) k1 = W - 1 - cx; }
         if (dy > 0) { if (-cy > k0) k0 = -cy; if (H - 1 - cy < k1) k1 = H - 1 - cy; } else if (dy < 0) { if (cy - H + 1 > k0) k0 = cy - H + 1; if (cy < k1) k1 = cy; }
-        if (k0 > -6 || k1 < 6) L.fill(EMPTY);
-        for (let k = k0, i = (cy + k0 * dy) * W + cx + k0 * dx; k <= k1; k++, i += step) L[k + 6] = cells[i];
+        let xm = 0, om = 0;
+        for (let k = k0, i = (cy + k0 * dy) * W + cx + k0 * dx; k <= k1; k++, i += step) {
+          const c = cells[i];
+          if (c === X) xm |= 1 << (k + 6); else if (c === O) om |= 1 << (k + 6);
+        }
         for (let pass = 0, sign = -1; pass < 2; pass++, sign = 1) {
-          if (pass) L[6] = v;
-          // Cửa sổ 5 ô L[b..b+4], b = 1..7 (đầu ngoài: L[b-1], L[b+5])
-          let x = 0, o = 0;
-          for (let k = 1; k <= 5; k++) { const c = L[k]; if (c === X) x++; else if (c === O) o++; }
+          if (pass) { xm &= ~64; om &= ~64; if (v === X) xm |= 64; else if (v === O) om |= 64; }
+          // Cửa sổ 5 ô bit b..b+4, b = 1..7 (đầu ngoài: bit b−1, b+5)
           for (let b = 1; b <= 7; b++) {
-            if (b > 1) {
-              const out = L[b - 1], inn = L[b + 4];
-              if (out === X) x--; else if (out === O) o--;
-              if (inn === X) x++; else if (inn === O) o++;
+            const x5 = (xm >> b) & 31, o5 = (om >> b) & 31;
+            if (x5 ? o5 : !o5) continue; // hai màu, hoặc trống
+            if (x5) {
+              if (vn && ((om >> (b - 1)) & 1) && ((om >> (b + 5)) & 1)) continue; // luật Việt Nam: bị chặn hai đầu
+              const n = POP[x5]; acc[0] += sign * a5[n]; acc[1] += sign * d5[n];
+            } else {
+              if (vn && ((xm >> (b - 1)) & 1) && ((xm >> (b + 5)) & 1)) continue;
+              const n = POP[o5]; acc[2] += sign * a5[n]; acc[3] += sign * d5[n];
             }
-            if ((x && o) || (!x && !o)) continue;
-            const q = x ? O : X;
-            if (vn && L[b - 1] === q && L[b + 5] === q) continue; // luật Việt Nam: bị chặn hai đầu
-            if (x) { acc[0] += sign * a5[x]; acc[1] += sign * d5[x]; } else { acc[2] += sign * a5[o]; acc[3] += sign * d5[o]; }
           }
-          // Cửa sổ 6 ô L[b..b+5], b = 1..6: hai đầu trống, 4 ô giữa một màu
+          // Cửa sổ 6 ô bit b..b+5, b = 1..6: hai đầu trống, 4 ô giữa một màu
+          const occ = xm | om;
           for (let b = 1; b <= 6; b++) {
-            if (L[b] !== EMPTY || L[b + 5] !== EMPTY) continue;
-            let x6 = 0, o6 = 0;
-            for (let k = 1; k < 5; k++) { const c = L[b + k]; if (c === X) x6++; else if (c === O) o6++; }
-            if ((x6 && o6) || (!x6 && !o6)) continue;
-            if (x6) { acc[0] += sign * a6[x6]; acc[1] += sign * d6[x6]; } else { acc[2] += sign * a6[o6]; acc[3] += sign * d6[o6]; }
+            if (((occ >> b) & 1) || ((occ >> (b + 5)) & 1)) continue;
+            const x4 = (xm >> (b + 1)) & 15, o4 = (om >> (b + 1)) & 15;
+            if (x4 ? o4 : !o4) continue;
+            if (x4) { const n = POP[x4]; acc[0] += sign * a6[n]; acc[1] += sign * d6[n]; } else { const n = POP[o4]; acc[2] += sign * a6[n]; acc[3] += sign * d6[n]; }
           }
         }
       }
@@ -87,7 +90,6 @@
     /** Điểm thế cờ theo bên tới lượt: thế của mình (trọng số công) trừ thế của đối thủ (trọng số thủ) + lợi thế được đi. */
     evaluate() {
       const st = this.style, acc = this.acc, tempo = this.ev.tempo;
-      if (!this.win5) return this.evalLines(st, tempo);
       if (st.a === 1 && st.d === 1) {
         const s = this.side;
         return Math.round(s === X ? acc[0] - acc[3] : acc[2] - acc[1]) + this.patScore(s, true) - this.patScore(3 - s, false) + tempo;
@@ -97,30 +99,6 @@
       const rs = this.rootSide || this.side;
       const mine = (rs === X ? acc[0] : acc[2]) + this.patScore(rs, rs === this.side);
       const theirs = (rs === X ? acc[3] : acc[1]) + this.patScore(3 - rs, rs !== this.side);
-      const e = Math.round(st.a * mine - st.d * theirs);
-      return (this.side === rs ? e : -e) + tempo;
-    }
-    /**
-     * Chấm theo số (ô trống, hướng) có từng mẫu đường (lcnt – cập nhật dần trong refreshWins, khỏi tính cửa sổ 5 / 6 ô mỗi
-     * nước): la[t] cho mẫu của bên tới lượt, ld[t] cho mẫu của đối thủ, cộng mẫu chéo (patScore) và tempo – như cách chấm
-     * cổ điển của Rapfi theo mẫu. Trọng số học từ ván Rapfi-CARO tự đấu (server/scripts/tune-lines.js).
-     */
-    lineScore(p, w) {
-      const c = this.lcnt[p];
-      let s = 0;
-      for (let t = 1; t < 9; t++) s += w[t] * c[t];
-      return s;
-    }
-    evalLines(st, tempo) {
-      const E = this.ev;
-      if (st.a === 1 && st.d === 1) {
-        const s = this.side, q = 3 - s;
-        return Math.round(this.lineScore(s, E.la) - this.lineScore(q, E.ld)) + this.patScore(s, true) - this.patScore(q, false) + tempo;
-      }
-      // Lối đánh: như evaluate (thế mình theo trọng số công, thế đối thủ theo trọng số thủ, góc nhìn bên ở gốc)
-      const rs = this.rootSide || this.side;
-      const mine = this.lineScore(rs, E.la) + this.patScore(rs, rs === this.side);
-      const theirs = this.lineScore(3 - rs, E.ld) + this.patScore(3 - rs, rs !== this.side);
       const e = Math.round(st.a * mine - st.d * theirs);
       return (this.side === rs ? e : -e) + tempo;
     }
