@@ -20,6 +20,7 @@ const http = require('http');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const { Store } = require('./src/store.js');
+const { EvalCache } = require('./src/evalcache.js');
 const { Hub, verifyGoogleToken } = require('./src/hub.js');
 const { makeHandler, clientIp, fromProxy } = require('./src/web.js');
 
@@ -49,6 +50,8 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
   updateUrls = { android: process.env.ANDROID_UPDATE_URL || '', ios: process.env.IOS_UPDATE_URL || '' } } = {}) {
   // dataFile = null: chỉ lưu trong bộ nhớ (test). Còn file db.json của bản cũ thì tự nhập một lần.
   const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
+  // Khoá bí mật cho mã người gửi điểm phân tích (src/evalcache.js) – file riêng cạnh caro.db, không nằm trong bản sao lưu CSDL
+  if (dataFile) EvalCache.useKeyFile(path.join(path.dirname(dataFile), 'eval-key'));
   const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, ...(timers ? { timers } : {}) });
   const server = http.createServer(makeHandler({ store, hub }));
   // Nén tin lớn (trang giải, danh sách…) – JSON nén còn khoảng 1/10. Tin nhỏ (nước đi) không nén cho nhanh.

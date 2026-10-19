@@ -269,6 +269,10 @@ sqlite3 /var/lib/caro/caro.db ".backup '/root/caro-$(date +%F).db'"
 Hoặc dừng máy chủ rồi chép cả thư mục. Nâng cấp từ bản cũ dùng `db.json`: lần đầu chạy
 máy chủ tự nhập vào `caro.db` và đổi tên file cũ thành `db.json.imported`.
 
+`DATA_DIR/eval-key` (khoá bí mật cho mã người gửi điểm phân tích – xem *Bảo mật đã có*) cố ý nằm ngoài `caro.db`: lệnh
+`.backup` ở trên không chép nó. Chuyển máy chủ thì chép file này riêng (quyền 600), cất tách khỏi các bản sao lưu CSDL;
+không có nó máy chủ vẫn chạy, chỉ là các lần gửi điểm cũ không còn gắn được với tài khoản (tự hết hạn sau 30 ngày).
+
 ### Giao diện ở nơi khác, máy chủ ở nơi khác
 
 Nếu muốn giữ giao diện trên GitHub Pages, sửa `caro/config.js`:
@@ -284,9 +288,13 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
 
 - **Bộ nhớ chấm Rapfi dùng chung** (`evalGet` / `evalPut`, `src/evalcache.js`): chỉ tài khoản đã đăng nhập, tạo ≥ 1 ngày
   mới được gửi; mỗi lần ≤ 200 thế, 1 lần / 2 giây, 3.000 thế / giờ; kiểm khoá thế, nước, điểm trước khi lưu. Một thế chỉ được
-  trả cho người khác khi 2 tài khoản khác nhau gửi kết quả khớp (cùng số nút, khả năng thắng lệch ≤ 4% hoặc cùng chiều thắng
-  chắc). Người gửi lưu dạng băm SHA-256 (không lưu id), bản gửi giữ 30 ngày, xoá tài khoản thì xoá luôn; bộ nhớ tối đa
-  300 nghìn thế (bỏ thế lâu không dùng).
+  trả cho người khác khi 2 tài khoản khác nhau gửi kết quả khớp (cùng số nút, **cùng nước tốt nhất**, khả năng thắng lệch
+  ≤ 4% hoặc cùng chiều thắng chắc) – một tài khoản chép đúng điểm mà kèm nước sai không đầu độc được; hai tài khoản thông
+  đồng thì vẫn được. Người gửi lưu dạng HMAC-SHA256 của id tài khoản (không lưu id); khoá bí mật 32 byte ở file
+  `DATA_DIR/eval-key` (tạo ở lần chạy đầu, quyền 600, **không** nằm trong `caro.db` nên bản sao lưu CSDL bị lộ cũng không dò
+  ngược được ai gửi). Mất file khoá thì xoá tài khoản không tìm được các lần gửi cũ (chúng tự hết hạn sau 30 ngày); file
+  khoá hỏng thì máy chủ không khởi động (không tự tạo khoá mới). Bản gửi giữ 30 ngày, xoá tài khoản thì xoá luôn; bộ nhớ
+  tối đa 300 nghìn thế (bỏ thế lâu không dùng).
 
 - Mật khẩu băm scrypt; token đăng nhập và mã đặt lại mật khẩu chỉ lưu dạng băm SHA-256.
 - Quên mật khẩu: luôn trả lời giống nhau dù tài khoản có tồn tại hay không; mã 6 số hết hạn sau

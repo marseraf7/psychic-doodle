@@ -7,15 +7,18 @@
  *     khách; thế không hợp lệ (nước trùng, đã có người thắng, quá lớn) bị bỏ;
  *   - mỗi điểm gắn với bản engine (ENGINE) và số nút đã chấm (phân tích chấm theo số nút – rapfi-analysis.js – nên máy
  *     khách trung thực ra cùng kết quả);
- *   - chỉ phát cho người khác khi ít nhất 2 tài khoản khác nhau gửi kết quả khớp nhau (cùng số nút, cùng thắng / thua chắc
- *     hoặc khả năng thắng lệch ≤ AGREE) – một người gửi điểm sai không làm hỏng được bộ nhớ;
- *   - người gửi lưu dạng băm (who = SHA-256 của id tài khoản), xoá tài khoản thì xoá luôn; giới hạn số dòng và thời hạn.
+ *   - chỉ phát cho người khác khi ít nhất 2 tài khoản khác nhau gửi kết quả khớp nhau: cùng số nút, **cùng nước tốt nhất**
+ *     và cùng thắng / thua chắc hoặc khả năng thắng lệch ≤ AGREE – một người gửi sai (kể cả gửi đúng điểm mà kèm nước
+ *     sai) không làm hỏng được bộ nhớ; hai tài khoản thông đồng thì vẫn được (hub/evals.js chỉ nhận tài khoản ≥ 1 ngày);
+ *   - người gửi lưu dạng mã HMAC-SHA256 của id tài khoản, khoá bí mật nằm ngoài caro.db (file DATA_DIR/eval-key –
+ *     useKeyFile): lộ bản sao CSDL cũng không dò ngược được ai gửi; xoá tài khoản thì xoá luôn; giới hạn số dòng và thời hạn.
  *   new EvalCache(db).lookup(rule, eng, nodes, list) → [{ i, move, score, mate }]
  *   .submit(who, rule, eng, nodes, items)           → { accepted, confirmed } · items: [{ moves, move, score, mate }]
- *   EvalCache.who(uid) · .dropWho(who) · .prune(now)
+ *   EvalCache.useKeyFile(file) · EvalCache.who(uid) · .dropWho(who) · .prune(now)
  */
 'use strict';
 const crypto = require('crypto');
+const fs = require('fs');
 const C = require('../../caro/rules.js');
 const K = require('../../caro/eval-key.js');
 
@@ -52,11 +55,19 @@ function validResult(b, r) {
   return true;
 }
 
+// Nước tốt nhất (toạ độ thế chuẩn): mảng [x, y] hoặc chuỗi JSON như lưu trong bảng
+const moveKey = (m) => (typeof m === 'string' ? m : JSON.stringify(m));
 const agree = (a, b) => {
+  if (moveKey(a.move) !== moveKey(b.move)) return false; // điểm khớp mà nước khác: không tin (nước là thứ người xem thấy)
   const ma = a.mate || 0, mb = b.mate || 0;
   if (ma || mb) return Math.sign(ma) === Math.sign(mb) && ma !== 0 && mb !== 0;
   return Math.abs(winChance(a.score) - winChance(b.score)) <= AGREE;
 };
+
+// Khoá HMAC cho mã người gửi. Mặc định ngẫu nhiên theo tiến trình (test, máy chủ không lưu file); máy chủ thật đọc / tạo
+// file DATA_DIR/eval-key (server.js) để mã giữ nguyên qua các lần khởi động – nếu không, xoá tài khoản không tìm được
+// các lần gửi cũ của người đó (chỉ còn chờ hết hạn SUB_DAYS)
+let KEY = crypto.randomBytes(32);
 
 class EvalCache {
   constructor(db) {
@@ -79,9 +90,31 @@ class EvalCache {
     };
   }
 
-  /** Mã người gửi (băm của id tài khoản – không lưu id thật). */
+  /**
+   * Dùng khoá trong file (tạo mới nếu chưa có: 32 byte ngẫu nhiên, quyền 600). File hỏng thì báo lỗi, không tự tạo lại
+   * (tạo lại = mất liên kết với các lần gửi cũ). Không nằm trong caro.db nên bản sao lưu CSDL không chứa khoá.
+   */
+  static useKeyFile(file) {
+    let hex;
+    try {
+      hex = fs.readFileSync(file, 'utf8').trim();
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+      hex = crypto.randomBytes(32).toString('hex');
+      try {
+        fs.writeFileSync(file, hex + '\n', { flag: 'wx', mode: 0o600 });
+      } catch (e2) {
+        if (e2.code !== 'EEXIST') throw e2;
+        hex = fs.readFileSync(file, 'utf8').trim(); // tiến trình khác vừa tạo
+      }
+    }
+    if (!/^[0-9a-f]{64}$/.test(hex)) throw new Error('evalcache: file khoá hỏng ' + file);
+    KEY = Buffer.from(hex, 'hex');
+  }
+
+  /** Mã người gửi: HMAC-SHA256(khoá bí mật, id tài khoản) – không lưu id thật, không tính ngược được khi không có khoá. */
   static who(uid) {
-    return crypto.createHash('sha256').update('caro-eval:' + uid).digest('hex').slice(0, 32);
+    return crypto.createHmac('sha256', KEY).update(String(uid)).digest('hex').slice(0, 32);
   }
 
   static ok(rule, eng, nodes, list) {

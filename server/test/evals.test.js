@@ -88,10 +88,33 @@ test('EvalCache: không khớp thì không phát; dữ liệu sai bị từ ch�
   assert.deepStrictEqual(ec.submit(a, 'gomoku', eng, n, [{ moves: GAME, move: [0, 1], score: 0, mate: null }]).accepted, 0);
   assert.deepStrictEqual(ec.submit(a, 'vn', eng, n, Array(201).fill({ moves: GAME, move: [0, 1], score: 0, mate: null })).accepted, 0, 'quá nhiều thế');
   assert.strictEqual(position('vn', [[0, 0], [0, 0]]), null);
-  // Thắng / thua chắc: khớp khi cùng dấu
-  assert.ok(agree({ score: 999990, mate: 5 }, { score: 999980, mate: 10 }));
-  assert.ok(!agree({ score: 999990, mate: 5 }, { score: 300, mate: null }));
-  assert.ok(agree({ score: 10, mate: null }, { score: 60, mate: null }));
+  // Thắng / thua chắc: khớp khi cùng dấu (và cùng nước)
+  const m = [0, 1];
+  assert.ok(agree({ move: m, score: 999990, mate: 5 }, { move: '[0,1]', score: 999980, mate: 10 }));
+  assert.ok(!agree({ move: m, score: 999990, mate: 5 }, { move: m, score: 300, mate: null }));
+  assert.ok(agree({ move: m, score: 10, mate: null }, { move: m, score: 60, mate: null }));
+  assert.ok(!agree({ move: m, score: 10, mate: null }, { move: [1, 0], score: 10, mate: null }), 'cùng điểm, khác nước');
+  assert.ok(!agree({ move: m, score: 999990, mate: 5 }, { move: '[2,2]', score: 999990, mate: 5 }), 'cùng thắng chắc, khác nước');
+});
+
+test('EvalCache: một tài khoản gửi đúng điểm mà kèm nước sai không đầu độc được bộ nhớ', () => {
+  const ec = new EvalCache(openDb(null));
+  const eng = K.ENGINE, n = 5000, a = EvalCache.who('that'), bad = EvalCache.who('xau'), c = EvalCache.who('ba');
+  ec.submit(a, 'vn', eng, n, [{ moves: GAME, move: [0, 1], score: 120, mate: null }]);
+  // Kẻ gian chép đúng điểm của kết quả thật nhưng đưa nước khác (ô trống hợp lệ)
+  assert.deepStrictEqual(ec.submit(bad, 'vn', eng, n, [{ moves: GAME, move: [5, 5], score: 120, mate: null }]), { accepted: 1, confirmed: 0 });
+  assert.deepStrictEqual(ec.lookup('vn', eng, n, [GAME]), []);
+  // Thắng chắc giả cũng vậy
+  ec.submit(a, 'vn', eng, n, [{ moves: GAME.slice(0, 3), move: [2, 2], score: 999990, mate: 5 }]);
+  assert.strictEqual(ec.submit(bad, 'vn', eng, n, [{ moves: GAME.slice(0, 3), move: [4, 4], score: 999990, mate: 5 }]).confirmed, 0);
+  // Người thứ ba trung thực (cùng nước, điểm lệch ít): xác nhận – nước phát ra là nước thật
+  assert.strictEqual(ec.submit(c, 'vn', eng, n, [{ moves: GAME, move: [0, 1], score: 125, mate: null }]).confirmed, 1);
+  const hit = ec.lookup('vn', eng, n, [GAME]);
+  assert.deepStrictEqual(hit.map((h) => h.move), [[0, 1]]);
+  // Kẻ gian gửi lại khớp với chính nước sai của mình bằng tài khoản khác thì mới được: cần 2 tài khoản thông đồng
+  // (ghi trong evalcache.js); một mình thì nước thật vẫn giữ nguyên
+  assert.strictEqual(ec.submit(bad, 'vn', eng, n, [{ moves: GAME, move: [5, 5], score: 125, mate: null }]).confirmed, 0);
+  assert.deepStrictEqual(ec.lookup('vn', eng, n, [GAME]).map((h) => h.move), [[0, 1]]);
 });
 
 test('EvalCache: xoá theo người gửi, dọn lần gửi quá hạn', () => {

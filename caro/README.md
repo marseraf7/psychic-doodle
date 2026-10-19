@@ -252,12 +252,16 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     Việt Nam 555K, tự do 99K, tiêu chuẩn 106K, Renju 91K nút / giây), cả ván một khung cố định trên bàn Rapfi, bảng băm xoá
     ở thế đầu rồi giữ suốt ván. Đo (`server/scripts/rapfi/an-bench-rapfi.js`, 300 ms / thế, so với chấm ×8 nút), theo giờ →
     theo số nút: trùng chuẩn Việt Nam 81,5 → 80,5% (12 ván), tự do 89,4 → 87,8% (24 ván) – trong sai số đo; hai lần chạy cùng
-    xếp loại 89–96% → **100%** (máy nhanh / chậm chỉ khác lúc xong). Xoá bảng băm mỗi thế kém hơn (79,1%).
+    xếp loại 89–96% → **100%** khi Rapfi chạy một luồng (máy nhanh / chậm chỉ khác lúc xong); bản đa luồng – mặc định trên
+    Chrome / Edge máy tính – chia số nút cho các luồng mỗi lần một khác nên có thể lệch chút. Xoá bảng băm mỗi thế kém hơn
+    (79,1%).
     **Bộ nhớ chấm dùng chung** (`eval-key.js`, `eval-cloud.js`; máy chủ `server/src/evalcache.js`): khi đã đăng nhập, các thế
     đã có người chấm (cùng phiên bản Rapfi + mạng, cùng số nút; khoá chuẩn hoá dời / xoay / lật) lấy từ máy chủ thay vì chấm
-    lại; thế chấm mới gửi lên. Máy chủ chỉ trả một thế khi **2 tài khoản khác nhau** (tạo ≥ 1 ngày) gửi kết quả khớp (khả năng
-    thắng lệch ≤ 4% hoặc cùng chiều thắng chắc) – một người gửi sai không làm hỏng được; người gửi lưu dạng băm, 30 ngày, xoá
-    khi xoá tài khoản; giới hạn 3.000 thế / giờ mỗi tài khoản. Chưa đăng nhập: không gửi gì (`privacy.html`).
+    lại; thế chấm mới gửi lên. Máy chủ chỉ trả một thế khi **2 tài khoản khác nhau** (tạo ≥ 1 ngày) gửi kết quả khớp: **cùng
+    nước tốt nhất** và khả năng thắng lệch ≤ 4% (hoặc cùng chiều thắng chắc) – một người gửi sai, kể cả chép đúng điểm mà kèm
+    nước sai, không làm hỏng được; hai tài khoản thông đồng thì vẫn được. Người gửi lưu dạng mã HMAC của id tài khoản (khoá
+    bí mật ở file riêng `DATA_DIR/eval-key`, không nằm trong `caro.db` / bản sao lưu), 30 ngày, xoá khi xoá tài khoản; giới
+    hạn 3.000 thế / giờ mỗi tài khoản. Chưa đăng nhập: không gửi gì (`privacy.html`).
   - Giấy phép: trang `licenses.html` (Xem thêm / Cài đặt → *Giấy phép mã nguồn mở*, 4 ngôn ngữ) ghi công Rapfi, toàn văn
     GPL-3 (`rapfi/COPYING.txt`), mã nguồn đúng commit đang dùng (`rapfi/build/rapfi-src-3c94c2a.tar.gz`), cách dựng lại
     (`rapfi/build/build.sh`, `rapfi/SOURCE.md`). CSP máy chủ thêm `'wasm-unsafe-eval'` và 2 CDN của mạng.
