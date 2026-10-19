@@ -53,10 +53,10 @@
       this.style = { a: 1, d: 1, dbl: 0, trap: 0 }; // lối đánh (bots.js): trọng số thế mình / thế đối thủ, thưởng xếp nước
       // Mẫu đường (ô × 4 hướng) và mẫu chéo của mỗi ô trống cho X / O, kèm số ô theo từng mẫu chéo
       this.pat = [null, new Uint8Array(n * 4), new Uint8Array(n * 4)];
-      this.keyX = new Int32Array(n * 4); this.keyO = new Int32Array(n * 4); // mã 11 ô của (ô, hướng) – xem refreshWins
+      this.keyX = new Int32Array(n * 4); // mã 11 ô của (ô, hướng) theo góc nhìn X – xem refreshWins
       this.p4 = [null, new Uint8Array(n), new Uint8Array(n)];
       this.p4cnt = [null, new Int32Array(13), new Int32Array(13)];
-      this.ptab = [null, PT.table(this.rule, true), PT.table(this.rule, false)];
+      this.ptab = [null, PT.table(this.rule, true), PT.table(this.rule, false, true)]; // bảng của O tra theo mã góc nhìn X
       this._stamp = new Int32Array(n); this._stampN = 1; this._touched = [];
       this.stack = [];
       this._line = new Int8Array(13);
@@ -98,12 +98,13 @@
     // ---- cập nhật ô thắng trên 4 đường qua (cx, cy): ô khác trên đường d chỉ có thể đổi theo hướng d
     refreshWins(cx, cy, p, sign) {
       // Mỗi (ô, hướng) giữ sẵn mã 11 ô quanh nó (cơ số 3; quân ở độ lệch j so với ô có trọng số 3^(5+j)) theo góc nhìn X
-      // (chữ số = giá trị ô) và O (đổi 1 ↔ 2): đặt / lùi quân p ở (cx, cy) chỉ cộng / trừ một chữ số vào mã của 11 ô trên mỗi
-      // đường. Mẫu đường của ô trống tra bảng theo mã (engine-patterns.js); ô thắng = mẫu F5 (khớp winDir, đã kiểm trên ván thật).
+      // (chữ số = giá trị ô): đặt / lùi quân p ở (cx, cy) chỉ cộng / trừ một chữ số vào mã của 11 ô trên mỗi đường. Mẫu đường
+      // của ô trống tra bảng theo mã (engine-patterns.js; bảng của O tra thẳng mã góc nhìn X – khỏi giữ mã thứ hai); ô thắng =
+      // mẫu F5 (khớp winDir, đã kiểm trên ván thật).
       const W = this.W, H = this.H, rule = this.rule, cells = this.cells;
-      const patX = this.pat[X], patO = this.pat[O], tX = this.ptab[X], tO = this.ptab[O], keyX = this.keyX, keyO = this.keyO;
+      const patX = this.pat[X], patO = this.pat[O], tX = this.ptab[X], tO = this.ptab[O], keyX = this.keyX;
       const stamp = this._stamp, sn = this._stampN, touched = this._touched;
-      const vx = sign * p, vo = sign * SWAP[p];
+      const vx = sign * p;
       for (let d = 0; d < 4; d++) {
         const dx = DX[d], dy = DY[d], bit = 1 << d, step = dy * W + dx;
         // Khoảng k còn trong mảng (tính một lần thay vì kiểm từng ô)
@@ -112,11 +113,11 @@
         if (dy > 0) { if (-cy > k0) k0 = -cy; if (H - 1 - cy < k1) k1 = H - 1 - cy; } else if (dy < 0) { if (cy - H + 1 > k0) k0 = cy - H + 1; if (cy < k1) k1 = cy; }
         for (let k = k0, i = (cy + k0 * dy) * W + cx + k0 * dx; k <= k1; k++, i += step) {
           const pi = i * 4 + d, w = POW3[5 - k];
-          const kx = (keyX[pi] += vx * w), ko = (keyO[pi] += vo * w);
+          const kx = (keyX[pi] += vx * w);
           let px = 0, po = 0;
           if (cells[i] === EMPTY) {
             px = tX[kx]; if (px < 0) px = PT.lookup(tX, kx, rule, true);
-            po = tO[ko]; if (po < 0) po = PT.lookup(tO, ko, rule, false);
+            po = tO[kx]; if (po < 0) po = PT.lookup(tO, kx, rule, false, true);
           }
           const ox = patX[pi], oo = patO[pi];
           // Mẫu không đổi thì ô thắng / mẫu chéo của ô này (theo hướng d) cũng không đổi: bỏ qua

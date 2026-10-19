@@ -230,10 +230,11 @@
       let d, k;
       if (!dy) { d = 0; k = dx; } else if (!dx) { d = 1; k = dy; } else if (dx === dy) { d = 2; k = dx; } else if (dx === -dy) { d = 3; k = dx; } else return this.p4[q][c];
       if (k < -5 || k > 5) return this.p4[q][c];
-      // Mã 11 ô của đường d qua c theo góc nhìn q (giữ sẵn – xem refreshWins), thêm quân b ở ô e (độ lệch k, đang trống)
-      const key = (q === X ? this.keyX : this.keyO)[c * 4 + d] + (b === q ? 1 : 2) * POW3[5 + k];
+      // Mã 11 ô của đường d qua c theo góc nhìn X (giữ sẵn – xem refreshWins), thêm quân b ở ô e (độ lệch k, đang trống);
+      // bảng của O tra thẳng mã góc nhìn X
+      const key = this.keyX[c * 4 + d] + b * POW3[5 + k];
       const T = this.ptab[q];
-      let np = T[key]; if (np < 0) np = PT.lookup(T, key, this.rule, q === X);
+      let np = T[key]; if (np < 0) np = PT.lookup(T, key, this.rule, q === X, q !== X);
       const pt = this.pat[q], base = c * 4;
       const a = d === 0 ? np : pt[base], b1 = d === 1 ? np : pt[base + 1], c2 = d === 2 ? np : pt[base + 2], d3 = d === 3 ? np : pt[base + 3];
       return PT.COMBO[a * 729 + b1 * 81 + c2 * 9 + d3];

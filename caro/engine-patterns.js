@@ -121,17 +121,18 @@
   // Dùng cả 11 ô để engine tính mã kiểu "trượt" (bỏ một chữ số đầu, thêm một chữ số cuối) khi đi dọc một đường.
   const KEYS = 177147; // 3^11
   const tables = {};
-  function table(rule, isX) {
-    const name = rule === 'renju' ? (isX ? 'renjuX' : 'renjuO') : rule;
+  // viaX: bảng của bên O tra theo mã góc nhìn X (chữ số 1 = X, 2 = O) – engine chỉ cần giữ một mã cho mỗi (ô, hướng)
+  function table(rule, isX, viaX) {
+    const name = (rule === 'renju' ? (isX ? 'renjuX' : 'renjuO') : rule) + (viaX && !isX ? '@x' : '');
     return tables[name] || (tables[name] = new Int8Array(KEYS).fill(-1));
   }
   const buf = new Int8Array(N);
-  /** Mẫu đường theo mã (đã ghi nhớ). */
-  function lookup(T, key, rule, isX) {
+  /** Mẫu đường theo mã (đã ghi nhớ). swap: mã theo góc nhìn đối thủ (bảng viaX của O) – đổi 1 ↔ 2 trước khi xếp loại. */
+  function lookup(T, key, rule, isX, swap) {
     let v = T[key];
     if (v >= 0) return v;
     let k = key;
-    for (let i = 0; i < N; i++) { buf[i] = k % 3; k = (k - buf[i]) / 3; }
+    for (let i = 0; i < N; i++) { buf[i] = k % 3; k = (k - buf[i]) / 3; if (swap && buf[i]) buf[i] = 3 - buf[i]; }
     buf[C] = OWN; // quân vừa đặt ở ô giữa
     v = classify(buf, rule, isX);
     T[key] = v;
