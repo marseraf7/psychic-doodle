@@ -75,7 +75,8 @@ jobs:
   android-e2e:
     # Android 14 (API 34) và Android 15 (API 35 – bắt buộc tràn viền): kiểm tra thanh hệ thống, bàn phím
     name: Android ${{ matrix.api }} – chơi chéo app ⟷ web trên máy ảo
-    runs-on: ubuntu-latest
+    # Ghim 24.04: ubuntu-latest đã lên 26.04, Playwright 1.56.1 không cài được trình duyệt trên bản này
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false

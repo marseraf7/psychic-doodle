@@ -26,7 +26,8 @@ jobs:
   # BOAT chạy Rapfi (WebAssembly) trong trình duyệt thật: 3 luật, luật Việt Nam, bộ nhớ đệm mạng, phân tích bằng Rapfi,
   # mạng hỏng, trang giấy phép (caro/tests/e2e/boat-rapfi.e2e.js); Lịch sử đấu trên máy + Thiết bị (localhist.e2e.js). Mạng NNUE (CC0, ~40 MB) tải 1 lần rồi giữ trong cache.
   rapfi-e2e:
-    runs-on: ubuntu-latest
+    # Ghim 24.04: ubuntu-latest đã lên 26.04, Playwright 1.56.1 không cài được trình duyệt trên bản này
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
