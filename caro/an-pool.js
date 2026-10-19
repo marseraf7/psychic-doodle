@@ -147,5 +147,11 @@
     return ev;
   }
 
-  window.CaroAnPool = { evaluate, cancel, get size() { return size(); }, get remembered() { return memo.size; } };
+  /** Tạo sẵn các Worker (vd. vừa hết ván – live-analysis.js): bấm Phân tích khỏi chờ Worker nạp engine; rảnh thì tự dừng. */
+  function warm() {
+    if (pending.size || workers.length >= size()) return;
+    if (ensure()) idleLater();
+  }
+
+  window.CaroAnPool = { evaluate, cancel, warm, get size() { return size(); }, get remembered() { return memo.size; } };
 })();

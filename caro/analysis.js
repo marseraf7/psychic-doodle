@@ -121,9 +121,9 @@
 
   // Phân tích ván chấm mỗi thế theo số nút, không theo giờ (engine-search.js): kết quả chỉ phụ thuộc thế cờ và ms – cùng
   // một ván cho cùng kết quả trên mọi máy / trình duyệt, chấm trên 1 hay nhiều Worker, theo thứ tự nào cũng vậy (mỗi thế
-  // một bảng nhớ mới). NODES_PER_MS: tốc độ trung vị đo trên Node / Chromium (~130 nút / ms) → máy thường xong đúng ms;
-  // máy quá chậm dừng ở CAP × ms, ít nhất CAP_MIN ms (khi đó kết quả mới tuỳ máy).
-  const NODES_PER_MS = 120, CAP = 5, CAP_MIN = 1000;
+  // một bảng nhớ mới). NODES_PER_MS: tốc độ trung vị đo ở chế độ 200 ms (Chromium 136, WebKit 163, Node 157 nút / ms) → máy
+  // thường xong đúng ms; máy quá chậm dừng ở CAP × ms, ít nhất CAP_MIN ms (khi đó kết quả mới tuỳ máy).
+  const NODES_PER_MS = 130, CAP = 5, CAP_MIN = 1000;
   const evalOpts = (ms, rule) => ({ nodes: Math.round(ms * NODES_PER_MS), ms: Math.max(CAP_MIN, ms * CAP), rule, smooth: true });
   /** Chấm một thế cờ cho phân tích ván (bản gọn, xem slim). */
   const evaluate = (moves, ms, rule) => slim(engine().analyse(moves, evalOpts(ms, rule)), ms);

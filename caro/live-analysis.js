@@ -58,6 +58,8 @@
     } else if (c < g.moves.length) g.evals.length = c + 1; // đi lại / rẽ nhánh: bỏ các thế sau chỗ khác nhau
     g.moves = moves;
     g.busy = !!opts.busy;
+    // Vừa hết ván: tạo sẵn Worker của phân tích song song (an-pool.js) – bấm Phân tích là chấm ngay phần còn thiếu
+    if (opts.over && !g.over && window.CaroAnPool) window.CaroAnPool.warm();
     g.over = !!opts.over;
     if (g.busy && inflight) stop(); // máy bắt đầu nghĩ: dừng thế đang chấm dở để máy có trọn CPU
     // Hoãn một nhịp: app.js báo "máy đang nghĩ" ngay sau nước của người chơi – khỏi bắt đầu chấm rồi lại phải dừng
