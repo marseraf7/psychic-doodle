@@ -87,6 +87,7 @@
     /** Điểm thế cờ theo bên tới lượt: thế của mình (trọng số công) trừ thế của đối thủ (trọng số thủ) + lợi thế được đi. */
     evaluate() {
       const st = this.style, acc = this.acc, tempo = this.ev.tempo;
+      if (!this.win5) return this.evalLines(st, tempo);
       if (st.a === 1 && st.d === 1) {
         const s = this.side;
         return Math.round(s === X ? acc[0] - acc[3] : acc[2] - acc[1]) + this.patScore(s, true) - this.patScore(3 - s, false) + tempo;
@@ -96,6 +97,30 @@
       const rs = this.rootSide || this.side;
       const mine = (rs === X ? acc[0] : acc[2]) + this.patScore(rs, rs === this.side);
       const theirs = (rs === X ? acc[3] : acc[1]) + this.patScore(3 - rs, rs !== this.side);
+      const e = Math.round(st.a * mine - st.d * theirs);
+      return (this.side === rs ? e : -e) + tempo;
+    }
+    /**
+     * Chấm theo số (ô trống, hướng) có từng mẫu đường (lcnt – cập nhật dần trong refreshWins, khỏi tính cửa sổ 5 / 6 ô mỗi
+     * nước): la[t] cho mẫu của bên tới lượt, ld[t] cho mẫu của đối thủ, cộng mẫu chéo (patScore) và tempo – như cách chấm
+     * cổ điển của Rapfi theo mẫu. Trọng số học từ ván Rapfi-CARO tự đấu (server/scripts/tune-lines.js).
+     */
+    lineScore(p, w) {
+      const c = this.lcnt[p];
+      let s = 0;
+      for (let t = 1; t < 9; t++) s += w[t] * c[t];
+      return s;
+    }
+    evalLines(st, tempo) {
+      const E = this.ev;
+      if (st.a === 1 && st.d === 1) {
+        const s = this.side, q = 3 - s;
+        return Math.round(this.lineScore(s, E.la) - this.lineScore(q, E.ld)) + this.patScore(s, true) - this.patScore(q, false) + tempo;
+      }
+      // Lối đánh: như evaluate (thế mình theo trọng số công, thế đối thủ theo trọng số thủ, góc nhìn bên ở gốc)
+      const rs = this.rootSide || this.side;
+      const mine = this.lineScore(rs, E.la) + this.patScore(rs, rs === this.side);
+      const theirs = this.lineScore(3 - rs, E.ld) + this.patScore(3 - rs, rs !== this.side);
       const e = Math.round(st.a * mine - st.d * theirs);
       return (this.side === rs ? e : -e) + tempo;
     }
