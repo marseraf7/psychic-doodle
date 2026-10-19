@@ -5,6 +5,8 @@
  * CSP của máy chủ cho phép WebAssembly, trang giấy phép.
  *   RAPFI_NETS=<thư mục có mix9svq*.bin.lz4> node caro/tests/e2e/boat-rapfi.e2e.js
  * Có RAPFI_NETS thì trả file mạng từ thư mục đó thay cho CDN (máy không ra Internet); không có thì tải thật từ CDN.
+ * WebKit (Playwright không chặn được request của Worker): chép tạm các file đó vào caro/rapfi/nets/ (nguồn đầu tiên Worker
+ * thử – rapfi/worker.js), xoá khi xong – khỏi phụ thuộc CDN (CI: có lượt tải hỏng → luật đó tạm tắt Rapfi 1 phút).
  */
 'use strict';
 const fs = require('fs');
@@ -12,6 +14,20 @@ const path = require('path');
 const { setup } = require('./helpers');
 
 const NET_RE = /mix9svq.*\.bin\.lz4$/;
+
+if (process.env.RAPFI_NETS && process.env.E2E_BROWSER === 'webkit') {
+  const dir = path.join(__dirname, '../../rapfi/nets'), made = [], fresh = !fs.existsSync(dir);
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of fs.readdirSync(process.env.RAPFI_NETS).filter((f) => NET_RE.test(f))) {
+    const to = path.join(dir, f);
+    if (!fs.existsSync(to)) { fs.copyFileSync(path.join(process.env.RAPFI_NETS, f), to); made.push(to); }
+  }
+  // Chỉ xoá file mình chép (người triển khai có thể đặt sẵn mạng thật ở đây)
+  process.on('exit', () => {
+    for (const f of made) try { fs.unlinkSync(f); } catch (e) { /* đã xoá */ }
+    if (fresh) try { fs.rmdirSync(dir); } catch (e) { /* còn file khác */ }
+  });
+}
 
 (async () => {
   const port = 8098;
