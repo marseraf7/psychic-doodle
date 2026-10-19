@@ -34,7 +34,8 @@
    * Phân tích một thế cờ (moves: [[x, y], …], bên tới lượt = X nếu số nước chẵn).
    * opts: { ms (thời gian, mặc định 500), maxDepth (mặc định 20), tt (Map dùng lại giữa các lần gọi), rule,
    *         nodes (giới hạn theo số nút thay cho thời gian; ms khi đó là giới hạn cứng – xem engine-search.js),
-   *         smooth (điểm = trung bình hai lớp cuối – xem dưới), carry (máy đánh: dùng lại bảng ghi nhớ của nước trước) }.
+   *         smooth (điểm = trung bình hai lớp cuối – xem dưới), carry (máy đánh – bots.js: dùng lại bảng ghi nhớ của nước
+   *         trước; tự đấu 576 ván với bản không dùng: 54,5%) }.
    * Trả về { move: [x, y], score, depth, nodes, pv: [[x, y]…], mate: số nước tới thắng (+ bên tới lượt thắng, − thua) | null }.
    */
   function analyse(moves, opts) {
