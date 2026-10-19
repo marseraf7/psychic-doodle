@@ -117,7 +117,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   - `server/scripts/tune-eval.js` – học trọng số (hồi quy logistic, Adam; 80% học / 20% kiểm tra)
   - `server/scripts/build-book.js` – dựng sách khai cuộc (`book-data.js`): engine nghĩ 6 giây mỗi thế đầu ván
   - `server/scripts/bot-match.js` – đấu kiểm chứng (chỉ nhận trọng số / thay đổi nào thắng bản cũ); tham số `bal` dùng bộ
-    khai cuộc cân bằng
+    khai cuộc cân bằng; `SPRT=elo0,elo1` dừng sớm khi đủ chứng cứ (`server/scripts/sprt.js`: GSPRT như Fishtest, đếm theo
+    cặp ván đổi bên, in Elo ± khoảng tin cậy 95%). `server/scripts/rapfi/rapfi-match.js`: Rapfi tự đấu hai cách nghĩ
+  - `server/scripts/an-bench.js` – đo chất lượng phân tích; đã thử, không giữ: chấm thêm các nước sát ngưỡng xếp loại
+    (`refine@2` / `refine@3`: 88,4 / 88,7% so với 88,4%, tốn thêm 89 / 134% thời gian)
   - `server/scripts/gen-openings.js` – sinh bộ khai cuộc cân bằng (`openings.json`) cho tự đấu
   - `server/scripts/train-policy.js` – học chính sách nước đi từ ván (`policy-data.js`)
 
@@ -190,8 +193,20 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     thắng 42/64 ván (66%). Đã thử "kịch bản" (YXNBEST 3 nước dự đoán – trúng 85% – rồi chia thời gian nghĩ sẵn từng nước): 44%
     / 64 ván so với nghĩ trên thế người chơi tới lượt; dành 1/3 đào sâu nước dự đoán đầu (trúng ~73%): 50% / 48 ván – giữ
     cách đơn giản (cây tìm kiếm của nó đã gồm các nước dự đoán).
-  - **Phân tích hai Worker** (Rapfi 1 luồng): máy đủ RAM (không phải điện thoại) có thêm một Worker Rapfi – chấm hai thế cùng lúc, mỗi thế
-    gấp đôi thời gian (250 → 500 ms: độ sâu 16,1 → 17,9), tổng thời gian như cũ; tạo sẵn khi hết ván, rảnh 1 phút thì dừng.
+  - **Cách nghĩ mỗi nước** (`rapfi/brain.js`, dùng chung Worker và công cụ đo; học ý tưởng "ponderhit" và chia thời gian
+    của các engine cờ vua, không dùng mã của họ). Đo bằng `server/scripts/rapfi/rapfi-match.js` (Rapfi-CARO WebAssembly tự
+    đấu, 1 giây / nước, 96 khai cuộc × 2 ván đổi bên, SPRT); cả hai **chưa bật** (`PLAY` trong `boat-rapfi.js`) vì chưa thắng:
+    - *Đáp nhanh khi đoán trúng*: người chơi đi đúng nước Rapfi dự đoán lúc nghĩ trước (đã nghĩ ≥ thời gian một nước) thì
+      chỉ nghĩ thêm 30% – trúng 36%, TB 350 ms / nước (so với 564), nhưng Elo −21,7 [−53,6; 9,7] (192 ván).
+    - *Rapfi tự chia thời gian* theo quỹ giờ cả ván (Fischer: quỹ đầu 22 nước, mỗi nước cộng một lượt, kẹp 2 lượt … 3 lần
+      quỹ đầu; `INFO time_left` phải gửi sau cùng vì `timeout_turn` / `timeout_match` đặt lại quỹ): Elo +10,9 [−16,5; 38,4]
+      (192 ván) – chưa đủ chứng cứ.
+  - **Tự giảm tải** (`rapfi-load.js`): máy căng / nóng (Compute Pressure API – Chrome / Edge: `serious` → bớt nửa số luồng,
+    `critical` → 1 luồng) hoặc pin ≤ 20% không sạc (Battery Status API) → thôi nghĩ trước; hết căng thì trả lại số luồng
+    (`INFO thread_num` lúc đang chạy) và nghĩ tiếp đúng thế đang chờ. Trình duyệt không có các API này: như cũ.
+  - **Phân tích hai Worker**: máy đủ RAM (không phải điện thoại) có thêm một Worker Rapfi – chấm hai thế cùng lúc, mỗi
+    Worker một đoạn liền các thế (cố định, không tranh việc – kết quả lặp lại được), cùng số nút mỗi thế nên xong nhanh
+    gấp ~2; tạo sẵn khi hết ván, rảnh 1 phút thì dừng.
     Đã thử, không giúp: chấm ngược từ cuối ván, bảng băm 64 MB (độ sâu như nhau ở 250 ms / thế).
   - Engine của game – đã thử chấm điểm theo số ô từng mẫu đường thay cho cửa sổ 5 / 6 ô (học từ 1.421 ván Rapfi-CARO tự
     đấu, nhãn = điểm Rapfi): khớp điểm Rapfi hơn (sai số 0,598 so với 0,672) và đi / lùi nhanh gấp ~2, nhưng tự đấu cùng
@@ -226,6 +241,16 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     rộng hơn bàn Rapfi phải nhường engine của game, và mép bàn.
   - Phân tích ván: lượt kỹ do Rapfi chấm (`rapfi-analysis.js`; luật Việt Nam: Rapfi-CARO); thế sát mép bàn Rapfi có engine
     của game kiểm chuỗi ép cùng lúc; Rapfi đi ngay không in điểm (có nước thắng ngay / chỉ một nước) thì tự chấm.
+    Chấm theo **số nút** (`INFO max_node` = thời gian Rapfi thật nghĩ ~ms − 30 × tốc độ chuẩn WebAssembly 1 luồng theo luật:
+    Việt Nam 555K, tự do 99K, tiêu chuẩn 106K, Renju 91K nút / giây), cả ván một khung cố định trên bàn Rapfi, bảng băm xoá
+    ở thế đầu rồi giữ suốt ván. Đo (`server/scripts/rapfi/an-bench-rapfi.js`, 300 ms / thế, so với chấm ×8 nút), theo giờ →
+    theo số nút: trùng chuẩn Việt Nam 81,5 → 80,5% (12 ván), tự do 89,4 → 87,8% (24 ván) – trong sai số đo; hai lần chạy cùng
+    xếp loại 89–96% → **100%** (máy nhanh / chậm chỉ khác lúc xong). Xoá bảng băm mỗi thế kém hơn (79,1%).
+    **Bộ nhớ chấm dùng chung** (`eval-key.js`, `eval-cloud.js`; máy chủ `server/src/evalcache.js`): khi đã đăng nhập, các thế
+    đã có người chấm (cùng phiên bản Rapfi + mạng, cùng số nút; khoá chuẩn hoá dời / xoay / lật) lấy từ máy chủ thay vì chấm
+    lại; thế chấm mới gửi lên. Máy chủ chỉ trả một thế khi **2 tài khoản khác nhau** (tạo ≥ 1 ngày) gửi kết quả khớp (khả năng
+    thắng lệch ≤ 4% hoặc cùng chiều thắng chắc) – một người gửi sai không làm hỏng được; người gửi lưu dạng băm, 30 ngày, xoá
+    khi xoá tài khoản; giới hạn 3.000 thế / giờ mỗi tài khoản. Chưa đăng nhập: không gửi gì (`privacy.html`).
   - Giấy phép: trang `licenses.html` (Xem thêm / Cài đặt → *Giấy phép mã nguồn mở*, 4 ngôn ngữ) ghi công Rapfi, toàn văn
     GPL-3 (`rapfi/COPYING.txt`), mã nguồn đúng commit đang dùng (`rapfi/build/rapfi-src-3c94c2a.tar.gz`), cách dựng lại
     (`rapfi/build/build.sh`, `rapfi/SOURCE.md`). CSP máy chủ thêm `'wasm-unsafe-eval'` và 2 CDN của mạng.
@@ -245,7 +270,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   Phân tích: nước đã đi trùng nước tốt nhất của engine thì không bị chấm sai; mức tụt so với thế sau nước tốt nhất cùng độ sâu.
   Ký hiệu: Chưa chính xác `?!` (mới), Xuất sắc `!!` (tự tìm ra chuỗi thắng ≥ 3 nước),
   Tốt nhất `!`, Tốt, Bỏ lỡ `×` (có nước / chuỗi thắng mà không đi), Sai lầm `?` (để đối thủ có chuỗi ép thắng
-  trong khi có nước tránh được), Sai lầm nặng `??` (để thua sau 1–2 nước), Thế đã thua. Có độ chính xác (%) từng bên,
+  trong khi có nước tránh được), Sai lầm nặng `??` (để thua sau 1–2 nước), Thế đã thua, Nước duy nhất `□` (thế chưa ngã
+  ngũ mà lọc phòng thủ của engine chỉ còn đúng một nước giữ được, người chơi tìm ra – như Lichess / chess.com; chặn nước
+  bốn không tính). Có độ chính xác (%) từng bên – cả ván tính như Lichess: trung bình của (trung bình có trọng số theo độ
+  biến động khả năng thắng trong cửa sổ n/10 nước) và (trung bình điều hoà, mỗi nước ít nhất 1 điểm),
   dải màu từng nước, thời điểm quan trọng; trên bàn cờ đánh dấu loại nước và khoanh xanh nước tốt hơn.
   **Thử lại**: bày lại thế cờ trước nước sai để tự tìm nước đúng (máy kiểm tra và tự chặn).
 - **Giải đố** (`puzzles.js`, dữ liệu `puzzles.json`): tìm chuỗi nước ép thắng; máy tự chặn sau mỗi nước đúng.
@@ -405,7 +433,10 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `boat-rapfi.js`, `i18n-rapfi.js` | BOAT gọi Rapfi (Worker) ở 4 luật (luật Việt Nam: Rapfi-CARO): tải mạng khi cần, đặt thế vào bàn Rapfi, dự phòng engine của game |
 | `rapfi-board.js` | Đặt thế cờ lên bàn cố định của Rapfi (giữ khung giữa các nước), engine của game kiểm thế sát mép |
 | `rapfi-settings.js` | Ô "Rapfi đa luồng" trong Cài đặt; đo khung hình khi bản đa luồng chạy, máy giật thì gợi ý tắt |
-| `rapfi/` | Rapfi WebAssembly (GPL-3): `worker.js`, `rapfi-single-simd128.{js,wasm}`, `rapfi-caro-simd128.{js,wasm}` (Rapfi-CARO), mô hình cổ điển + `model-caro.bin`, `COPYING.txt`, `SOURCE.md`, `build/` (mã nguồn, bản vá Rapfi-CARO, cách dựng) |
+| `rapfi-load.js` | Tự giảm tải Rapfi: Compute Pressure + pin yếu → thôi nghĩ trước, bớt luồng |
+| `rapfi-analysis.js` | Phân tích ván bằng Rapfi theo số nút, hai Worker, nhãn "Nước duy nhất" |
+| `eval-key.js`, `eval-cloud.js` | Bộ nhớ chấm dùng chung: khoá thế chuẩn hoá (dời / xoay / lật, dùng chung máy chủ); hỏi / gửi máy chủ khi đã đăng nhập |
+| `rapfi/` | Rapfi WebAssembly (GPL-3): `worker.js`, `brain.js` (cách nghĩ mỗi nước, đọc chuỗi nước tốt nhất), `rapfi-single-simd128.{js,wasm}`, `rapfi-caro-simd128.{js,wasm}` (Rapfi-CARO), mô hình cổ điển + `model-caro.bin`, `COPYING.txt`, `SOURCE.md`, `build/` (mã nguồn, bản vá Rapfi-CARO, cách dựng) |
 | `licenses.html` | Giấy phép mã nguồn mở (Rapfi GPL-3, mạng CC0, phông OFL) – 4 ngôn ngữ, dùng `privacy.js` |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
 | `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
