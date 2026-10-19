@@ -177,6 +177,9 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   ok(await warm('renju'), 'Renju: mạng sẵn sàng');
   await start('renju');
   ok(await waitFor(async () => (await stones()) === 2, 30000) && (await stats()).rapfi === r0 + 4, 'Renju: Rapfi đi (2 mạng đen / trắng)');
+  // Nước đầu ván lấy từ sách 'renju-rapfi' (Rapfi WebAssembly nghĩ 10 giây mỗi thế – book-data.js; tự do / tiêu chuẩn cùng cách)
+  const bkr = await p.evaluate(() => { const mv = window.CaroApp.board.moves.map((m) => [m.x, m.y]); return { got: mv[1], want: window.CaroBook.lookup(mv.slice(0, 1), 'renju-rapfi') }; });
+  ok(bkr.want && bkr.got[0] === bkr.want[0] && bkr.got[1] === bkr.want[1], 'Renju: BOAT đi nước trong sách renju-rapfi — ' + JSON.stringify(bkr));
   okNet(downloads === 4, `tự do 1 + tiêu chuẩn 1 + Renju 2 file mạng (${downloads})`);
 
   // ---------------------------------------------------------------- Luật Việt Nam: Rapfi-CARO (không mạng NNUE)

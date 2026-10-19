@@ -214,6 +214,11 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     giữ bộ cũ; thay vào đó cửa sổ tính bằng mặt nạ bit (cùng kết quả, nhanh hơn ~15%).
   - Mạng NNUE "mix9svq" (CC0, ~10 MB; Renju 2 file) chỉ tải khi bắt đầu ván với BOAT – thử `rapfi/nets/` trên máy chủ,
     rồi jsDelivr, rồi GitHub raw (fork của mình trước, kho gốc sau) – giữ trong Cache Storage `caro-rapfi-nets-v1` (sw.js không xoá), lần sau không tải lại.
+  - **Sách khai cuộc riêng của BOAT** (`book-data.js`: `free-rapfi` 152, `std-rapfi` 153, `renju-rapfi` 162 thế – dựng bằng
+    `BOOK_RAPFI=wasm node server/scripts/build-book.js free,std,renju 10000 8 4`: đúng bản Rapfi WebAssembly của app nghĩ
+    10 giây mỗi thế, 8 nước, 4 nhánh; ~19 phút trên 4 lõi): tối đa 7 quân đầu ván BOAT đi ngay nước trong sách (kể cả khi
+    mạng NNUE còn đang tải lần đầu), Renju bỏ nước cấm; trong sách thì không nghĩ trước. Sách của các nhân vật máy khác
+    giữ nguyên để không lệch mức Elo.
   - Bàn vô hạn → bàn Rapfi (tự do 20×20, tiêu chuẩn / Renju 15×15): mỗi nước đặt khung bao các quân vào giữa, chừa ≥ 1 ô
     mỗi bên. Không vừa bàn, trình duyệt không có WebAssembly SIMD, tải mạng lỗi / quá 6 giây, Rapfi treo hay trả nước
     sai, bản iOS → nước đó dùng engine của game.
