@@ -96,7 +96,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     (~15–40 ms/thế, hiện kết quả sau 1–2 giây kèm dòng "đang phân tích kỹ hơn"), rồi lượt kỹ chỉ chấm lại các thế
     mới chấm nhanh và thay kết quả. Các thế đã chấm đủ kỹ luôn được dùng lại (`analyzeGame({ evals })`).
     Mở phân tích ván khác khi ván trước còn chạy: huỷ ván trước (dừng Worker), không phải chờ, không hiện lẫn kết quả.
-  - *Tất định*: mỗi thế chấm theo **số nút** (130 nút cho mỗi ms của lượt; thời gian chỉ là giới hạn cứng cho máy quá
+  - *Tất định*: mỗi thế chấm theo **số nút** (160 nút cho mỗi ms của lượt; thời gian chỉ là giới hạn cứng cho máy quá
     chậm) với bảng nhớ mới, điểm lấy trung bình hai lớp cuối (lá cộng điểm "được đi" nên điểm lệch theo độ sâu chẵn / lẻ).
     Cùng ván → cùng kết quả trên mọi trình duyệt / máy / số Worker; các thế đã chấm được nhớ cho mọi ván (`an-pool.js`,
     khoá theo thế dời về gốc toạ độ). Đo chất lượng: `node server/scripts/an-bench.js` (so với bản chấm sâu 400k nút / thế:

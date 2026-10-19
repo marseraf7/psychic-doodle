@@ -121,9 +121,10 @@
 
   // Phân tích ván chấm mỗi thế theo số nút, không theo giờ (engine-search.js): kết quả chỉ phụ thuộc thế cờ và ms – cùng
   // một ván cho cùng kết quả trên mọi máy / trình duyệt, chấm trên 1 hay nhiều Worker, theo thứ tự nào cũng vậy (mỗi thế
-  // một bảng nhớ mới). NODES_PER_MS: tốc độ trung vị đo ở chế độ 200 ms (Chromium 136, WebKit 163, Node 157 nút / ms) → máy
-  // thường xong đúng ms; máy quá chậm dừng ở CAP × ms, ít nhất CAP_MIN ms (khi đó kết quả mới tuỳ máy).
-  const NODES_PER_MS = 130, CAP = 5, CAP_MIN = 1000;
+  // một bảng nhớ mới). NODES_PER_MS: tốc độ trung vị đo ở chế độ 200 ms (sau khi tính cửa sổ bằng mặt nạ bit: Chromium 168,
+  // WebKit 164 nút / ms) → máy thường xong đúng ms; máy quá chậm dừng ở CAP × ms, ít nhất CAP_MIN ms (khi đó kết quả mới
+  // tuỳ máy).
+  const NODES_PER_MS = 160, CAP = 5, CAP_MIN = 1000;
   // Thời gian mỗi thế của lượt phân tích kỹ theo độ dài ván: cả ván ~20 giây một luồng (chia cho các Worker của an-pool.js).
   // Gấp đôi mức cũ (~10 giây): đo bằng an-bench.js, trùng bản chấm sâu 86,8% → 88,4%, bỏ sót 25 → 17 nước / 372.
   const fullMs = (n) => Math.max(120, Math.min(400, Math.round(20000 / (n + 1))));
