@@ -49,14 +49,15 @@
 
   /**
    * Chấm một thế: Rapfi (+ engine kiểm khi sát mép) → bản gọn src 'rapfi', hoặc null nếu Rapfi lỗi. lane: Worker Rapfi;
-   * gf: khung cố định của cả ván (null: ván rộng hơn bàn Rapfi); fresh: lượt đầu của Worker này trong lần phân tích.
+   * gf: khung cố định của cả ván (null: ván rộng hơn bàn Rapfi); clean: lượt đầu của Worker này trong lần phân tích (xoá
+   * bảng băm trước).
    */
-  async function evalPos(rule, moves, ms, lane, gf, fresh) {
+  async function evalPos(rule, moves, ms, lane, gf, clean) {
     const Rp = R(), Bd = global.CaroRapfiBoard, n = Rp.SIZE[rule];
     const f = moves.length ? Bd.fit(moves, gf, n) || Rp.frame(moves, n) : { margin: 99 };
     const near = !f || f.margin < Rp.SAFE_EDGE;
     const chk = near ? Rp.check(rule, moves, Math.min(ms, 400)) : null; // chạy song song với Rapfi (Worker khác)
-    const r = f ? await Rp.ask(rule, moves, ms, lane, { nodes: nodesFor(rule, ms), frame: gf, fresh }) : null;
+    const r = f ? await Rp.ask(rule, moves, ms, lane, { nodes: nodesFor(rule, ms), frame: gf, fresh: clean }) : null;
     const e = chk ? await chk : null;
     if (!r) return e ? { ...e, q: ms, src: 'rapfi' } : null; // không vừa bàn: kết quả engine
     // Rapfi đi ngay không tìm kiếm (không in điểm) khi có nước thắng ngay – hoặc thế chỉ còn một nước: tự chấm
@@ -131,9 +132,9 @@
       await Promise.all(Array.from({ length: lanes }, async (_, lane) => {
         while (!bad && my === job && next < list.length) {
           const k = next++;
-          const fresh = first[lane];
+          const clean = first[lane]; // lượt đầu của Worker này: xoá bảng băm
           first[lane] = false;
-          const e = await at(list[k], lane, fresh);
+          const e = await at(list[k], lane, clean);
           if (my !== job) return;
           if (!e) { bad = true; return; }
           done++;
@@ -154,8 +155,8 @@
       }));
     };
     for (let i = 0; i <= last; i++) if (ev[i]) onlyCheck(i);
-    const okPos = await run(todo, async (i, lane, fresh) => {
-      const e = await evalPos(rule, moves.slice(0, i), ms, lane, gf, fresh);
+    const okPos = await run(todo, async (i, lane, clean) => {
+      const e = await evalPos(rule, moves.slice(0, i), ms, lane, gf, clean);
       if (e) { ev[i] = { ...e, q: ms }; onlyCheck(i); fresh.push({ moves: moves.slice(0, i), e }); }
       return e;
     });
@@ -172,8 +173,8 @@
       if (my !== job) return null;
       for (const [k, h] of got) ev[alts[k]] = { ...ev[alts[k]], alt: { ...h, q: ms, src: 'rapfi' } };
     }
-    await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane, fresh) => {
-      const mv = altMoves(i), e = await evalPos(rule, mv, ms, lane, gf, fresh);
+    await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane, clean) => {
+      const mv = altMoves(i), e = await evalPos(rule, mv, ms, lane, gf, clean);
       if (e) { ev[i] = { ...ev[i], alt: { ...e, q: ms } }; fresh.push({ moves: mv, e }); }
       return e || {}; // thế sau nước tốt nhất chấm lỗi: bỏ qua thế đó, không bỏ cả lượt
     });
