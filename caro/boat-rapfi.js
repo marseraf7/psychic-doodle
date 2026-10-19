@@ -206,9 +206,10 @@
    */
   async function ask(rule, moves, ms, lane, o) {
     if (!moves.length) return { move: [0, 0], ev: { cp: 0, mate: 0 }, margin: SIZE[rule] >> 1 };
-    // Phân tích theo số nút: luôn đặt thế vào giữa bàn (frame) – khung "dính" của place đổi theo các thế chấm trước, mà vị
-    // trí trên bàn Rapfi làm đổi chút ít kết quả; chấm theo số nút cần cùng thế → cùng kết quả
-    const n = SIZE[rule], f = o && o.nodes ? frame(moves, n) : place(rule, moves);
+    // Phân tích (o.frame): một khung cố định cho cả ván – bảng băm dùng lại được giữa các thế và kết quả không phụ thuộc
+    // các thế chấm trước (khung "dính" của place thì có); thế không vừa khung đó thì đặt riêng vào giữa bàn
+    const n = SIZE[rule];
+    const f = o && o.frame ? B.fit(moves, o.frame, n) || frame(moves, n) : place(rule, moves);
     if (!f || !(await ready(rule, 0))) return null;
     const live = () => (lane ? aux : cur);
     const st = live(), id = ++seq;
@@ -226,7 +227,9 @@
         resolve(e.data);
       }
       st.worker.addEventListener('message', onMsg);
-      st.worker.postMessage({ type: 'move', id, size: n, ms, ...(o || {}), moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
+      const opt = { ...(o || {}) };
+      delete opt.frame; // khung chỉ dùng ở trang
+      st.worker.postMessage({ type: 'move', id, size: n, ms, ...opt, moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
     });
     if (live() !== st) return null; // Worker đã thôi việc (đổi luật) trong lúc nghĩ: nước này thuộc thế cũ
     if (!res || !res.move) { // treo: lần sau dựng Worker mới

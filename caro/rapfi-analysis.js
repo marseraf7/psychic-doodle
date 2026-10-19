@@ -21,12 +21,15 @@
   const WIN = 1000000, MATE = WIN - 1000;
   const SCALE = { vn: 360 / 400 }, SCALE_NNUE = 360 / 200; // thang điểm Rapfi theo luật (bảng caro học với K = 1/400)
   const LOAD_WAIT = 60000; // phân tích chờ tải mạng (có thông báo tiến độ) tối đa 1 phút
-  // Chấm theo số nút (rapfi/brain.js – INFO max_node), không theo giờ: cùng thế cho cùng kết quả dù máy nhanh / chậm, một
-  // hay nhiều luồng, một hay hai Worker (máy mạnh chỉ xong sớm hơn). Số nút = ms × tốc độ chuẩn của Rapfi WebAssembly 1
-  // luồng theo luật (nghìn nút / giây, đo trong Node – server/scripts/rapfi/an-bench-rapfi.js) × thời gian Rapfi thật sự
-  // nghĩ khi chấm theo giờ ms (0,75 × (ms − 30) – rapfi/brain.js fixedTime): cùng thời gian như cách cũ trên máy chuẩn
-  const KNPS = { free: 0, std: 0, renju: 0, vn: 0 };
-  const nodesFor = (rule, ms) => Math.max(20000, Math.round(0.75 * (ms - 30) * (KNPS[rule] || 300)));
+  // Chấm theo số nút (rapfi/brain.js – INFO max_node), không theo giờ: kết quả không đổi theo máy nhanh / chậm (máy mạnh chỉ
+  // xong sớm hơn). Cả ván đặt vào một khung cố định trên bàn Rapfi, bảng băm xoá khi bắt đầu rồi giữ suốt ván (các thế liền
+  // nhau dùng lại được) – cùng ván, cùng số Worker thì cùng kết quả. Đo (server/scripts/rapfi/an-bench-rapfi.js, luật Việt
+  // Nam, 12 ván, 300 ms / thế, so với chấm ×8 nút): trùng chuẩn 86,1% (theo giờ như trước: 82,8%; theo số nút mà xoá bảng
+  // băm mỗi thế: 80,5%), đánh dấu oan 10 / bỏ sót 10 (trước 15 / 13), hai lần chạy ra cùng kết quả 100% (trước 89,4%).
+  // Số nút = thời gian Rapfi thật sự nghĩ khi chấm theo giờ ms (0,75 × (ms − 30) – brain.js fixedTime) × tốc độ chuẩn của
+  // Rapfi WebAssembly 1 luồng theo luật (nghìn nút / giây, đo trong Node): cùng thời gian như cách cũ trên máy chuẩn
+  const KNPS = { free: 139, std: 144, renju: 151, vn: 590 };
+  const nodesFor = (rule, ms) => Math.max(20000, Math.round(0.75 * (ms - 30) * KNPS[rule]));
   let job = 0;
 
   const handles = (rule) => !!(R() && R().available(rule));
@@ -44,13 +47,16 @@
     return { move, score, mate: null, q: ms, src: 'rapfi' };
   }
 
-  /** Chấm một thế: Rapfi (+ engine kiểm khi sát mép) → bản gọn src 'rapfi', hoặc null nếu Rapfi lỗi. lane: Worker Rapfi. */
-  async function evalPos(rule, moves, ms, lane) {
-    const Rp = R();
-    const f = moves.length ? Rp.frame(moves, Rp.SIZE[rule]) : { margin: 99 };
+  /**
+   * Chấm một thế: Rapfi (+ engine kiểm khi sát mép) → bản gọn src 'rapfi', hoặc null nếu Rapfi lỗi. lane: Worker Rapfi;
+   * gf: khung cố định của cả ván (null: ván rộng hơn bàn Rapfi); fresh: lượt đầu của Worker này trong lần phân tích.
+   */
+  async function evalPos(rule, moves, ms, lane, gf, fresh) {
+    const Rp = R(), Bd = global.CaroRapfiBoard, n = Rp.SIZE[rule];
+    const f = moves.length ? Bd.fit(moves, gf, n) || Rp.frame(moves, n) : { margin: 99 };
     const near = !f || f.margin < Rp.SAFE_EDGE;
     const chk = near ? Rp.check(rule, moves, Math.min(ms, 400)) : null; // chạy song song với Rapfi (Worker khác)
-    const r = f ? await Rp.ask(rule, moves, ms, lane, { nodes: nodesFor(rule, ms) }) : null;
+    const r = f ? await Rp.ask(rule, moves, ms, lane, { nodes: nodesFor(rule, ms), frame: gf, fresh }) : null;
     const e = chk ? await chk : null;
     if (!r) return e ? { ...e, q: ms, src: 'rapfi' } : null; // không vừa bàn: kết quả engine
     // Rapfi đi ngay không tìm kiếm (không in điểm) khi có nước thắng ngay – hoặc thế chỉ còn một nước: tự chấm
@@ -117,12 +123,17 @@
     const two = todo.length >= 3 && (await R().auxReady(rule, 0));
     if (my !== job) return null;
     const lanes = two ? 2 : 1;
+    // Khung cố định cho cả ván (mọi thế, kể cả thế sau nước tốt nhất nếu vừa); bảng băm mỗi Worker xoá ở lượt đầu
+    const gf = R().frame(moves, R().SIZE[rule]);
+    const first = [true, true];
     const run = async (list, at) => {
       let next = 0, bad = false, done = 0;
       await Promise.all(Array.from({ length: lanes }, async (_, lane) => {
         while (!bad && my === job && next < list.length) {
           const k = next++;
-          const e = await at(list[k], lane);
+          const fresh = first[lane];
+          first[lane] = false;
+          const e = await at(list[k], lane, fresh);
           if (my !== job) return;
           if (!e) { bad = true; return; }
           done++;
@@ -143,8 +154,8 @@
       }));
     };
     for (let i = 0; i <= last; i++) if (ev[i]) onlyCheck(i);
-    const okPos = await run(todo, async (i, lane) => {
-      const e = await evalPos(rule, moves.slice(0, i), ms, lane);
+    const okPos = await run(todo, async (i, lane, fresh) => {
+      const e = await evalPos(rule, moves.slice(0, i), ms, lane, gf, fresh);
       if (e) { ev[i] = { ...e, q: ms }; onlyCheck(i); fresh.push({ moves: moves.slice(0, i), e }); }
       return e;
     });
@@ -161,8 +172,8 @@
       if (my !== job) return null;
       for (const [k, h] of got) ev[alts[k]] = { ...ev[alts[k]], alt: { ...h, q: ms, src: 'rapfi' } };
     }
-    await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane) => {
-      const mv = altMoves(i), e = await evalPos(rule, mv, ms, lane);
+    await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane, fresh) => {
+      const mv = altMoves(i), e = await evalPos(rule, mv, ms, lane, gf, fresh);
       if (e) { ev[i] = { ...ev[i], alt: { ...e, q: ms } }; fresh.push({ moves: mv, e }); }
       return e || {}; // thế sau nước tốt nhất chấm lỗi: bỏ qua thế đó, không bỏ cả lượt
     });

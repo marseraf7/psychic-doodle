@@ -8,6 +8,7 @@
  *
  *   CaroRapfiBoard.frame(moves, n)        – khung { ox, oy, margin } đặt thế vào giữa bàn n × n, hoặc null
  *   CaroRapfiBoard.place(rule, moves)     – như frame nhưng giữ khung lần trước khi còn vừa (bảng băm Rapfi dùng lại được)
+ *   CaroRapfiBoard.fit(moves, f, n)       – thế moves trong khung cố định f (phân tích: một khung cho cả ván) | null
  *   CaroRapfiBoard.check(rule, moves, ms) – engine của game chấm thế (Worker riêng): Promise<{ move, score, mate } | null>
  *   CaroRapfiBoard.safe(rule, moves, ms)  – lọc phòng thủ của engine (cùng Worker): Promise<[[x, y], …] | null>
  *   CaroRapfiBoard.reset()                – dừng Worker kiểm thế (đổi luật / dừng Rapfi)
@@ -69,10 +70,18 @@
   /** Lọc phòng thủ của engine (engine.js safeMoves) cho thế moves → [[x, y], …] | null – "Nước duy nhất" (rapfi-analysis.js). */
   const safe = (rule, moves, ms) => ask('safe', 'safe', rule, moves, ms);
 
+  /** Thế moves trong khung cố định f (bàn n × n) → { ox, oy, margin }, hoặc null nếu có quân cách mép < 1 ô / ra ngoài. */
+  function fit(moves, f, n) {
+    if (!f) return null;
+    let m = Infinity;
+    for (const [x, y] of moves) m = Math.min(m, x - f.ox, n - 1 - (x - f.ox), y - f.oy, n - 1 - (y - f.oy));
+    return m >= 1 ? { ox: f.ox, oy: f.oy, margin: m } : null;
+  }
+
   /** Worker kiểm thế (engine JS – terminate lúc đang chấm không gây sập): trả RAM. */
   function reset() {
     if (checker) { checker.terminate(); checker = null; }
   }
 
-  global.CaroRapfiBoard = { SIZE, SAFE_EDGE, frame, place, check, safe, reset };
+  global.CaroRapfiBoard = { SIZE, SAFE_EDGE, frame, place, fit, check, safe, reset };
 })(window);

@@ -73,7 +73,8 @@
       },
 
       /**
-       * Lệnh cho lượt nghĩ: o.play – BOAT đi (o.tm: tự chia thời gian, o.hit: cho phép đáp nhanh khi đoán trúng);
+       * Lệnh cho lượt nghĩ: o.play – BOAT đi (o.tm: tự chia thời gian, o.hit: cho phép đáp nhanh khi đoán trúng – nghĩ
+       * o.hitFrac (mặc định HIT_FRAC) thời gian);
        * o.nodes – phân tích theo số nút; không có gì – theo giờ (nghĩ trước / phân tích cũ).
        */
       plan(moves, ms, o) {
@@ -83,7 +84,7 @@
         if (o.nodes) return { cmds: (o.fresh ? ['YXHASHCLEAR'] : []).concat(fixed(ms * NODE_CAP, o.nodes)), turn: ms * NODE_CAP, hit: false, tm: false };
         if (!o.play) return { cmds: fixed(ms), turn: ms, hit: false, tm: false };
         if (o.hit !== false && this.isHit(moves, ms)) {
-          const turn = Math.max(HIT_MIN, Math.round(ms * HIT_FRAC));
+          const turn = Math.max(HIT_MIN, Math.round(ms * (o.hitFrac || HIT_FRAC)));
           return { cmds: fixed(turn), turn, hit: true, tm: !!o.tm };
         }
         if (!o.tm) return { cmds: fixed(ms), turn: ms, hit: false, tm: false };

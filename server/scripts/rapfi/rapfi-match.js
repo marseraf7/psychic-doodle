@@ -3,7 +3,7 @@
  * (đoán trúng, tự chia thời gian) bằng chính code app dùng. Công cụ cho người phát triển, không chạy trên máy chủ.
  *   node server/scripts/rapfi/rapfi-match.js <luật> <số khai cuộc> <ms> '<A json>' '<B json>' [số luồng song song]
  *   A / B: { "ponder": ms nghĩ trước (giả lập người chơi nghĩ – 0: không), "hit": đáp nhanh khi đoán trúng (mặc định
- *            true khi có ponder), "tm": tự chia thời gian }
+ *            true khi có ponder), "hitFrac": phần thời gian khi đoán trúng, "tm": tự chia thời gian }
  *   SPRT=elo0,elo1: kiểm định SPRT, đủ chứng cứ thì dừng sớm (sprt.js). RAPFI_NETS: thư mục mạng NNUE (xem driver-wasm.js).
  * Mỗi khai cuộc (openings.json – cân bằng) đánh 2 ván đổi bên, bàn Rapfi cố định (tự do / Việt Nam 20×20, tiêu chuẩn /
  * Renju 15×15), bảng băm và "bộ não" làm mới mỗi ván. Nghĩ trước chạy tuần tự ngay trước nước của đối thủ (như người chơi
@@ -51,7 +51,7 @@ async function engine(rule) {
     ponder(moves, ms) { const r = think(moves, brain.plan(moves, ms)); brain.pondered(moves, r.lines, r.used); },
     /** BOAT đi: kế hoạch của brain.js (đoán trúng / tự chia thời gian) → { move, used, hit }. */
     play(moves, ms, o) {
-      const plan = brain.plan(moves, ms, { play: true, tm: !!o.tm, hit: o.hit });
+      const plan = brain.plan(moves, ms, { play: true, tm: !!o.tm, hit: o.hit, hitFrac: o.hitFrac });
       const r = think(moves, plan);
       brain.done(plan, r.used, ms);
       return { move: r.move, used: r.used, hit: plan.hit };

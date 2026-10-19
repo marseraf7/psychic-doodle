@@ -348,7 +348,7 @@ else self.onmessage = async (e) => {
       if (mod) {
         r = await exclusive(async () => {
           // Lập kế hoạch ngay trước lượt nghĩ (lượt nghĩ trước xếp trước đã ghi xong chuỗi nước tốt nhất)
-          const plan = brain.plan(d.moves, d.ms, { play: d.play, tm: d.tm, nodes: d.nodes, fresh: d.fresh });
+          const plan = brain.plan(d.moves, d.ms, { play: d.play, tm: d.tm, hit: d.hit, hitFrac: d.hitFrac, nodes: d.nodes, fresh: d.fresh });
           const t0 = Date.now(), res = await think(d.moves, plan.cmds, plan.turn);
           used = Date.now() - t0; hit = plan.hit;
           brain.done(plan, used, d.ms);

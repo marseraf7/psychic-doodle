@@ -9,6 +9,7 @@
  *   nodec – theo số nút, bảng băm giữ suốt ván
  * In: tỉ lệ xếp loại trùng chuẩn, nước bị đánh dấu oan / bỏ sót, lệch độ chính xác, ổn định (chạy 2 lần), độ sâu TB,
  * thời gian, tốc độ (nghìn nút / giây – dùng đặt KNPS trong rapfi-analysis.js). Cần RAPFI_NETS (luật khác vn).
+ * KNPS=…: đặt tốc độ chuẩn (khỏi đo lại) · NODE_MULT=…: số nút của node / nodec gấp ngần này (chuẩn giữ nguyên).
  */
 'use strict';
 const fs = require('fs');
@@ -108,7 +109,7 @@ async function evalGame(e, moves, rule, ms, mode, knps) {
   const one = (mv) => {
     if (!mv.length) return { move: [0, 0], score: 0, mate: null, q: ms, src: 'rapfi' };
     const cmds = mode === 'time' ? B.plan(mv, ms).cmds
-      : (mode === 'node' || mode === 'ref' ? ['YXHASHCLEAR'] : []).concat(B.plan(mv, ms, { nodes: mode === 'ref' ? nodes * workerData.refK : nodes }).cmds);
+      : (mode === 'node' || mode === 'ref' ? ['YXHASHCLEAR'] : []).concat(B.plan(mv, ms, { nodes: mode === 'ref' ? nodes * workerData.refK : Math.round(nodes * workerData.mult) }).cmds);
     for (const c of cmds) e.send(c);
     const lines = e.send(W.boardCmd('BOARD', mv.map(([x, y]) => [x - f.ox, y - f.oy])));
     const m = lines.map((l) => /^(\d+),(\d+)$/.exec(l.trim())).find(Boolean);
@@ -129,6 +130,7 @@ async function evalGame(e, moves, rule, ms, mode, knps) {
 if (!isMainThread) {
   (async () => {
     const { rule, ms, mode, knps, games } = workerData;
+    workerData.mult = +process.env.NODE_MULT || 1; // thử số nút gấp NODE_MULT cho node / nodec (chuẩn giữ nguyên)
     const e = await engine(rule);
     for (const g of games) {
       const t = Date.now();
