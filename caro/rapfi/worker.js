@@ -34,6 +34,10 @@ const RULE_N = { free: 0, std: 1, renju: 4, vn: 8 }; // mã luật trong giao th
 const SIZE = { free: 20, std: 15, renju: 15, vn: 20 }; // cỡ bàn đúng với mạng đã học (boat-rapfi.js dùng cùng số)
 // Bản dựng: Rapfi nguyên bản cho 3 luật Gomoku, Rapfi-CARO cho luật Việt Nam (tách riêng để 3 luật kia không đổi gì)
 const ENGINE = { free: 'rapfi-single-simd128', std: 'rapfi-single-simd128', renju: 'rapfi-single-simd128', vn: 'rapfi-caro-simd128' };
+// Bản đa luồng (pthread): chỉ khi trang được cô lập cross-origin (có SharedArrayBuffer – máy chủ gửi Document-Isolation-Policy,
+// xem server/src/web.js); không thì bản 1 luồng như cũ. Rapfi nghĩ ở luồng riêng, trả lời qua stdout bất đồng bộ.
+const ENGINE_MT = { free: 'rapfi-multi-simd128', std: 'rapfi-multi-simd128', renju: 'rapfi-multi-simd128', vn: 'rapfi-caro-multi-simd128' };
+const MT = typeof self !== 'undefined' && self.crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';
 // File đi kèm app (cùng thư mục) cần cho từng luật, ngoài mô hình cổ điển model210901.bin
 const LOCAL = { free: [], std: [], renju: [], vn: ['model-caro.bin'] };
 // Kích thước + SHA-256 từng file (commit NETS_COMMIT): tải đứt / sai thì không lưu, không dùng – nếu không Rapfi lặng lẽ
@@ -59,9 +63,9 @@ const sources = (f) => [
 const cacheKey = (f) => `https://cdn.jsdelivr.net/gh/dhbloo/rapfi-networks@${NETS_COMMIT}/mix9svq/${f}`;
 
 /** Tên file Emscripten cần (glue JS gọi theo tên dự án rapfi-single-simd128.*) → file của bản dựng cho luật. */
-const wasmName = (rule, f) => f.replace(/^rapfi-single-simd128\./, ENGINE[rule] + '.');
+const wasmName = (rule, f, mt) => f.replace(/^rapfi-(single|multi)-simd128\./, (mt ? ENGINE_MT : ENGINE)[rule] + '.');
 
-let mod = null, out = [];
+let mod = null, out = [], waiter = null;
 
 /** Trình duyệt có WebAssembly SIMD không (kiểm bằng một hàm nhỏ dùng lệnh v128). */
 function hasSimd() {
@@ -125,10 +129,12 @@ async function fetchNet(file, onBytes) {
 }
 
 /**
- * config.toml cho Rapfi: 1 luồng, bảng băm 16 MB (đủ nhẹ cho điện thoại), chỉ mạng của luật đang chơi. Luật Việt Nam:
+ * config.toml cho Rapfi: o.threads luồng (mặc định 1), bảng băm o.hashMb MB (mặc định 16 – đủ nhẹ cho điện thoại; trang
+ * chọn theo máy – boat-rapfi.js), chỉ mạng của luật đang chơi. Luật Việt Nam:
  * không mạng NNUE, bảng đánh giá cổ điển học riêng cho caro (caro_binary_file).
  */
-function config(rule) {
+function config(rule, o) {
+  o = o || {};
   const model = rule === 'vn'
     ? 'binary_file = "model210901.bin"\ncaro_binary_file = "model-caro.bin"'
     : `binary_file = "model210901.bin"
@@ -145,12 +151,12 @@ ${rule === 'renju'
   return `[general]
 reload_config_each_move = false
 clear_hash_after_config_loaded = false
-default_thread_num = 1
+default_thread_num = ${o.threads || 1}
 message_mode = "normal"
 coord_conversion_mode = "none"
 default_candidate_range = "square3_line4"
 memory_reserved_mb = 0
-default_tt_size_kb = 16384
+default_tt_size_kb = ${(o.hashMb || 16) * 1024}
 
 [model]
 ${model}
@@ -183,39 +189,69 @@ function parseEval(lines) {
   return ev;
 }
 
-/** Gửi lệnh Piskvork; bản 1 luồng chạy đồng bộ nên khi hàm trả về, mọi dòng trả lời đã nằm trong `out`. */
-function send(cmd) { out = []; mod.sendCommand(cmd); return out; }
+const isMove = (l) => /^\d+,\d+$/.test(l.trim());
+/** Dòng trả lời của Rapfi (stdout) – bản đa luồng: đủ dòng kết thúc thì báo cho lệnh đang chờ. */
+function onLine(line) {
+  out.push(line);
+  if (waiter && waiter.test(line)) { const w = waiter; waiter = null; clearTimeout(w.timer); w.resolve(out); }
+}
+/**
+ * Gửi lệnh Piskvork → Promise các dòng trả lời. until(dòng): dòng kết thúc câu trả lời (không có: lệnh không trả lời).
+ * Bản 1 luồng chạy đồng bộ: khi sendCommand trả về, mọi dòng đã có trong `out`.
+ */
+function send(cmd, until, ms) {
+  out = [];
+  if (!MT || !until) { mod.sendCommand(cmd); return Promise.resolve(out); }
+  return new Promise((resolve) => {
+    waiter = { test: until, resolve, timer: setTimeout(() => { waiter = null; resolve(out); }, ms || 120000) };
+    mod.sendCommand(cmd);
+  });
+}
+// Mọi lượt dùng Rapfi đi lần lượt (nghĩ trước / nước thật / chấm thế không chồng lên nhau)
+let chain = Promise.resolve();
+const exclusive = (fn) => { const p = chain.then(fn); chain = p.catch(() => {}); return p; };
+const boardCmd = (head, moves) => {
+  const side = moves.length % 2;
+  return [head, ...moves.map(([x, y], i) => `${x},${y},${i % 2 === side ? 1 : 2}`), 'DONE'].join('\n');
+};
 
 /** Một lượt nghĩ: { move: [x, y] | null, ev, lines }. */
-function think(moves, ms) {
-  send('INFO timeout_turn ' + ms);
-  const side = moves.length % 2;
+async function think(moves, ms) {
+  await send('INFO timeout_turn ' + ms);
   // Cả khối BOARD … DONE gửi một lần: Rapfi đọc hết các dòng rồi nghĩ, in nước đi dạng "x,y"
-  const res = send(['BOARD', ...moves.map(([x, y], i) => `${x},${y},${i % 2 === side ? 1 : 2}`), 'DONE'].join('\n'));
+  const res = await send(boardCmd('BOARD', moves), isMove, ms * 3 + 15000);
   const mv = res.map((l) => /^(\d+),(\d+)$/.exec(l.trim())).find(Boolean);
   return { move: mv ? [Number(mv[1]), Number(mv[2])] : null, ev: parseEval(res), lines: res };
 }
 
 /**
- * Nghĩ trước (ponder) trong lúc người chơi nghĩ: Rapfi giữ bảng băm giữa các lệnh BOARD nên nước sau của BOAT tìm sâu
- * hơn – đo (Rapfi-CARO, Node): nghĩ trước 1 giây + 250 ms ≈ nghĩ 500 ms (độ sâu 16,1 → 17,8); tự đấu cùng thời gian mỗi
- * nước, bên nghĩ trước 600 ms thắng 76/128 ván (59%). Bản một luồng chạy đồng bộ nên chia lát ngắn, giữa các lát nhường
- * lượt để tin mới (nước của người chơi, stop) vào được: tin mới tăng ponderGen → vòng dừng.
+ * Nghĩ trước (ponder) trong lúc người chơi nghĩ – không giới hạn thời gian (dừng khi có tin mới: nước người chơi, stop,
+ * hết ván / ứng dụng chạy nền – boat-rapfi.js). Rapfi nghĩ trên thế người chơi tới lượt: cây tìm kiếm gồm mọi nước người
+ * chơi có thể đi (cả nước công BOAT phải phòng) và cách BOAT đáp lại; bảng băm giữ sang nước sau nên BOAT tìm sâu hơn.
+ * Bản đa luồng: một lượt tìm liên tục (làm sâu dần – người chơi nghĩ càng lâu càng sâu), tin mới thì YXSTOP dừng ngay.
+ * Bản 1 luồng chạy đồng bộ: lát ngắn PONDER_SLICE để tin mới vào kịp.
+ * Đo (Rapfi-CARO, Node, tự đấu cùng thời gian mỗi nước): nghĩ trước 600 ms thắng không nghĩ trước 76/128 (59%); đã thử
+ * "kịch bản" – YXNBEST lấy 3 nước dự đoán (trúng 85%) rồi chia thời gian nghĩ sẵn từng nước: 28/64 (44%) so với cách
+ * này; 2/3 như cách này + 1/3 đào sâu nước dự đoán đầu (trúng ~73%): 24/48 (50%) – giữ cách đơn giản.
  */
 const PONDER_SLICE = 300;
-let ponderGen = 0;
+let ponderGen = 0, pondering = false;
 async function ponder(d, gen) {
-  const end = Date.now() + d.ms;
+  const end = d.ms > 0 ? Date.now() + d.ms : Infinity;
+  const live = () => gen === ponderGen && !!mod && Date.now() < end;
+  pondering = true;
   try {
-    while (mod && gen === ponderGen && Date.now() < end - 20) {
-      think(d.moves, Math.min(PONDER_SLICE, end - Date.now()));
-      await new Promise((r) => setTimeout(r, 0));
+    while (live()) {
+      const ms = MT ? Math.min(end - Date.now(), 3600000) : Math.min(PONDER_SLICE, end - Date.now());
+      await exclusive(() => (live() ? think(d.moves, ms) : null));
+      await new Promise((r) => setTimeout(r, 0)); // nhường lượt cho tin mới
     }
   } catch (err) { /* bỏ qua: chỉ là nghĩ trước */ }
+  if (gen === ponderGen) pondering = false;
   self.postMessage({ type: 'pondered', id: d.id });
 }
 
-async function init(rule) {
+async function init(rule, o) {
   const files = NETS[rule];
   if (!files) throw new Error('rule ' + rule);
   if (!hasSimd()) throw new Error('simd'); // báo ngay, không tải mạng vô ích
@@ -234,43 +270,53 @@ async function init(rule) {
     return u;
   });
   let data = await Promise.all([...local.map(own), ...files.map((f) => fetchNet(f, onBytes))]);
-  importScripts(ENGINE[rule] + '.js');
+  const name = (MT ? ENGINE_MT : ENGINE)[rule];
+  // Glue đa luồng tạo pthread bằng new Worker(chính file này) – build.sh vá để đọc đường dẫn từ đây (Worker không có
+  // document.currentScript)
+  self.RAPFI_SCRIPT_URL = new URL(name + '.js', self.location.href).href;
+  importScripts(name + '.js');
+  const threads = MT ? Math.max(1, Math.min(8, (o && o.threads) || 1)) : 1;
   let fs = null;
   mod = await self.Rapfi({
     // expose-fs.js (lúc dựng) gọi hàm này trước main(): ghi file vào bộ nhớ ảo để Rapfi đọc khi khởi động
     onFS(FS) {
       fs = FS;
-      FS.writeFile('/config.toml', config(rule));
+      FS.writeFile('/config.toml', config(rule, { threads, hashMb: o && o.hashMb }));
       [...local, ...files].forEach((f, i) => FS.writeFile('/' + f, data[i]));
       data = null; // bộ nhớ ảo đã có bản sao: bỏ bản tải về
     },
-    // File .wasm cùng tên với bản dựng (Rapfi-CARO dựng từ cùng dự án nên glue JS vẫn gọi tên rapfi-single-simd128.wasm)
-    locateFile: (f, dir) => (dir || '') + wasmName(rule, f),
-    onReceiveStdout(line) { out.push(line); },
+    // File .wasm cùng tên với bản dựng (Rapfi-CARO dựng từ cùng dự án nên glue JS vẫn gọi tên rapfi-single/multi-simd128.wasm)
+    locateFile: (f, dir) => (dir || '') + wasmName(rule, f, MT),
+    onReceiveStdout: onLine,
     onReceiveStderr() {},
     onExit() { mod = null; },
   });
-  if (!send('START ' + SIZE[rule]).includes('OK')) throw new Error('start');
-  for (const c of [`INFO rule ${RULE_N[rule]}`, 'INFO timeout_match 0', 'INFO thread_num 1', 'INFO max_memory 0']) send(c);
-  // Rapfi chỉ nạp mạng NNUE (và bảng caro) khi nghĩ nước đầu: nghĩ thử một nước ngắn để chắc nạp được
+  if (!(await send('START ' + SIZE[rule], (l) => /OK|ERROR/.test(l), 30000)).includes('OK')) throw new Error('start');
+  for (const c of [`INFO rule ${RULE_N[rule]}`, 'INFO timeout_match 0', 'INFO thread_num ' + threads, 'INFO max_memory 0']) await send(c);
+  // Rapfi chỉ nạp mạng NNUE (và bảng caro) khi nghĩ nước đầu: nghĩ thử một nước ngắn để chắc nạp được (bản đa luồng: lần
+  // này cũng dựng các luồng và bảng băm – sau đó YXSTOP mới dừng đúng lượt đang tìm)
   const c = SIZE[rule] >> 1;
-  const probe = think([[c, c]], 60);
+  const probe = await think([[c, c]], 60);
   const bad = probe.lines.some((l) => /Failed to load|Evaluator .* disabled/.test(l));
   if (bad || !probe.move) { await evict(files); throw new Error('weights'); }
   // Mạng đã giải nén vào bộ nhớ của Rapfi: xoá file nén trong bộ nhớ ảo (~10–20 MB)
   for (const f of files) { try { fs.unlink('/' + f); } catch (e) { /* đã xoá */ } }
+  return { threads };
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, ENGINE, LOCAL, config, parseEval, wasmName }; // cho Node
+if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, ENGINE, ENGINE_MT, LOCAL, config, parseEval, wasmName }; // cho Node
 else self.onmessage = async (e) => {
   const d = e.data;
   ponderGen++; // tin mới bất kỳ: dừng nghĩ trước
-  if (d.type === 'ponder') { await ponder(d, ponderGen); return; }
+  // Bản đa luồng: dừng ngay lượt nghĩ trước đang chạy. Gửi trước khi xếp lệnh của tin này – Rapfi xử lý lệnh theo thứ tự nên
+  // YXSTOP chỉ chạm lượt nghĩ trước, không bao giờ chạm lượt nghĩ thật xếp sau nó
+  if (MT && pondering && mod) { pondering = false; mod.sendCommand('YXSTOP'); }
+  if (d.type === 'ponder') { ponder(d, ponderGen); return; } // không chờ: tin sau vẫn vào được
   if (d.type === 'stop') return;
   if (d.type === 'init') {
     try {
-      await init(d.rule);
-      self.postMessage({ type: 'ready' });
+      const info = await init(d.rule, d);
+      self.postMessage({ type: 'ready', threads: info.threads, mt: MT });
     } catch (err) {
       self.postMessage({ type: 'error', msg: String((err && err.message) || err) });
     }
@@ -278,7 +324,7 @@ else self.onmessage = async (e) => {
   }
   if (d.type === 'move') {
     let r = { move: null, ev: null };
-    try { if (mod) r = think(d.moves, d.ms); } catch (err) { /* trả null: trang dùng engine của game */ }
+    try { if (mod) r = await exclusive(() => think(d.moves, d.ms)); } catch (err) { /* trả null: trang dùng engine của game */ }
     self.postMessage({ type: 'move', id: d.id, move: r.move, ev: r.ev });
   }
 };

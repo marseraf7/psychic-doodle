@@ -125,6 +125,8 @@
           clearTimeout(slow);
           worker.removeEventListener('message', onMsg);
           st.state = 'ready';
+          st.mt = !!d.mt; st.threads = d.threads || 1; // bản đa luồng (trang được cô lập cross-origin) – rapfi/worker.js
+          stats.threads = st.threads;
           if (st.toasted) toast(T('rapfi_ready'), 3500);
           if (!quiet) emit({ state: 'ready', rule, pct: 100 });
           resolve(true);
@@ -144,7 +146,10 @@
       worker.addEventListener('message', onMsg);
       worker.addEventListener('error', () => onMsg({ data: { type: 'error', msg: 'worker' } }));
     });
-    worker.postMessage({ type: 'init', rule });
+    // Số luồng (bản đa luồng): chừa một lõi cho trang; điện thoại tối đa 2 (pin, máy nóng). Bảng băm lớn hơn trên máy
+    // đủ RAM – nghĩ trước không giới hạn thời gian cần chỗ chứa nhiều kịch bản
+    const cores = navigator.hardwareConcurrency || 2;
+    worker.postMessage({ type: 'init', rule, threads: Math.max(1, Math.min(small() ? 2 : 8, cores - 1)), hashMb: small() ? 16 : 64 });
     return st;
   }
 
@@ -173,7 +178,8 @@
   let auxTimer = 0;
   async function auxReady(rule, ms) {
     clearTimeout(auxTimer);
-    if (small() || !cur || cur.rule !== rule || cur.state !== 'ready') return false;
+    // Bản đa luồng: một Worker đã dùng hết các lõi – Worker thứ hai chỉ tranh CPU
+    if (small() || !cur || cur.rule !== rule || cur.state !== 'ready' || cur.mt) return false;
     const st = ensureAux(rule);
     if (!st) return false;
     const ok = st.state === 'ready' || (await Promise.race([st.ready, wait(ms)]));
@@ -252,10 +258,11 @@
     return { move: [rx + f.ox, ry + f.oy], ev: res.ev, margin: f.margin };
   }
 
-  // Nghĩ trước tối đa ngần này mỗi lượt người chơi (điện thoại ít hơn – pin, máy nóng)
-  const small = () => (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) ||
-    !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
-  const PONDER_MS = () => (small() ? 6000 : 15000);
+  // Điện thoại (RAM ≤ 4 GB / màn cảm ứng): ít luồng, bảng băm nhỏ, không Worker phụ
+  function small() {
+    return (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) ||
+      !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
+  }
   /** Rapfi nghĩ trước trên thế moves (người chơi tới lượt) – bảng băm giữ sang nước sau của BOAT (rapfi/worker.js). */
   function ponder(rule, moves) {
     const st = cur;
@@ -271,7 +278,9 @@
       st.worker.removeEventListener('message', onMsg);
     };
     st.worker.addEventListener('message', onMsg);
-    st.worker.postMessage({ type: 'ponder', id, ms: PONDER_MS(), moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
+    // ms: 0 – không giới hạn: người chơi nghĩ càng lâu, BOAT càng xét nhiều kịch bản (dừng khi người chơi đi, hết ván,
+    // ván mới, ứng dụng chạy nền)
+    st.worker.postMessage({ type: 'ponder', id, ms: 0, moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
   }
   function stopPonder() {
     if (cur && cur.state === 'ready') try { cur.worker.postMessage({ type: 'stop' }); } catch (e) { /* đã dừng */ }
@@ -280,7 +289,7 @@
   // RAM): tạo sẵn Worker phụ để bấm Phân tích là chấm hai thế cùng lúc
   global.addEventListener('caro:gameover', () => {
     stopPonder();
-    if (cur && cur.state === 'ready' && !small()) { ensureAux(cur.rule); auxDone(); }
+    if (cur && cur.state === 'ready' && !cur.mt && !small()) { ensureAux(cur.rule); auxDone(); }
   });
   global.document.addEventListener('visibilitychange', () => { if (global.document.hidden) stopPonder(); });
 
@@ -303,7 +312,7 @@
   }
 
   // Đếm số nước Rapfi đi / phải nhường engine của game / engine sửa nước Rapfi sát mép / số lần nghĩ trước / số thế Worker phụ chấm (kiểm thử, gỡ lỗi)
-  const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0 };
+  const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0, threads: 0 };
 
   async function move(board, p, botId) {
     const bot = botOf(botId);

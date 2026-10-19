@@ -170,11 +170,20 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   **BOAT chạy Rapfi (WebAssembly) ở cả 4 luật** (`boat-rapfi.js` + `rapfi/`, như trang Gomocalc; luật Việt Nam: Rapfi-CARO):
   - Rapfi (GPL-3) dựng bằng Emscripten thành `rapfi/rapfi-single-simd128.{js,wasm}` (1,2 MB, 1 luồng, WebAssembly SIMD),
     chạy trong Worker riêng `rapfi/worker.js`, nói giao thức Piskvork; BOAT nghĩ 2,5 giây / nước (`bots.js`: `rapfi.ms`).
-  - **Nghĩ trước** (ponder): sau nước của BOAT, Rapfi nghĩ tiếp trên thế người chơi tới lượt (từng lát 300 ms, tối đa 15 giây
-    – điện thoại 6 giây; dừng khi người chơi đi, hết ván, app chạy nền); bảng băm giữ sang nước sau, khung bàn Rapfi giữ
-    nguyên giữa các nước khi còn vừa. Đo (Rapfi-CARO WASM trong Node): nghĩ trước 1 giây + 250 ms ≈ nghĩ 500 ms (độ sâu
-    16,1 → 17,8); tự đấu cùng thời gian mỗi nước, bên nghĩ trước 600 ms thắng 76/128 ván (59%).
-  - **Phân tích hai Worker**: máy đủ RAM (không phải điện thoại) có thêm một Worker Rapfi – chấm hai thế cùng lúc, mỗi thế
+  - **Rapfi đa luồng** (Chrome / Edge máy tính ≥ 137): máy chủ gửi `Document-Isolation-Policy: isolate-and-credentialless`
+    (`server/src/web.js`; khác COOP / COEP, không làm hỏng cửa sổ đăng nhập Google) → trang có `SharedArrayBuffer` →
+    `rapfi/worker.js` nạp bản pthread (`rapfi-*-multi-simd128`), số luồng = số lõi − 1 (tối đa 8; điện thoại 2), bảng băm
+    64 MB (điện thoại 16). Đo Rapfi-CARO trong Node: 3 luồng 1.945K nút / giây so với 1 luồng 600K (×3,2), độ sâu 19 → 21
+    trong ~1,6 giây. Trình duyệt khác / app: bản 1 luồng như cũ. Bản vá `rapfi/build/rapfi-mt.patch` (xem `rapfi/SOURCE.md`).
+  - **Nghĩ trước** (ponder): sau nước của BOAT, Rapfi nghĩ tiếp trên thế người chơi tới lượt – **không giới hạn thời gian**
+    (dừng khi người chơi đi, hết ván, ván mới, app chạy nền): người chơi nghĩ càng lâu, BOAT càng xét sâu mọi nước người
+    chơi có thể đi và cách đáp lại. Bản đa luồng: một lượt tìm liên tục, dừng ngay bằng YXSTOP; bản 1 luồng: lát 300 ms.
+    Bảng băm giữ sang nước sau, khung bàn Rapfi giữ nguyên giữa các nước khi còn vừa. Đo (Rapfi-CARO WASM trong Node): nghĩ
+    trước 1 giây + 250 ms ≈ nghĩ 500 ms (độ sâu 16,1 → 17,8); tự đấu cùng thời gian mỗi nước, bên nghĩ trước 600 ms thắng
+    76/128 ván (59%). Đã thử "kịch bản" (YXNBEST 3 nước dự đoán – trúng 85% – rồi chia thời gian nghĩ sẵn từng nước): 44%
+    / 64 ván so với nghĩ trên thế người chơi tới lượt; dành 1/3 đào sâu nước dự đoán đầu (trúng ~73%): 50% / 48 ván – giữ
+    cách đơn giản (cây tìm kiếm của nó đã gồm các nước dự đoán).
+  - **Phân tích hai Worker** (Rapfi 1 luồng): máy đủ RAM (không phải điện thoại) có thêm một Worker Rapfi – chấm hai thế cùng lúc, mỗi thế
     gấp đôi thời gian (250 → 500 ms: độ sâu 16,1 → 17,9), tổng thời gian như cũ; tạo sẵn khi hết ván, rảnh 1 phút thì dừng.
     Đã thử, không giúp: chấm ngược từ cuối ván, bảng băm 64 MB (độ sâu như nhau ở 250 ms / thế).
   - Engine của game – đã thử chấm điểm theo số ô từng mẫu đường thay cho cửa sổ 5 / 6 ô (học từ 1.421 ván Rapfi-CARO tự

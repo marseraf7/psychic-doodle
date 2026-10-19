@@ -90,6 +90,9 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   okNet(s.rapfi === 0 && s.fallback === 1, `nước 2 nhường engine (rapfi ${s.rapfi}, nhường ${s.fallback})`);
   const r0 = s.rapfi, f0 = s.fallback;
   ok(await warm('free'), 'mạng tải xong: Rapfi sẵn sàng');
+  // Chromium ≥ 137: máy chủ gửi Document-Isolation-Policy → trang được cô lập → Rapfi đa luồng; trình duyệt khác: 1 luồng
+  const iso = await p.evaluate(() => ({ iso: window.crossOriginIsolated, threads: window.CaroRapfi.stats.threads, ua: navigator.userAgent }));
+  ok(iso.threads >= 1 && (!iso.iso || iso.threads >= 1), `Rapfi chạy ${iso.threads} luồng (trang ${iso.iso ? '' : 'không '}cô lập cross-origin)`);
   okNet(downloads === 1, `tải đúng 1 file mạng (${downloads})`);
   // Người đi tiếp một nước, BOAT (Rapfi) trả lời trong thời gian nghĩ (~2,5 giây)
   const empty = await p.evaluate(() => { const b = window.CaroApp.board; for (const [x, y] of [[1, 1], [-1, -1], [1, -1], [-1, 1], [2, 0]]) if (!b.get(x, y)) return [x, y]; return null; });
@@ -136,15 +139,18 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   });
   ok(vn && vn.mate > 0 && vn.move[0] === 0 && (vn.move[1] === 3 || vn.move[1] === -1),
     'Rapfi-CARO biết luật Việt Nam: ba mở → thắng — ' + JSON.stringify(vn));
-  // Máy đủ RAM: Worker Rapfi thứ hai – phân tích chấm hai thế cùng lúc, mỗi thế gấp đôi thời gian
-  ok(await p.evaluate(() => window.CaroRapfi.auxReady('vn', 30000)), 'phân tích: Worker Rapfi thứ hai sẵn sàng');
+  // Máy đủ RAM, Rapfi 1 luồng: Worker Rapfi thứ hai – phân tích chấm hai thế cùng lúc, mỗi thế gấp đôi thời gian.
+  // Rapfi đa luồng: một Worker đã dùng hết các lõi – không dựng Worker thứ hai
+  const mt = (await stats()).threads > 1;
+  const auxOk = await p.evaluate(() => window.CaroRapfi.auxReady('vn', 30000));
+  ok(mt ? !auxOk : auxOk, mt ? 'phân tích: Rapfi đa luồng – không dựng Worker thứ hai' : 'phân tích: Worker Rapfi thứ hai sẵn sàng');
   const two = await p.evaluate(async () => {
     const mv = [[0, 0], [1, 1], [-1, 1], [1, 0], [1, -1], [2, -2], [0, 1], [0, -1]];
     const a0 = window.CaroRapfi.stats.aux, t = performance.now();
     const ev = await window.CaroRapfiAn.evaluate({ moves: mv, rule: 'vn', ms: 150 });
     return { n: ev ? ev.filter((e) => e && e.src === 'rapfi').length : 0, aux: window.CaroRapfi.stats.aux - a0, ms: Math.round(performance.now() - t) };
   });
-  ok(two.n === 9 && two.aux >= 3, `phân tích hai Worker: đủ 9 thế, Worker phụ chấm ${two.aux} thế (${two.ms} ms)`);
+  ok(two.n === 9 && (mt ? two.aux === 0 : two.aux >= 3), `phân tích ${mt ? 'đa luồng' : 'hai Worker'}: đủ 9 thế, Worker phụ chấm ${two.aux} thế (${two.ms} ms)`);
 
   // ---------------------------------------------------------------- Phân tích ván bằng Rapfi (luật tự do)
   // O chặn ba mở của X (nước 6) rồi bỏ mặc thế bốn (nước 8 – sai lầm), X thắng ở nước 9. (Ván cũ để O bỏ mặc ba mở từ

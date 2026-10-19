@@ -11,7 +11,8 @@ do Cờ Caro viết – dùng cho luật Việt Nam. Mọi phần khác của ga
 |---|---|
 | `rapfi-single-simd128.js`, `rapfi-single-simd128.wasm` (dựng từ mã Rapfi) | GPL-3 (`COPYING.txt`) |
 | `rapfi-caro-simd128.js`, `rapfi-caro-simd128.wasm` (Rapfi-CARO – mã Rapfi + bản vá luật Việt Nam) | GPL-3 (`COPYING.txt`) |
-| `worker.js` (cầu nối Worker ↔ Rapfi), `build/build.sh`, `build/expose-fs.js` | GPL-3 (`COPYING.txt`) |
+| `rapfi-multi-simd128.*`, `rapfi-caro-multi-simd128.*` (bản đa luồng của hai bản trên + bản vá `build/rapfi-mt.patch`) | GPL-3 (`COPYING.txt`) |
+| `worker.js` (cầu nối Worker ↔ Rapfi), `build/build.sh`, `build/expose-fs.js`, `build/rapfi-mt.patch` | GPL-3 (`COPYING.txt`) |
 | `model-caro.bin` (bảng đánh giá cổ điển cho luật Việt Nam, Cờ Caro học bằng tuner của Rapfi từ ván Rapfi-CARO tự đấu) | CC0 1.0 |
 | `model210901.bin` (mô hình cổ điển) và các mạng NNUE `mix9svq*.bin.lz4` tải khi cần | CC0 1.0 (https://github.com/dhbloo/rapfi-networks; bản sao lưu: https://github.com/marseraf7/rapfi-networks) |
 
@@ -25,7 +26,14 @@ Phần còn lại của game chỉ trao đổi với Rapfi qua thông điệp Wo
   https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7 (kho gốc của tác giả)
 - `build/expose-fs.js` – phần duy nhất thêm vào khi dựng (`--pre-js`): gọi `Module.onFS(FS)` trước `main()` để
   `worker.js` ghi `config.toml` và mạng vào bộ nhớ ảo.
-- `build/build.sh` – lệnh dựng (Emscripten 6.0.12, cmake; 1 luồng, WebAssembly SIMD, không gói sẵn mạng).
+- `build/build.sh` – lệnh dựng (Emscripten 6.0.12, cmake; WebAssembly SIMD, không gói sẵn mạng; mỗi bản dựng kiểu 1 luồng
+  và kiểu đa luồng – pthread, `PROXY_TO_PTHREAD`).
+- Bản đa luồng (`rapfi-*-multi-simd128.*`): cùng mã + bản vá `build/rapfi-mt.patch` (GPL-3) – tắt cờ "đang nghĩ" trước
+  khi in nước đi (bản gốc bỏ qua mọi lệnh trừ STOP khi cờ còn bật, nên lệnh gửi ngay sau nước đi có lúc bị mất – tái hiện
+  trong Node ~1/50 lượt). Sau khi dựng, `build.sh` sửa một chỗ trong glue JS: `_scriptName = self.location.href` → đọc
+  `RAPFI_SCRIPT_URL` trước (worker.js nạp glue bằng `importScripts`, nên `self.location` là worker.js chứ không phải glue –
+  pthread sẽ nạp nhầm file). Chỉ dùng khi trang được cô lập cross-origin (`SharedArrayBuffer`): máy chủ gửi
+  `Document-Isolation-Policy: isolate-and-credentialless` (Chrome / Edge máy tính ≥ 137; trình duyệt khác dùng bản 1 luồng).
 - Rapfi-CARO: cùng gói nguồn trên + bản vá `build/rapfi-caro.patch` (GPL-3; mô tả, cách kiểm đúng luật
   và đo sức: `server/scripts/rapfi/caro/README.md`). `build.sh` áp bản vá vào một bản sao rồi dựng `rapfi-caro-simd128.*`.
 
@@ -42,7 +50,11 @@ RAPFI_CLONE=1 bash caro/rapfi/build/build.sh   # hoặc: clone đúng commit t�
 `rapfi-single-simd128.wasm` SHA-256 `92d29800714f4ba68105e4229850b5c6d7062fb6ab39c42e5457cb1416288b07`,
 `rapfi-single-simd128.js` `dfa7b76abf414c5a6c02cb2ee80174d4e45267fcafab4715c09252500d21b013`. Rapfi-CARO:
 `rapfi-caro-simd128.wasm` `639c09ddb65c83f9a93ebf3e3146a7dbf5be35a12ae43f2fb174cac793596566`,
-`rapfi-caro-simd128.js` `44023d8aeac6cfbcd808e05690ff0bd71a45a5dfb5ac566f00a631d300d268ff`.
+`rapfi-caro-simd128.js` `44023d8aeac6cfbcd808e05690ff0bd71a45a5dfb5ac566f00a631d300d268ff`. Bản đa luồng:
+`rapfi-multi-simd128.wasm` `c0c621b4143d0200abafb16927302a98fd7a348b7325e02e1b40a09459044f19`,
+`rapfi-multi-simd128.js` `5792fd4c10a15321adda9c03e9b74f3ba12e3f111b12c8ef356069062ed9893c`,
+`rapfi-caro-multi-simd128.wasm` `af7049cb3f2a19952a38629f6fa6326c8f8b562531b206d55e56189650549f2f`,
+`rapfi-caro-multi-simd128.js` `be120ca1385a9a706889df283d87bc398925f133044ce971f3eadf9eb68192ec`.
 
 Mạng NNUE của Rapfi bắt buộc có SIMD nên không có bản vô hướng: trình duyệt không hỗ trợ WebAssembly SIMD thì BOAT dùng
 engine của game. **Bản iOS không kèm Rapfi** (điều khoản App Store xung khắc với GPL): hook `capacitor:copy:after`
