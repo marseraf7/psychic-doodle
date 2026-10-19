@@ -22,13 +22,16 @@
   const SCALE = { vn: 360 / 400 }, SCALE_NNUE = 360 / 200; // thang điểm Rapfi theo luật (bảng caro học với K = 1/400)
   const LOAD_WAIT = 60000; // phân tích chờ tải mạng (có thông báo tiến độ) tối đa 1 phút
   // Chấm theo số nút (rapfi/brain.js – INFO max_node), không theo giờ: kết quả không đổi theo máy nhanh / chậm (máy mạnh chỉ
-  // xong sớm hơn). Cả ván đặt vào một khung cố định trên bàn Rapfi, bảng băm xoá khi bắt đầu rồi giữ suốt ván (các thế liền
-  // nhau dùng lại được) – cùng ván, cùng số Worker thì cùng kết quả. Đo (server/scripts/rapfi/an-bench-rapfi.js, luật Việt
-  // Nam, 12 ván, 300 ms / thế, so với chấm ×8 nút): trùng chuẩn 86,1% (theo giờ như trước: 82,8%; theo số nút mà xoá bảng
-  // băm mỗi thế: 80,5%), đánh dấu oan 10 / bỏ sót 10 (trước 15 / 13), hai lần chạy ra cùng kết quả 100% (trước 89,4%).
+  // xong sớm hơn) – bộ nhớ chấm dùng chung (eval-cloud.js) cần điều này. Cả ván đặt vào một khung cố định trên bàn Rapfi;
+  // mỗi Worker chấm một đoạn liền các thế (run), bảng băm xoá ở thế đầu rồi giữ suốt đoạn (thế liền nhau dùng lại được) –
+  // cùng ván, cùng số Worker, cùng các thế lấy từ bộ nhớ thì cùng kết quả (Rapfi một luồng; bản đa luồng chia số nút cho
+  // các luồng – xong nhanh hơn nhưng mỗi lần chia một khác, kết quả có thể lệch chút – bộ nhớ dùng chung chịu được: evalcache.js).
   // Số nút = thời gian Rapfi thật sự nghĩ khi chấm theo giờ ms (~ms − 30 – brain.js fixedTime) × tốc độ chuẩn của Rapfi
   // WebAssembly 1 luồng theo luật (nghìn nút / giây = nút / ms: tổng nút / tổng thời gian trên các ván của công cụ đo, máy
-  // rảnh – Node 22): cùng thời gian như cách cũ trên máy chuẩn. Luật có mạng NNUE chậm hơn ~5 lần luật Việt Nam
+  // rảnh – Node 22): cùng thời gian như cách cũ trên máy chuẩn. Luật có mạng NNUE chậm hơn ~5 lần luật Việt Nam.
+  // Đo (server/scripts/rapfi/an-bench-rapfi.js, 300 ms / thế, so với chấm ×8 nút), theo giờ → theo số nút giữ bảng băm:
+  // Việt Nam 12 ván trùng chuẩn 81,5% → 80,5%, tự do 24 ván 89,4% → 87,8% (chênh trong sai số đo ~±2 điểm); hai lần
+  // chạy ra cùng xếp loại 89,4% / 95,6% → 100%. Xoá bảng băm mỗi thế kém hơn (Việt Nam 79,1%)
   const KNPS = { free: 99, std: 106, renju: 91, vn: 555 };
   const nodesFor = (rule, ms) => Math.max(10000, Math.round((ms - 30) * KNPS[rule]));
   let job = 0;
@@ -128,11 +131,13 @@
     // Khung cố định cho cả ván (mọi thế, kể cả thế sau nước tốt nhất nếu vừa); bảng băm mỗi Worker xoá ở lượt đầu
     const gf = R().frame(moves, R().SIZE[rule]);
     const first = [true, true];
+    // Chia cố định: Worker lane chấm đoạn liền thứ lane (không tranh việc) – thế nào vào Worker nào, sau thế nào, luôn như
+    // nhau nên bảng băm như nhau, kết quả như nhau; mỗi thế cùng số nút nên hai đoạn xong gần cùng lúc
     const run = async (list, at) => {
-      let next = 0, bad = false, done = 0;
+      let bad = false, done = 0;
+      const half = Math.ceil(list.length / lanes);
       await Promise.all(Array.from({ length: lanes }, async (_, lane) => {
-        while (!bad && my === job && next < list.length) {
-          const k = next++;
+        for (let k = lane * half; !bad && my === job && k < Math.min(list.length, (lane + 1) * half); k++) {
           const clean = first[lane]; // lượt đầu của Worker này: xoá bảng băm
           first[lane] = false;
           const e = await at(list[k], lane, clean);
