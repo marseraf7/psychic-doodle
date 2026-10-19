@@ -281,6 +281,8 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
     ok(await waitFor(async () => /Không tải được Rapfi/.test(await bad.p.textContent('#toasts')), 30000), 'mạng hỏng: báo không tải được Rapfi');
     const st = await bad.p.evaluate(async () => ({ avail: window.CaroRapfi.available('renju'), cached: (await (await caches.open('caro-rapfi-nets-v1')).keys()).length }));
     ok(!st.avail && st.cached === 0, `mạng hỏng không được lưu vào bộ nhớ đệm (${st.cached}), tạm tắt Rapfi luật Renju`);
+    // BOAT đi nước sách ngay nên Worker có thể còn đang tải file mạng thứ hai qua route giả: gỡ route trước khi đóng
+    await bad.ctx.unrouteAll({ behavior: 'ignoreErrors' });
     await bad.ctx.close();
   }
 
