@@ -99,6 +99,9 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   const took = Date.now() - t0;
   s = await stats();
   ok(s.rapfi === r0 + 1 && took < 9000, `nước 4 do Rapfi đi (${took} ms)`);
+  // Sau nước của BOAT, Rapfi nghĩ trước trên thế người chơi tới lượt; đổi luật ngay sau đó (Worker đang nghĩ trước phải
+  // dừng ở lát kế tiếp rồi mới terminate – xem retire) – các bước dưới kiểm Worker mới vẫn chạy bình thường
+  ok(s.ponder >= 1, `BOAT nghĩ trước trong lúc người chơi nghĩ (${s.ponder} lần)`);
   await shot(p, 'boat-rapfi-free.png');
 
   // ---------------------------------------------------------------- Tiêu chuẩn và Renju: Worker mới, mạng của luật đó
@@ -133,6 +136,15 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   });
   ok(vn && vn.mate > 0 && vn.move[0] === 0 && (vn.move[1] === 3 || vn.move[1] === -1),
     'Rapfi-CARO biết luật Việt Nam: ba mở → thắng — ' + JSON.stringify(vn));
+  // Máy đủ RAM: Worker Rapfi thứ hai – phân tích chấm hai thế cùng lúc, mỗi thế gấp đôi thời gian
+  ok(await p.evaluate(() => window.CaroRapfi.auxReady('vn', 30000)), 'phân tích: Worker Rapfi thứ hai sẵn sàng');
+  const two = await p.evaluate(async () => {
+    const mv = [[0, 0], [1, 1], [-1, 1], [1, 0], [1, -1], [2, -2], [0, 1], [0, -1]];
+    const a0 = window.CaroRapfi.stats.aux, t = performance.now();
+    const ev = await window.CaroRapfiAn.evaluate({ moves: mv, rule: 'vn', ms: 150 });
+    return { n: ev ? ev.filter((e) => e && e.src === 'rapfi').length : 0, aux: window.CaroRapfi.stats.aux - a0, ms: Math.round(performance.now() - t) };
+  });
+  ok(two.n === 9 && two.aux >= 3, `phân tích hai Worker: đủ 9 thế, Worker phụ chấm ${two.aux} thế (${two.ms} ms)`);
 
   // ---------------------------------------------------------------- Phân tích ván bằng Rapfi (luật tự do)
   // O chặn ba mở của X (nước 6) rồi bỏ mặc thế bốn (nước 8 – sai lầm), X thắng ở nước 9. (Ván cũ để O bỏ mặc ba mở từ

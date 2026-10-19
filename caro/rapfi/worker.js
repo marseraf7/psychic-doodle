@@ -15,8 +15,10 @@
  *   vào  { type: 'init', rule }                  – tải mạng (kiểm SHA-256) + khởi động Rapfi + thử nạp mạng NNUE
  *        { type: 'move', id, size, moves, ms }   – moves: [[x, y], …] toạ độ 0..size-1, X đi trước (BOAT đi, hoặc
  *                                                  phân tích chấm thế – cùng một lệnh)
+ *        { type: 'ponder', id, moves, ms }        – nghĩ trước trên thế người chơi tới lượt (tối đa ms), từng lát
+ *                                                  PONDER_SLICE ms; tin mới bất kỳ (kể cả { type: 'stop' }) làm dừng
  *   ra   { type: 'progress', pct } · { type: 'ready' } · { type: 'error', msg }
- *        { type: 'move', id, move: [x, y] | null, ev: { cp, mate } | null }
+ *        { type: 'move', id, move: [x, y] | null, ev: { cp, mate } | null } · { type: 'pondered', id }
  *          cp: điểm Rapfi (góc nhìn bên đi; khả năng thắng = 1 / (1 + e^(−cp / 200))),
  *          mate: ±số nửa nước tới thắng (+) / thua (−) chắc, 0 = chưa thấy
  */
@@ -194,6 +196,25 @@ function think(moves, ms) {
   return { move: mv ? [Number(mv[1]), Number(mv[2])] : null, ev: parseEval(res), lines: res };
 }
 
+/**
+ * Nghĩ trước (ponder) trong lúc người chơi nghĩ: Rapfi giữ bảng băm giữa các lệnh BOARD nên nước sau của BOAT tìm sâu
+ * hơn – đo (Rapfi-CARO, Node): nghĩ trước 1 giây + 250 ms ≈ nghĩ 500 ms (độ sâu 16,1 → 17,8); tự đấu cùng thời gian mỗi
+ * nước, bên nghĩ trước 600 ms thắng 76/128 ván (59%). Bản một luồng chạy đồng bộ nên chia lát ngắn, giữa các lát nhường
+ * lượt để tin mới (nước của người chơi, stop) vào được: tin mới tăng ponderGen → vòng dừng.
+ */
+const PONDER_SLICE = 300;
+let ponderGen = 0;
+async function ponder(d, gen) {
+  const end = Date.now() + d.ms;
+  try {
+    while (mod && gen === ponderGen && Date.now() < end - 20) {
+      think(d.moves, Math.min(PONDER_SLICE, end - Date.now()));
+      await new Promise((r) => setTimeout(r, 0));
+    }
+  } catch (err) { /* bỏ qua: chỉ là nghĩ trước */ }
+  self.postMessage({ type: 'pondered', id: d.id });
+}
+
 async function init(rule) {
   const files = NETS[rule];
   if (!files) throw new Error('rule ' + rule);
@@ -243,6 +264,9 @@ async function init(rule) {
 if (typeof module !== 'undefined' && module.exports) module.exports = { NETS, RULE_N, SIZE, SPEC, ENGINE, LOCAL, config, parseEval, wasmName }; // cho Node
 else self.onmessage = async (e) => {
   const d = e.data;
+  ponderGen++; // tin mới bất kỳ: dừng nghĩ trước
+  if (d.type === 'ponder') { await ponder(d, ponderGen); return; }
+  if (d.type === 'stop') return;
   if (d.type === 'init') {
     try {
       await init(d.rule);

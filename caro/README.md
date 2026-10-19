@@ -170,6 +170,13 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   **BOAT chạy Rapfi (WebAssembly) ở cả 4 luật** (`boat-rapfi.js` + `rapfi/`, như trang Gomocalc; luật Việt Nam: Rapfi-CARO):
   - Rapfi (GPL-3) dựng bằng Emscripten thành `rapfi/rapfi-single-simd128.{js,wasm}` (1,2 MB, 1 luồng, WebAssembly SIMD),
     chạy trong Worker riêng `rapfi/worker.js`, nói giao thức Piskvork; BOAT nghĩ 2,5 giây / nước (`bots.js`: `rapfi.ms`).
+  - **Nghĩ trước** (ponder): sau nước của BOAT, Rapfi nghĩ tiếp trên thế người chơi tới lượt (từng lát 300 ms, tối đa 15 giây
+    – điện thoại 6 giây; dừng khi người chơi đi, hết ván, app chạy nền); bảng băm giữ sang nước sau, khung bàn Rapfi giữ
+    nguyên giữa các nước khi còn vừa. Đo (Rapfi-CARO WASM trong Node): nghĩ trước 1 giây + 250 ms ≈ nghĩ 500 ms (độ sâu
+    16,1 → 17,8); tự đấu cùng thời gian mỗi nước, bên nghĩ trước 600 ms thắng 76/128 ván (59%).
+  - **Phân tích hai Worker**: máy đủ RAM (không phải điện thoại) có thêm một Worker Rapfi – chấm hai thế cùng lúc, mỗi thế
+    gấp đôi thời gian (250 → 500 ms: độ sâu 16,1 → 17,9), tổng thời gian như cũ; tạo sẵn khi hết ván, rảnh 1 phút thì dừng.
+    Đã thử, không giúp: chấm ngược từ cuối ván, bảng băm 64 MB (độ sâu như nhau ở 250 ms / thế).
   - Mạng NNUE "mix9svq" (CC0, ~10 MB; Renju 2 file) chỉ tải khi bắt đầu ván với BOAT – thử `rapfi/nets/` trên máy chủ,
     rồi jsDelivr, rồi GitHub raw (fork của mình trước, kho gốc sau) – giữ trong Cache Storage `caro-rapfi-nets-v1` (sw.js không xoá), lần sau không tải lại.
   - Bàn vô hạn → bàn Rapfi (tự do 20×20, tiêu chuẩn / Renju 15×15): mỗi nước đặt khung bao các quân vào giữa, chừa ≥ 1 ô
