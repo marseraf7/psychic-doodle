@@ -317,8 +317,8 @@
   // … / số lần tạm dừng nghĩ trước vì người chơi bỏ máy
   // … / số nước đáp nhanh vì đoán trúng lúc nghĩ trước / mức tự giảm tải
   const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0, threads: 0, idle: 0, load: 0, hit: 0 };
-  // Cách BOAT nghĩ mỗi nước (rapfi/brain.js – số đo trong rapfi/SOURCE.md và caro/README.md): hit – đoán trúng nước người chơi
-  // lúc nghĩ trước thì đáp nhanh; tm – Rapfi tự chia thời gian theo quỹ giờ cả ván
+  // Cách BOAT nghĩ mỗi nước (rapfi/brain.js – số đo trong caro/README.md, cả hai tắt): hit – đoán trúng nước người chơi lúc
+  // nghĩ trước thì đáp nhanh (tự đấu yếu hơn rõ); tm – Rapfi tự chia thời gian theo quỹ giờ cả ván (chưa đủ chứng cứ)
   const PLAY = { hit: false, tm: false };
 
   // Tuỳ chọn "Rapfi đa luồng" (mặc định bật; trình duyệt không cô lập cross-origin thì luôn một luồng – rapfi/worker.js)

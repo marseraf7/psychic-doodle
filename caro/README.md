@@ -197,7 +197,9 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     của các engine cờ vua, không dùng mã của họ). Đo bằng `server/scripts/rapfi/rapfi-match.js` (Rapfi-CARO WebAssembly tự
     đấu, 1 giây / nước, 96 khai cuộc × 2 ván đổi bên, SPRT); cả hai **chưa bật** (`PLAY` trong `boat-rapfi.js`) vì chưa thắng:
     - *Đáp nhanh khi đoán trúng*: người chơi đi đúng nước Rapfi dự đoán lúc nghĩ trước (đã nghĩ ≥ thời gian một nước) thì
-      chỉ nghĩ thêm 30% – trúng 36%, TB 350 ms / nước (so với 564), nhưng Elo −21,7 [−53,6; 9,7] (192 ván).
+      chỉ nghĩ thêm 30% – trúng 36%, TB 350 ms / nước (so với 564), nhưng Elo −21,7 [−53,6; 9,7] (192 ván); nghĩ thêm 50%:
+      trúng 33%, 400 / 540 ms, Elo −25,4 [−48,6; −2,4] – yếu hơn rõ. BOAT nghĩ cố định mỗi nước (không có đồng hồ cả ván
+      để dồn phần tiết kiệm sang nước khác), nên đáp nhanh chỉ đổi sức lấy tốc độ: không dùng.
     - *Rapfi tự chia thời gian* theo quỹ giờ cả ván (Fischer: quỹ đầu 22 nước, mỗi nước cộng một lượt, kẹp 2 lượt … 3 lần
       quỹ đầu; `INFO time_left` phải gửi sau cùng vì `timeout_turn` / `timeout_match` đặt lại quỹ): Elo +10,9 [−16,5; 38,4]
       (192 ván) – chưa đủ chứng cứ.
