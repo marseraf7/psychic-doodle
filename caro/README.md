@@ -174,10 +174,16 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
     (`server/src/web.js`; khác COOP / COEP, không làm hỏng cửa sổ đăng nhập Google) → trang có `SharedArrayBuffer` →
     `rapfi/worker.js` nạp bản pthread (`rapfi-*-multi-simd128`), số luồng = số lõi − 1 (tối đa 8; điện thoại 2), bảng băm
     64 MB (điện thoại 16). Đo Rapfi-CARO trong Node: 3 luồng 1.945K nút / giây so với 1 luồng 600K (×3,2), độ sâu 19 → 21
-    trong ~1,6 giây. Trình duyệt khác / app: bản 1 luồng như cũ. Bản vá `rapfi/build/rapfi-mt.patch` (xem `rapfi/SOURCE.md`).
+    trong ~1,6 giây; tự đấu Rapfi-CARO 3 luồng với 1 luồng, cùng 200 ms / nước: 3 luồng thắng 44/64 ván (69%). Trình duyệt
+    khác / app: bản 1 luồng như cũ. Bản vá `rapfi/build/rapfi-mt.patch` (xem `rapfi/SOURCE.md`).
+  - **Tuỳ chọn "Rapfi đa luồng"** (Cài đặt › Cài đặt bàn cờ, mặc định bật – `rapfi-settings.js`, lưu `caro.rapfiMt`): tắt thì
+    Worker dựng lại bản 1 luồng (mạng đã có trong Cache Storage). Trình duyệt không cô lập được thì ô bị khoá, ghi rõ chỉ chạy
+    1 luồng; bản iOS ẩn ô. **Gợi ý khi máy giật**: trong lúc bản đa luồng nghĩ / nghĩ trước, trang đo khoảng cách giữa hai
+    khung hình – 6 lần khựng ≥ 120 ms trong 15 giây thì báo (một lần mỗi phiên) gợi ý tắt "Rapfi đa luồng".
   - **Nghĩ trước** (ponder): sau nước của BOAT, Rapfi nghĩ tiếp trên thế người chơi tới lượt – **không giới hạn thời gian**
-    (dừng khi người chơi đi, hết ván, ván mới, app chạy nền): người chơi nghĩ càng lâu, BOAT càng xét sâu mọi nước người
-    chơi có thể đi và cách đáp lại. Bản đa luồng: một lượt tìm liên tục, dừng ngay bằng YXSTOP; bản 1 luồng: lát 300 ms.
+    (dừng khi người chơi đi, hết ván, ván mới; app chạy nền thì tạm dừng): người chơi nghĩ càng lâu, BOAT càng xét sâu mọi
+    nước người chơi có thể đi và cách đáp lại. Giới hạn an toàn: không chạm / bấm phím 10 phút (`CaroRapfi.IDLE`) thì tạm
+    dừng (pin, máy nóng); người chơi quay lại / mở lại app thì nghĩ tiếp đúng thế đó (bảng băm còn nguyên). Bản đa luồng: một lượt tìm liên tục, dừng ngay bằng YXSTOP; bản 1 luồng: lát 300 ms.
     Bảng băm giữ sang nước sau, khung bàn Rapfi giữ nguyên giữa các nước khi còn vừa. Đo (Rapfi-CARO WASM trong Node): nghĩ
     trước 1 giây + 250 ms ≈ nghĩ 500 ms (độ sâu 16,1 → 17,8); tự đấu cùng thời gian mỗi nước, bên nghĩ trước 600 ms thắng
     76/128 ván (59%). Đã thử "kịch bản" (YXNBEST 3 nước dự đoán – trúng 85% – rồi chia thời gian nghĩ sẵn từng nước): 44%
@@ -396,6 +402,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `engine-search.js` | Alpha-Beta (PVS) làm sâu dần, bảng ghi nhớ, chuỗi bốn (VCF) ở lá và ở gốc |
 | `engine-vct.js` | Chuỗi đe doạ ba / bốn (VCT – threat-space search của Allis): tìm thắng và kiểm nước định đi |
 | `boat-rapfi.js`, `i18n-rapfi.js` | BOAT gọi Rapfi (Worker) ở 4 luật (luật Việt Nam: Rapfi-CARO): tải mạng khi cần, đặt thế vào bàn Rapfi, dự phòng engine của game |
+| `rapfi-settings.js` | Ô "Rapfi đa luồng" trong Cài đặt; đo khung hình khi bản đa luồng chạy, máy giật thì gợi ý tắt |
 | `rapfi/` | Rapfi WebAssembly (GPL-3): `worker.js`, `rapfi-single-simd128.{js,wasm}`, `rapfi-caro-simd128.{js,wasm}` (Rapfi-CARO), mô hình cổ điển + `model-caro.bin`, `COPYING.txt`, `SOURCE.md`, `build/` (mã nguồn, bản vá Rapfi-CARO, cách dựng) |
 | `licenses.html` | Giấy phép mã nguồn mở (Rapfi GPL-3, mạng CC0, phông OFL) – 4 ngôn ngữ, dùng `privacy.js` |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |

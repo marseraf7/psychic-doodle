@@ -88,7 +88,8 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   let s = await stats();
   // WebKit không làm chậm được tải mạng (request của Worker) – mạng có thể xong trước nước 2: bộ đếm sau tính từ r0
   okNet(s.rapfi === 0 && s.fallback === 1, `nước 2 nhường engine (rapfi ${s.rapfi}, nhường ${s.fallback})`);
-  const r0 = s.rapfi, f0 = s.fallback;
+  let r0 = s.rapfi;
+  const f0 = s.fallback;
   ok(await warm('free'), 'mạng tải xong: Rapfi sẵn sàng');
   // Chromium ≥ 137: máy chủ gửi Document-Isolation-Policy → trang được cô lập → Rapfi đa luồng; trình duyệt khác: 1 luồng
   const iso = await p.evaluate(() => ({ iso: window.crossOriginIsolated, threads: window.CaroRapfi.stats.threads, ua: navigator.userAgent }));
@@ -105,6 +106,42 @@ const NET_RE = /mix9svq.*\.bin\.lz4$/;
   // Sau nước của BOAT, Rapfi nghĩ trước trên thế người chơi tới lượt; đổi luật ngay sau đó (Worker đang nghĩ trước phải
   // dừng ở lát kế tiếp rồi mới terminate – xem retire) – các bước dưới kiểm Worker mới vẫn chạy bình thường
   ok(s.ponder >= 1, `BOAT nghĩ trước trong lúc người chơi nghĩ (${s.ponder} lần)`);
+  // Giới hạn an toàn của nghĩ trước: bỏ máy IDLE.ms thì tạm dừng (thử với 1,5 giây thay cho 10 phút); bấm phím (người
+  // chơi quay lại) thì nghĩ tiếp trên đúng thế đó, rồi lại tạm dừng sau 1,5 giây không chạm
+  await p.evaluate(() => { window.CaroRapfi.IDLE.ms = 1500; });
+  await p.keyboard.press('Shift');
+  ok(await waitFor(async () => (await stats()).idle >= 1, 3000), 'bỏ máy: tạm dừng nghĩ trước');
+  await p.keyboard.press('Shift');
+  ok(await waitFor(async () => (await stats()).ponder === s.ponder + 1, 2000), 'người chơi quay lại: nghĩ trước tiếp');
+  ok(await waitFor(async () => (await stats()).idle >= 2, 4000), 'lại bỏ máy: tạm dừng lần nữa');
+  await p.evaluate(() => { window.CaroRapfi.IDLE.ms = 600000; });
+  await p.keyboard.press('Shift'); // nghĩ trước tiếp – bước đổi luật dưới cho Worker thôi việc lúc đang nghĩ trước
+  ok(await waitFor(() => p.evaluate(() => window.CaroRapfi.working() || !window.CaroRapfi.mtActive()), 2000), 'nghĩ trước chạy lại');
+  // Bản đa luồng: trang giật (giả lập: luồng chính bận 200 ms nhiều lần) trong lúc Rapfi nghĩ trước → gợi ý tắt đa luồng
+  if (iso.threads > 1) {
+    await sleep(1500); // theo dõi khung hình bắt đầu trong vòng 1 giây kể từ khi Rapfi đa luồng bận
+    await p.evaluate(async () => {
+      for (let i = 0; i < 8; i++) {
+        const t = performance.now();
+        while (performance.now() - t < 200) { /* bận */ }
+        await new Promise((r) => setTimeout(r, 80));
+      }
+    });
+    ok(await waitFor(async () => /đa luồng/.test(await p.textContent('#toasts')), 2000) && (await p.evaluate(() => window.CaroRapfiSettings.hinted)),
+      'máy giật khi Rapfi đa luồng chạy: gợi ý tắt đa luồng');
+  } else console.log('SKIP gợi ý tắt đa luồng (Rapfi một luồng)');
+  // Ô "Rapfi đa luồng" trong Cài đặt: trang cô lập thì bật được; không thì khoá, ghi chỉ chạy một luồng
+  const box = await p.evaluate(() => { window.CaroRapfiSettings.sync(); const el = document.querySelector('#settings-form [name=rapfiMt]'); return { on: el.checked, dis: el.disabled, hid: el.closest('.li').hidden, note: el.closest('.li').querySelector('small').textContent }; });
+  ok(!box.hid && (iso.iso ? box.on && !box.dis : !box.on && box.dis && /một luồng/.test(box.note)), 'Cài đặt: ô Rapfi đa luồng — ' + JSON.stringify(box));
+  if (iso.iso) {
+    // Tắt đa luồng: Worker dựng lại bản một luồng; bật lại: đa luồng như cũ
+    const flip = async (v) => { await p.evaluate((v) => window.CaroRapfi.setMt(v), v); await warm('free'); return p.evaluate(() => ({ t: window.CaroRapfi.stats.threads, mt: window.CaroRapfi.mtActive() })); };
+    const off = await flip(false), on = await flip(true);
+    ok(off.t === 1 && !off.mt && on.t === iso.threads && on.mt, `tắt / bật đa luồng: ${off.t} → ${on.t} luồng`);
+    await start('free', [[0, 0], [1, 1], [-1, -1]]); // nước sau đa luồng: BOAT vẫn đi, nghĩ trước tiếp cho bước đổi luật
+    ok(await waitFor(async () => (await stones()) === 4, 20000), 'bật lại đa luồng: BOAT đi');
+    r0 = (await stats()).rapfi - 1; // các bước sau đếm tiếp từ đây
+  }
   await shot(p, 'boat-rapfi-free.png');
 
   // ---------------------------------------------------------------- Tiêu chuẩn và Renju: Worker mới, mạng của luật đó

@@ -37,7 +37,8 @@ const ENGINE = { free: 'rapfi-single-simd128', std: 'rapfi-single-simd128', renj
 // Bản đa luồng (pthread): chỉ khi trang được cô lập cross-origin (có SharedArrayBuffer – máy chủ gửi Document-Isolation-Policy,
 // xem server/src/web.js); không thì bản 1 luồng như cũ. Rapfi nghĩ ở luồng riêng, trả lời qua stdout bất đồng bộ.
 const ENGINE_MT = { free: 'rapfi-multi-simd128', std: 'rapfi-multi-simd128', renju: 'rapfi-multi-simd128', vn: 'rapfi-caro-multi-simd128' };
-const MT = typeof self !== 'undefined' && self.crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';
+const ISO = typeof self !== 'undefined' && self.crossOriginIsolated === true && typeof SharedArrayBuffer === 'function';
+let MT = ISO; // init: người chơi tắt "Rapfi đa luồng" (Cài đặt – rapfi-settings.js) thì dùng bản một luồng
 // File đi kèm app (cùng thư mục) cần cho từng luật, ngoài mô hình cổ điển model210901.bin
 const LOCAL = { free: [], std: [], renju: [], vn: ['model-caro.bin'] };
 // Kích thước + SHA-256 từng file (commit NETS_COMMIT): tải đứt / sai thì không lưu, không dùng – nếu không Rapfi lặng lẽ
@@ -270,6 +271,7 @@ async function init(rule, o) {
     return u;
   });
   let data = await Promise.all([...local.map(own), ...files.map((f) => fetchNet(f, onBytes))]);
+  MT = ISO && !(o && o.mt === false);
   const name = (MT ? ENGINE_MT : ENGINE)[rule];
   // Glue đa luồng tạo pthread bằng new Worker(chính file này) – build.sh vá để đọc đường dẫn từ đây (Worker không có
   // document.currentScript)
