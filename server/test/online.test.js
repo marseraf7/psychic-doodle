@@ -320,6 +320,8 @@ test('bảo mật: header an toàn, chặn spam tin nhắn, token không lưu d�
   const r = await fetch(`http://127.0.0.1:${port}/`);
   assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
   assert.strictEqual(r.headers.get('x-frame-options'), 'DENY');
+  assert.strictEqual(r.headers.get('document-isolation-policy'), 'isolate-and-credentialless', 'Rapfi đa luồng (SharedArrayBuffer)');
+  assert.strictEqual(r.headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups', 'đăng nhập Google (cửa sổ bật lên)');
   assert.match(r.headers.get('strict-transport-security'), /max-age=\d+/);
   assert.strictEqual((await fetch(`http://127.0.0.1:${port}/`, { method: 'POST' })).status, 405);
   assert.strictEqual((await fetch(`http://127.0.0.1:${port}/..%2fserver%2fserver.js`)).status, 404);
