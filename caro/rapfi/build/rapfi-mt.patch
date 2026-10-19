@@ -1,0 +1,16 @@
+--- a/Rapfi/command/gomocup.cpp
++++ b/Rapfi/command/gomocup.cpp
+@@ -124,9 +124,12 @@
+             std::lock_guard<std::mutex> lock(protocolMutex);
+ #endif
+ 
++            // Rapfi-MT (Cờ Caro): tắt cờ thinking trước khi in nước đi – runProtocol bỏ qua mọi lệnh (trừ STOP) khi
++            // thinking còn bật, nên trang gửi lệnh kế tiếp ngay khi thấy nước đi có thể bị mất lệnh đó. Vẫn trong khoá
++            // protocolMutex nên lệnh mới chỉ chạy sau khi bàn cờ đã cập nhật.
++            thinking = false;
+             sendActionAndUpdateBoard(Search::Engine.ctx.resultAction,
+                                      Search::Engine.ctx.bestMove);
+-            thinking = false;
+         }
+ 
+         // Subtract used match time

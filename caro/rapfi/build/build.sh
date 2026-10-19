@@ -41,6 +41,14 @@ mkdir -p "$WORK/Networks" && : > "$WORK/Networks/wasm_preloads.txt"
 build() { # $1 = thư mục mã (trong $WORK), $2 = tên bản ra, $3 = ON (1 luồng) | OFF (đa luồng), $4.. = tuỳ chọn cmake
   local src="$WORK/$1" name="$2" dir="$WORK/build-$2" single="$3"; shift 3
   local proj=rapfi-single-simd128; [ "$single" = OFF ] && proj=rapfi-multi-simd128
+  if [ "$single" = OFF ]; then
+    # Bản đa luồng: thêm bản vá rapfi-mt.patch (GPL-3) – tắt cờ "đang nghĩ" trước khi in nước đi, để lệnh gửi ngay sau
+    # nước đi không bị bỏ qua (runProtocol bỏ mọi lệnh trừ STOP khi cờ còn bật)
+    mkdir -p "$WORK/mt-$name/Networks" && : > "$WORK/mt-$name/Networks/wasm_preloads.txt"
+    cp -r "$src" "$WORK/mt-$name/Rapfi"
+    (cd "$WORK/mt-$name" && patch -s -p1 < "$HERE/rapfi-mt.patch")
+    src="$WORK/mt-$name/Rapfi"
+  fi
   # Lỗi thì in phần cuối nhật ký (thư mục tạm bị xoá khi thoát)
   if ! { emcmake cmake -S "$src" -B "$dir" -DCMAKE_BUILD_TYPE=Release -DNO_MULTI_THREADING="$single" -DNO_COMMAND_MODULES=ON \
       -DUSE_SSE=OFF -DUSE_AVX2=OFF -DUSE_AVX512=OFF -DUSE_BMI2=OFF -DUSE_VNNI=OFF -DUSE_WASM_SIMD_RELAXED=OFF \
@@ -52,6 +60,13 @@ build() { # $1 = thư mục mã (trong $WORK), $2 = tên bản ra, $3 = ON (1 lu
   # Glue JS vẫn gọi tên dự án (rapfi-single / multi-simd128.wasm); worker.js (wasmName) đổi sang đúng file khi nạp
   cp "$dir/$proj.js" "$OUT/$name.js"
   cp "$dir/$proj.wasm" "$OUT/$name.wasm"
+  if [ "$single" = OFF ]; then
+    # Glue đa luồng tạo pthread bằng new Worker(_scriptName); trong Worker, _scriptName = self.location.href – tức
+    # rapfi/worker.js (nạp glue bằng importScripts), sai file: cho worker.js đặt đúng đường dẫn glue qua RAPFI_SCRIPT_URL
+    local a='_scriptName=self.location.href'
+    [ "$(grep -oF "$a" "$OUT/$name.js" | wc -l)" = 1 ] || { echo "✗ $name.js: không thấy đúng một chỗ $a" >&2; exit 1; }
+    sed -i 's#_scriptName=self\.location\.href#_scriptName=globalThis.RAPFI_SCRIPT_URL||self.location.href#' "$OUT/$name.js"
+  fi
 }
 # Mạng NNUE của Rapfi bắt buộc có SIMD (không có bản vô hướng): trình duyệt không hỗ trợ WebAssembly SIMD
 # (rất cũ, vd. Safari < 16.4) thì BOAT tự dùng engine của game.
