@@ -36,36 +36,47 @@
     weights(rule) { return evalOf(rule); }
 
     // ---- điểm thế cờ: các cửa sổ chịu ảnh hưởng khi ô (cx, cy) đổi
-    /** Cộng (sign = +1) hoặc trừ (sign = -1) điểm các cửa sổ qua (cx, cy) vào this.acc. */
-    windowsAround(cx, cy, sign) {
-      // Đọc 13 ô trên mỗi đường một lần rồi trượt cửa sổ (nhanh hơn nhiều so với đọc lại từng cửa sổ)
+    /**
+     * Ô (cx, cy) sắp đổi thành v (chưa đặt): trừ điểm các cửa sổ qua ô theo giá trị hiện tại rồi cộng lại theo v, vào
+     * this.acc. Đọc 13 ô trên mỗi đường một lần cho cả hai lượt (trọng số là số nguyên nên thứ tự cộng không đổi kết quả).
+     */
+    windowsSwap(cx, cy, v) {
       // Cửa sổ 5 ô: một màu, k quân (luật Việt Nam: bị chặn hai đầu = 0); cửa sổ 6 ô hai đầu trống, 4 ô giữa một màu
       const L = this._line, vn = this.rule === 'vn', acc = this.acc, E = this.ev;
       const a5 = E.a5, d5 = E.d5, a6 = E.a6, d6 = E.d6;
+      const W = this.W, H = this.H, cells = this.cells;
       for (let d = 0; d < 4; d++) {
-        const dx = DX[d], dy = DY[d];
-        for (let k = -6; k <= 6; k++) L[k + 6] = this.at(cx + k * dx, cy + k * dy);
-        // Cửa sổ 5 ô L[b..b+4], b = 1..7 (đầu ngoài: L[b-1], L[b+5])
-        let x = 0, o = 0;
-        for (let k = 1; k <= 5; k++) { const v = L[k]; if (v === X) x++; else if (v === O) o++; }
-        for (let b = 1; b <= 7; b++) {
-          if (b > 1) {
-            const out = L[b - 1], inn = L[b + 4];
-            if (out === X) x--; else if (out === O) o--;
-            if (inn === X) x++; else if (inn === O) o++;
+        const dx = DX[d], dy = DY[d], step = dy * W + dx;
+        // Khoảng k còn trong mảng (ngoài mảng = ô trống), tính một lần thay vì kiểm từng ô
+        let k0 = -6, k1 = 6;
+        if (dx) { if (-cx > k0) k0 = -cx; if (W - 1 - cx < k1) k1 = W - 1 - cx; }
+        if (dy > 0) { if (-cy > k0) k0 = -cy; if (H - 1 - cy < k1) k1 = H - 1 - cy; } else if (dy < 0) { if (cy - H + 1 > k0) k0 = cy - H + 1; if (cy < k1) k1 = cy; }
+        if (k0 > -6 || k1 < 6) L.fill(EMPTY);
+        for (let k = k0, i = (cy + k0 * dy) * W + cx + k0 * dx; k <= k1; k++, i += step) L[k + 6] = cells[i];
+        for (let pass = 0, sign = -1; pass < 2; pass++, sign = 1) {
+          if (pass) L[6] = v;
+          // Cửa sổ 5 ô L[b..b+4], b = 1..7 (đầu ngoài: L[b-1], L[b+5])
+          let x = 0, o = 0;
+          for (let k = 1; k <= 5; k++) { const c = L[k]; if (c === X) x++; else if (c === O) o++; }
+          for (let b = 1; b <= 7; b++) {
+            if (b > 1) {
+              const out = L[b - 1], inn = L[b + 4];
+              if (out === X) x--; else if (out === O) o--;
+              if (inn === X) x++; else if (inn === O) o++;
+            }
+            if ((x && o) || (!x && !o)) continue;
+            const q = x ? O : X;
+            if (vn && L[b - 1] === q && L[b + 5] === q) continue; // luật Việt Nam: bị chặn hai đầu
+            if (x) { acc[0] += sign * a5[x]; acc[1] += sign * d5[x]; } else { acc[2] += sign * a5[o]; acc[3] += sign * d5[o]; }
           }
-          if ((x && o) || (!x && !o)) continue;
-          const q = x ? O : X;
-          if (vn && L[b - 1] === q && L[b + 5] === q) continue; // luật Việt Nam: bị chặn hai đầu
-          if (x) { acc[0] += sign * a5[x]; acc[1] += sign * d5[x]; } else { acc[2] += sign * a5[o]; acc[3] += sign * d5[o]; }
-        }
-        // Cửa sổ 6 ô L[b..b+5], b = 1..6: hai đầu trống, 4 ô giữa một màu
-        for (let b = 1; b <= 6; b++) {
-          if (L[b] !== EMPTY || L[b + 5] !== EMPTY) continue;
-          let x6 = 0, o6 = 0;
-          for (let k = 1; k < 5; k++) { const v = L[b + k]; if (v === X) x6++; else if (v === O) o6++; }
-          if ((x6 && o6) || (!x6 && !o6)) continue;
-          if (x6) { acc[0] += sign * a6[x6]; acc[1] += sign * d6[x6]; } else { acc[2] += sign * a6[o6]; acc[3] += sign * d6[o6]; }
+          // Cửa sổ 6 ô L[b..b+5], b = 1..6: hai đầu trống, 4 ô giữa một màu
+          for (let b = 1; b <= 6; b++) {
+            if (L[b] !== EMPTY || L[b + 5] !== EMPTY) continue;
+            let x6 = 0, o6 = 0;
+            for (let k = 1; k < 5; k++) { const c = L[b + k]; if (c === X) x6++; else if (c === O) o6++; }
+            if ((x6 && o6) || (!x6 && !o6)) continue;
+            if (x6) { acc[0] += sign * a6[x6]; acc[1] += sign * d6[x6]; } else { acc[2] += sign * a6[o6]; acc[3] += sign * d6[o6]; }
+          }
         }
       }
     }

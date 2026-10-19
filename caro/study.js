@@ -39,8 +39,8 @@
   const an = { result: null, running: false, seq: 0, refining: null, job: 0, key: null, prog: 0 };
 
   /**
-   * opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế }. Có nhiều Worker (an-pool.js): chấm song song rồi xếp loại
-   * ngay trên trang; không thì một Worker chạy cả analyzeGame (cách cũ).
+   * opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế }. Có Worker (an-pool.js – 1 tới 4 Worker, nhớ các thế đã chấm
+   * cho mọi ván): chấm song song rồi xếp loại ngay trên trang; không được thì một Worker chạy cả analyzeGame (cách cũ).
    */
   async function runAnalysis(moves, rule, onProgress, opts) {
     opts = opts || {};
@@ -54,7 +54,7 @@
       return runAnalysis(moves, rule, onProgress, { evals: opts.evals, ms: fullMs(moves.length) });
     }
     const Pool = window.CaroAnPool;
-    if (Pool && opts.ms && Pool.size > 1) {
+    if (Pool && opts.ms) {
       const job = an.job;
       const evals = await Pool.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress });
       if (job !== an.job) return null; // đã huỷ

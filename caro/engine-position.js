@@ -18,9 +18,10 @@
   const F5 = PT.F5;
   const POW3 = [1, 3, 9, 27, 81, 243, 729, 2187, 6561, 19683, 59049];
 
-  // Bộ sinh số giả ngẫu nhiên cố định (khoá Zobrist giống nhau mọi lần chạy)
-  let seed = 0x9e3779b9;
-  const rnd = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return seed >>> 0; };
+  // Khoá Zobrist theo toạ độ thật của ô (không theo chỉ số trong mảng): cùng thế cờ → cùng khoá ở mọi Position, dù vùng
+  // mảng khác nhau – bảng ghi nhớ dùng lại được giữa các nước của một ván (engine.js). Trộn bit kiểu murmur3 (fmix32).
+  const mix = (h) => { h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35); return (h ^ (h >>> 16)) >>> 0; };
+  const zobAt = (x, y, k) => mix(mix(mix(k * 0x9e3779b9 + 0x7f4a7c15) ^ (x | 0)) + Math.imul(y | 0, 0x27d4eb2f));
 
   class Position {
     /** moves: [[x, y], …] – X đi trước, luân phiên. rule: 'vn' (mặc định) | 'free' | 'std' | 'renju'. */
@@ -40,7 +41,10 @@
       this.winCount = [0, 0, 0];
       this.winSet = [null, new Set(), new Set()]; // các ô thắng (khỏi quét cả mảng)
       this.zob = [null, new Int32Array(n), new Int32Array(n), new Int32Array(n), new Int32Array(n)]; // lo/hi cho X, O
-      for (let i = 0; i < n; i++) { this.zob[1][i] = rnd(); this.zob[2][i] = rnd() & 0x1fffff; this.zob[3][i] = rnd(); this.zob[4][i] = rnd() & 0x1fffff; }
+      for (let i = 0; i < n; i++) {
+        const x = i % this.W + this.ox, y = (i / this.W | 0) + this.oy;
+        this.zob[1][i] = zobAt(x, y, 1); this.zob[2][i] = zobAt(x, y, 2) & 0x1fffff; this.zob[3][i] = zobAt(x, y, 3); this.zob[4][i] = zobAt(x, y, 4) & 0x1fffff;
+      }
       this.lo = 0; this.hi = 0;
       this.ev = this.weights(this.rule);   // trọng số chấm điểm của luật này (engine-eval.js)
       this.acc = new Float64Array(4);      // [công X, thủ X, công O, thủ O]: tổng trọng số cửa sổ của X / O (a… / d…)
@@ -64,6 +68,12 @@
     }
     idx(x, y) { return (y - this.oy) * this.W + (x - this.ox); }
     xy(i) { return [i % this.W + this.ox, Math.floor(i / this.W) + this.oy]; }
+    /** Ô i → một số theo toạ độ thật (để lưu nước vào bảng ghi nhớ dùng chung giữa các Position); unpack: ngược lại, −1 nếu ngoài mảng. */
+    pack(i) { return (i % this.W + this.ox + 32768) * 65536 + ((i / this.W | 0) + this.oy + 32768); }
+    unpack(c) {
+      const x = Math.floor(c / 65536) - 32768 - this.ox, y = c % 65536 - 32768 - this.oy;
+      return x < 0 || y < 0 || x >= this.W || y >= this.H ? -1 : y * this.W + x;
+    }
     /** Ô theo toạ độ trong mảng (cx, cy là chỉ số cột / hàng); ngoài mảng = trống. */
     at(cx, cy) { return cx < 0 || cy < 0 || cx >= this.W || cy >= this.H ? EMPTY : this.cells[cy * this.W + cx]; }
     get key() { return this.hi * 4294967296 + (this.lo >>> 0); }
@@ -95,11 +105,13 @@
       const stamp = this._stamp, sn = this._stampN, touched = this._touched;
       const vx = sign * p, vo = sign * SWAP[p];
       for (let d = 0; d < 4; d++) {
-        const dx = DX[d], dy = DY[d], bit = 1 << d;
-        for (let k = -5; k <= 5; k++) {
-          const x = cx + k * dx, y = cy + k * dy;
-          if (x < 0 || y < 0 || x >= W || y >= H) continue;
-          const i = y * W + x, pi = i * 4 + d, w = POW3[5 - k];
+        const dx = DX[d], dy = DY[d], bit = 1 << d, step = dy * W + dx;
+        // Khoảng k còn trong mảng (tính một lần thay vì kiểm từng ô)
+        let k0 = -5, k1 = 5;
+        if (dx) { if (-cx > k0) k0 = -cx; if (W - 1 - cx < k1) k1 = W - 1 - cx; }
+        if (dy > 0) { if (-cy > k0) k0 = -cy; if (H - 1 - cy < k1) k1 = H - 1 - cy; } else if (dy < 0) { if (cy - H + 1 > k0) k0 = cy - H + 1; if (cy < k1) k1 = cy; }
+        for (let k = k0, i = (cy + k0 * dy) * W + cx + k0 * dx; k <= k1; k++, i += step) {
+          const pi = i * 4 + d, w = POW3[5 - k];
           const kx = (keyX[pi] += vx * w), ko = (keyO[pi] += vo * w);
           let px = 0, po = 0;
           if (cells[i] === EMPTY) {
@@ -144,11 +156,8 @@
       const cx = i % this.W, cy = (i / this.W) | 0;
       // Trong lúc tìm chuỗi ép (lazy > 0) không cần điểm thế cờ: bỏ qua phần tính điểm (undo cũng bỏ qua theo evs)
       const ev = !this.lazy;
-      if (ev) {
-        this.windowsAround(cx, cy, -1);
-        this.cells[i] = p;
-        this.windowsAround(cx, cy, 1);
-      } else this.cells[i] = p;
+      if (ev) this.windowsSwap(cx, cy, p);
+      this.cells[i] = p;
       this.evs.push(ev);
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {
@@ -163,11 +172,8 @@
       const i = this.stack.pop();
       const p = this.cells[i];
       const cx = i % this.W, cy = (i / this.W) | 0;
-      if (this.evs.pop()) {
-        this.windowsAround(cx, cy, -1);
-        this.cells[i] = EMPTY;
-        this.windowsAround(cx, cy, 1);
-      } else this.cells[i] = EMPTY;
+      if (this.evs.pop()) this.windowsSwap(cx, cy, EMPTY);
+      this.cells[i] = EMPTY;
       if (p === X) { this.lo ^= this.zob[1][i]; this.hi ^= this.zob[2][i]; } else { this.lo ^= this.zob[3][i]; this.hi ^= this.zob[4][i]; }
       for (let y = Math.max(0, cy - 2); y <= Math.min(this.H - 1, cy + 2); y++) {
         for (let x = Math.max(0, cx - 2); x <= Math.min(this.W - 1, cx + 2); x++) this.near[y * this.W + x]--;

@@ -53,7 +53,7 @@
     const rule = board.rule || 'vn';
     const c = rule === g.rule ? common(g.moves, moves) : -1;
     if (c <= 0 && (g.moves.length || rule !== g.rule)) {
-      // Ván khác (hoặc đổi luật): làm lại từ đầu, bảng nhớ engine cũng mới
+      // Ván khác (hoặc đổi luật): làm lại từ đầu
       g.gid = ++gidSeq; g.rule = rule; g.evals = [];
     } else if (c < g.moves.length) g.evals.length = c + 1; // đi lại / rẽ nhánh: bỏ các thế sau chỗ khác nhau
     g.moves = moves;
@@ -92,7 +92,7 @@
     if (!w) return;
     const pos = alt ? g.moves.slice(0, i).concat([g.evals[i].move]) : g.moves.slice(0, i);
     inflight = { id: 'lv' + ++seq, gid: g.gid, i, alt, key: keyOf(g.moves, i) };
-    w.postMessage({ type: 'eval', id: inflight.id, gid: g.gid, rule: g.rule, ms: MS, moves: pos });
+    w.postMessage({ type: 'eval', id: inflight.id, rule: g.rule, ms: MS, moves: pos });
   }
 
   function onResult(e) {

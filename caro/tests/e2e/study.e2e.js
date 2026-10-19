@@ -97,15 +97,12 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(tl.length === GAME.length, `danh sách nước đi có ${GAME.length} nước`);
     ok(/Sai lầm nặng/.test(tl[5]), 'nước 6 của O: Sai lầm nặng — ' + tl[5]);
     ok(/Tốt nhất/.test(tl[6]), 'nước 7 của X: Tốt nhất');
-    // Đọc độ chính xác sau lượt phân tích kỹ (lượt nhanh chấm nông hơn nên số có thể khác). Không so X với O: trước nước 6
-    // engine đã chấm O chỉ còn ~7–12% khả năng thắng nên sai lầm nặng chỉ trừ ~7–12% (như Lichess), còn các nước khai cuộc
-    // (nước 1–4, chưa có thế ép) được chấm theo độ sâu tìm kịp trong giới hạn thời gian và theo Worker nào chấm thế nào
-    // (an-pool.js, mỗi Worker một bảng nhớ) – điểm dao động vài trăm, lúc chấm "chưa chính xác" cho X, lúc cho O. Đo trên
-    // máy 4 lõi (3 Worker): cả Chromium lẫn WebKit có lúc ra X 88%, O 91% (Chromium 4 Worker: 6/15 lần).
-    // Chỉ kiểm phần ít phụ thuộc tốc độ máy: X ≥ 70% (như study.test.js), O dưới 100% vì bị trừ điểm sai lầm nặng.
+    // Đọc độ chính xác sau lượt phân tích kỹ (lượt nhanh chấm nông hơn nên số có thể khác). Mỗi thế chấm theo số nút, không
+    // theo giờ (analysis.js evaluate), nên số liệu như nhau trên mọi trình duyệt / máy / số Worker: X 99%, O 68% (nước 2
+    // (0,5) của O ở xa – chưa chính xác). Trước đây chấm theo giờ: có lúc ra X 88%, O 91% (Chromium lẫn WebKit).
     await p.waitForFunction(() => !document.getElementById('an-refine'), null, { timeout: 30000 });
     const acc = await p.$$eval('.an-acc', (els) => els.map((e) => parseInt(e.textContent, 10)));
-    ok(acc[0] >= 70 && acc[0] <= 100 && acc[1] >= 0 && acc[1] < 100, `độ chính xác (theo mức tụt khả năng thắng, như Lichess) X ${acc[0]}%, O ${acc[1]}%`);
+    ok(acc[0] >= 80 && acc[1] < acc[0], `độ chính xác (theo mức tụt khả năng thắng, như Lichess) X ${acc[0]}%, O ${acc[1]}%`);
     await p.click('.an-mv[data-i="6"]');
     await sleep(200);
     const now6 = await p.textContent('#an-now');

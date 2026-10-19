@@ -119,6 +119,15 @@
   /** Engine phân tích (engine.js): Alpha-Beta + tìm chuỗi ép, đúng luật Caro Việt Nam. */
   const engine = () => global.CaroEngine || (typeof require === 'function' ? require('./engine.js') : null);
 
+  // Phân tích ván chấm mỗi thế theo số nút, không theo giờ (engine-search.js): kết quả chỉ phụ thuộc thế cờ và ms – cùng
+  // một ván cho cùng kết quả trên mọi máy / trình duyệt, chấm trên 1 hay nhiều Worker, theo thứ tự nào cũng vậy (mỗi thế
+  // một bảng nhớ mới). NODES_PER_MS: tốc độ trung vị đo trên Node / Chromium (~130 nút / ms) → máy thường xong đúng ms;
+  // máy quá chậm dừng ở CAP × ms, ít nhất CAP_MIN ms (khi đó kết quả mới tuỳ máy).
+  const NODES_PER_MS = 120, CAP = 5, CAP_MIN = 1000;
+  const evalOpts = (ms, rule) => ({ nodes: Math.round(ms * NODES_PER_MS), ms: Math.max(CAP_MIN, ms * CAP), rule, smooth: true });
+  /** Chấm một thế cờ cho phân tích ván (bản gọn, xem slim). */
+  const evaluate = (moves, ms, rule) => slim(engine().analyse(moves, evalOpts(ms, rule)), ms);
+
   // Mức tụt khả năng thắng (0..1) để xếp loại nước đi, như Lichess: ?! chưa chính xác, ? sai lầm, ?? sai lầm nặng
   const DROP = { inacc: 0.1, mistake: 0.18, blunder: 0.3 };
 
@@ -136,13 +145,12 @@
     const EN = engine();
     const n = moves.length;
     const ms = opts.ms || Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // cả ván khoảng 10 giây
-    const shared = { ms, tt: new Map(), qtt: new Map(), vtt: new Map(), rule: opts.rule, strict: ms < 60 }; // lượt nhanh: đúng giờ
     const board = new C.Board(opts.rule);
     const evals = []; // evals[i]: thế cờ trước nước i (null = ván đã kết thúc)
     const pre = opts.evals || [];
     let end = n;
     for (let i = 0; i <= n; i++) {
-      evals[i] = reusable(pre[i], ms) ? pre[i] : slim(EN.analyse(moves.slice(0, i), shared), ms);
+      evals[i] = reusable(pre[i], ms) ? pre[i] : evaluate(moves.slice(0, i), ms, opts.rule);
       if (opts.onProgress) opts.onProgress(i + 1, n + 1);
       if (i === n) break;
       const [x, y] = moves[i], p = i % 2 === 0 ? C.X : C.O;
@@ -155,7 +163,7 @@
     // phân tích ngầm lúc chơi có thể đã chấm sẵn (evals[i].alt)
     const alt = (i) => {
       const e = evals[i];
-      if (!reusable(e.alt, ms)) evals[i] = { ...e, alt: slim(EN.analyse(moves.slice(0, i).concat([e.move]), shared), ms) };
+      if (!reusable(e.alt, ms)) evals[i] = { ...e, alt: evaluate(moves.slice(0, i).concat([e.move]), ms, opts.rule) };
       return evals[i].alt;
     };
     const out = [];
@@ -235,7 +243,7 @@
     return result.moves.filter((m) => KEY.has(m.cls));
   }
 
-  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, MAX_DEPTH };
+  const CaroAnalysis = { immediateWins, forced, winningMove, bestBlock, analyzeGame, summarize, keyMoments, slim, altNeeded, evaluate, evalOpts, MAX_DEPTH };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroAnalysis;
   else global.CaroAnalysis = CaroAnalysis;
 })(typeof window !== 'undefined' ? window : globalThis);

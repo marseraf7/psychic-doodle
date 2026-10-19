@@ -72,8 +72,13 @@
 
     /** Ứng viên (ô trống gần quân), xếp theo điểm tấn công + phòng thủ. */
     candidates(p, limit, pure) {
-      const q = 3 - p, list = [];
+      const q = 3 - p;
       if (!this.count) return [this.idx(0, 0)];
+      // Ô và điểm ghi vào mảng có sẵn (khỏi tạo đối tượng cho mỗi ô – đỡ dọn rác bộ nhớ); n: số ứng viên
+      const N = this.cells.length;
+      if (!this._cI || this._cI.length !== N) { this._cI = new Int32Array(N); this._cS = new Float64Array(N); }
+      const ci = this._cI, cs = this._cS;
+      let n = 0;
       // Thưởng theo lối đánh chỉ cho nước của nhân vật máy ở gốc (pure: bỏ qua, chỉ theo điểm)
       const root = !pure && this.count === this.rootCount;
       const pw = this.policy && POLICY && POLICY[this.rule];
@@ -90,7 +95,7 @@
           for (let d = 0; d < 4; d++) { const a = pp[b + d], c = pq[b + d]; s += pw[169 + a] + pw[178 + c] + pw[208 + a * 9 + c]; }
           s += pw[187 + (lo < 0 ? 5 : Math.min(5, Math.max(Math.abs(x - lox), Math.abs(y - loy)) - 1))];
           s += pw[193 + (lw < 0 ? 5 : Math.min(5, Math.max(Math.abs(x - lwx), Math.abs(y - lwy)) - 1))];
-          list.push({ i, s: s * 100 });
+          ci[n] = i; cs[n++] = s * 100;
         }
       } else if (this.patOrder) {
         // Điểm theo mẫu đường đã có sẵn của ô (Rapfi / Wine: xếp nước theo mẫu) – rẻ hơn quickScore nhiều
@@ -100,23 +105,39 @@
           const b = i * 4;
           const sp = LS[pp[b]] + LS[pp[b + 1]] + LS[pp[b + 2]] + LS[pp[b + 3]];
           const sq = LS[pq[b]] + LS[pq[b + 1]] + LS[pq[b + 2]] + LS[pq[b + 3]];
-          list.push({ i, s: sp + 0.85 * sq + near[i] });
+          ci[n] = i; cs[n++] = sp + 0.85 * sq + near[i];
         }
       } else {
         for (let i = 0; i < this.cells.length; i++) {
           if (this.cells[i] !== EMPTY || !this.near[i]) continue;
-          list.push({ i, s: this.quickScore(i, p) + 0.85 * this.quickScore(i, q) });
+          ci[n] = i; cs[n++] = this.quickScore(i, p) + 0.85 * this.quickScore(i, q);
         }
       }
+      const styled = root && (this.style.dbl || this.style.trap), renjuX = this.rule === 'renju' && p === X;
+      if (limit && limit < n && !styled && !renjuX) {
+        // Chỉ cần limit ô đầu: chọn dần (giữ đúng thứ tự của sắp xếp ổn định – ngang điểm thì ô đứng trước lên trước)
+        const top = [];
+        for (let j = 0; j < n; j++) {
+          const v = cs[j];
+          if (top.length === limit && v <= cs[top[limit - 1]]) continue;
+          let at = top.length;
+          while (at > 0 && cs[top[at - 1]] < v) at--;
+          top.splice(at, 0, j);
+          if (top.length > limit) top.pop();
+        }
+        return top.map((j) => ci[j]);
+      }
+      const list = [];
+      for (let j = 0; j < n; j++) list.push({ i: ci[j], s: cs[j] });
       list.sort((a, b) => b.s - a.s);
-      if (root && (this.style.dbl || this.style.trap)) {
+      if (styled) {
         // Lối đánh chỉ đổi thứ tự trong nhóm nước tốt nhất (không đẩy nước tốt ra ngoài): ngang điểm thì nước hợp lối được chọn
         const top = list.slice(0, limit || list.length);
         for (const o of top) o.t = o.s + this.styleScore(o.i, p);
         top.sort((a, b) => b.t - a.t);
         list.splice(0, top.length, ...top);
       }
-      if (this.rule === 'renju' && p === X) {
+      if (renjuX) {
         const out = [];
         for (const o of list) { if (!this.forbidden(o.i, p)) out.push(o.i); if (limit && out.length >= limit) break; }
         return out;
