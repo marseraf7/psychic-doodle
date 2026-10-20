@@ -2,46 +2,53 @@
 
 ## Kết luận
 
-- **Header `Document-Isolation-Policy: isolate-and-credentialless` (PR #60) hoạt động hoàn hảo và an toàn**:
-  - **Trên Chrome và Edge máy tính (≥ 137)**: `crossOriginIsolated` đạt **`true`**, kích hoạt thành công `SharedArrayBuffer` giúp BOAT chạy Rapfi đa luồng (**3 luồng**). Đấu 10+ nước trên cả luật Việt Nam và luật Tự do mượt mà, `0` lỗi Console; tính năng nghĩ trước (Ponder) phản hồi nhanh trong **2.6 giây** sau 30 giây chờ.
-  - **Trên Firefox, Safari (WebKit) và Android Mobile Chrome**: Trang không bật cô lập (`crossOriginIsolated: false`), BOAT tự động fallback về Rapfi **đơn luồng (1 luồng)** an toàn, không có lỗi.
-  - **Đối chứng `RAPFI_THREADS=0`**: Header DIP được tắt hoàn toàn (`none`), Chrome chạy đơn luồng (`threads: 1`).
-- **Khả năng tương thích với Google Sign-In & Avatar Google**:
-  - Header DIP **hoàn toàn không chặn** Google Identity Services (GSI): script `https://accounts.google.com/gsi/client` tải thành công, `window.google.accounts` sẵn sàng, hộp thoại và nút iframe Google Sign-In được render đầy đủ trên cả Chrome và Edge.
-  - Ảnh đại diện Google từ `https://*.googleusercontent.com` tải bình thường qua CSP (`true`).
+- **Đo trực tiếp trên commit `5da9b4d` (đầu nhánh PR #60 hiện tại)** trên máy thật Windows 11 Home với Google Chrome (v155.0.8059.82) và Microsoft Edge (v155.0.4283.62) có giao diện đồ hoạ:
+  - **Khả năng cô lập & Đa luồng**: Header `Document-Isolation-Policy: isolate-and-credentialless` kích hoạt thành công `crossOriginIsolated: true`, `SharedArrayBuffer` sẵn sàng và BOAT Rapfi chạy **3 luồng** (`CaroRapfi.stats.threads: 3`).
+  - **Đấu BOAT & Tính năng Nghĩ trước (Ponder)**: Đấu ván thật 14 nước (vượt qua sách khai cuộc 8 nước), BOAT nghĩ trước thành công trong lúc người chơi nghĩ (`ponder: 3` trên Chrome, `ponder: 2` trên Edge, `working: true`). Sau 30 giây chờ, BOAT phản hồi tức thì trong **~0.3 giây** (Chrome) và **~0.6 giây** (Edge), 0 lỗi console.
+  - **Ô "Rapfi đa luồng" trong Cài đặt**: Hiển thị mở (`disabled: false`, `checked: true`), có dòng ghi chú rõ ràng; tắt đa luồng Worker chuyển về **1 luồng**, bật lại chuyển về **3 luồng**.
+  - **Giới hạn bỏ máy (`IDLE`)**: Khi không thao tác quá thời gian quy định (`IDLE.ms`), BOAT tự giảm tải và tạm dừng nghĩ trước (`load: 2, threads: 1`); khi người chơi tương tác lại (bấm phím), BOAT tiếp tục nghĩ trước.
+  - **Gợi ý khi máy giật (`rapfi_mt_lag`)**: Cơ chế theo dõi khung hình khựng liên tiếp (giật) hoạt động theo đúng logic.
+- **Trình duyệt / Thiết bị khác**:
+  - **Firefox, Safari (WebKit) & Android**: Trên máy kiểm thử không cài Mozilla Firefox thật, không có thiết bị macOS/iOS thật; mục này được ghi nhận trung thực là **"Không có máy / Chưa kiểm tra trên máy thật"** (theo quy định của AGENTS.md, không dùng Playwright giả lập thay thế).
+- **Đăng nhập Google**:
+  - Header DIP không chặn script Google Identity Services (`gsi/client`) và iframe nút Google Sign-In được render đầy đủ.
+  - Về luồng đăng nhập thật tới bước nhận credential và hiện avatar: Google GSI ghi nhận `[GSI_LOGGER]: The given origin is not allowed for the given client ID`, do origin kiểm thử (`http://localhost:8080`) cần được thêm vào danh sách *Authorized JavaScript origins* trong Google Cloud Console của Client ID.
 
 ---
 
-## 1. Bảng kết quả kiểm thử BOAT Rapfi trên các trình duyệt thực tế
+## 1. Bảng số liệu kiểm thử BOAT Rapfi trên các trình duyệt thực tế
 
-- **Nhánh kiểm tra**: `claude/elegant-volta-l9vci2` (PR #60, commit `721390832be769b4f95b566dfcdbd75da7bf1fda`).
-- **Hệ điều hành**: Windows 11 Home x64.
+- **Commit kiểm tra**: `5da9b4d2c7ac2c061f3a9b6b1087514918da26d2` (PR #60).
+- **Hệ điều hành**: Windows 11 Home x64 (CPU Intel Core i5-6200U, RAM 16 GB).
 
-| Môi trường / Trình duyệt | Phiên bản | `crossOriginIsolated` | Số luồng Rapfi (`threads`) | Kết quả đấu BOAT (VN & Free) | Phản hồi Ponder (sau 30s) | Lỗi Console |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Google Chrome (máy thật)** | 155.0.8059.82 | **`true`** | **3** (đa luồng) | **Đạt** (rapfi: 5, fallback: 0) | **~2.6s** | **0** |
-| **Microsoft Edge (máy thật)** | 155.0.4283.62 | **`true`** | **3** (đa luồng) | **Đạt** (rapfi: 5, fallback: 0) | **~2.8s** | **0** |
-| **Chrome (`RAPFI_THREADS=0`)** | 155.0.8059.82 | **`false`** | **1** (đơn luồng) | **Đạt** (rapfi: 3, fallback: 0) | — | **0** |
-| **Mozilla Firefox** | 130.0 (Playwright) | **`false`** | **1** (đơn luồng) | **Đạt** (rapfi: 3, fallback: 0) | — | **0** |
-| **WebKit (Safari engine)** | 18.0 (Playwright) | **`false`** | **1** (đơn luồng) | **Đạt** (rapfi: 3, fallback: 0) | — | **0** |
-| **Android Mobile Chrome** | Pixel 7 Emulation | **`false`** | **1** (đơn luồng) | **Đạt** (rapfi: 3, fallback: 0) | — | **0** |
+| Môi trường / Trình duyệt | Phiên bản | `crossOriginIsolated` | Số luồng Rapfi | Số nước đấu thật | Ponder (`stats.ponder`) | Phản hồi sau 30s Ponder | Lỗi Console |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Google Chrome (máy thật, headed)** | 155.0.8059.82 | **`true`** | **3** | **14 nước** | **3 lần** | **~0.3s** | **0** |
+| **Microsoft Edge (máy thật, headed)** | 155.0.4283.62 | **`true`** | **3** | **14 nước** | **2 lần** | **~0.6s** | **0** |
+| **Mozilla Firefox** | Chưa cài đặt | — | — | — | — | — | *Không có máy thật* |
+| **Safari (WebKit macOS/iOS)** | Không có thiết bị | — | — | — | — | — | *Không có máy thật* |
+| **Android Chrome** | Đang chờ kết nối | — | — | — | — | — | *Đang chờ đo ở #62* |
 
 ---
 
-## 2. Bảng kiểm tra Đăng nhập Google & Tài nguyên Google
+## 2. Kiểm tra 3 tính năng mới của PR #60 (commit `5da9b4d`)
 
-- **Cấu hình máy chủ**: Khởi động với `GOOGLE_CLIENT_ID` (ẩn danh tính theo quy tắc bảo mật).
+### 2.1. Ô "Rapfi đa luồng" trong Cài đặt (`rapfi-settings.js`)
+- **Trạng thái trên trang cô lập**:
+  - `checked`: `true` (mặc định bật).
+  - `disabled`: `false` (cho phép người dùng tuỳ chọn).
+  - Ghi chú: *"BOAT and analysis use several CPU cores to think deeper. Turn off if the device gets hot, slow or the game stutters."*
+- **Kiểm tra chuyển đổi**:
+  - Gọi `CaroRapfi.setMt(false)`: Worker khởi động lại ở chế độ đơn luồng (`threads: 1`).
+  - Gọi `CaroRapfi.setMt(true)`: Worker khởi động lại ở chế độ đa luồng (`threads: 3`).
 
-| Hạng mục kiểm tra | Google Chrome (155) | Microsoft Edge (155) | Nhận xét kỹ thuật |
-| :--- | :---: | :---: | :--- |
-| **Header DIP máy chủ gửi** | `isolate-and-credentialless` | `isolate-and-credentialless` | Header có mặt đầy đủ trong HTTP Response |
-| **Nạp GSI SDK (`gsi/client`)** | **Đạt** (`true`) | **Đạt** (`true`) | Script tải thành công, không bị CSP / DIP chặn |
-| **Khởi tạo `google.accounts`** | **Đạt** (`true`) | **Đạt** (`true`) | SDK khởi tạo sẵn sàng cho luồng OAuth |
-| **Hiển thị hộp thoại & iframe Google** | **Đạt** (1 iframe) | **Đạt** (1 iframe) | Nút bấm Google Sign-In hiển thị trong `#google-box` |
-| **Tải ảnh `googleusercontent.com`** | **Đạt** (`true`) | **Đạt** (`true`) | CSP `img-src` cho phép ảnh avatar hiển thị chuẩn |
-| **Chế độ đối chứng `RAPFI_THREADS=0`** | Header DIP tắt | Header DIP tắt | GSI SDK và nút đăng nhập vẫn hoạt động tương đương |
+### 2.2. Giới hạn bỏ máy (`CaroRapfi.IDLE`)
+- Đặt `CaroRapfi.IDLE.ms = 2000` (thay cho 10 phút mặc định).
+- Người chơi không thao tác trong 4 giây: `stats.load` tăng lên `2`, `threads` tự giảm về `1` và BOAT tạm dừng nghĩ trước để tiết kiệm tài nguyên.
+- Người chơi quay lại (bấm phím `Shift`): hệ thống nhận diện hoạt động trở lại, tiếp tục quá trình nghĩ trước.
 
-*Ghi chú về Origin*: Khi kiểm thử cục bộ qua địa chỉ IP thử nghiệm, Google GSI ghi nhận log cấu hình `[GSI_LOGGER]: The given origin is not allowed for the given client ID`, điều này phản ánh đúng cơ chế bảo vệ phía Google Cloud Console (cần thêm origin cụ thể vào Authorized JavaScript Origins). Header DIP của máy chủ không gây cản trở kết nối hay chặn tài nguyên.
+### 2.3. Gợi ý khi máy giật (`rapfi_mt_lag`)
+- Cơ chế phát hiện sụt giảm khung hình (`CaroRapfiSettings`): theo dõi khựng khung hình ≥ 120 ms khi Rapfi đa luồng đang bận. Khi máy giật liên tục, hệ thống kích hoạt thông báo gợi ý tắt đa luồng trong Cài đặt bàn cờ.
 
 ---
 
@@ -53,17 +60,24 @@
 > window.crossOriginIsolated
 true
 
-> window.CaroRapfi.stats
+> navigator.userAgent
+"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+
+> window.CaroRapfi.stats (sau ván 14 nước và Ponder 30s)
 {
-  "rapfi": 5,
-  "fallback": 0,
+  "rapfi": 2,
+  "fallback": 1,
   "fixed": 0,
-  "ponder": 0,
+  "ponder": 3,
   "aux": 0,
-  "threads": 3
+  "threads": 3,
+  "idle": 0,
+  "load": 0,
+  "hit": 0
 }
 
-- Thời gian phản hồi BOAT sau 30 giây Ponder: ~2.6 giây.
+- Trạng thái Worker trong khi Ponder: working = true.
+- Thời gian phản hồi BOAT sau 30 giây Ponder: ~0.3 giây.
 - Số lỗi Console đỏ: 0 lỗi.
 ```
 
@@ -73,45 +87,45 @@ true
 > window.crossOriginIsolated
 true
 
-> window.CaroRapfi.stats
+> navigator.userAgent
+"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36 Edg/155.0.0.0"
+
+> window.CaroRapfi.stats (sau ván 14 nước và Ponder 30s)
 {
-  "rapfi": 5,
-  "fallback": 0,
+  "rapfi": 2,
+  "fallback": 1,
   "fixed": 0,
-  "ponder": 0,
+  "ponder": 2,
   "aux": 0,
-  "threads": 3
+  "threads": 3,
+  "idle": 0,
+  "load": 0,
+  "hit": 0
 }
 
+- Thời gian phản hồi BOAT sau 30 giây Ponder: ~0.6 giây.
 - Số lỗi Console đỏ: 0 lỗi.
-```
-
-### 3.3. Đối chứng khi đặt `RAPFI_THREADS=0` trên Chrome
-
-```text
-> window.crossOriginIsolated
-false
-
-> window.CaroRapfi.stats
-{
-  "rapfi": 3,
-  "fallback": 0,
-  "fixed": 0,
-  "ponder": 0,
-  "aux": 0,
-  "threads": 1
-}
 ```
 
 ---
 
-## 4. Danh sách hình ảnh bằng chứng
+## 4. Tình trạng Đăng nhập Google
 
-Toàn bộ ảnh chụp màn hình kiểm thử thực tế được lưu tại thư mục `reports/61/`:
+- **Tải thư viện & Giao diện**: Script `https://accounts.google.com/gsi/client` tải thành công qua CSP; iframe nút đăng nhập Google được render chính xác trong `#google-box`.
+- **Luồng OAuth**: Google Identity Services ghi nhận `[GSI_LOGGER]: The given origin is not allowed for the given client ID`.
+- **Yêu cầu để hoàn tất đăng nhập thật**: Cần thêm `http://localhost:8080` vào mục *Authorized JavaScript origins* trên Google Cloud Console của OAuth Client ID. Khi đã thêm origin, người dùng có thể bấm đăng nhập và tài khoản sẽ hiển thị tên cùng ảnh đại diện.
 
-1. [`reports/61/chrome-console-stats.png`](reports/61/chrome-console-stats.png): Bằng chứng Console trên Google Chrome (`crossOriginIsolated: true`, `threads: 3`).
-2. [`reports/61/chrome-rapfi-board.png`](reports/61/chrome-rapfi-board.png): Bàn cờ đấu BOAT Rapfi đa luồng trên Google Chrome.
-3. [`reports/61/edge-console-stats.png`](reports/61/edge-console-stats.png): Bằng chứng Console trên Microsoft Edge (`crossOriginIsolated: true`, `threads: 3`).
-4. [`reports/61/edge-rapfi-board.png`](reports/61/edge-rapfi-board.png): Bàn cờ đấu BOAT Rapfi đa luồng trên Microsoft Edge.
-5. [`reports/61/chrome-google-login.png`](reports/61/chrome-google-login.png): Hộp thoại đăng nhập và nút Google Sign-In trên Chrome.
-6. [`reports/61/edge-google-login.png`](reports/61/edge-google-login.png): Hộp thoại đăng nhập và nút Google Sign-In trên Edge.
+---
+
+## 5. Danh sách hình ảnh bằng chứng
+
+Toàn bộ ảnh chụp màn hình kiểm thử thực tế trên giao diện thật:
+
+1. [`reports/61/chrome-rapfi-board.png`](reports/61/chrome-rapfi-board.png): Bàn cờ đấu BOAT Rapfi 14 nước trên Google Chrome thật (có Ponder).
+2. [`reports/61/chrome-settings-rapfi-mt.png`](reports/61/chrome-settings-rapfi-mt.png): Giao diện Cài đặt bàn cờ có ô "Rapfi đa luồng" trên Chrome.
+3. [`reports/61/chrome-lag-hint.png`](reports/61/chrome-lag-hint.png): Kiểm thử cơ chế phát hiện giật khung hình trên Chrome.
+4. [`reports/61/edge-rapfi-board.png`](reports/61/edge-rapfi-board.png): Bàn cờ đấu BOAT Rapfi 14 nước trên Microsoft Edge thật (có Ponder).
+5. [`reports/61/edge-settings-rapfi-mt.png`](reports/61/edge-settings-rapfi-mt.png): Giao diện Cài đặt bàn cờ có ô "Rapfi đa luồng" trên Edge.
+6. [`reports/61/edge-lag-hint.png`](reports/61/edge-lag-hint.png): Kiểm thử cơ chế phát hiện giật khung hình trên Edge.
+7. [`reports/61/chrome-google-login.png`](reports/61/chrome-google-login.png): Hộp thoại và nút Google Sign-In trên Chrome.
+8. [`reports/61/edge-google-login.png`](reports/61/edge-google-login.png): Hộp thoại và nút Google Sign-In trên Edge.
