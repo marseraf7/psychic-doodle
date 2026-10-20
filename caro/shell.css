@@ -170,6 +170,11 @@ input.tog:checked::after { transform: translateX(20px); }
 .home-left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .home-left > .card { background: var(--panel); border: 0; }
 .home-intro { margin: 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.55; }
+/* Chân Trang chủ: mục đích của trang, đơn vị làm game, liên kết chính sách */
+.home-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--muted) 25%, transparent); text-align: center; }
+.home-foot p { margin: 0 0 6px; font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; }
+.home-foot .home-credit { color: var(--text); font-weight: var(--fw-medium); }
+.home-foot a { color: inherit; }
 .resume-card {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
   padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 16%, var(--panel)); color: var(--text);

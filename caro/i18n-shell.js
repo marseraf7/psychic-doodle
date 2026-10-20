@@ -26,13 +26,15 @@
     home_resume_online: 'Quay lại ván đang chơi',
     home_custom: 'Tuỳ chỉnh',
     home_bot_hint: 'Bạn cầm X, máy đánh theo lối {style}. Thắng mức cao nhất để mở khoá mức mạnh hơn.',
-    home_intro: 'Cờ Caro là trò chơi miễn phí, không quảng cáo: chơi với máy, với bạn bè hoặc ghép trận online, luyện câu đố và học khai cuộc.',
+    home_intro: 'Caro x Gomoku là trò chơi miễn phí, không quảng cáo: chơi với máy, với bạn bè hoặc ghép trận online, luyện câu đố và học khai cuộc.',
     home_offline: 'Đang chơi không có máy chủ: chỉ chơi với máy hoặc 2 người một máy.',
-
+    home_about: 'Caro x Gomoku là trang web và ứng dụng miễn phí, không quảng cáo để chơi cờ caro và Gomoku: chơi với bạn bè hoặc đối thủ ghép trận online, chơi với các nhân vật máy, phân tích ván, giải câu đố và học khai cuộc. Đăng nhập Google chỉ dùng để tạo và đăng nhập tài khoản kỳ thủ.',
+    home_credit: 'Một sản phẩm của Chi đoàn Đại học Tổng hợp Bộ Nội vụ Liên bang Nga',
+  
     more_play: 'Chơi',
     more_tools: 'Công cụ',
     more_community: 'Cộng đồng',
-    more_about: 'Cờ Caro được làm với tình yêu dành cho người chơi caro Việt Nam và Gomoku khắp nơi.',
+    more_about: 'Caro x Gomoku được làm với tình yêu dành cho người chơi caro Việt Nam và Gomoku khắp nơi.',
 
     set_sound: 'Âm thanh',
     set_look: 'Giao diện',
@@ -73,13 +75,15 @@
     home_resume_online: 'Back to your game',
     home_custom: 'Custom',
     home_bot_hint: 'You play X, the computer plays a {style} style. Beat the top level to unlock a stronger one.',
-    home_intro: 'Caro is free with no ads: play the computer, friends or online opponents, solve puzzles and learn openings.',
+    home_intro: 'Caro x Gomoku is free with no ads: play the computer, friends or online opponents, solve puzzles and learn openings.',
     home_offline: 'No server: you can play the computer or 2 players on one device.',
-
+    home_about: 'Caro x Gomoku is a free, ad-free website and app for playing Caro (Vietnamese five-in-a-row) and Gomoku: play friends or matched opponents online, play against computer characters, analyse your games, solve puzzles and learn openings. Google Sign-In is used only to create and sign in to your player account.',
+    home_credit: 'A product of the Youth Union chapter of the University of the Ministry of Internal Affairs of the Russian Federation',
+  
     more_play: 'Play',
     more_tools: 'Tools',
     more_community: 'Community',
-    more_about: 'Caro is made with love for Vietnamese caro and Gomoku players everywhere.',
+    more_about: 'Caro x Gomoku is made with love for Vietnamese caro and Gomoku players everywhere.',
 
     set_sound: 'Sound',
     set_look: 'Appearance',
@@ -120,13 +124,15 @@
     home_resume_online: 'Вернуться к партии',
     home_custom: 'Своя',
     home_bot_hint: 'Вы играете X, компьютер — в стиле «{style}». Победите высший уровень, чтобы открыть следующий.',
-    home_intro: 'Каро — бесплатно и без рекламы: играйте с компьютером, друзьями или соперниками онлайн, решайте задачи и учите дебюты.',
+    home_intro: 'Caro x Gomoku — бесплатно и без рекламы: играйте с компьютером, друзьями или соперниками онлайн, решайте задачи и учите дебюты.',
     home_offline: 'Нет сервера: доступна игра с компьютером или вдвоём на одном устройстве.',
-
+    home_about: 'Caro x Gomoku — бесплатный сайт и приложение без рекламы для игры в каро (вьетнамские «пять в ряд») и гомоку: играйте онлайн с друзьями или подобранными соперниками, против компьютерных персонажей, анализируйте партии, решайте задачи и изучайте дебюты. Вход через Google нужен только для создания учётной записи игрока и входа в неё.',
+    home_credit: 'Проект молодёжной ячейки Университета МВД Российской Федерации',
+  
     more_play: 'Игра',
     more_tools: 'Инструменты',
     more_community: 'Сообщество',
-    more_about: 'Каро сделано с любовью для игроков в вьетнамское каро и гомоку по всему миру.',
+    more_about: 'Caro x Gomoku сделано с любовью для игроков в вьетнамское каро и гомоку по всему миру.',
 
     set_sound: 'Звук',
     set_look: 'Оформление',
@@ -167,13 +173,15 @@
     home_resume_online: '回到对局',
     home_custom: '自定义',
     home_bot_hint: '你执 X，电脑采用「{style}」风格。战胜最高等级即可解锁更强的对手。',
-    home_intro: '五子棋 Caro 免费无广告：与电脑、好友或在线对手对弈，练习谜题，学习开局。',
+    home_intro: 'Caro x Gomoku 免费无广告：与电脑、好友或在线对手对弈，练习谜题，学习开局。',
     home_offline: '没有服务器：可以与电脑对弈或双人同机。',
-
+    home_about: 'Caro x Gomoku 是免费、无广告的网站和应用，用于下越南五子棋（Caro）和五子棋（Gomoku）：在线与好友或匹配的对手对弈，与电脑角色对弈，分析棋局，解谜题，学习开局。Google 登录仅用于创建和登录您的棋手账号。',
+    home_credit: '俄罗斯联邦内务部大学青年团支部出品',
+  
     more_play: '对弈',
     more_tools: '工具',
     more_community: '社区',
-    more_about: 'Caro 为各地的越南 Caro 与五子棋爱好者用心打造。',
+    more_about: 'Caro x Gomoku 为各地的越南 Caro 与五子棋爱好者用心打造。',
 
     set_sound: '声音',
     set_look: '外观',

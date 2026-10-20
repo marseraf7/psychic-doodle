@@ -72,9 +72,9 @@
 
   // Mô tả BOAT ghi công Rapfi – trừ bản iOS (không kèm Rapfi: app/scripts/strip-rapfi-ios.js), nơi giữ mô tả cũ
   if (!window.CARO_NO_RAPFI) {
-    X('vi', { bot_boat_desc: 'Trùm cuối – Best of All Time. Chạy Rapfi – engine vô địch Gomocup (GPL-3) – ngay trên máy bạn: luật tự do, tiêu chuẩn, Renju lần đầu tải ~10 MB; luật Việt Nam là Rapfi-CARO – Rapfi được Cờ Caro dạy luật chặn hai đầu. Gần như bất khả chiến bại.' });
+    X('vi', { bot_boat_desc: 'Trùm cuối – Best of All Time. Chạy Rapfi – engine vô địch Gomocup (GPL-3) – ngay trên máy bạn: luật tự do, tiêu chuẩn, Renju lần đầu tải ~10 MB; luật Việt Nam là Rapfi-CARO – Rapfi được Caro x Gomoku dạy luật chặn hai đầu. Gần như bất khả chiến bại.' });
     X('en', { bot_boat_desc: 'The final boss – Best of All Time. Runs Rapfi – the Gomocup champion engine (GPL-3) – right on your device: freestyle, standard and Renju need a ~10 MB download the first time; the Vietnamese rule uses Rapfi-CARO – Rapfi taught the both-ends-blocked rule by Caro. Nearly unbeatable.' });
-    X('ru', { bot_boat_desc: 'Финальный босс – Best of All Time. Играет движком Rapfi – чемпионом Gomocup (GPL-3) – прямо на вашем устройстве: для свободных, стандартных правил и Рэндзю в первый раз загрузка ~10 МБ; во вьетнамских правилах – Rapfi-CARO, Rapfi, которого Каро научил правилу блока с двух концов. Почти непобедим.' });
+    X('ru', { bot_boat_desc: 'Финальный босс – Best of All Time. Играет движком Rapfi – чемпионом Gomocup (GPL-3) – прямо на вашем устройстве: для свободных, стандартных правил и Рэндзю в первый раз загрузка ~10 МБ; во вьетнамских правилах – Rapfi-CARO, Rapfi, которого Caro x Gomoku научил правилу блока с двух концов. Почти непобедим.' });
     X('zh', { bot_boat_desc: '最终头目——Best of All Time（史上最强）。在你的设备上运行 Gomocup 冠军引擎 Rapfi（GPL-3）：自由、标准与连珠规则首次需下载约 10 MB；越南规则使用 Rapfi-CARO——由 Caro 教会“两端被堵不算赢”规则的 Rapfi。几乎无法战胜。' });
   }
 })();

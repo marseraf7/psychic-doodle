@@ -1,7 +1,7 @@
 {
-  "name": "Cờ Caro",
+  "name": "Caro x Gomoku",
   "short_name": "Caro",
-  "description": "Cờ Caro bàn cờ vô hạn, luật chặn 2 đầu",
+  "description": "Caro x Gomoku – Vietnamese caro and Gomoku online: infinite board, play friends, AI and puzzles",
   "lang": "vi",
   "start_url": "./",
   "scope": "./",

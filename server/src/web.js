@@ -158,11 +158,11 @@ function makeHandler({ store, hub }) {
       const g = store.gameByShare(share);
       if (g) {
         const base = origin(req);
-        const title = `${g.x_name || '?'} ✕ vs ${g.o_name || '?'} ◯ – Cờ Caro`;
+        const title = `${g.x_name || '?'} ✕ vs ${g.o_name || '?'} ◯ – Caro x Gomoku`;
         const result = g.winner === 1 ? `${g.x_name} thắng` : g.winner === 2 ? `${g.o_name} thắng` : 'Hoà';
         const desc = `${result} · ${g.moves.length} nước`;
         const meta = [
-          ['og:type', 'website'], ['og:site_name', 'Cờ Caro'], ['og:title', title], ['og:description', desc],
+          ['og:type', 'website'], ['og:site_name', 'Caro x Gomoku'], ['og:title', title], ['og:description', desc],
           ['og:image', `${base}/api/replay/${g.share}.png`], ['og:image:width', '1200'], ['og:image:height', '630'],
           ['og:url', `${base}/?replay=${g.share}`],
         ].map(([k, v]) => `<meta property="${k}" content="${escHtml(v)}">`).join('\n  ');
