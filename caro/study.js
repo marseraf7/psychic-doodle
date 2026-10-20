@@ -17,6 +17,7 @@
   // Loại nước: màu + ký hiệu trên huy hiệu (giống chess.com: !! xuất sắc, ? sai lầm, ?? nước hỏng…)
   const CLS = {
     great: { color: '#1baca6', text: '!!' },
+    only: { color: '#3b82c4', text: '□' }, // ký hiệu "nước duy nhất" trong sách cờ
     best: { color: '#5c9e31', text: '!' },
     good: { color: '#8aa572', text: '' },
     miss: { color: '#e5664f', text: '×' },
@@ -25,7 +26,7 @@
     blunder: { color: '#ca3431', text: '??' },
     lost: { color: '#8b8b8b', text: '' },
   };
-  const ORDER = ['great', 'best', 'miss', 'inacc', 'mistake', 'blunder'];
+  const ORDER = ['great', 'only', 'best', 'miss', 'inacc', 'mistake', 'blunder'];
   const GOOD = '#5c9e31';
 
   // ================================================================ Phân tích ván
@@ -39,8 +40,8 @@
   const an = { result: null, running: false, seq: 0, refining: null, job: 0, key: null, prog: 0 };
 
   /**
-   * opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế }. Có nhiều Worker (an-pool.js): chấm song song rồi xếp loại
-   * ngay trên trang; không thì một Worker chạy cả analyzeGame (cách cũ).
+   * opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế }. Có Worker (an-pool.js – 1 tới 4 Worker, nhớ các thế đã chấm
+   * cho mọi ván): chấm song song rồi xếp loại ngay trên trang; không được thì một Worker chạy cả analyzeGame (cách cũ).
    */
   async function runAnalysis(moves, rule, onProgress, opts) {
     opts = opts || {};
@@ -54,7 +55,7 @@
       return runAnalysis(moves, rule, onProgress, { evals: opts.evals, ms: fullMs(moves.length) });
     }
     const Pool = window.CaroAnPool;
-    if (Pool && opts.ms && Pool.size > 1) {
+    if (Pool && opts.ms) {
       const job = an.job;
       const evals = await Pool.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress });
       if (job !== an.job) return null; // đã huỷ
@@ -87,7 +88,7 @@
   // Các thế đã được phân tích ngầm lúc chơi (live-analysis.js) đủ kỹ nên cả hai lượt đều dùng lại, không chấm lại.
   const QUICK_MIN = 8; // còn ít thế chưa chấm hơn thế này thì làm luôn lượt kỹ
   const quickMs = (n) => Math.max(15, Math.min(40, Math.round(2000 / (n + 1))));
-  const fullMs = (n) => Math.max(60, Math.min(200, Math.round(10000 / (n + 1)))); // như mặc định của analysis.js
+  const fullMs = (n) => A.fullMs(n); // analysis.js: cả ván ~20 giây một luồng
   const rapfiMs = (n) => Math.max(150, Math.min(500, Math.round(16000 / (n + 1)))); // Rapfi WASM cần ≥ ~100 ms / thế
 
   const pending = new Set();

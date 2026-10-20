@@ -5,36 +5,45 @@
  * postMessage. Bản iOS (CARO_NO_RAPFI – điều khoản App Store xung khắc với GPL), trình duyệt không có WebAssembly SIMD,
  * thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để app.js / phân tích dùng engine của game.
  *
- * Bàn của game vô hạn, Rapfi cần bàn cố định (tự do / Việt Nam 20×20, tiêu chuẩn / Renju 15×15 – đúng cỡ mạng đã học): mỗi
- * lần đặt khung bao các quân vào giữa bàn Rapfi. Rapfi coi mép bàn là tường chặn, nên khi quân cách mép < 4 ô (chuỗi năm
- * kéo ra ngoài mép, thế ba "chết" vì mép mà thật ra còn sống) thì engine của game – hiểu đúng bàn vô hạn – kiểm lại
- * chuỗi ép thắng của cả hai bên (check). Cách mép < 1 ô: không dùng Rapfi.
+ * Bàn của game vô hạn, Rapfi cần bàn cố định: đặt thế lên bàn Rapfi và kiểm lại thế sát mép – xem rapfi-board.js. Nghĩ trước: rapfi-ponder.js.
  *
  *   CaroRapfi.handles(botId, rule)   – BOAT + luật có Rapfi + trình duyệt chạy được
  *   CaroRapfi.available(rule)        – luật có Rapfi + trình duyệt chạy được (phân tích)
  *   CaroRapfi.prepare(botId, rule)   – tải trước mạng (~10 MB, lần đầu) khi bắt đầu ván với BOAT
  *   CaroRapfi.ready(rule, wait)      – Promise<bool>: Rapfi của luật đã sẵn sàng (chờ tối đa wait ms)
  *   CaroRapfi.move(board, p, botId)  – Promise<[x, y] | null>
- *   CaroRapfi.ask(rule, moves, ms)   – Promise<{ move, ev: { cp, mate }, margin } | null>, moves: [[x, y], …] toạ độ game
+ *   CaroRapfi.ask(rule, moves, ms, lane, o) – Promise<{ move, ev: { cp, mate }, margin, used, hit } | null>, moves: [[x, y],
+ *                                      …] toạ độ game; lane 1 = Worker phụ cho phân tích (auxReady / auxDone); o: { play,
+ *                                      tm, nodes } – cách nghĩ (rapfi/brain.js): BOAT đi / tự chia thời gian / số nút
+ *   CaroRapfi.auxReady(rule, wait)   – Promise<bool>: có Worker phụ (máy đủ RAM) · auxDone() – rảnh 1 phút thì dừng nó
  *   CaroRapfi.check(rule, moves, ms) – engine của game chấm thế (Worker riêng): Promise<{ move, score, mate } | null>
+ *   CaroRapfi.stopPonder()           – dừng nghĩ trước (sau nước của BOAT Rapfi nghĩ tiếp trên thế người chơi tới lượt;
+ *                                      người chơi không chạm / bấm phím IDLE.ms (10 phút) thì tạm dừng, quay lại thì nghĩ tiếp)
+ *   CaroRapfi.mtOn() / setMt(v)      – tuỳ chọn "Rapfi đa luồng" (Cài đặt – rapfi-settings.js); đổi thì dựng lại Worker
+ *   CaroRapfi.mtActive()             – Worker đang chạy bản đa luồng · working(): bản đa luồng đang nghĩ / nghĩ trước
+ *   CaroRapfi.load(level)            – tự giảm tải (rapfi-load.js): 0 bình thường · 1 máy căng / pin yếu: thôi nghĩ trước,
+ *                                      nửa số luồng · 2 máy rất nóng: thôi nghĩ trước, 1 luồng
  *   CaroRapfi.stats                  – số nước Rapfi đi / nhường engine / engine sửa nước Rapfi sát mép
  *   CaroRapfi.game                   – như stats nhưng chỉ ván hiện tại (đếm lại ở prepare – mỗi ván mới)
- * Phát sự kiện window 'caro:rapfi' { state: 'loading' | 'ready' | 'failed', rule, pct }.
+ * Phát sự kiện window 'caro:rapfi' { state: 'loading' | 'ready' | 'failed', rule, pct, mt }.
  */
 (function (global) {
   'use strict';
   const C = global.Caro;
-  const SIZE = { free: 20, std: 15, renju: 15, vn: 20 };
+  const B = global.CaroRapfiBoard; // đặt thế lên bàn Rapfi, kiểm thế sát mép (rapfi-board.js)
+  const { SIZE, SAFE_EDGE, frame, place, check } = B;
   const MB = { free: 10, std: 10, renju: 20, vn: 1 }; // luật Việt Nam: chỉ bản dựng ~1,3 MB, không mạng NNUE
-  const SAFE_EDGE = 4; // cách mép ≥ 4 ô: mép bàn không ảnh hưởng chuỗi năm nào qua các quân → tin Rapfi hoàn toàn
   const FIRST_WAIT = 1500; // mạng chưa sẵn sàng: chờ ngần này (đủ cho lần nạp từ bộ nhớ đệm), quá thì nước này dùng engine
   const RETRY_MS = 60000; // tải lỗi (mạng chập chờn): sau 1 phút cho thử lại
   const CHECK_MS = 400; // thời gian engine của game kiểm một thế sát mép
-  const BOOK_PLY = 12; // luật Việt Nam: tra sách khai cuộc 'vn-rapfi' (book-data.js – Rapfi-CARO nghĩ 10 giây / thế) tới nước này
+  // Sách khai cuộc '<luật>-rapfi' (book-data.js – server/scripts/build-book.js: Rapfi nghĩ 10 giây / thế, thế tới 7 quân)
+  const BOOK_MAX = 7;
+  const hasBook = (rule) => !!(global.CaroBookData && global.CaroBookData[rule + '-rapfi']);
   const T = (k, v) => (global.I18N ? global.I18N.t(k, v) : k);
   const toast = (m, ms) => global.CaroOnline && global.CaroOnline.toast(m, ms);
 
   let cur = null; // { rule, worker, ready: Promise<bool>, state, pct, toasted, busy: số thế đang nghĩ }
+  let aux = null; // Worker Rapfi thứ hai cho phân tích (máy đủ RAM): chấm hai thế cùng lúc – xem rapfi-analysis.js
   const failedAt = {}; // luật → thời điểm tải lỗi gần nhất
   let seq = 0;
 
@@ -66,9 +75,9 @@
 
   function stop() {
     if (cur) retire(cur);
-    cur = null;
-    // Worker kiểm thế sát mép (engine JS – terminate lúc đang chấm không gây sập): đổi luật / dừng Rapfi thì trả RAM luôn
-    if (checker) { checker.terminate(); checker = null; }
+    if (aux) retire(aux);
+    cur = aux = null;
+    B.reset(); // Worker kiểm thế sát mép (rapfi-board.js): đổi luật / dừng Rapfi thì trả RAM luôn
   }
 
   /**
@@ -77,6 +86,7 @@
    * đang nghĩ. Kết quả của Worker đã thôi việc bị bỏ qua (ask() / ready() so cur === st).
    */
   function retire(st) {
+    try { st.worker.postMessage({ type: 'stop' }); } catch (e) { /* đã dừng */ } // đang nghĩ trước: dừng ở lát kế tiếp
     const kill = () => { clearTimeout(st.retireTimer); try { st.worker.terminate(); } catch (e) { /* đã dừng */ } };
     if (st.state !== 'loading' && !st.busy) return kill();
     // Các listener của ensure() / ask() đăng ký trước nên đã cập nhật state / busy khi tới listener này
@@ -89,11 +99,24 @@
   function ensure(rule) {
     if (cur && cur.rule === rule) return cur;
     stop();
+    cur = spawn(rule, false);
+    return cur;
+  }
+  /** Worker thứ hai (phân tích) cho luật `rule`, dựng sau khi Worker chính đã sẵn sàng (mạng đã nằm trong Cache Storage). */
+  function ensureAux(rule) {
+    if (aux && aux.rule === rule) return aux;
+    if (aux) retire(aux);
+    aux = spawn(rule, true);
+    return aux;
+  }
+
+  /** Dựng một Worker Rapfi. quiet: Worker phụ – không báo tải / lỗi cho người chơi, lỗi thì chỉ bỏ Worker phụ. */
+  function spawn(rule, quiet) {
     let worker;
-    try { worker = new Worker('rapfi/worker.js'); } catch (e) { failedAt[rule] = Date.now(); return null; }
+    try { worker = new Worker('rapfi/worker.js'); } catch (e) { if (!quiet) failedAt[rule] = Date.now(); return null; }
     const st = { rule, worker, state: 'loading', pct: 0, toasted: false, busy: 0 };
     // Chỉ báo "đang tải" khi chưa xong sau 0,7 giây (mạng đã có trong Cache Storage thì nạp gần như tức thì)
-    const slow = setTimeout(() => {
+    const slow = quiet ? 0 : setTimeout(() => {
       if (st.state === 'loading' && cur === st) { st.toasted = true; toast(T('rapfi_loading', { mb: MB[rule] }), 5000); }
     }, 700);
     st.ready = new Promise((resolve) => {
@@ -101,32 +124,37 @@
         const d = e.data;
         if (d.type === 'progress') {
           st.pct = d.pct;
-          emit({ state: 'loading', rule, pct: d.pct });
+          if (!quiet) emit({ state: 'loading', rule, pct: d.pct });
         } else if (d.type === 'ready') {
           clearTimeout(slow);
           worker.removeEventListener('message', onMsg);
           st.state = 'ready';
+          st.mt = !!d.mt; st.threads = st.maxThreads = d.threads || 1; // bản đa luồng (trang cô lập cross-origin) – rapfi/worker.js
+          stats.threads = st.threads;
+          if (!quiet && level) setThreads(st); // máy đang căng từ trước khi Worker sẵn sàng
           if (st.toasted) toast(T('rapfi_ready'), 3500);
-          emit({ state: 'ready', rule, pct: 100 });
+          if (!quiet) emit({ state: 'ready', rule, pct: 100, mt: st.mt });
           resolve(true);
         } else if (d.type === 'error') {
           clearTimeout(slow);
           worker.removeEventListener('message', onMsg);
-          if (st.state === 'loading') { // lỗi khi đang tải / khởi động
+          if (st.state === 'loading' && !quiet) { // lỗi khi đang tải / khởi động
             failedAt[rule] = Date.now();
             toast(T('rapfi_failed'), 4500);
             emit({ state: 'failed', rule });
           }
           st.state = 'failed';
-          if (cur === st) stop();
+          if (quiet) { if (aux === st) { retire(st); aux = null; } } else if (cur === st) stop();
           resolve(false);
         }
       };
       worker.addEventListener('message', onMsg);
       worker.addEventListener('error', () => onMsg({ data: { type: 'error', msg: 'worker' } }));
     });
-    worker.postMessage({ type: 'init', rule });
-    cur = st;
+    // Số luồng (bản đa luồng): chừa một lõi cho trang; điện thoại tối đa 2 (pin, máy nóng). Bảng băm lớn hơn trên máy
+    // đủ RAM – nghĩ trước không giới hạn thời gian cần chỗ chứa nhiều kịch bản
+    const cores = navigator.hardwareConcurrency || 2;
+    worker.postMessage({ type: 'init', rule, mt: mtOn(), threads: Math.max(1, Math.min(small() ? 2 : 8, cores - 1)), hashMb: small() ? 16 : 64 });
     return st;
   }
 
@@ -134,6 +162,9 @@
   const game = { rapfi: 0, fallback: 0 };
   function prepare(botId, rule) {
     game.rapfi = game.fallback = 0;
+    stopPonder();
+    // Ván mới: Worker quên lượt nghĩ trước và quỹ giờ của ván cũ (rapfi/brain.js)
+    if (cur && cur.state === 'ready') try { cur.worker.postMessage({ type: 'game' }); } catch (e) { /* đã dừng */ }
     if (handles(botId, rule)) ensure(rule);
   }
 
@@ -148,27 +179,46 @@
   }
 
   /**
-   * Khung đặt các quân vào bàn Rapfi cỡ n: { ox, oy, margin } (toạ độ Rapfi = toạ độ game − o; margin = số ô trống ít
-   * nhất giữa quân ngoài cùng và mép), hoặc null nếu không vừa (cách mép < 1 ô).
+   * Worker phụ cho phân tích (chấm hai thế cùng lúc) sẵn sàng chưa – chỉ máy đủ RAM (mỗi Worker giữ một bản mạng NNUE) và
+   * khi Worker chính đã sẵn sàng (mạng đã có trong Cache Storage); dựng nếu chưa có, chờ tối đa `ms`.
    */
-  function frame(moves, n) {
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const [x, y] of moves) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-    const w = x1 - x0 + 1, h = y1 - y0 + 1;
-    if (w > n - 2 || h > n - 2) return null;
-    const lx = Math.floor((n - w) / 2), ly = Math.floor((n - h) / 2);
-    return { ox: x0 - lx, oy: y0 - ly, margin: Math.min(lx, n - w - lx, ly, n - h - ly) };
+  let auxTimer = 0;
+  async function auxReady(rule, ms) {
+    clearTimeout(auxTimer);
+    // Bản đa luồng: một Worker đã dùng hết các lõi – Worker thứ hai chỉ tranh CPU
+    if (small() || !cur || cur.rule !== rule || cur.state !== 'ready' || cur.mt) return false;
+    const st = ensureAux(rule);
+    if (!st) return false;
+    const ok = st.state === 'ready' || (await Promise.race([st.ready, wait(ms)]));
+    return !!ok && aux === st;
   }
 
-  /** Hỏi Rapfi một thế (moves: [[x, y], …] toạ độ game, X đi trước). Chưa sẵn sàng / lỗi / không vừa bàn → null. */
-  async function ask(rule, moves, ms) {
+  /** Phân tích xong / vừa tạo sẵn: Worker phụ rảnh AUX_IDLE thì dừng (trả RAM của bản mạng thứ hai). */
+  const AUX_IDLE = 60000;
+  function auxDone() {
+    clearTimeout(auxTimer);
+    auxTimer = setTimeout(() => { if (aux && !aux.busy) { retire(aux); aux = null; } }, AUX_IDLE);
+  }
+
+  /**
+   * Hỏi Rapfi một thế (moves: [[x, y], …] toạ độ game, X đi trước). lane 1: Worker phụ (phân tích – auxReady).
+   * Chưa sẵn sàng / lỗi / không vừa bàn → null.
+   */
+  async function ask(rule, moves, ms, lane, o) {
     if (!moves.length) return { move: [0, 0], ev: { cp: 0, mate: 0 }, margin: SIZE[rule] >> 1 };
-    const n = SIZE[rule], f = frame(moves, n);
+    // Phân tích (o.frame): một khung cố định cho cả ván – bảng băm dùng lại được giữa các thế và kết quả không phụ thuộc
+    // các thế chấm trước (khung "dính" của place thì có); thế không vừa khung đó thì đặt riêng vào giữa bàn
+    const n = SIZE[rule];
+    const f = o && o.frame ? B.fit(moves, o.frame, n) || frame(moves, n) : place(rule, moves);
     if (!f || !(await ready(rule, 0))) return null;
-    const st = cur, id = ++seq;
+    const live = () => (lane ? aux : cur);
+    const st = live(), id = ++seq;
+    if (!st || st.state !== 'ready' || st.rule !== rule) return null;
+    if (lane) stats.aux++;
     st.busy++;
     const res = await new Promise((resolve) => {
-      const timer = setTimeout(() => { st.busy--; st.worker.removeEventListener('message', onMsg); resolve(null); }, ms * 2 + 8000);
+      // Chờ quá giới hạn cứng của brain.js (số nút: 5 × ms, tự chia thời gian: 2 × ms) mà chưa trả lời: coi là treo
+      const timer = setTimeout(() => { st.busy--; st.worker.removeEventListener('message', onMsg); resolve(null); }, ms * 12 + 8000);
       function onMsg(e) {
         if (e.data.type !== 'move' || e.data.id !== id) return;
         clearTimeout(timer);
@@ -177,42 +227,85 @@
         resolve(e.data);
       }
       st.worker.addEventListener('message', onMsg);
-      st.worker.postMessage({ type: 'move', id, size: n, ms, moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
+      const opt = { ...(o || {}) };
+      delete opt.frame; // khung chỉ dùng ở trang
+      st.worker.postMessage({ type: 'move', id, size: n, ms, ...opt, moves: moves.map(([x, y]) => [x - f.ox, y - f.oy]) });
     });
-    if (cur !== st) return null; // Worker đã thôi việc (đổi luật) trong lúc nghĩ: nước này thuộc thế cũ
-    if (!res || !res.move) { if (!res) stop(); return null; } // treo: lần sau dựng Worker mới
+    if (live() !== st) return null; // Worker đã thôi việc (đổi luật) trong lúc nghĩ: nước này thuộc thế cũ
+    if (!res || !res.move) { // treo: lần sau dựng Worker mới
+      if (!res) { if (lane) { retire(st); aux = null; } else stop(); }
+      return null;
+    }
     const [rx, ry] = res.move;
     if (rx < 0 || ry < 0 || rx >= n || ry >= n) return null;
-    return { move: [rx + f.ox, ry + f.oy], ev: res.ev, margin: f.margin };
+    return { move: [rx + f.ox, ry + f.oy], ev: res.ev, margin: f.margin, used: res.used || 0, hit: !!res.hit };
   }
 
-  // Engine của game (ai-worker.js) trong Worker riêng để kiểm thế sát mép – không tranh với Worker máy đánh của app.js
-  let checker = null;
-  function check(rule, moves, ms) {
-    if (!checker) { try { checker = new Worker('ai-worker.js'); } catch (e) { return Promise.resolve(null); } }
-    const w = checker, id = 'rchk' + ++seq;
-    return new Promise((resolve) => {
-      const timer = setTimeout(() => { w.removeEventListener('message', onMsg); resolve(null); }, ms * 4 + 5000);
-      function onMsg(e) {
-        if (e.data.id !== id) return;
-        clearTimeout(timer);
-        w.removeEventListener('message', onMsg);
-        resolve(e.data.ev || null);
-      }
-      w.addEventListener('message', onMsg);
-      w.postMessage({ type: 'eval', id, gid: 'rapfi-check-' + rule, rule, ms, moves });
-    });
+  // Điện thoại (RAM ≤ 4 GB / màn cảm ứng): ít luồng, bảng băm nhỏ, không Worker phụ
+  function small() {
+    return (navigator.deviceMemory > 0 && navigator.deviceMemory <= 4) ||
+      !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
   }
+  // Đếm (kiểm thử, gỡ lỗi): nước Rapfi đi / nhường engine của game / engine sửa nước Rapfi sát mép / lần nghĩ trước / thế
+  // Worker phụ chấm / số luồng / lần tạm nghĩ trước vì bỏ máy / mức tự giảm tải / nước đáp nhanh vì đoán trúng
+  const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0, threads: 0, idle: 0, load: 0, hit: 0 };
+  // Nghĩ trước trên thế người chơi tới lượt, tạm dừng / nghĩ tiếp (rapfi-ponder.js); level: đang tự giảm tải (load)
+  const P = global.CaroRapfiPonder.create({ cur: () => cur, place, blocked: () => level > 0, nextId: () => ++seq, stats });
+  const stopPonder = () => P.stop();
+  // Hết ván: thôi nghĩ trước (trả CPU cho phân tích, đỡ pin). Hết ván với Rapfi đang chạy (máy đủ RAM): tạo sẵn Worker
+  // phụ để bấm Phân tích là chấm hai thế cùng lúc
+  global.addEventListener('caro:gameover', () => {
+    stopPonder();
+    if (cur && cur.state === 'ready' && !cur.mt && !small()) { ensureAux(cur.rule); auxDone(); }
+  });
 
-  // Đếm số nước Rapfi đi / phải nhường engine của game / engine sửa nước Rapfi sát mép (kiểm thử, gỡ lỗi)
-  const stats = { rapfi: 0, fallback: 0, fixed: 0 };
+  // Cách BOAT nghĩ mỗi nước (rapfi/brain.js – số đo trong caro/README.md, cả hai tắt): hit – đoán trúng nước người chơi lúc
+  // nghĩ trước thì đáp nhanh (tự đấu yếu hơn rõ); tm – Rapfi tự chia thời gian theo quỹ giờ cả ván (chưa đủ chứng cứ)
+  const PLAY = { hit: false, tm: false };
+
+  // Tuỳ chọn "Rapfi đa luồng" (mặc định bật; trình duyệt không cô lập cross-origin thì luôn một luồng – rapfi/worker.js)
+  const MT_KEY = 'caro.rapfiMt';
+  function mtOn() {
+    try { return localStorage.getItem(MT_KEY) !== '0'; } catch (e) { return true; }
+  }
+  function setMt(v) {
+    try { localStorage.setItem(MT_KEY, v ? '1' : '0'); } catch (e) { /* riêng tư */ }
+    // Worker đang chạy khác lựa chọn mới: dừng, nước sau / lần phân tích sau dựng lại (mạng đã có trong Cache Storage)
+    if (cur && cur.state === 'ready' && cur.mt !== (!!v && global.crossOriginIsolated === true)) { P.drop(); stop(); }
+  }
+  const mtActive = () => !!(cur && cur.state === 'ready' && cur.mt);
+
+  // Tự giảm tải: máy căng / nóng (Compute Pressure) hoặc pin yếu → thôi nghĩ trước (việc nặng kéo dài nhất), bớt luồng.
+  // Hết căng thì trả lại như cũ và nghĩ trước tiếp đúng thế đang chờ
+  let level = 0;
+  function setThreads(st) {
+    const n = !st.mt ? 1 : level >= 2 ? 1 : level === 1 ? Math.max(1, Math.ceil(st.maxThreads / 2)) : st.maxThreads;
+    if (n === st.threads) return;
+    st.threads = stats.threads = n;
+    try { st.worker.postMessage({ type: 'threads', n }); } catch (e) { /* đã dừng */ }
+  }
+  function load(v) {
+    const lv = Math.max(0, Math.min(2, v | 0));
+    if (lv === level) return;
+    level = stats.load = lv;
+    if (level) P.pause(); // giữ thế: hết căng thì nghĩ trước tiếp
+    if (cur && cur.state === 'ready') setThreads(cur);
+    if (!level) P.resume();
+  }
+  const working = () => !!(mtActive() && cur.busy > 0);
 
   async function move(board, p, botId) {
     const bot = botOf(botId);
     if (!handles(bot, board.rule)) return null;
+    P.drop(); // người chơi đã đi: thế nghĩ trước cũ hết dùng (tin 'move' dừng lượt nghĩ trước trong Worker)
     const m = await think(board, p, bot);
     stats[m ? 'rapfi' : 'fallback']++;
     game[m ? 'rapfi' : 'fallback']++;
+    // Nghĩ trước trong lúc người chơi nghĩ (trừ khi nước này thắng luôn, hoặc nước sau của BOAT còn trong sách)
+    const moves = board.moves.map((q) => [q.x, q.y]);
+    if (m && !C.winsIfPlaced(board, m[0], m[1], p) && !(hasBook(board.rule) && moves.length + 2 <= BOOK_MAX)) {
+      P.start(board.rule, moves.concat([m]));
+    }
     return m;
   }
 
@@ -220,17 +313,19 @@
     const rule = board.rule, moves = board.moves.map((m) => [m.x, m.y]);
     if (!moves.length) return [0, 0];
     if ((moves.length % 2 === 0 ? C.X : C.O) !== p) return null; // Rapfi tính bên đi theo số quân
-    // Luật Việt Nam: nước đầu ván lấy từ sách (Rapfi-CARO nghĩ 10 giây mỗi thế – hơn nghĩ 2,5 giây trên điện thoại)
-    if (rule === 'vn' && moves.length <= BOOK_PLY && global.CaroBook) {
-      const m = global.CaroBook.lookup(moves, 'vn-rapfi');
-      if (m && board.get(m[0], m[1]) === C.EMPTY) return m;
+    // Nước đầu ván lấy từ sách (Rapfi nghĩ 10 giây mỗi thế – hơn nghĩ 2,5 giây trên điện thoại; đi ngay, kể cả khi mạng
+    // NNUE còn đang tải lần đầu)
+    if (moves.length <= BOOK_MAX && global.CaroBook) {
+      const m = global.CaroBook.lookup(moves, rule + '-rapfi');
+      if (m && board.get(m[0], m[1]) === C.EMPTY && !(C.forbidden && C.forbidden(board, m[0], m[1], p))) return m;
     }
     const f = frame(moves, SIZE[rule]);
     if (!f || !(await ready(rule, FIRST_WAIT))) return null;
     const near = f.margin < SAFE_EDGE;
     // Sát mép: chừa thời gian cho engine kiểm lại (tổng vẫn ≈ thời gian nghĩ của BOAT)
-    const r = await ask(rule, moves, near ? Math.max(800, bot.rapfi.ms - 2 * CHECK_MS) : bot.rapfi.ms);
+    const r = await ask(rule, moves, near ? Math.max(800, bot.rapfi.ms - 2 * CHECK_MS) : bot.rapfi.ms, 0, { play: true, ...PLAY });
     if (!r) return null;
+    if (r.hit) stats.hit++;
     let [x, y] = r.move;
     if (board.get(x, y) !== C.EMPTY || (C.forbidden && C.forbidden(board, x, y, p))) return null;
     if (r.margin < SAFE_EDGE) {
@@ -246,5 +341,8 @@
     return [x, y];
   }
 
-  global.CaroRapfi = { handles, available, prepare, ready, move, ask, check, frame, stats, game, SIZE, SAFE_EDGE };
+  global.CaroRapfi = {
+    handles, available, supported, prepare, ready, auxReady, auxDone, move, ask, check, frame, stopPonder,
+    mtOn, setMt, mtActive, working, load, stats, game, IDLE: P.IDLE, SIZE, SAFE_EDGE,
+  };
 })(window);

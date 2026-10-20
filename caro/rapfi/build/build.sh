@@ -11,6 +11,8 @@
 #   (mặc định)            gói nguồn kèm theo rapfi-src-3c94c2a.tar.gz cùng thư mục – không cần mạng
 # Bản nguyên bản dùng mã nguồn nguyên vẹn; chỉ thêm expose-fs.js (--pre-js) và không gói sẵn mạng nào
 # (wasm_preloads.txt rỗng) – trang tự tải đúng mạng của luật khi cần. RAPFI_ONLY=single | caro: chỉ dựng một bản.
+# Mỗi bản dựng hai kiểu: 1 luồng (rapfi-*-simd128) và đa luồng (rapfi-*-multi-simd128 – pthread, cần trang được cô lập
+# cross-origin: máy chủ gửi Document-Isolation-Policy, xem server/src/web.js). RAPFI_MT=0: chỉ dựng bản 1 luồng.
 set -euo pipefail
 RAPFI_COMMIT=3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -36,30 +38,48 @@ else
 fi
 mkdir -p "$WORK/Networks" && : > "$WORK/Networks/wasm_preloads.txt"
 
-build() { # $1 = thư mục mã (trong $WORK), $2 = tên bản ra, $3.. = tuỳ chọn cmake
-  local src="$WORK/$1" name="$2" dir="$WORK/build-$2"; shift 2
+build() { # $1 = thư mục mã (trong $WORK), $2 = tên bản ra, $3 = ON (1 luồng) | OFF (đa luồng), $4.. = tuỳ chọn cmake
+  local src="$WORK/$1" name="$2" dir="$WORK/build-$2" single="$3"; shift 3
+  local proj=rapfi-single-simd128; [ "$single" = OFF ] && proj=rapfi-multi-simd128
+  if [ "$single" = OFF ]; then
+    # Bản đa luồng: thêm bản vá rapfi-mt.patch (GPL-3) – tắt cờ "đang nghĩ" trước khi in nước đi, để lệnh gửi ngay sau
+    # nước đi không bị bỏ qua (runProtocol bỏ mọi lệnh trừ STOP khi cờ còn bật)
+    mkdir -p "$WORK/mt-$name/Networks" && : > "$WORK/mt-$name/Networks/wasm_preloads.txt"
+    cp -r "$src" "$WORK/mt-$name/Rapfi"
+    (cd "$WORK/mt-$name" && patch -s -p1 < "$HERE/rapfi-mt.patch")
+    src="$WORK/mt-$name/Rapfi"
+  fi
   # Lỗi thì in phần cuối nhật ký (thư mục tạm bị xoá khi thoát)
-  if ! { emcmake cmake -S "$src" -B "$dir" -DCMAKE_BUILD_TYPE=Release -DNO_MULTI_THREADING=ON -DNO_COMMAND_MODULES=ON \
+  if ! { emcmake cmake -S "$src" -B "$dir" -DCMAKE_BUILD_TYPE=Release -DNO_MULTI_THREADING="$single" -DNO_COMMAND_MODULES=ON \
       -DUSE_SSE=OFF -DUSE_AVX2=OFF -DUSE_AVX512=OFF -DUSE_BMI2=OFF -DUSE_VNNI=OFF -DUSE_WASM_SIMD_RELAXED=OFF \
       -DCMAKE_EXE_LINKER_FLAGS="--pre-js $HERE/expose-fs.js" "$@" && cmake --build "$dir" -j"$(nproc)"; } > "$dir.log" 2>&1; then
     echo "✗ Dựng $name thất bại – 40 dòng cuối nhật ký:" >&2
     tail -40 "$dir.log" >&2
     exit 1
   fi
-  # Glue JS vẫn gọi tên dự án rapfi-single-simd128.wasm; worker.js (wasmName) đổi sang đúng file khi nạp
-  cp "$dir"/rapfi-single-simd128.js "$OUT/$name.js"
-  cp "$dir"/rapfi-single-simd128.wasm "$OUT/$name.wasm"
+  # Glue JS vẫn gọi tên dự án (rapfi-single / multi-simd128.wasm); worker.js (wasmName) đổi sang đúng file khi nạp
+  cp "$dir/$proj.js" "$OUT/$name.js"
+  cp "$dir/$proj.wasm" "$OUT/$name.wasm"
+  if [ "$single" = OFF ]; then
+    # Glue đa luồng tạo pthread bằng new Worker(_scriptName); trong Worker, _scriptName = self.location.href – tức
+    # rapfi/worker.js (nạp glue bằng importScripts), sai file: cho worker.js đặt đúng đường dẫn glue qua RAPFI_SCRIPT_URL
+    local a='_scriptName=self.location.href'
+    [ "$(grep -oF "$a" "$OUT/$name.js" | wc -l)" = 1 ] || { echo "✗ $name.js: không thấy đúng một chỗ $a" >&2; exit 1; }
+    sed -i 's#_scriptName=self\.location\.href#_scriptName=globalThis.RAPFI_SCRIPT_URL||self.location.href#' "$OUT/$name.js"
+  fi
 }
 # Mạng NNUE của Rapfi bắt buộc có SIMD (không có bản vô hướng): trình duyệt không hỗ trợ WebAssembly SIMD
 # (rất cũ, vd. Safari < 16.4) thì BOAT tự dùng engine của game.
 if [ "${RAPFI_ONLY:-}" != "caro" ]; then
-  build Rapfi rapfi-single-simd128 -DUSE_WASM_SIMD=ON
+  build Rapfi rapfi-single-simd128 ON -DUSE_WASM_SIMD=ON
+  [ "${RAPFI_MT:-1}" = 0 ] || build Rapfi rapfi-multi-simd128 OFF -DUSE_WASM_SIMD=ON
 fi
 if [ "${RAPFI_ONLY:-}" != "single" ]; then
   # Rapfi-CARO: thêm luật Việt Nam (chặn hai đầu) – bản vá GPL-3 kèm trong repo
   mkdir -p "$WORK/caro/Networks" && : > "$WORK/caro/Networks/wasm_preloads.txt" && cp -r "$WORK/Rapfi" "$WORK/caro/Rapfi"
   (cd "$WORK/caro" && patch -s -p1 < "$HERE/rapfi-caro.patch")
-  build caro/Rapfi rapfi-caro-simd128 -DUSE_WASM_SIMD=ON
+  build caro/Rapfi rapfi-caro-simd128 ON -DUSE_WASM_SIMD=ON
+  [ "${RAPFI_MT:-1}" = 0 ] || build caro/Rapfi rapfi-caro-multi-simd128 OFF -DUSE_WASM_SIMD=ON
 fi
-ls -la "$OUT"/rapfi-*-simd128.*
-sha256sum "$OUT"/rapfi-*-simd128.* 2>/dev/null || shasum -a 256 "$OUT"/rapfi-*-simd128.*
+ls -la "$OUT"/rapfi-*simd128.*
+sha256sum "$OUT"/rapfi-*simd128.* 2>/dev/null || shasum -a 256 "$OUT"/rapfi-*simd128.*

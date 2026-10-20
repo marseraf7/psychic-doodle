@@ -65,7 +65,10 @@ async function setup(port, timers = {}) {
   fs.mkdirSync(out, { recursive: true });
   // E2E_BROWSER=firefox | webkit (WebKit ≈ Safari) để chạy trên trình duyệt khác; mặc định Chromium
   const kind = process.env.E2E_BROWSER || 'chromium';
-  const browser = await loadPlaywright()[kind].launch(kind === 'chromium' ? { args: ['--no-sandbox'] } : {});
+  // E2E_CHANNEL=chromium: Chromium đầy đủ (chế độ headless mới) thay cho headless shell – shell chưa hỗ trợ
+  // Document-Isolation-Policy nên không thử được Rapfi đa luồng (boat-rapfi.e2e.js)
+  const chOpt = process.env.E2E_CHANNEL ? { channel: process.env.E2E_CHANNEL } : {};
+  const browser = await loadPlaywright()[kind].launch(kind === 'chromium' ? { args: ['--no-sandbox'], ...chOpt } : {});
   const errors = [];
   let failed = 0;
   const ok = (c, m) => {

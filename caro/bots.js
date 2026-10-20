@@ -134,7 +134,8 @@
     const EN = bot.engine && (global.CaroEngine || (typeof require === 'function' ? require('./engine.js') : null));
     if (EN && (board.moves.length % 2 === 0 ? C.X : C.O) === p) {
       try {
-        return EN.analyse(board.moves.map((m) => [m.x, m.y]), { ...bot.engine, rule: board.rule, style: bot.styleW && bot.styleW.engine }).move;
+        // carry: dùng lại bảng ghi nhớ của nước trước trong ván (engine.js) – tự đấu 576 ván (100 / 200 / 500 ms): 54,5%
+        return EN.analyse(board.moves.map((m) => [m.x, m.y]), { ...bot.engine, rule: board.rule, style: bot.styleW && bot.styleW.engine, carry: true }).move;
       } catch (e) { /* dùng AI cũ */ }
     }
     return C.chooseMove(board, p, bot.level, rng, { ...bot, ...(bot.styleW || {}) });

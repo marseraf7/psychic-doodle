@@ -11,7 +11,8 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const KEY = 'caro.liveAn';
-  const MS = 200; // bằng thời gian mỗi thế của phân tích đầy đủ cho ván ngắn → dùng lại được cho mọi ván
+  // Bằng thời gian mỗi thế của phân tích kỹ cho ván ngắn (analysis.js fullMs) → dùng lại được cho mọi ván
+  const MS = window.CaroAnalysis ? window.CaroAnalysis.fullMs(0) : 400;
   let on = true;
   try { on = localStorage.getItem(KEY) !== '0'; } catch (e) { /* riêng tư */ }
 
@@ -53,11 +54,13 @@
     const rule = board.rule || 'vn';
     const c = rule === g.rule ? common(g.moves, moves) : -1;
     if (c <= 0 && (g.moves.length || rule !== g.rule)) {
-      // Ván khác (hoặc đổi luật): làm lại từ đầu, bảng nhớ engine cũng mới
+      // Ván khác (hoặc đổi luật): làm lại từ đầu
       g.gid = ++gidSeq; g.rule = rule; g.evals = [];
     } else if (c < g.moves.length) g.evals.length = c + 1; // đi lại / rẽ nhánh: bỏ các thế sau chỗ khác nhau
     g.moves = moves;
     g.busy = !!opts.busy;
+    // Vừa hết ván: tạo sẵn Worker của phân tích song song (an-pool.js) – bấm Phân tích là chấm ngay phần còn thiếu
+    if (opts.over && !g.over && window.CaroAnPool) window.CaroAnPool.warm();
     g.over = !!opts.over;
     if (g.busy && inflight) stop(); // máy bắt đầu nghĩ: dừng thế đang chấm dở để máy có trọn CPU
     // Hoãn một nhịp: app.js báo "máy đang nghĩ" ngay sau nước của người chơi – khỏi bắt đầu chấm rồi lại phải dừng
@@ -92,7 +95,7 @@
     if (!w) return;
     const pos = alt ? g.moves.slice(0, i).concat([g.evals[i].move]) : g.moves.slice(0, i);
     inflight = { id: 'lv' + ++seq, gid: g.gid, i, alt, key: keyOf(g.moves, i) };
-    w.postMessage({ type: 'eval', id: inflight.id, gid: g.gid, rule: g.rule, ms: MS, moves: pos });
+    w.postMessage({ type: 'eval', id: inflight.id, rule: g.rule, ms: MS, moves: pos });
   }
 
   function onResult(e) {

@@ -16,6 +16,10 @@
     rapfi_loading: 'BOAT đang tải bộ não Rapfi (~{mb} MB, chỉ lần đầu)…',
     rapfi_ready: 'BOAT đã sẵn sàng với Rapfi – engine vô địch Gomocup ⛵',
     rapfi_failed: 'Không tải được Rapfi – BOAT dùng engine của game',
+    rapfi_mt: 'Rapfi đa luồng',
+    rapfi_mt_d: 'BOAT và phân tích dùng nhiều lõi máy để nghĩ sâu hơn. Tắt nếu máy nóng, chậm hoặc game bị giật.',
+    rapfi_mt_na: 'Trình duyệt này chỉ chạy Rapfi một luồng (đa luồng hiện có trên Chrome / Edge máy tính).',
+    rapfi_mt_lag: 'Máy có vẻ bị giật khi BOAT nghĩ bằng nhiều luồng. Tắt «Rapfi đa luồng» trong Cài đặt › Cài đặt bàn cờ để chơi mượt hơn.',
   });
 
   X('en', {
@@ -28,6 +32,10 @@
     rapfi_loading: 'BOAT is downloading its Rapfi brain (~{mb} MB, first time only)…',
     rapfi_ready: 'BOAT is ready with Rapfi – the Gomocup champion engine ⛵',
     rapfi_failed: 'Could not load Rapfi – BOAT uses the game\'s own engine',
+    rapfi_mt: 'Multi-threaded Rapfi',
+    rapfi_mt_d: 'BOAT and analysis use several CPU cores to think deeper. Turn off if the device gets hot, slow or the game stutters.',
+    rapfi_mt_na: 'This browser runs Rapfi on a single thread (multi-threading is available in desktop Chrome / Edge).',
+    rapfi_mt_lag: 'Your device seems to stutter while BOAT thinks on several threads. Turn off “Multi-threaded Rapfi” in Settings › Board settings for smoother play.',
   });
 
   X('ru', {
@@ -40,6 +48,10 @@
     rapfi_loading: 'BOAT загружает мозг Rapfi (~{mb} МБ, только в первый раз)…',
     rapfi_ready: 'BOAT готов с Rapfi – движком-чемпионом Gomocup ⛵',
     rapfi_failed: 'Не удалось загрузить Rapfi – BOAT играет собственным движком игры',
+    rapfi_mt: 'Многопоточный Rapfi',
+    rapfi_mt_d: 'BOAT и анализ используют несколько ядер процессора, чтобы думать глубже. Отключите, если устройство греется, тормозит или игра подвисает.',
+    rapfi_mt_na: 'В этом браузере Rapfi работает в одном потоке (многопоточность доступна в Chrome / Edge на компьютере).',
+    rapfi_mt_lag: 'Похоже, устройство подтормаживает, пока BOAT думает в несколько потоков. Отключите «Многопоточный Rapfi» в Настройки › Настройки доски, чтобы игра шла плавнее.',
   });
 
   X('zh', {
@@ -52,6 +64,10 @@
     rapfi_loading: 'BOAT 正在下载 Rapfi 大脑（约 {mb} MB，仅首次）…',
     rapfi_ready: 'BOAT 已就绪：搭载 Gomocup 冠军引擎 Rapfi ⛵',
     rapfi_failed: '无法加载 Rapfi——BOAT 改用游戏自带引擎',
+    rapfi_mt: 'Rapfi 多线程',
+    rapfi_mt_d: 'BOAT 和分析使用多个 CPU 核心来算得更深。如果设备发热、变慢或游戏卡顿，请关闭。',
+    rapfi_mt_na: '此浏览器只能以单线程运行 Rapfi（多线程目前支持电脑版 Chrome / Edge）。',
+    rapfi_mt_lag: 'BOAT 多线程思考时设备似乎有些卡顿。可在 设置 › 棋盘设置 中关闭“Rapfi 多线程”，让游戏更流畅。',
   });
 
   // Mô tả BOAT ghi công Rapfi – trừ bản iOS (không kèm Rapfi: app/scripts/strip-rapfi-ios.js), nơi giữ mô tả cũ

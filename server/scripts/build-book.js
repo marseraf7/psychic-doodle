@@ -12,6 +12,8 @@
  * Luật Việt Nam bằng Rapfi-CARO (mạnh hơn engine của game – BOAT luật Việt Nam chạy nó): BOOK_RAPFI_DIR=<thư mục chạy
  * bản gốc Rapfi-CARO, xem server/scripts/rapfi/caro/README.md> – mỗi luồng một tiến trình Rapfi-CARO, bàn 20×20. Ghi vào
  * khoá 'vn-rapfi' (chỉ BOAT dùng – boat-rapfi.js); sách 'vn' của các nhân vật máy khác giữ nguyên để không lệch mức Elo.
+ * BOOK_RAPFI=wasm (kèm RAPFI_NETS – xem rapfi/driver-wasm.js): mọi luật bằng đúng bản Rapfi WebAssembly của app (1 luồng mỗi
+ * Worker), ghi vào khoá '<luật>-rapfi' (vd. 'free-rapfi') – BOAT tra sách này ở cả 4 luật.
  */
 'use strict';
 const fs = require('fs');
@@ -21,23 +23,31 @@ const CARO = path.join(__dirname, '../../caro');
 const OUT = path.join(CARO, 'book-data.js');
 
 const RAPFI_DIR = process.env.BOOK_RAPFI_DIR;
+const RAPFI_WASM = process.env.BOOK_RAPFI === 'wasm';
+const useRapfi = (rule) => RAPFI_WASM || (!!RAPFI_DIR && rule === 'vn');
+const SIZE = { free: 20, std: 15, renju: 15, vn: 20 }, RULE_N = { free: 0, std: 1, renju: 4, vn: 8 };
 
 if (!isMainThread) {
   const EN = require(path.join(CARO, 'engine.js'));
-  let rapfi = null;
+  const rapfis = {}; // luật → Rapfi (mỗi Worker một bản mỗi luật)
   parentPort.on('message', async ({ id, moves, rule, ms }) => {
-    if (RAPFI_DIR && rule === 'vn') {
-      // Rapfi-CARO: đặt thế vào giữa bàn 20×20 (khai cuộc nhỏ, luôn vừa); điểm ±20000 = thắng / thua chắc
-      if (!rapfi) {
-        process.env.RAPFI_DIR = RAPFI_DIR; // driver.js đọc thư mục chạy từ biến này
-        const { Rapfi } = require('./rapfi/driver.js');
-        rapfi = new Rapfi(20, 8, ms);
-        await rapfi.init();
+    if (useRapfi(rule)) {
+      // Đặt thế vào giữa bàn Rapfi (khai cuộc nhỏ, luôn vừa); điểm ±20000 = thắng / thua chắc
+      if (!rapfis[rule]) {
+        let Rapfi;
+        if (RAPFI_WASM) ({ Rapfi } = require('./rapfi/driver-wasm.js'));
+        else {
+          process.env.RAPFI_DIR = RAPFI_DIR; // driver.js đọc thư mục chạy từ biến này
+          ({ Rapfi } = require('./rapfi/driver.js'));
+        }
+        rapfis[rule] = new Rapfi(SIZE[rule], RULE_N[rule], ms);
+        await rapfis[rule].init();
       }
+      const rapfi = rapfis[rule];
       rapfi.ms = ms; rapfi.send('INFO timeout_turn ' + ms);
-      let x0 = Infinity, y0 = Infinity;
-      for (const [x, y] of moves) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); }
-      const ox = x0 - 7, oy = y0 - 7;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const [x, y] of moves) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+      const h = SIZE[rule] >> 1, ox = Math.round((x0 + x1) / 2) - h, oy = Math.round((y0 + y1) / 2) - h;
       const r = await rapfi.move(moves.map(([x, y]) => [x - ox, y - oy]));
       const ev = r.ev || 0, mate = Math.abs(ev) >= 20000 ? Math.sign(ev) : null;
       parentPort.postMessage({ id, move: [r[0] + ox, r[1] + oy], mate, score: ev });
@@ -142,7 +152,7 @@ async function build(rule, bookSide, ms, maxPly, branch, book) {
     // Sách X: X mở ở (0, 0) (nhân vật máy cầm X luôn mở ở đó) – nước đầu không cần sách
     await build(rule, 0, Number(MS), Number(MAXPLY), Number(BRANCH), book);
     await build(rule, 1, Number(MS), Number(MAXPLY), Number(BRANCH), book);
-    data[RAPFI_DIR && rule === 'vn' ? 'vn-rapfi' : rule] = book;
+    data[useRapfi(rule) ? rule + '-rapfi' : rule] = book;
     console.log(`${rule}: ${Object.keys(book).length} mục · ${Math.round((Date.now() - t0) / 1000)} giây`);
     write(data);
   }
@@ -155,9 +165,9 @@ function write(data) {
     `  ${/^[a-z]+$/.test(rule) ? rule : `'${rule}'`}: {\n${Object.entries(book).map(([k, m]) => `    '${k}': [${m[0]}, ${m[1]}],`).join('\n')}\n  },`).join('\n');
   fs.writeFileSync(OUT, `/*
  * Sách khai cuộc (sinh tự động bởi server/scripts/build-book.js – đừng sửa tay): { luật: { khoá thế cờ: [x, y] } }.
- * Khoá và toạ độ theo dạng chuẩn hoá của book.js (canon). Các nhân vật máy dùng sách của luật;
- * vn-rapfi: chỉ BOAT (Rapfi-CARO). Lần dựng gần nhất (${RULES}${RAPFI_DIR ? ' – Rapfi-CARO' : ''}): nghĩ ${MS} ms mỗi thế, tối đa
- * ${MAXPLY} nước, ${BRANCH} nhánh.
+ * Khoá và toạ độ theo dạng chuẩn hoá của book.js (canon). Các nhân vật máy dùng sách của luật; <luật>-rapfi: chỉ BOAT
+ * (Rapfi; luật Việt Nam: Rapfi-CARO). Lần dựng gần nhất (${RULES}${RAPFI_WASM ? ' – Rapfi WebAssembly' : RAPFI_DIR ? ' – Rapfi-CARO' : ''}):
+ * nghĩ ${MS} ms mỗi thế, tối đa ${MAXPLY} nước, ${BRANCH} nhánh. vn-rapfi: Rapfi-CARO bản gốc, 10000 ms / thế, 8 nước, 4 nhánh.
  */
 (function (global) {
   'use strict';

@@ -26,7 +26,8 @@ jobs:
   # BOAT chạy Rapfi (WebAssembly) trong trình duyệt thật: 3 luật, luật Việt Nam, bộ nhớ đệm mạng, phân tích bằng Rapfi,
   # mạng hỏng, trang giấy phép (caro/tests/e2e/boat-rapfi.e2e.js); Lịch sử đấu trên máy + Thiết bị (localhist.e2e.js). Mạng NNUE (CC0, ~40 MB) tải 1 lần rồi giữ trong cache.
   rapfi-e2e:
-    runs-on: ubuntu-latest
+    # Ghim 24.04: ubuntu-latest đã lên 26.04, Playwright 1.56.1 không cài được trình duyệt trên bản này
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -56,8 +57,10 @@ jobs:
           done
           sha256sum *.lz4
       # retry-crash.js: WebKit Linux trên CI thỉnh thoảng tự sập – chỉ khi đỏ vì sập mới chạy lại 1 lần (FAIL thật vẫn đỏ ngay)
+      # Chromium: bản đầy đủ (E2E_CHANNEL) – headless shell chưa hỗ trợ Document-Isolation-Policy nên không thử được Rapfi
+      # đa luồng; Firefox / WebKit thử bản 1 luồng
       - name: Kiểm thử trình duyệt BOAT – Rapfi
-        run: E2E_BROWSER=${{ matrix.browser }} RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/boat-rapfi.e2e.js
+        run: E2E_BROWSER=${{ matrix.browser }} E2E_CHANNEL=${{ matrix.browser == 'chromium' && 'chromium' || '' }} RAPFI_NETS=$HOME/rapfi-nets E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/boat-rapfi.e2e.js
       # Lịch sử đấu trên máy này (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, Cài đặt) + Thiết bị (localhist.e2e.js)
       - name: Kiểm thử trình duyệt Lịch sử đấu trên máy + Thiết bị
         timeout-minutes: 25

@@ -184,6 +184,7 @@
       if (m.code === 'unsupported' && (m.ctx === 'ping' || (!m.ctx && Date.now() - lastPing < PONG_MS))) { noPing = true; return; }
       if (m.ctx === 'move') App.resync();
       if (m.code === 'too_fast' && ['watch', 'profile'].includes(m.ctx)) return; // bấm dồn: bỏ qua lần thừa
+      if (m.ctx === 'evalGet' || m.ctx === 'evalPut') return; // bộ nhớ điểm dùng chung (eval-cloud.js) chạy ngầm: không báo
       // Mở bằng link mời: phòng công khai vào thẳng, phòng riêng (sai/thiếu mật khẩu) thì hỏi mật khẩu
       if (m.ctx === 'joinRoom' && probing) {
         const code = probing;

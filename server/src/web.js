@@ -46,6 +46,11 @@ const SECURITY_HEADERS = {
   // Chỉ có hiệu lực khi trang chạy qua HTTPS (sau Caddy / nginx): trình duyệt nhớ 180 ngày, không bị hạ xuống HTTP
   'strict-transport-security': 'max-age=15552000',
 };
+// Cô lập trang theo Document-Isolation-Policy (Chrome / Edge ≥ 137): có SharedArrayBuffer → BOAT chạy Rapfi đa luồng
+// (caro/rapfi/worker.js). Khác COOP / COEP, không ràng buộc cửa sổ bật lên (đăng nhập Google vẫn chạy) hay iframe con;
+// tài nguyên khác nguồn tải không kèm cookie (credentialless). Trình duyệt chưa hỗ trợ: bỏ qua, Rapfi chạy 1 luồng.
+// RAPFI_THREADS=0: tắt.
+if (process.env.RAPFI_THREADS !== '0') SECURITY_HEADERS['document-isolation-policy'] = 'isolate-and-credentialless';
 
 /** Kết nối từ chính máy này hoặc mạng nội bộ (proxy như Caddy / nginx / Docker) – không thể giả từ Internet. */
 function fromProxy(addr) {

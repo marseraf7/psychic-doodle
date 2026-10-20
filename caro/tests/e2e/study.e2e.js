@@ -97,8 +97,9 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(tl.length === GAME.length, `danh sách nước đi có ${GAME.length} nước`);
     ok(/Sai lầm nặng/.test(tl[5]), 'nước 6 của O: Sai lầm nặng — ' + tl[5]);
     ok(/Tốt nhất/.test(tl[6]), 'nước 7 của X: Tốt nhất');
-    // Đọc độ chính xác sau lượt phân tích kỹ (lượt nhanh chấm nông hơn nên số có thể khác). X không phải đánh hoàn hảo:
-    // engine thấy nước 5 (2,0) – ba mở – kém hơn (0,1) (sau (0,1) X thắng chắc), nhưng vẫn chính xác hơn O rõ rệt.
+    // Đọc độ chính xác sau lượt phân tích kỹ (lượt nhanh chấm nông hơn nên số có thể khác). Mỗi thế chấm theo số nút, không
+    // theo giờ (analysis.js evaluate), nên số liệu như nhau trên mọi trình duyệt / máy / số Worker: X 95%, O 77% (nước 2
+    // (0,5) của O ở xa – sai lầm). Trước đây chấm theo giờ: có lúc ra X 88%, O 91% (Chromium lẫn WebKit).
     await p.waitForFunction(() => !document.getElementById('an-refine'), null, { timeout: 30000 });
     const acc = await p.$$eval('.an-acc', (els) => els.map((e) => parseInt(e.textContent, 10)));
     ok(acc[0] >= 80 && acc[1] < acc[0], `độ chính xác (theo mức tụt khả năng thắng, như Lichess) X ${acc[0]}%, O ${acc[1]}%`);

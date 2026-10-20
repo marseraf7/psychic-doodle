@@ -301,6 +301,7 @@ class Hub {
   sweep() {
     const now = Date.now();
     this.store.pruneSessions(now); // phiên hết hạn (kèm IP, trình duyệt của mục Thiết bị): xoá mỗi ngày một lần
+    this.evalSweep(now); // bộ nhớ điểm dùng chung (evals.js): dọn mỗi giờ một lần
     for (const room of [...this.rooms.values()]) {
       for (const p of [...room.players]) {
         const off = this.offlineAt.get(p.id);

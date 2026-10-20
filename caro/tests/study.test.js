@@ -112,8 +112,9 @@ const tests = {
     bb.put(r.moves[5].best[0], r.moves[5].best[1], O);
     assert.ok(!A.forced(bb, X, 4, { deadline: Date.now() + 2000 }), 'nước gợi ý giữ được thế');
     assert.strictEqual(r.moves[6].cls, 'best');
-    // Độ chính xác tính theo mức tụt khả năng thắng (như Lichess): X mất ít, O mất nhiều hơn. X không hoàn hảo: engine thấy
-    // nước 5 (2,0) – ba mở – kém (0,1) (sau (0,1) X thắng chắc); số cụ thể dao động theo tốc độ máy nên chỉ kiểm thứ tự
+    // Độ chính xác tính theo mức tụt khả năng thắng (như Lichess): X mất ít, O mất nhiều hơn (nước 2 (0,5) ở xa: sai lầm;
+    // nước 6: sai lầm nặng). Chấm theo số nút nên số cố định (X 95%, O 77%), trừ máy quá chậm chạm giới hạn cứng
+    // (analysis.js CAP) – vì vậy chỉ kiểm thứ tự
     assert.ok(r.acc[X] >= 70, 'X ' + r.acc[X]);
     assert.ok(r.acc[O] < r.acc[X], 'O ' + r.acc[O]);
     // Nước 6 là thời điểm đáng chú ý cuối cùng, xếp loại theo chuỗi thắng chắc (không theo điểm) nên không đổi theo tốc độ

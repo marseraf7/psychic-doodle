@@ -145,7 +145,8 @@ Mã máy chủ: `server.js` (WebSocket), `src/web.js` (HTTP: file tĩnh, ảnh x
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem), `tour-run.js` (ban tổ chức, nhịp chạy, phòng cho ván của giải, kết thúc giải),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
 `stages.js` (logic thuần các thể thức; phần loại trực tiếp / nhánh thắng – thua ở `stages-elim.js`, vòng tròn / Thụy Sĩ / bảng điểm ở `stages-groups.js`, hằng số chung ở `stages-base.js`),
-`tourpush.js` (gửi cập nhật trang giải: gom, chỉ gửi phần đổi), `admin.js` (quản trị viên duyệt).
+`tourpush.js` (gửi cập nhật trang giải: gom, chỉ gửi phần đổi), `admin.js` (quản trị viên duyệt),
+`evals.js` (bộ nhớ chấm Rapfi dùng chung – lưu trữ ở `src/evalcache.js`).
 Tin nhắn loại `X` do phương thức `on_X` xử lý.
 
 Cần **Node.js 22.13 trở lên** (dùng SQLite có sẵn trong Node, không phải cài thêm CSDL).
@@ -268,6 +269,10 @@ sqlite3 /var/lib/caro/caro.db ".backup '/root/caro-$(date +%F).db'"
 Hoặc dừng máy chủ rồi chép cả thư mục. Nâng cấp từ bản cũ dùng `db.json`: lần đầu chạy
 máy chủ tự nhập vào `caro.db` và đổi tên file cũ thành `db.json.imported`.
 
+`DATA_DIR/eval-key` (khoá bí mật cho mã người gửi điểm phân tích – xem *Bảo mật đã có*) cố ý nằm ngoài `caro.db`: lệnh
+`.backup` ở trên không chép nó. Chuyển máy chủ thì chép file này riêng (quyền 600), cất tách khỏi các bản sao lưu CSDL;
+không có nó máy chủ vẫn chạy, chỉ là các lần gửi điểm cũ không còn gắn được với tài khoản (tự hết hạn sau 30 ngày).
+
 ### Giao diện ở nơi khác, máy chủ ở nơi khác
 
 Nếu muốn giữ giao diện trên GitHub Pages, sửa `caro/config.js`:
@@ -280,6 +285,16 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
   gửi người xem chuyển JSON một lần cho tất cả; số người xem vào/ra dồn dập được gom (tối đa 1 lần/giây/phòng);
   danh sách "Đang diễn ra" dựng chung mỗi 3 giây; bảng xếp hạng giữ kết quả tới ván tính điểm tiếp theo (tối đa 60 giây);
   hồ sơ (truy vấn CSDL) và lệnh xem bị giới hạn tần suất theo kết nối. Kết nối không đọc dữ liệu (dồn quá 2 MB) bị ngắt.
+
+- **Bộ nhớ chấm Rapfi dùng chung** (`evalGet` / `evalPut`, `src/evalcache.js`): chỉ tài khoản đã đăng nhập, tạo ≥ 1 ngày
+  mới được gửi; mỗi lần ≤ 200 thế, 1 lần / 2 giây, 3.000 thế / giờ; kiểm khoá thế, nước, điểm trước khi lưu. Một thế chỉ được
+  trả cho người khác khi 2 tài khoản khác nhau gửi kết quả khớp (cùng số nút, **cùng nước tốt nhất**, khả năng thắng lệch
+  ≤ 4% hoặc cùng chiều thắng chắc) – một tài khoản chép đúng điểm mà kèm nước sai không đầu độc được; hai tài khoản thông
+  đồng thì vẫn được. Người gửi lưu dạng HMAC-SHA256 của id tài khoản (không lưu id); khoá bí mật 32 byte ở file
+  `DATA_DIR/eval-key` (tạo ở lần chạy đầu, quyền 600, **không** nằm trong `caro.db` nên bản sao lưu CSDL bị lộ cũng không dò
+  ngược được ai gửi). Mất file khoá thì xoá tài khoản không tìm được các lần gửi cũ (chúng tự hết hạn sau 30 ngày); file
+  khoá hỏng thì máy chủ không khởi động (không tự tạo khoá mới). Bản gửi giữ 30 ngày, xoá tài khoản thì xoá luôn; bộ nhớ
+  tối đa 300 nghìn thế (bỏ thế lâu không dùng).
 
 - Mật khẩu băm scrypt; token đăng nhập và mã đặt lại mật khẩu chỉ lưu dạng băm SHA-256.
 - Quên mật khẩu: luôn trả lời giống nhau dù tài khoản có tồn tại hay không; mã 6 số hết hạn sau

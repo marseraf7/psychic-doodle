@@ -32,12 +32,18 @@
 
   /**
    * Phân tích một thế cờ (moves: [[x, y], …], bên tới lượt = X nếu số nước chẵn).
-   * opts: { ms (thời gian, mặc định 500), maxDepth (mặc định 20), tt (Map dùng lại giữa các lần gọi), rule }.
+   * opts: { ms (thời gian, mặc định 500), maxDepth (mặc định 20), tt (Map dùng lại giữa các lần gọi), rule,
+   *         nodes (giới hạn theo số nút thay cho thời gian; ms khi đó là giới hạn cứng – xem engine-search.js),
+   *         smooth (điểm = trung bình hai lớp cuối – xem dưới), carry (máy đánh – bots.js: dùng lại bảng ghi nhớ của nước
+   *         trước; tự đấu 576 ván với bản không dùng: 54,5%) }.
+   * Kết quả có thêm safe: số nước ở gốc không để đối thủ có chuỗi bốn (VCF) – lọc phòng thủ safeRoot; 0 = không lọc
+   * (đối thủ chưa có nước công / hết giờ). safe = 1: chỉ một nước giữ được thế (phân tích: "Nước duy nhất").
    * Trả về { move: [x, y], score, depth, nodes, pv: [[x, y]…], mate: số nước tới thắng (+ bên tới lượt thắng, − thua) | null }.
    */
   function analyse(moves, opts) {
     opts = opts || {};
     const pos = new Position(moves, opts.rule);
+    if (opts.carry && !opts.tt) opts = { ...opts, ...carried(moves, opts, pos.side) };
     if (opts.style) Object.assign(pos.style, opts.style);
     if (opts.patOrder === false) pos.patOrder = false;
     if (opts.policy === false) pos.policy = false;
@@ -49,27 +55,31 @@
     if (wins.length) return { move: pos.xy(wins[0]), score: WIN - 1, depth: 1, nodes: 1, pv: [pos.xy(wins[0])], mate: 1 };
     const S = new Search(pos, opts);
     // Chuỗi ép cho bên tới lượt trước (nhanh, chính xác hơn tìm rộng)
-    const v = S.vcfRoot(opts.vcfDepth || 12, Date.now() + (opts.ms || 500) * 0.45);
+    // Các phần chia nhau quỹ của lượt tìm (B: số nút hoặc ms, theo đồng hồ của Search)
+    const B = S.budget || opts.ms || 500;
+    const v = S.vcfRoot(opts.vcfDepth || 12, S.clock() + B * 0.45);
     if (v) {
       const plies = 2 * v.len - 1;
       return { move: pos.xy(v.move), score: WIN - plies, depth: plies, nodes: S.nodes, pv: [pos.xy(v.move)], mate: v.len };
     }
     // Chuỗi đe doạ ba / bốn (VCT) – thắng chắc nếu tìm thấy
     if (opts.vct !== false && S.vctRoot) {
-      const t = S.vctRoot(opts.vctDepth || 8, Date.now() + (opts.ms || 500) * (opts.vctTime || 0.2));
+      const t = S.vctRoot(opts.vctDepth || 8, S.clock() + B * (opts.vctTime || 0.2));
       if (t) {
         const plies = 2 * t.len - 1;
         return { move: pos.xy(t.move), score: WIN - plies, depth: plies, nodes: S.nodes, pv: [pos.xy(t.move)], mate: t.len };
       }
     }
     // Lọc nước để đối thủ có chuỗi ép (tốn tối đa ~30% thời gian)
-    if (opts.safeRoot !== false && opts.rootVcf !== false) S.rootMoves = S.safeRoot(opts.defDepth || 6, Date.now() + (opts.ms || 500) * 0.3);
+    if (opts.safeRoot !== false && opts.rootVcf !== false) S.rootMoves = S.safeRoot(opts.defDepth || 6, S.clock() + B * 0.3);
+    const safe = S.rootMoves ? S.rootMoves.length : 0;
     // Làm sâu dần; sau mỗi lớp, nước tốt nhất mới được kiểm (như "blunder check"): sau nước đó đối thủ có chuỗi đe doạ (VCT)
     // không – có thì bỏ nước đó và tìm lại lớp này (bảng ghi nhớ còn nóng nên nhanh). Mỗi nước kiểm một lần.
-    const ms = opts.ms || 500;
     const verify = opts.vct !== false && opts.safeRoot !== false && !!S.vctFind;
     const checked = new Map(); // nước → an toàn?
     let result = null;
+    // Điểm của hai lớp đã xong gần nhất (cùng tập nước ở gốc) – cho opts.smooth
+    let last = null, prev = null;
     const maxDepth = opts.maxDepth || 20;
     for (let d = 1, bad = 0; d <= maxDepth; d++) {
       const pv = [];
@@ -81,7 +91,7 @@
       const m = result.pv[0];
       if (verify && s > -MATE && s < MATE && !checked.has(m) && bad < 6) {
         const end = S.deadline;
-        S.deadline = Math.min(end, Date.now() + ms * (opts.vctVerify || 0.25));
+        S.deadline = Math.min(end, S.clock() + B * (opts.vctVerify || 0.25));
         pos.play(m, p);
         const t = pos.winCount[p] ? null : S.vctFind(opts.vctDepth || 8);
         pos.undo();
@@ -91,14 +101,54 @@
         if (t) {
           // m thua chắc: bỏ khỏi gốc rồi tìm lại lớp này (nếu còn nước khác)
           const rest = (S.rootMoves || pos.candidates(p, S.rootWidth)).filter((i) => i !== m);
-          if (rest.length) { S.rootMoves = rest; bad++; result = null; d--; continue; }
+          if (rest.length) { S.rootMoves = rest; bad++; result = null; last = prev = null; d--; continue; }
         }
       }
+      prev = last; last = s;
       if (Math.abs(s) >= MATE) break;
     }
     if (!result) result = { score: 0, depth: 0, pv: [(S.rootMoves || pos.candidates(p, 1))[0]] };
+    // Lá chấm điểm cộng "tempo" cho bên tới lượt ở lá, nên điểm ở gốc lệch ±tempo theo độ sâu chẵn / lẻ (thế 1 của một ván
+    // thử: d3 +93, d4 −361, d5 −68, d6 −351). Phân tích ván so điểm hai thế khác bên tới lượt: lấy trung bình hai lớp cuối
+    // để triệt tiêu độ lệch đó, khỏi chấm oan nước thường là "chưa chính xác". Không đổi nước đi; máy đánh không dùng.
+    if (opts.smooth && last !== null && prev !== null && result.score === last && Math.abs(last) < MATE && Math.abs(prev) < MATE) {
+      result.score = Math.round((last + prev) / 2);
+    }
     const mate = result.score >= MATE ? Math.ceil((WIN - result.score) / 2) : result.score <= -MATE ? -Math.ceil((WIN + result.score) / 2) : null;
-    return { move: pos.xy(result.pv[0]), score: result.score, depth: result.depth, nodes: S.nodes, pv: result.pv.map((i) => pos.xy(i)), mate };
+    return { move: pos.xy(result.pv[0]), score: result.score, depth: result.depth, nodes: S.nodes, pv: result.pv.map((i) => pos.xy(i)), mate, safe };
+  }
+
+  /**
+   * Chỉ chạy bước lọc phòng thủ ở gốc của analyse (safeRoot, cùng độ sâu, 30% quỹ như analyse): các nước của bên tới lượt
+   * không để đối thủ có chuỗi bốn → [[x, y], …], hoặc null (không cần lọc / hết giờ / mọi nước đều thua). Cho phân tích
+   * bằng Rapfi (rapfi-analysis.js) tìm "Nước duy nhất" đúng như analyse.
+   */
+  function safeMoves(moves, opts) {
+    opts = opts || {};
+    const pos = new Position(moves, opts.rule);
+    if (!moves.length || pos.winCells(pos.side).length) return null;
+    pos.rootSide = pos.side; pos.rootCount = pos.count;
+    const S = new Search(pos, opts);
+    const B = S.budget || opts.ms || 500;
+    const r = S.safeRoot(opts.defDepth || 6, S.clock() + B * 0.3);
+    return r ? r.map((i) => pos.xy(i)) : null;
+  }
+
+  /**
+   * Bảng ghi nhớ mang sang nước sau (như Stockfish / Rapfi giữ bảng suốt ván): thế mới nối tiếp thế lần trước (cùng các nước
+   * đầu, cùng luật, cùng lối đánh, cùng bên đi) thì dùng lại – các nhánh đã tìm ở nước trước khỏi tìm lại. Khoá Zobrist và
+   * nước trong bảng theo toạ độ thật (engine-position.js) nên đúng dù vùng mảng đổi. Ván khác: bảng mới.
+   */
+  let carry = null;
+  const CARRY_MAX = 300000; // bảng lớn hơn thế thì làm mới (giữ RAM trên điện thoại)
+  function carried(moves, opts, side) {
+    const sig = (opts.rule || 'vn') + '|' + side + '|' + JSON.stringify(opts.style || null);
+    const c = carry;
+    let ok = c && c.sig === sig && moves.length >= c.moves.length && c.tt.size < CARRY_MAX;
+    for (let i = 0; ok && i < c.moves.length; i++) ok = moves[i][0] === c.moves[i][0] && moves[i][1] === c.moves[i][1];
+    if (!ok) carry = { sig, tt: new Map(), qtt: new Map(), vtt: new Map() };
+    carry.moves = moves.map((m) => [m[0], m[1]]);
+    return { tt: carry.tt, qtt: carry.qtt, vtt: carry.vtt };
   }
 
   /** Điểm → khả năng thắng (0..1) của bên tới lượt (giống cách Lichess đổi centipawn sang % thắng). */
@@ -108,7 +158,7 @@
     return 1 / (1 + Math.exp(-score / 360));
   }
 
-  const CaroEngine = { analyse, winChance, Position, Search, WIN, MATE, EVAL };
+  const CaroEngine = { analyse, safeMoves, winChance, Position, Search, WIN, MATE, EVAL };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroEngine;
   else global.CaroEngine = CaroEngine;
 })(typeof window !== 'undefined' ? window : globalThis);

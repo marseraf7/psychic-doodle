@@ -21,6 +21,19 @@
   const WIN = 1000000, MATE = WIN - 1000;
   const SCALE = { vn: 360 / 400 }, SCALE_NNUE = 360 / 200; // thang điểm Rapfi theo luật (bảng caro học với K = 1/400)
   const LOAD_WAIT = 60000; // phân tích chờ tải mạng (có thông báo tiến độ) tối đa 1 phút
+  // Chấm theo số nút (rapfi/brain.js – INFO max_node), không theo giờ: kết quả không đổi theo máy nhanh / chậm (máy mạnh chỉ
+  // xong sớm hơn) – bộ nhớ chấm dùng chung (eval-cloud.js) cần điều này. Cả ván đặt vào một khung cố định trên bàn Rapfi;
+  // mỗi Worker chấm một đoạn liền các thế (run), bảng băm xoá ở thế đầu rồi giữ suốt đoạn (thế liền nhau dùng lại được) –
+  // cùng ván, cùng số Worker, cùng các thế lấy từ bộ nhớ thì cùng kết quả (Rapfi một luồng; bản đa luồng chia số nút cho
+  // các luồng – xong nhanh hơn nhưng mỗi lần chia một khác, kết quả có thể lệch chút – bộ nhớ dùng chung chịu được: evalcache.js).
+  // Số nút = thời gian Rapfi thật sự nghĩ khi chấm theo giờ ms (~ms − 30 – brain.js fixedTime) × tốc độ chuẩn của Rapfi
+  // WebAssembly 1 luồng theo luật (nghìn nút / giây = nút / ms: tổng nút / tổng thời gian trên các ván của công cụ đo, máy
+  // rảnh – Node 22): cùng thời gian như cách cũ trên máy chuẩn. Luật có mạng NNUE chậm hơn ~5 lần luật Việt Nam.
+  // Đo (server/scripts/rapfi/an-bench-rapfi.js, 300 ms / thế, so với chấm ×8 nút), theo giờ → theo số nút giữ bảng băm:
+  // Việt Nam 12 ván trùng chuẩn 81,5% → 80,5%, tự do 24 ván 89,4% → 87,8% (chênh trong sai số đo ~±2 điểm); hai lần
+  // chạy ra cùng xếp loại 89,4% / 95,6% → 100%. Xoá bảng băm mỗi thế kém hơn (Việt Nam 79,1%)
+  const KNPS = { free: 99, std: 106, renju: 91, vn: 555 };
+  const nodesFor = (rule, ms) => Math.max(10000, Math.round((ms - 30) * KNPS[rule]));
   let job = 0;
 
   const handles = (rule) => !!(R() && R().available(rule));
@@ -38,13 +51,17 @@
     return { move, score, mate: null, q: ms, src: 'rapfi' };
   }
 
-  /** Chấm một thế: Rapfi (+ engine kiểm khi sát mép) → bản gọn src 'rapfi', hoặc null nếu Rapfi lỗi. */
-  async function evalPos(rule, moves, ms) {
-    const Rp = R();
-    const f = moves.length ? Rp.frame(moves, Rp.SIZE[rule]) : { margin: 99 };
+  /**
+   * Chấm một thế: Rapfi (+ engine kiểm khi sát mép) → bản gọn src 'rapfi', hoặc null nếu Rapfi lỗi. lane: Worker Rapfi;
+   * gf: khung cố định của cả ván (null: ván rộng hơn bàn Rapfi); clean: lượt đầu của Worker này trong lần phân tích (xoá
+   * bảng băm trước).
+   */
+  async function evalPos(rule, moves, ms, lane, gf, clean) {
+    const Rp = R(), Bd = global.CaroRapfiBoard, n = Rp.SIZE[rule];
+    const f = moves.length ? Bd.fit(moves, gf, n) || Rp.frame(moves, n) : { margin: 99 };
     const near = !f || f.margin < Rp.SAFE_EDGE;
     const chk = near ? Rp.check(rule, moves, Math.min(ms, 400)) : null; // chạy song song với Rapfi (Worker khác)
-    const r = f ? await Rp.ask(rule, moves, ms) : null;
+    const r = f ? await Rp.ask(rule, moves, ms, lane, { nodes: nodesFor(rule, ms), frame: gf, fresh: clean }) : null;
     const e = chk ? await chk : null;
     if (!r) return e ? { ...e, q: ms, src: 'rapfi' } : null; // không vừa bàn: kết quả engine
     // Rapfi đi ngay không tìm kiếm (không in điểm) khi có nước thắng ngay – hoặc thế chỉ còn một nước: tự chấm
@@ -61,6 +78,8 @@
     }
     return out;
   }
+
+  const sameMove = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
 
   /** Bên đi đặt quân ở `move` là thắng ngay. */
   function winsNow(rule, moves, move) {
@@ -91,30 +110,84 @@
     if (!(await R().ready(rule, LOAD_WAIT)) || my !== job) return null;
     const n = moves.length, last = lastPos(moves, rule);
     const ev = Array.from({ length: n + 1 }, (_, i) => (evals && ours(evals[i], ms) ? evals[i] : null));
-    const todo = [];
+    let todo = [];
     for (let i = 0; i <= last; i++) if (!ev[i]) todo.push(i);
+    // Bộ nhớ điểm dùng chung (eval-cloud.js): thế đã có người chấm cùng số nút thì lấy luôn; thế chấm trên máy lượt này
+    // (fresh) gửi lên khi xong
+    const nodes = nodesFor(rule, ms), cloud = global.CaroEvalCloud, fresh = [];
+    if (cloud && todo.length) {
+      const got = await cloud.get(rule, nodes, todo.map((i) => moves.slice(0, i)));
+      if (my !== job) return null;
+      for (const [k, h] of got) ev[todo[k]] = { ...h, q: ms, src: 'rapfi' };
+      todo = todo.filter((i) => !ev[i]);
+    }
     // Tiến độ: chấm các thế 0 → 85%, thế sau nước tốt nhất 85 → 99%
     const prog = (f) => { if (onProgress) onProgress(Math.min(0.99, f)); };
-    for (let k = 0; k < todo.length; k++) {
-      const i = todo[k];
-      const e = await evalPos(rule, moves.slice(0, i), ms);
-      if (my !== job || !e) return null;
-      ev[i] = e;
-      prog((0.85 * (k + 1)) / todo.length);
-    }
+    // Máy đủ RAM: Worker Rapfi thứ hai chấm hai thế cùng lúc – cùng số nút mỗi thế nên cùng kết quả, xong nhanh gấp đôi.
+    // Worker phụ chưa sẵn sàng (lần đầu nạp mạng): không chờ, lượt này một Worker (boat-rapfi.js tạo sẵn khi hết ván)
+    const two = todo.length >= 3 && (await R().auxReady(rule, 0));
+    if (my !== job) return null;
+    const lanes = two ? 2 : 1;
+    // Khung cố định cho cả ván (mọi thế, kể cả thế sau nước tốt nhất nếu vừa); bảng băm mỗi Worker xoá ở lượt đầu
+    const gf = R().frame(moves, R().SIZE[rule]);
+    const first = [true, true];
+    // Chia cố định: Worker lane chấm đoạn liền thứ lane (không tranh việc) – thế nào vào Worker nào, sau thế nào, luôn như
+    // nhau nên bảng băm như nhau, kết quả như nhau; mỗi thế cùng số nút nên hai đoạn xong gần cùng lúc
+    const run = async (list, at) => {
+      let bad = false, done = 0;
+      const half = Math.ceil(list.length / lanes);
+      await Promise.all(Array.from({ length: lanes }, async (_, lane) => {
+        for (let k = lane * half; !bad && my === job && k < Math.min(list.length, (lane + 1) * half); k++) {
+          const clean = first[lane]; // lượt đầu của Worker này: xoá bảng băm
+          first[lane] = false;
+          const e = await at(list[k], lane, clean);
+          if (my !== job) return;
+          if (!e) { bad = true; return; }
+          done++;
+          prog.step(done, list.length);
+        }
+      }));
+      return !bad && my === job;
+    };
+    prog.step = (d, n) => prog((0.85 * d) / n);
+    // "Nước duy nhất" (analysis.js): người chơi đi đúng nước Rapfi chọn ở thế chưa ngã ngũ → lọc phòng thủ của engine
+    // (Worker kiểm thế, chạy song song với Rapfi) chỉ còn đúng nước đó thì ghi one = 1. Thế dùng lại đã có kết quả (one).
+    const onlyChecks = [];
+    const onlyCheck = (i) => {
+      const e = ev[i];
+      if (!e || 'one' in e || e.mate || i >= Math.min(last + 1, n) || !sameMove(e.move, moves[i]) || !global.CaroRapfiBoard) return;
+      onlyChecks.push(global.CaroRapfiBoard.safe(rule, moves.slice(0, i), ms).then((list) => {
+        if (my === job && ev[i]) ev[i] = { ...ev[i], one: list && list.length === 1 && sameMove(list[0], moves[i]) ? 1 : 0 };
+      }));
+    };
+    for (let i = 0; i <= last; i++) if (ev[i]) onlyCheck(i);
+    const okPos = await run(todo, async (i, lane, clean) => {
+      const e = await evalPos(rule, moves.slice(0, i), ms, lane, gf, clean);
+      if (e) { ev[i] = { ...e, q: ms }; onlyCheck(i); fresh.push({ moves: moves.slice(0, i), e }); }
+      return e;
+    });
+    if (!okPos) { if (two) R().auxDone(); return null; }
     // Thế sau nước tốt nhất cho các nước có thể bị đánh dấu (analysis.js altNeeded)
     const alts = [];
     for (let i = 0; i < Math.min(last + 1, n); i++) {
       if (A.altNeeded(moves, ev, i) && !ours(ev[i].alt, ms)) alts.push(i);
     }
-    for (let k = 0; k < alts.length; k++) {
-      const i = alts[k];
-      const e = await evalPos(rule, moves.slice(0, i).concat([ev[i].move]), ms);
+    prog.step = (d, n) => prog(0.85 + (0.14 * d) / n);
+    const altMoves = (i) => moves.slice(0, i).concat([ev[i].move]);
+    if (cloud && alts.length) {
+      const got = await cloud.get(rule, nodes, alts.map(altMoves));
       if (my !== job) return null;
-      if (e) ev[i] = { ...ev[i], alt: e };
-      prog(0.85 + (0.14 * (k + 1)) / alts.length);
+      for (const [k, h] of got) ev[alts[k]] = { ...ev[alts[k]], alt: { ...h, q: ms, src: 'rapfi' } };
     }
-    return ev;
+    await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane, clean) => {
+      const mv = altMoves(i), e = await evalPos(rule, mv, ms, lane, gf, clean);
+      if (e) { ev[i] = { ...ev[i], alt: { ...e, q: ms } }; fresh.push({ moves: mv, e }); }
+      return e || {}; // thế sau nước tốt nhất chấm lỗi: bỏ qua thế đó, không bỏ cả lượt
+    });
+    if (two) R().auxDone();
+    await Promise.all(onlyChecks);
+    if (cloud && my === job) cloud.put(rule, nodes, fresh.map(({ moves: mv, e }) => ({ moves: mv, move: e.move, score: e.score, mate: e.mate || null })));
+    return my === job ? ev : null;
   }
 
   /** Huỷ lượt đang chạy (mở ván khác): Worker Rapfi giữ nguyên (nạp lại mạng tốn thời gian), chỉ bỏ kết quả. */

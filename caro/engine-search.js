@@ -14,14 +14,18 @@
   class Search {
     constructor(pos, opts) {
       this.pos = pos;
-      this.deadline = Date.now() + (opts.ms || 500);
+      // opts.nodes: giới hạn theo số nút thay cho thời gian – "đồng hồ" là số nút đã xét, nên cùng thế cờ cho cùng kết quả
+      // trên mọi máy / trình duyệt / Worker (phân tích ván). opts.ms khi đó chỉ là giới hạn cứng cho máy quá chậm.
+      this.budget = opts.nodes > 0 ? opts.nodes : 0;
+      this.hard = this.budget ? Date.now() + (opts.ms || 5000) : Infinity;
+      this.nodes = 0;
+      this.deadline = this.clock() + (this.budget || opts.ms || 500);
       this.tt = opts.tt || new Map();
       this.qtt = opts.qtt || new Map();
       this.vtt = opts.vtt || new Map();
       // Độ sâu chuỗi bốn thử ở lá: luật Việt Nam (ba mở đã là đe doạ thắng – rất nhiều nước bốn) chỉ xét bốn mở – tự đấu 66%
       // so với 3 nước nhờ tìm sâu hơn; luật khác giữ 3 (ngang nhau)
       this.leafVcf = opts.leafVcf || (pos.rule === 'vn' ? 1 : 3);
-      this.nodes = 0;
       // Xem giờ mỗi 1024 nút; opts.strict: mỗi 128 nút – một nút có thể tốn ~0,1 ms nên 1024 nút trễ hạn cả trăm ms
       // (lượt phân tích nhanh cần đúng giờ; máy đánh và phân tích kỹ giữ cách cũ để sức cờ không đổi)
       this.tick = opts.strict ? 127 : 1023;
@@ -35,8 +39,12 @@
       this.rootWidth = opts.rootWidth || 18;
       this.qDepth = opts.qDepth || 14; // độ sâu tối đa của chuỗi ép ở lá
     }
+    /** Giờ hiện tại của lượt tìm: số nút (giới hạn theo nút) hoặc ms. Các hạn (deadline) tính theo đơn vị này. */
+    clock() { return this.budget ? this.nodes : Date.now(); }
     timeUp() {
-      if ((++this.nodes & this.tick) === 0 && Date.now() > this.deadline) this.stop = true;
+      if (this.budget) {
+        if (++this.nodes > this.deadline || ((this.nodes & 1023) === 0 && Date.now() > this.hard)) this.stop = true;
+      } else if ((++this.nodes & this.tick) === 0 && Date.now() > this.deadline) this.stop = true;
       return this.stop;
     }
     ttGet(ply) {
@@ -44,14 +52,15 @@
       if (!e) return null;
       let s = e.s;
       if (s >= MATE) s -= ply; else if (s <= -MATE) s += ply;
-      return { d: e.d, s, f: e.f, m: e.m };
+      return { d: e.d, s, f: e.f, m: e.m < 0 ? -1 : this.pos.unpack(e.m) };
     }
     ttPut(d, s, f, m, ply) {
       if (this.tt.size > 600000) this.tt.clear();
       if (s >= MATE) s += ply; else if (s <= -MATE) s -= ply;
       const old = this.tt.get(this.pos.key);
       if (old && old.d > d && f !== EXACT) return;
-      this.tt.set(this.pos.key, { d, s, f, m });
+      // Nước lưu theo toạ độ thật: bảng dùng lại được ở Position khác (engine.js – opts.carry)
+      this.tt.set(this.pos.key, { d, s, f, m: m >= 0 ? this.pos.pack(m) : -1 });
     }
 
     /** Tìm tiếp ở lá: chỉ nước chặn bắt buộc và nước tạo đe doạ (= tìm chuỗi ép). */
