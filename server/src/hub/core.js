@@ -49,6 +49,7 @@ class Hub {
     this.stopMatching();
     clearTimeout(this.lobbyTimer);
     clearInterval(this.tourTimer);
+    for (const t of (this.presenceTimers || new Map()).values()) clearTimeout(t); // lobby.js
     for (const timer of (this.tourPushTimers || new Map()).values()) clearTimeout(timer);
   }
 
@@ -130,6 +131,11 @@ class Hub {
 
   wentOffline(pid) {
     this.offlineAt.set(pid, Date.now());
+    // Online lần cuối (bạn bè thấy "Offline · 5 phút trước" – lobby.js); hoạt động đang làm thì bỏ
+    const u = uidOf(pid) && this.store.users.get(uidOf(pid));
+    if (u) { u.seen = Date.now(); this.store.touch(u); }
+    if (this.activity) this.activity.delete(pid);
+    if (this.presenceAt) this.presenceAt.delete(pid);
     this.dequeue(pid);
     const room = this.roomFor(pid);
     if (room) {

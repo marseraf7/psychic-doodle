@@ -117,9 +117,12 @@
     }
     if (mine) return;
     const f = friendById(m.peer);
-    if (f) { f.unread = (f.unread || 0) + 1; N.render(); }
+    // Bong bóng chat (chat-bubbles.js, màn hình rộng): cửa sổ đang mở thì nó tự đánh dấu đã đọc; chưa mở thì hiện chat head
+    // kèm số tin – không cần thêm thông báo nhỏ
+    const B = window.CaroChatBubbles, bubble = B && B.active();
+    if (f && !(bubble && B.isOpen(m.peer))) { f.unread = (f.unread || 0) + 1; N.render(); }
     sfx('chat');
-    N.toast(`💬 ${f ? f.name : '?'}: ${m.msg.text.length > 80 ? m.msg.text.slice(0, 80) + '…' : m.msg.text}`, 4500);
+    if (!bubble) N.toast(`💬 ${f ? f.name : '?'}: ${m.msg.text.length > 80 ? m.msg.text.slice(0, 80) + '…' : m.msg.text}`, 4500);
   });
 
   $('chat-form').onsubmit = (e) => {

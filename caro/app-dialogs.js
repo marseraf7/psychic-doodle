@@ -62,6 +62,7 @@
       form.allowUndo.checked = state.allowUndo;
       form.sound.checked = window.CaroSound.enabled;
       form.soundStyle.value = window.CaroSound.style;
+      form.soundVol.value = window.CaroSound.volume;
       form.board.value = window.CaroStyle.board;
       form.pieces.value = window.CaroStyle.pieces;
       form.theme.value = window.CaroTheme.get();
@@ -83,6 +84,7 @@
       state.sidePick = String(state.human);
       state.allowUndo = form.allowUndo.checked;
       window.CaroSound.enabled = form.sound.checked;
+      window.CaroSound.volume = form.soundVol.value;
       if (window.CaroSound.style !== form.soundStyle.value) { window.CaroSound.style = form.soundStyle.value; window.CaroSound.play('placeX'); }
       if (window.CaroStyle.board !== form.board.value || window.CaroStyle.pieces !== form.pieces.value) window.CaroStyle.set({ board: form.board.value, pieces: form.pieces.value });
       state.confirm = form.confirm.checked;

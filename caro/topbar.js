@@ -40,7 +40,7 @@
     const me = O && O.state.me;
     if (!me) { auth.innerHTML = ''; return; }
     if (me.guest) {
-      auth.innerHTML = `<button type="button" class="tb-link" data-auth="login">${esc(T('login'))}</button><button type="button" class="tb-btn" data-auth="register">${esc(T('register'))}</button>`;
+      auth.innerHTML = `<button type="button" class="tb-link" data-auth="login">${esc(T('login'))}</button><button type="button" class="tb-btn" data-auth="register">${esc(T('tb_register'))}</button>`;
     } else {
       auth.innerHTML = `<button type="button" class="tb-me" data-me title="${esc(me.name)} (@${esc(me.username)})">${window.CaroAvatar.html(me, 'sm')}<span class="tb-name">${esc(me.name)}</span></button>`;
     }

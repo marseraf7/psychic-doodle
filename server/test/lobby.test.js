@@ -121,3 +121,54 @@ test('tìm kỳ thủ: gọi dồn thì lặng lẽ bỏ qua (đang gõ, không 
   app.hub.T.THROTTLE_SCALE = 0;
   c.close();
 });
+
+test('trạng thái cho bạn bè: hoạt động trên máy (chỉ giá trị hợp lệ), ván đang đấu, online lần cuối khi offline', async () => {
+  app.hub.T.THROTTLE_SCALE = 0;
+  const a = await Client.open();
+  await a.req({ t: 'register', username: 'pr_a', password: 'caro-pass1', name: 'A' }, 'welcome');
+  const b = await Client.open();
+  await b.req({ t: 'register', username: 'pr_b', password: 'caro-pass1', name: 'B' }, 'welcome');
+  await a.req({ t: 'friendAdd', username: 'pr_b' }, 'friends');
+  await b.req({ t: 'friendAdd', username: 'pr_a' }, 'friends', (m) => m.friends.length === 1);
+  const fa = (m) => m.friends.find((f) => f.username === 'pr_a');
+
+  // Chơi với máy: bạn bè thấy act + nhân vật máy
+  a.send({ t: 'presence', act: 'bot', bot: 'boat' });
+  let m = await b.wait('friends', (x) => fa(x) && fa(x).act === 'bot');
+  assert.strictEqual(fa(m).bot, 'boat');
+  assert.strictEqual(fa(m).status, 'online');
+  // Giá trị lạ: coi như không làm gì (không lưu chuỗi tuỳ ý); tên nhân vật lạ: bỏ
+  a.send({ t: 'presence', act: '<script>' });
+  m = await b.wait('friends', (x) => fa(x) && !fa(x).act);
+  a.send({ t: 'presence', act: 'bot', bot: 'x'.repeat(40) });
+  m = await b.wait('friends', (x) => fa(x) && fa(x).act === 'bot');
+  assert.strictEqual(fa(m).bot, undefined);
+  // Gửi dồn: vẫn ra đúng giá trị cuối cùng
+  app.hub.T.THROTTLE_SCALE = 1;
+  for (const act of ['puzzle', 'learn', 'puzzle', 'learn']) a.send({ t: 'presence', act });
+  m = await b.wait('friends', (x) => fa(x) && fa(x).act === 'learn', 4000);
+  app.hub.T.THROTTLE_SCALE = 0;
+
+  // Đang đấu ván online: bạn bè thấy loại ván, luật, thời gian (không còn act)
+  await a.req({ t: 'createRoom', side: 'first', clock: '3+2', rule: 'free' }, 'room');
+  const c = await Client.open({ guestName: 'Khách' });
+  await c.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  a.send({ t: 'move', x: 0, y: 0 });
+  m = await b.wait('friends', (x) => fa(x) && fa(x).status === 'playing');
+  assert.deepStrictEqual(fa(m).game, { kind: 'room', rule: 'free', timeLimit: 0, clock: '3+2' });
+  assert.strictEqual(fa(m).act, undefined);
+  c.close();
+
+  // Offline: online lần cuối
+  const before = Date.now();
+  a.close();
+  m = await b.wait('friends', (x) => fa(x) && fa(x).status === 'offline');
+  assert.ok(fa(m).seen >= before && fa(m).seen <= Date.now());
+  assert.strictEqual(app.store.users.get(fa(m).id).seen, fa(m).seen);
+  // Khách không báo được hoạt động (không có bạn bè)
+  const g = await Client.open();
+  g.send({ t: 'presence', act: 'bot' });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.ok(![...(app.hub.activity || new Map()).keys()].includes(g.me.id));
+  b.close(); g.close();
+});

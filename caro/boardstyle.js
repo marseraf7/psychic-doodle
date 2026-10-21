@@ -1,13 +1,14 @@
 /*
  * Tuỳ chỉnh bàn cờ (như Lichess): màu bàn, kiểu quân. Chạy trong <head> để bàn không nháy màu khi mở.
- *  board : 'paper' (mặc định, theo giao diện Sáng/Tối) | 'wood' | 'green' | 'blue' | 'night'
+ *  board : 'paper' (mặc định, theo giao diện Sáng/Tối) | 'wood' | 'green' | 'blue' | 'night' | 'marble' | 'sand' | 'coral'
+ *          | 'pink' | 'purple' | 'moss' | 'walnut' | 'slate' (màu: style.css, :root[data-board=…])
  *  pieces: 'classic' (X/O nét mảnh) | 'bold' (X/O nét đậm) | 'stones' (quân đá đen / trắng như cờ vây)
  * drawStone() dùng chung cho bàn cờ (app.js) và ảnh / GIF chia sẻ (share.js).
  */
 (function () {
   'use strict';
   const KEY = 'caro.style';
-  const BOARDS = ['paper', 'wood', 'green', 'blue', 'night'];
+  const BOARDS = ['paper', 'wood', 'green', 'blue', 'night', 'marble', 'sand', 'coral', 'pink', 'purple', 'moss', 'walnut', 'slate'];
   const PIECES = ['classic', 'bold', 'stones'];
   const listeners = [];
   let cur = { board: 'paper', pieces: 'classic' };

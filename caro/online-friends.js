@@ -29,7 +29,7 @@
           ? ` · <span title="${esc(T('h2h_title'))}">${p.h2h.wins}–${p.h2h.losses}–${p.h2h.draws}</span>` : '';
         return `
         <li><span class="av-st">${window.CaroAvatar.html(p, 'sm')}<span class="st ${p.status}" title="${esc(statusText(p.status))}"></span></span>
-          <div class="pn"><b><a href="#" class="plink" data-profile="${esc(p.id)}">${esc(p.name)}</a>${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>@${esc(p.username)} · ${esc(statusText(p.status))}${h}</small></div>${extra}</li>`;
+          <div class="pn"><b><a href="#" class="plink" data-profile="${esc(p.id)}">${esc(p.name)}</a>${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>@${esc(p.username)} · ${esc(window.CaroPresence ? window.CaroPresence.text(p) : statusText(p.status))}${h}</small></div>${extra}</li>`;
       };
       const onlineCount = f.friends.filter((p) => p.status !== 'offline').length;
       el.innerHTML = `
