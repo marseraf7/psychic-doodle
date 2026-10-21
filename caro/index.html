@@ -21,9 +21,11 @@
   <link rel="stylesheet" href="game.css">
   <link rel="stylesheet" href="pages.css">
   <link rel="stylesheet" href="topbar.css">
+  <link rel="stylesheet" href="chat-bubbles.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="theme.js"></script>
   <script src="boardstyle.js"></script>
+  <script src="corners.js"></script>
 </head>
 <body>
   <!-- Bộ biểu tượng (nét 2px, cùng một kiểu) – dùng: <svg class="ico"><use href="#i-..."/></svg> -->
@@ -441,12 +443,20 @@
       <div class="sp" data-sp="sound" data-title="set_sound" hidden>
       <div class="list">
         <label class="li"><span class="li-t"><span data-i18n="sound_on"></span></span><input type="checkbox" class="tog" name="sound"></label>
+        <label class="li li-range"><span class="li-t"><span data-i18n="sound_volume"></span></span><input type="range" name="soundVol" min="0" max="100" step="5"></label>
       </div>
       <h3 class="list-h" data-i18n="sound_style"></h3>
       <div class="list">
         <label class="li"><span class="li-t"><span data-i18n="sound_classic"></span></span><input type="radio" name="soundStyle" value="classic"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><span class="li-t"><span data-i18n="sound_wood"></span></span><input type="radio" name="soundStyle" value="wood"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><span class="li-t"><span data-i18n="sound_soft"></span></span><input type="radio" name="soundStyle" value="soft"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_stone"></span></span><input type="radio" name="soundStyle" value="stone"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_piano"></span></span><input type="radio" name="soundStyle" value="piano"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_nes"></span></span><input type="radio" name="soundStyle" value="nes"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_pop"></span></span><input type="radio" name="soundStyle" value="pop"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_robot"></span></span><input type="radio" name="soundStyle" value="robot"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_future"></span></span><input type="radio" name="soundStyle" value="future"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="sound_click"></span></span><input type="radio" name="soundStyle" value="click"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
       </div>
       </div>
 
@@ -460,6 +470,7 @@
       </div>
       <div class="list">
         <label class="li"><span class="li-t"><span data-i18n="qs_bg"></span></span><input type="checkbox" class="tog" name="bg"></label>
+        <label class="li li-range"><span class="li-t"><span data-i18n="qs_corner"></span></span><input type="range" name="corner" min="0" max="20" step="1"></label>
       </div>
       <h3 class="list-h" data-i18n="set_look_board"></h3>
       <div class="list">
@@ -468,6 +479,14 @@
         <label class="li"><i class="swatch" style="--sw:#cfe3c4"></i><span class="li-t"><span data-i18n="board_green"></span></span><input type="radio" name="board" value="green"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><i class="swatch" style="--sw:#d6e4f2"></i><span class="li-t"><span data-i18n="board_blue"></span></span><input type="radio" name="board" value="blue"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><i class="swatch" style="--sw:#1d2430"></i><span class="li-t"><span data-i18n="board_night"></span></span><input type="radio" name="board" value="night"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#e8e4dc"></i><span class="li-t"><span data-i18n="board_marble"></span></span><input type="radio" name="board" value="marble"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#ecd9ae"></i><span class="li-t"><span data-i18n="board_sand"></span></span><input type="radio" name="board" value="sand"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#f2c9a5"></i><span class="li-t"><span data-i18n="board_coral"></span></span><input type="radio" name="board" value="coral"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#f3d6de"></i><span class="li-t"><span data-i18n="board_pink"></span></span><input type="radio" name="board" value="pink"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#ddd5ee"></i><span class="li-t"><span data-i18n="board_purple"></span></span><input type="radio" name="board" value="purple"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#a9bf86"></i><span class="li-t"><span data-i18n="board_moss"></span></span><input type="radio" name="board" value="moss"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#a77a52"></i><span class="li-t"><span data-i18n="board_walnut"></span></span><input type="radio" name="board" value="walnut"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><i class="swatch" style="--sw:#3b434d"></i><span class="li-t"><span data-i18n="board_slate"></span></span><input type="radio" name="board" value="slate"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
       </div>
       <h3 class="list-h" data-i18n="set_look_pieces"></h3>
       <div class="list">
@@ -966,6 +985,7 @@
   <script src="i18n-live.js"></script>
   <script src="i18n-attention.js"></script>
   <script src="i18n-topbar.js"></script>
+  <script src="i18n-chat.js"></script>
   <script src="timectl.js"></script>
   <script src="local-clock.js"></script>
   <script src="tc-picker.js"></script>
@@ -1052,5 +1072,7 @@
   <script src="quick-settings.js"></script>
   <script src="topbar.js"></script>
   <script src="online-count.js"></script>
+  <script src="presence.js"></script>
+  <script src="chat-bubbles.js"></script>
 </body>
 </html>

@@ -390,6 +390,18 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   nhanh** (`quick-settings.js`): Ngôn ngữ, Âm thanh, Giao diện, Bàn cờ, Quân cờ, Ảnh nền, Tất cả cài đặt; cuối bảng **Ping**
   (thời gian tin đi – về máy chủ) và **Máy chủ** (độ trễ xử lý trên máy chủ). Lựa chọn lấy từ chính trang Cài đặt và đổi qua
   `CaroApp.setSetting` nên giống hệt đổi trong Cài đặt. Màn hình rộng: cuối menu trên cùng; điện thoại: đầu Trang chủ.
+- **Thanh trên co giãn**: bánh răng Cài đặt luôn nằm trong màn hình ở mọi bề rộng (kể cả Windows phóng to 125–150 %):
+  ≥ 1400 px đủ tên; 1280–1399 px bỏ tên (còn ảnh); 900–1279 px bỏ chữ logo, ô tìm thu về kính lúp; < 1060 px bỏ biểu tượng tab.
+  Tên dài cắt "…" (tối đa 120 px). Khách: "Đăng nhập" + "Đăng ký" (chữ ngắn), điện thoại hẹp còn logo.
+- **Cài đặt nhanh – Giao diện** như Lichess: Sáng / Tối / Theo hệ thống, **Bo tròn** 0–20 px (`corners.js`, chạy trong `<head>`;
+  chưa chỉnh thì giữ dáng mặc định) và **Ảnh nền**. **Âm thanh**: bật / tắt, **âm lượng** 0–100 %, 10 kiểu (cổ điển, gỗ, nhẹ, quân đá,
+  piano, 8-bit, bong bóng, rô-bốt, tương lai, phím bấm – tổng hợp bằng Web Audio, không cần file). **Bàn cờ**: 13 màu.
+- **Hồ sơ – bạn bè**: Kết bạn → thông báo "Đã gửi lời mời kết bạn", nút thành **Huỷ kết bạn** (huỷ lời mời); họ mời mình →
+  **Chấp nhận kết bạn**; đã là bạn → **Huỷ kết bạn**. Nút tự đổi khi danh sách bạn bè đổi.
+- **Bong bóng chat** (`chat-bubbles.js`, như Messenger): nút tròn góc phải dưới (số tin chưa đọc) → danh sách bạn bè kèm trạng thái
+  (`presence.js`: đang online · đang chơi *Ghép trận nhanh · 3+2* · đang chơi với máy · *BOAT* · đang giải đố / học · hoạt động
+  *5 phút trước*). Màn hình rộng: cửa sổ chat gắn đáy (tối đa 2), thu nhỏ thành chat head; tin mới từ người chưa mở → chat head
+  có số tin. Điện thoại: mở hộp chat toàn màn hình.
 - **Số kỳ thủ online / số ván đang đấu** (`online-count.js`) ở góc phải dưới Trang chủ: số thật máy chủ đếm, gửi kèm pong.
 - **Ảnh nền** (`backdrop.js`, `img/backdrop.webp` 1000×1000, 64 KB): bật / tắt trong Cài đặt → Giao diện hoặc Cài đặt nhanh,
   mặc định tắt, phủ lớp màu nền cho chữ dễ đọc; bàn cờ không có ảnh nền.
@@ -429,6 +441,7 @@ node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại
 node caro/tests/e2e/boat-rapfi.e2e.js    # BOAT chạy Rapfi ở 3 luật + Rapfi-CARO ở luật Việt Nam, mạng lấy từ bộ nhớ đệm, trang giấy phép (RAPFI_NETS=<thư mục mạng> nếu không ra được Internet)
 node caro/tests/e2e/localhist.e2e.js     # Lịch sử đấu trên máy (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, phân tích lưu kèm, Cài đặt), Thiết bị
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
+node caro/tests/e2e/friends-chat.e2e.js  # thanh trên với tên dài ở mọi bề rộng (khách / đăng nhập, vi / ru), nút Kết bạn ↔ Huỷ kết bạn, bong bóng chat + trạng thái bạn bè
 node caro/tests/e2e/topbar.e2e.js        # thanh trên: tìm kỳ thủ, Đăng nhập / Đăng ký, Cài đặt nhanh + ping, số kỳ thủ / ván, ảnh nền, ảnh đại diện
 node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện thoại (360/390/430 px), iPad dọc/ngang (768/820/1024/1180 px), xoay màn hình, 4 ngôn ngữ
 ```

@@ -81,6 +81,11 @@ jobs:
         timeout-minutes: 10
         if: success() || failure()
         run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/topbar.e2e.js
+      # Thanh trên với tên dài ở mọi bề rộng, Kết bạn ↔ Huỷ kết bạn, bong bóng chat + trạng thái bạn bè (friends-chat.e2e.js)
+      - name: Kiểm thử trình duyệt Bạn bè + bong bóng chat
+        timeout-minutes: 10
+        if: success() || failure()
+        run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/friends-chat.e2e.js
       - uses: actions/upload-artifact@v7
         if: always()
         with:

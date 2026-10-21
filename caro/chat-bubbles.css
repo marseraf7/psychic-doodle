@@ -1,0 +1,91 @@
+/*
+ * Bong bóng chat như Messenger (chat-bubbles.js): nút tròn góc phải dưới, danh sách bạn bè kèm trạng thái,
+ * chat head (ảnh tròn), cửa sổ chat gắn ở đáy màn hình. Điện thoại: chỉ nút + danh sách (chat mở hộp toàn màn hình).
+ */
+.cb {
+  position: fixed; z-index: 20; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom));
+  display: flex; align-items: flex-end; gap: 12px; pointer-events: none;
+}
+.cb[hidden] { display: none; }
+.cb > * { pointer-events: auto; }
+.cb-side { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.cb-launch {
+  position: relative; width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+.cb-launch .ico { width: 26px; height: 26px; }
+.cb .count {
+  position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+  background: var(--danger, #e5484d); color: #fff; font-size: var(--fs-2xs); font-style: normal; font-weight: var(--fw-bold);
+  display: grid; place-items: center; box-shadow: 0 0 0 2px var(--bg);
+}
+.cb .count[hidden] { display: none; }
+/* Góc phải dưới Trang chủ (online-count.js): chừa chỗ cho nút bong bóng */
+body:has(#cb:not([hidden])) .online-count { margin-right: 72px; }
+.cb-heads { display: flex; flex-direction: column; gap: 10px; }
+.cb-head { position: relative; padding: 0; border-radius: 50%; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.cb-head .avatar { width: 48px; height: 48px; }
+.cb-head .st { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; box-shadow: 0 0 0 2px var(--bg); }
+.cb-x {
+  position: absolute; top: -6px; left: -6px; width: 20px; height: 20px; border-radius: 50%; display: none; place-items: center;
+  background: var(--panel); color: var(--text); font-size: 14px; line-height: 1; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.cb-head:hover .cb-x, .cb-head:focus-visible .cb-x { display: grid; }
+
+/* Danh sách bạn bè */
+.cb-panel {
+  position: absolute; right: 0; bottom: calc(100% + 10px); width: 320px; max-height: min(70vh, 520px);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+.cb-panel[hidden] { display: none; }
+.cb-ph { display: flex; flex-direction: column; padding: 12px 14px 8px; border-bottom: 1px solid var(--line); }
+.cb-ph small { color: var(--muted); font-size: var(--fs-xs); }
+.cb-list { list-style: none; margin: 0; padding: 4px; overflow-y: auto; }
+.cb-list button {
+  position: relative; width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; text-align: left; color: var(--text);
+}
+.cb-list button:hover, .cb-list button:focus-visible { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.cb-list .count { position: static; box-shadow: none; }
+.cb-list .avatar.sm { width: 36px; height: 36px; }
+.cb-empty { padding: 14px; color: var(--muted); font-size: var(--fs-sm); }
+.cb-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cb-t b, .cb-t small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-t b { font-size: var(--fs-sm); }
+.cb-t small { font-size: var(--fs-xs); color: var(--muted); }
+.cb-t small.online { color: #2fb45a; }
+.cb-t small.playing { color: #d99400; }
+.cb-t a { color: inherit; text-decoration: none; }
+
+/* Cửa sổ chat gắn đáy */
+.cb-wins { display: flex; flex-direction: row-reverse; align-items: flex-end; gap: 12px; }
+.cb-win {
+  width: 320px; height: min(440px, 70vh); display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px 14px 10px 10px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+.cb-win header { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--line); }
+.cb-win header .avatar.sm { width: 32px; height: 32px; }
+.cb-ic { width: 32px; height: 32px; border-radius: 8px; color: var(--muted); font-size: 20px; line-height: 1; flex: none; }
+.cb-ic:hover { color: var(--text); background: rgba(127, 127, 127, 0.14); }
+.cb-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.cb-msgs .msg { max-width: 82%; align-self: flex-start; display: flex; flex-direction: column; }
+.cb-msgs .msg span { padding: 7px 11px; border-radius: 16px; background: color-mix(in srgb, var(--text) 9%, transparent); overflow-wrap: anywhere; font-size: var(--fs-sm); }
+.cb-msgs .msg.mine { align-self: flex-end; align-items: flex-end; }
+.cb-msgs .msg.mine span { background: var(--accent); color: #fff; }
+.cb-msgs .msg time { font-size: var(--fs-2xs); color: var(--muted); padding: 2px 6px 0; }
+.cb-older { align-self: center; }
+.cb-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
+.cb-form input {
+  flex: 1; min-width: 0; height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--text); font-size: var(--fs-input);
+}
+
+/* Điện thoại: nút nổi phía trên thanh tab, chỉ ở các trang (không đè bàn cờ) */
+@media (max-width: 699px) {
+  .cb { right: 12px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); }
+  .cb-launch { width: 48px; height: 48px; }
+  .cb-panel { position: fixed; left: 12px; right: 12px; width: auto; bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom)); }
+  .cb-wins, .cb-heads { display: none; }
+  /* Chừa chỗ cuối trang: cuộn hết thì nội dung cuối không nằm dưới nút */
+  body:has(#cb:not([hidden])) .pg-body::after { height: calc(var(--tabbar-h) + 76px + env(safe-area-inset-bottom)); }
+}

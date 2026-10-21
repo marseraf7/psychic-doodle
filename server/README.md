@@ -27,6 +27,10 @@ chơi online qua WebSocket (`/ws`):
   liên kết **Google**. Không có tài khoản vẫn chơi phòng được với tư cách khách.
 - **Tìm kỳ thủ** (`userSearch`): gợi ý theo đầu tên đăng nhập / tên hiển thị (≥ 2 ký tự, tối đa 8 người, người online trước;
   người đã chặn mình không hiện); mỗi kết nối tối đa 5 lần / giây, gọi dồn thì lặng lẽ bỏ qua.
+- **Trạng thái cho bạn bè** (`presence`, `src/hub/lobby.js`): thẻ bạn bè có thêm ván đang đấu (`game`: loại – ghép nhanh /
+  thách đấu / giải / phòng, luật, thời gian), hoạt động trên máy (`act`: chơi với máy + nhân vật, 2 người một máy, giải đố, học,
+  phân tích, xem ván – chỉ nhận đúng các giá trị này, giữ trong bộ nhớ khi online) hoặc online lần cuối (`seen`, lưu kèm tài khoản).
+  Chỉ gửi cho bạn bè; báo bạn bè gom tối đa 1 lần / 2 giây mỗi người.
 - **Ping kèm số liệu sảnh**: pong trả độ trễ vòng lặp sự kiện của máy chủ (`lag`, ms), số người đang kết nối (`players`, mỗi
   người một lần dù mở nhiều tab) và số ván đang đấu (`games`) – số thật, đếm lại tối đa 5 giây một lần.
 - **Ảnh đại diện** (`avatarSet` / `avatarClear`, `src/avatar.js`, `src/hub/avatar.js`): chỉ nhận WebP / JPEG / PNG nhận ra bằng

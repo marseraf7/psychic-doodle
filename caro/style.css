@@ -86,6 +86,14 @@
 :root[data-board="green"] { --board: #cfe3c4; --board-grid: #9dbf8d; --board-grid-strong: #78a066; }
 :root[data-board="blue"] { --board: #d6e4f2; --board-grid: #a6bfd8; --board-grid-strong: #7f9fbf; }
 :root[data-board="night"] { --board: #1d2430; --board-grid: #2e3a4c; --board-grid-strong: #44546b; }
+:root[data-board="marble"] { --board: #e8e4dc; --board-grid: #c9c2b5; --board-grid-strong: #a89f90; }
+:root[data-board="sand"] { --board: #ecd9ae; --board-grid: #cdb380; --board-grid-strong: #a88c58; }
+:root[data-board="coral"] { --board: #f2c9a5; --board-grid: #d9a273; --board-grid-strong: #bd8150; }
+:root[data-board="pink"] { --board: #f3d6de; --board-grid: #dcaab8; --board-grid-strong: #c08294; }
+:root[data-board="purple"] { --board: #ddd5ee; --board-grid: #b9aad8; --board-grid-strong: #9884c0; }
+:root[data-board="moss"] { --board: #a9bf86; --board-grid: #86a05f; --board-grid-strong: #68834a; }
+:root[data-board="walnut"] { --board: #a77a52; --board-grid: #87603c; --board-grid-strong: #694626; }
+:root[data-board="slate"] { --board: #3b434d; --board-grid: #535d69; --board-grid-strong: #6b7785; }
 
 /* Tối: theo hệ thống (khi không chọn Sáng) hoặc chọn Tối trong Cài đặt */
 @media (prefers-color-scheme: dark) {

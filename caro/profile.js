@@ -131,7 +131,14 @@
         <button type="button" class="primary sm" data-replay="${esc(g.share)}">${esc(T('replay'))}</button></li>`).join('');
     const h = p.h2h;
     const actions = [];
-    if (!p.self && S.me && !S.me.guest && !p.friend) actions.push(`<button type="button" class="ghost sm" data-add="${esc(p.id)}">${esc(T('add_friend'))}</button>`);
+    // Quan hệ bạn bè lấy từ danh sách bạn bè đang có (cập nhật ngay khi gửi / huỷ lời mời – vẽ lại khi có tin 'friends')
+    const rel = relation(p);
+    if (rel === 'none') actions.push(`<button type="button" class="ghost sm" data-add="${esc(p.id)}">${esc(T('add_friend'))}</button>`);
+    else if (rel === 'in') actions.push(`<button type="button" class="primary sm" data-accept-pf="${esc(p.id)}">${esc(T('pf_accept'))}</button>`);
+    else if (rel === 'out' || rel === 'friend') {
+      if (rel === 'out') actions.push(`<span class="pf-sent">${esc(T('pf_request_sent'))}</span>`);
+      actions.push(`<button type="button" class="ghost sm" data-unfriend="${esc(p.id)}" data-rel="${rel}">${esc(T('unfriend'))}</button>`);
+    }
     const sameRoom = S.room && S.room.players.some((q) => q.id === 'u_' + p.id); // đang đấu với chính mình
     if (p.canHistory) actions.push(`<button type="button" class="ghost sm" data-hist>${esc(T('hist_open'))}</button>`);
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
@@ -160,7 +167,30 @@
     body.querySelectorAll('[data-replay]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); N.openReplay(b.dataset.replay); }; });
     body.querySelectorAll('[data-hist]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroHistory.open(p.id, p.name); }; });
     body.querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendAdd', id: b.dataset.add }); b.disabled = true; }; });
+    body.querySelectorAll('[data-accept-pf]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendRespond', id: b.dataset.acceptPf, accept: true }); b.disabled = true; }; });
+    body.querySelectorAll('[data-unfriend]').forEach((b) => {
+      b.onclick = () => {
+        // Đã là bạn: hỏi lại trước khi huỷ; mới gửi lời mời: huỷ lời mời ngay
+        if (b.dataset.rel === 'friend' && !confirm(T('confirm_unfriend', { name: p.name }))) return;
+        if (N.send({ t: 'friendRemove', id: b.dataset.unfriend })) N.toast(T(b.dataset.rel === 'friend' ? 'pf_unfriended' : 'pf_request_cancelled', { name: p.name }));
+        b.disabled = true;
+      };
+    });
   }
+
+  /** Quan hệ của mình với người p: 'self' | 'guest' (mình là khách) | 'friend' | 'out' (đã gửi lời mời) | 'in' (họ mời mình) | 'none'. */
+  function relation(p) {
+    if (p.self) return 'self';
+    if (!S.me || S.me.guest) return 'guest';
+    const f = S.friends || {};
+    const has = (list) => (list || []).some((x) => x.id === p.id);
+    if (has(f.friends) || p.friend) return 'friend';
+    if (has(f.outgoing)) return 'out';
+    if (has(f.incoming)) return 'in';
+    return 'none';
+  }
+  // Danh sách bạn bè đổi (vừa gửi / huỷ / chấp nhận lời mời): vẽ lại nút trong hồ sơ đang mở
+  N.on('friends', () => { if (profile && N.isOpen('profile-dlg')) renderProfile(); });
 
   document.addEventListener('click', (e) => {
     const pf = e.target.closest('[data-profile]');

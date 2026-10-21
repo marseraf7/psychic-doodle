@@ -29,6 +29,12 @@
 #page-home .pg-head { grid-template-columns: 0 1fr auto; padding-left: 12px; }
 #page-home .pg-title { justify-content: flex-start; }
 #page-home .pg-right { gap: 2px; }
+/* Điện thoại hẹp: tiêu đề chỉ còn logo, nút Đăng nhập / Đăng ký gọn lại – không đẩy bánh răng ra ngoài */
+@media (max-width: 479px) {
+  #page-home .pg-title > span { display: none; }
+  .tb-link, .tb-btn { padding: 5px 7px; font-size: var(--fs-xs); }
+  .tb-ic { width: 36px; }
+}
 /* Điện thoại: ô tìm, gợi ý, Cài đặt nhanh canh theo đầu Trang chủ (không theo cụm nút nhỏ bên phải) */
 #page-home .pg-head { position: relative; }
 #page-home .tb-tools, #page-home .tb-search.ps-wrap { position: static; }
@@ -42,18 +48,45 @@
 }
 #page-home .ps-list { left: 12px; right: 12px; top: calc(100% - 4px); }
 
+/* Màn hình rộng: công cụ ở cuối menu trên cùng. Bánh răng LUÔN hiện: công cụ không co (flex: none), menu tab co lại
+   theo từng mức bề rộng (bỏ chữ logo, thu nhỏ khoảng cách, bỏ biểu tượng tab, cắt chữ) – kể cả khi Windows phóng to 125–150 % */
 @media (min-width: 900px) {
-  .tb-tools { margin-left: auto; gap: 6px; }
+  .tabbar > button { min-width: 0; flex-shrink: 1; }
+  .tb-logo { flex-shrink: 0; }
+  .tb-tools { margin-left: auto; gap: 4px; flex: none; }
   .tb-search { position: relative; }
   .tb-tools.searching .tb-auth { display: flex; }
   #tb-tools .tb-search input, #tb-tools.searching .tb-search input {
-    display: block; position: static; transform: none; width: 190px; height: 36px; padding: 0 12px 0 34px; border-radius: 18px;
-    border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: var(--fs-sm);
+    display: block; position: static; transform: none; width: clamp(150px, 13vw, 220px); height: 36px; padding: 0 12px 0 34px;
+    border-radius: 18px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: var(--fs-sm);
   }
   .tb-search .tb-ic { position: absolute; left: 2px; width: 32px; height: 32px; pointer-events: none; }
   .tb-search .tb-ic .ico { width: 17px; height: 17px; }
   .tb-search .ps-list, .tb-tools.searching .tb-search .ps-list { left: 0; right: auto; width: 300px; }
-  .tb-name { display: inline; }
+  .tb-name { display: inline; max-width: 120px; }
+}
+/* Vừa: bỏ tên (còn ảnh), ô tìm thu về kính lúp – bấm thì ô nhập mở đè lên menu */
+@media (min-width: 900px) and (max-width: 1399px) {
+  .tb-name { display: none; }
+}
+@media (min-width: 900px) and (max-width: 1279px) {
+  .tb-logo > span { display: none; }
+  .tb-logo { margin-right: 6px; }
+  .tabbar > button { padding: 0 9px; }
+  #tb-tools .tb-search { position: static; }
+  #tb-tools .tb-search input { display: none; }
+  #tb-tools .tb-search .tb-ic { position: static; width: 40px; height: 40px; pointer-events: auto; }
+  #tb-tools .tb-search .tb-ic .ico { width: 22px; height: 22px; }
+  #tb-tools.searching .tb-search input {
+    display: block; position: absolute; z-index: 3; right: 100%; top: 50%; transform: translateY(-50%); width: 260px;
+    padding: 0 12px; border-radius: 10px; margin-right: 4px;
+  }
+  #tb-tools.searching .tb-search .ps-list { left: auto; right: 0; top: calc(100% + 6px); width: 320px; }
+}
+@media (min-width: 900px) and (max-width: 1059px) {
+  .tabbar > button .ico { display: none; }
+  .tabbar > button { padding: 0 8px; letter-spacing: 0.02em; }
+  .tb-link, .tb-btn { padding: 6px 8px; }
 }
 
 /* ============================ Gợi ý kỳ thủ ============================ */
@@ -115,6 +148,9 @@
 /* ============================ Ảnh đại diện ============================ */
 .avatar { position: relative; overflow: hidden; }
 .avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* .sm chung (nút nhỏ) có padding: ảnh đại diện nhỏ thì bỏ, chữ cái mới nằm giữa */
+.avatar, .avatar.sm { padding: 0; line-height: 1; }
+.avatar > b { line-height: 1; }
 .avatar.sm { width: 28px; height: 28px; font-size: var(--fs-xs); }
 .av-st { position: relative; display: inline-flex; flex: none; }
 .av-st .st { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; box-shadow: 0 0 0 2px var(--panel); }
@@ -126,3 +162,22 @@ body.bg-img .shell {
     url(img/backdrop.webp) center top / cover no-repeat, var(--bg);
 }
 body.bg-img .tabbar { background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); }
+
+/* ============================ Bo tròn (corners.js): chỉ khi người chơi đã chỉnh ============================ */
+:root[data-corner] .card, :root[data-corner] .list, :root[data-corner] .home .qm-tile, :root[data-corner] .hbtn,
+:root[data-corner] .resume-card, :root[data-corner] .welcome-card, :root[data-corner] .pg-body .pz-modes,
+:root[data-corner] #page-learn .learn-list, :root[data-corner] .look-preview, :root[data-corner] dialog,
+:root[data-corner] .qs, :root[data-corner] .ps-list, :root[data-corner] .banner-card, :root[data-corner] .bar,
+:root[data-corner] .codes div, :root[data-corner] .invite, :root[data-corner] .cb-panel, :root[data-corner] .cb-win {
+  border-radius: var(--corner);
+}
+:root[data-corner] .qs-row, :root[data-corner] .tb-btn, :root[data-corner] .tb-link, :root[data-corner] .ps-list li {
+  border-radius: calc(var(--corner) * 0.75);
+}
+.qs-range { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; font-size: var(--fs-sm); color: var(--text); }
+.qs-range > span { display: flex; justify-content: space-between; color: var(--muted); }
+.qs-range input[type="range"] { width: 100%; accent-color: var(--accent); }
+.qs-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+/* Hàng có thanh trượt trong trang Cài đặt (âm lượng, bo tròn) */
+.li.li-range input[type="range"] { width: min(48%, 220px); flex: none; accent-color: var(--accent); }
+.qs-cap { padding: 8px 10px 2px; font-size: var(--fs-2xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }

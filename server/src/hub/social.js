@@ -16,7 +16,10 @@ class Social {
     const u = this.store.users.get(uid);
     const card = (id) => {
       const f = this.store.users.get(id);
-      return f && { id: f.id, username: f.username, name: f.name, status: this.status(f.id), rating: f.rating, av: f.avatar ? f.avatar.v : 0 };
+      if (!f) return null;
+      const status = this.status(f.id);
+      // Đang làm gì (lobby.js): ván online đang đấu / hoạt động trên máy / online lần cuối
+      return { id: f.id, username: f.username, name: f.name, status, rating: f.rating, av: f.avatar ? f.avatar.v : 0, ...this.presenceOf(f, status) };
     };
     const unread = this.store.unread(uid);
     return {

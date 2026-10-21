@@ -1,14 +1,19 @@
 /*
- * Sảnh: ping (kèm độ trễ máy chủ và số người online / số ván đang đấu – số thật, không thêm bớt) và
- * tìm kỳ thủ theo tên (gợi ý khi gõ ô tìm kiếm).
+ * Sảnh: ping (kèm độ trễ máy chủ và số người online / số ván đang đấu – số thật, không thêm bớt),
+ * tìm kỳ thủ theo tên (gợi ý khi gõ ô tìm kiếm) và trạng thái cho bạn bè (bong bóng chat – caro/chat-bubbles.js):
+ * đang đấu ván nào, đang làm gì trên máy (chơi với máy, giải đố, học…), online lần cuối. Chỉ gửi cho bạn bè (friendsMsg).
  */
 'use strict';
 const { monitorEventLoopDelay } = require('perf_hooks');
-const { uidOf } = require('./shared.js');
+const { uidOf, userPid } = require('./shared.js');
 
 const COUNT_MS = 5000; // đếm lại số người online / số ván tối đa 5 giây một lần (ping của mọi kết nối dùng chung)
 const SEARCH_MS = 200; // mỗi kết nối tìm tối đa 5 lần / giây (gọi dồn thì lặng lẽ bỏ qua – đang gõ, không báo lỗi)
 const SEARCH_MAX = 8;
+const PRESENCE_MS = 2000; // mỗi kết nối báo hoạt động tối đa 1 lần / 2 giây
+// Hoạt động trên máy người chơi (máy chủ không tự biết): chỉ nhận đúng các giá trị này
+const ACTS = ['bot', 'local', 'puzzle', 'learn', 'analysis', 'watch'];
+const BOT_RE = /^[a-z0-9_-]{1,24}$/;
 
 class Lobby {
   /** Số người chơi đang kết nối (tài khoản + khách, mỗi người một lần dù mở nhiều tab) và số ván đang đấu. */
@@ -38,6 +43,49 @@ class Lobby {
   on_ping(conn) {
     const c = this.counts();
     conn.send({ t: 'pong', lag: this.serverLag(), players: c.players, games: c.games });
+  }
+
+  /**
+   * Trạng thái của bạn bè f cho danh sách bạn bè: { game } khi đang đấu ván online, { act, bot } khi online và đang
+   * làm gì đó trên máy, { seen } (online lần cuối) khi offline.
+   */
+  presenceOf(f, status) {
+    const pid = userPid(f.id);
+    if (status === 'offline') return f.seen ? { seen: f.seen } : {};
+    if (status === 'playing') {
+      const room = this.roomFor(pid);
+      if (!room) return {};
+      const kind = room.tour ? 'tour' : room.kind === 'series' ? 'friend' : room.quick ? 'quick' : 'room';
+      return { game: { kind, rule: room.rule, timeLimit: room.timeLimit, clock: room.clockSpec } };
+    }
+    const a = this.activity && this.activity.get(pid);
+    return a ? { act: a.act, ...(a.bot ? { bot: a.bot } : {}) } : {};
+  }
+
+  /**
+   * Máy người chơi báo đang làm gì (chơi với máy, giải đố…); null = không làm gì đặc biệt. Luôn giữ giá trị mới nhất;
+   * báo bạn bè gom lại (tối đa 1 lần / 2 giây mỗi người) – đổi dồn dập không làm máy chủ gửi danh sách bạn bè liên tục.
+   */
+  on_presence(conn, { act, bot } = {}) {
+    const pid = conn.pid;
+    if (!uidOf(pid)) return;
+    const next = ACTS.includes(act) ? { act, bot: act === 'bot' && typeof bot === 'string' && BOT_RE.test(bot) ? bot : null } : null;
+    const map = this.activity || (this.activity = new Map());
+    if (JSON.stringify(map.get(pid) || null) === JSON.stringify(next)) return;
+    if (next) map.set(pid, next); else map.delete(pid);
+    const timers = this.presenceTimers || (this.presenceTimers = new Map());
+    if (timers.has(pid)) return; // đã hẹn báo: lần báo đó gửi giá trị mới nhất
+    const last = this.presenceAt && this.presenceAt.get(pid);
+    const wait = last ? Math.max(0, last + PRESENCE_MS * this.T.THROTTLE_SCALE - Date.now()) : 0;
+    const fire = () => {
+      timers.delete(pid);
+      (this.presenceAt || (this.presenceAt = new Map())).set(pid, Date.now());
+      if (!this.closed) this.notifyFriends(pid);
+    };
+    if (!wait) return fire();
+    const t = setTimeout(fire, wait);
+    t.unref?.();
+    timers.set(pid, t);
   }
 
   /** true nếu kết nối gọi lệnh key chưa tới ms kể từ lần trước. */
