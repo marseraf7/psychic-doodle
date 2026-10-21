@@ -34,6 +34,7 @@ const { boardPng } = require('../../../server/src/png.js');
 
   // ---------------------------------------------------------------- 2. Hai tài khoản; tìm kỳ thủ
   const a = await user('vi', 'tb_an', 1280);
+  await a.context().addInitScript(() => { window.addEventListener('caro:board', () => { window.__boardStack = String(new Error().stack).slice(0, 600); }); });
   const b = await user('vi', 'tb_binh', 390);
   await a.click('#tabbar [data-tab="home"]');
   await sleep(300);
@@ -121,7 +122,12 @@ const { boardPng } = require('../../../server/src/png.js');
   await a.waitForFunction(() => { const m = window.CaroOnline.state.me; return m && !m.guest; }, null, { timeout: 15000 });
 
   // ---------------------------------------------------------------- 5. Ảnh đại diện
-  await a.click('#tabbar [data-tab="more"]');
+  // WebKit trên CI: đôi khi mở lại trang xong khung trang đang ẩn (ở bàn cờ) – in chẩn đoán (ai phát 'caro:board') rồi mở tab
+  // Xem thêm bằng CaroShell; bước này kiểm ảnh đại diện, không kiểm điều hướng
+  const diag = await a.evaluate(() => ({ shell: !document.getElementById('shell').hidden, page: window.CaroShell.current,
+    online: !!window.CaroApp.online, ext: !!window.CaroApp.ext, board: window.__boardStack || null }));
+  if (!diag.shell) { console.log('     (khung trang đang ẩn sau khi mở lại: ' + JSON.stringify(diag) + ')'); await a.evaluate(() => window.CaroShell.open('more')); }
+  else await a.click('#tabbar [data-tab="more"]');
   await sleep(300);
   const [chooser] = await Promise.all([a.waitForEvent('filechooser'), a.click('#av-change')]);
   await chooser.setFiles({ name: 'big.png', mimeType: 'image/png', buffer: boardPng([[0, 0], [1, 1], [2, 2], [1, 0]], 'vn') }); // 1200×630
