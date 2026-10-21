@@ -1,6 +1,6 @@
 {
   "appId": "io.github.marseraf7.caro",
-  "appName": "Cờ Caro",
+  "appName": "Caro x Gomoku",
   "webDir": "www",
   "android": {
     "allowMixedContent": false

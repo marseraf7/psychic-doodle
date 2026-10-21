@@ -14,7 +14,7 @@
 
   const DICT = {
     vi: {
-      app_title: 'Cờ Caro',
+      app_title: 'Caro x Gomoku',
       board_aria: 'Bàn cờ caro',
       score_title: 'Tỉ số',
       btn_new: 'Ván mới',
@@ -91,7 +91,7 @@
     },
 
     en: {
-      app_title: 'Caro (Gomoku)',
+      app_title: 'Caro x Gomoku',
       board_aria: 'Caro board',
       score_title: 'Score',
       btn_new: 'New game',
@@ -168,7 +168,7 @@
     },
 
     ru: {
-      app_title: 'Каро (Гомоку)',
+      app_title: 'Caro x Gomoku',
       board_aria: 'Игровое поле',
       score_title: 'Счёт',
       btn_new: 'Новая игра',
@@ -245,7 +245,7 @@
     },
 
     zh: {
-      app_title: '五子棋 Caro',
+      app_title: 'Caro x Gomoku',
       board_aria: '棋盘',
       score_title: '比分',
       btn_new: '新对局',

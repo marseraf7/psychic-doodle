@@ -26,7 +26,7 @@
         return;
       }
       if (!me) { el.innerHTML = `<p class="hint">${esc(T('connecting_hint'))}</p>`; return; }
-      const avatar = `<span class="avatar">${esc((me.name || '?').trim().charAt(0).toUpperCase())}</span>`;
+      const avatar = window.CaroAvatar.html(me); // ảnh đã tải lên, chưa có thì chữ cái đầu (avatar.js)
       if (me.guest) {
         el.innerHTML = `
           <div class="who">${avatar}<div><b>${esc(me.name)}</b><small>${esc(T('guest'))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
@@ -49,6 +49,10 @@
             <button type="button" class="ghost sm" data-social="account">⚙ ${esc(T('account_settings'))}</button>
           </div>
           <div class="row">
+            <button type="button" class="ghost sm" id="av-change" title="${esc(T('av_hint'))}">${esc(T('av_change'))}</button>
+            ${me.av ? `<button type="button" class="ghost sm" id="av-remove">${esc(T('av_remove'))}</button>` : ''}
+          </div>
+          <div class="row">
             ${me.google ? `<span class="tag">${esc(T('google_linked_tag'))}</span>` : googleAvailable() ? `<button type="button" class="ghost" id="link-google">${esc(T('link_google'))}</button>` : ''}
             <button type="button" class="ghost" id="logout">${esc(T('logout'))}</button>
           </div>
@@ -57,6 +61,8 @@
           if (ctx.roomActive() && !confirm(T('confirm_logout'))) return;
           send({ t: 'logout' });
         };
+        $('av-change').onclick = () => window.CaroAvatar.pick();
+        if ($('av-remove')) $('av-remove').onclick = () => window.CaroAvatar.clear();
         const lg = $('link-google');
         if (lg) lg.onclick = () => { lg.hidden = true; mountGoogle($('google-link-btn')); };
       }

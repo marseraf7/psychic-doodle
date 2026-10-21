@@ -93,10 +93,10 @@
   // Chỉ ngắt khi trượt 2 lần liên tiếp, và bỏ qua lần mà hẹn giờ chạy trễ (máy chậm / luồng chính bận: tin pong
   // có thể đang xếp hàng phía sau) – tránh cắt nhầm kết nối vẫn tốt.
   const PING_MS = 10000, PONG_MS = 6000, LATE_MS = 2000;
-  let lastHeard = 0, misses = 0, lastPing = 0, noPing = false;
-  setInterval(() => {
+  let lastHeard = 0, misses = 0, lastPing = 0, noPing = false, pingOut = 0; // pingOut: lần ping đang chờ pong (đo PING)
+  function ping() {
     if (noPing || !ws || ws.readyState !== 1 || S.status !== 'online' || document.hidden) return;
-    const sent = lastPing = Date.now();
+    const sent = lastPing = pingOut = Date.now();
     try { ws.send('{"t":"ping"}'); } catch (e) { return dropped(100); }
     const w = ws;
     setTimeout(() => {
@@ -104,7 +104,8 @@
       if (lastHeard >= sent || Date.now() - sent > PONG_MS + LATE_MS) { misses = 0; return; }
       if (++misses >= 2) { misses = 0; dropped(100); }
     }, PONG_MS);
-  }, PING_MS);
+  }
+  setInterval(ping, PING_MS);
 
   function scheduleRetry() {
     clearTimeout(retryTimer);
@@ -127,7 +128,8 @@
   const hooks = {};
   const on = (t, fn) => { (hooks[t] = hooks[t] || []).push(fn); };
   const handlers = {
-    pong() { /* chỉ để biết kết nối còn sống (lastHeard) */ },
+    // Biết kết nối còn sống (lastHeard); kèm PING (rtt) và số liệu máy chủ cho Cài đặt nhanh / số người online (topbar.js)
+    pong(m) { m.rtt = pingOut ? Date.now() - pingOut : S.net && S.net.rtt; pingOut = 0; S.net = m; },
     welcome(m) {
       S.status = 'online';
       S.me = m.me;
@@ -137,6 +139,7 @@
       setRoom(m.room);
       render();
       checkJoinLink();
+      setTimeout(ping, 300); // số liệu sảnh, PING có ngay (không chờ 10 giây)
     },
     auth(m) {
       LS.set('caro.token', m.token);
@@ -265,6 +268,7 @@
     document.querySelectorAll('#qm-grid .qm-tile').forEach((b) => { b.disabled = !!outdated; });
     ctx.renderAccount();
     ctx.renderFriends();
+    window.dispatchEvent(new CustomEvent('caro:online')); // thanh trên (topbar.js): đăng nhập / ảnh đại diện
   }
 
   $('btn-online').onclick = () => { connect(); render(); openDlg('online'); };
@@ -329,7 +333,7 @@
   document.querySelectorAll('.licenses-link').forEach((a) => { a.href = privacyUrl.replace('privacy.html', 'licenses.html'); });
 
   window.CaroOnline = {
-    send, showBanner: ctx.showBanner, shareReplay, renderInvites: ctx.renderInvites, roomActive: ctx.roomActive, openReplay, fetchReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
+    send, base, openAuth: ctx.openAuth, showBanner: ctx.showBanner, shareReplay, renderInvites: ctx.renderInvites, roomActive: ctx.roomActive, openReplay, fetchReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
     /** Kết nối (khi mở Trang chủ / Xem) – chỉ sau khi đã biết có máy chủ game. */
     connect: () => { if (serverChecked) connect(); },
     get connected() { return S.status === 'online'; },

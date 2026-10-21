@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Cờ Caro – Giấy phép mã nguồn mở</title>
+  <title>Caro x Gomoku – Giấy phép mã nguồn mở</title>
   <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -105,21 +105,21 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="./"><img src="icon.svg" alt=""><span id="brand-label">Cờ Caro</span></a>
+    <a class="brand" href="./"><img src="icon.svg" alt=""><span id="brand-label">Caro x Gomoku</span></a>
     <nav class="langs" aria-label="Language"><a href="#vi" lang="vi">VI</a><a href="#en" lang="en">EN</a><a href="#ru" lang="ru">RU</a><a href="#zh" lang="zh-CN">中文</a></nav>
     <a class="back" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg><span id="back-label">Về game</span></a>
   </div>
 </header>
 
 <main class="wrap">
-  <section id="vi" lang="vi" data-title="Cờ Caro – Giấy phép mã nguồn mở" data-back="Về game" data-brand="Cờ Caro">
+  <section id="vi" lang="vi" data-title="Caro x Gomoku – Giấy phép mã nguồn mở" data-back="Về game" data-brand="Caro x Gomoku">
     <header class="hero">
       <h1>Giấy phép mã nguồn mở</h1>
-      <p class="meta">Các thành phần của bên thứ ba trong Cờ Caro (web và ứng dụng Android / iOS) và giấy phép của chúng.</p>
+      <p class="meta">Các thành phần của bên thứ ba trong Caro x Gomoku (web và ứng dụng Android / iOS) và giấy phép của chúng.</p>
     </header>
     <div class="card">
       <h2>Rapfi – bộ não của BOAT</h2>
-      <p>Nhân vật trùm cuối <b>BOAT</b> chạy <b>Rapfi</b> – engine Gomoku / Renju vô địch Gomocup – bản WebAssembly ngay trên máy bạn: Rapfi nguyên bản ở luật tự do, tiêu chuẩn và Renju; ở luật Việt Nam là <b>Rapfi-CARO</b> – Rapfi cộng bản vá thêm luật chặn hai đầu do Cờ Caro viết (cũng GPL-3). Rapfi © Rapfi developers (Haobin Duan và cộng sự), phát hành theo <b>Giấy phép Công cộng GNU phiên bản 3 (GPL-3)</b>. Phần Rapfi trong game (thư mục <code>rapfi/</code>) cũng theo GPL-3: bạn được dùng, sao chép, sửa đổi và phân phối lại theo các điều khoản của giấy phép này. Phần mềm được cung cấp không kèm bất kỳ bảo hành nào.</p>
+      <p>Nhân vật trùm cuối <b>BOAT</b> chạy <b>Rapfi</b> – engine Gomoku / Renju vô địch Gomocup – bản WebAssembly ngay trên máy bạn: Rapfi nguyên bản ở luật tự do, tiêu chuẩn và Renju; ở luật Việt Nam là <b>Rapfi-CARO</b> – Rapfi cộng bản vá thêm luật chặn hai đầu do Caro x Gomoku viết (cũng GPL-3). Rapfi © Rapfi developers (Haobin Duan và cộng sự), phát hành theo <b>Giấy phép Công cộng GNU phiên bản 3 (GPL-3)</b>. Phần Rapfi trong game (thư mục <code>rapfi/</code>) cũng theo GPL-3: bạn được dùng, sao chép, sửa đổi và phân phối lại theo các điều khoản của giấy phép này. Phần mềm được cung cấp không kèm bất kỳ bảo hành nào.</p>
       <ul class="list">
         <li><a href="rapfi/COPYING.txt">Toàn văn giấy phép GPL-3</a></li>
         <li><a href="rapfi/build/rapfi-src-3c94c2a.tar.gz">Mã nguồn Rapfi đúng phiên bản đang dùng (commit 3c94c2a)</a></li>
@@ -128,18 +128,18 @@
         <li><a href="rapfi/build/rapfi-mt.patch">Bản vá cho bản đa luồng (trình duyệt Chrome / Edge máy tính)</a></li>
         <li><a href="rapfi/build/expose-fs.js">Phần thêm khi dựng (chạy trước khi Rapfi khởi động)</a></li>
         <li><a href="https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">Kho mã gốc của tác giả trên GitHub</a></li>
-        <li><a href="https://github.com/marseraf7/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">Bản sao lưu (fork) của Cờ Caro trên GitHub</a></li>
+        <li><a href="https://github.com/marseraf7/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">Bản sao lưu (fork) của Caro x Gomoku trên GitHub</a></li>
         <li><a href="rapfi/AUTHORS.txt">Tác giả Rapfi</a></li>
       </ul>
     </div>
     <div class="card">
       <h2>Mạng nơ-ron của Rapfi</h2>
-      <p>Các mạng NNUE "mix9svq" và mô hình cổ điển của Rapfi được tác giả tặng vào phạm vi công cộng theo <b>CC0 1.0</b>. Mạng chỉ được tải về khi bạn đấu BOAT (khoảng 10 MB cho luật tự do hoặc tiêu chuẩn, 20 MB cho Renju) và được lưu lại trên máy để lần sau không phải tải nữa. Luật Việt Nam không dùng mạng: Rapfi-CARO dùng mô hình cổ điển cùng bảng đánh giá cho luật Việt Nam do Cờ Caro học từ ván Rapfi-CARO tự đấu (đi kèm game, cũng CC0 1.0).</p>
+      <p>Các mạng NNUE "mix9svq" và mô hình cổ điển của Rapfi được tác giả tặng vào phạm vi công cộng theo <b>CC0 1.0</b>. Mạng chỉ được tải về khi bạn đấu BOAT (khoảng 10 MB cho luật tự do hoặc tiêu chuẩn, 20 MB cho Renju) và được lưu lại trên máy để lần sau không phải tải nữa. Luật Việt Nam không dùng mạng: Rapfi-CARO dùng mô hình cổ điển cùng bảng đánh giá cho luật Việt Nam do Caro x Gomoku học từ ván Rapfi-CARO tự đấu (đi kèm game, cũng CC0 1.0).</p>
       <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a> · <a href="https://github.com/marseraf7/rapfi-networks" target="_blank" rel="noopener">github.com/marseraf7/rapfi-networks</a> (bản sao lưu)</p>
     </div>
     <div class="card">
-      <h2>Engine của Cờ Caro</h2>
-      <p>Các nhân vật máy khác, phần phân tích nhanh và BOAT khi trình duyệt không chạy được Rapfi dùng engine riêng của Cờ Caro – không chứa mã của Rapfi.</p>
+      <h2>Engine của Caro x Gomoku</h2>
+      <p>Các nhân vật máy khác, phần phân tích nhanh và BOAT khi trình duyệt không chạy được Rapfi dùng engine riêng của Caro x Gomoku – không chứa mã của Rapfi.</p>
     </div>
     <div class="card">
       <h2>Phông chữ</h2>
@@ -147,10 +147,10 @@
     </div>
   </section>
 
-  <section id="en" lang="en" data-title="Caro – Open-source licenses" data-back="Back to game" data-brand="Caro">
+  <section id="en" lang="en" data-title="Caro x Gomoku – Open-source licenses" data-back="Back to game" data-brand="Caro x Gomoku">
     <header class="hero">
       <h1>Open-source licenses</h1>
-      <p class="meta">Third-party components in Caro (web and Android / iOS apps) and their licenses.</p>
+      <p class="meta">Third-party components in Caro x Gomoku (web and Android / iOS apps) and their licenses.</p>
     </header>
     <div class="card">
       <h2>Rapfi – the brain of BOAT</h2>
@@ -173,8 +173,8 @@
       <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a> · <a href="https://github.com/marseraf7/rapfi-networks" target="_blank" rel="noopener">github.com/marseraf7/rapfi-networks</a> (backup fork)</p>
     </div>
     <div class="card">
-      <h2>Caro's own engine</h2>
-      <p>The other bots, quick game analysis, and BOAT on browsers that cannot run Rapfi use Caro's own engine – it contains no Rapfi code.</p>
+      <h2>Caro x Gomoku's own engine</h2>
+      <p>The other bots, quick game analysis, and BOAT on browsers that cannot run Rapfi use Caro x Gomoku's own engine – it contains no Rapfi code.</p>
     </div>
     <div class="card">
       <h2>Fonts</h2>
@@ -182,10 +182,10 @@
     </div>
   </section>
 
-  <section id="ru" lang="ru" data-title="Каро – лицензии открытого ПО" data-back="К игре" data-brand="Каро">
+  <section id="ru" lang="ru" data-title="Caro x Gomoku – лицензии открытого ПО" data-back="К игре" data-brand="Caro x Gomoku">
     <header class="hero">
       <h1>Лицензии открытого ПО</h1>
-      <p class="meta">Сторонние компоненты в Каро (веб и приложения Android / iOS) и их лицензии.</p>
+      <p class="meta">Сторонние компоненты в Caro x Gomoku (веб и приложения Android / iOS) и их лицензии.</p>
     </header>
     <div class="card">
       <h2>Rapfi – мозг BOAT</h2>
@@ -207,7 +207,7 @@
       <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a> · <a href="https://github.com/marseraf7/rapfi-networks" target="_blank" rel="noopener">github.com/marseraf7/rapfi-networks</a> (резервная копия)</p>
     </div>
     <div class="card">
-      <h2>Собственный движок Каро</h2>
+      <h2>Собственный движок Caro x Gomoku</h2>
       <p>Остальные боты, быстрый анализ партий и BOAT в браузерах, где Rapfi не запускается, используют собственный движок Каро – в нём нет кода Rapfi.</p>
     </div>
     <div class="card">
@@ -216,7 +216,7 @@
     </div>
   </section>
 
-  <section id="zh" lang="zh-CN" data-title="Caro – 开源许可" data-back="返回游戏" data-brand="Caro">
+  <section id="zh" lang="zh-CN" data-title="Caro x Gomoku – 开源许可" data-back="返回游戏" data-brand="Caro x Gomoku">
     <header class="hero">
       <h1>开源许可</h1>
       <p class="meta">Caro（网页版及 Android / iOS 应用）中的第三方组件及其许可。</p>
@@ -250,7 +250,7 @@
     </div>
   </section>
 
-  <footer class="foot"><span id="foot-brand">Cờ Caro</span><a href="https://github.com/dhbloo/rapfi" target="_blank" rel="noopener">github.com/dhbloo/rapfi</a></footer>
+  <footer class="foot"><span id="foot-brand">Caro x Gomoku</span><a href="https://github.com/dhbloo/rapfi" target="_blank" rel="noopener">github.com/dhbloo/rapfi</a></footer>
 </main>
 <script src="privacy.js"></script>
 </body>

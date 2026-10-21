@@ -1,6 +1,6 @@
 /*
  * Ván – bảng "Ván mới" (chế độ, cầm quân, đối thủ, luật, thời gian → bắt đầu ngay) và Cài đặt (ván chơi, hiển thị,
- * âm thanh & thao tác, ngôn ngữ, đặt lại tỉ số). app.js gọi window.CaroAppDialogs(env) một lần (gắn sự kiện); trả về { openNewGame }.
+ * âm thanh & thao tác, ngôn ngữ, đặt lại tỉ số). app.js gọi window.CaroAppDialogs(env) một lần (gắn sự kiện); trả về { openNewGame, setSetting }.
  */
 (function () {
   'use strict';
@@ -105,6 +105,18 @@
       updateUI();
     };
 
-    return { openNewGame };
+    /**
+     * Đổi một mục Cài đặt từ chỗ khác (Cài đặt nhanh – quick-settings.js) đúng như khi người chơi đổi trong Cài đặt:
+     * điền lại cả bảng theo trạng thái hiện tại rồi chỉ đổi ô name (các mục khác giữ nguyên, không bắt đầu ván mới).
+     */
+    function setSetting(name, value) {
+      fillForm();
+      const el = form.elements[name];
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!value; else el.value = value;
+      form.dispatchEvent(new Event('change'));
+    }
+
+    return { openNewGame, setSetting };
   };
 })();

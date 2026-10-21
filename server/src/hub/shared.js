@@ -26,17 +26,17 @@ const VERIFY_TTL_MS = 30 * 60 * 1000; // mã xác minh email có hiệu lực 30
 const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex');
 // Email xác minh địa chỉ (chỉ email đã xác minh mới dùng để khôi phục mật khẩu)
 const VERIFY_MAIL = {
-  vi: { subject: 'Mã xác minh email Cờ Caro', body: (u, c) => `Xin chào ${u},\n\nMã xác minh email của bạn là: ${c}\nMã có hiệu lực trong 30 phút.\n\nNếu bạn không thêm email này vào tài khoản Cờ Caro, hãy bỏ qua thư này.` },
-  en: { subject: 'Caro email verification code', body: (u, c) => `Hi ${u},\n\nYour email verification code is: ${c}\nIt expires in 30 minutes.\n\nIf you did not add this email to a Caro account, you can ignore this message.` },
-  ru: { subject: 'Код подтверждения почты Каро', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код подтверждения почты: ${c}\nКод действует 30 минут.\n\nЕсли вы не добавляли эту почту в аккаунт Каро, просто проигнорируйте письмо.` },
-  zh: { subject: '五子棋 Caro 邮箱验证码', body: (u, c) => `${u}，你好：\n\n你的邮箱验证码是：${c}\n验证码 30 分钟内有效。\n\n如果你没有在 Caro 账号中添加此邮箱，请忽略此邮件。` },
+  vi: { subject: 'Mã xác minh email Caro x Gomoku', body: (u, c) => `Xin chào ${u},\n\nMã xác minh email của bạn là: ${c}\nMã có hiệu lực trong 30 phút.\n\nNếu bạn không thêm email này vào tài khoản Caro x Gomoku, hãy bỏ qua thư này.` },
+  en: { subject: 'Caro x Gomoku email verification code', body: (u, c) => `Hi ${u},\n\nYour email verification code is: ${c}\nIt expires in 30 minutes.\n\nIf you did not add this email to a Caro account, you can ignore this message.` },
+  ru: { subject: 'Код подтверждения почты Caro x Gomoku', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код подтверждения почты: ${c}\nКод действует 30 минут.\n\nЕсли вы не добавляли эту почту в аккаунт Caro x Gomoku, просто проигнорируйте письмо.` },
+  zh: { subject: 'Caro x Gomoku 邮箱验证码', body: (u, c) => `${u}，你好：\n\n你的邮箱验证码是：${c}\n验证码 30 分钟内有效。\n\n如果你没有在 Caro 账号中添加此邮箱，请忽略此邮件。` },
 };
 // Email đặt lại mật khẩu theo ngôn ngữ người dùng đang chọn
 const RESET_MAIL = {
-  vi: { subject: 'Mã đặt lại mật khẩu Cờ Caro', body: (u, c) => `Xin chào ${u},\n\nMã đặt lại mật khẩu của bạn là: ${c}\nMã có hiệu lực trong 15 phút.\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.` },
-  en: { subject: 'Caro password reset code', body: (u, c) => `Hi ${u},\n\nYour password reset code is: ${c}\nIt expires in 15 minutes.\n\nIf you did not request this, you can ignore this email.` },
-  ru: { subject: 'Код для сброса пароля Каро', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код для сброса пароля: ${c}\nКод действует 15 минут.\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.` },
-  zh: { subject: '五子棋 Caro 密码重置验证码', body: (u, c) => `${u}，你好：\n\n你的密码重置验证码是：${c}\n验证码 15 分钟内有效。\n\n如果这不是你本人的操作，请忽略此邮件。` },
+  vi: { subject: 'Mã đặt lại mật khẩu Caro x Gomoku', body: (u, c) => `Xin chào ${u},\n\nMã đặt lại mật khẩu của bạn là: ${c}\nMã có hiệu lực trong 15 phút.\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.` },
+  en: { subject: 'Caro x Gomoku password reset code', body: (u, c) => `Hi ${u},\n\nYour password reset code is: ${c}\nIt expires in 15 minutes.\n\nIf you did not request this, you can ignore this email.` },
+  ru: { subject: 'Код для сброса пароля Caro x Gomoku', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код для сброса пароля: ${c}\nКод действует 15 минут.\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.` },
+  zh: { subject: 'Caro x Gomoku 密码重置验证码', body: (u, c) => `${u}，你好：\n\n你的密码重置验证码是：${c}\n验证码 15 分钟内有效。\n\n如果这不是你本人的操作，请忽略此邮件。` },
 };
 /** Lựa chọn thời gian / luật gửi từ client: giới hạn mỗi nước, đồng hồ tổng '3+2', luật khai cuộc, luật thắng. */
 function cleanTc({ timeLimit, clock, opening, rule } = {}) {

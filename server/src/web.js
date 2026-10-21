@@ -5,6 +5,8 @@
  *  - /api/replay/<mã>.png  : ảnh xem trước bàn cờ (1200×630, giữ trong bộ nhớ 300 ảnh gần nhất; vẽ ảnh mới bị
  *    giới hạn 20 ảnh / phút mỗi IP và 10 ảnh / giây cả máy chủ để không ai làm treo máy chủ bằng cách xin ảnh liên tục).
  *  - /?replay=<mã>         : trang chính kèm thẻ og:* (tiêu đề, ảnh) để link chia sẻ hiện ảnh xem trước.
+ *  - /api/avatar/<id tài khoản>?v=<phiên bản> : ảnh đại diện (đã kiểm khi tải lên – avatar.js); đúng phiên bản thì
+ *    trình duyệt giữ lâu (đường dẫn đổi khi người chơi đổi ảnh).
  *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz
  *    – cho phép gọi từ trang khác (CORS), giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
  */
@@ -148,6 +150,19 @@ function makeHandler({ store, hub }) {
     res.end(req.method === 'HEAD' ? undefined : png);
   }
 
+  function serveAvatar(uid, query, req, res) {
+    const img = hub.avatarOf(uid);
+    if (!img) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-cache' }); return res.end('not found'); }
+    const v = store.users.get(uid).avatar.v;
+    res.writeHead(200, {
+      'content-type': img.type, 'content-length': img.buf.length, 'access-control-allow-origin': '*',
+      // Ảnh không chạy được gì, nhưng vẫn cấm mọi thứ nếu ai đó mở thẳng đường dẫn
+      'content-security-policy': "default-src 'none'; sandbox",
+      'cache-control': query.get('v') === String(v) ? 'public, max-age=31536000, immutable' : 'no-cache',
+    });
+    res.end(req.method === 'HEAD' ? undefined : img.buf);
+  }
+
   /** Trang chính; mở bằng link ?replay=<mã> thì thêm thẻ og để mạng xã hội hiện ảnh bàn cờ. */
   function serveIndex(req, res, share) {
     const file = path.join(STATIC_DIR, 'index.html');
@@ -158,11 +173,11 @@ function makeHandler({ store, hub }) {
       const g = store.gameByShare(share);
       if (g) {
         const base = origin(req);
-        const title = `${g.x_name || '?'} ✕ vs ${g.o_name || '?'} ◯ – Cờ Caro`;
+        const title = `${g.x_name || '?'} ✕ vs ${g.o_name || '?'} ◯ – Caro x Gomoku`;
         const result = g.winner === 1 ? `${g.x_name} thắng` : g.winner === 2 ? `${g.o_name} thắng` : 'Hoà';
         const desc = `${result} · ${g.moves.length} nước`;
         const meta = [
-          ['og:type', 'website'], ['og:site_name', 'Cờ Caro'], ['og:title', title], ['og:description', desc],
+          ['og:type', 'website'], ['og:site_name', 'Caro x Gomoku'], ['og:title', title], ['og:description', desc],
           ['og:image', `${base}/api/replay/${g.share}.png`], ['og:image:width', '1200'], ['og:image:height', '630'],
           ['og:url', `${base}/?replay=${g.share}`],
         ].map(([k, v]) => `<meta property="${k}" content="${escHtml(v)}">`).join('\n  ');
@@ -209,6 +224,7 @@ function makeHandler({ store, hub }) {
       const share = url.slice(12);
       return share.endsWith('.png') ? serveReplayPng(share.slice(0, -4), req, res) : serveReplay(share, res);
     }
+    if (/^\/api\/avatar\/[0-9a-f]{16}$/.test(url)) return serveAvatar(url.slice(12), u.searchParams, req, res);
     if (url === '/api/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
     if (url.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
     if ((url === '/' || url === '/index.html') && u.searchParams.get('replay')) return serveIndex(req, res, u.searchParams.get('replay'));

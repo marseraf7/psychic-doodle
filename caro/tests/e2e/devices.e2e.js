@@ -51,7 +51,7 @@ const { setup } = require('./helpers');
       }
 
       // 3. Kiểm tra các nút trong thanh tab
-      const tabBtns = [...document.querySelectorAll('#tabbar button')];
+      const tabBtns = [...document.querySelectorAll('#tabbar > button')]; // 5 nút tab (không tính công cụ thanh trên – topbar.js)
       const tabsInside = tabBtns.every((btn) => {
         const r = btn.getBoundingClientRect();
         return r.left >= -1 && r.right <= vw + 1 && r.width >= 32;
@@ -171,7 +171,7 @@ const { setup } = require('./helpers');
     const langCheck = await p.evaluate(() => {
       const vw = document.documentElement.clientWidth;
       const sw = document.documentElement.scrollWidth;
-      const btns = [...document.querySelectorAll('#tabbar button span')];
+      const btns = [...document.querySelectorAll('#tabbar > button > span')];
       const anyWrapOverlap = btns.some((sp) => sp.scrollHeight > sp.clientHeight * 1.5);
       return { sw, vw, overflows: sw > vw + 1, anyWrapOverlap };
     });

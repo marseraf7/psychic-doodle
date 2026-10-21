@@ -73,7 +73,7 @@ class Profile {
     conn.send({
       t: 'profile',
       profile: {
-        id: u.id, name: u.name, username: u.username, created: u.created || null, status: this.status(u.id),
+        id: u.id, name: u.name, username: u.username, av: u.avatar ? u.avatar.v : 0, created: u.created || null, status: this.status(u.id),
         rating: u.rating, main: R.mainPool(u), pools, history: this.store.ratingPoints(u.id),
         stats: u.stats, rated: u.rated, streak: u.wstreak, tours: u.tours, recent, canHistory, histVis: this.histVisOf(u),
         perf: u.perf || {}, activity: Perf.activity(u), // thống kê sâu theo loại + hoạt động 30 ngày

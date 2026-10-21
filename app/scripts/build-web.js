@@ -66,7 +66,7 @@ fs.writeFileSync(indexFile, html);
 // ---------------------------------------------------------------- Cấu hình Capacitor
 const config = {
   appId: 'io.github.marseraf7.caro',
-  appName: 'Cờ Caro',
+  appName: 'Caro x Gomoku',
   webDir: 'www',
   android: {
     // Bản thử nghiệm kết nối máy chủ http trong mạng nội bộ; bản phát hành luôn tắt.

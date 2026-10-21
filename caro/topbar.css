@@ -1,0 +1,128 @@
+/*
+ * Thanh trên (topbar.js): tìm kỳ thủ + gợi ý (player-search.js), Đăng nhập / Đăng ký, ảnh đại diện, Cài đặt nhanh
+ * (quick-settings.js); số kỳ thủ / số ván ở góc Trang chủ (online-count.js); ảnh đại diện (avatar.js); ảnh nền (backdrop.js).
+ */
+
+/* ============================ Thanh trên ============================ */
+.tb-tools { position: relative; display: flex; align-items: center; gap: 4px; margin-left: 6px; }
+.tb-ic {
+  width: 40px; height: 40px; flex: none; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; color: var(--muted);
+}
+.tb-ic .ico { width: 22px; height: 22px; }
+.tb-ic.on, .tb-ic:hover { color: var(--text); background: rgba(127, 127, 127, 0.12); }
+.tb-search { position: static; display: flex; align-items: center; }
+.tb-search input { display: none; }
+.tb-auth { display: flex; align-items: center; gap: 4px; }
+.tb-auth:empty { display: none; }
+.tb-link, .tb-btn {
+  padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text);
+}
+.tb-link:hover { color: var(--accent); }
+.tb-btn { background: var(--accent); color: #fff; }
+.tb-me { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 10px; color: var(--text); }
+.tb-me:hover { background: rgba(127, 127, 127, 0.12); }
+.tb-name { display: none; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
+
+/* Điện thoại: thanh trên nằm ở đầu Trang chủ – tiêu đề sang trái, công cụ bên phải */
+#page-home .pg-head { grid-template-columns: 0 1fr auto; padding-left: 12px; }
+#page-home .pg-title { justify-content: flex-start; }
+#page-home .pg-right { gap: 2px; }
+/* Điện thoại: ô tìm, gợi ý, Cài đặt nhanh canh theo đầu Trang chủ (không theo cụm nút nhỏ bên phải) */
+#page-home .pg-head { position: relative; }
+#page-home .tb-tools, #page-home .tb-search.ps-wrap { position: static; }
+#page-home .qs { right: 8px; }
+/* Đang tìm: ô nhập phủ đầu trang (chừa kính lúp và bánh răng) */
+.tb-tools.searching .tb-auth { display: none; }
+.tb-tools.searching .tb-search input {
+  display: block; position: absolute; z-index: 3; left: 12px; right: 96px; width: auto; top: 50%; transform: translateY(-50%);
+  height: 38px; padding: 0 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: var(--fs-md);
+}
+#page-home .ps-list { left: 12px; right: 12px; top: calc(100% - 4px); }
+
+@media (min-width: 900px) {
+  .tb-tools { margin-left: auto; gap: 6px; }
+  .tb-search { position: relative; }
+  .tb-tools.searching .tb-auth { display: flex; }
+  #tb-tools .tb-search input, #tb-tools.searching .tb-search input {
+    display: block; position: static; transform: none; width: 190px; height: 36px; padding: 0 12px 0 34px; border-radius: 18px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: var(--fs-sm);
+  }
+  .tb-search .tb-ic { position: absolute; left: 2px; width: 32px; height: 32px; pointer-events: none; }
+  .tb-search .tb-ic .ico { width: 17px; height: 17px; }
+  .tb-search .ps-list, .tb-tools.searching .tb-search .ps-list { left: 0; right: auto; width: 300px; }
+  .tb-name { display: inline; }
+}
+
+/* ============================ Gợi ý kỳ thủ ============================ */
+.ps-wrap { position: relative; }
+.ps-list {
+  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  max-height: 60vh; overflow-y: auto; text-transform: none; letter-spacing: 0;
+}
+.ps-list[hidden] { display: none; }
+.ps-list li { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; color: var(--text); }
+.ps-list li.on, .ps-list li[data-i]:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.ps-list li.ps-empty { cursor: default; color: var(--muted); font-size: var(--fs-sm); }
+.ps-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ps-t b, .ps-t small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ps-t b { font-size: var(--fs-sm); }
+.ps-t small { color: var(--muted); font-size: var(--fs-xs); }
+.ps-list .rating { font-size: var(--fs-xs); color: var(--muted); }
+
+/* ============================ Cài đặt nhanh ============================ */
+.qs {
+  position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 290px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
+  text-transform: none; letter-spacing: 0; max-height: calc(100vh - 80px); overflow-y: auto;
+}
+.qs[hidden] { display: none; }
+.qs-row {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 9px;
+  color: var(--text); font-size: var(--fs-sm); text-align: left;
+}
+.qs-row:hover, .qs-row:focus-visible { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.qs-row > .ico { width: 19px; height: 19px; flex: none; color: var(--muted); }
+.qs-row > .ico:last-child { width: 16px; height: 16px; }
+.qs-t { flex: 1; min-width: 0; }
+.qs-v { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+.qs-head { font-weight: var(--fw-semibold); border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; margin-bottom: 4px; }
+.qs-opt.on { color: var(--accent); font-weight: var(--fw-semibold); }
+.qs-opt.on > .ico { color: var(--accent); }
+.qs-opt .swatch { width: 18px; height: 18px; border-radius: 5px; background: var(--sw); box-shadow: inset 0 0 0 1px var(--line); flex: none; }
+.qs-sw { width: 36px; height: 20px; border-radius: 10px; background: color-mix(in srgb, var(--text) 22%, transparent); position: relative; flex: none; transition: background 0.15s; }
+.qs-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.qs-sw.on { background: var(--accent); }
+.qs-sw.on::after { transform: translateX(16px); }
+.qs-net {
+  display: flex; justify-content: space-between; gap: 10px; margin-top: 4px; padding: 10px 10px 6px;
+  border-top: 1px solid var(--line); font-size: var(--fs-2xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.qs-net b { color: var(--text); font-weight: var(--fw-semibold); }
+
+/* ============================ Số kỳ thủ / số ván (góc phải dưới Trang chủ, như Lichess) ============================ */
+.online-count {
+  align-self: flex-end; margin: 8px 0 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  font-size: var(--fs-xs); color: var(--muted); text-align: right;
+}
+.online-count[hidden] { display: none; }
+.online-count .linkish { padding: 0; color: var(--muted); font-size: inherit; text-decoration: underline dotted; }
+.online-count .linkish:hover { color: var(--accent); }
+
+/* ============================ Ảnh đại diện ============================ */
+.avatar { position: relative; overflow: hidden; }
+.avatar > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.avatar.sm { width: 28px; height: 28px; font-size: var(--fs-xs); }
+.av-st { position: relative; display: inline-flex; flex: none; }
+.av-st .st { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; box-shadow: 0 0 0 2px var(--panel); }
+
+/* ============================ Ảnh nền (tuỳ chọn, mặc định tắt) ============================ */
+body.bg-img .shell {
+  background:
+    linear-gradient(color-mix(in srgb, var(--bg) 84%, transparent), color-mix(in srgb, var(--bg) 92%, transparent)),
+    url(img/backdrop.webp) center top / cover no-repeat, var(--bg);
+}
+body.bg-img .tabbar { background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); }

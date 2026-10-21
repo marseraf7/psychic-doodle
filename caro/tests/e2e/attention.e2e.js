@@ -10,7 +10,7 @@ const { setup, play, roomOf } = require('./helpers');
   const { app, browser, user, ok, sleep, finish } = await setup(8101);
   const a = await user('vi', 'tab_a');
   const b = await user('en', 'tab_b');
-  ok(await a.title() === 'Cờ Caro', 'chưa có ván: tiêu đề gốc');
+  ok(await a.title() === 'Caro x Gomoku', 'chưa có ván: tiêu đề gốc');
   await a.click('#tabbar [data-tab="home"]');
   await a.click('.home-tabs [data-hpane="lobby"]');
   await a.check('#room-public');
@@ -18,7 +18,7 @@ const { setup, play, roomOf } = require('./helpers');
   await sleep(600);
   const r0 = await roomOf(a);
   await a.keyboard.press('Escape');
-  ok(await a.title() === 'Cờ Caro', 'chờ người vào phòng: chưa đổi tiêu đề');
+  ok(await a.title() === 'Caro x Gomoku', 'chờ người vào phòng: chưa đổi tiêu đề');
   await b.evaluate((code) => window.CaroOnline.send({ t: 'joinRoom', code }), r0.code);
   await sleep(700);
   const r = await roomOf(a);
@@ -28,7 +28,7 @@ const { setup, play, roomOf } = require('./helpers');
   ok(/^(Đang chờ đối thủ|Waiting for opponent) – /.test(to), 'bên O (chờ): ' + to);
   await play(xp, op); // X thắng
   await sleep(500);
-  ok(/^Hết ván – Cờ Caro$/.test(await a.title()) && /^Game over – /.test(await b.title()), 'hết ván: "Hết ván" / "Game over" theo ngôn ngữ từng người');
+  ok(/^Hết ván – Caro x Gomoku$/.test(await a.title()) && /^Game over – /.test(await b.title()), 'hết ván: "Hết ván" / "Game over" theo ngôn ngữ từng người');
   // Rời phòng: về tiêu đề gốc
   await a.evaluate(() => window.CaroOnline.send({ t: 'leave' }));
   await sleep(500);
@@ -36,7 +36,7 @@ const { setup, play, roomOf } = require('./helpers');
   // Đổi ngôn ngữ giữa chừng: tiêu đề gốc đổi theo
   await b.evaluate(() => window.I18N.setLang('vi'));
   await sleep(200);
-  ok(/^Hết ván – Cờ Caro$/.test(await b.title()), 'đổi ngôn ngữ: tiêu đề đổi theo – ' + await b.title());
+  ok(/^Hết ván – Caro x Gomoku$/.test(await b.title()), 'đổi ngôn ngữ: tiêu đề đổi theo – ' + await b.title());
   // Với máy (trang khách mới, chưa vào phòng): không đổi tiêu đề; giữ màn hình sáng khi ở bàn cờ, thôi khi sang menu
   const c = await (await browser.newContext({ viewport: { width: 430, height: 860 } })).newPage();
   await c.goto('http://localhost:8101/');

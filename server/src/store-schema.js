@@ -46,6 +46,7 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS eval_cache (key TEXT PRIMARY KEY, nodes INTEGER NOT NULL, move TEXT NOT NULL, score INTEGER NOT NULL,
     mate INTEGER, at INTEGER NOT NULL, used INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS eval_cache_used ON eval_cache (used);
+  CREATE TABLE IF NOT EXISTS avatars (uid TEXT PRIMARY KEY, type TEXT NOT NULL, data BLOB NOT NULL);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
 // Phiên đăng nhập: thông tin thiết bị (mục Thiết bị – store-sessions.js)
