@@ -62,6 +62,9 @@ test('pong: số người online (mỗi người một lần dù mở nhiều k�
   await b.req({ t: 'move', x: 0, y: 0 }, 'room', (m) => m.room.moves.length === 1);
   p = await pong(a);
   assert.strictEqual(p.games, 1);
+  // Cùng số liệu qua HTTP (update.sh --auto hỏi trước khi khởi động lại máy chủ)
+  const st = await (await fetch(url.replace('ws:', 'http:').replace('/ws', '/api/stats'))).json();
+  assert.deepStrictEqual(st, { players: 2, games: 1 });
   // Đã giữ số đếm: gọi dồn không đếm lại
   b.close();
   await new Promise((r) => setTimeout(r, 50));

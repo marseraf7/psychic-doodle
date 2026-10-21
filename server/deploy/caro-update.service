@@ -1,0 +1,14 @@
+# Tự cập nhật máy chủ Caro x Gomoku (do caro-update.timer gọi). update.sh / install.sh tự cài file này.
+#   Xem lần chạy gần nhất:  journalctl -u caro-update -n 50
+#   Tắt tự cập nhật:        sudo systemctl disable --now caro-update.timer
+[Unit]
+Description=Caro x Gomoku - tu cap nhat code (update.sh --auto)
+After=network-online.target caro.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/caro/server/deploy/update.sh --auto
+# Lúc thấy code mới mà phải hoãn vì đang có ván (update.sh)
+StateDirectory=caro-update
+TimeoutStartSec=15min

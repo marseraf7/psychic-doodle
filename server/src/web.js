@@ -7,6 +7,8 @@
  *  - /?replay=<mã>         : trang chính kèm thẻ og:* (tiêu đề, ảnh) để link chia sẻ hiện ảnh xem trước.
  *  - /api/avatar/<id tài khoản>?v=<phiên bản> : ảnh đại diện (đã kiểm khi tải lên – avatar.js); đúng phiên bản thì
  *    trình duyệt giữ lâu (đường dẫn đổi khi người chơi đổi ảnh).
+ *  - /api/stats            : số kỳ thủ đang kết nối và số ván đang đấu (số thật – hub/lobby.js); update.sh --auto
+ *    dùng để không khởi động lại máy chủ khi đang có ván.
  *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz
  *    – cho phép gọi từ trang khác (CORS), giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
  */
@@ -225,6 +227,12 @@ function makeHandler({ store, hub }) {
       return share.endsWith('.png') ? serveReplayPng(share.slice(0, -4), req, res) : serveReplay(share, res);
     }
     if (/^\/api\/avatar\/[0-9a-f]{16}$/.test(url)) return serveAvatar(url.slice(12), u.searchParams, req, res);
+    if (url === '/api/stats') {
+      const wait = hit(apiHits, clientIp(req), API_RATE, 60000, Date.now());
+      if (wait) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });
+      const c = hub.counts();
+      return json(res, 200, { players: c.players, games: c.games }, { 'cache-control': 'no-cache' });
+    }
     if (url === '/api/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
     if (url.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
     if ((url === '/' || url === '/index.html') && u.searchParams.get('replay')) return serveIndex(req, res, u.searchParams.get('replay'));

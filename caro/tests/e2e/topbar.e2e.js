@@ -94,11 +94,13 @@ const { boardPng } = require('../../../server/src/png.js');
   await a.mouse.click(600, 500);
   await sleep(150);
   ok(await a.evaluate(() => document.getElementById('qs').hidden), 'bấm ra ngoài: đóng Cài đặt nhanh');
-  await a.reload();
+  await a.reload({ waitUntil: 'domcontentloaded' }); // Firefox (CI) đôi khi không xong sự kiện load khi tải lại – như helpers.gotoRetry
   await sleep(800);
   // (ngôn ngữ: hồ sơ trình duyệt của kịch bản đặt lại tiếng Việt mỗi lần mở trang – helpers.js)
   ok(await a.evaluate(() => window.CaroTheme.get() === 'light' && window.CaroStyle.pieces === 'stones' && document.body.classList.contains('bg-img')), 'tải lại: giữ giao diện, quân cờ, ảnh nền');
   await a.evaluate(() => { window.CaroBackdrop.set(false); window.CaroApp.setSetting('lang', 'vi'); });
+  // Tải lại chỉ chờ domcontentloaded: chờ kết nối lại và đăng nhập lại xong (thẻ tài khoản mới có nút đổi ảnh)
+  await a.waitForFunction(() => { const m = window.CaroOnline.state.me; return m && !m.guest; }, null, { timeout: 15000 });
 
   // ---------------------------------------------------------------- 5. Ảnh đại diện
   await a.click('#tabbar [data-tab="more"]');

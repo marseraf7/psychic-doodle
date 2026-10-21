@@ -124,7 +124,7 @@ chơi online qua WebSocket (`/ws`):
   - Link `https://…/?replay=<mã>` có thẻ `og:title` / `og:image` nên Facebook, Zalo, Telegram… hiện ảnh ván cờ.
     Đặt `PUBLIC_URL=https://ten-mien-cua-ban` để đường dẫn ảnh luôn đúng.
   - API chỉ đọc (gọi được từ trang khác – CORS): `GET /api/player/<tên đăng nhập>` (điểm từng loại, số ván, không có
-    email / bạn bè), `GET /api/leaderboard?pool=blitz` (50 người đầu). Giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
+    email / bạn bè), `GET /api/leaderboard?pool=blitz` (50 người đầu), `GET /api/stats` (số kỳ thủ đang kết nối, số ván đang đấu). Giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
 - **Số liệu máy chủ cho quản trị viên** (Giải đấu → tab Duyệt): số kết nối, người online, phòng, người xem, hàng chờ,
   RAM, các lệnh xử lý chậm (≥ 50 ms, 50 lệnh gần nhất), số lệnh theo loại và số lỗi bất ngờ.
 - Máy chủ kiểm tra mọi nước đi bằng chính `caro/rules.js` (không gian lận được từ client).
@@ -209,7 +209,13 @@ sudo systemctl restart caro
   sao lưu CSDL mỗi ngày vào `/var/backups/caro` (giữ 14 ngày).
 
 Cập nhật code: `sudo bash /opt/caro/server/deploy/update.sh` – sao lưu dữ liệu trước, tải code mới,
-khởi động lại; bản mới không chạy được thì tự quay lại bản cũ.
+khởi động lại; bản mới không chạy được thì tự quay lại bản cũ. Lần chạy tay đầu tiên cũng bật **tự cập nhật**.
+
+**Tự cập nhật** (`deploy/caro-update.timer` + `caro-update.service`, `install.sh` / `update.sh` tự cài): 10 phút một lần
+máy chủ chạy `update.sh --auto` – không có code mới thì thôi; có code mới (vd. vừa gộp PR vào nhánh máy chủ đang dùng)
+thì sao lưu, cập nhật, khởi động lại như chạy tay. Đang có ván đấu (hỏi `/api/stats`) thì hoãn để không làm người chơi
+mất kết nối giữa ván, tối đa 60 phút rồi cập nhật luôn. Xem nhật ký: `journalctl -u caro-update -n 50`; lịch:
+`systemctl list-timers caro-update`; tắt: `sudo systemctl disable --now caro-update.timer` (chạy tay sau đó không bật lại).
 
 Repo riêng tư: clone bằng *deploy key* (khoá chỉ đọc, GitHub → Settings → Deploy keys), rồi
 `sudo git -C /opt/caro config core.sshCommand "ssh -i /root/.ssh/caro_deploy"` để `update.sh` tải được.

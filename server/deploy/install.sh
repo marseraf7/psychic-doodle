@@ -105,6 +105,8 @@ say "Cấu hình Caddy cho https://$DOMAIN"
 install -d -o caddy -g caddy -m 755 /var/log/caddy
 sed "s#caro.ten-mien-cua-ban.com#$DOMAIN#" "$REPO/server/deploy/Caddyfile" > /etc/caddy/Caddyfile
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
+# validate chạy bằng root có thể tạo sẵn file nhật ký thuộc root → Caddy (user caddy) không mở được, không khởi động
+chown -R caddy:caddy /var/log/caddy
 systemctl enable caddy >/dev/null
 systemctl reload caddy 2>/dev/null || systemctl restart caddy
 
@@ -202,6 +204,13 @@ cat > /etc/cron.d/caro-backup <<'CONF'
 17 3 * * * root sqlite3 /var/lib/caro/caro.db ".backup '/var/backups/caro/caro-$(date +\%F).db'" && chmod 600 /var/backups/caro/*.db && find /var/backups/caro -name 'caro-*.db' -mtime +14 -delete
 CONF
 
+# ---------------------------------------------------------------- Tự cập nhật
+say "Tự cập nhật code 10 phút một lần (caro-update.timer – hoãn khi đang có ván)"
+sed "s#/opt/caro/server#$REPO/server#g" "$REPO/server/deploy/caro-update.service" > /etc/systemd/system/caro-update.service
+install -m 644 "$REPO/server/deploy/caro-update.timer" /etc/systemd/system/caro-update.timer
+systemctl daemon-reload
+systemctl enable --now caro-update.timer >/dev/null
+
 # ---------------------------------------------------------------- Xong
 say "Xong!"
 cat <<EOF
@@ -209,7 +218,9 @@ cat <<EOF
   Kiểm tra:         curl https://$DOMAIN/healthz   -> ok
   Cấu hình:         sudo nano /etc/caro/caro.env   rồi   sudo systemctl restart caro
                     (đặt ADMIN_USERNAMES = tên đăng nhập bạn vừa đăng ký trong game để duyệt giải / CLB)
-  Cập nhật code:    sudo bash $REPO/server/deploy/update.sh
+  Cập nhật code:    tự động 10 phút một lần (journalctl -u caro-update -n 50); cập nhật ngay:
+                    sudo bash $REPO/server/deploy/update.sh
+                    tắt tự cập nhật: sudo systemctl disable --now caro-update.timer
   Nhật ký:          journalctl -u caro -f
   Mức cách ly:      systemd-analyze security caro
 
