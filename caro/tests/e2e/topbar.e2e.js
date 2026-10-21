@@ -9,7 +9,7 @@
  *   node caro/tests/e2e/topbar.e2e.js
  */
 'use strict';
-const { setup } = require('./helpers');
+const { setup, gotoRetry } = require('./helpers');
 const { boardPng } = require('../../../server/src/png.js');
 
 (async () => {
@@ -110,7 +110,8 @@ const { boardPng } = require('../../../server/src/png.js');
   await a.mouse.click(600, 500);
   await sleep(150);
   ok(await a.evaluate(() => document.getElementById('qs').hidden), 'bấm ra ngoài: đóng Cài đặt nhanh');
-  await a.reload({ waitUntil: 'domcontentloaded' }); // Firefox (CI) đôi khi không xong sự kiện load khi tải lại – như helpers.gotoRetry
+  // Mở lại trang (như tải lại). Firefox (CI) đôi khi không xong điều hướng: gotoRetry thử lại 1 lần (helpers.js)
+  await gotoRetry(a, `http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await sleep(800);
   // (ngôn ngữ: hồ sơ trình duyệt của kịch bản đặt lại tiếng Việt mỗi lần mở trang – helpers.js)
   ok(await a.evaluate(() => window.CaroTheme.get() === 'light' && window.CaroStyle.pieces === 'stones' && document.body.classList.contains('bg-img')
