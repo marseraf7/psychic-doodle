@@ -1,0 +1,11 @@
+# Kiểm code mới 10 phút một lần (gộp PR vào nhánh máy chủ đang dùng → tối đa ~10 phút sau trang tự có bản mới).
+[Unit]
+Description=Caro x Gomoku - kiem code moi 10 phut mot lan
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
