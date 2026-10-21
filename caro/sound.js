@@ -15,8 +15,10 @@
   // Âm lượng nghe "đều tay" hơn theo hàm mũ: 50 % ≈ một nửa độ to cảm nhận
   const gainOf = (v) => Math.pow(v / 100, 1.6);
   // Trình duyệt chỉ cho phát âm thanh sau lần chạm/bấm đầu tiên.
+  // resume() trả promise: rời trang khi chưa xong thì bị từ chối – bắt lại, không thành lỗi chưa xử lý
+  const resume = () => { if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {}); };
   function unlock() {
-    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    if (ctx) { resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
     ctx = new AC();
@@ -25,6 +27,14 @@
     out.connect(ctx.destination);
   }
   ['pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, unlock, { capture: true, passive: true }));
+  // Rời trang / tải lại: đóng bộ âm thanh (giải phóng thiết bị âm thanh; Firefox không màn hình trên CI có thể kẹt điều hướng
+  // khi bộ âm thanh còn mở). Quay lại trang (bfcache) thì lần chạm sau tự mở lại.
+  window.addEventListener('pagehide', () => {
+    if (!ctx) return;
+    const c = ctx;
+    ctx = out = null;
+    try { c.close().catch(() => {}); } catch (e) { /* đã đóng */ }
+  });
 
   function tone(freq, start, dur, type, vol, to) {
     const o = ctx.createOscillator();
@@ -88,7 +98,7 @@
     STYLES,
     play(name) {
       if (!enabled || !ctx || !volume || !SOUNDS[name]) return;
-      try { if (ctx.state === 'suspended') ctx.resume(); SOUNDS[name](); } catch (e) { /* bỏ qua */ }
+      try { resume(); SOUNDS[name](); } catch (e) { /* bỏ qua */ }
     },
     get enabled() { return enabled; },
     set enabled(v) {
