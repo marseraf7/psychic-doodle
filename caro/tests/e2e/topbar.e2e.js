@@ -94,7 +94,7 @@ const { boardPng } = require('../../../server/src/png.js');
   await a.mouse.click(600, 500);
   await sleep(150);
   ok(await a.evaluate(() => document.getElementById('qs').hidden), 'bấm ra ngoài: đóng Cài đặt nhanh');
-  await a.reload();
+  await a.reload({ waitUntil: 'domcontentloaded' }); // Firefox (CI) đôi khi không xong sự kiện load khi tải lại – như helpers.gotoRetry
   await sleep(800);
   // (ngôn ngữ: hồ sơ trình duyệt của kịch bản đặt lại tiếng Việt mỗi lần mở trang – helpers.js)
   ok(await a.evaluate(() => window.CaroTheme.get() === 'light' && window.CaroStyle.pieces === 'stones' && document.body.classList.contains('bg-img')), 'tải lại: giữ giao diện, quân cờ, ảnh nền');
