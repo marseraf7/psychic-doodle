@@ -346,8 +346,10 @@ async function screenRect(app, sel) {
       shot('keyboard');
       await app.fill('#chat-form input', 'Typed on Android');
       await app.click('#chat-form button');
+      // Web màn hình rộng có bong bóng chat (chat-bubbles.js): tin mới hiện ở chat head (kèm câu xem trước), không bật thông báo nhỏ
       check('gửi được tin nhắn khi bàn phím đang mở', !!(await until(() => web.evaluate(() =>
-        [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Typed on Android'))))));
+        [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Typed on Android'))
+        || [...document.querySelectorAll('.cb-head')].some((h) => (h.title || '').includes('Typed on Android'))))));
       pressBack(); // Back lần 1: ẩn bàn phím
       await sleep(600);
     }

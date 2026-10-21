@@ -72,7 +72,9 @@
     const heads = wins.filter((w) => !w.open).slice(-MAX_HEADS);
     $('.cb-heads').innerHTML = heads.map((w) => {
       const f = friend(w.id) || { id: w.id, name: '?', status: 'offline' };
-      return `<button type="button" class="cb-head" data-open="${esc(w.id)}" title="${esc(f.name)} · ${esc(status(f))}">${avatar(f, '')}
+      // Rê chuột: tên + trạng thái, có tin chưa đọc thì kèm câu xem trước (như Messenger)
+      const tip = `${f.name} · ${status(f)}` + (w.unread && w.last ? `\n${w.last}` : '');
+      return `<button type="button" class="cb-head" data-open="${esc(w.id)}" title="${esc(tip)}">${avatar(f, '')}
         ${w.unread ? `<i class="count">${w.unread > 99 ? '99+' : w.unread}</i>` : ''}<span class="cb-x" data-close="${esc(w.id)}" aria-label="${esc(T('cb_close'))}">×</span></button>`;
     }).join('');
   }
@@ -197,6 +199,7 @@
       N.send({ t: 'dmHistory', peer: m.peer });
     } else if (!w.loading && !w.msgs.some((x) => x.id === m.msg.id)) w.msgs.push(m.msg);
     if (mine) { w.stick = true; draw(); return; }
+    w.last = m.msg.text.length > 80 ? m.msg.text.slice(0, 80) + '…' : m.msg.text;
     if (w.open && document.activeElement && root.contains(document.activeElement)) markRead(w);
     else w.unread++;
     w.stick = w.open;

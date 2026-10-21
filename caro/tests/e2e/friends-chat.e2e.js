@@ -102,6 +102,7 @@ const { setup } = require('./helpers');
   ok(await until(a, () => /Chào bạn!/.test(document.querySelector('.cb-win .cb-msgs').textContent)), 'tin mình gửi hiện trong cửa sổ');
   ok(await until(b, () => { const h = document.querySelector('.cb-head .count'); return !!h && h.textContent === '1'; }), 'bên nhận: chat head có số 1 tin');
   ok(await b.evaluate(() => ![...document.querySelectorAll('.toast')].some((x) => /Chào bạn!/.test(x.textContent))), 'bên nhận: không bật thêm thông báo nhỏ trùng');
+  ok(await b.evaluate(() => /Chào bạn!/.test(document.querySelector('.cb-head').title)), 'chat head: rê chuột thấy câu xem trước tin mới');
   await b.click('.cb-head');
   ok(await until(b, () => /Chào bạn!/.test((document.querySelector('.cb-win .cb-msgs') || {}).textContent || '')), 'bấm chat head: mở cửa sổ có tin nhắn');
   await b.fill('.cb-win input', 'Chào!');
