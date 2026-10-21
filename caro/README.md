@@ -1,6 +1,6 @@
-# Cờ Caro
+# Caro x Gomoku
 
-Game cờ caro chạy trên web, chơi mượt trên cả điện thoại lẫn máy tính.
+Game cờ caro (Caro x Gomoku) chạy trên web, chơi mượt trên cả điện thoại lẫn máy tính.
 
 - **Bàn cờ vô hạn**: kéo để di chuyển, chụm 2 ngón / cuộn chuột để phóng to thu nhỏ.
 - **4 luật chơi** (chọn ở "Ván mới", Cài đặt, khi tạo phòng / thách đấu / tạo giải):
@@ -385,6 +385,16 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   nơi tài khoản đang đăng nhập như Google / Telegram – app hay trình duyệt, hệ điều hành, đời máy, IP, đăng nhập lúc nào,
   hoạt động lần cuối / đang trực tuyến; đăng xuất từng thiết bị hoặc mọi thiết bị khác (thiết bị đó về làm khách ngay).
   Đổi mật khẩu cũng đăng xuất ngay các thiết bị khác đang mở.
+- **Thanh trên** (`topbar.js`, `topbar.css`, như Lichess): ô **tìm kỳ thủ** có gợi ý khi gõ (`player-search.js`; dùng chung cho
+  ô kết bạn – gợi ý `@tennguoichoi`), **Đăng nhập / Đăng ký** khi là khách hoặc ảnh + tên khi đã đăng nhập, **bánh răng Cài đặt
+  nhanh** (`quick-settings.js`): Ngôn ngữ, Âm thanh, Giao diện, Bàn cờ, Quân cờ, Ảnh nền, Tất cả cài đặt; cuối bảng **Ping**
+  (thời gian tin đi – về máy chủ) và **Máy chủ** (độ trễ xử lý trên máy chủ). Lựa chọn lấy từ chính trang Cài đặt và đổi qua
+  `CaroApp.setSetting` nên giống hệt đổi trong Cài đặt. Màn hình rộng: cuối menu trên cùng; điện thoại: đầu Trang chủ.
+- **Số kỳ thủ online / số ván đang đấu** (`online-count.js`) ở góc phải dưới Trang chủ: số thật máy chủ đếm, gửi kèm pong.
+- **Ảnh nền** (`backdrop.js`, `img/backdrop.webp` 1000×1000, 64 KB): bật / tắt trong Cài đặt → Giao diện hoặc Cài đặt nhanh,
+  mặc định tắt, phủ lớp màu nền cho chữ dễ đọc; bàn cờ không có ảnh nền.
+- **Ảnh đại diện** (`avatar.js`): thẻ tài khoản → Đổi ảnh đại diện. Ảnh được cắt vuông, thu nhỏ 128×128 và nén WebP (không
+  hỗ trợ thì JPEG) ngay trên máy, tối đa 10 KB; hiện ở thẻ tài khoản, thanh trên, hồ sơ, bạn bè, gợi ý tìm kiếm.
 - Các hộp thoại cũ (Online, Giải đố, Học chơi, Cài đặt) được `CaroShell.proxy()` chuyển thành trang: mã cũ vẫn gọi
   `showModal()` / `close()` như trước.
 - **Phông Noto Sans** (giống Lichess), lưu trong `fonts/`, không tải từ dịch vụ ngoài; đủ dấu tiếng Việt và chữ Nga,
@@ -419,6 +429,7 @@ node caro/tests/e2e/batchd.e2e.js        # huỷ ván, nước đầu, đi lại
 node caro/tests/e2e/boat-rapfi.e2e.js    # BOAT chạy Rapfi ở 3 luật + Rapfi-CARO ở luật Việt Nam, mạng lấy từ bộ nhớ đệm, trang giấy phép (RAPFI_NETS=<thư mục mạng> nếu không ra được Internet)
 node caro/tests/e2e/localhist.e2e.js     # Lịch sử đấu trên máy (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, phân tích lưu kèm, Cài đặt), Thiết bị
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
+node caro/tests/e2e/topbar.e2e.js        # thanh trên: tìm kỳ thủ, Đăng nhập / Đăng ký, Cài đặt nhanh + ping, số kỳ thủ / ván, ảnh nền, ảnh đại diện
 node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện thoại (360/390/430 px), iPad dọc/ngang (768/820/1024/1180 px), xoay màn hình, 4 ngôn ngữ
 ```
 

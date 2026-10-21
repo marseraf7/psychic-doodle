@@ -16,7 +16,7 @@ class Social {
     const u = this.store.users.get(uid);
     const card = (id) => {
       const f = this.store.users.get(id);
-      return f && { id: f.id, username: f.username, name: f.name, status: this.status(f.id), rating: f.rating };
+      return f && { id: f.id, username: f.username, name: f.name, status: this.status(f.id), rating: f.rating, av: f.avatar ? f.avatar.v : 0 };
     };
     const unread = this.store.unread(uid);
     return {

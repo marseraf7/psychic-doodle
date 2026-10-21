@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="setup.css">
   <link rel="stylesheet" href="game.css">
   <link rel="stylesheet" href="pages.css">
+  <link rel="stylesheet" href="topbar.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="theme.js"></script>
   <script src="boardstyle.js"></script>
@@ -32,6 +33,7 @@
     <symbol id="i-center" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
     <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><path d="M19.13 10.03 L21.47 10.45 L21.47 13.55 L19.13 13.97 L18.44 15.65 L19.79 17.60 L17.60 19.79 L15.65 18.44 L13.97 19.13 L13.55 21.47 L10.45 21.47 L10.03 19.13 L8.35 18.44 L6.40 19.79 L4.21 17.60 L5.56 15.65 L4.87 13.97 L2.53 13.55 L2.53 10.45 L4.87 10.03 L5.56 8.35 L4.21 6.40 L6.40 4.21 L8.35 5.56 L10.03 4.87 L10.45 2.53 L13.55 2.53 L13.97 4.87 L15.65 5.56 L17.60 4.21 L19.79 6.40 L18.44 8.35Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></symbol>
     <symbol id="i-draw" viewBox="0 0 24 24"><text x="12" y="19" text-anchor="middle" font-size="21" font-weight="700" fill="currentColor" stroke="none">½</text></symbol>
     <symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5"/></symbol>
@@ -182,6 +184,14 @@
       <button type="button" data-tab="learn"><svg class="ico" aria-hidden="true"><use href="#i-cap"/></svg><span data-i18n="tab_learn"></span></button>
       <button type="button" data-tab="watch" class="online-need"><svg class="ico" aria-hidden="true"><use href="#i-tv"/></svg><span data-i18n="tab_watch"></span></button>
       <button type="button" data-tab="more"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg><span data-i18n="tab_more"></span></button>
+      <!-- Thanh trên (topbar.js): tìm kỳ thủ, Đăng nhập / Đăng ký hoặc ảnh đại diện, Cài đặt nhanh (quick-settings.js).
+           Màn hình rộng nằm ở đây; điện thoại được chuyển lên đầu Trang chủ. -->
+      <div class="tb-tools" id="tb-tools">
+        <div class="tb-search online-need"><input type="search" id="tb-search" data-i18n-ph="ps_placeholder" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="30"><button type="button" class="tb-ic" id="tb-search-btn" data-i18n-aria="ps_placeholder"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg></button></div>
+        <span class="tb-auth online-need" id="tb-auth"></span>
+        <button type="button" class="tb-ic" id="tb-gear" aria-haspopup="true" aria-expanded="false" data-i18n-aria="settings"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg></button>
+        <div class="qs" id="qs" hidden></div>
+      </div>
     </nav>
 
     <section class="page" id="page-home" data-page="home" hidden>
@@ -284,6 +294,8 @@
         </div>
         <!-- Cuối Trang chủ: mục đích của trang (chữ tiếng Anh có sẵn trong HTML cho máy quét của Google – xác minh OAuth),
              đơn vị làm game, chính sách riêng tư -->
+        <!-- Góc phải dưới: số kỳ thủ online, số ván đang đấu – số thật (online-count.js) -->
+        <p class="online-count" id="online-count" hidden></p>
         <footer class="home-foot">
           <p class="home-about" data-i18n="home_about">Caro x Gomoku is a free, ad-free website and app for playing Caro (Vietnamese five-in-a-row) and Gomoku: play friends or matched opponents online, play against computer characters, analyse your games, solve puzzles and learn openings. Google Sign-In is used only to create and sign in to your player account.</p>
           <p class="home-credit" data-i18n="home_credit">Một sản phẩm của Chi đoàn Đại học Tổng hợp Bộ Nội vụ Liên bang Nga</p>
@@ -445,6 +457,9 @@
         <label class="li"><span class="li-t"><span data-i18n="theme_dark"></span></span><input type="radio" name="theme" value="dark"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><span class="li-t"><span data-i18n="theme_light"></span></span><input type="radio" name="theme" value="light"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><span class="li-t"><span data-i18n="theme_system"></span></span><input type="radio" name="theme" value="system"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="qs_bg"></span></span><input type="checkbox" class="tog" name="bg"></label>
       </div>
       <h3 class="list-h" data-i18n="set_look_board"></h3>
       <div class="list">
@@ -950,6 +965,7 @@
   <script src="i18n-devices.js"></script>
   <script src="i18n-live.js"></script>
   <script src="i18n-attention.js"></script>
+  <script src="i18n-topbar.js"></script>
   <script src="timectl.js"></script>
   <script src="local-clock.js"></script>
   <script src="tc-picker.js"></script>
@@ -992,6 +1008,7 @@
   <script src="online-friends.js"></script>
   <script src="online-room.js"></script>
   <script src="online.js"></script>
+  <script src="avatar.js"></script>
   <script src="social.js"></script>
   <script src="local-games.js"></script>
   <script src="history.js"></script>
@@ -1030,5 +1047,10 @@
   <script src="settings-ui.js"></script>
   <script src="more.js"></script>
   <script src="home.js"></script>
+  <script src="backdrop.js"></script>
+  <script src="player-search.js"></script>
+  <script src="quick-settings.js"></script>
+  <script src="topbar.js"></script>
+  <script src="online-count.js"></script>
 </body>
 </html>

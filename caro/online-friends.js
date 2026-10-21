@@ -28,14 +28,14 @@
         const h = p.h2h && p.h2h.wins + p.h2h.losses + p.h2h.draws
           ? ` · <span title="${esc(T('h2h_title'))}">${p.h2h.wins}–${p.h2h.losses}–${p.h2h.draws}</span>` : '';
         return `
-        <li><span class="st ${p.status}" title="${esc(statusText(p.status))}"></span>
+        <li><span class="av-st">${window.CaroAvatar.html(p, 'sm')}<span class="st ${p.status}" title="${esc(statusText(p.status))}"></span></span>
           <div class="pn"><b><a href="#" class="plink" data-profile="${esc(p.id)}">${esc(p.name)}</a>${p.rating ? ` <span class="rating">${esc(String(p.rating))}</span>` : ''}</b><small>@${esc(p.username)} · ${esc(statusText(p.status))}${h}</small></div>${extra}</li>`;
       };
       const onlineCount = f.friends.filter((p) => p.status !== 'offline').length;
       el.innerHTML = `
         <h3>${esc(T('friends'))} <small>${esc(T('friends_online', { on: onlineCount, all: f.friends.length }))}</small></h3>
         <form class="row" id="add-friend">
-          <input name="u" placeholder="${esc(T('friend_username_ph'))}" autocapitalize="none" spellcheck="false" maxlength="21" required>
+          <input name="u" placeholder="${esc(T('friend_username_ph'))}" autocapitalize="none" autocomplete="off" spellcheck="false" maxlength="21" required>
           <button class="primary">${esc(T('add_friend'))}</button>
         </form>
         ${f.incoming.length ? `<h4>${esc(T('friend_requests'))}</h4><ul class="people">${f.incoming.map((p) => person(p,
@@ -46,6 +46,8 @@
            <button type="button" class="ghost sm icon" data-remove="${esc(p.id)}" title="${esc(T('unfriend'))}">✕</button>`)).join('') ||
           `<li class="empty">${esc(T('no_friends'))}</li>`}</ul>
         ${f.outgoing.length ? `<p class="hint">${esc(T('pending_friends', { names: f.outgoing.map((p) => p.name).join(', ') }))}</p>` : ''}`;
+      // Gõ tên: gợi ý kỳ thủ (player-search.js), chọn thì điền @tên đăng nhập
+      window.CaroPlayerSearch.attach($('add-friend').u, { onPick: (u) => { $('add-friend').u.value = '@' + u.username; } });
       $('add-friend').onsubmit = (e) => {
         e.preventDefault();
         const u = e.target.u.value.trim();

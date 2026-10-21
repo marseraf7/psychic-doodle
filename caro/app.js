@@ -406,7 +406,7 @@
   });
 
   // ------------------------------------------------------------ Ván mới & Cài đặt (app-dialogs.js)
-  const { openNewGame } = window.CaroAppDialogs({ state, botAllowed, newGame, toBoard, save, updateUI, requestDraw, resetClock, maybeAI });
+  const { openNewGame, setSetting } = window.CaroAppDialogs({ state, botAllowed, newGame, toBoard, save, updateUI, requestDraw, resetClock, maybeAI });
 
   $('btn-undo').onclick = undo;
   $('btn-center').onclick = centerView;
@@ -459,6 +459,8 @@
     },
     /** Mở bảng "Ván mới" (chọn chế độ, đối thủ, luật, thời gian). */
     openNewGame,
+    /** Đổi một mục Cài đặt (sound, soundStyle, theme, board, pieces, lang…) như khi đổi trong bảng Cài đặt. */
+    setSetting,
     /** Ván cục bộ hiện tại (Trang chủ hiện thẻ "Tiếp tục ván"): { mode, bot, rule, moves, winner }. */
     get local() { return { mode: state.mode, bot: state.bot, rule: state.rule, moves: state.board.moves.length, winner: state.winner }; },
     /** Về bàn cờ (đóng các trang). */

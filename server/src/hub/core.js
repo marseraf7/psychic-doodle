@@ -178,7 +178,7 @@ class Hub {
     if (!uid) return { id: pid, name: this.nameOf(pid), guest: true, playban: this.playbanLeft(pid) };
     const u = this.store.users.get(uid);
     return {
-      id: pid, uid, name: u.name, username: u.username, guest: false, google: !!u.google, hasPassword: !!u.pass,
+      id: pid, uid, name: u.name, username: u.username, av: u.avatar ? u.avatar.v : 0, guest: false, google: !!u.google, hasPassword: !!u.pass,
       stats: u.stats, rating: u.rating, rated: u.rated, email: u.email,
       pools: Object.fromEntries(R.POOLS.map((p) => [p, R.ratingIn(u, p)])), streak: u.wstreak, tours: u.tours,
       pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',

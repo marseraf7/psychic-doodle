@@ -88,7 +88,7 @@ async function playWin(winner, loser, row = 0) {
 test('ping của máy khách: trả lời pong ngay (để máy khách phát hiện kết nối chết lặng)', async () => {
   const a = await Client.open({ guestName: 'Ping' });
   const pong = await a.req({ t: 'ping' }, 'pong');
-  assert.deepStrictEqual(pong, { t: 'pong' });
+  assert.deepStrictEqual(Object.keys(pong).sort(), ['games', 'lag', 'players', 't']); // kèm số liệu sảnh (lobby.test.js)
   // Lệnh lạ: báo kèm tên lệnh (ctx) để máy khách biết lỗi thuộc lệnh nào
   const err = await a.req({ t: 'noSuchCommand' }, 'error');
   assert.strictEqual(err.code, 'unsupported');

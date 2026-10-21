@@ -136,7 +136,7 @@
     if (p.canHistory) actions.push(`<button type="button" class="ghost sm" data-hist>${esc(T('hist_open'))}</button>`);
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
     $('profile-body').innerHTML = `
-      <div class="who pf-who"><span class="avatar">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</span>
+      <div class="who pf-who">${window.CaroAvatar.html(p)}
         <div><b>${esc(p.name)}</b><small><span class="st ${p.status}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
         <div class="row pf-act">${actions.join('')}</div></div>
       <div class="pf-pools">${pools}</div>

@@ -1,4 +1,4 @@
-# Máy chủ Cờ Caro online
+# Máy chủ Caro x Gomoku online
 
 Một tiến trình Node.js duy nhất vừa phục vụ giao diện game (thư mục `caro/`) vừa xử lý
 chơi online qua WebSocket (`/ws`):
@@ -25,6 +25,14 @@ chơi online qua WebSocket (`/ws`):
   các ván sau tự đổi bên, ai thắng trước 1/2/3 ván thắng chung cuộc.
 - **Tài khoản**: đăng ký tên đăng nhập + mật khẩu (mã hoá scrypt), hoặc đăng nhập /
   liên kết **Google**. Không có tài khoản vẫn chơi phòng được với tư cách khách.
+- **Tìm kỳ thủ** (`userSearch`): gợi ý theo đầu tên đăng nhập / tên hiển thị (≥ 2 ký tự, tối đa 8 người, người online trước;
+  người đã chặn mình không hiện); mỗi kết nối tối đa 5 lần / giây, gọi dồn thì lặng lẽ bỏ qua.
+- **Ping kèm số liệu sảnh**: pong trả độ trễ vòng lặp sự kiện của máy chủ (`lag`, ms), số người đang kết nối (`players`, mỗi
+  người một lần dù mở nhiều tab) và số ván đang đấu (`games`) – số thật, đếm lại tối đa 5 giây một lần.
+- **Ảnh đại diện** (`avatarSet` / `avatarClear`, `src/avatar.js`, `src/hub/avatar.js`): chỉ nhận WebP / JPEG / PNG nhận ra bằng
+  byte đầu file, ≤ 10 KB, cạnh ≤ 256 px (đọc trong phần đầu ảnh – chặn "bom giải nén"); máy chủ không giải mã ảnh. Lưu ở bảng
+  `avatars`, phục vụ qua `/api/avatar/<id>?v=<phiên bản>` (đúng loại ảnh, `nosniff`, CSP `default-src 'none'; sandbox`,
+  giữ lâu theo phiên bản); tối đa 10 lần đổi / 10 phút; xoá tài khoản thì xoá ảnh.
 - **Bạn bè & trạng thái**: kết bạn bằng tên đăng nhập (hoặc ngay trong phòng),
   xem bạn bè Online / Đang chơi / Offline theo thời gian thực.
 - **Trong ván**: xin hoà (đối thủ đồng ý / từ chối, đánh tiếp coi như từ chối), chat nhanh bằng
@@ -135,13 +143,13 @@ npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu d
 ```
 
 Mã máy chủ: `server.js` (WebSocket), `src/web.js` (HTTP: file tĩnh, ảnh xem trước, thẻ og, API công khai),
-`src/png.js` (vẽ ảnh PNG), `src/store.js` (SQLite; bảng + câu lệnh SQL ở `src/store-schema.js`; phiên đăng nhập + thông tin thiết bị ở `src/store-sessions.js`), `src/useragent.js` (đọc User-Agent cho mục Thiết bị), `src/room.js` (một phòng chơi; đồng hồ ở
+`src/png.js` (vẽ ảnh PNG), `src/avatar.js` (kiểm + lưu ảnh đại diện), `src/store.js` (SQLite; bảng + câu lệnh SQL ở `src/store-schema.js`; phiên đăng nhập + thông tin thiết bị ở `src/store-sessions.js`), `src/useragent.js` (đọc User-Agent cho mục Thiết bị), `src/room.js` (một phòng chơi; đồng hồ ở
 `src/room-clock.js`, luật Swap2 ở `src/room-swap2.js`, huỷ ván / thêm giờ / đi lại / Berserk ở `src/room-extras.js`),
 `src/rating.js` (Glicko-2), `src/perf.js` (thống kê sâu, hoạt động), `src/moderation.js` (kiểm duyệt nội dung),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `devices.js` (Thiết bị: tài khoản đang đăng nhập ở đâu, đăng xuất từ xa), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),
 `rooms.js` (phòng, ván đấu, điểm), `challenges.js` (thách đấu bạn bè, xin hoà, chat nhanh), `matchmaking.js` (tìm trận nhanh, phòng công khai),
-`watch.js` (xem trực tiếp, danh sách ván hay), `playban.js` (chống bỏ ván), `disputes.js` (ván giải đấu mất kết nối), `api.js` (số liệu quản trị, API công khai),
+`watch.js` (xem trực tiếp, danh sách ván hay), `lobby.js` (ping + số liệu sảnh, tìm kỳ thủ), `avatar.js` (ảnh đại diện), `playban.js` (chống bỏ ván), `disputes.js` (ván giải đấu mất kết nối), `api.js` (số liệu quản trị, API công khai),
 `clubs.js` (câu lạc bộ), `tournaments.js` (giải đấu – phần chung: tạo, đăng ký, xem), `tour-run.js` (ban tổ chức, nhịp chạy, phòng cho ván của giải, kết thúc giải),
 `arena.js` (giải Arena), `bracket.js` (giải theo giai đoạn: mở trận, ghi kết quả, chuyển giai đoạn),
 `stages.js` (logic thuần các thể thức; phần loại trực tiếp / nhánh thắng – thua ở `stages-elim.js`, vòng tròn / Thụy Sĩ / bảng điểm ở `stages-groups.js`, hằng số chung ở `stages-base.js`),
