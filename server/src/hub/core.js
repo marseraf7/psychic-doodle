@@ -232,6 +232,10 @@ class Hub {
 
   /** Khách đang ở trong phòng mà đăng nhập: giữ chỗ trong phòng cho tài khoản. */
   migrate(oldPid, newPid) {
+    // C2: chỉ cho "khách đăng nhập giữ chỗ". Đổi giữa hai tài khoản thì KHÔNG
+    // chuyển ghế — ghế vẫn của tài khoản cũ, và tài khoản cũ chịu luật offline
+    // (loginConn gọi wentOffline ngay sau đó, như ngắt mạng thật).
+    if (!oldPid || uidOf(oldPid)) return;
     const code = this.roomOf.get(oldPid);
     if (!code || this.roomOf.has(newPid)) return;
     const room = this.rooms.get(code);
