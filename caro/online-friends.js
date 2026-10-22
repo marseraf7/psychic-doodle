@@ -15,6 +15,18 @@
 
     const statusText = (st) => T('st_' + st);
 
+    // Gõ tên vào ô kết bạn: gợi ý kỳ thủ (player-search.js), chọn thì điền @tên đăng nhập. Tin bạn bè có thể tới trước khi
+    // player-search.js chạy (trình duyệt xử lý tin WebSocket trong lúc chờ tải các thẻ <script> phía sau) → gắn khi trang nạp xong.
+    let searchWait = false;
+    function attachSearch() {
+      const form = $('add-friend');
+      if (!form) return;
+      if (window.CaroPlayerSearch) { window.CaroPlayerSearch.attach(form.u, { onPick: (u) => { $('add-friend').u.value = '@' + u.username; } }); return; }
+      if (searchWait) return; // đã hẹn: lúc đó gắn vào ô đang có (ô vẽ lại sau cùng)
+      searchWait = true;
+      window.addEventListener('DOMContentLoaded', () => { searchWait = false; attachSearch(); }, { once: true });
+    }
+
     function renderFriends() {
       const el = $('friends');
       // M-F6: render chạy mỗi khi có tin bạn bè/hiện diện mới — giữ lại nội dung đang gõ
@@ -51,8 +63,7 @@
            <button type="button" class="ghost sm icon" data-remove="${esc(p.id)}" title="${esc(T('unfriend'))}">✕</button>`)).join('') ||
           `<li class="empty">${esc(T('no_friends'))}</li>`}</ul>
         ${f.outgoing.length ? `<p class="hint">${esc(T('pending_friends', { names: f.outgoing.map((p) => p.name).join(', ') }))}</p>` : ''}`;
-      // Gõ tên: gợi ý kỳ thủ (player-search.js), chọn thì điền @tên đăng nhập
-      window.CaroPlayerSearch.attach($('add-friend').u, { onPick: (u) => { $('add-friend').u.value = '@' + u.username; } });
+      attachSearch();
       // M-F6: khôi phục bản nháp ô thêm bạn đã lưu ở đầu hàm (nếu có)
       if (draft && draft.v) {
         const inp = $('add-friend').u;

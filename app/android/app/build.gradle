@@ -7,8 +7,14 @@ android {
         applicationId "io.github.marseraf7.caro"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        // Mỗi bản phát hành lên Google Play cần versionCode lớn hơn bản trước (CI đặt CARO_VERSION_CODE)
-        versionCode((System.getenv('CARO_VERSION_CODE') ?: '1') as int)
+        // Mỗi bản phát hành lên Google Play cần versionCode lớn hơn bản trước.
+        // H-A3: trên CI lấy run_number * 100 + run_attempt từ chính biến môi trường của
+        // GitHub Actions — chạy lại (re-run) một lượt CI không tăng run_number (chỉ tăng
+        // run_attempt) nên nếu chỉ dùng run_number như trước, bản dựng lại sẽ trùng
+        // versionCode đã lên Play. Ngoài CI (dựng tay) dùng CARO_VERSION_CODE, mặc định 1.
+        versionCode((System.getenv('GITHUB_RUN_NUMBER')
+            ? (System.getenv('GITHUB_RUN_NUMBER') as int) * 100 + ((System.getenv('GITHUB_RUN_ATTEMPT') ?: '1') as int)
+            : (System.getenv('CARO_VERSION_CODE') ?: '1')) as int)
         versionName new groovy.json.JsonSlurper().parse(file('../../package.json')).version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

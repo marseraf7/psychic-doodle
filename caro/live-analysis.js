@@ -24,7 +24,7 @@
   function getWorker() {
     if (worker || failed) return worker;
     try {
-      if (!window.Worker || !location.protocol.startsWith('http')) throw new Error('no worker');
+      if (!window.Worker || location.protocol === 'file:') throw new Error('no worker'); // cả capacitor:// của app iOS (M-A4)
       worker = new Worker('ai-worker.js');
       worker.onmessage = onResult;
       worker.onerror = () => { failed = true; worker = null; inflight = null; };
