@@ -204,7 +204,8 @@
       const onMsg = (e) => {
         if (e.data.id !== id) return;
         aiWorker.removeEventListener('message', onMsg);
-        resolve(e.data.move);
+        // C3: Worker báo lỗi (vd. ván trải quá rộng) → null để maybeAI thôi chờ, thay vì treo "đang nghĩ" mãi
+        resolve(e.data.error ? null : e.data.move);
       };
       aiWorker.addEventListener('message', onMsg);
       aiWorker.postMessage({ id, moves, p, bot, rule: state.board.rule });
@@ -217,7 +218,9 @@
     updateUI();
     const started = performance.now();
     const board = state.board, count = board.moves.length;
-    askAI(state.turn, state.bot).then(([x, y]) => {
+    askAI(state.turn, state.bot).then((mv) => {
+      if (!mv) { state.thinking = false; updateUI(); return; } // C3: máy không tính được (Worker báo lỗi) — nhả lượt chờ, đừng khoá ván
+      const [x, y] = mv;
       const wait = Math.max(0, 250 - (performance.now() - started));
       setTimeout(() => {
         // Trong lúc máy nghĩ mà người chơi đã đi lại / ván mới thì bỏ kết quả cũ.
@@ -295,7 +298,7 @@
   // ------------------------------------------------------------ Online / xem ván (app-online.js)
   const { canPlaceNow, playOnline, applyRoom, enterOnline, leaveOnline, restoreLocal, updateOnlineUI } = window.CaroAppOnline({
     state, cam, esc, glyph, ruleChip, net, sfx, placeRaw, vibrate, updateUI, requestDraw, ensureVisible, animateCamera, renderClock,
-    resetClock, showBanner, hideBanner, toBoard, save, load, maybeAI, isAITurn,
+    resetClock, showBanner, hideBanner, toBoard, save, load, maybeAI, isAITurn, toast,
     closeReplay: (silent) => closeReplay(silent), exitExt: (silent) => exitExt(silent), // tạo ở phía dưới
   });
 
@@ -514,5 +517,11 @@
   // (Trong ứng dụng điện thoại các file đã nằm sẵn trong app, không cần service worker.)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.CaroNative) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // sw.js lấy file từ bộ nhớ đệm trước: bản mới cài xong thì trang đang mở vẫn chạy bản cũ. Đang ở các trang (không giữa
+    // ván online) thì tải lại luôn để dùng bản mới; đang chơi thì để lần mở sau. Lần cài đầu (chưa có bản cũ) không tải lại.
+    const hadCtl = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadCtl && !state.online && window.CaroShell && window.CaroShell.visible) location.reload();
+    });
   }
 })();

@@ -105,6 +105,7 @@ const VI = {
   confirm_username: 'Nhập đúng tên đăng nhập của bạn để xác nhận',
   // Quản trị viên
   admin_only: 'Chỉ quản trị viên mới làm được việc này',
+  admin_cannot_delete: 'Tài khoản quản trị không tự xoá được. Hãy gỡ tên khỏi ADMIN_USERNAMES và khởi động lại máy chủ trước',
   admin_new_item: 'Có mục mới chờ duyệt: {name}',
   review_gone: 'Mục này đã được xử lý',
   // Câu lạc bộ
