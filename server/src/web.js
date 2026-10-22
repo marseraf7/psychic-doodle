@@ -188,7 +188,9 @@ function makeHandler({ store, hub }) {
     const file = path.join(STATIC_DIR, 'index.html');
     fs.stat(file, (err, st) => {
       if (err) { res.writeHead(404); return res.end(); }
-      if (!indexHtml || indexHtml.mtime !== st.mtimeMs) indexHtml = { mtime: st.mtimeMs, text: fs.readFileSync(file, 'utf8') };
+      if (!indexHtml || indexHtml.mtime !== st.mtimeMs) {
+        try { indexHtml = { mtime: st.mtimeMs, text: fs.readFileSync(file, 'utf8') }; } catch (e) { res.writeHead(503); return res.end(); } // đang cập nhật code (L-S4)
+      }
       let html = indexHtml.text;
       const g = store.gameByShare(share);
       if (g) {
@@ -267,7 +269,8 @@ function makeHandler({ store, hub }) {
         'cache-control': 'no-cache',
       });
       if (req.method === 'HEAD') return res.end();
-      fs.createReadStream(file).pipe(res);
+      // File bị thay / xoá giữa chừng (update.sh đang cập nhật code): đóng kết nối, không để lỗi luồng làm sập tiến trình (L-S4)
+      fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
     });
   };
 }
