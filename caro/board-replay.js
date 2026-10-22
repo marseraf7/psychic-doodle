@@ -54,7 +54,8 @@
       const forward = i === r.idx + 1;
       r.idx = i;
       const b = new Board(r.data.rule);
-      for (let k = 0; k < i; k++) b.play(moves[k][0], moves[k][1], k % 2 ? O : X);
+      // Ván lưu/link xem lại có thể chứa nước trùng hoặc ngoài biên: bỏ qua nước lỗi (H-E1) thay vì sập cả màn xem lại.
+      for (let k = 0; k < i; k++) { try { b.play(moves[k][0], moves[k][1], k % 2 ? O : X); } catch (e) { /* bỏ qua nước hỏng */ } }
       state.board = b;
       state.turn = i % 2 ? O : X;
       state.winner = null;

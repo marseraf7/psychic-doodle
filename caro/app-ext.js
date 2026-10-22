@@ -34,7 +34,8 @@
     /** Dựng lại bàn cờ từ danh sách nước (X đi trước). */
     function extSet(moves) {
       const b = new Board(state.ext && state.ext.rule);
-      moves.forEach(([x, y], i) => b.play(x, y, i % 2 ? O : X));
+      // Danh sách nước từ bộ điều khiển ngoài có thể trùng/hỏng: bỏ qua nước lỗi (H-E1).
+      moves.forEach(([x, y], i) => { try { b.play(x, y, i % 2 ? O : X); } catch (e) { /* bỏ qua nước hỏng */ } });
       state.board = b;
       state.turn = moves.length % 2 ? O : X;
       state.winner = null;
