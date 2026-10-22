@@ -127,4 +127,5 @@
 
   // Mở app: vào Trang chủ (trừ khi đã vào bàn cờ – link xem lại, đang trong phòng…)
   if (!App.online && !App.replay && !App.ext) open();
+  else Shell.hide(); // khung hiện sẵn từ HTML (index.html): mở thẳng vào bàn cờ thì ẩn đi
 })();

@@ -517,5 +517,11 @@
   // (Trong ứng dụng điện thoại các file đã nằm sẵn trong app, không cần service worker.)
   if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.CaroNative) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // sw.js lấy file từ bộ nhớ đệm trước: bản mới cài xong thì trang đang mở vẫn chạy bản cũ. Đang ở các trang (không giữa
+    // ván online) thì tải lại luôn để dùng bản mới; đang chơi thì để lần mở sau. Lần cài đầu (chưa có bản cũ) không tải lại.
+    const hadCtl = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadCtl && !state.online && window.CaroShell && window.CaroShell.visible) location.reload();
+    });
   }
 })();
