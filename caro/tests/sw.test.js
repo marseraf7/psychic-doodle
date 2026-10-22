@@ -1,9 +1,13 @@
-// Kiểm thử service worker (caro/sw.js) bằng Cache Storage và mạng giả — hồi quy:
-// M-F1: precache addAll "tất cả hoặc không" — 1 file phụ lỗi làm hỏng cả lượt cài, mất
-//       chế độ offline. Sau khi vá: nhóm lõi cài bằng addAll, nhóm phụ cài từng file.
-// M-F2: SW lưu mọi phản hồi GET cùng nguồn (gồm /api/replay chứa tên + nước đi) và trả
-//       thẳng lỗi HTTP dù bản lưu tốt còn đó. Sau khi vá: không lưu /api/, chỉ lưu file
-//       tĩnh, lỗi HTTP/mạng thì dùng bản đã lưu.
+// Kiểm thử service worker (caro/sw.js) bằng Cache Storage và mạng giả.
+// Ngữ cảnh: M-F1 (precache "tất cả hoặc không") và M-F2 (SW lưu cả phản hồi API) trong báo
+// cáo review đã được vá ở commit ef1acee (PR #88) bằng thiết kế mới: cài từng file
+// (allSettled, no-cache), fetch cache-first cho file game, /api/ không bao giờ lưu.
+// Bộ test này khoá hành vi đó lại để không ai vô tình quay về bản cũ:
+// - cài đặt chịu được một file lỗi mà vẫn đủ file lõi;
+// - /api/ không bị SW can thiệp hay lưu trữ;
+// - có bản lưu thì dùng ngay cả khi mạng lỗi; chưa có thì tải và lưu (trừ URL có ?tham số);
+// - mở trang kèm ?replay= khi mất mạng vẫn ra được vỏ ứng dụng (ignoreSearch).
+// Trên SW trước PR #88 (addAll + lưu mọi GET + mạng trước) cả 4 bài đều đỏ.
 // Chạy: node --test caro/tests/sw.test.js
 'use strict';
 const test = require('node:test');
@@ -13,10 +17,12 @@ const vm = require('node:vm');
 
 const ORIGIN = 'https://caro.test';
 const abs = (u) => new URL(u, ORIGIN + '/').toString();
+const stripQ = (u) => u.split('?')[0];
 
-function makeWorld({ httpErrors = new Set(), netErrors = new Set() } = {}) {
+function makeWorld() {
   const stores = new Map(); // tên cache -> Map(url -> response)
   const listeners = {};
+  const httpErrors = new Set(), netErrors = new Set();
   async function fakeFetch(input) {
     const u = typeof input === 'string' ? abs(input) : input.url;
     const path = new URL(u).pathname;
@@ -25,14 +31,14 @@ function makeWorld({ httpErrors = new Set(), netErrors = new Set() } = {}) {
     return { ok: !bad, status: bad ? 500 : 200, url: u, body: path, clone() { return { ...this }; } };
   }
   class FakeCache {
-    constructor(name) { this.name = name; if (!stores.has(name)) stores.set(name, new Map()); this.map = stores.get(name); }
-    async add(url) { const r = await fakeFetch(url); if (!r.ok) throw new Error('add failed ' + url); this.map.set(abs(url), r); }
-    async addAll(urls) {
-      const rs = await Promise.all(urls.map(async (u) => { const r = await fakeFetch(u); if (!r.ok) throw new Error('addAll failed ' + u); return [abs(u), r]; }));
-      for (const [u, r] of rs) this.map.set(u, r); // nguyên tử: chỉ ghi khi mọi file đều ổn
-    }
+    constructor(name) { if (!stores.has(name)) stores.set(name, new Map()); this.map = stores.get(name); }
     async put(req, res) { this.map.set(typeof req === 'string' ? abs(req) : req.url, res); }
-    async match(req) { return this.map.get(typeof req === 'string' ? abs(req) : req.url); }
+    async match(req, opts = {}) {
+      const u = typeof req === 'string' ? abs(req) : req.url;
+      if (this.map.has(u)) return this.map.get(u);
+      if (opts.ignoreSearch) for (const [k, v] of this.map) if (stripQ(k) === stripQ(u)) return v;
+      return undefined;
+    }
     async keys() { return [...this.map.keys()].map((u) => ({ url: u })); }
     async delete(req) { return this.map.delete(typeof req === 'string' ? abs(req) : req.url); }
   }
@@ -40,9 +46,10 @@ function makeWorld({ httpErrors = new Set(), netErrors = new Set() } = {}) {
     open: async (name) => new FakeCache(name),
     keys: async () => [...stores.keys()],
     delete: async (name) => stores.delete(name),
-    match: async (req) => { for (const c of stores.values()) { const r = c.get(typeof req === 'string' ? abs(req) : req.url); if (r) return r; } return undefined; },
+    match: async (req, opts) => { for (const name of stores.keys()) { const r = await new FakeCache(name).match(req, opts); if (r) return r; } return undefined; },
   };
-  const sandbox = { console, URL, fetch: fakeFetch, caches, location: { origin: ORIGIN } };
+  class FakeRequest { constructor(u, opts = {}) { this.url = abs(u); this.method = opts.method || 'GET'; this.mode = opts.mode || 'cors'; } }
+  const sandbox = { console, URL, fetch: fakeFetch, caches, Request: FakeRequest, location: { origin: ORIGIN } };
   sandbox.self = sandbox;
   sandbox.addEventListener = (name, fn) => { listeners[name] = fn; };
   sandbox.skipWaiting = async () => {};
@@ -50,43 +57,45 @@ function makeWorld({ httpErrors = new Set(), netErrors = new Set() } = {}) {
   vm.runInNewContext(fs.readFileSync(__dirname + '/../sw.js', 'utf8'), sandbox);
   const fire = (name, event) => { let p = null; const e = { ...event, waitUntil: (q) => { p = q; }, respondWith: (q) => { p = q; } }; listeners[name](e); return p; };
   const cacheMap = async () => stores.get((await caches.keys())[0]) || new Map();
-  return { fire, cacheMap, caches, httpErrors, netErrors };
+  return { fire, cacheMap, httpErrors, netErrors };
 }
 
-test('M-F1: một file phụ lỗi không làm hỏng lượt cài; nhóm lõi phải đủ', async () => {
-  const w = makeWorld({ httpErrors: new Set(['/img/bots/na.svg']) });
+test('SW: một file lỗi không làm hỏng lượt cài; nhóm lõi phải đủ', async () => {
+  const w = makeWorld();
+  w.httpErrors.add('/img/bots/na.svg');
   await w.fire('install', {}); // phải resolve, không reject
   const map = await w.cacheMap();
-  assert.ok(map.has(abs('index.html')), 'trang chính (lõi) đã lưu');
+  assert.ok(map.has(abs('index.html')), 'trang chính đã lưu');
   assert.ok(map.has(abs('rules.js')), 'mã lõi đã lưu');
   assert.ok(map.has(abs('img/bots/tit.svg')), 'file phụ khác vẫn lưu bình thường');
-  assert.ok(!map.has(abs('img/bots/na.svg')), 'file phụ lỗi bị bỏ qua, không kéo sập cả lượt cài');
+  assert.ok(!map.has(abs('img/bots/na.svg')), 'file lỗi bị bỏ qua, không kéo sập cả lượt cài');
 });
 
-test('M-F2: không can thiệp và không lưu phản hồi /api/', async () => {
+test('SW: không can thiệp và không lưu phản hồi /api/', async () => {
   const w = makeWorld();
   await w.fire('install', {});
-  const req = { method: 'GET', url: abs('api/replay/AbC123'), mode: 'cors' };
-  const p = w.fire('fetch', { request: req });
-  assert.strictEqual(p, null, 'SW không respondWith cho /api/ — trình duyệt tự xử lý');
+  const p = w.fire('fetch', { request: { method: 'GET', url: abs('api/replay/AbC123'), mode: 'cors' } });
+  assert.strictEqual(p, null, 'SW không respondWith cho /api/ — trình duyệt tự hỏi mạng');
   const map = await w.cacheMap();
   assert.ok(![...map.keys()].some((u) => u.includes('/api/')), 'không có mục /api/ nào trong cache');
 });
 
-test('M-F2: máy chủ trả lỗi HTTP thì dùng bản đã lưu; mạng tốt thì dùng bản mới và lưu lại', async () => {
+test('SW: có bản lưu thì dùng ngay cả khi mạng lỗi; chưa có thì tải về và lưu lại', async () => {
   const w = makeWorld();
   await w.fire('install', {});
-  w.httpErrors.add('/rules.js'); // cài xong xuôi rồi máy chủ mới bắt đầu trả lỗi
-  const bad = await w.fire('fetch', { request: { method: 'GET', url: abs('rules.js'), mode: 'cors' } });
-  assert.ok(bad && bad.ok === true && bad.body === '/rules.js', 'lỗi HTTP: trả bản đã lưu thay vì trang lỗi');
-  const good = await w.fire('fetch', { request: { method: 'GET', url: abs('sound.js'), mode: 'cors' } });
-  assert.ok(good && good.ok === true, 'mạng tốt: trả bản từ mạng');
+  w.httpErrors.add('/sound.js'); w.netErrors.add('/sound.js');
+  const hit = await w.fire('fetch', { request: { method: 'GET', url: abs('sound.js'), mode: 'cors' } });
+  assert.ok(hit && hit.ok === true && hit.body === '/sound.js', 'đã có bản lưu: trả bản lưu, không đụng mạng');
+  const fresh = await w.fire('fetch', { request: { method: 'GET', url: abs('img/bots/newbot.svg'), mode: 'cors' } });
+  assert.ok(fresh && fresh.ok === true, 'chưa có: tải từ mạng');
+  const map = await w.cacheMap();
+  assert.ok(map.has(abs('img/bots/newbot.svg')), 'vừa tải xong đã được lưu cho lần sau');
 });
 
-test('M-F1/M-F2: mất mạng khi mở trang vẫn có vỏ ứng dụng đã lưu', async () => {
+test('SW: mở trang kèm ?replay= khi mất mạng vẫn có vỏ ứng dụng đã lưu', async () => {
   const w = makeWorld();
   await w.fire('install', {});
-  w.netErrors.add('/'); // đã cài xong rồi mới mất mạng
-  const res = await w.fire('fetch', { request: { method: 'GET', url: abs(''), mode: 'navigate' } });
-  assert.ok(res && res.ok === true && res.body === '/index.html', 'điều hướng mất mạng: dùng index.html đã lưu');
+  w.netErrors.add('/');
+  const res = await w.fire('fetch', { request: { method: 'GET', url: abs('?replay=AbC123'), mode: 'navigate' } });
+  assert.ok(res && res.ok === true, 'điều hướng mất mạng: dùng bản index đã lưu (ignoreSearch)');
 });

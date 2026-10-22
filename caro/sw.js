@@ -1,55 +1,23 @@
 // Lưu toàn bộ game vào bộ nhớ đệm để chơi được cả khi mất mạng.
 const CACHE = 'caro-v97';
-// M-F1: tách danh sách tải sẵn làm hai nhóm. Nhóm lõi (trang + mã + kiểu) cài bằng addAll —
-// thiếu một file là bản dựng hỏng thật nên cài đặt phải hỏng theo. Nhóm phụ (ảnh nhân vật,
-// phông chữ, dữ liệu puzzles, trang tĩnh phụ) cài từng file: một file lỗi (đổi tên, mạng
-// chớp) KHÔNG được phép làm hỏng cả lượt cài như trước (addAll cũ: 1 file 404 = mất offline).
-const CORE = [
-  './', 'index.html', 'style.css', 'style-online.css', 'style-tour.css', 'style-study.css',
-  'style-extras.css', 'shell.css', 'setup.css', 'game.css', 'pages.css', 'topbar.css',
-  'chat-bubbles.css', 'corners.js', 'config.js', 'theme.js', 'boardstyle.js', 'i18n.js',
-  'i18n-online.js', 'i18n-play.js', 'i18n-account.js', 'i18n-social.js', 'i18n-tour.js', 'i18n-tour-stages.js',
-  'i18n-club.js', 'i18n-study.js', 'i18n-puzzles.js', 'i18n-bots-old.js', 'i18n-learn.js', 'i18n-rules.js',
-  'i18n-bots.js', 'i18n-bots-uni.js', 'i18n-demos.js', 'i18n-shell.js', 'i18n-tc.js', 'i18n-history.js',
-  'i18n-local.js', 'i18n-devices.js', 'i18n-live.js', 'i18n-attention.js', 'i18n-topbar.js', 'i18n-chat.js',
-  'timectl.js', 'local-clock.js', 'tc-picker.js', 'sound.js', 'rules.js', 'rules-ai.js',
-  'book-data.js', 'book.js', 'bots.js', 'bot-looks.js', 'bot-picker.js', 'player-strips.js',
-  'policy-data.js', 'engine-patterns.js', 'engine-position.js', 'engine-renju.js', 'engine-eval.js', 'engine-moves.js',
-  'engine-search.js', 'engine-vct.js', 'engine.js', 'analysis.js', 'ai-worker.js', 'board-view.js',
-  'board-replay.js', 'board-input.js', 'app-clock.js', 'app-online.js', 'app-dialogs.js', 'app-ext.js',
-  'app.js', 'shell.js', 'online-auth.js', 'online-friends.js', 'online-room.js', 'online.js',
-  'avatar.js', 'social.js', 'local-games.js', 'history.js', 'local-history.js', 'devices.js',
-  'match.js', 'gamex.js', 'tour-patch.js', 'tour.js', 'tour-stages.js', 'tour-form.js',
-  'tour-groups.js', 'tour-disputes.js', 'club.js', 'tour-admin.js', 'an-pool.js', 'study-trainer.js',
-  'puzzles.js', 'study.js', 'live-analysis.js', 'attention.js', 'storm.js', 'share.js',
-  'swap.js', 'watch.js', 'profile.js', 'learn-demos.js', 'learn-board.js', 'learn-practice.js',
-  'learn.js', 'puzzle-home.js', 'habits.js', 'local-save.js', 'settings-ui.js', 'more.js',
-  'home.js', 'backdrop.js', 'player-search.js', 'quick-settings.js', 'topbar.js', 'online-count.js',
-  'presence.js', 'chat-bubbles.js', 'native.js', 'icon.svg', 'caro-rapfi-nets-*', 'i18n-rapfi.js',
-  'rapfi-board.js', 'rapfi-ponder.js', 'boat-rapfi.js', 'eval-key.js', 'eval-cloud.js', 'rapfi-analysis.js',
-  'rapfi-settings.js', 'rapfi-load.js', 'manifest.webmanifest',
-];
-// Ảnh đại diện nhân vật máy (bot-looks.js) – đổi ảnh thì sửa danh sách này; cộng phông chữ,
-// ảnh nền, dữ liệu puzzles và các trang tĩnh phụ.
-const OPTIONAL = [
-  'img/backdrop.webp', 'puzzles.json', 'privacy.html', 'privacy.js', 'img/bots/tit.svg', 'img/bots/na.svg',
-  'img/bots/mo.svg', 'img/bots/bom.svg', 'img/bots/ti.svg', 'img/bots/nam.svg', 'img/bots/lan.svg', 'img/bots/cuoi.svg',
-  'img/bots/hung.svg', 'img/bots/tuong.svg', 'img/bots/song.svg', 'img/bots/bin.svg', 'img/bots/loc.svg', 'img/bots/da.svg',
-  'img/bots/mai.svg', 'img/bots/cao.svg', 'img/bots/minh.svg', 'img/bots/thanh.svg', 'img/bots/kep.svg', 'img/bots/ninja.svg',
-  'img/bots/rong.svg', 'img/bots/phao.svg', 'img/bots/long.svg', 'img/bots/ao.svg', 'img/bots/trinh.svg', 'img/bots/teliet.svg',
-  'img/bots/fifa.svg', 'img/bots/sach.svg', 'img/bots/liems.svg', 'img/bots/goat.svg', 'img/bots/boat.svg', 'licenses.html',
-  'fonts/noto-sans-latin-wght-normal.woff2', 'fonts/noto-sans-vietnamese-wght-normal.woff2', 'fonts/noto-sans-cyrillic-wght-normal.woff2',
-];
+const FILES = ['./', 'index.html', 'style.css', 'style-online.css', 'style-tour.css', 'style-study.css', 'style-extras.css', 'shell.css', 'setup.css', 'game.css', 'pages.css', 'topbar.css', 'chat-bubbles.css', 'corners.js', 'config.js', 'theme.js', 'boardstyle.js', 'i18n.js', 'i18n-online.js', 'i18n-play.js', 'i18n-account.js', 'i18n-social.js', 'i18n-tour.js', 'i18n-tour-stages.js', 'i18n-club.js', 'i18n-study.js', 'i18n-puzzles.js', 'i18n-bots-old.js', 'i18n-learn.js', 'i18n-rules.js', 'i18n-bots.js', 'i18n-bots-uni.js', 'i18n-demos.js', 'i18n-shell.js', 'i18n-tc.js', 'i18n-history.js', 'i18n-local.js', 'i18n-devices.js', 'i18n-live.js', 'i18n-attention.js', 'i18n-topbar.js', 'i18n-chat.js', 'timectl.js', 'local-clock.js', 'tc-picker.js', 'sound.js', 'rules.js', 'rules-ai.js', 'book-data.js', 'book.js', 'bots.js', 'bot-looks.js', 'bot-picker.js', 'player-strips.js', 'policy-data.js', 'engine-patterns.js', 'engine-position.js', 'engine-renju.js', 'engine-eval.js', 'engine-moves.js', 'engine-search.js', 'engine-vct.js', 'engine.js', 'analysis.js', 'ai-worker.js', 'board-view.js', 'board-replay.js', 'board-input.js', 'app-clock.js', 'app-online.js', 'app-dialogs.js', 'app-ext.js', 'app.js', 'shell.js', 'online-auth.js', 'online-friends.js', 'online-room.js', 'online.js', 'avatar.js', 'social.js', 'local-games.js', 'history.js', 'local-history.js', 'devices.js', 'match.js', 'gamex.js', 'tour-patch.js', 'tour.js', 'tour-stages.js', 'tour-form.js', 'tour-groups.js', 'tour-disputes.js', 'club.js', 'tour-admin.js', 'an-pool.js', 'study-trainer.js', 'puzzles.js', 'study.js', 'live-analysis.js', 'attention.js', 'storm.js', 'share.js', 'swap.js', 'watch.js', 'profile.js', 'learn-demos.js', 'learn-board.js', 'learn-practice.js', 'learn.js', 'puzzle-home.js', 'habits.js', 'local-save.js', 'settings-ui.js', 'more.js', 'home.js', 'backdrop.js', 'player-search.js', 'quick-settings.js', 'topbar.js', 'online-count.js', 'presence.js', 'chat-bubbles.js', 'img/backdrop.webp', 'puzzles.json', 'native.js', 'privacy.html', 'privacy.js', 'icon.svg',
+  // Ảnh đại diện nhân vật máy (bot-looks.js) – đổi ảnh thì sửa danh sách này
+  'img/bots/tit.svg', 'img/bots/na.svg', 'img/bots/mo.svg', 'img/bots/bom.svg', 'img/bots/ti.svg', 'img/bots/nam.svg', 'img/bots/lan.svg', 'img/bots/cuoi.svg', 'img/bots/hung.svg', 'img/bots/tuong.svg', 'img/bots/song.svg', 'img/bots/bin.svg', 'img/bots/loc.svg', 'img/bots/da.svg', 'img/bots/mai.svg', 'img/bots/cao.svg', 'img/bots/minh.svg', 'img/bots/thanh.svg', 'img/bots/kep.svg', 'img/bots/ninja.svg', 'img/bots/rong.svg', 'img/bots/phao.svg', 'img/bots/long.svg', 'img/bots/ao.svg', 'img/bots/trinh.svg', 'img/bots/teliet.svg', 'img/bots/fifa.svg', 'img/bots/sach.svg', 'img/bots/liems.svg', 'img/bots/goat.svg', 'img/bots/boat.svg',
+  // BOAT / phân tích chạy Rapfi (rapfi-board.js, rapfi-ponder.js, boat-rapfi.js, rapfi-analysis.js, rapfi-settings.js, rapfi-load.js; GPL-3). Phần nặng trong rapfi/ (engine WebAssembly 1,2 MB,
+  // worker, mô hình) KHÔNG tải sẵn cho mọi người: lần đầu đấu BOAT / phân tích luật tự do – tiêu chuẩn – Renju thì trình
+  // duyệt tải và bước "fetch" dưới đây tự lưu, sau đó chơi được cả khi mất mạng. Mạng NNUE ~10 MB do Worker tự lưu trong
+  // bộ nhớ đệm riêng 'caro-rapfi-nets-*' (không bị xoá khi app cập nhật).
+  'i18n-rapfi.js', 'rapfi-board.js', 'rapfi-ponder.js', 'boat-rapfi.js', 'eval-key.js', 'eval-cloud.js', 'rapfi-analysis.js', 'rapfi-settings.js', 'rapfi-load.js', 'licenses.html',
+  'manifest.webmanifest',
+  // Phông cho 4 ngôn ngữ của game; phần chữ hiếm (latin-ext, cyrillic-ext) tự được lưu khi cần
+  'fonts/noto-sans-latin-wght-normal.woff2', 'fonts/noto-sans-vietnamese-wght-normal.woff2', 'fonts/noto-sans-cyrillic-wght-normal.woff2'];
 
+// Cài từng file một (không dùng addAll "tất cả hoặc không"): mạng chập chờn (vd. từ Nga tới máy chủ ở Mỹ) rớt một file
+// thì các file khác vẫn được lưu, file thiếu sẽ tự lưu ở lần tải sau (bước fetch). cache: 'no-cache' – luôn hỏi máy chủ
+// bản mới nhất, không lấy bản cũ trong bộ nhớ HTTP của trình duyệt.
 self.addEventListener('install', (e) => {
-  e.waitUntil((async () => {
-    const c = await caches.open(CACHE);
-    await c.addAll(CORE);
-    const rs = await Promise.allSettled(OPTIONAL.map((f) => c.add(f)));
-    const bad = OPTIONAL.filter((f, i) => rs[i].status === 'rejected');
-    if (bad.length) console.warn('SW: không tải sẵn được ' + bad.length + ' file phụ (vẫn cài tiếp):', bad.join(', '));
-    await self.skipWaiting();
-  })());
+  e.waitUntil(caches.open(CACHE).then((c) => Promise.allSettled(FILES.map((f) =>
+    fetch(new Request(f, { cache: 'no-cache' })).then((res) => (res.ok ? c.put(f, res) : null))))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -60,42 +28,24 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Chỉ lưu trữ file tĩnh (đuôi file rõ ràng) và không bao giờ lưu phản hồi /api/ — trước đây
-// M-F2: mọi GET cùng nguồn thành công đều bị lưu, gồm /api/replay/<mã> chứa tên hai người
-// chơi và toàn bộ nước đi, còn sót lại trên máy dùng chung sau khi đăng xuất.
-const STATIC_EXT = /\.(?:js|css|html|svg|webp|png|ico|woff2|json|webmanifest|wasm)$/;
-function cacheable(url) {
-  if (url.pathname.includes('/rapfi/nets/')) return false; // mạng Rapfi: Worker tự lưu ở bộ nhớ đệm riêng
-  if (url.pathname.startsWith('/api/')) return false; // dữ liệu API (gồm avatar): không lưu
-  return STATIC_EXT.test(url.pathname);
-}
-
-// Ưu tiên mạng để luôn có bản mới; mạng lỗi HOẶC máy chủ trả lỗi HTTP thì dùng bản đã lưu
-// (trước đây lỗi HTTP được trả thẳng cho trang dù bản lưu tốt vẫn còn — M-F2).
+// File của game: lấy ngay từ bộ nhớ đệm (mở / tải lại trang tức thì, không phải chờ 118 file đi qua mạng mỗi lần),
+// chưa có thì tải rồi lưu. Không sợ dùng bản cũ: bộ nhớ đệm đi theo phiên bản CACHE – đổi file nào trong caro/ là tăng CACHE,
+// trình duyệt thấy sw.js mới thì cài bộ mới và xoá bộ cũ (activate). Mất mạng mà chưa có thì thôi.
+// /api/… (ván xem lại, bảng xếp hạng, số người online…) là dữ liệu sống: luôn hỏi mạng, không lưu.
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  if (e.request.mode === 'navigate') {
-    // Mở trang: mạng trước (bản mới + thẻ xem trước đúng ván), lỗi/mất mạng thì dùng vỏ đã lưu.
-    e.respondWith(
-      fetch(e.request)
-        .then(async (res) => (res.ok ? res : (await caches.match('index.html', { ignoreSearch: true })) || res))
-        .catch(() => caches.match('index.html', { ignoreSearch: true }))
-    );
-    return;
-  }
-  if (!cacheable(url)) return; // không can thiệp: trình duyệt tự gọi mạng
+  if (url.pathname.includes('/rapfi/nets/')) return; // mạng Rapfi tự đặt sẵn trên máy chủ: Worker tự lưu, không lưu trùng
+  if (url.pathname.startsWith('/api/')) return;
+  // Trang có tham số (?replay=… – máy chủ chèn thẻ xem trước của ván) vẫn mở được khi mất mạng nhờ bản index đã lưu
+  const nav = e.request.mode === 'navigate';
   e.respondWith(
-    fetch(e.request)
-      .then(async (res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
-          return res;
-        }
-        const hit = await caches.match(e.request, { ignoreSearch: true });
-        return hit || res;
-      })
-      .catch(() => caches.match(e.request, { ignoreSearch: true }))
+    caches.match(e.request, { ignoreSearch: nav }).then((hit) => hit || fetch(e.request).then((res) => {
+      if (res.ok && !url.search) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy));
+      }
+      return res;
+    }))
   );
 });
