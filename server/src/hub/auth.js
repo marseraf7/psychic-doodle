@@ -19,6 +19,7 @@ class Auth {
         compareVersions(String(client.version || '0'), this.minAppVersion) < 0) {
       return conn.send({ t: 'updateRequired', min: this.minAppVersion, url: this.updateUrls[platform] || '' });
     }
+    const oldPid = conn.pid; // C1: kết nối đã có danh tính mà gửi lại hello = đổi danh tính (chốt ở cuối hàm)
     conn.token = null;
     const user = this.store.userByToken(token);
     if (user) {
@@ -34,6 +35,11 @@ class Auth {
       if (!this.names.has(pid)) this.names.set(pid, (gname && !isOffensiveName(gname) && gname) || 'Khách-' + pid.slice(2, 6).toUpperCase());
       this.attach(conn, pid);
     }
+    // C1: hello chỉ hợp lệ là tin đầu tiên của kết nối. Nếu danh tính cũ không còn
+    // kết nối nào, nó phải đi qua đúng luồng ngắt kết nối (wentOffline → xử thua
+    // khi đang trong ván) như disconnect() — nếu không, người chơi sắp thua chỉ
+    // cần gửi lại hello là thoát ván, còn đối thủ bị ghi thua ngược.
+    if (oldPid && oldPid !== conn.pid && !this.isOnline(oldPid)) this.wentOffline(oldPid);
     this.welcome(conn);
   }
 
