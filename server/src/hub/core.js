@@ -23,8 +23,12 @@ class Hub {
     this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250,
       TOUR_TICK_MS: 1000, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 2 * 60 * 1000, TOUR_MIN_LEAD_MS: 5 * 60 * 1000, TOUR_PUSH_MS: 300,
       ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, FIRST_MOVE_MS: 30 * 1000, TOUR_DISPUTE_MS: 5 * 60 * 1000, ...timers };
-    // Quản trị viên: duyệt câu lạc bộ và giải đấu
+    // Quản trị viên: duyệt câu lạc bộ và giải đấu. Cấu hình theo tên đăng nhập, nhưng quyền
+    // gắn theo ID tài khoản (H-S4): adminIds/adminBinds được bindAdmins() tra cứu lúc khởi động.
     this.admins = new Set(admins.map((a) => String(a).trim().toLowerCase()).filter(Boolean));
+    this.adminIds = new Set(); // id tài khoản đang giữ quyền quản trị
+    this.adminBinds = new Map(); // tên đăng nhập trong cấu hình -> id tài khoản đã gắn
+    this.bindAdmins();
     this.byPid = new Map(); // pid -> Set<conn>
     this.names = new Map(); // pid khách -> tên
     this.rooms = new Map(); // mã phòng -> Room
@@ -103,8 +107,9 @@ class Hub {
   attach(conn, pid) {
     if (conn.pid) this.detach(conn);
     conn.pid = pid;
-    const u = conn.tz != null && uidOf(pid) && this.store.users.get(uidOf(pid));
-    if (u && u.tz !== conn.tz) { u.tz = conn.tz; this.store.touch(u); } // múi giờ cho nhật ký hoạt động
+    const u = uidOf(pid) && this.store.users.get(uidOf(pid));
+    if (u && conn.tz != null && u.tz !== conn.tz) { u.tz = conn.tz; this.store.touch(u); } // múi giờ cho nhật ký hoạt động
+    if (u) this.maybeBindAdmin(u); // tên trong cấu hình quản trị mà chưa gắn với ai → gắn quyền theo ID (H-S4)
     const first = !this.isOnline(pid);
     if (!this.byPid.has(pid)) this.byPid.set(pid, new Set());
     this.byPid.get(pid).add(conn);

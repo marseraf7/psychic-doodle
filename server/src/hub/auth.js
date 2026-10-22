@@ -51,7 +51,7 @@ class Auth {
     const pass = await hashPassword(password);
     if (this.store.byUsername.has(username)) throw E('username_taken'); // có người lấy mất tên trong lúc băm
     const user = this.store.createUser({ username, name: name || username, pass });
-    this.loginConn(conn, user);
+    this.loginConn(conn, user); // attach() trong loginConn sẽ gắn quyền quản trị nếu tên thuộc cấu hình (H-S4)
   }
 
   /**
@@ -264,6 +264,9 @@ class Auth {
    */
   async on_deleteAccount(conn, { password, confirm }) {
     const me = this.requireUser(conn);
+    // H-S4: tài khoản quản trị không tự xoá được — xoá sẽ giải phóng tên đăng nhập cho người
+    // lạ đăng ký lại và nhận quyền. Muốn xoá: gỡ tên khỏi ADMIN_USERNAMES rồi khởi động lại.
+    if (this.isAdmin(me.id)) throw E('admin_cannot_delete');
     const rules = [['del:' + me.id, 8]];
     this.limit(rules);
     if (me.pass) {
