@@ -423,6 +423,7 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 
 ```bash
 node caro/tests/rules.test.js
+node caro/tests/engine-position.test.js  # chốt chặn C3: thế trải quá rộng bị từ chối có kiểm soát
 node caro/tests/study.test.js    # phân tích ván, nhân vật máy, kiểm từng bài đố có lời giải đúng
 node caro/tests/demos.test.js    # phim minh hoạ phần Học: nước hợp lệ, đúng như phụ đề, đủ 4 ngôn ngữ
 ```
