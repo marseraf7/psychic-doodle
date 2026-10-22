@@ -42,6 +42,16 @@ global.window = {
 global.document = doc;
 require('../online-friends.js');
 
+test('M-F5 (Issue #93): status độc từ máy chủ không chèn được HTML qua class của renderFriends', () => {
+  const payload = '"><img src=x onerror=alert(1)>';
+  const S = { me: { id: 'me1', guest: false }, friends: { friends: [{ id: 'x1', name: 'X', username: 'x', status: payload }], incoming: [], outgoing: [] }, invites: new Set() };
+  const api = global.window.CaroOnlineFriends({ S, send: () => true, openDlg: () => {} });
+  api.renderFriends();
+  assert.ok(!el.innerHTML.includes('<img'), 'HTML dựng ra không chứa thẻ img chèn vào');
+  assert.ok(!el.innerHTML.includes('class="st ">'), 'payload không phá vỡ được thuộc tính class');
+  assert.ok(el.innerHTML.includes('&quot;&gt;&lt;img'), 'payload chỉ còn dạng đã thoát ký tự trong class');
+});
+
 test('M-F6: render lại panel bạn bè giữ nguyên nội dung đang gõ, focus và vùng chọn', () => {
   const S = { me: { id: 'me1', guest: false }, friends: { friends: [], incoming: [], outgoing: [] }, invites: new Set() };
   const api = global.window.CaroOnlineFriends({ S, send: () => true, openDlg: () => {} });
