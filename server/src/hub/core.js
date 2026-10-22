@@ -332,6 +332,21 @@ class Hub {
     }
     for (const [pid, t] of this.offlineAt) if (now - t > ROOM_IDLE_MS && !this.roomOf.has(pid)) this.offlineAt.delete(pid);
     for (const [k, f] of this.fails) if (now - f.t > 10 * 60 * 1000) this.fails.delete(k);
+    // H-S3: tên khách của người đã rời hẳn (không còn kết nối nào, không ở trong phòng nào) thì bỏ —
+    // trước đây mỗi guestKey mới cộng một mục không bao giờ xoá vào Map này, ai mở kết nối dồn dập
+    // bằng guestKey ngẫu nhiên cũng làm bộ nhớ phình tới khi tiến trình bị giết.
+    for (const pid of this.names.keys()) if (!this.isOnline(pid) && !this.roomOf.has(pid)) this.names.delete(pid);
+    // H-S3: giải đã kết thúc chỉ giữ 100 giải gần nhất trong bộ nhớ — khớp đúng hành vi lúc khởi động
+    // (store.loadTours cũng chỉ nạp 100 giải đã xong gần nhất); bản đầy đủ vẫn nằm trong CSDL.
+    const done = [...this.tours.values()].filter((t) => !['pending', 'scheduled', 'running'].includes(t.status));
+    if (done.length > 100) {
+      done.sort((a, b) => b.created - a.created);
+      for (const t of done.slice(100)) {
+        this.tours.delete(t.id);
+        this.tourJson?.delete(t.id);
+        this.tourSnaps?.delete(t.id);
+      }
+    }
   }
 }
 
