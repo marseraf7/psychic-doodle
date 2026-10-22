@@ -94,9 +94,9 @@ class Store {
     this.schedule();
   }
 
-  schedule() {
+  schedule(delay = 300) {
     if (!this.timer) {
-      this.timer = setTimeout(() => this.flush(), 300);
+      this.timer = setTimeout(() => this.flush(), delay);
       this.timer.unref?.();
     }
   }
@@ -107,10 +107,8 @@ class Store {
     if (!this.dirty.size && !this.dirtyDocs.size) return;
     const list = [...this.dirty];
     const docs = [...this.dirtyDocs.entries()];
-    this.dirty.clear();
-    this.dirtyDocs.clear();
-    this.db.exec('BEGIN');
     try {
+      this.db.exec('BEGIN');
       for (const u of list) this.q.upsertUser.run(u.id, u.username, JSON.stringify(u));
       for (const [key, d] of docs) {
         if (key.startsWith('club:')) this.q.upsertClub.run(d.id, JSON.stringify(d));
@@ -118,9 +116,16 @@ class Store {
       }
       this.db.exec('COMMIT');
     } catch (e) {
-      this.db.exec('ROLLBACK');
-      throw e;
+      // H-S1 + H-S2: flush chạy từ hẹn giờ nên lỗi ghi (đĩa đầy, CSDL kẹt…) không được làm sập
+      // tiến trình, và hàng đợi KHÔNG được xoá trước khi ghi thành công — giữ nguyên các mục
+      // chưa ghi, ghi log, rồi hẹn thử lại sau 5 giây. Chỉ xoá đúng các mục đã COMMIT ở dưới.
+      try { this.db.exec('ROLLBACK'); } catch (_) { /* chưa vào được giao dịch */ }
+      console.error('[store] ghi dữ liệu thất bại, giữ hàng đợi để thử lại:', e && e.message);
+      this.schedule(5000);
+      return;
     }
+    for (const u of list) this.dirty.delete(u);
+    for (const [key] of docs) this.dirtyDocs.delete(key);
   }
 
   /**
