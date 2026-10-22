@@ -42,6 +42,11 @@ Actions → Variables** của repo, thêm `CARO_SERVER_URL` (ví dụ `https://c
 Máy chủ **bắt buộc có HTTPS** (Android / iOS chặn kết nối không mã hoá) – Caddy như trong
 [server/README.md](../server/README.md) là đủ.
 
+Link mời phòng / xem lại ván bấm trên điện thoại sẽ mở thẳng vào app (Android App Links,
+iOS Universal Links, kèm scheme riêng `io.github.marseraf7.caro` dự phòng) — phía máy chủ
+chỉ cần đặt hai biến môi trường `APP_LINK_SHA256` và `APPLE_TEAM_ID` (xem
+`server/deploy/caro.env.example`); chưa đặt thì link vẫn mở bằng trình duyệt như trước.
+
 Máy chủ không cần sửa gì thêm: app và web gửi cùng loại tin nhắn. Khi sau này thay đổi cách
 máy chủ và giao diện nói chuyện với nhau, nhớ dựng và phát hành lại app để bản cài trên điện thoại
 không bị cũ.
