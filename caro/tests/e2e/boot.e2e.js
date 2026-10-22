@@ -14,7 +14,7 @@ const { setup, gotoRetry } = require('./helpers');
 const PORT = 8121;
 
 (async () => {
-  const { browser, ok, shot, sleep, finish } = await setup(PORT);
+  const { browser, user, ok, shot, sleep, finish } = await setup(PORT);
   const errors = [];
   const URL = `http://localhost:${PORT}/`;
   const ctx = await browser.newContext({ viewport: { width: 430, height: 860 } });
@@ -77,6 +77,17 @@ const PORT = 8121;
     await shot(p, 'boot-2-tai-lai-mang-cham.png');
     await ctx.unroute(/\.js(\?|$)/, lag);
   }
+
+  // 4. Đã đăng nhập, script phía sau tải chậm: tin bạn bè từ máy chủ tới trước khi player-search.js chạy (trình duyệt xử lý
+  //    tin WebSocket trong lúc chờ thẻ <script>) – không lỗi JS, ô kết bạn vẫn có gợi ý khi trang nạp xong (online-friends.js)
+  const u = await user('vi', 'boot_an', 430, { serviceWorkers: 'block' }); // lỗi JS của trang này: finish() kiểm
+  const lateSearch = (route) => setTimeout(() => route.continue().catch(() => {}), 3000);
+  await u.route('**/player-search.js', lateSearch);
+  await gotoRetry(u, URL);
+  await sleep(1500);
+  ok(await u.evaluate(() => { const f = document.getElementById('add-friend'); return !!(f && f.u && f.u.parentElement.classList.contains('ps-wrap')); }),
+    'player-search.js tải chậm: ô kết bạn vẫn gắn gợi ý kỳ thủ, không lỗi JS');
+  await u.unroute('**/player-search.js', lateSearch);
 
   ok(!errors.length, 'không có lỗi JS' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await ctx.close();
