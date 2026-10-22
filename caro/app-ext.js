@@ -128,7 +128,8 @@
         const bs = watch ? X : side;
         const as = (s) => {
           const p = room.players.find((q) => q.id === (s === X ? room.seats.x : room.seats.o));
-          return { side: s, name: p ? p.name : '…', rating: p && p.rating, prov: p && p.prov, offline: !!p && p.online === false, me: !watch && s === side };
+          return { side: s, name: p ? p.name : '…', rating: p && p.rating, prov: p && p.prov, offline: !!p && p.online === false, me: !watch && s === side,
+            uid: p && typeof p.id === 'string' && p.id.startsWith('u_') ? p.id.slice(2) : null, av: (p && p.av) || 0 };
         };
         bottom = as(bs);
         top = as(other(bs));
@@ -140,6 +141,9 @@
       } else {
         if (state.mode === 'ai') {
           bottom = { side: state.human, name: T('you'), me: true };
+          // Chơi với máy vẫn hiện ảnh của chính mình nếu đã đăng nhập và có ảnh (bấm vào để xem lớn – avatar.js)
+          const me = window.CaroOnline && window.CaroOnline.state && window.CaroOnline.state.me;
+          if (me && !me.guest && me.av) { bottom.uid = me.uid; bottom.av = me.av; }
           top = { side: other(state.human), name: botName(state.bot), bot: state.bot };
         } else {
           bottom = { side: X, name: T('strip_player', { p: 'X' }) };

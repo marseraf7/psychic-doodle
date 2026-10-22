@@ -74,7 +74,8 @@ kèm app, kiểm kích thước + SHA-256 như mạng), không tải gì thêm.
      curl -fLO https://raw.githubusercontent.com/marseraf7/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq/$f.bin.lz4
    done
    ```
-   (thư mục `nets/` không commit và không gói vào app);
+   (thư mục `nets/` không commit và không gói vào app). Máy chủ cài bằng `server/deploy/install.sh` thì không cần làm tay:
+   `update.sh` (chạy 10 phút / lần) tự tải file còn thiếu – người chơi ở nơi chặn jsDelivr / GitHub (vd. Nga) vẫn có mạng;
 2. jsDelivr: `https://cdn.jsdelivr.net/gh/marseraf7/rapfi-networks@e32ad77…/mix9svq/…` (bản sao lưu), rồi
    `…/gh/dhbloo/rapfi-networks@e32ad77…` (kho gốc);
 3. GitHub raw: `https://raw.githubusercontent.com/marseraf7/rapfi-networks/e32ad77…/mix9svq/…`, rồi kho gốc.

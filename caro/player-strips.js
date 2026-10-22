@@ -15,6 +15,8 @@
 
   function avatar(p) {
     if (p.bot && window.CaroBotPicker) return window.CaroBotPicker.avatarHtml(p.bot, 'sm');
+    // Có ảnh đại diện thật thì hiện ảnh (bấm vào để xem lớn – avatar.js); chưa có thì chữ cái đầu như trước.
+    if (p.av && p.uid && window.CaroAvatar) return window.CaroAvatar.html({ uid: p.uid, name: p.name, av: p.av });
     const ch = [...String(p.name || '?').trim()][0] || '?';
     return `<span class="pl-av ${p.side === 1 ? 'x' : 'o'}">${esc(ch.toUpperCase())}</span>`;
   }

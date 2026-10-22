@@ -27,7 +27,7 @@
   <script src="boardstyle.js"></script>
   <script src="corners.js"></script>
 </head>
-<body>
+<body class="shell-on" data-page="home">
   <!-- Bộ biểu tượng (nét 2px, cùng một kiểu) – dùng: <svg class="ico"><use href="#i-..."/></svg> -->
   <svg class="sprite" aria-hidden="true" focusable="false">
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -177,8 +177,10 @@
 
   <!-- ============================ Khung trang (shell.js) ============================
        5 tab như Lichess: Trang chủ · Câu đố · Học tập · Xem · Xem thêm. Điện thoại: thanh tab dưới đáy; màn hình rộng: menu chữ trên cùng.
-       Đang chơi thì khung ẩn đi, chỉ còn bàn cờ (nút ‹ trên thanh trên để quay lại). -->
-  <div class="shell" id="shell" hidden>
+       Đang chơi thì khung ẩn đi, chỉ còn bàn cờ (nút ‹ trên thanh trên để quay lại).
+       Khung hiện sẵn từ HTML (Trang chủ): mạng chậm thì người chơi thấy Trang chủ ngay chứ không phải bàn cờ trống trong lúc
+       chờ ~118 script; home.js ẩn khung nếu mở thẳng vào bàn cờ (link xem lại, đang trong phòng…). -->
+  <div class="shell" id="shell">
     <nav class="tabbar" id="tabbar">
       <span class="tb-logo"><img src="icon.svg" alt=""><span data-i18n="app_title"></span></span>
       <button type="button" data-tab="home"><svg class="ico" aria-hidden="true"><use href="#i-home"/></svg><span data-i18n="tab_home"></span><i class="badge" id="home-badge" hidden></i></button>
@@ -196,7 +198,7 @@
       </div>
     </nav>
 
-    <section class="page" id="page-home" data-page="home" hidden>
+    <section class="page" id="page-home" data-page="home">
       <header class="pg-head"><h1 class="pg-title"><img class="pg-logo" src="icon.svg" alt=""><span data-i18n="app_title"></span></h1><span class="pg-right"><span class="conn" id="conn"></span></span></header>
       <div class="pg-body home">
       <div class="welcome-card" id="welcome-card" hidden>
