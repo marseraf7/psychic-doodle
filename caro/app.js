@@ -204,7 +204,8 @@
       const onMsg = (e) => {
         if (e.data.id !== id) return;
         aiWorker.removeEventListener('message', onMsg);
-        resolve(e.data.move);
+        // C3: Worker báo lỗi (vd. ván trải quá rộng) → null để maybeAI thôi chờ, thay vì treo "đang nghĩ" mãi
+        resolve(e.data.error ? null : e.data.move);
       };
       aiWorker.addEventListener('message', onMsg);
       aiWorker.postMessage({ id, moves, p, bot, rule: state.board.rule });
@@ -217,7 +218,9 @@
     updateUI();
     const started = performance.now();
     const board = state.board, count = board.moves.length;
-    askAI(state.turn, state.bot).then(([x, y]) => {
+    askAI(state.turn, state.bot).then((mv) => {
+      if (!mv) { state.thinking = false; updateUI(); return; } // C3: máy không tính được (Worker báo lỗi) — nhả lượt chờ, đừng khoá ván
+      const [x, y] = mv;
       const wait = Math.max(0, 250 - (performance.now() - started));
       setTimeout(() => {
         // Trong lúc máy nghĩ mà người chơi đã đi lại / ván mới thì bỏ kết quả cũ.

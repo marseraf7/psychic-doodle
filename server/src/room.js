@@ -23,7 +23,7 @@ const { ExtrasMixin } = require('./room-extras.js');
 
 const { X, O } = Caro;
 const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
-const COORD_LIMIT = 1_000_000;
+const COORD_LIMIT = 512; // khớp MAX_COORD của caro/eval-key.js — ván thật không đi xa hơn; trần cũ 1_000_000 cho ván trải rộng làm engine phân tích cấp phát bộ nhớ khổng lồ (C3)
 
 class Room {
   constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, clock = null, opening = 'free', rule = 'vn', secondMs = 1000, drawCooldownMs = 30000, firstMoveMs = 0 }) {
