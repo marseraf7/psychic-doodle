@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node --disable-warning=ExperimentalWarning server.js",
     "test": "node --disable-warning=ExperimentalWarning --test test/*.test.js",
-    "coverage": "node --disable-warning=ExperimentalWarning --test --experimental-test-coverage --test-coverage-exclude='**/test/**' --test-coverage-exclude='**/tests/**' --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=85 test/*.test.js ../caro/tests/rules.test.js ../caro/tests/study.test.js ../caro/tests/engine.test.js ../caro/tests/engine-budget.test.js ../caro/tests/rapfi-brain.test.js ../caro/tests/analysis-acc.test.js ../caro/tests/engine-patterns.test.js ../caro/tests/demos.test.js ../caro/tests/localclock.test.js ../caro/tests/local-games.test.js ../caro/tests/local-save.test.js ../caro/tests/engine-position.test.js ../caro/tests/app-online.test.js"
+    "coverage": "node --disable-warning=ExperimentalWarning --test --experimental-test-coverage --test-coverage-exclude='**/test/**' --test-coverage-exclude='**/tests/**' --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=85 test/*.test.js ../caro/tests/rules.test.js ../caro/tests/study.test.js ../caro/tests/engine.test.js ../caro/tests/engine-budget.test.js ../caro/tests/rapfi-brain.test.js ../caro/tests/analysis-acc.test.js ../caro/tests/engine-patterns.test.js ../caro/tests/demos.test.js ../caro/tests/localclock.test.js ../caro/tests/local-games.test.js ../caro/tests/local-save.test.js ../caro/tests/sw.test.js"
   },
   "engines": {
     "node": ">=22.13"

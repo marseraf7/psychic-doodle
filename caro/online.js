@@ -127,6 +127,19 @@
   // ------------------------------------------------------------ Tin nhắn từ máy chủ
   const hooks = {};
   const on = (t, fn) => { (hooks[t] = hooks[t] || []).push(fn); };
+  /** M-F2: xoá các mục /api/ còn sót trong bộ nhớ đệm của service worker (bản SW cũ từng
+   *  lưu phản hồi API như ván xem lại) khi đăng xuất / xoá tài khoản — máy dùng chung
+   *  không còn đọc được dữ liệu của người trước. */
+  async function purgeApiCache() {
+    if (!('caches' in window)) return;
+    try {
+      for (const k of await caches.keys()) {
+        const c = await caches.open(k);
+        for (const req of await c.keys()) if (new URL(req.url).pathname.startsWith('/api/')) await c.delete(req);
+      }
+    } catch (e) { /* không dọn được thì thôi, không chặn đăng xuất */ }
+  }
+
   const handlers = {
     // Biết kết nối còn sống (lastHeard); kèm PING (rtt) và số liệu máy chủ cho Cài đặt nhanh / số người online (topbar.js)
     pong(m) { m.rtt = pingOut ? Date.now() - pingOut : S.net && S.net.rtt; pingOut = 0; S.net = m; },
@@ -150,6 +163,7 @@
       LS.set('caro.token', null);
       S.me = null;
       S.invites.clear();
+      purgeApiCache(); // M-F2: dọn dữ liệu API đã lưu trong cache (máy dùng chung)
       if (ws) ws.close(); // kết nối lại với tư cách khách
     },
     accountDeleted() {
