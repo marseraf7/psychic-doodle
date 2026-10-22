@@ -77,6 +77,28 @@
     });
   }
 
+  // ------------------------------------------------------------ Link sâu (H-A5)
+  // Link mời phòng / xem lại / giải đấu / câu lạc bộ trên web đều dùng tham số truy vấn
+  // (?room= ?replay= ?t= ?club=) và mã web đã xử lý chúng từ location.search. Trong app,
+  // link https của máy chủ (App Links / Universal Links) hoặc link scheme riêng mở app qua
+  // sự kiện appUrlOpen: chép đúng các tham số đó vào địa chỉ của app rồi nạp lại trang —
+  // phần còn lại để mã web sẵn có xử lý như khi mở link trên trình duyệt.
+  let routeLink = null;
+  if (P.App) {
+    const LINK_KEYS = ['room', 'replay', 't', 'club'];
+    routeLink = (url) => {
+      try {
+        const u = new URL(String(url));
+        const qs = new URLSearchParams();
+        for (const k of LINK_KEYS) { const v = u.searchParams.get(k); if (v) qs.set(k, v); }
+        if (![...qs.keys()].length) return;
+        location.assign('/?' + qs.toString());
+      } catch (e) { /* link lạ / không có tham số link: bỏ qua */ }
+    };
+    P.App.addListener('appUrlOpen', (data) => { if (data && data.url) routeLink(data.url); });
+    if (P.App.getLaunchUrl) P.App.getLaunchUrl().then((r) => { if (r && r.url) routeLink(r.url); }).catch(() => {});
+  }
+
   // ------------------------------------------------------------ Đăng nhập Google (gốc)
   // Hiện chỉ bật trên Android. Trên iPhone nút Google được ẩn: tài khoản Google đặt mật khẩu trong mục
   // Tài khoản rồi đăng nhập bằng tên đăng nhập (xem app/README.md).
@@ -98,5 +120,5 @@
     },
   } : null;
 
-  window.CaroNative = { platform, google, shareFile };
+  window.CaroNative = { platform, google, shareFile, routeLink };
 })();
