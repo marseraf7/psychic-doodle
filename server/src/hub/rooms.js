@@ -88,7 +88,9 @@ class Rooms {
 
   enter(room, pid, side) {
     for (const c of this.byPid.get(pid) || []) this.unwatch(c); // vào ván của mình: thôi xem ván khác
-    room.addPlayer({ id: pid, name: this.nameOf(pid) }, side);
+    const uid = uidOf(pid);
+    const u = uid && this.store.users.get(uid);
+    room.addPlayer({ id: pid, name: this.nameOf(pid), av: u && u.avatar ? u.avatar.v : 0 }, side);
     this.roomOf.set(pid, room.code);
     if (room.full) this.tvCache = null; // ván mới: danh sách "Đang diễn ra" dựng lại ngay
     for (const p of room.players) this.dequeue(p.id); // đã có ván (hoặc chờ ván): thôi tìm trận nhanh
