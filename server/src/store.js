@@ -371,7 +371,9 @@ async function hashPassword(password) {
   return { salt, hash };
 }
 async function checkPassword(password, pass) {
-  if (!pass) return false;
+  // Bản ghi hỏng (thiếu muối, mã băm không đủ 32 byte – vd. nhập từ db.json cũ) thì coi như sai mật khẩu (L-S1): trước đây
+  // scrypt / timingSafeEqual ném lỗi, tài khoản không bao giờ đăng nhập được và chỉ thấy lỗi chung chung
+  if (!pass || typeof pass.salt !== 'string' || !pass.salt || typeof pass.hash !== 'string' || !/^[0-9a-f]{64}$/i.test(pass.hash)) return false;
   const h = await scrypt(password, pass.salt);
   return crypto.timingSafeEqual(h, Buffer.from(pass.hash, 'hex'));
 }

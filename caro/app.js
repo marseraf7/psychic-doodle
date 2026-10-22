@@ -187,7 +187,8 @@
   // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
   // Trình duyệt không hỗ trợ (vd. mở file trực tiếp) thì tính ngay trên luồng chính.
   let aiWorker = null, aiSeq = 0;
-  try { if (window.Worker && location.protocol.startsWith('http')) aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
+  // Worker ở mọi giao thức trừ file: – app iOS chạy ở capacitor:// (M-A4: trước đây chỉ http(s) nên bot tính trên luồng giao diện, đơ vài giây)
+  try { if (window.Worker && location.protocol !== 'file:') aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
 
   function askAI(p, bot) {
     // BOAT ở luật tự do / tiêu chuẩn / Renju: Rapfi (boat-rapfi.js); không chạy được thì engine của game như mọi bot

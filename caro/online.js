@@ -159,7 +159,10 @@
       toast(T('account_deleted'), 5000);
     },
     updateRequired(m) {
-      outdated = { min: m.min, url: m.url || '' };
+      // Chỉ nhận link https (L-F2): máy chủ lạ / bị chiếm không đẩy được javascript: hay data: vào nút "Cập nhật"
+      let url = '';
+      try { const u = new URL(String(m.url || '')); if (u.protocol === 'https:') url = u.href; } catch (e) { /* không phải link */ }
+      outdated = { min: m.min, url };
       S.status = 'offline';
       if (ws) ws.close();
       render();
