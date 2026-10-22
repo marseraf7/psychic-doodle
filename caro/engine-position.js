@@ -14,6 +14,7 @@
   const WIN = 1000000;            // điểm thắng (trừ dần theo số nước để thắng nhanh được ưu tiên)
   const MATE = WIN - 1000;        // điểm ≥ MATE: đã thấy thắng chắc
   const PAD = 8;                  // vùng trống quanh các quân trong mảng
+  const MAX_SPAN = 512;           // C3: khung bao quân rộng nhất còn chấp nhận (một chiều, chưa tính PAD) — khớp MAX_COORD của eval-key.js; ván thật không bao giờ tới gần
   const SWAP = [0, 2, 1];         // đổi góc nhìn X ↔ O của một ô
   const F5 = PT.F5;
   const POW3 = [1, 3, 9, 27, 81, 243, 729, 2187, 6561, 19683, 59049];
@@ -34,6 +35,14 @@
       }
       this.ox = x0 - PAD; this.oy = y0 - PAD;
       this.W = x1 - x0 + 1 + 2 * PAD; this.H = y1 - y0 + 1 + 2 * PAD;
+      // C3: ván trải rộng bất thường (toạ độ lỗi / cố tình phá) mà cứ cấp phát theo khung bao thì mảng lên tới
+      // hàng tỉ ô → "Array buffer allocation failed" làm chết Worker phân tích. Từ chối có kiểm soát ngay tại
+      // đây (trước mọi cấp phát lớn); nơi gọi trong Worker (ai-worker.js) bắt lỗi và báo về trang.
+      if (this.W > MAX_SPAN + 2 * PAD || this.H > MAX_SPAN + 2 * PAD) {
+        const e = new Error('position_too_large');
+        e.code = 'position_too_large';
+        throw e;
+      }
       const n = this.W * this.H;
       this.cells = new Int8Array(n);
       this.near = new Uint8Array(n);       // số quân trong ô vuông 5×5 quanh ô (ứng viên = ô trống có near > 0)

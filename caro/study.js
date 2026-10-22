@@ -67,7 +67,10 @@
     const w = getWorker();
     if (!w) {
       // Không có Web Worker: tính trên luồng chính (sau 1 khung hình để kịp vẽ thanh tiến trình).
-      return new Promise((res) => setTimeout(() => res(A.analyzeGame(moves, { rule, ms: opts.ms, evals: opts.evals })), 30));
+      // C3: engine từ chối thế quá rộng thì coi như không phân tích được (null, như khi huỷ) — đừng để lỗi văng ra làm treo lần chờ.
+      return new Promise((res) => setTimeout(() => {
+        try { res(A.analyzeGame(moves, { rule, ms: opts.ms, evals: opts.evals })); } catch (err) { res(null); }
+      }, 30));
     }
     const id = 'an' + ++an.seq;
     return new Promise((res) => {
@@ -77,7 +80,7 @@
         if (e.data.progress != null) return onProgress(e.data.progress);
         w.removeEventListener('message', onMsg);
         pending.delete(res);
-        res(e.data.result);
+        res(e.data.error ? null : e.data.result); // C3: Worker báo lỗi → null như khi huỷ, không treo
       };
       w.addEventListener('message', onMsg);
       w.postMessage({ id, type: 'analyze', moves, rule, ms: opts.ms, evals: opts.evals });
