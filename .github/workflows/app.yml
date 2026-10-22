@@ -41,12 +41,25 @@ jobs:
       - name: Chuẩn bị khoá ký (nếu có)
         env:
           KEYSTORE_BASE64: ${{ secrets.CARO_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.CARO_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.CARO_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.CARO_KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
+            # Có khoá mà thiếu một trong ba bí mật còn lại: dừng ngay với thông báo rõ thay vì để Gradle lỗi khó hiểu (H-A2)
+            if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+              echo "::error::Đã có CARO_KEYSTORE_BASE64 nhưng thiếu CARO_KEYSTORE_PASSWORD / CARO_KEY_ALIAS / CARO_KEY_PASSWORD – kiểm tra lại Secrets của repo."
+              exit 1
+            fi
             echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/caro.jks"
             echo "CARO_KEYSTORE_FILE=$RUNNER_TEMP/caro.jks" >> "$GITHUB_ENV"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # H-A2: chạy tay để lấy bản phát hành mà chưa có khoá ký thì phải ĐỎ – trước đây vẫn xanh và cho ra AAB chưa ký,
+            # chỉ bị Google Play từ chối lúc tải lên. Push / PR thường vẫn chỉ cảnh báo (nhánh chính không đỏ khi chưa đặt khoá).
+            echo "::error::Lượt dựng phát hành (chạy tay) nhưng chưa có khoá ký CARO_KEYSTORE_BASE64 – đặt đủ 4 Secrets CARO_KEYSTORE_* / CARO_KEY_* (app/README.md)."
+            exit 1
           else
-            echo "Chưa có khoá ký: bản release sẽ chưa ký (chỉ dùng bản debug để cài thử)."
+            echo "::warning::Chưa có khoá ký: app-release.aab / app-release.apk CHƯA KÝ, không tải lên Google Play được (bản debug vẫn cài thử được)."
           fi
       - name: Dựng APK debug + APK/AAB release
         working-directory: app/android

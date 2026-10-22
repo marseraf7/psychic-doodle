@@ -164,6 +164,12 @@ class Rooms {
     if (opp) this.send(opp.id, note('joined_room', { name: this.nameOf(conn.pid) }));
   }
 
+  /** Máy khách thấy đồng hồ về 0 mà mãi chưa có trạng thái phòng mới (lỡ tin hết giờ): gửi lại phòng cho riêng kết nối này (L-F6). */
+  on_syncRoom(conn) {
+    const room = this.roomFor(conn.pid);
+    conn.send({ t: 'room', room: room ? this.roomView(room) : null });
+  }
+
   on_leaveRoom(conn) {
     this.leave(conn.pid);
     conn.send({ t: 'room', room: null });

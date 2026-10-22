@@ -8,7 +8,7 @@
  *   node caro/tests/e2e/friends-chat.e2e.js
  */
 'use strict';
-const { setup } = require('./helpers');
+const { setup, gotoRetry } = require('./helpers');
 
 (async () => {
   const PORT = 8098;
@@ -40,7 +40,8 @@ const { setup } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 760 } });
     await ctx.addInitScript((l) => { localStorage.setItem('caro.lang', l); }, lang);
     const g = await ctx.newPage();
-    await g.goto(`http://localhost:${PORT}/`);
+    // Firefox (CI) đôi khi không xong điều hướng trong 30 giây: gotoRetry thử lại 1 lần (helpers.js)
+    await gotoRetry(g, `http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
     await sleep(700);
     for (const w of [1920, 1280, 1100, 1024, 900, 820, 768, 390, 360]) {
       await g.setViewportSize({ width: w, height: 760 });

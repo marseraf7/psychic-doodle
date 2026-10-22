@@ -36,8 +36,10 @@
       return room.turn === side;
     }
 
+    const COORD_LIMIT = 512; // khớp server/src/room.js – ngoài vùng này máy chủ từ chối (C3)
     function playOnline(x, y) {
       if (!canPlaceNow()) return;
+      if (Math.abs(x) > COORD_LIMIT || Math.abs(y) > COORD_LIMIT) { if (toast) toast(T('srv_bad_move'), 3000); return; }
       // Hiện ngay nước đi (máy chủ sẽ xác nhận lại).
       sfx(state.turn === X ? 'placeX' : 'placeO');
       placeRaw(x, y);
