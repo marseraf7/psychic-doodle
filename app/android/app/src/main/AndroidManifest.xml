@@ -28,7 +28,9 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="caroxo.duckdns.org" />
+                <!-- Chỉ trang chính (link mời / xem lại / giải đấu đều là /?…): trang chính sách /privacy.html vẫn mở bằng trình duyệt -->
+                <data android:scheme="https" android:host="caroxo.duckdns.org" android:path="/" />
+                <data android:scheme="https" android:host="caroxo.duckdns.org" android:path="/index.html" />
             </intent-filter>
             <!-- H-A5: scheme riêng (khai trong strings.xml) — đường mở app dự phòng khi
                  App Links chưa xác minh được, vd. bản cài thử ngoài Play. -->

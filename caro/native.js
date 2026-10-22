@@ -96,7 +96,14 @@
       } catch (e) { /* link lạ / không có tham số link: bỏ qua */ }
     };
     P.App.addListener('appUrlOpen', (data) => { if (data && data.url) routeLink(data.url); });
-    if (P.App.getLaunchUrl) P.App.getLaunchUrl().then((r) => { if (r && r.url) routeLink(r.url); }).catch(() => {});
+    // getLaunchUrl() trả cùng một link suốt phiên chạy app, mà routeLink nạp lại trang (mã web còn xoá tham số khỏi địa chỉ
+    // – online.js replaceState): không nhớ là đã xử lý thì mỗi lần nạp lại lại mở link đó → tải lại mãi. Nhớ trong phiên.
+    const LAUNCH = 'caro.launchUrl';
+    if (P.App.getLaunchUrl) P.App.getLaunchUrl().then((r) => {
+      if (!r || !r.url) return;
+      try { if (sessionStorage.getItem(LAUNCH) === r.url) return; sessionStorage.setItem(LAUNCH, r.url); } catch (e) { return; }
+      routeLink(r.url);
+    }).catch(() => {});
   }
 
   // ------------------------------------------------------------ Đăng nhập Google (gốc)

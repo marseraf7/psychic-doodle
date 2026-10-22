@@ -28,6 +28,8 @@ global.document = {
   querySelectorAll: () => [],
 };
 Object.defineProperty(globalThis, 'navigator', { value: {}, configurable: true });
+const store = new Map(); // sessionStorage của WebView: giữ qua các lần nạp lại trang trong cùng phiên app
+global.sessionStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)) };
 Object.defineProperty(globalThis, 'location', { value: { assign: (u) => assigns.push(u) }, configurable: true });
 require('../native.js');
 
@@ -47,4 +49,13 @@ test('H-A5: appUrlOpen chép đúng các tham số link, bỏ qua link không li
   window.CaroNative.routeLink('không phải link');
   assert.deepStrictEqual(assigns, ['/?replay=AbC123', '/?t=XYZ&club=Q7'],
     'chỉ các link phòng/xem lại/giải/câu lạc bộ mới điều hướng; link lạ và tham số lạ bị bỏ qua');
+});
+
+test('H-A5: nạp lại trang sau khi mở link khởi động không mở lại link đó (không tải lại mãi)', async () => {
+  assigns.length = 0;
+  // Mô phỏng location.assign nạp lại trang: native.js chạy lại, getLaunchUrl vẫn trả đúng link cũ
+  delete require.cache[require.resolve('../native.js')];
+  require('../native.js');
+  await new Promise((r) => setImmediate(r));
+  assert.deepStrictEqual(assigns, [], 'link khởi động đã xử lý trong phiên này thì bỏ qua');
 });

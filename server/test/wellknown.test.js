@@ -53,6 +53,6 @@ test('H-A5: apple-app-site-association cần Team ID, có thì khai đúng appID
     assert.strictEqual(r.status, 200);
     const body = JSON.parse(r.body);
     assert.strictEqual(body.applinks.details[0].appID, 'TEAM123456.io.github.marseraf7.caro');
-    assert.deepStrictEqual(body.applinks.details[0].paths, ['*']);
+    assert.deepStrictEqual(body.applinks.details[0].paths, ['/', '/index.html']); // không gồm /privacy.html
   });
 });

@@ -138,7 +138,8 @@ function makeHandler({ store, hub }) {
   function serveAasa(res) {
     const team = String(process.env.APPLE_TEAM_ID || '').trim();
     if (!team) { res.writeHead(404); return res.end(); }
-    json(res, 200, { applinks: { apps: [], details: [{ appID: `${team}.${APP_ID}`, paths: ['*'] }] } }, { 'cache-control': 'no-cache' });
+    // Chỉ trang chính (link mời / xem lại / giải đấu đều là /?…): /privacy.html vẫn mở bằng trình duyệt
+    json(res, 200, { applinks: { apps: [], details: [{ appID: `${team}.${APP_ID}`, paths: ['/', '/index.html'] }] } }, { 'cache-control': 'no-cache' });
   }
 
   /** Ván đã lưu để xem lại qua đường link chia sẻ (không trả id tài khoản). */
