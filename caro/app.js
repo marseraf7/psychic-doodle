@@ -295,7 +295,7 @@
   // ------------------------------------------------------------ Online / xem ván (app-online.js)
   const { canPlaceNow, playOnline, applyRoom, enterOnline, leaveOnline, restoreLocal, updateOnlineUI } = window.CaroAppOnline({
     state, cam, esc, glyph, ruleChip, net, sfx, placeRaw, vibrate, updateUI, requestDraw, ensureVisible, animateCamera, renderClock,
-    resetClock, showBanner, hideBanner, toBoard, save, load, maybeAI, isAITurn,
+    resetClock, showBanner, hideBanner, toBoard, save, load, maybeAI, isAITurn, toast,
     closeReplay: (silent) => closeReplay(silent), exitExt: (silent) => exitExt(silent), // tạo ở phía dưới
   });
 
