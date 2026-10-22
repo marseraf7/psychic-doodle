@@ -87,7 +87,7 @@ class TourPush {
     if (this.tourPushTimers.has(t.id)) return;
     const timer = setTimeout(() => {
       this.tourPushTimers.delete(t.id);
-      if (!this.closed) this.flushTour(t.id);
+      if (!this.closed) this.safeTimer('flushTour', () => this.flushTour(t.id));
     }, this.pushDelay(t));
     timer.unref?.();
     this.tourPushTimers.set(t.id, timer);

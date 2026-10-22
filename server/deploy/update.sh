@@ -20,6 +20,7 @@ main() {
   local PENDING=/var/lib/caro-update/pending # lúc thấy code mới mà phải hoãn vì đang có ván (giây)
 
   [ "$AUTO" = 1 ] || install_timer "$REPO"
+  ensure_nets "$REPO"
 
   git fetch --quiet origin
   local OLD TARGET
@@ -87,6 +88,24 @@ healthy() {
     sleep 1
   done
   return 1
+}
+
+# Mạng NNUE của Rapfi (~40 MB, không commit – caro/rapfi/SOURCE.md) đặt sẵn trên máy chủ: worker.js thử máy chủ trước
+# jsDelivr / GitHub raw, mà hai nơi này hay bị chặn ở một số nước (vd. Nga). Thiếu file nào thì tải file đó; lỗi mạng
+# thì bỏ qua (lần hẹn giờ sau thử lại), không làm hỏng việc cập nhật. Chỉ nhận đúng tệp nén lz4 (4 byte đầu 04 22 4d 18).
+ensure_nets() {
+  local DIR="$1/caro/rapfi/nets" BASE=https://raw.githubusercontent.com/marseraf7/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq
+  local f tmp
+  install -d -m 755 "$DIR"
+  for f in mix9svqfreestyle_bsmix mix9svqstandard_bs15 mix9svqrenju_bs15_black mix9svqrenju_bs15_white; do
+    [ -s "$DIR/$f.bin.lz4" ] && continue
+    tmp="$DIR/.$f.tmp"
+    if curl -fsSL --max-time 300 -o "$tmp" "$BASE/$f.bin.lz4" && [ "$(head -c 4 "$tmp" | od -An -tx1 | tr -d ' \n')" = 04224d18 ]; then
+      chmod 644 "$tmp" && mv "$tmp" "$DIR/$f.bin.lz4" && echo "Đã tải mạng Rapfi $f"
+    else
+      rm -f "$tmp"; echo "Chưa tải được mạng Rapfi $f (lần sau thử lại)"
+    fi
+  done
 }
 
 # Tự cập nhật (caro-update.timer): cài một lần; đã có file (kể cả khi người quản trị đã tắt) thì giữ nguyên

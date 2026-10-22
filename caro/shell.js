@@ -26,7 +26,7 @@
 
   let cur = null; // trang đang hiện
   let last = 'home'; // trang xem gần nhất (để nút ‹ trên bàn cờ quay về)
-  let visible = false;
+  let visible = !shell.hidden; // index.html hiện sẵn khung (Trang chủ) để mạng chậm không thấy bàn cờ trống
 
   const emit = (id) => window.dispatchEvent(new CustomEvent('caro:page', { detail: { id } }));
 
