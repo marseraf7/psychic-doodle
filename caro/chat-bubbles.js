@@ -63,7 +63,7 @@
     const on = list.filter((f) => f.status !== 'offline').length;
     p.innerHTML = `<div class="cb-ph"><b>${esc(T('cb_title'))}</b><small>${esc(T('cb_online_n', { n: on, all: list.length }))}</small></div>
       <ul class="cb-list">${list.map((f) => `<li><button type="button" data-open="${esc(f.id)}">${avatar(f, 'sm')}
-        <span class="cb-t"><b>${esc(f.name)}</b><small class="${f.status}">${esc(status(f))}</small></span>
+        <span class="cb-t"><b>${esc(f.name)}</b><small class="${esc(f.status)}">${esc(status(f))}</small></span>
         ${f.unread ? `<i class="count">${f.unread > 99 ? '99+' : f.unread}</i>` : ''}</button></li>`).join('')
         || `<li class="cb-empty">${esc(T('cb_none'))}</li>`}</ul>`;
   }
@@ -101,7 +101,7 @@
         el.querySelector('input').addEventListener('focus', () => markRead(w));
       }
       const f = friend(w.id) || { id: w.id, name: '?', status: 'offline' };
-      el.querySelector('header').innerHTML = `${avatar(f, 'sm')}<span class="cb-t"><a href="#" data-profile="${esc(f.id)}"><b>${esc(f.name)}</b></a><small class="${f.status}">${esc(status(f))}</small></span>
+      el.querySelector('header').innerHTML = `${avatar(f, 'sm')}<span class="cb-t"><a href="#" data-profile="${esc(f.id)}"><b>${esc(f.name)}</b></a><small class="${esc(f.status)}">${esc(status(f))}</small></span>
         <button type="button" class="cb-ic" data-min="${esc(w.id)}" aria-label="${esc(T('cb_min'))}">–</button><button type="button" class="cb-ic" data-close="${esc(w.id)}" aria-label="${esc(T('cb_close'))}">×</button>`;
       el.querySelector('input').placeholder = T('cb_placeholder');
       el.querySelector('button[type=submit]').textContent = T('cb_send');

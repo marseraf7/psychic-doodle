@@ -103,7 +103,7 @@
     $('lh-ask-list').innerHTML = list.map((rec, i) => {
       const d = L.describe(rec);
       const box = many ? `<input type="checkbox" class="lh-pick" data-ask="${i}" checked aria-label="${esc(d.opp)}">` : '';
-      return `<li>${box}<span class="res ${d.cls}">${esc(d.res)}</span>
+      return `<li>${box}<span class="res ${esc(d.cls)}">${esc(d.res)}</span>
         <div class="pn"><b>${esc(d.opp)}</b><small>${esc(L.when(rec.at))} · ${esc(T('lh_moves', { n: rec.moves.length }))}</small></div></li>`;
     }).join('');
     $('lh-ask-form').always.checked = false;
