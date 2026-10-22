@@ -39,7 +39,7 @@ class Hub {
     this.lobbyTimer = null;
     this.loadClubs();
     this.loadTours();
-    this.sweeper = setInterval(() => this.sweep(), 60 * 1000);
+    this.sweeper = setInterval(() => this.safeTimer('sweep', () => this.sweep()), 60 * 1000);
     this.sweeper.unref?.();
   }
 
@@ -51,6 +51,12 @@ class Hub {
     clearInterval(this.tourTimer);
     for (const t of (this.presenceTimers || new Map()).values()) clearTimeout(t); // lobby.js
     for (const timer of (this.tourPushTimers || new Map()).values()) clearTimeout(timer);
+  }
+
+  /** Chạy một việc hẹn giờ của hub (quét dọn, nhịp giải đấu, ghép trận, đẩy cập nhật…):
+   *  lỗi bất ngờ chỉ ghi log, không văng ra khỏi callback hẹn giờ làm sập tiến trình (H-S1). */
+  safeTimer(name, fn) {
+    try { fn(); } catch (e) { console.error(`[hub] lỗi ở việc hẹn giờ ${name}:`, e); }
   }
 
   connect(conn) {

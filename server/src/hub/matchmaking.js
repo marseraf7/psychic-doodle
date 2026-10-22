@@ -48,7 +48,7 @@ class Matchmaking {
     this.send(conn.pid, this.queueMsg(conn.pid));
     this.matchTick();
     if (this.queue.size && !this.matchTimer) {
-      this.matchTimer = setInterval(() => this.matchTick(), this.T.MATCH_TICK_MS);
+      this.matchTimer = setInterval(() => this.safeTimer('matchTick', () => this.matchTick()), this.T.MATCH_TICK_MS);
       this.matchTimer.unref?.();
     }
   }

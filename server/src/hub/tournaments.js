@@ -38,7 +38,7 @@ class Tournaments {
       }
       this.tours.set(t.id, t);
     }
-    this.tourTimer = setInterval(() => this.tourTick(), this.T.TOUR_TICK_MS);
+    this.tourTimer = setInterval(() => this.safeTimer('tourTick', () => this.tourTick()), this.T.TOUR_TICK_MS);
     this.tourTimer.unref?.();
   }
 
