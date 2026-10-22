@@ -8,9 +8,47 @@ const { E, note } = require('../msg.js');
 const { cleanText, userPid } = require('./shared.js');
 
 class Admin {
+  /** Quyền quản trị gắn với ID tài khoản (bất biến), không gắn với tên đăng nhập (H-S4):
+   *  tên đăng nhập chỉ là cách cấu hình lúc đầu — ai đăng ký trúng một tên quản trị chưa có
+   *  tài khoản thì được gắn quyền ngay lúc đăng ký (và bị ghi log to), nhưng sau đó quyền đi
+   *  theo ID: đổi/xoá không chuyển quyền cho người khác (tài khoản quản trị bị chặn tự xoá).
+   *  Tên đã gắn cho một ID thì ID khác mang cùng tên (không thể xảy ra khi tên là duy nhất,
+   *  nhưng cứ chốt) không bao giờ qua được cửa này. */
   isAdmin(uid) {
-    const u = uid && this.store.users.get(uid);
-    return !!(u && this.admins.has(u.username));
+    if (!uid) return false;
+    if (this.adminIds.has(uid)) return true;
+    const u = this.store.users.get(uid);
+    if (!u || !this.admins.has(u.username) || this.adminBinds.has(u.username)) return false;
+    this.maybeBindAdmin(u); // tên quản trị chưa gắn với ai (vd. vừa thêm vào cấu hình): gắn theo ID người này
+    return true;
+  }
+
+  /** Lúc khởi động: tra cứu từng tên quản trị trong cấu hình ra ID tài khoản để gắn quyền.
+   *  Tên chưa có tài khoản thì cảnh báo to — người đầu tiên đăng ký tên đó sẽ thành quản trị. */
+  bindAdmins() {
+    for (const name of this.admins) {
+      const u = this.store.byUsername.get(name);
+      if (!u) {
+        console.error(`[hub] CẢNH BÁO: tên quản trị "${name}" chưa có tài khoản — người đầu tiên đăng ký tên này sẽ thành quản trị viên. Hãy tự đăng ký tài khoản này ngay.`);
+        continue;
+      }
+      this.adminBinds.set(name, u.id);
+      this.adminIds.add(u.id);
+      if (!u.adminBind) { u.adminBind = name; this.store.touch(u); }
+    }
+  }
+
+  /** Gắn quyền theo ID cho một tài khoản mang tên trong cấu hình quản trị mà tên đó chưa gắn
+   *  với ai. Được gọi ở attach() — điểm chung của mọi lần gắn danh tính (hello bằng token,
+   *  đăng nhập, đăng ký, Google) — nên tài khoản tạo ngoài luồng đăng ký (khôi phục từ bản
+   *  sao lưu, tạo trực tiếp) cũng được gắn ở lần kết nối đầu tiên, trước mọi thao tác quản trị. */
+  maybeBindAdmin(u) {
+    if (!u || !this.admins.has(u.username) || this.adminBinds.has(u.username)) return;
+    this.adminBinds.set(u.username, u.id);
+    this.adminIds.add(u.id);
+    u.adminBind = u.username;
+    this.store.touch(u);
+    console.error(`[hub] Quyền quản trị vừa được gắn cho tài khoản mới "${u.username}" (id ${u.id}) theo cấu hình ADMIN_USERNAMES.`);
   }
 
   requireAdmin(conn) {
@@ -30,10 +68,8 @@ class Admin {
   /** Báo số mục chờ duyệt cho các quản trị viên đang online (hiện chấm đỏ trên nút). */
   notifyAdmins(item) {
     const n = this.pendingCount();
-    for (const name of this.admins) {
-      const u = this.store.byUsername.get(name);
-      if (!u) continue;
-      const pid = userPid(u.id);
+    for (const uid of this.adminIds) {
+      const pid = userPid(uid);
       this.send(pid, { t: 'adminCount', n });
       if (item) this.send(pid, note('admin_new_item', { name: item }));
     }
