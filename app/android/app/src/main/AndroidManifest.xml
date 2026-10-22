@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- M-A2: tắt sao lưu tự động — token phiên đăng nhập nằm trong local storage của WebView;
+         để allowBackup=true thì bản sao lưu / chuyển máy có thể mang token sang thiết bị khác. -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
