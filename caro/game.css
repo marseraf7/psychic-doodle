@@ -19,6 +19,7 @@
 .pl-bot { bottom: calc(76px + env(safe-area-inset-bottom)); }
 .pstrip.turn { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
 .pstrip .bot-av, .pl-av { flex: none; }
+.pstrip .avatar { width: 32px; height: 32px; border-radius: 8px; flex: none; }
 .pl-av {
   width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
   font-weight: var(--fw-bold); color: #fff; background: var(--o);

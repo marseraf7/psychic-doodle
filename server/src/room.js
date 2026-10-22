@@ -114,7 +114,7 @@ class Room {
   addPlayer(player, side) {
     if (this.has(player.id)) return;
     if (this.full) throw E('room_full');
-    this.players.push({ id: player.id, name: player.name });
+    this.players.push({ id: player.id, name: player.name, av: player.av || 0 });
     if (!(player.id in this.score)) this.score[player.id] = 0;
     const want = side === O ? O : side === X ? X : 0;
     const seat = want && !this.seats[want] ? want : !this.seats[X] ? X : O;
@@ -277,7 +277,7 @@ class Room {
       opener: this.opener,
       actor: this.actor(),
       turnLeft: this.turnEndsAt ? Math.max(0, this.turnEndsAt - Date.now()) : null, // ms còn lại của lượt
-      players: this.players.map((p) => ({ id: p.id, name: p.name })),
+      players: this.players.map((p) => ({ id: p.id, name: p.name, av: p.av || 0 })),
       seats: { x: this.seats[X], o: this.seats[O] },
       moves: this.board.moves.map((m) => [m.x, m.y]),
       turn: this.turn,
