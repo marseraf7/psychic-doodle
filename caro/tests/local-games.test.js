@@ -196,3 +196,13 @@ test('ca biên: toạ độ không nguyên, ván quá 2000 nước, kết quả 
   assert.deepStrictEqual(s2.pending(), []);
 });
 
+
+test('M-E1: ván có toạ độ vượt biên chung 512 bị coi là không hợp lệ khi lưu/tải', () => {
+  const s = LG.create(fakeStorage());
+  assert.strictEqual(s.add(game(5, { moves: [[0, 0], [600, 0], [1, 1], [2, 2], [3, 3]] })), null, 'một nước ở x=600: cả ván bị từ chối');
+  assert.strictEqual(s.add(game(5, { moves: [[0, 0], [0, -513], [1, 1], [2, 2], [3, 3]] })), null, 'một nước ở y=-513: cả ván bị từ chối');
+  const ok = s.add(game(5, { moves: [[512, -512], [0, 0], [1, 1], [2, 2], [3, 3]] }));
+  assert.ok(ok, 'nước ở đúng biên (512, -512) vẫn hợp lệ');
+  assert.strictEqual(s.get(ok).moves.length, 5);
+  assert.strictEqual(s.count(), 1);
+});

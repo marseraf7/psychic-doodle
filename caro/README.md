@@ -515,3 +515,4 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `player-strips.js`, `game.css`, `puzzle-home.js`, `pages.css` | Thẻ người chơi + thanh công cụ màn chơi; thẻ Câu đố hôm nay; kiểu danh sách của tab Câu đố / Học tập / Xem |
 | `index.html`, `style.css`, `style-online.css`, `style-tour.css`, `style-study.css`, `style-extras.css` | Giao diện (`style.css`: phông, biến màu, biểu tượng, khung chung; các file `style-*.css` nạp ngay sau theo đúng thứ tự cũ: online, giải đấu & CLB, giải đố + phân tích, phần còn lại) |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |
+| `watchdog.js` | Canh khởi động: nạp đầu tiên, sau 15 giây chưa xong thì hiện thông báo lỗi kèm nút tải lại |
