@@ -76,6 +76,26 @@ const PORT = 8121;
     ok(took >= 0 && Date.now() - t0 < 5000, `mạng chậm, tải lại: Trang chủ sau ${Date.now() - t0} ms (< 5000), ${slowHits} file JS phải chờ mạng`);
     await shot(p, 'boot-2-tai-lai-mang-cham.png');
     await ctx.unroute(/\.js(\?|$)/, lag);
+
+    // 3b. Có bản mới (service worker đổi bộ điều khiển) trong lúc đang gõ dở: chưa tải lại; gõ xong, chuyển trang thì tải lại (app.js)
+    await p.evaluate(() => { window.__noReload = 1; });
+    const typed = await p.evaluate(() => {
+      // ô nhập thử trên Trang chủ (như ô chat / form đăng ký đang gõ dở)
+      const i = document.createElement('input');
+      i.id = 'e2e-typing';
+      document.querySelector('#page-home .pg-body, #page-home').appendChild(i);
+      i.focus(); i.value = 'đang gõ dở';
+      navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+      return true;
+    });
+    await sleep(800);
+    ok(typed && await p.evaluate(() => window.__noReload === 1).catch(() => false), 'có bản mới khi đang gõ dở: chưa tải lại trang');
+    await p.evaluate(() => { document.getElementById('e2e-typing').remove(); });
+    await p.click('#tabbar [data-tab="more"]').catch(() => {});
+    let reloaded = false;
+    for (let i = 0; i < 50 && !reloaded; i++) { await sleep(100); reloaded = await p.evaluate(() => window.__noReload !== 1).catch(() => false); }
+    ok(reloaded, 'gõ xong, chuyển trang: tải lại dùng bản mới');
+    await waitHome(15000);
   }
 
   // 4. Đã đăng nhập, script phía sau tải chậm: tin bạn bè từ máy chủ tới trước khi player-search.js chạy (trình duyệt xử lý
@@ -88,6 +108,23 @@ const PORT = 8121;
   ok(await u.evaluate(() => { const f = document.getElementById('add-friend'); return !!(f && f.u && f.u.parentElement.classList.contains('ps-wrap')); }),
     'player-search.js tải chậm: ô kết bạn vẫn gắn gợi ý kỳ thủ, không lỗi JS');
   await u.unroute('**/player-search.js', lateSearch);
+
+  // 5. Worker của máy không nạp được (vd. giao thức capacitor:// của app iOS không cho): bot vẫn đi (tính trên luồng chính),
+  //    không treo "đang nghĩ" mãi (app.js – Worker lỗi thì bỏ Worker)
+  const wctx = await browser.newContext({ viewport: { width: 430, height: 860 }, serviceWorkers: 'block' });
+  await wctx.addInitScript(() => { localStorage.setItem('caro.lang', 'vi'); });
+  await wctx.route('**/ai-worker.js', (route) => route.abort());
+  const wp = await wctx.newPage();
+  const wErr = [];
+  wp.on('pageerror', (e) => wErr.push(e.message));
+  await gotoRetry(wp, URL);
+  await waitHome(1); // trang đã nạp
+  await sleep(800);
+  await wp.evaluate(() => window.CaroApp.startPreset({ mode: 'ai', human: 1, moves: [[0, 0]] }));
+  let botMoved = false;
+  for (let i = 0; i < 100 && !botMoved; i++) { await sleep(100); botMoved = await wp.evaluate(() => window.CaroApp.local.moves >= 2); }
+  ok(botMoved && !wErr.length, 'Worker máy không nạp được: bot vẫn đi nước' + (wErr.length ? ' – lỗi JS: ' + wErr.join(' | ') : ''));
+  await wctx.close();
 
   ok(!errors.length, 'không có lỗi JS' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await ctx.close();

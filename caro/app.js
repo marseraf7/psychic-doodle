@@ -197,19 +197,38 @@
     return askEngine(p, bot);
   }
 
+  // Worker không nạp được (vd. giao thức capacitor:// của iOS không cho) hoặc chết: bỏ Worker, các lần hỏi đang chờ và
+  // về sau tính trên luồng chính như khi không có Worker – chậm hơn nhưng bot vẫn đi, không treo "đang nghĩ" mãi.
+  const AI_TIMEOUT_MS = 20000; // nước khó nhất ~3 giây (bots.js) + VCF: quá mức này coi như Worker hỏng
+  const aiWaiting = new Set(); // hàm chuyển sang luồng chính của các lần hỏi đang chờ
+  function dropWorker() {
+    if (!aiWorker) return;
+    try { aiWorker.terminate(); } catch (e) { /* đã chết */ }
+    aiWorker = null;
+    for (const fallback of [...aiWaiting]) fallback();
+  }
+  if (aiWorker) aiWorker.addEventListener('error', dropWorker);
+
   function askEngine(p, bot) {
     const moves = state.board.moves.map((m) => [m.x, m.y, m.p]);
-    if (!aiWorker) return new Promise((resolve) => setTimeout(() => resolve(Bots.botMove(state.board, p, bot)), 30));
+    const local = () => new Promise((resolve) => setTimeout(() => resolve(Bots.botMove(state.board, p, bot)), 30));
+    if (!aiWorker) return local();
     const id = ++aiSeq;
     return new Promise((resolve) => {
+      const w = aiWorker;
+      let timer = 0;
+      const done = () => { clearTimeout(timer); w.removeEventListener('message', onMsg); aiWaiting.delete(fallback); };
       const onMsg = (e) => {
         if (e.data.id !== id) return;
-        aiWorker.removeEventListener('message', onMsg);
+        done();
         // C3: Worker báo lỗi (vd. ván trải quá rộng) → null để maybeAI thôi chờ, thay vì treo "đang nghĩ" mãi
         resolve(e.data.error ? null : e.data.move);
       };
-      aiWorker.addEventListener('message', onMsg);
-      aiWorker.postMessage({ id, moves, p, bot, rule: state.board.rule });
+      const fallback = () => { done(); resolve(local()); };
+      aiWaiting.add(fallback);
+      timer = setTimeout(dropWorker, AI_TIMEOUT_MS);
+      w.addEventListener('message', onMsg);
+      w.postMessage({ id, moves, p, bot, rule: state.board.rule });
     });
   }
 
@@ -520,9 +539,21 @@
     navigator.serviceWorker.register('sw.js').catch(() => {});
     // sw.js lấy file từ bộ nhớ đệm trước: bản mới cài xong thì trang đang mở vẫn chạy bản cũ. Đang ở các trang (không giữa
     // ván online) thì tải lại luôn để dùng bản mới; đang chơi thì để lần mở sau. Lần cài đầu (chưa có bản cũ) không tải lại.
+    // Đang gõ dở (ô đang focus, hoặc ô có chữ – form đăng ký, chat…) thì hoãn tới lần chuyển trang / quay lại app sau.
     const hadCtl = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (hadCtl && !state.online && window.CaroShell && window.CaroShell.visible) location.reload();
-    });
+    let updateReady = false;
+    const typing = () => {
+      const a = document.activeElement;
+      if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return true;
+      return [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]), textarea')]
+        .some((i) => i.value && i.offsetParent !== null && i.defaultValue !== i.value);
+    };
+    const tryUpdate = () => {
+      if (!updateReady || state.online || !(window.CaroShell && window.CaroShell.visible) || typing()) return;
+      location.reload();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtl) { updateReady = true; tryUpdate(); } });
+    window.addEventListener('caro:page', () => setTimeout(tryUpdate, 0));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) tryUpdate(); });
   }
 })();
