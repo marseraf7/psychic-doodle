@@ -1,5 +1,7 @@
 # Bản vá `.github/workflows/app.yml` cho Issue #86 — cần người có quyền sửa workflow áp vào
 
+**Đã xử lý (Claude Code, review PR #87):** Vá 1 đã áp, riêng điều kiện bắt đỏ chỉ còn `workflow_dispatch` (nếu bắt đỏ cả nhánh chính thì nhánh chính đỏ suốt cho tới khi có khoá ký). Vá 2 **không áp**: project iOS chưa có `VERSIONING_SYSTEM = apple-generic` nên `agvtool` không chắc chạy, và bản iOS đã ký được dựng trên Mac (Xcode → Archive) chứ không qua CI – số bản dựng iOS đặt trong Xcode lúc Archive.
+
 **Kết luận:** Hai thay đổi thuộc Issue #86 nằm trong `.github/workflows/app.yml` — cổng khoá ký (H-A2) và bước đặt số bản dựng iOS (phần còn lại của M-A1). Baxter **không áp được**: GitHub App của connector không có quyền `workflows`, mọi đường ghi (Git Trees API và Contents API) đều bị GitHub từ chối 403 với lý do đúng nguyên văn "refusing to allow a GitHub App to create or update workflow … without `workflows` permission". Tài liệu này chứa bản vá nguyên vẹn để Claude Code (đẩy bằng git trực tiếp) hoặc người dùng áp vào. Các mục còn lại của #86 (H-A3, H-A4, M-A2, M-A3, nửa tĩnh của M-A1) đã làm trong chính PR của Issue này mà không cần sửa workflow.
 
 **Môi trường:** soạn trên `6fe8bbd`, file đích `.github/workflows/app.yml` ở trạng thái gốc của nhánh chính.
