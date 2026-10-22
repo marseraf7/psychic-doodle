@@ -7,6 +7,10 @@
  *   HOST              địa chỉ lắng nghe (mặc định mọi địa chỉ; chạy sau Caddy/nginx trên cùng máy: 127.0.0.1)
  *   TRUST_PROXY=1     lấy IP thật từ X-Forwarded-For khi chạy sau nginx/Caddy
  *                     (chỉ tin header này khi kết nối đến từ chính máy chủ hoặc mạng nội bộ – proxy)
+ *   TRUSTED_PROXY_CIDRS  các CIDR/IP của proxy được tin (cách nhau dấu phẩy) – đặt biến này thì
+ *                     chỉ những địa chỉ đó mới được tin, thay cho mặc định mọi mạng nội bộ (M-S2)
+ *   WS_ALLOWED_ORIGINS   các Origin WebSocket được phép thêm ngoài cùng-host/app/PUBLIC_URL
+ *                     (cách nhau dấu phẩy, vd. bản web tĩnh trên GitHub Pages) (M-S1)
  *   SMTP_URL          máy chủ gửi thư để bật "Quên mật khẩu", ví dụ smtps://user:pass@smtp.gmail.com:465
  *   MAIL_FROM         địa chỉ người gửi, ví dụ "Cờ Caro <caro@example.com>" (mặc định: user trong SMTP_URL)
  *   MIN_APP_VERSION   bản app điện thoại thấp nhất còn được chơi online (ví dụ 1.0.0; bỏ trống = không kiểm tra)
@@ -22,7 +26,7 @@ const { WebSocketServer } = require('ws');
 const { Store } = require('./src/store.js');
 const { EvalCache } = require('./src/evalcache.js');
 const { Hub, verifyGoogleToken } = require('./src/hub.js');
-const { makeHandler, clientIp, fromProxy } = require('./src/web.js');
+const { makeHandler, clientIp, fromProxy, wsOriginAllowed } = require('./src/web.js');
 
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = process.env.HOST || '';
@@ -59,6 +63,12 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
   const wss = new WebSocketServer({
     server, path: '/ws', maxPayload: 16 * 1024,
     perMessageDeflate: { threshold: 1024, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: true, clientNoContextTakeover: true },
+    // M-S1: chặn các trang web lạ mượn trình duyệt/IP của người thăm để kết nối (chính sách ở src/web.js)
+    verifyClient: (info, cb) => {
+      if (wsOriginAllowed(info.req)) return cb(true);
+      console.warn(`Chặn kết nối WebSocket vì Origin lạ: ${info.req.headers.origin} (IP ${clientIp(info.req)})`);
+      return cb(false, 403, 'Origin not allowed');
+    },
   });
   const perIp = new Map();
 
@@ -122,6 +132,12 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
 }
 
 if (require.main === module) {
+  // M-S2: cấu hình nguy hiểm — tin X-Forwarded-For trong khi bất kỳ ai nối thẳng vào cổng
+  // này cũng tới được từ một địa chỉ "nội bộ" (vd. cổng Docker công bố ra ngoài qua bridge):
+  // XFF giả sẽ qua mặt mọi giới hạn theo IP. In cảnh báo rõ để người vận hành tự khép lại.
+  if (process.env.TRUST_PROXY && !process.env.TRUSTED_PROXY_CIDRS && HOST !== '127.0.0.1' && HOST !== '::1') {
+    console.warn('(CẢNH BÁO M-S2: TRUST_PROXY đang bật, máy chủ nghe trên mọi địa chỉ và chưa đặt TRUSTED_PROXY_CIDRS — ai nối thẳng vào cổng này cũng có thể giả X-Forwarded-For để qua mặt giới hạn theo IP. Hãy đặt HOST=127.0.0.1 khi chạy sau proxy trên cùng máy, hoặc TRUSTED_PROXY_CIDRS=<CIDR/IP của proxy>.)');
+  }
   const app = start();
   app.server.on('listening', () => {
     console.log(`Cờ Caro đang chạy: http://localhost:${app.server.address().port}`);
