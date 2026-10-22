@@ -178,7 +178,8 @@
   // Thoát ván: ván mới trên máy, về trang (cả khi mở lại app: trang đầu tiên hiện ra)
   window.addEventListener('caro:newgame', () => { setLast(null); exitGame(); }); // ván mới: không còn "đi lại" được ván cũ
   window.addEventListener('caro:page', (e) => { if (e.detail.id) setTimeout(exitGame, 300); });
-  if (pend.length && !(window.CaroShell && window.CaroShell.visible)) setTimeout(exitGame, 1500); // mở app thẳng vào bàn cờ
+  // Mở app thẳng vào bàn cờ (link xem lại, đang trong phòng): khung Trang chủ hiện sẵn từ HTML rồi home.js mới ẩn, nên xét lúc hẹn giờ
+  if (pend.length) setTimeout(() => { if (!(window.CaroShell && window.CaroShell.visible)) exitGame(); }, 1500);
 
   // Phân tích xong: lưu kèm kết quả
   window.addEventListener('caro:analyzed', (e) => {

@@ -168,6 +168,24 @@ function makeHandler({ store, hub }) {
   }
   let indexHtml = null; // { mtime, text }
 
+  const APP_ID = 'io.github.marseraf7.caro';
+  /** H-A5 (Android App Links): khai báo app chính thức cho tên miền này. Vân tay SHA-256 của
+   *  khoá ký phát hành đặt qua env APP_LINK_SHA256 (nhiều vân tay cách nhau bằng dấu phẩy,
+   *  lấy ở Play Console → App signing). Chưa đặt thì mảng rỗng: Android chưa xác minh được
+   *  liên kết (app vẫn mở bằng scheme riêng), đặt xong có hiệu lực ngay, không cần sửa code. */
+  function serveAssetLinks(res) {
+    const prints = String(process.env.APP_LINK_SHA256 || '').split(',').map((s) => s.trim()).filter(Boolean);
+    json(res, 200, [{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: APP_ID, sha256_cert_fingerprints: prints } }], { 'cache-control': 'no-cache' });
+  }
+  /** H-A5 (iOS Universal Links): cần mã nhóm nhà phát triển (Team ID) qua env APPLE_TEAM_ID;
+   *  chưa đặt thì trả 404 — không khai bừa một appID không có thật. */
+  function serveAasa(res) {
+    const team = String(process.env.APPLE_TEAM_ID || '').trim();
+    if (!team) { res.writeHead(404); return res.end(); }
+    // Chỉ trang chính (link mời / xem lại / giải đấu đều là /?…): /privacy.html vẫn mở bằng trình duyệt
+    json(res, 200, { applinks: { apps: [], details: [{ appID: `${team}.${APP_ID}`, paths: ['/', '/index.html'] }] } }, { 'cache-control': 'no-cache' });
+  }
+
   /** Ván đã lưu để xem lại qua đường link chia sẻ (không trả id tài khoản). */
   function serveReplay(share, res) {
     const g = store.gameByShare(share);
@@ -214,7 +232,9 @@ function makeHandler({ store, hub }) {
     const file = path.join(STATIC_DIR, 'index.html');
     fs.stat(file, (err, st) => {
       if (err) { res.writeHead(404); return res.end(); }
-      if (!indexHtml || indexHtml.mtime !== st.mtimeMs) indexHtml = { mtime: st.mtimeMs, text: fs.readFileSync(file, 'utf8') };
+      if (!indexHtml || indexHtml.mtime !== st.mtimeMs) {
+        try { indexHtml = { mtime: st.mtimeMs, text: fs.readFileSync(file, 'utf8') }; } catch (e) { res.writeHead(503); return res.end(); } // đang cập nhật code (L-S4)
+      }
       let html = indexHtml.text;
       const g = store.gameByShare(share);
       if (g) {
@@ -266,6 +286,8 @@ function makeHandler({ store, hub }) {
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
     if (url === '/healthz') { res.writeHead(200); return res.end('ok'); }
+    if (url === '/.well-known/assetlinks.json') return serveAssetLinks(res);
+    if (url === '/.well-known/apple-app-site-association') return serveAasa(res);
     if (url.startsWith('/api/replay/')) {
       const share = url.slice(12);
       return share.endsWith('.png') ? serveReplayPng(share.slice(0, -4), req, res) : serveReplay(share, res);
@@ -291,7 +313,8 @@ function makeHandler({ store, hub }) {
         'cache-control': 'no-cache',
       });
       if (req.method === 'HEAD') return res.end();
-      fs.createReadStream(file).pipe(res);
+      // File bị thay / xoá giữa chừng (update.sh đang cập nhật code): đóng kết nối, không để lỗi luồng làm sập tiến trình (L-S4)
+      fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
     });
   };
 }
