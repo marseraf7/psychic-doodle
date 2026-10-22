@@ -37,10 +37,19 @@ class Rooms {
     return v;
   }
 
+  /** M-S4: view cho một người nhận cụ thể — mật khẩu phòng chỉ chủ phòng (người tạo) mới
+   *  thấy để còn gửi cho bạn bè; người vào chơi và mọi người khác nhận password: null. */
+  roomViewFor(room, pid) {
+    const v = this.roomView(room);
+    if (pid !== room.hostPid) v.password = null;
+    return v;
+  }
+
   broadcastRoom(room) {
     this.scheduleClock(room);
     const v = this.roomView(room);
-    for (const p of room.players) this.send(p.id, { t: 'room', room: v });
+    // M-S4: cùng một view đã dựng, chỉ khác mật khẩu theo người nhận (như watchView với khán giả)
+    for (const p of room.players) this.send(p.id, { t: 'room', room: p.id === room.hostPid ? v : { ...v, password: null } });
     if (room.watchers && room.watchers.size) this.sendWatchers(room, v);
     if (room.public) this.lobbyChanged();
   }
@@ -72,7 +81,7 @@ class Rooms {
     const c = cleanTc({ timeLimit, clock: tc.clock, opening: tc.opening, rule: tc.rule }); // giá trị lạ -> mặc định
     const room = new Room({
       code: this.newCode(),
-      password: String(crypto.randomInt(0, 1000)).padStart(3, '0'),
+      password: String(crypto.randomInt(0, 1000000)).padStart(6, '0'), // M-S4: mật khẩu 6 số (trước đây 3 số — quá ít dù đã có giới hạn đoán)
       kind,
       bestOf,
       timeLimit: c.timeLimit,
@@ -133,6 +142,7 @@ class Rooms {
     this.unwatch(conn);
     this.leave(conn.pid);
     const room = this.makeRoom('room', 1, timeLimit, { clock, opening, rule });
+    room.hostPid = conn.pid; // M-S4: chủ phòng — người duy nhất thấy mật khẩu trong view
     room.public = !!isPublic; // phòng công khai: hiện trong sảnh, vào không cần mật khẩu
     if (room.public) room.firstMoveMs = this.T.FIRST_MOVE_MS; // gặp người lạ: có hạn đi nước đầu
     this.enter(room, conn.pid, side === 'second' ? 2 : 1);

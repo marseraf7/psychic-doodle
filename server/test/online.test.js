@@ -102,10 +102,10 @@ test('phòng: tạo, sai/đúng mật khẩu, chọn đi sau, thắng, tái đ�
   await a.req({ t: 'createRoom', side: 'second' }, 'room');
   const { code, password } = a.room;
   assert.match(code, /^\d{6}$/);
-  assert.match(password, /^\d{3}$/);
+  assert.match(password, /^\d{6}$/); // M-S4: mật khẩu phòng 6 số (trước đây 3 số)
   assert.strictEqual(side(a.room, a.me.id), 2, 'chủ phòng chọn đi sau -> cầm O');
 
-  const wrong = String((Number(password) + 1) % 1000).padStart(3, '0');
+  const wrong = String((Number(password) + 1) % 1000000).padStart(6, '0');
   const err = await b.req({ t: 'joinRoom', code, password: wrong }, 'error');
   assert.match(err.msg, /mật khẩu/);
   const bad = await b.req({ t: 'joinRoom', code: '000000', password }, 'error');

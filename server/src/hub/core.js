@@ -203,7 +203,7 @@ class Hub {
       me: this.meView(pid),
       googleClientId: this.googleClientId,
       resetEnabled: !!this.sendMail,
-      room: room ? this.roomView(room) : null,
+      room: room ? this.roomViewFor(room, pid) : null, // M-S4: mật khẩu chỉ chủ phòng mới thấy
     });
     if (this.queue.has(pid)) conn.send(this.queueMsg(pid));
     if (uidOf(pid)) {
