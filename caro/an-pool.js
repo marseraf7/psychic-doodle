@@ -79,7 +79,8 @@
           const id = `pool${my}_${k}_${next}`;
           w.onmessage = (e) => {
             if (e.data.id !== id || my !== job) return;
-            out.set(t.key, e.data.ev);
+            // C3: Worker báo lỗi (vd. thế trải quá rộng) → thế này coi như chưa chấm (null), hàng vẫn chạy tiếp
+            out.set(t.key, e.data.error ? null : e.data.ev);
             if (onDone) onDone();
             take();
           };

@@ -110,6 +110,24 @@ input:not([type="range"]):focus { outline: 2px solid var(--accent); outline-offs
   width: 40px; height: 40px; border-radius: 50%; flex: none;
   display: grid; place-items: center; font-weight: var(--fw-bold); color: #fff; background: var(--accent);
 }
+.avatar:has(> img) { cursor: zoom-in; }
+
+/* Khung xem ảnh đại diện lớn (avatar.js – bấm vào ảnh đại diện; là <dialog> modal nên nền tối nằm ở ::backdrop) */
+.av-view {
+  border: 0; padding: 20px; background: transparent; max-width: 100vw; max-height: 100vh;
+}
+.av-view::backdrop { background: rgba(10, 10, 12, 0.84); }
+.av-view figure { margin: 0; text-align: center; }
+.av-view img {
+  width: min(72vw, 320px); height: min(72vw, 320px); object-fit: cover;
+  border-radius: 18px; background: #fff; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+.av-view figcaption { margin-top: 12px; color: #fff; font-weight: var(--fw-semibold); }
+.av-view .av-x {
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 14px;
+  width: 40px; height: 40px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(255, 255, 255, 0.14); color: #fff; font-size: 17px; line-height: 1;
+}
 
 .people, .players { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .people li, .players li { display: flex; align-items: center; gap: 8px; padding: 6px 2px; }

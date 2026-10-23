@@ -17,14 +17,14 @@
   try { on = localStorage.getItem(KEY) !== '0'; } catch (e) { /* riêng tư */ }
 
   let worker = null, failed = false, seq = 0, gidSeq = 0;
-  const g = { gid: 0, rule: null, moves: [], evals: [], busy: false, over: false };
+  const g = { gid: 0, rule: null, moves: [], evals: [], busy: false, over: false, dead: false }; // dead: engine từ chối ván này
   let inflight = null; // { id, gid, i, key, alt: đang chấm thế sau nước tốt nhất của nước i }
   let pumpTimer = 0;
 
   function getWorker() {
     if (worker || failed) return worker;
     try {
-      if (!window.Worker || !location.protocol.startsWith('http')) throw new Error('no worker');
+      if (!window.Worker || location.protocol === 'file:') throw new Error('no worker'); // cả capacitor:// của app iOS (M-A4)
       worker = new Worker('ai-worker.js');
       worker.onmessage = onResult;
       worker.onerror = () => { failed = true; worker = null; inflight = null; };
@@ -55,7 +55,7 @@
     const c = rule === g.rule ? common(g.moves, moves) : -1;
     if (c <= 0 && (g.moves.length || rule !== g.rule)) {
       // Ván khác (hoặc đổi luật): làm lại từ đầu
-      g.gid = ++gidSeq; g.rule = rule; g.evals = [];
+      g.gid = ++gidSeq; g.rule = rule; g.evals = []; g.dead = false;
     } else if (c < g.moves.length) g.evals.length = c + 1; // đi lại / rẽ nhánh: bỏ các thế sau chỗ khác nhau
     g.moves = moves;
     g.busy = !!opts.busy;
@@ -77,7 +77,7 @@
 
   /** Chấm thế kế tiếp còn thiếu (từng thế một, theo thứ tự trong ván). */
   function pump() {
-    if (!on || inflight || g.busy || document.hidden) return;
+    if (!on || inflight || g.busy || g.dead || document.hidden) return;
     const n = g.moves.length;
     const last = g.over ? n - 1 : n; // thế sau nước thắng không cần chấm
     if (n === 0) return;
@@ -103,6 +103,9 @@
     if (!inflight || d.id !== inflight.id) return;
     const { gid, i, key, alt } = inflight;
     inflight = null;
+    // Engine báo lỗi (ai-worker.js – vd. ván trải quá rộng, position_too_large): thôi chấm ván này, nếu không pump()
+    // sẽ gửi lại đúng thế đó mãi (lỗi trả về tức thì → vòng lặp chiếm CPU). Ván mới (sync) thì chấm lại bình thường.
+    if (d.error) { if (gid === g.gid) g.dead = true; return; }
     // Ván vẫn còn đúng thế đó thì lưu (đi lại rồi rẽ nhánh khác trong lúc chấm: các nước đầu đã khác – bỏ)
     if (gid === g.gid && i <= g.moves.length && key === keyOf(g.moves, i) && d.ev) {
       if (!alt) g.evals[i] = { ...d.ev, k: key }; // k: khoá của đúng thế đã chấm (evalsFor kiểm lại)

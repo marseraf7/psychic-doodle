@@ -23,7 +23,12 @@ const { ExtrasMixin } = require('./room-extras.js');
 
 const { X, O } = Caro;
 const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
-const COORD_LIMIT = 1_000_000;
+const COORD_LIMIT = 512; // khớp MAX_COORD của caro/eval-key.js — ván thật không đi xa hơn; trần cũ 1_000_000 cho ván trải rộng làm engine phân tích cấp phát bộ nhớ khổng lồ (C3)
+// H-S5: trần số nước của một ván. Quá số này ván tự hoà — chặn hai người (hoặc bot) kéo một
+// ván dài vô hạn: mỗi nước hiện phát lại toàn bộ lịch sử cho cả phòng (chi phí O(n²)) và bản
+// ghi ván lưu xuống CSDL cũng phình theo. 2.000 nước là rất dư cho một ván thật (ván dài kỷ
+// lục cũng chỉ vài trăm nước) và khớp trần 2.000 nước của ván lưu trên máy người chơi.
+const MAX_MOVES = 2000;
 
 class Room {
   constructor({ code, password, kind = 'room', bestOf = 1, timeLimit = 0, clock = null, opening = 'free', rule = 'vn', secondMs = 1000, drawCooldownMs = 30000, firstMoveMs = 0 }) {
@@ -114,7 +119,7 @@ class Room {
   addPlayer(player, side) {
     if (this.has(player.id)) return;
     if (this.full) throw E('room_full');
-    this.players.push({ id: player.id, name: player.name });
+    this.players.push({ id: player.id, name: player.name, av: player.av || 0 });
     if (!(player.id in this.score)) this.score[player.id] = 0;
     const want = side === O ? O : side === X ? X : 0;
     const seat = want && !this.seats[want] ? want : !this.seats[X] ? X : O;
@@ -173,6 +178,8 @@ class Room {
     if (cells) {
       this.winCells = cells;
       this.finish(side, 'win');
+    } else if (this.board.moves.length >= MAX_MOVES) {
+      this.finish(DRAW, 'draw'); // chạm trần số nước: hoà (H-S5)
     } else {
       this.turn = Caro.other(side);
       this.startClock();
@@ -277,7 +284,7 @@ class Room {
       opener: this.opener,
       actor: this.actor(),
       turnLeft: this.turnEndsAt ? Math.max(0, this.turnEndsAt - Date.now()) : null, // ms còn lại của lượt
-      players: this.players.map((p) => ({ id: p.id, name: p.name })),
+      players: this.players.map((p) => ({ id: p.id, name: p.name, av: p.av || 0 })),
       seats: { x: this.seats[X], o: this.seats[O] },
       moves: this.board.moves.map((m) => [m.x, m.y]),
       turn: this.turn,
@@ -308,4 +315,4 @@ for (const part of [ClockMixin, Swap2Mixin, ExtrasMixin]) {
   }
 }
 
-module.exports = { Room, DRAW };
+module.exports = { Room, DRAW, MAX_MOVES };

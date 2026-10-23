@@ -79,7 +79,7 @@
           ops.push(`<option value="">⋯</option><option value="kick">${esc(T('club_kick'))}</option>`);
         }
       }
-      return `<li class="${m.id === uid ? 'me' : ''}"><span class="rank">${i + 1}</span><span class="st ${m.status}"></span>
+      return `<li class="${m.id === uid ? 'me' : ''}"><span class="rank">${i + 1}</span><span class="st ${esc(m.status)}"></span>
         <div class="pn"><b>${esc(m.name)}${m.role !== 'member' ? ` <span class="role">${esc(T('role_' + m.role))}</span>` : ''}</b><small>@${esc(m.username)}</small></div>
         <span class="pts">${m.rating}</span>${ops.length ? `<select class="mops" data-uid="${esc(m.id)}" data-name="${esc(m.name)}" aria-label="${esc(T('club_manage'))}">${ops.join('')}</select>` : ''}</li>`;
     }).join('')}</ol>`;

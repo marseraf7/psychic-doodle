@@ -106,7 +106,7 @@
     const rows = act.map((d) => {
       const n = d.w + d.l + d.d;
       const delta = Object.entries(d.r || {}).map(([k, v]) => `<span class="${v >= 0 ? 'up' : 'down'}">${esc(T('pool_' + k))} ${v >= 0 ? '+' : ''}${v}</span>`).join(' ');
-      const bar = ['w', 'd', 'l'].map((k) => (d[k] ? `<i class="${k}" style="flex:${d[k]}"></i>` : '')).join('');
+      const bar = ['w', 'd', 'l'].map((k) => (d[k] ? `<i class="${esc(k)}" style="flex:${d[k]}"></i>` : '')).join('');
       return `<li><small>${esc(date(Date.parse(d.day + 'T12:00:00Z'), { day: '2-digit', month: '2-digit' }))}</small>
         <span>${esc(T('act_games', { n, w: d.w, l: d.l, d: d.d }))}</span><span class="act-bar">${bar}</span><span class="act-d">${delta}</span></li>`;
     }).join('');
@@ -125,7 +125,7 @@
         <small>${esc(T('pool_' + k))}</small><b>${x.r}${x.prov ? '?' : ''}</b><small>${esc(T('lb_games', { n: x.n }))}</small></button>`;
     }).join('');
     const recent = (p.recent || []).map((g) => `<li>
-        <span class="res ${g.result}">${esc(T('res_' + g.result))}</span>
+        <span class="res ${esc(g.result)}">${esc(T('res_' + g.result))}</span>
         <div class="pn"><b>${esc(T('vs', { name: g.opponent || T('deleted_player') }))}</b>
           <small>${esc(date(g.created))} · ${esc(window.I18N.tc(g.timeLimit, g.clock))} · ${esc(T('n_moves', { n: g.moves }))}</small></div>
         <button type="button" class="primary sm" data-replay="${esc(g.share)}">${esc(T('replay'))}</button></li>`).join('');
@@ -144,7 +144,7 @@
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
     $('profile-body').innerHTML = `
       <div class="who pf-who">${window.CaroAvatar.html(p)}
-        <div><b>${esc(p.name)}</b><small><span class="st ${p.status}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
+        <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
         <div class="row pf-act">${actions.join('')}</div></div>
       <div class="pf-pools">${pools}</div>
       <div class="pf-chart">${chartSvg(p.history[chartPool])}</div>

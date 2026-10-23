@@ -11,7 +11,16 @@
     const T = window.I18N.t;
     const { Board, X, O } = window.Caro;
     const { state, cam, esc, glyph, ruleChip, net, sfx, placeRaw, vibrate, updateUI, requestDraw, ensureVisible, animateCamera, renderClock,
-      resetClock, showBanner, hideBanner, closeReplay, exitExt, toBoard, save, load, maybeAI, isAITurn } = env;
+      resetClock, showBanner, hideBanner, closeReplay, exitExt, toBoard, save, load, maybeAI, isAITurn, toast } = env;
+
+    // H-F1: nước đi online hiện ngay trên bàn (lạc quan) nhưng chỉ là tạm — phải khoá lần
+    // chạm tiếp theo cho tới khi máy chủ xác nhận bằng trạng thái phòng mới, nếu không
+    // một cú chạm đúp nhanh sẽ đặt thêm quân của đối thủ lên bàn của mình.
+    const OPT_CONFIRM_MS = 4000; // quá thời gian này mà chưa có trạng thái phòng mới: coi như mất xác nhận
+    let optTimer = null;
+    function clearOptTimer() { if (optTimer) { clearTimeout(optTimer); optTimer = null; } }
+    // Dựng lại bàn theo trạng thái phòng gần nhất máy chủ đã gửi (bỏ quân lạc quan chưa được xác nhận).
+    function resyncLocal() { if (state.online) applyRoom(state.online.room, state.online.me, state.online.watch); }
 
     // Người chơi có được đánh lúc này không.
     function canPlaceNow() {
@@ -20,14 +29,17 @@
       if (!state.online) return !isAITurn();
       const { room, side, me, watch } = state.online;
       if (watch) return false; // người xem
+      if (state.optimistic) return false; // đang chờ máy chủ xác nhận nước trước (H-F1)
       if (room.players.length !== 2 || room.seriesWinner) return false;
       // Máy chủ cho biết ai phải hành động (luật Swap2: một người đặt cả quân X lẫn O; lúc chọn bên thì không đặt quân)
       if (room.actor !== undefined) return room.actor === me && !/^choose/.test(room.phase || '');
       return room.turn === side;
     }
 
+    const COORD_LIMIT = 512; // khớp server/src/room.js – ngoài vùng này máy chủ từ chối (C3)
     function playOnline(x, y) {
       if (!canPlaceNow()) return;
+      if (Math.abs(x) > COORD_LIMIT || Math.abs(y) > COORD_LIMIT) { if (toast) toast(T('srv_bad_move'), 3000); return; }
       // Hiện ngay nước đi (máy chủ sẽ xác nhận lại).
       sfx(state.turn === X ? 'placeX' : 'placeO');
       placeRaw(x, y);
@@ -37,7 +49,14 @@
       updateUI();
       requestDraw();
       ensureVisible(x, y);
-      net().send({ t: 'move', x, y });
+      // H-F1: gửi không được (mất kết nối) thì dựng lại ngay theo phòng gần nhất — không để quân ma trên bàn.
+      if (!net().send({ t: 'move', x, y })) { resyncLocal(); return; }
+      // Quá thời gian chờ mà máy chủ chưa gửi trạng thái phòng mới: đồng bộ lại và báo người chơi.
+      clearOptTimer();
+      optTimer = setTimeout(() => {
+        optTimer = null;
+        if (state.optimistic) { resyncLocal(); if (toast) toast(T('move_unconfirmed'), 3500); }
+      }, OPT_CONFIRM_MS);
     }
 
     /** Dựng lại bàn cờ theo trạng thái phòng từ máy chủ. */
@@ -69,6 +88,7 @@
           sfx(last.p === X ? 'placeX' : 'placeO');
         }
       }
+      clearOptTimer(); // có trạng thái phòng mới = nước đi đã được xác nhận (H-F1)
       state.optimistic = null;
       if (room.winner && (!prev || !prev.winner || isNewGame)) {
         state.winAt = performance.now();
@@ -100,6 +120,8 @@
 
     function leaveOnline() {
       if (!state.online) return;
+      clearOptTimer();
+      state.optimistic = null;
       state.online = null;
       state.clocks = null;
       document.body.classList.remove('online', 'watching');

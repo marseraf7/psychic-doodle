@@ -122,7 +122,7 @@
       el.innerHTML = V.games.map((g, i) => {
         const how = g.reason && !['win', 'draw'].includes(g.reason) ? ' · ' + T('end_' + g.reason) : '';
         return `<li>
-          <span class="res ${g.result}">${esc(T('res_' + g.result))}</span>
+          <span class="res ${esc(g.result)}">${esc(T('res_' + g.result))}</span>
           <div class="pn"><b>${esc(T('vs', { name: g.opponent || T('deleted_player') }))}</b>
             <small>${esc(when(g.created))} · ${esc(window.I18N.tc(g.timeLimit, g.clock))}${esc(window.I18N.ruleTag(g.rule))} · ${esc(T('n_moves', { n: g.moves }))}${esc(how)}</small></div>
           <div class="hist-acts">

@@ -256,7 +256,7 @@
   /** Mục "Lối đánh của máy": 5 thẻ (tên lối, 3 ảnh nhân vật, mô tả ngắn); bấm để xem phim của lối đó. */
   function renderStyleCards() {
     const P = window.CaroBotPicker, B = window.CaroBots;
-    $('style-cards').innerHTML = B.STYLES.map((st, i) => `<button type="button" class="style-card st-${st}" data-style-step="${i + 1}">
+    $('style-cards').innerHTML = B.STYLES.map((st, i) => `<button type="button" class="style-card st-${esc(st)}" data-style-step="${i + 1}">
       ${P.styleTag(st)}<span class="sc-bots">${B.BOTS.filter((b) => b.style === st).slice(-3).map((b) => P.avatarHtml(b.id, 'sm')).join('')}</span>
       <small>${esc(T('style_' + st + '_s'))}</small></button>`).join('');
   }

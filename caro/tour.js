@@ -42,7 +42,7 @@
     return `<span class="club-logo" style="background:hsl(${h} 55% 45%)">${esc((String(name).trim()[0] || '?').toUpperCase())}</span>`;
   };
   /** Biểu tượng SVG (index.html, #i-…) đặt cạnh chữ. */
-  const icon = (name, cls = '') => `<svg class="ico i-in ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  const icon = (name, cls = '') => `<svg class="ico i-in ${esc(cls)}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
   const fmtIcon = (f) => icon(f === 'arena' ? 'swords' : 'trophy');
   const CLOCK = '\u0001'; // chỗ đặt biểu tượng đồng hồ trong tourMeta (chuỗi chữ thường, thay khi chuyển sang HTML)
   /** tourMeta đã escape, kèm biểu tượng đồng hồ. */
@@ -65,7 +65,7 @@
   function statusTag(t) {
     const cls = { running: 'live', scheduled: 'soon', pending: 'wait', finished: 'done', cancelled: 'off', rejected: 'off' }[t.status];
     const label = t.status === 'scheduled' && t.checkin ? T('st_checkin') : T('tst_' + t.status);
-    return `<span class="pill ${cls}">${esc(label)}</span>`;
+    return `<span class="pill ${esc(cls)}">${esc(label)}</span>`;
   }
   const cd = (at, prefix) => `<span class="cd" data-at="${at}" data-prefix="${esc(prefix)}">${esc(T(prefix, { t: left(at - serverNow()) }))}</span>`;
   function timeLine(t) {
