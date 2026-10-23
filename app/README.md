@@ -82,8 +82,12 @@ npx cap open ios              # mở Xcode → Run
    trong `app/package.json`.
 4. Trong Play Console, mục *App content*:
    - **Privacy policy**: `https://caroxo.duckdns.org/privacy.html`
+     (dự phòng khi máy chủ game không vào được: `https://marseraf7.github.io/psychic-doodle/privacy.html`
+     — GitHub Pages tự đăng toàn bộ thư mục `caro/` mỗi khi nhánh chính đổi, theo
+     `.github/workflows/pages.yml`; trang tĩnh, không cần máy chủ game)
    - **Data safety → Account deletion**: xoá được ngay trong app; link web:
      `https://caroxo.duckdns.org/privacy.html#delete`
+     (dự phòng: `https://marseraf7.github.io/psychic-doodle/privacy.html#delete`)
    - Khai báo dữ liệu thu thập: tên đăng nhập, email (tuỳ chọn), tin nhắn trong game, lịch sử ván;
      không quảng cáo, không chia sẻ cho bên thứ ba (xem nội dung trang chính sách).
 
