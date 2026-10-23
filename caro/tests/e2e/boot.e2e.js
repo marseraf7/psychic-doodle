@@ -138,6 +138,39 @@ const PORT = 8121;
     'file lõi bị chặn: hiện thông báo + nút tải lại');
   await bctx.close();
 
+  // 7. Trang chính sách như file tĩnh, không qua máy chủ game (bản dự phòng GitHub Pages, Issue #104):
+  //    một máy chủ tĩnh tối giản phục vụ thư mục caro/ — đúng cách Pages phục vụ privacy.html.
+  {
+    const http = require('http'), fsS = require('fs'), pathS = require('path');
+    const root = pathS.join(__dirname, '..', '..');
+    const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml' };
+    const stat = http.createServer((req, res) => {
+      const rel = decodeURIComponent(req.url.split(/[?#]/)[0]).replace(/^\/+/, '') || 'index.html';
+      const f = pathS.join(root, rel);
+      if (!f.startsWith(root) || !fsS.existsSync(f) || !fsS.statSync(f).isFile()) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { 'Content-Type': mime[pathS.extname(f)] || 'application/octet-stream' });
+      fsS.createReadStream(f).pipe(res);
+    });
+    await new Promise((r) => stat.listen(0, '127.0.0.1', r));
+    const ctx2 = await browser.newContext({ viewport: { width: 430, height: 860 } });
+    const p2 = await ctx2.newPage();
+    const errs2 = [];
+    p2.on('pageerror', (e) => errs2.push(e.message));
+    await gotoRetry(p2, `http://127.0.0.1:${stat.address().port}/privacy.html#delete-en`);
+    await sleep(500);
+    const st = await p2.evaluate(() => ({
+      shown: [...document.querySelectorAll('main > section[lang]')].filter((x) => !x.hidden).map((x) => x.id),
+      del: !!document.getElementById('delete-en'),
+    }));
+    ok(st.shown.length === 1 && st.shown[0] === 'en' && st.del, 'privacy tĩnh #delete-en: chỉ hiện tiếng Anh, có mục xoá tài khoản — ' + JSON.stringify(st));
+    await p2.click('.langs a[href="#ru"]');
+    await sleep(200);
+    ok(await p2.evaluate(() => !document.getElementById('ru').hidden && !!document.getElementById('delete-ru')), 'privacy tĩnh: đổi sang tiếng Nga, có mục xoá tài khoản');
+    ok(!errs2.length, 'privacy tĩnh: không có lỗi JS' + (errs2.length ? ': ' + errs2.join(' | ') : ''));
+    await ctx2.close();
+    stat.close();
+  }
+
   ok(!errors.length, 'không có lỗi JS' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await ctx.close();
   await finish();
