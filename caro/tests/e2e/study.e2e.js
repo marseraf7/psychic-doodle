@@ -135,9 +135,29 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     await sleep(300);
     const back = await p.evaluate(() => ({ ext: document.body.classList.contains('ext'), replay: document.body.classList.contains('replay'), n: window.CaroApp.board.moves.length }));
     ok(!back.ext && back.replay && back.n === 6, 'Về ván: quay lại xem lại ở nước 6');
+    ok(await p.evaluate(() => !document.getElementById('an-panel').hidden && !!window.CaroApp.marks), 'sau "Thử lại": bảng phân tích và dấu nước vẫn còn');
     await p.click('#rp-close');
     await sleep(300);
     ok((await p.evaluate(() => window.CaroApp.board.moves.length)) === GAME.length, 'đóng xem lại: ván cục bộ còn nguyên');
+    await p.context().close();
+  }
+
+  // ---------------------------------------------------------------- Phân tích rồi mở câu đố: dấu nước cũ không sót
+  {
+    const p = await page(430, () => { localStorage.setItem('caro.lang', 'vi'); });
+    await p.evaluate((g) => window.CaroApp.startPreset({ rule: 'free', mode: 'pvp', moves: g }), GAME);
+    await sleep(300);
+    await p.evaluate(() => document.getElementById('btn-analyze').click());
+    await p.waitForSelector('.an-acc', { timeout: 15000 });
+    ok(await p.evaluate(() => !!window.CaroApp.marks), 'phân tích: có dấu nước trên bàn');
+    await p.evaluate(() => window.CaroShell.go('home'));
+    await sleep(300);
+    await p.click('#tabbar [data-tab="puzzles"]');
+    await sleep(300);
+    await p.click('.pz-mode[data-pz=rated]');
+    await p.waitForFunction(() => document.body.classList.contains('ext'), null, { timeout: 10000 });
+    const st = await p.evaluate(() => ({ marks: window.CaroApp.marks, panel: !document.getElementById('an-panel').hidden, cls: document.body.classList.contains('analysis') }));
+    ok(!st.marks && !st.panel && !st.cls, 'mở câu đố: không còn dấu nước / bảng phân tích của ván cũ — ' + JSON.stringify(st));
     await p.context().close();
   }
 

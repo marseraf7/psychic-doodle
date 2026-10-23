@@ -497,6 +497,7 @@
     get turn() { return state.turn; },
     get players() { return playersInfo(); },
     get ext() { return state.ext; },
+    get marks() { return state.marks; }, // dấu thêm trên bàn (test)
     enterOnline,
     applyRoom: (room, me) => (state.online && !state.online.watch ? applyRoom(room, me) : enterOnline(room, me)),
     /** Xem ván của người khác (chỉ đọc). */
