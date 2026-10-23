@@ -16,3 +16,6 @@ server/scripts/rapfi/run/
 
 # Mạng Rapfi tự đặt trên máy chủ (tuỳ chọn, ~10 MB mỗi file – xem caro/rapfi/SOURCE.md)
 caro/rapfi/nets/
+
+# Ảnh chụp cửa hàng sinh bởi app/store/screenshots.js — không commit ảnh
+app/store/shots/
