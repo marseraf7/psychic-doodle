@@ -104,9 +104,77 @@ const tests = {
     assert.strictEqual(C.forbidden(mk([[1, 0], [2, 0], [3, 0], [4, 0], [0, 1], [0, 2], [0, 3]], [[0, -1]]), 0, 0, X), null, 'thành năm thì thắng, không cấm');
     assert.strictEqual(C.forbidden(mk([[1, 0], [2, 0], [0, 1], [0, 2]]), 0, 0, O), null);
     assert.strictEqual(C.forbidden(new C.Board(), 0, 0, X), null, 'luật Việt Nam không có nước cấm');
-    // 3-3 "giả": một đường ba chỉ thành bốn thẳng qua một ô cấm thì không tính là ba
+    // --- Chốt 3-3 thật / giả theo luật RIF (International Rules of Renju,
+    // https://www.renju.net/rifrules/ — điều 3 định nghĩa THREE / STRAIGHT FOUR, điều 9.3):
+    // một đường ba chỉ tính khi thành được bốn thẳng bằng một nước HỢP LỆ: nước đó không được
+    // đồng thời tạo quá năm hay 4-4 (9.3a), cũng không được tạo 3-3 cấm khác (9.3b, xét đệ quy).
+    // 3-3 bị cấm khi có từ HAI đường ba như vậy; chỉ một đường thì được phép ("3-3 giả").
+    // Sơ đồ 15×15: hàng trên cùng y=7, cột trái nhất x=-7; X = đen, O = trắng, * = ô đang xét (0,0).
+    //
+    // Thế từng bị coi là 3-3 "giả" — đối chiếu 9.3 thì là 3-3 THẬT: đường ngang có ô bốn
+    // (3,0) sạch (ô bốn kia (-1,0) là điểm 3-3 cấm, nhưng chỉ cần một ô bốn hợp lệ là đủ),
+    // đường dọc có ô bốn (0,3) sạch, đường chéo có ô bốn (1,1) là điểm 4-3 hợp lệ.
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . X . . . . . . .
+    // . . . . . . . X . . . . . . .
+    // . . . . . . . * X X . . . . .
+    // . . . . X . X . . . . . . . .
+    // . . . . X X . . . . . . . . .
+    // . . . . . . X . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
     const fake = mk([[1, 0], [2, 0], [0, 1], [0, 2], [-1, -3], [-1, -1], [-2, -2], [-3, -2], [-3, -1]]);
-    assert.ok(['33', null].includes(C.forbidden(fake, 0, 0, X)));
+    assert.strictEqual(C.forbidden(fake, 0, 0, X), '33', 'thế "giả" cũ: thật ra là 3-3 thật theo RIF 9.3');
+    //
+    // 3-3 GIẢ thật sự: đường dọc chỉ còn ô bốn (0,-1), mà ô đó trên bàn tương lai (đã có (0,0))
+    // tự nó là 3-3 (bốn dọc + ba ngang (1,-1),(2,-1) + ba chéo (1,-2),(2,-3)); đầu kia (0,3)
+    // bị trắng chặn. Chỉ còn đường ngang là ba thật → không cấm.
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . O . . . . . . .
+    // . . . . . . . X . . . . . . .
+    // . . . . . . . X . . . . . . .
+    // . . . . . . . * X X . . . . .
+    // . . . . . . . . X X . . . . .
+    // . . . . . . . . X . . . . . .
+    // . . . . . . . . . X . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    const fake33 = mk([[1, 0], [2, 0], [0, 1], [0, 2], [1, -1], [2, -1], [1, -2], [2, -3]], [[0, 3]]);
+    assert.strictEqual(C.forbidden(fake33, 0, 0, X), null, '3-3 giả: ba dọc không thành bốn thẳng hợp lệ được');
+    // Bỏ quân trắng chặn (0,3) — ba dọc có ô bốn sạch, thành 3-3 thật ngay:
+    const fake33b = mk([[1, 0], [2, 0], [0, 1], [0, 2], [1, -1], [2, -1], [1, -2], [2, -3]]);
+    assert.strictEqual(C.forbidden(fake33b, 0, 0, X), '33', 'bỏ chặn ở (0,3): thành 3-3 thật');
+    //
+    // 3-3 thật dù ô bốn của đường dọc là điểm 4-3: (0,3) tạo bốn dọc + ba ngang (1,3),(2,3);
+    // 4-3 được phép nên đường dọc vẫn là ba thật.
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . X X . . . . .
+    // . . . . . . . X . . . . . . .
+    // . . . . . . . X . . . . . . .
+    // . . . . . . . * X X . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    // . . . . . . . . . . . . . . .
+    const real33 = mk([[1, 0], [2, 0], [0, 1], [0, 2], [1, 3], [2, 3]]);
+    assert.strictEqual(C.forbidden(real33, 0, 0, X), '33', 'ô bốn là điểm 4-3 hợp lệ: vẫn là 3-3 thật');
     // X không thắng với 6 quân, O thì có
     const o6 = mk([[0, 0], [1, 0], [2, 0], [4, 0], [5, 0]]);
     assert.ok(!C.winsIfPlaced(o6, 3, 0, X));
