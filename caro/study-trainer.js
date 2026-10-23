@@ -61,7 +61,7 @@
       const goalText = t.prompt || T(t.goal === 'win' ? 'tr_find_win' : 'tr_find_save');
       let turn = `${glyph(t.p)} <span>${esc(goalText)}</span>`;
       if (t.goal === 'win' && t.left > 1 && t.status === 'play' && t.first) turn += ` <span class="thinking">${esc(T('tr_in_n', { n: t.left }))}</span>`;
-      if (t.msg) turn = `<span class="tr-msg ${t.status}">${t.status === 'solved' ? ico('check') : t.status === 'wrong' ? ico('close') : ''} ${esc(t.msg)}</span>`;
+      if (t.msg) turn = `<span class="tr-msg ${esc(t.status)}">${t.status === 'solved' ? ico('check') : t.status === 'wrong' ? ico('close') : ''} ${esc(t.msg)}</span>`;
       return { turn, score: t.score ? t.score() : esc(t.title || '') };
     }
 
@@ -195,7 +195,7 @@
     function renderBar() {
       const bar = $('ext-bar');
       if (!t) { bar.innerHTML = ''; return; }
-      const btn = (act, icon, key, cls) => `<button type="button" data-act="${act}"${cls ? ` class="${cls}"` : ''}><svg class="ico" aria-hidden="true"><use href="#i-${icon}"/></svg><span>${esc(T(key))}</span></button>`;
+      const btn = (act, icon, key, cls) => `<button type="button" data-act="${act}"${cls ? ` class="${esc(cls)}"` : ''}><svg class="ico" aria-hidden="true"><use href="#i-${icon}"/></svg><span>${esc(T(key))}</span></button>`;
       const parts = [];
       const nextKey = typeof t.nextLabel === 'function' ? t.nextLabel() : t.nextLabel || 'tr_next';
       if (t.status === 'play' && !t.noHelp) parts.push(btn('hint', 'bulb', 'tr_hint'));

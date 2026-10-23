@@ -30,7 +30,7 @@
   }
   function mark(x, y, k, label) {
     if (k === 'n') return `<g class="rnum"><circle cx="${cx(x)}" cy="${cx(y)}" r="10"/><text x="${cx(x)}" y="${cx(y) + 4}">${esc(label)}</text></g>`;
-    if (k === 'win' || k === 'lose') return `<circle class="r${k}" cx="${cx(x)}" cy="${cx(y)}" r="8"/>`;
+    if (k === 'win' || k === 'lose') return `<circle class="r${esc(k)}" cx="${cx(x)}" cy="${cx(y)}" r="8"/>`;
     return k === 'bad'
       ? `<g class="rbad"><rect x="${cx(x) - 14}" y="${cx(y) - 14}" width="28" height="28" rx="6"/><line x1="${cx(x) - 7}" y1="${cx(y) - 7}" x2="${cx(x) + 7}" y2="${cx(y) + 7}"/><line x1="${cx(x) + 7}" y1="${cx(y) - 7}" x2="${cx(x) - 7}" y2="${cx(y) + 7}"/></g>`
       : `<g class="rgood"><rect x="${cx(x) - 14}" y="${cx(y) - 14}" width="28" height="28" rx="6"/><path d="M${cx(x) - 7} ${cx(y)} l5 5 l9 -10"/></g>`;
