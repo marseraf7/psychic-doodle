@@ -110,6 +110,16 @@ class Hub {
 
   isOnline(pid) { return (this.byPid.get(pid)?.size || 0) > 0; }
 
+  /** RTT (ms) máy chủ đo được của người chơi: kết nối nhanh nhất trong các tab đang mở; chưa đo thì 0. */
+  lagOf(pid) {
+    let best = null;
+    for (const c of this.byPid.get(pid) || []) {
+      const v = c.lag ? c.lag.value : null;
+      if (v != null && (best == null || v < best)) best = v;
+    }
+    return best || 0;
+  }
+
   attach(conn, pid) {
     if (conn.pid) this.detach(conn);
     conn.pid = pid;
@@ -263,6 +273,7 @@ class Hub {
     if (room.opener === oldPid) room.opener = newPid;
     if (room.decider === oldPid) room.decider = newPid;
     if (oldPid in room.clockLeft) { room.clockLeft[newPid] = room.clockLeft[oldPid]; delete room.clockLeft[oldPid]; }
+    if (room.lagUsed && oldPid in room.lagUsed) { room.lagUsed[newPid] = room.lagUsed[oldPid]; delete room.lagUsed[oldPid]; }
     if (room.clockRun && room.clockRun.id === oldPid) room.clockRun.id = newPid;
     if (room.lastDelta && oldPid in room.lastDelta) { room.lastDelta[newPid] = room.lastDelta[oldPid]; delete room.lastDelta[oldPid]; }
     this.roomOf.delete(oldPid);

@@ -11,6 +11,9 @@ chơi online qua WebSocket (`/ws`):
   người đã chặn nhau không thấy phòng của nhau.
 - **Thời gian**: giới hạn mỗi nước (10/20/30 giây) hoặc **đồng hồ tổng + cộng giờ** như cờ vua:
   1+1, 3+2, 5+3, 10+5 (phút + giây cộng sau mỗi lần đi). Máy chủ giữ đồng hồ (theo người chơi), hết giờ thì thua.
+  **Bù trễ mạng** (như Lichess): máy chủ tự đo thời gian khứ hồi của từng người bằng gói ping WebSocket và trả lại sau
+  mỗi nước (1+0: tới 250 ms / nước, 10+0 trở lên: tới 1 giây; cả ván tới 10% thời gian), người chơi ở xa máy chủ không
+  bị trừ giờ vì đường truyền. Hết giờ thì máy chủ chờ thêm đúng mức đó mới xử thua (`src/lag.js`).
 - **Luật khai cuộc Swap2** (chống lợi thế đi trước, tuỳ chọn khi tạo phòng / thách đấu / tạo giải): người cầm X
   đặt 3 quân (X, O, X); người kia chọn cầm X, cầm O, hoặc đặt thêm 2 quân (O, X) rồi để người đầu chọn bên.
   Quân luôn xen kẽ X/O nên lịch sử và xem lại không đổi. Máy chủ cho biết ai phải hành động (`actor`, `phase`).
@@ -148,7 +151,7 @@ npm run coverage     # kiểm thử + đo độ phủ mã (CI báo lỗi nếu d
 
 Mã máy chủ: `server.js` (WebSocket), `src/web.js` (HTTP: file tĩnh, ảnh xem trước, thẻ og, API công khai),
 `src/png.js` (vẽ ảnh PNG), `src/avatar.js` (kiểm + lưu ảnh đại diện), `src/store.js` (SQLite; bảng + câu lệnh SQL ở `src/store-schema.js`; phiên đăng nhập + thông tin thiết bị ở `src/store-sessions.js`), `src/useragent.js` (đọc User-Agent cho mục Thiết bị), `src/room.js` (một phòng chơi; đồng hồ ở
-`src/room-clock.js`, luật Swap2 ở `src/room-swap2.js`, huỷ ván / thêm giờ / đi lại / Berserk ở `src/room-extras.js`),
+`src/room-clock.js`, bù trễ mạng ở `src/lag.js`, luật Swap2 ở `src/room-swap2.js`, huỷ ván / thêm giờ / đi lại / Berserk ở `src/room-extras.js`),
 `src/rating.js` (Glicko-2), `src/perf.js` (thống kê sâu, hoạt động), `src/moderation.js` (kiểm duyệt nội dung),
 `src/hub/` – xử lý tin nhắn, chia theo chủ đề: `core.js` (kết nối, phiên, giới hạn tần suất),
 `auth.js` (tài khoản, mật khẩu, email), `devices.js` (Thiết bị: tài khoản đang đăng nhập ở đâu, đăng xuất từ xa), `social.js` (bạn bè, lịch sử, chặn, tin nhắn), `profile.js` (bảng xếp hạng, hồ sơ),

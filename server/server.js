@@ -21,12 +21,14 @@
  */
 'use strict';
 const http = require('http');
+const crypto = require('crypto');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const { Store } = require('./src/store.js');
 const { EvalCache } = require('./src/evalcache.js');
 const { Hub, verifyGoogleToken } = require('./src/hub.js');
 const { makeHandler, clientIp, fromProxy, wsOriginAllowed } = require('./src/web.js');
+const { LagMeter } = require('./src/lag.js');
 
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = process.env.HOST || '';
@@ -47,6 +49,8 @@ const MAX_CONN_PER_IP = 200;
 const MSG_RATE = 15; // tin nhắn/giây cho mỗi kết nối (cho phép dồn tối đa MSG_BURST)
 const MSG_BURST = 40;
 const MAX_BUFFERED = 2 * 1024 * 1024; // byte chờ gửi tối đa của 1 kết nối
+const PROBE_GAP_MS = 1000; // đo trễ (ping WebSocket) không dày hơn 1 lần / giây
+const PROBE_WAIT_MS = 10000; // gói đo chưa được trả lời sau 10 giây thì bỏ, đo lần mới
 
 function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.db'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken,
   sendMail = SMTP_URL ? smtpMailer(SMTP_URL, process.env.MAIL_FROM) : null, timers, msgRate = MSG_RATE,
@@ -90,9 +94,24 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
       // Tin đã chuyển JSON sẵn (trang giải, người xem ván: phần chung dựng một lần cho mọi người)
       sendRaw,
     };
+    // Bù trễ đồng hồ (src/lag.js): máy chủ tự đo RTT bằng gói ping của giao thức WebSocket, mỗi gói một mã ngẫu
+    // nhiên – chỉ gói trả lời đúng mã mới được tính (không giả được số đo nhỏ hơn hay lớn hơn thời gian thật đã chờ).
+    conn.lag = new LagMeter();
+    let probe = null, probeAt = 0;
+    conn.probe = () => {
+      const now = Date.now();
+      if (ws.readyState !== 1 || now - probeAt < PROBE_GAP_MS || (probe && now - probe.at < PROBE_WAIT_MS)) return;
+      probeAt = now;
+      probe = { data: crypto.randomBytes(4), at: now };
+      ws.ping(probe.data);
+    };
     hub.connect(conn);
     ws.isAlive = true;
-    ws.on('pong', () => { ws.isAlive = true; });
+    ws.on('pong', (data) => {
+      ws.isAlive = true;
+      if (probe && Buffer.isBuffer(data) && data.equals(probe.data)) { conn.lag.sample(Date.now() - probe.at); probe = null; }
+    });
+    conn.probe();
     // Chống spam: token bucket cho mỗi kết nối, vượt quá thì ngắt.
     let tokens = MSG_BURST, last = Date.now();
     ws.on('message', (data) => {
