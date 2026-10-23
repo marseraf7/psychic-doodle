@@ -331,6 +331,10 @@
   };
   window.addEventListener('caro:seek', renderNow);
   window.addEventListener('caro:replayclose', () => { closePanel(); an.result = null; });
+  // Mở câu đố / bài học khi bảng phân tích đang mở: dừng phân tích, đóng bảng (dấu nước cũ không sót trên bàn mới).
+  // "Thử lại" (retry) cũng vào chế độ luyện nhưng là của chính bảng phân tích: giữ nguyên.
+  let retrying = false;
+  window.addEventListener('caro:extenter', () => { if (retrying) return; cancel(); closePanel(); an.result = null; });
 
   /** "Thử lại": đặt lại thế cờ trước nước i, cho người chơi tìm nước tốt hơn. */
   function retry(i) {
@@ -341,12 +345,15 @@
     const moves = r.data.moves.slice(0, i);
     const backTo = r.idx;
     const goal = m.cls === 'miss' ? 'win' : 'save';
-    Trainer.start({
-      moves, p: m.p, goal, left: m.len || 0, sol: m.best, rule: r.data.rule,
-      title: T('an_retry'),
-      exitLabel: 'tr_back',
-      onExit: () => { App.exitExt(); App.seek(backTo); relayout(); },
-    });
+    retrying = true;
+    try {
+      Trainer.start({
+        moves, p: m.p, goal, left: m.len || 0, sol: m.best, rule: r.data.rule,
+        title: T('an_retry'),
+        exitLabel: 'tr_back',
+        onExit: () => { App.exitExt(); App.seek(backTo); relayout(); },
+      });
+    } finally { retrying = false; }
   }
   const Trainer = window.CaroTrainer; // luyện tập trên một thế cờ (study-trainer.js)
   const P = window.CaroPuzzles; // giải đố (puzzles.js)
