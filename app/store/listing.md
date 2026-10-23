@@ -6,7 +6,7 @@ Nội dung cho trang Google Play (và App Store nếu kịp) theo Issue #95. Gi�
 
 | Ngôn ngữ | Tên (≤30) | Mô tả ngắn (≤80) | Mô tả đầy đủ (≤4000) | Có gì mới (≤500) |
 |---|---|---|---|---|
-| vi | 13 | 79 | 1570 | 185 |
+| vi | 13 | 79 | 1566 | 185 |
 | en | 13 | 79 | 1730 | 178 |
 | ru | 13 | 70 | 1818 | 145 |
 | zh | 13 | 29 | 617 | 69 |
@@ -40,7 +40,7 @@ CHƠI VỚI MÁY
 • Giải đấu nhiều thể thức: Arena, loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ, vòng bảng rồi playoff.
 • Câu lạc bộ: tạo CLB, mời bạn, đấu nội bộ.
 • Thách đấu bạn bè Bo1 / Bo3 / Bo5, điểm Glicko-2 và bảng xếp hạng.
-• Kết bạn, xem ai đang online, nhắn tin, bong bóng chat, gửi link mời qua Zalo, Telegram, Messenger.
+• Kết bạn, xem ai đang online, nhắn tin, bong bóng chat, gửi link mời qua các ứng dụng nhắn tin.
 
 HỌC VÀ PHÂN TÍCH
 • Phân tích lại ván đã đấu: engine chỉ ra nước sai lầm, nước bỏ lỡ và nước tốt nhất.

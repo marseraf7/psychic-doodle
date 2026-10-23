@@ -23,6 +23,10 @@ const SIZES = [
   { id: 'tablet7', w: 400, h: 640, dsf: 3 },
   { id: 'tablet10', w: 800, h: 1280, dsf: 2 },
 ];
+// Định dạng ngày giờ theo ngôn ngữ (vd. form tạo giải): trình duyệt mặc định en-US
+const LOCALE = { vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' };
+// Ván giữa chừng cho cảnh 2: 11 nước (X 6, O 5) → tới lượt BOAT (O); X có ba mở chéo nên BOAT phải chặn
+const MID = [[0, 0], [1, 0], [1, 1], [0, 1], [2, 0], [2, 1], [1, -1], [-1, -1], [3, 1], [2, -1], [0, 2]];
 const GREET = { vi: 'Xin chào!', en: 'Hello!', ru: 'Привет!', zh: '你好！' };
 // Ván mẫu cho cảnh phân tích (giống boat-rapfi.e2e.js): O bỏ mặc thế bốn ở nước 8, X thắng nước 9 — có nước bị chấm "sai lầm"
 const GAME = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [3, 0], [-1, 0], [2, 1], [-2, 0]];
@@ -51,9 +55,9 @@ async function scenes(p, friend, lang, sizes, ok) {
   });
 
   await at('02-game-boat', async () => {
-    await p.evaluate(() => { window.CaroApp.setBot('boat', 7); window.CaroApp.startPreset({ rule: 'free', mode: 'ai', bot: 'boat', moves: [[0, 0], [1, 1], [0, 1], [1, 0]] }); });
+    await p.evaluate((MID) => { window.CaroApp.setBot('boat', 7); window.CaroApp.startPreset({ rule: 'free', mode: 'ai', bot: 'boat', moves: MID }); }, MID);
     // BOAT đi thêm một nước (Rapfi hoặc engine dự phòng đều được — chỉ cần ván đang sống)
-    await until(p, () => window.CaroApp.board.moves.length >= 5, null, 45000);
+    ok(await until(p, (n) => window.CaroApp.board.moves.length > n, MID.length, 45000), `${lang}: BOAT đi nước trong cảnh 2`);
     await sleep(500);
   });
 
@@ -120,7 +124,7 @@ async function scenes(p, friend, lang, sizes, ok) {
     for (const dsf of [3, 2]) {
       const sizes = SIZES.filter((s) => s.dsf === dsf);
       const first = sizes[0];
-      const alex = await user(lang, `alex${lang}${dsf}`, first.w, { viewport: { width: first.w, height: first.h }, deviceScaleFactor: dsf });
+      const alex = await user(lang, `alex${lang}${dsf}`, first.w, { viewport: { width: first.w, height: first.h }, deviceScaleFactor: dsf, locale: LOCALE[lang] });
       // Kết bạn alex <-> sam (qua hồ sơ như người dùng thật)
       await alex.evaluate((u) => window.CaroOnline.send({ t: 'profile', username: u }), 'sam' + lang);
       await alex.evaluate(() => window.CaroOnline.openDlg('profile-dlg'));
