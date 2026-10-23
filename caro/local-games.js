@@ -33,10 +33,16 @@
   const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
   const isQuota = (e) => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
 
-  /** Ván hợp lệ để lưu: có nước đi (mảng [x, y] số nguyên) và kết quả. */
+  // M-E1: một giới hạn toạ độ chung cho cả hệ thống — máy chủ (COORD_LIMIT) và engine phân
+  // tích (engine-position.js) đều chốt ở 512. Ván lưu vượt quá biên này thì không phân tích
+  // được và có thể làm hỏng các đường khôi phục, nên kiểm ngay khi tải lên.
+  const COORD_MAX = 512;
+
+  /** Ván hợp lệ để lưu: có nước đi (mảng [x, y] số nguyên trong biên chung) và kết quả. */
   function valid(rec) {
     return !!rec && Array.isArray(rec.moves) && rec.moves.length > 0 && rec.moves.length <= 2000 &&
-      rec.moves.every((m) => Array.isArray(m) && Number.isInteger(m[0]) && Number.isInteger(m[1])) && [1, 2, 3].includes(rec.winner);
+      rec.moves.every((m) => Array.isArray(m) && Number.isInteger(m[0]) && Number.isInteger(m[1]) &&
+        Math.abs(m[0]) <= COORD_MAX && Math.abs(m[1]) <= COORD_MAX) && [1, 2, 3].includes(rec.winner);
   }
 
   /** storage: đối tượng kiểu localStorage (getItem / setItem / removeItem). now: hàm lấy giờ (kiểm thử). */

@@ -223,4 +223,5 @@
     /** Cửa sổ chat với người này đang mở (không thu nhỏ). */
     isOpen: (id) => wins.some((w) => w.id === id && w.open),
   };
+  window.__caroBooted = true; // M-F3: chuỗi script đã nạp xong — watchdog.js thôi canh
 })();
