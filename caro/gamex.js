@@ -38,7 +38,7 @@
     }
   }
 
-  const btn = (act, label, cls = 'ghost') => `<button type="button" class="${cls} sm" data-gx="${act}">${esc(label)}</button>`;
+  const btn = (act, label, cls = 'ghost') => `<button type="button" class="${esc(cls)} sm" data-gx="${act}">${esc(label)}</button>`;
 
   /** Thẻ nổi (online.js chèn vào cùng chỗ với lời mời). */
   function floatHtml() {

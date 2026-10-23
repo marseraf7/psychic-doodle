@@ -31,7 +31,7 @@
     const inner = L.avatar ? `<img src="${esc(L.avatar)}" alt="">` : esc([...name(id).split(' ').pop()][0] || '?');
     return `<span class="bot-av${cls ? ' ' + cls : ''}" style="--c:${esc(L.color)}">${inner}${iconHtml(id)}</span>`;
   }
-  const styleTag = (st) => `<span class="style-tag st-${st}"><svg class="ico i-in" aria-hidden="true"><use href="#i-${STYLE_ICON[st]}"/></svg>${esc(T('style_' + st))}</span>`;
+  const styleTag = (st) => `<span class="style-tag st-${esc(st)}"><svg class="ico i-in" aria-hidden="true"><use href="#i-${STYLE_ICON[st]}"/></svg>${esc(T('style_' + st))}</span>`;
 
   /**
    * Nhãn sức cờ. BOAT chạy Rapfi (engine vô địch Gomocup; luật Việt Nam: Rapfi-CARO) thì mạnh hơn hẳn ~2700 – không gán

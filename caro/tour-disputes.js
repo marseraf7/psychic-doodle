@@ -23,12 +23,12 @@
         const wait = d.deadline ? ` · ${esc(T('dispute_auto_in', { n: Math.max(0, Math.ceil((d.deadline - now) / 60000)) }))}` : '';
         tail = `<small class="loss">${esc(T('dispute_open'))}${wait}</small>`;
         if (t.canManage && t.status === 'running') {
-          const b = (a, cls) => `<button type="button" class="${cls} sm" data-act="dispute" data-did="${esc(d.id)}" data-v="${a}">${esc(T('dispute_' + a))}</button>`;
+          const b = (a, cls) => `<button type="button" class="${esc(cls)} sm" data-act="dispute" data-did="${esc(d.id)}" data-v="${a}">${esc(T('dispute_' + a))}</button>`;
           tail += `<div class="row">${b('confirm', 'ghost')}${b('annul', 'ghost')}${b('replay', 'primary')}</div>`;
         }
       } else tail = `<small class="muted">${esc(T('dispute_' + d.status))}${d.auto ? ' · ' + esc(T('dispute_auto')) : ''}</small>`;
       const replay = d.share ? `<a href="#" data-act="replay" data-share="${esc(d.share)}" aria-label="${esc(T('replay'))}">${icon('play')}</a>` : '';
-      return `<li class="dispute ${d.status}"><div class="pn"><b>${line}</b>${tail}</div>${replay}</li>`;
+      return `<li class="dispute ${esc(d.status)}"><div class="pn"><b>${line}</b>${tail}</div>${replay}</li>`;
     }).join('');
     return `<details class="disputes" ${open.length ? 'open' : ''}><summary><b>${esc(T('dispute_title'))}</b>
       ${open.length ? `<span class="count">${open.length}</span>` : ''}</summary>
