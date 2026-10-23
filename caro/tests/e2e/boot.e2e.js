@@ -126,6 +126,18 @@ const PORT = 8121;
   ok(botMoved && !wErr.length, 'Worker máy không nạp được: bot vẫn đi nước' + (wErr.length ? ' – lỗi JS: ' + wErr.join(' | ') : ''));
   await wctx.close();
 
+  // 6. Canh khởi động (watchdog.js): tải bình thường thì không báo; file lõi bị chặn (trình chặn quảng cáo, lỗi mạng) thì
+  //    hiện thông báo kèm nút tải lại thay vì trang đứng im
+  ok(await p.evaluate(() => window.__caroBooted === true && !document.getElementById('boot-fail')), 'tải bình thường: không báo lỗi khởi động');
+  const bctx = await browser.newContext({ serviceWorkers: 'block' });
+  await bctx.route('**/app.js', (route) => route.abort());
+  const bp = await bctx.newPage();
+  await bp.goto(URL).catch(() => {});
+  await sleep(1500);
+  ok(await bp.evaluate(() => { const b = document.getElementById('boot-fail'); return !!(b && b.querySelector('button')); }),
+    'file lõi bị chặn: hiện thông báo + nút tải lại');
+  await bctx.close();
+
   ok(!errors.length, 'không có lỗi JS' + (errors.length ? ': ' + errors.join(' | ') : ''));
   await ctx.close();
   await finish();
