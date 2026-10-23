@@ -46,6 +46,8 @@ class Room {
     this.opening = opening === 'swap2' ? 'swap2' : 'free';
     this.rule = Caro.ruleOf(rule);
     this.clockLeft = {}; // id -> ms còn lại (đồng hồ tổng)
+    this.lagUsed = {};
+    this.lagOf = null; // (id) => RTT ms của người chơi, do hub gắn (bù trễ mạng)
     this.clockRun = null; // { id, since }: đồng hồ đang chạy của ai
     this.secondMs = secondMs;
     this.drawCooldownMs = drawCooldownMs; // bị từ chối hoà thì phải chờ mới được xin lại
@@ -96,6 +98,7 @@ class Room {
     this.opener = this.seats[X];
     this.decider = this.seats[O];
     if (this.clock) for (const p of this.players) this.clockLeft[p.id] = this.clock.base;
+    this.lagUsed = {}; // id -> tổng ms đã bù trễ trong ván (room-clock.js, có trần cả ván)
   }
 
   /** Ai phải hành động lúc này (đặt quân / chọn bên). */

@@ -56,7 +56,7 @@ class Rooms {
       if (this.rooms.get(room.code) !== room || room.turnEndsAt !== at || !room.active) return;
       room.timeLoss();
       this.afterChange(room);
-    }, Math.max(0, at - Date.now()) + 50);
+    }, Math.max(0, at - Date.now()) + 50 + room.lagGrace()); // chờ thêm mức bù trễ: nước đã gửi kịp còn đang trên đường
     room.clockTimer.unref?.();
   }
 
@@ -82,6 +82,7 @@ class Rooms {
       secondMs: this.T.SECOND_MS,
       drawCooldownMs: this.T.DRAW_COOLDOWN_MS,
     });
+    room.lagOf = (pid) => this.lagOf(pid); // bù trễ mạng cho đồng hồ (src/lag.js)
     this.rooms.set(room.code, room);
     return room;
   }
@@ -191,6 +192,7 @@ class Rooms {
     const room = this.inRoom(conn);
     room.move(conn.pid, x, y);
     this.afterChange(room);
+    if (conn.probe) conn.probe(); // đo lại trễ ngay sau nước đi: lần bù sau dùng số mới
   }
 
   on_resign(conn) {

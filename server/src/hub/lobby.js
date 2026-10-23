@@ -41,6 +41,7 @@ class Lobby {
 
   /** Ping của trình duyệt (10 giây một lần): trả pong để đo PING, kèm độ trễ máy chủ và số liệu sảnh. */
   on_ping(conn) {
+    if (conn.probe) conn.probe(); // máy chủ tự đo trễ của kết nối này (bù trễ đồng hồ, src/lag.js)
     const c = this.counts();
     conn.send({ t: 'pong', lag: this.serverLag(), players: c.players, games: c.games });
   }
