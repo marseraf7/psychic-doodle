@@ -8,7 +8,7 @@
  *   node caro/tests/e2e/friends-chat.e2e.js
  */
 'use strict';
-const { setup } = require('./helpers');
+const { setup, gotoRetry } = require('./helpers');
 
 (async () => {
   const PORT = 8098;
@@ -40,7 +40,8 @@ const { setup } = require('./helpers');
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 760 } });
     await ctx.addInitScript((l) => { localStorage.setItem('caro.lang', l); }, lang);
     const g = await ctx.newPage();
-    await g.goto(`http://localhost:${PORT}/`);
+    // Firefox (CI) đôi khi không xong điều hướng trong 30 giây: gotoRetry thử lại 1 lần (helpers.js)
+    await gotoRetry(g, `http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
     await sleep(700);
     for (const w of [1920, 1280, 1100, 1024, 900, 820, 768, 390, 360]) {
       await g.setViewportSize({ width: w, height: 760 });
@@ -112,10 +113,34 @@ const { setup } = require('./helpers');
   await shot(a, 'fc-bubble-chat.png');
   await a.click('.cb-win [data-min]');
   ok(await a.evaluate(() => !document.querySelector('.cb-win') && !!document.querySelector('.cb-head')), 'thu nhỏ: thành chat head');
-  // Bạn offline: "Hoạt động vừa xong"
+
+  // ---------------------------------------------------------------- 3b. Đang gõ mà bạn đổi trạng thái: không mất chữ, không mất focus (M-F6, Issue #94)
+  await a.click('.cb-head'); // mở lại cửa sổ chat
+  ok(await until(a, () => !!document.querySelector('.cb-win input')), 'mở lại cửa sổ chat để gõ dở');
+  await a.click('#tabbar [data-tab="more"]');
+  ok(await until(a, () => !!document.querySelector('#add-friend input[name="u"]')), 'sang tab Thêm: thấy ô thêm bạn');
+  await a.fill('#add-friend input[name="u"]', 'nguoi_la_');
+  await a.fill('.cb-win input', 'tin nhap do...');
+  // Bên kia vào ván với máy -> a nhận cập nhật hiện diện/bạn bè -> panel bạn bè vẽ lại
+  await b.evaluate(() => window.CaroApp.startPreset({ rule: 'vn', moves: [[0, 0]], mode: 'ai', bot: 'tit' }));
+  ok(await until(a, () => /Đang chơi/.test(document.querySelector('.cb-list small').textContent), null, 8000), 'đã nhận cập nhật trạng thái của bạn (đang chơi)');
+  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ đang gõ ở ô thêm bạn còn nguyên sau khi panel vẽ lại');
+  ok(await a.evaluate(() => document.querySelector('.cb-win input').value === 'tin nhap do...'), 'M-F6: chữ đang gõ ở ô chat còn nguyên');
+  ok(await a.evaluate(() => document.activeElement === document.querySelector('.cb-win input')), 'M-F6: ô chat đang focus vẫn giữ focus');
+  // Bên kia mất kết nối (máy chủ đổi trạng thái -> vẽ lại lần nữa): chữ vẫn còn
   await b.context().close();
   await a.click('.cb-launch');
   ok(await until(a, () => /Hoạt động/.test(document.querySelector('.cb-list small').textContent), null, 8000), 'bạn offline: Hoạt động vừa xong / x phút trước');
+  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ ô thêm bạn còn nguyên ở lượt vẽ lại thứ hai');
+  // Focus vào ô thêm bạn rồi tự gây một cập nhật bạn bè (gửi lời mời tới tài khoản thứ ba):
+  // panel vẽ lại trong lúc ô đang focus — focus và chữ phải được khôi phục vào ô mới
+  const c = await user('vi', 'fc_moi', 1280);
+  await a.focus('#add-friend input[name="u"]');
+  await a.evaluate(() => { document.querySelector('#add-friend input[name="u"]').dataset.mark = 'cu'; });
+  await a.evaluate(() => window.CaroOnline.send({ t: 'friendAdd', username: 'fc_moi' }));
+  ok(await until(a, () => !document.querySelector('#add-friend input[name="u"]').dataset.mark), 'panel bạn bè đã vẽ lại theo cập nhật mới');
+  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ ô thêm bạn còn nguyên khi vẽ lại lúc đang focus');
+  ok(await a.evaluate(() => document.activeElement === document.querySelector('#add-friend input[name="u"]')), 'M-F6: ô thêm bạn đang focus vẫn giữ focus sau khi vẽ lại');
 
   // ---------------------------------------------------------------- 4. Điện thoại: hộp chat toàn màn hình
   await a.setViewportSize({ width: 390, height: 844 });

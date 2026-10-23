@@ -103,7 +103,7 @@
     $('lh-ask-list').innerHTML = list.map((rec, i) => {
       const d = L.describe(rec);
       const box = many ? `<input type="checkbox" class="lh-pick" data-ask="${i}" checked aria-label="${esc(d.opp)}">` : '';
-      return `<li>${box}<span class="res ${d.cls}">${esc(d.res)}</span>
+      return `<li>${box}<span class="res ${esc(d.cls)}">${esc(d.res)}</span>
         <div class="pn"><b>${esc(d.opp)}</b><small>${esc(L.when(rec.at))} · ${esc(T('lh_moves', { n: rec.moves.length }))}</small></div></li>`;
     }).join('');
     $('lh-ask-form').always.checked = false;
@@ -178,7 +178,8 @@
   // Thoát ván: ván mới trên máy, về trang (cả khi mở lại app: trang đầu tiên hiện ra)
   window.addEventListener('caro:newgame', () => { setLast(null); exitGame(); }); // ván mới: không còn "đi lại" được ván cũ
   window.addEventListener('caro:page', (e) => { if (e.detail.id) setTimeout(exitGame, 300); });
-  if (pend.length && !(window.CaroShell && window.CaroShell.visible)) setTimeout(exitGame, 1500); // mở app thẳng vào bàn cờ
+  // Mở app thẳng vào bàn cờ (link xem lại, đang trong phòng): khung Trang chủ hiện sẵn từ HTML rồi home.js mới ẩn, nên xét lúc hẹn giờ
+  if (pend.length) setTimeout(() => { if (!(window.CaroShell && window.CaroShell.visible)) exitGame(); }, 1500);
 
   // Phân tích xong: lưu kèm kết quả
   window.addEventListener('caro:analyzed', (e) => {

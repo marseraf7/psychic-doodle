@@ -82,7 +82,7 @@
       const how = g.reason && !['win', 'draw'].includes(g.reason) ? ' · ' + T('end_' + g.reason) : '';
       const check = selecting ? `<input type="checkbox" class="lh-pick" data-pick="${esc(g.id)}"${picked.has(g.id) ? ' checked' : ''} aria-label="${esc(opponent(g))}">` : '';
       return `<li class="${selecting && picked.has(g.id) ? 'picked' : ''}">${check}
-        <span class="res ${r.cls}">${esc(r.text)}</span>
+        <span class="res ${esc(r.cls)}">${esc(r.text)}</span>
         <div class="pn"><b>${esc(opponent(g))}</b>
           <small>${esc(when(g.at))} · ${esc(window.I18N.tc(g.timeLimit, g.clock))}${esc(window.I18N.ruleTag(g.rule))} · ${esc(T('lh_moves', { n: g.n }))}${esc(how)}${g.an ? ` · <span class="lh-an">${esc(T('lh_analyzed'))}</span>` : ''}</small></div>
         ${selecting ? '' : `<div class="hist-acts">

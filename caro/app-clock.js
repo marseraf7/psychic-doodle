@@ -40,15 +40,28 @@
     };
 
     /** Đồng hồ tổng 2 bên (ván online có đồng hồ, như cờ vua 3+2). */
+    // Online: đồng hồ đã về 0 mà quá 3 giây chưa có trạng thái phòng mới (lỡ tin máy chủ báo hết giờ – rớt mạng đúng lúc,
+    // tab ngủ lâu) → xin máy chủ gửi lại phòng (lệnh syncRoom), tối đa 5 giây một lần (L-F6)
+    let zeroSince = 0, askedAt = 0, clocksZero = false;
+    function checkStale(zero) {
+      const N = window.CaroOnline;
+      if (!zero || !state.online || state.online.watch || state.winner) { zeroSince = 0; return; }
+      const now = performance.now();
+      if (!zeroSince) zeroSince = now;
+      if (now - zeroSince > 3000 && now - askedAt > 5000 && N && N.connected) { askedAt = now; N.send({ t: 'syncRoom' }); }
+    }
+
     function renderClocks() {
       const box = $('clocks');
       const c = state.clocks;
       if (!c) { box.hidden = true; return; }
       box.hidden = false;
       const el = performance.now() - c.at;
+      clocksZero = false;
       for (const [k, p] of [['x', X], ['o', O]]) {
         const run = c.running === p;
         const ms = c[k] - (run ? el : 0);
+        if (run && ms <= 0 && !c.local) clocksZero = true;
         const node = $('ck-' + k);
         node.textContent = fmtClock(ms);
         node.classList.toggle('run', run);
@@ -64,9 +77,11 @@
     function renderClock() {
       const el = $('clock');
       const c = state.clock;
+      clocksZero = false;
       renderClocks();
-      if (!c || state.winner || state.clocks) { el.hidden = true; return; }
+      if (!c || state.winner || state.clocks) { el.hidden = true; checkStale(clocksZero); return; }
       const left = Math.max(0, Math.ceil((c.endsAt - performance.now()) / 1000));
+      checkStale(!c.local && left === 0);
       el.hidden = false;
       $('clock-n').textContent = left;
       el.classList.toggle('low', left <= 5);
