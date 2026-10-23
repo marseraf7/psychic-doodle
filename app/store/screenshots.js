@@ -23,7 +23,8 @@ const SIZES = [
   { id: 'tablet7', w: 400, h: 640, dsf: 3 },
   { id: 'tablet10', w: 800, h: 1280, dsf: 2 },
 ];
-// Định dạng ngày giờ theo ngôn ngữ (vd. form tạo giải): trình duyệt mặc định en-US
+// Định dạng số / ngày giờ do JS hiện theo ngôn ngữ (Intl, toLocaleString). Ô chọn ngày giờ có sẵn của Chromium (form tạo
+// giải) vẫn theo ngôn ngữ của hệ điều hành – cảnh 4 nên đổi sang danh sách giải
 const LOCALE = { vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' };
 // Ván giữa chừng cho cảnh 2: 11 nước (X 6, O 5) → tới lượt BOAT (O); X có ba mở chéo nên BOAT phải chặn
 const MID = [[0, 0], [1, 0], [1, 1], [0, 1], [2, 0], [2, 1], [1, -1], [-1, -1], [3, 1], [2, -1], [0, 2]];
