@@ -42,7 +42,8 @@
     ctx.stroke();
     const cell = (x, y) => [ox + (x - box.x0) * s + s / 2, oy + (y - box.y0) * s + s / 2];
     const b = new C.Board(info && info.rule);
-    for (let i = 0; i < n; i++) b.play(moves[i][0], moves[i][1], i % 2 ? C.O : C.X);
+    // Dữ liệu chia sẻ có thể hỏng/trùng nước: bỏ qua nước lỗi (H-E1), vẫn vẽ phần còn lại.
+    for (let i = 0; i < n; i++) { try { b.play(moves[i][0], moves[i][1], i % 2 ? C.O : C.X); } catch (e) { /* bỏ qua nước hỏng */ } }
     if (n) {
       const [lx, ly] = cell(moves[n - 1][0], moves[n - 1][1]);
       ctx.fillStyle = col.last;

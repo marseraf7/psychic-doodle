@@ -120,7 +120,7 @@
     const b = new C.Board(rule);
     for (let i = 0; i < n; i++) {
       const [x, y] = moves[i], p = i % 2 ? C.O : C.X;
-      b.play(x, y, p);
+      try { b.play(x, y, p); } catch (e) { last = i - 1; break; } // ván ghi hỏng/trùng nước (H-E1): chỉ chấm tới thế trước nước lỗi
       if (C.checkWin(b, x, y, p)) { last = i; break; }
     }
     const tasks = [];

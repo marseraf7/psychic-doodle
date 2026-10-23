@@ -17,9 +17,12 @@
 
   const EMPTY = 0, X = 1, O = 2;
   const DIRS = [[1, 0], [0, 1], [1, 1], [1, -1]];
-  // Khóa số cho Map: toạ độ trong khoảng ±1.048.576 ô – thực tế là không giới hạn.
+  // Khóa số cho Map: (x + 2^20) * 2^21 + (y + 2^20) chỉ đơn ánh khi cả hai toạ độ nằm trong
+  // [-2^20, 2^20) — play() chặn cứng khoảng này (xem dưới). Giữ khóa số vì tra bàn bằng khóa
+  // chuỗi "x,y" chậm hơn rõ rệt ở phần tính nước của bot (đã đo khi review PR #85: ~3 lần).
   const OFF = 1 << 20, SPAN = 1 << 21;
   const key = (x, y) => (x + OFF) * SPAN + (y + OFF);
+  const LIM = 1 << 20; // toạ độ hợp lệ: -LIM <= x, y < LIM thì khóa số không bao giờ trùng
   const other = (p) => 3 - p;
 
   const RULES = ['vn', 'free', 'std', 'renju'];
@@ -35,6 +38,15 @@
     put(x, y, p) { this.cells.set(key(x, y), p); }
     remove(x, y) { this.cells.delete(key(x, y)); }
     play(x, y, p) {
+      // H-E1: ngoài khoảng [-2^20, 2^20) khóa số hết đơn ánh — hai ô khác nhau sẽ trùng
+      // khóa và ghi đè lên nhau (vd. (0,0) trùng (1,-2097152)). Chặn ngay tại đây; máy chủ
+      // còn chặn chặt hơn nhiều (±512 từ PR #72) nên ván thật không bao giờ chạm ngưỡng này.
+      // Các đường phát lại dữ liệu bên ngoài (link chia sẻ, ván lưu, xem lại) tự bỏ qua
+      // nước bị ném lỗi này — xem share.js / board-replay.js / app-ext.js / an-pool.js.
+      if (!(x >= -LIM && x < LIM && y >= -LIM && y < LIM)) throw new Error('out_of_range');
+      // Đặt chồng lên ô đã có quân sẽ làm cells và moves lệch nhau vĩnh viễn
+      // (undo một lần xoá cả hai bản ghi). Từ chối thẳng để lỗi lộ ra ngay tại chỗ gọi.
+      if (this.get(x, y) !== EMPTY) throw new Error('occupied');
       this.put(x, y, p);
       this.moves.push({ x, y, p });
     }
@@ -82,6 +94,9 @@
   }
 
   function winsIfPlaced(board, x, y, p) {
+    // H-E1: ô đã có quân thì không "đặt thử" được — trước đây put/remove ở đây xoá luôn
+    // quân đang nằm trên ô, làm mất quân khỏi bàn.
+    if (board.get(x, y) !== EMPTY) return false;
     board.put(x, y, p);
     const w = checkWin(board, x, y, p) !== null;
     board.remove(x, y);
