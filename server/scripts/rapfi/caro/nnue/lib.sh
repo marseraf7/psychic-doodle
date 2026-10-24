@@ -80,9 +80,10 @@ repo_push() {
 }
 
 # Danh sách file dữ liệu (ván tự đấu) mới nhất trước – theo epoch trong tên file (sp-<epoch>-…), không theo giờ sửa
-# file (git checkout đặt lại giờ sửa). data_files <số file tối đa> <thư mục…>
+# file (git checkout đặt lại giờ sửa). Cùng tên file ở nhiều thư mục (vd. ván cũ của máy luyện vừa ở data/ vừa đẩy lên
+# repo) chỉ tính một lần. data_files <số file tối đa> <thư mục…>
 data_files() {
   local n="$1"; shift
   find "$@" -name 'sp-*.binpack.lz4' 2> /dev/null |
-    awk '{ f = $0; sub(/.*\//, "", f); split(f, a, "-"); print a[2] "\t" $0 }' | sort -rn | head -n "$n" | cut -f2-
+    awk '{ f = $0; sub(/.*\//, "", f); if (seen[f]++) next; split(f, a, "-"); print a[2] "\t" $0 }' | sort -rn | head -n "$n" | cut -f2-
 }
