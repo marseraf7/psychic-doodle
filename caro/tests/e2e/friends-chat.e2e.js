@@ -143,11 +143,18 @@ const { setup, gotoRetry } = require('./helpers');
   ok(await a.evaluate(() => document.activeElement === document.querySelector('#add-friend input[name="u"]')), 'M-F6: ô thêm bạn đang focus vẫn giữ focus sau khi vẽ lại');
 
   // ---------------------------------------------------------------- 4. Điện thoại: hộp chat toàn màn hình
-  await a.setViewportSize({ width: 390, height: 844 });
+  // Dưới 900px thanh tab nằm ở đáy (shell.css): nút bong bóng phải nằm trên thanh tab, kể cả máy tính bảng dọc 700–899px
+  const fabAbove = () => a.evaluate(() => {
+    const r = document.querySelector('.cb-launch').getBoundingClientRect(), t = document.getElementById('tabbar').getBoundingClientRect();
+    return r.width > 0 && r.right <= innerWidth && r.bottom <= t.top;
+  });
+  await a.setViewportSize({ width: 800, height: 900 });
   await a.click('#tabbar [data-tab="home"]');
   await sleep(200);
-  const lb = await a.evaluate(() => { const r = document.querySelector('.cb-launch').getBoundingClientRect(); return r.right <= innerWidth && r.bottom <= innerHeight && r.width > 0; });
-  ok(lb, 'điện thoại: nút bong bóng nằm gọn phía trên thanh tab');
+  ok(await fabAbove(), 'máy tính bảng dọc 800px: nút bong bóng nằm trên thanh tab, không đè');
+  await a.setViewportSize({ width: 390, height: 844 });
+  await sleep(200);
+  ok(await fabAbove(), 'điện thoại: nút bong bóng nằm gọn phía trên thanh tab');
   await a.click('.cb-launch');
   await a.click('.cb-list [data-open]');
   ok(await until(a, () => document.getElementById('chat').open), 'điện thoại: bấm bạn → hộp chat toàn màn hình');
