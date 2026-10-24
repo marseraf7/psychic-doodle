@@ -226,5 +226,10 @@ if __name__ == "__main__":
     train(tr, files, resume_previous())
     ck = latest_ckpt()
     if not ck:
+        # In đuôi train.log ngay trong log notebook (khỏi phải tải Output về mới biết lỗi gì)
+        try:
+            print("".join(open(RUN / "train.log", errors="replace").readlines()[-40:]), flush=True)
+        except OSError:
+            pass
         sys.exit(f"Huấn luyện không ra điểm kiểm tra nào – xem {RUN / 'train.log'}")
     export_and_push(tr, ck, len(files))
