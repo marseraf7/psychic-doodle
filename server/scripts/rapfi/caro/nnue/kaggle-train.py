@@ -2,12 +2,13 @@
 Huấn luyện mạng NNUE luật Việt Nam bằng GPU trên Kaggle (miễn phí ~30 giờ GPU / tuần), rồi đẩy mạng ứng viên lên repo
 dữ liệu chung (cand/) – máy luyện (run.sh, DATA_REPO) đấu chọn mạng này với mạng tốt nhất như mọi vòng.
 Trong notebook Kaggle (Settings: Accelerator GPU, Internet On; Add-ons → Secrets: GITHUB_TOKEN), một ô:
-    !git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle
-    !python psychic-doodle/server/scripts/rapfi/caro/nnue/kaggle-train.py
+    !git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle /kaggle/temp/pd
+    !python /kaggle/temp/pd/server/scripts/rapfi/caro/nnue/kaggle-train.py
+(clone vào /kaggle/temp: không lẫn mã nguồn vào Output của notebook)
 Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi):
   DATA_REPO   https://github.com/marseraf7/caro-nnue-data (mặc định)
   HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
-  BATCH 1024 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước
+  BATCH 256 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước
 Học tiếp qua nhiều phiên: thư mục chạy (/kaggle/working/run) là đầu ra của notebook. Phiên sau: Add Input → chọn đầu ra
 của phiên trước – script lấy điểm kiểm tra cuối của phiên đó làm điểm xuất phát (không có thì học từ đầu). Chỉ giữ 2 điểm kiểm tra mới nhất cho đầu ra gọn.
 Token chỉ đọc từ Kaggle Secrets / biến môi trường GITHUB_TOKEN, không in ra; cần quyền ghi (Contents) repo dữ liệu.
@@ -28,7 +29,7 @@ HERE = Path(__file__).resolve().parent
 TRAINER_COMMIT = "ed6ff57cbd9d31bc5217ecbdf0de2a004c6be374"
 DATA_REPO = os.environ.get("DATA_REPO", "https://github.com/marseraf7/caro-nnue-data").removesuffix(".git")
 HOURS = float(os.environ.get("HOURS", "9"))
-BATCH = os.environ.get("BATCH", "1024")
+BATCH = os.environ.get("BATCH", "256")  # 1024 hết bộ nhớ GPU T4 16 GB (mix9svq, codebook 65536)
 LR = os.environ.get("LR", "0.001")
 WINDOW = int(os.environ.get("WINDOW", "3000"))
 SAVE_EVERY = os.environ.get("SAVE_EVERY", "5000")
