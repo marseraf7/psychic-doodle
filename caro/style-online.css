@@ -176,6 +176,24 @@ input:not([type="range"]):focus { outline: 2px solid var(--accent); outline-offs
 }
 .invite > div { flex: 1; min-width: 0; font-size: var(--fs-sm); }
 .invite small { display: block; color: var(--muted); font-size: var(--fs-xs); }
+/* Lời thách đấu đã gửi (online-friends.js, Issue #128): dạt sang bên phải cho đỡ vướng giữa màn hình. */
+.invites .invite.invite-right { align-self: flex-end; }
+/* Thẻ lời thách đấu trong đoạn chat (challenge-msg.js): dòng thông báo + 2 nút bấm. */
+.msg.challenge span:first-child { background: var(--panel); border: 1px solid var(--panel-border); }
+.msg .ch-btns { display: flex; gap: 6px; margin-top: 6px; background: none !important; border: 0 !important; padding: 0 !important; }
+/* Chat nhanh (Issue #128, hộp chat mobile): 2 nút bấm là gửi, trên ô nhập. */
+.chat-quick { gap: 6px; padding: 6px 2px 0; }
+.chat-quick button { flex: 1; }
+/* Nút Xin đi lại kéo thả (gamex.js, Issue #128): đứng riêng, mặc định giữa phía trên thanh dưới;
+ * kéo rồi thì vị trí inline (tỉ lệ khung nhìn) thắng. Nằm trong .invites (pointer-events: none)
+ * nên phải bật lại pointer-events để nhận kéo/bấm. */
+.tb-float {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(86px + env(safe-area-inset-bottom));
+  pointer-events: auto; cursor: grab; z-index: 16;
+}
+.tb-float.tb-sent { opacity: .6; }
+.tb-float.dragging { cursor: grabbing; touch-action: none; }
 body.online .banner-actions .online-only[hidden] { display: none !important; }
 dialog form.row { padding: 0; }
 dialog form.dlg { padding: 16px 18px 18px; }

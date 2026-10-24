@@ -405,6 +405,32 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
 - **Số kỳ thủ online / số ván đang đấu** (`online-count.js`) ở góc phải dưới Trang chủ: số thật máy chủ đếm, gửi kèm pong.
 - **Ảnh nền** (`backdrop.js`, `img/backdrop.webp` 1000×1000, 64 KB): bật / tắt trong Cài đặt → Giao diện hoặc Cài đặt nhanh,
   mặc định tắt, phủ lớp màu nền cho chữ dễ đọc; bàn cờ không có ảnh nền.
+- **Vị trí thanh công cụ** (`bar-pos.js`, Issue #128): thanh dưới ván đấu đặt ở ngang dưới / ngang trên / dọc trái / dọc phải;
+  kéo thả trực tiếp chỉ đổi trong ván hiện tại (hết ván về vị trí đã lưu), chọn trong Cài đặt → Giao diện thì lưu lâu dài.
+- **Giao diện ván đấu** (`matchui.js`, Issue #128): trang con mới trong Cài đặt, xem trước giao diện ván đấu như khi thi đấu
+  (thanh trên, thẻ người chơi, bàn cờ mẫu, thanh công cụ, nút Xin đi lại); kéo thả thanh công cụ (snap 4 vị trí) và nút Xin đi lại
+  ngay trong khung xem trước, thay đổi áp dụng ngay cho ván thật; có nút Về mặc định.
+- **Chế độ tập trung** (`focus-mode.js`, Issue #128): chỉ để lại bàn cờ — ẩn thanh trên, thẻ người chơi, thanh công cụ, nút Về giữa,
+  thẻ nổi, bong bóng chat và toast (thẻ kết quả vẫn hiện); góc trên bên trái có logo + nút thoát, thoát bằng Esc hoặc bấm nút đó;
+  chỉ có hiệu lực trong phiên, điểm vào từ menu 3 gạch (hạng mục 7).
+- **Lời thách đấu** (Issue #128): thẻ "Đang chờ nhận lời" dạt sang bên phải + đếm ngược 5 phút (đồng hồ cát, khác đồng hồ thời gian
+  mỗi nước), hết giờ tự hủy; máy chủ đổi TTL lời mời 60 giây → 5 phút (`server/src/hub/shared.js`, khớp đếm ngược máy khách).
+  Thách đấu còn gửi kèm tin nhắn DM mang mã lời mời (`challenge-msg.js`): bên nhận vẽ thành thẻ bấm được Chấp nhận / Từ chối
+  (cả bong bóng desktop lẫn hộp chat mobile, thẻ vẽ lại thành "đã hết hạn" khi lời mời biến mất), bên gửi thấy dòng thông báo.
+- **Chat nhanh** (Issue #128): 2 nút bấm là gửi trên ô nhập chat (cả bong bóng desktop lẫn hộp chat mobile) — "Okeeee"
+  (giữ nguyên cả 4 ngôn ngữ, vốn là câu cửa miệng chơi game) và "Hẹn gặp lại" (vi / See you again / До встречи / 再见);
+  câu gửi đi là bản theo ngôn ngữ giao diện của người gửi.
+- **Menu 3 gạch cuối thanh công cụ** (`bar-menu.js` + `draft-mode.js`, Issue #128): nút ☰ cuối 4 thanh công cụ trong ván
+  (trừ thanh luyện tập do study-trainer.js vẽ lại); menu gồm Lật ngang / Lật dọc bàn cờ (lật ở tầng ánh xạ
+  board-view.js nên bấm vẫn đúng ô, kéo / chụm / quán tính / zoom cũng đổi dấu theo), Chế độ tập trung, Quân nháp X / O
+  (quân mờ viền chấm, chỉ phủ máy khách, bấm lại cùng loại thì gỡ, nước thật / đi lại / ván mới tự xóa) và Xóa hết quân nháp.
+- **Vẽ đường chuột phải** (`draw-lines.js`, Issue #128; chỉ máy tính): nhấn phải vào một ô rồi kéo — đường thẳng bám theo ô,
+  bắt theo 1 trong 8 hướng (ngang / dọc / chéo 45°, ranh giới 22,5° như Lichess); vẽ được nhiều đường, màu đường là màu quân
+  người vẽ đang cầm (online: bên của mình; đánh máy: quân người chơi; 2 người một máy: lượt hiện tại); nước thật / đi lại /
+  ván mới xóa hết đường.
+- **Thanh lăn trang** (Issue #128; chỉ CSS, `shell.css`): trước đây chính khung cuộn `.pg-body` bị bóp về 760px nên lăn chuột
+  ở lề ngoài không cuộn được gì; giờ khung cuộn giữ full-width, từng khối con tự co về 760px và căn giữa (kể cả các trang
+  con `.sp` qua form `display: contents` của trang Cài đặt) — nhìn y hệt trước, nhưng lăn ở đâu cũng cuộn.
 - **Ảnh đại diện** (`avatar.js`): thẻ tài khoản → Đổi ảnh đại diện. Ảnh được cắt vuông, thu nhỏ 128×128 và nén WebP (không
   hỗ trợ thì JPEG) ngay trên máy, tối đa 10 KB; hiện ở thẻ tài khoản, thanh trên, hồ sơ, bạn bè, gợi ý tìm kiếm.
 - Các hộp thoại cũ (Online, Giải đố, Học chơi, Cài đặt) được `CaroShell.proxy()` chuyển thành trang: mã cũ vẫn gọi

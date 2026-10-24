@@ -35,11 +35,28 @@
       requestDraw();
     }
 
-    const toScreen = (wx, wy) => [(wx - cam.x) * cam.size + W / 2, (wy - cam.y) * cam.size + H / 2];
+    // Quay bàn (bar-menu.js, Issue #128): lật ngang / dọc ở tầng ánh xạ — mọi thứ vẽ qua
+    // toScreen (lưới, quân, đánh dấu, toạ độ) và mọi cú bấm qua toCell đều lật theo, chữ không bị soi gương.
+    let flipH = false, flipV = false;
+    const toScreen = (wx, wy) => {
+      const sx = (wx - cam.x) * cam.size + W / 2;
+      const sy = (wy - cam.y) * cam.size + H / 2;
+      return [flipH ? W - sx : sx, flipV ? H - sy : sy];
+    };
     const toCell = (sx, sy) => [
-      Math.round((sx - W / 2) / cam.size + cam.x),
-      Math.round((sy - H / 2) / cam.size + cam.y),
+      Math.round(((flipH ? W - sx : sx) - W / 2) / cam.size + cam.x),
+      Math.round(((flipV ? H - sy : sy) - H / 2) / cam.size + cam.y),
     ];
+    function setFlip(h, v) { flipH = !!h; flipV = !!v; requestDraw(); }
+    function getFlip() { return { h: flipH, v: flipV }; }
+
+    // Quân nháp (draft-mode.js): danh sách [x, y, p] do module nháp đẩy vào, vẽ mờ viền chấm.
+    let drafts = [];
+    function setDrafts(list) { drafts = list; requestDraw(); }
+
+    // Đường vẽ chuột phải (draw-lines.js): danh sách [x0, y0, x1, y1, p] + đường đang kéo.
+    let drawLines = [], drawPreview = null;
+    function setDrawLines(list, prev) { drawLines = list; drawPreview = prev; requestDraw(); }
 
     let drawQueued = false;
     function requestDraw() {
@@ -121,9 +138,43 @@
       if (state.marks) drawMarks(s, x0, x1, y0, y1);
       drawForbidden(s, x0, x1, y0, y1);
 
-      // Quân mờ: chờ xác nhận hoặc rê chuột.
+      // Quân nháp: quân mờ viền chấm (khác quân thật đặc, khác bóng ma chờ xác nhận viền nét đứt dài).
+      if (drafts.length) {
+        for (const [x, y, p] of drafts) {
+          if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+          const [sx, sy] = toScreen(x, y);
+          drawStone(p, sx, sy, s, 0.45);
+          ctx.strokeStyle = p === X ? colors.x : colors.o;
+          ctx.lineWidth = Math.max(1.5, s * 0.05);
+          ctx.setLineDash([2, 3]);
+          ctx.strokeRect(sx - s / 2 + 2, sy - s / 2 + 2, s - 4, s - 4);
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Đường vẽ chuột phải: nét đậm màu quân, đầu tròn; đường đang kéo mờ hơn.
+      if (drawLines.length || drawPreview) {
+        const drawOneLine = (l, alpha) => {
+          const [x0, y0, x1, y1, p] = l;
+          const [ax, ay] = toScreen(x0, y0);
+          const [bx, by] = toScreen(x1, y1);
+          ctx.strokeStyle = p === X ? colors.x : colors.o;
+          ctx.globalAlpha = alpha;
+          ctx.lineWidth = Math.max(3, s * 0.12);
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        };
+        for (const l of drawLines) drawOneLine(l, 0.85);
+        if (drawPreview) drawOneLine(drawPreview, 0.5);
+      }
+
+      // Quân mờ: chờ xác nhận hoặc rê chuột (không hiện khi đang ở chế độ nháp).
       const ghost = state.pending || state.hover;
-      if (ghost && canPlaceNow() && state.board.get(ghost[0], ghost[1]) === EMPTY) {
+      if (ghost && canPlaceNow() && !(window.CaroDraft && window.CaroDraft.active()) && state.board.get(ghost[0], ghost[1]) === EMPTY) {
         const [sx, sy] = toScreen(ghost[0], ghost[1]);
         if (state.pending) {
           ctx.strokeStyle = state.turn === X ? colors.x : colors.o;
@@ -263,8 +314,8 @@
       if (inertia) {
         const dt = Math.min(40, now - inertia.t);
         inertia.t = now;
-        cam.x -= (inertia.vx * dt) / cam.size;
-        cam.y -= (inertia.vy * dt) / cam.size;
+        cam.x -= (flipH ? -inertia.vx : inertia.vx) * dt / cam.size; // lật bàn: quán tính theo hướng vuốt trên màn hình
+        cam.y -= (flipV ? -inertia.vy : inertia.vy) * dt / cam.size;
         const k = Math.pow(0.994, dt);
         inertia.vx *= k;
         inertia.vy *= k;
@@ -298,11 +349,10 @@
 
     function zoomAt(sx, sy, newSize) {
       newSize = clamp(newSize, MIN_SIZE, MAX_SIZE);
-      const wx = (sx - W / 2) / cam.size + cam.x;
-      const wy = (sy - H / 2) / cam.size + cam.y;
+      const [wx, wy] = toCell(sx, sy); // qua toCell để đúng cả khi lật bàn
       cam.size = newSize;
-      cam.x = wx - (sx - W / 2) / newSize;
-      cam.y = wy - (sy - H / 2) / newSize;
+      cam.x = wx - (flipH ? -(sx - W / 2) : (sx - W / 2)) / newSize;
+      cam.y = wy - (flipV ? -(sy - H / 2) : (sy - H / 2)) / newSize;
       requestDraw();
       saveSoon();
     }
@@ -315,6 +365,7 @@
 
     return {
       readColors, resize, toScreen, toCell, requestDraw, animateCamera, ensureVisible, centerView, clamp, zoomAt, saveSoon, colName,
+      setFlip, getFlip, setDrafts, setDrawLines,
       get W() { return W; },
       get H() { return H; },
       /** Chạm vào bàn cờ: dừng hoạt ảnh camera và quán tính. */

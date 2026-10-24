@@ -13,6 +13,16 @@
     const parseTc = (v) => window.CaroTimeCtl.fromValue(v); // 't20' / 'c5+3' (bộ chọn thời gian, tc-picker.js)
     const { S, send, openDlg } = ctx;
 
+    // Lời thách đấu gửi đi sống 5 phút (Issue #128, khớp TTL máy chủ INVITE_TTL_MS):
+    // thẻ chờ hiện sang bên phải + đếm ngược, hết giờ tự hủy.
+    const SENT_MS = 5 * 60 * 1000;
+    let sentTicker = 0;
+    const sentLeft = () => (S.sent ? SENT_MS - (Date.now() - (S.sent.sentAt || Date.now())) : 0);
+    const sentClock = () => {
+      const left = Math.max(0, sentLeft());
+      return Math.floor(left / 60000) + ':' + String(Math.floor(left / 1000) % 60).padStart(2, '0');
+    };
+
     const statusText = (st) => T('st_' + st);
 
     // Gõ tên vào ô kết bạn: gợi ý kỳ thủ (player-search.js), chọn thì điền @tên đăng nhập. Tin bạn bè có thể tới trước khi
@@ -124,7 +134,8 @@
       if (S.sent) {
         const s = S.sent;
         const first = s.first === 'random' ? T('first_random') : s.first === 'me' ? T('first_you') : T('first_name', { name: s.to.name });
-        html += `<div class="invite"><div>${esc(T('waiting_accept', { name: s.to.name }))}<small>${esc(details(s, first))}</small></div>
+        const small = [details(s, first), '⏳ ' + sentClock()].filter(Boolean).join(' · '); // ⏳ = còn lại (khác ⏱ của thời gian mỗi nước)
+        html += `<div class="invite invite-right"><div>${esc(T('waiting_accept', { name: s.to.name }))}<small>${esc(small)}</small></div>
           <button type="button" class="ghost sm" data-cancel-sent>${esc(T('cancel'))}</button></div>`;
       }
       const r = S.room;
@@ -153,6 +164,22 @@
       box.querySelectorAll('[data-qm-cancel]').forEach((b) => { b.onclick = () => send({ t: 'quickCancel' }); });
       box.querySelectorAll('[data-qm-open]').forEach((b) => { b.onclick = () => $('btn-online').click(); });
       all('[data-cancel-sent]').forEach((c) => { c.onclick = () => { send({ t: 'challengeCancel', id: S.sent.id }); S.sent = null; renderInvites(); }; });
+      // Đếm ngược lời đã gửi: mỗi giây vẽ lại; hết giờ tự hủy (khớp TTL máy chủ).
+      if (S.sent && !sentTicker) {
+        sentTicker = setInterval(() => {
+          if (!S.sent) { clearInterval(sentTicker); sentTicker = 0; return; }
+          if (sentLeft() <= 0) {
+            send({ t: 'challengeCancel', id: S.sent.id });
+            S.sent = null;
+            clearInterval(sentTicker);
+            sentTicker = 0;
+          }
+          renderInvites();
+        }, 1000);
+      } else if (!S.sent && sentTicker) {
+        clearInterval(sentTicker);
+        sentTicker = 0;
+      }
     }
 
     return { renderFriends, renderInvites };

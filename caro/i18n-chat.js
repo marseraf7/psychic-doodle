@@ -23,6 +23,8 @@
     cb_close: 'Đóng',
     cb_placeholder: 'Nhập tin nhắn…',
     cb_send: 'Gửi',
+    qc_okee: 'Okeeee',
+    qc_bye: 'Hẹn gặp lại',
   });
   I.extend('en', {
     pr_just_now: 'just now',
@@ -45,6 +47,8 @@
     cb_close: 'Close',
     cb_placeholder: 'Type a message…',
     cb_send: 'Send',
+    qc_okee: 'Okeeee',
+    qc_bye: 'See you again',
   });
   I.extend('ru', {
     pr_just_now: 'только что',
@@ -67,6 +71,8 @@
     cb_close: 'Закрыть',
     cb_placeholder: 'Сообщение…',
     cb_send: 'Отправить',
+    qc_okee: 'Okeeee',
+    qc_bye: 'До встречи',
   });
   I.extend('zh', {
     pr_just_now: '刚刚',
@@ -89,5 +95,7 @@
     cb_close: '关闭',
     cb_placeholder: '输入消息…',
     cb_send: '发送',
+    qc_okee: 'Okeeee',
+    qc_bye: '再见',
   });
 })();
