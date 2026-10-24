@@ -94,14 +94,20 @@ function fromProxy(addr) {
  *  bằng IP của họ (qua NAT nhà mạng có thể làm cháy hạn mức của cả một nhà mạng).
  *  Chính sách: không có Origin (app gốc / công cụ kiểm thử — không phải trình duyệt) thì cho
  *  qua; Origin cùng host với máy chủ (bản web do chính máy chủ phục vụ), Origin của app
- *  Capacitor, Origin của PUBLIC_URL, hoặc Origin khai thêm qua WS_ALLOWED_ORIGINS thì cho
- *  qua; còn lại từ chối. */
+ *  Capacitor, các địa chỉ web chính thức (OWN_WS_ORIGINS), Origin của PUBLIC_URL, hoặc Origin khai thêm qua
+ *  WS_ALLOWED_ORIGINS thì cho qua; còn lại từ chối. */
 const APP_WS_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost'];
+// Các địa chỉ web chính thức của game (cùng chủ, tin được như bản do máy chủ phục vụ) – có sẵn, khỏi đặt
+// WS_ALLOWED_ORIGINS trên máy chủ:
+//  - bản giao diện tĩnh trên GitHub Pages (caro/config.js trỏ về máy chủ chính, #110 P3): tải nhanh ở nơi khó vào
+//    máy chủ (đo từ Nga: Pages hiện ngay, máy chủ chính > 5 phút);
+//  - tên miền phụ caroxo.ddnsgeek.com (cùng máy chủ với caroxo.duckdns.org).
+const OWN_WS_ORIGINS = ['https://marseraf7.github.io', 'https://caroxo.ddnsgeek.com'];
 function wsOriginAllowed(req) {
   const raw = String((req.headers && req.headers.origin) || '').trim().replace(/\/+$/, '');
   if (!raw) return true;
   const extras = String(process.env.WS_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
-  if (APP_WS_ORIGINS.includes(raw) || extras.includes(raw)) return true;
+  if (APP_WS_ORIGINS.includes(raw) || OWN_WS_ORIGINS.includes(raw) || extras.includes(raw)) return true;
   let o;
   try { o = new URL(raw); } catch (e) { return false; }
   if (process.env.PUBLIC_URL) { try { if (new URL(process.env.PUBLIC_URL).origin === o.origin) return true; } catch (e) { /* PUBLIC_URL sai định dạng: bỏ qua */ } }
