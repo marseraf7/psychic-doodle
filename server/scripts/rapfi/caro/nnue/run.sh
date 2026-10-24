@@ -50,6 +50,10 @@ ARENA_MS=${ARENA_MS:-300}
 PROMOTE=${PROMOTE:-0.57}
 VS_OPENINGS=${VS_OPENINGS:-16}             # đo với engine của game: số khai cuộc (× 2 ván)
 LOG="$WORK/logs/progress.log"
+# Chỉ một run.sh mỗi WORK: hai bản cùng chạy sẽ cùng học tiếp / ghi đè một vòng (vd. dịch vụ + tmux quên tắt)
+mkdir -p "$WORK/logs"
+exec 9> "$WORK/run.lock"
+flock -n 9 || { echo "run.sh đang chạy ở nơi khác (khoá $WORK/run.lock) – thoát"; exit 0; }
 # shellcheck disable=SC1091
 . "$WORK/venv/bin/activate"
 # shellcheck source=lib.sh

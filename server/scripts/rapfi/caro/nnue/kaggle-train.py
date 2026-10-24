@@ -102,7 +102,11 @@ def resume_previous():
     cks = [f for f in glob.glob("/kaggle/input/**/run/ckpts/ckpt_mix9svq_*.pt", recursive=True) if os.path.getsize(f) > 0]
     if not cks:
         return ""
-    ck = max(cks, key=lambda f: Path(f).name)
+    # Mỗi phiên đánh số bước lại từ 0: chọn phiên mới nhất (file sửa sau cùng), rồi bước cao nhất trong phiên đó
+    run = Path(max(cks, key=os.path.getmtime)).parent
+    ck = max((f for f in cks if Path(f).parent == run), key=lambda f: Path(f).name)
+    if len({Path(f).parent for f in cks}) > 1:
+        say(f"Có nhiều phiên trước trong Input – lấy phiên sửa sau cùng: {run.parent.parent}. Chỉ nên gắn một phiên.")
     dst = OUT / "prev" / Path(ck).name
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy(ck, dst)
