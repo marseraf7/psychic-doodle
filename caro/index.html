@@ -117,6 +117,7 @@
     <button id="btn-puzzle" type="button" hidden><svg class="ico" aria-hidden="true"><use href="#i-puzzle"/></svg><span data-i18n="btn_puzzle"></span></button>
     <button id="btn-online" type="button" hidden><svg class="ico" aria-hidden="true"><use href="#i-globe"/></svg><span data-i18n="btn_online"></span><i class="badge" id="online-badge" hidden></i></button>
     <button id="btn-settings" type="button"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg><span data-i18n="btn_settings"></span></button>
+    <button type="button" class="bar-menu-btn" data-i18n-aria="menu" data-i18n-title="menu"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
   </nav>
 
   <nav class="bar bottom online-only">
@@ -125,6 +126,7 @@
     <button id="btn-draw" type="button"><svg class="ico" aria-hidden="true"><use href="#i-draw"/></svg><span id="btn-draw-label" data-i18n="btn_draw"></span></button>
     <button id="btn-resign" type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span id="btn-resign-label" data-i18n="btn_resign"></span></button>
     <button id="btn-leave" type="button"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg><span data-i18n="btn_leave"></span></button>
+    <button type="button" class="bar-menu-btn" data-i18n-aria="menu" data-i18n-title="menu"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
   </nav>
 
   <!-- Đang xem ván của người khác -->
@@ -132,6 +134,7 @@
     <button id="wt-tv" type="button"><svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg><span data-i18n="tv_other"></span></button>
     <button id="wt-center" type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
     <button id="wt-leave" type="button"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg><span data-i18n="watch_stop"></span></button>
+    <button type="button" class="bar-menu-btn" data-i18n-aria="menu" data-i18n-title="menu"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
   </nav>
 
   <!-- Xem lại ván đã lưu -->
@@ -143,6 +146,7 @@
     <button id="rp-analyze" type="button"><svg class="ico" aria-hidden="true"><use href="#i-analyze"/></svg><span data-i18n="an_btn"></span></button>
     <button id="rp-share" type="button"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg><span data-i18n="share_game"></span></button>
     <button id="rp-close" type="button"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg><span data-i18n="rp_close"></span></button>
+    <button type="button" class="bar-menu-btn" data-i18n-aria="menu" data-i18n-title="menu"><svg class="ico" aria-hidden="true"><use href="#i-menu"/></svg></button>
   </nav>
 
   <!-- Giải đố / thử lại: nút do study.js điền -->
@@ -150,6 +154,9 @@
 
   <!-- Về giữa: nút tròn nổi (thanh dưới nhường chỗ cho "Giải đố") -->
   <button type="button" class="fab-center" id="btn-center" data-i18n-aria="btn_center" data-i18n-title="btn_center"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg></button>
+
+  <!-- Chế độ tập trung (focus-mode.js): logo + nút thoát, góc trên bên trái -->
+  <button type="button" id="focus-exit-btn" hidden><img src="icon.svg" alt="" class="focus-logo"><span data-i18n="focus_mode"></span></button>
 
   <!-- Bảng phân tích ván (chế độ xem lại), bố cục như Lichess: máy tính – cột bên phải bàn cờ; điện thoại – dưới bàn cờ.
        Bàn cờ thu nhỏ nhường chỗ, không bị bảng che. -->
@@ -395,6 +402,7 @@
       <div class="list">
         <button type="button" class="li" data-go="sound"><svg class="ico li-ic" aria-hidden="true"><use href="#i-sound"/></svg><span class="li-t" data-i18n="set_sound"></span><span class="li-v" data-val="sound"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <button type="button" class="li" data-go="look"><svg class="ico li-ic" aria-hidden="true"><use href="#i-palette"/></svg><span class="li-t" data-i18n="set_look"></span><span class="li-v" data-val="look"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        <button type="button" class="li" data-go="matchui"><svg class="ico li-ic" aria-hidden="true"><use href="#i-monitor"/></svg><span class="li-t" data-i18n="set_matchui"></span><span class="li-v" data-val="matchui"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <button type="button" class="li" data-go="board"><svg class="ico li-ic" aria-hidden="true"><use href="#i-board"/></svg><span class="li-t" data-i18n="set_board"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <button type="button" class="li" data-go="lang"><svg class="ico li-ic" aria-hidden="true"><use href="#i-globe"/></svg><span class="li-t" data-i18n="language"></span><span class="li-v" data-val="lang"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
       </div>
@@ -496,6 +504,43 @@
         <label class="li"><span class="li-t"><span data-i18n="pieces_classic"></span></span><input type="radio" name="pieces" value="classic"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><span class="li-t"><span data-i18n="pieces_bold"></span></span><input type="radio" name="pieces" value="bold"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
         <label class="li"><span class="li-t"><span data-i18n="pieces_stones"></span></span><input type="radio" name="pieces" value="stones"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      <h3 class="list-h" data-i18n="set_barpos"></h3>
+      <div class="list">
+        <label class="li"><span class="li-t"><span data-i18n="barpos_bottom"></span></span><input type="radio" name="barPos" value="bottom"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="barpos_top"></span></span><input type="radio" name="barPos" value="top"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="barpos_left"></span></span><input type="radio" name="barPos" value="left"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+        <label class="li"><span class="li-t"><span data-i18n="barpos_right"></span></span><input type="radio" name="barPos" value="right"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>
+      </div>
+      </div>
+
+      <div class="sp" data-sp="matchui" data-title="set_matchui" hidden>
+      <div class="mu-preview" id="mu-preview">
+        <div class="mu-top"><span class="mu-turn">● <span data-i18n="title_your_turn"></span></span><span class="mu-clock">03:24</span></div>
+        <div class="mu-strip"><i class="mu-av">Đ</i><span class="mu-name" data-i18n="opponent"></span><span class="mu-elo">1500</span><span class="mu-pc o"></span></div>
+        <div class="mu-board">
+          <i class="mu-st x" style="--cx:7;--cy:7"></i><i class="mu-st o" style="--cx:7;--cy:8"></i><i class="mu-st o" style="--cx:8;--cy:7"></i><i class="mu-st x" style="--cx:6;--cy:7"></i><i class="mu-st x" style="--cx:8;--cy:8"></i><i class="mu-st o" style="--cx:9;--cy:7"></i>
+        </div>
+        <div class="mu-strip"><i class="mu-av">B</i><span class="mu-name" data-i18n="mu_you"></span><span class="mu-elo">1520</span><span class="mu-pc x"></span></div>
+        <button type="button" class="ghost sm mu-tb" id="mu-tb"><span data-i18n="takeback_btn"></span></button>
+        <nav class="mu-bar" id="mu-bar" data-pos="bottom">
+          <button type="button"><svg class="ico" aria-hidden="true"><use href="#i-info"/></svg><span data-i18n="btn_room"></span></button>
+          <button type="button"><svg class="ico" aria-hidden="true"><use href="#i-center"/></svg><span data-i18n="btn_center"></span></button>
+          <button type="button"><svg class="ico" aria-hidden="true"><use href="#i-draw"/></svg><span data-i18n="btn_draw"></span></button>
+          <button type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span data-i18n="btn_resign"></span></button>
+          <button type="button"><svg class="ico" aria-hidden="true"><use href="#i-exit"/></svg><span data-i18n="btn_leave"></span></button>
+        </nav>
+      </div>
+      <p class="hint" data-i18n="matchui_drag_hint"></p>
+      <h3 class="list-h" data-i18n="set_barpos"></h3>
+      <div class="list">
+        <button type="button" class="li" data-mu-pos="bottom"><span class="li-t"><span data-i18n="barpos_bottom"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
+        <button type="button" class="li" data-mu-pos="top"><span class="li-t"><span data-i18n="barpos_top"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
+        <button type="button" class="li" data-mu-pos="left"><span class="li-t"><span data-i18n="barpos_left"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
+        <button type="button" class="li" data-mu-pos="right"><span class="li-t"><span data-i18n="barpos_right"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
+      </div>
+      <div class="list">
+        <button type="button" class="li" id="mu-reset"><span class="li-t" data-i18n="matchui_reset"></span></button>
       </div>
       </div>
 
@@ -848,6 +893,7 @@
         <button type="button" class="x-close" data-close data-i18n-aria="close">✕</button>
       </div>
       <div class="msgs" id="chat-msgs"></div>
+      <div class="row chat-quick"><button type="button" class="ghost sm" data-qc="okee" data-i18n="qc_okee"></button><button type="button" class="ghost sm" data-qc="bye" data-i18n="qc_bye"></button></div>
       <form class="row" id="chat-form">
         <input name="text" maxlength="500" autocomplete="off" data-i18n-ph="chat_ph" required>
         <button class="primary" data-i18n="send"></button>
@@ -1028,6 +1074,7 @@
   <script src="app.js"></script>
   <script src="shell.js"></script>
   <script src="online-auth.js"></script>
+  <script src="challenge-msg.js"></script>
   <script src="online-friends.js"></script>
   <script src="online-room.js"></script>
   <script src="online.js"></script>
@@ -1067,6 +1114,12 @@
   <script src="puzzle-home.js"></script>
   <script src="habits.js"></script>
   <script src="local-save.js"></script>
+  <script src="bar-pos.js"></script>
+  <script src="matchui.js"></script>
+  <script src="focus-mode.js"></script>
+  <script src="draft-mode.js"></script>
+  <script src="draw-lines.js"></script>
+  <script src="bar-menu.js"></script>
   <script src="settings-ui.js"></script>
   <script src="more.js"></script>
   <script src="home.js"></script>

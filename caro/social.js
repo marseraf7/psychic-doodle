@@ -77,9 +77,26 @@
     const me = S.me && S.me.uid;
     let html = chat.more ? `<button type="button" class="ghost sm older" id="chat-older">${esc(T('older'))}</button>` : '';
     if (!chat.msgs.length && !chat.loading) html += `<p class="hint center">${esc(T('no_msgs'))}</p>`;
-    html += chat.msgs.map((m) => `<div class="msg ${m.sender === me ? 'mine' : ''}"><span>${esc(m.text)}</span><time>${esc(time(m.created))}</time></div>`).join('');
+    html += chat.msgs.map((m) => {
+      const chId = window.CaroChallengeMsg ? window.CaroChallengeMsg.parse(m.text) : null;
+      if (!chId) return `<div class="msg ${m.sender === me ? 'mine' : ''}"><span>${esc(m.text)}</span><time>${esc(time(m.created))}</time></div>`;
+      const f = friendById(chat.peer.id) || chat.peer;
+      if (m.sender === me) return `<div class="msg mine"><span>🎮 ${esc(T('challenge_sent_chat', { name: f.name }))}</span><time>${esc(time(m.created))}</time></div>`;
+      if (!S.invites || !S.invites.has(chId)) return `<div class="msg"><span>🎮 ${esc(T('challenge_gone_chat'))}</span><time>${esc(time(m.created))}</time></div>`;
+      return `<div class="msg challenge"><span>🎮 ${esc(T('invite_from', { name: f.name }))}</span><span class="ch-btns"><button type="button" class="primary sm" data-ch-yes="${esc(chId)}">${esc(T('receive'))}</button><button type="button" class="ghost sm" data-ch-no="${esc(chId)}">${esc(T('decline'))}</button></span><time>${esc(time(m.created))}</time></div>`;
+    }).join('');
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     el.innerHTML = html;
+    el.querySelectorAll('[data-ch-yes]').forEach((b) => { b.onclick = () => {
+      const r = S.room;
+      if (r && r.players.length === 2 && !r.winner && r.moves.length && !confirm(T('confirm_accept_busy'))) return;
+      N.send({ t: 'challengeRespond', id: b.dataset.chYes, accept: true });
+    }; });
+    el.querySelectorAll('[data-ch-no]').forEach((b) => { b.onclick = () => {
+      N.send({ t: 'challengeRespond', id: b.dataset.chNo, accept: false });
+      if (S.invites) S.invites.delete(b.dataset.chNo);
+      renderChat();
+    }; });
     if (atBottom || chat.stick) el.scrollTop = el.scrollHeight;
     chat.stick = false;
     const older = $('chat-older');
@@ -122,7 +139,11 @@
     const B = window.CaroChatBubbles, bubble = B && B.active();
     if (f && !(bubble && B.isOpen(m.peer))) { f.unread = (f.unread || 0) + 1; N.render(); }
     sfx('chat');
-    if (!bubble) N.toast(`💬 ${f ? f.name : '?'}: ${m.msg.text.length > 80 ? m.msg.text.slice(0, 80) + '…' : m.msg.text}`, 4500);
+    if (!bubble) {
+      const chId = window.CaroChallengeMsg ? window.CaroChallengeMsg.parse(m.msg.text) : null;
+      const preview = chId ? T('invite_from', { name: f ? f.name : '?' }) : (m.msg.text.length > 80 ? m.msg.text.slice(0, 80) + '…' : m.msg.text);
+      N.toast(`💬 ${f ? f.name : '?'}: ${preview}`, 4500);
+    }
   });
 
   $('chat-form').onsubmit = (e) => {
@@ -132,6 +153,8 @@
     if (!text || !chat.peer) return;
     if (N.send({ t: 'dmSend', to: chat.peer.id, text })) input.value = '';
   };
+  // Chat nhanh (Issue #128): bấm là gửi, khỏi gõ.
+  document.querySelectorAll('.chat-quick [data-qc]').forEach((b) => { b.onclick = () => { if (chat.peer) N.send({ t: 'dmSend', to: chat.peer.id, text: T(b.dataset.qc === 'okee' ? 'qc_okee' : 'qc_bye') }); }; });
   $('chat-block').onclick = () => {
     const f = chat.peer;
     if (f && confirm(T('confirm_block', { name: f.name }))) {
@@ -147,6 +170,8 @@
     if (!friendById(chat.peer.id)) N.closeDlg('chat');
     else renderChatHead();
   });
+  // Lời mời biến mất: thẻ chat kèm lời mời vẽ lại thành dòng hết hạn
+  N.on('inviteGone', () => { if (chat.peer && N.isOpen('chat')) renderChat(); });
 
   // ------------------------------------------------------------ Báo cáo
   let reportTarget = null;

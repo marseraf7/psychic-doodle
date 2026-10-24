@@ -176,7 +176,15 @@
       setRoom(m.room);
     },
     invite(m) { S.invites.set(m.invite.id, m.invite); navigator.vibrate?.(60); ctx.renderInvites(); render(); },
-    inviteSent(m) { S.sent = m.invite; closeDlg('challenge'); ctx.renderInvites(); },
+    inviteSent(m) {
+      S.sent = m.invite;
+      S.sent.sentAt = Date.now(); // mốc đếm ngược 5 phút (online-friends.js)
+      closeDlg('challenge');
+      ctx.renderInvites();
+      // Gửi kèm lời mời dưới dạng tin nhắn chat với bạn bè (Issue #128): tin này vẽ thành
+      // thẻ bấm được bên nhận, dòng thông báo bên gửi (challenge-msg.js).
+      if (window.CaroChallengeMsg && m.invite.to) send({ t: 'dmSend', to: m.invite.to.id, text: window.CaroChallengeMsg.marker(m.invite.id) });
+    },
     inviteGone(m) {
       S.invites.delete(m.id);
       if (S.sent && S.sent.id === m.id) S.sent = null;

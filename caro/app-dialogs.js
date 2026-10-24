@@ -65,6 +65,7 @@
       form.soundVol.value = window.CaroSound.volume;
       form.board.value = window.CaroStyle.board;
       form.pieces.value = window.CaroStyle.pieces;
+      if (window.CaroBarPos) form.barPos.value = window.CaroBarPos.saved();
       form.theme.value = window.CaroTheme.get();
       form.elements.lang.value = window.I18N.lang;
       form.confirm.checked = state.confirm;
@@ -79,14 +80,15 @@
       state.mode = form.mode.value;
       state.rule = ruleOf(form.rule.value);
       state.human = Number(form.human.value);
-      if (botAllowed(form.bot.value)) state.bot = form.bot.value;
-      setTc(form.tc.value);
+      if (form.bot && botAllowed(form.bot.value)) state.bot = form.bot.value; // trang Cài đặt mở trực tiếp chưa render picker (bot/tc chỉ render khi mở bảng Cài đặt): không có ô thì bỏ qua, các ô khác vẫn áp dụng
+      if (form.tc) setTc(form.tc.value);
       state.sidePick = String(state.human);
       state.allowUndo = form.allowUndo.checked;
       window.CaroSound.enabled = form.sound.checked;
       window.CaroSound.volume = form.soundVol.value;
       if (window.CaroSound.style !== form.soundStyle.value) { window.CaroSound.style = form.soundStyle.value; window.CaroSound.play('placeX'); }
       if (window.CaroStyle.board !== form.board.value || window.CaroStyle.pieces !== form.pieces.value) window.CaroStyle.set({ board: form.board.value, pieces: form.pieces.value });
+      if (window.CaroBarPos && window.CaroBarPos.saved() !== form.barPos.value) window.CaroBarPos.setSaved(form.barPos.value);
       state.confirm = form.confirm.checked;
       window.CaroTheme.set(form.theme.value);
       window.I18N.setLang(form.elements.lang.value);

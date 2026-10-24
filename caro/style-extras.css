@@ -210,6 +210,108 @@ dialog { width: min(420px, calc(100% - 2 * var(--edge))); max-height: calc(100% 
   .bar.bottom button { flex: 1 1 0; min-width: 0; }
 }
 
+/* ============================ Vị trí thanh công cụ (bar-pos.js, Issue #128) ============================
+ * Mặc định ngang dưới (luật gốc trong style.css). Ngang trên: top do JS đặt dưới thanh trên.
+ * Dọc trái/phải: thanh đứng giữa cạnh, chỉ hiện biểu tượng (không nhãn) cho gọn. */
+nav.bar.bottom[data-pos="top"] { bottom: auto; }
+nav.bar.bottom[data-pos="left"], nav.bar.bottom[data-pos="right"] {
+  top: 50%; bottom: auto; transform: translateY(-50%); flex-direction: column;
+  left: auto; right: auto; width: auto; max-width: calc(100% - 2 * var(--edge));
+  border-radius: 16px; border: 1px solid var(--panel-border); box-shadow: var(--shadow);
+  padding: 6px; gap: 6px; justify-content: normal; background: var(--panel);
+}
+nav.bar.bottom[data-pos="left"] { left: max(var(--edge), env(safe-area-inset-left)); }
+nav.bar.bottom[data-pos="right"] { right: max(var(--edge), env(safe-area-inset-right)); }
+nav.bar.bottom[data-pos="left"] button, nav.bar.bottom[data-pos="right"] button { flex: none; padding: 6px; }
+nav.bar.bottom[data-pos="left"] button span, nav.bar.bottom[data-pos="right"] button span { display: none; }
+/* Đang kéo: theo con trỏ, không transition, nổi lên trên nội dung */
+nav.bar.bottom.dragging { transition: none; cursor: grabbing; touch-action: none; z-index: 60; }
+
+/* ============================ Xem trước Giao diện ván đấu (matchui.js, Issue #128) ============================
+ * Khung mô hình thu nhỏ của màn hình khi thi đấu: thanh trên, thẻ người chơi, bàn cờ, thanh công cụ, nút Xin đi lại.
+ * Vùng đệm trên/dưới chừa chỗ cho thanh công cụ ở vị trí ngang trên / ngang dưới. */
+.mu-preview {
+  position: relative; width: min(360px, 100%); margin: 0 auto; padding: 52px 12px 64px;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow);
+}
+.mu-top {
+  position: absolute; top: 0; left: 0; right: 0; height: 36px; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 14px; font-size: var(--fs-sm); font-weight: var(--fw-semibold);
+}
+.mu-strip { display: flex; align-items: center; gap: 8px; height: 44px; font-size: var(--fs-sm); }
+.mu-av {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-weight: var(--fw-bold); font-style: normal;
+}
+.mu-elo { color: var(--muted); font-size: var(--fs-xs); }
+.mu-pc { width: 18px; height: 18px; border-radius: 50%; margin-left: auto; }
+.mu-pc.x { background: #222; }
+.mu-pc.o { background: #fff; border: 1px solid #999; }
+.mu-board {
+  position: relative; width: 100%; aspect-ratio: 1; margin: 4px 0; border-radius: 8px;
+  background-color: #e3c188; border: 1px solid rgba(0, 0, 0, .3);
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, .35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, .35) 1px, transparent 1px);
+  background-size: calc(100% / 14) calc(100% / 14);
+}
+.mu-st {
+  position: absolute; width: calc(100% / 15); aspect-ratio: 1; border-radius: 50%;
+  left: calc(var(--cx) * 100% / 14); top: calc(var(--cy) * 100% / 14); transform: translate(-50%, -50%);
+}
+.mu-st.x { background: #222; }
+.mu-st.o { background: #fff; border: 1px solid #999; }
+.mu-bar {
+  position: absolute; display: flex; gap: 6px; padding: 6px; z-index: 2;
+  background: var(--bg); border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow);
+}
+.mu-bar button { padding: 6px; }
+.mu-bar[data-pos="bottom"] { left: 50%; bottom: 8px; transform: translateX(-50%); }
+.mu-bar[data-pos="top"] { left: 50%; top: 44px; transform: translateX(-50%); }
+.mu-bar[data-pos="left"] { left: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; }
+.mu-bar[data-pos="right"] { right: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; }
+.mu-bar[data-pos="left"] button span, .mu-bar[data-pos="right"] button span { display: none; }
+.mu-tb { position: absolute; left: 50%; transform: translateX(-50%); bottom: 76px; z-index: 3; cursor: grab; }
+.mu-bar.dragging, .mu-tb.dragging { cursor: grabbing; touch-action: none; }
+[data-mu-pos] .tick { visibility: hidden; }
+[data-mu-pos].sel .tick { visibility: visible; }
+
+/* ============================ Chế độ tập trung (focus-mode.js, Issue #128) ============================
+ * Chỉ để lại bàn cờ: ẩn thanh trên, thẻ người chơi, thanh công cụ, nút Về giữa, thẻ nổi,
+ * bong bóng chat và toast. Thẻ kết quả (.banner) vẫn hiện. Nút thoát ở góc trên bên trái. */
+body.focus-mode .bar.top,
+body.focus-mode .pstrip,
+body.focus-mode nav.bar.bottom,
+body.focus-mode .fab-center,
+body.focus-mode .invites,
+body.focus-mode .cb-side,
+body.focus-mode .cb-wins,
+body.focus-mode #toasts { display: none !important; }
+#focus-exit-btn {
+  position: fixed; top: calc(10px + env(safe-area-inset-top)); left: max(var(--edge), env(safe-area-inset-left));
+  z-index: 70; display: none; align-items: center; gap: 8px; padding: 8px 14px;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; box-shadow: var(--shadow);
+  font: inherit; font-size: var(--fs-sm); font-weight: var(--fw-bold); color: var(--text); cursor: pointer;
+}
+body.focus-mode #focus-exit-btn { display: flex; }
+.focus-logo { width: 24px; height: 24px; border-radius: 6px; }
+
+/* ============================ Menu 3 gạch cuối thanh công cụ (bar-menu.js, Issue #128) ============================ */
+.bar-menu-btn.draft-on { background: var(--accent); color: #fff; }
+#bar-menu {
+  position: fixed; z-index: 80; display: flex; flex-direction: column; min-width: 220px; padding: 6px;
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; box-shadow: var(--shadow);
+}
+#bar-menu[hidden] { display: none; }
+#bar-menu button {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: none; border: 0; border-radius: 10px;
+  font: inherit; font-size: var(--fs-md); color: var(--text); text-align: left; cursor: pointer;
+}
+#bar-menu button:hover { background: rgba(127, 127, 127, 0.14); }
+#bar-menu .tick { visibility: hidden; width: 1em; color: var(--accent); font-weight: var(--fw-bold); }
+#bar-menu button.on .tick { visibility: visible; }
+#bar-menu button.on { color: var(--accent); }
+
 /* Hộp thoại: thanh cuộn mảnh, không đè lên góc bo; nội dung cách đều hai bên */
 dialog { scrollbar-width: thin; scrollbar-color: var(--grid-strong) transparent; scrollbar-gutter: stable both-edges; overscroll-behavior: contain; }
 /* Ô chọn trong Cài đặt / tạo phòng: rộng hết hàng như các nút phân đoạn; nhãn căn trái như mọi tiêu đề khác */

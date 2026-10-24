@@ -6,18 +6,32 @@
 (function () {
   'use strict';
   window.CaroBoardInput = function (env) {
-    const { EMPTY } = window.Caro;
+    const { EMPTY, X, O } = window.Caro;
     const { canvas, cam, state, V, MIN_SIZE, MAX_SIZE, canPlaceNow, play, showBanner, vibrate, shellOn, undo, openNewGame,
       seekReplay, toggleReplayPlay, closeReplay, stopReplay } = env;
-    const { toCell, animateCamera, requestDraw, zoomAt, clamp, saveSoon, centerView } = V;
+    const { toCell, toWorld, animateCamera, requestDraw, zoomAt, clamp, saveSoon, centerView, getFlip } = V;
 
     // ------------------------------------------------------------ Nhập liệu
     const pointers = new Map();
     let gesture = null;
 
+    // Quân người vẽ đang cầm (draw-lines.js): online thì bên của mình (xem ván thì lấy lượt hiện tại),
+    // đánh máy thì quân người chơi, 2 người một máy thì lượt hiện tại.
+    function myStone() {
+      if (state.online) return state.online.side || state.turn;
+      if (state.mode === 'ai') return state.human;
+      return state.turn;
+    }
+
     /** Ô nhỏ hơn mức này (px) thì ngón tay dễ chạm nhầm ô bên cạnh: chạm lần đầu chỉ phóng to tới chỗ đó. */
     const TOUCH_MIN = 26, TOUCH_ZOOM = 36;
     function tap(sx, sy, mouse) {
+      // Chế độ nháp (draft-mode.js, Issue #128): mọi cú chạm thành đặt / gỡ quân nháp, không đánh nước thật.
+      if (window.CaroDraft && window.CaroDraft.active()) {
+        const [x, y] = toCell(sx, sy);
+        if (state.board.get(x, y) === EMPTY) window.CaroDraft.place(x, y);
+        return;
+      }
       if (state.winner) { if (!state.ext) showBanner(); return; }
       if (!canPlaceNow()) return;
       const [x, y] = toCell(sx, sy);
@@ -38,12 +52,12 @@
     function startPinch() {
       const [a, b] = [...pointers.values()];
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const [wx, wy] = toWorld(mx, my); // không làm tròn; đúng cả khi lật bàn
       return {
         type: 'pinch',
         dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
         size: cam.size,
-        wx: (mx - V.W / 2) / cam.size + cam.x,
-        wy: (my - V.H / 2) / cam.size + cam.y,
+        wx, wy,
       };
     }
 
@@ -52,7 +66,14 @@
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       V.stopMotion();
       if (pointers.size === 1) {
-        gesture = { type: 'tap', sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, lt: e.timeStamp, vx: 0, vy: 0, mouse: e.pointerType === 'mouse', button: e.button };
+        if (e.pointerType === 'mouse' && e.button === 2 && window.CaroDraw) {
+          // Chuột phải (chỉ máy tính): bắt đầu kéo vẽ đường, không phải chạm đặt quân / kéo bàn cờ.
+          const [x, y] = toCell(e.clientX, e.clientY);
+          window.CaroDraw.begin(x, y, myStone());
+          gesture = { type: 'draw' };
+        } else {
+          gesture = { type: 'tap', sx: e.clientX, sy: e.clientY, lx: e.clientX, ly: e.clientY, lt: e.timeStamp, vx: 0, vy: 0, mouse: e.pointerType === 'mouse', button: e.button };
+        }
       } else if (pointers.size === 2) {
         gesture = startPinch();
       }
@@ -69,6 +90,12 @@
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (!gesture) return;
 
+      if (gesture.type === 'draw') {
+        const c = toCell(e.clientX, e.clientY);
+        window.CaroDraw.move(c[0], c[1]);
+        return;
+      }
+
       if (gesture.type === 'tap') {
         const d = Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy);
         if (d > (gesture.mouse ? 5 : 10)) { gesture.type = 'pan'; canvas.classList.add('grabbing'); }
@@ -76,8 +103,9 @@
       if (gesture.type === 'pan') {
         const dx = e.clientX - gesture.lx, dy = e.clientY - gesture.ly;
         const dt = Math.max(1, e.timeStamp - gesture.lt);
-        cam.x -= dx / cam.size;
-        cam.y -= dy / cam.size;
+        const fl = getFlip(); // lật bàn: kéo phải thì camera đi ngược dấu để nội dung vẫn bám theo ngón tay
+        cam.x -= (fl.h ? -dx : dx) / cam.size;
+        cam.y -= (fl.v ? -dy : dy) / cam.size;
         gesture.vx = 0.7 * (dx / dt) + 0.3 * gesture.vx;
         gesture.vy = 0.7 * (dy / dt) + 0.3 * gesture.vy;
         gesture.lx = e.clientX; gesture.ly = e.clientY; gesture.lt = e.timeStamp;
@@ -88,8 +116,9 @@
         const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
         const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
         cam.size = clamp(gesture.size * (d / gesture.dist), MIN_SIZE, MAX_SIZE);
-        cam.x = gesture.wx - (mx - V.W / 2) / cam.size;
-        cam.y = gesture.wy - (my - V.H / 2) / cam.size;
+        const fl = getFlip(); // neo điểm chụm đúng cả khi lật bàn (cùng công thức với zoomAt)
+        cam.x = gesture.wx - (fl.h ? -(mx - V.W / 2) : (mx - V.W / 2)) / cam.size;
+        cam.y = gesture.wy - (fl.v ? -(my - V.H / 2) : (my - V.H / 2)) / cam.size;
         requestDraw();
       }
     });
@@ -99,6 +128,13 @@
       pointers.delete(e.pointerId);
       canvas.classList.remove('grabbing');
       if (!gesture) return;
+      if (gesture.type === 'draw') {
+        // Thả phải thì chốt đường; hủy giữa chừng (mất focus...) thì bỏ đường đang kéo.
+        if (e.type === 'pointerup') window.CaroDraw.end();
+        else window.CaroDraw.cancel();
+        gesture = null;
+        return;
+      }
       if (gesture.type === 'tap' && pointers.size === 0) {
         if (e.type === 'pointerup' && (!gesture.mouse || gesture.button === 0)) tap(e.clientX, e.clientY, gesture.mouse);
         gesture = null;
@@ -134,9 +170,10 @@
         const f = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015) * (e.deltaMode === 1 ? 30 : 1));
         zoomAt(e.clientX, e.clientY, cam.size * f);
       } else {
-        // Vuốt 2 ngón trên touchpad: di chuyển.
-        cam.x += e.deltaX / cam.size;
-        cam.y += e.deltaY / cam.size;
+        // Vuốt 2 ngón trên touchpad: di chuyển (lật bàn thì đổi dấu để nội dung cuộn cùng hướng).
+        const fl = getFlip();
+        cam.x += (fl.h ? -e.deltaX : e.deltaX) / cam.size;
+        cam.y += (fl.v ? -e.deltaY : e.deltaY) / cam.size;
         requestDraw();
         saveSoon();
       }
