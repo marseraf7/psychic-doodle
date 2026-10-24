@@ -53,7 +53,7 @@ class Rooms {
     room.clockAt = at;
     if (!at) return;
     room.clockTimer = setTimeout(() => {
-      if (this.rooms.get(room.code) !== room || room.turnEndsAt !== at || !room.active) return;
+      if (this.closed || this.rooms.get(room.code) !== room || room.turnEndsAt !== at || !room.active) return;
       room.timeLoss();
       this.afterChange(room);
     }, Math.max(0, at - Date.now()) + 50 + room.lagGrace()); // chờ thêm mức bù trễ: nước đã gửi kịp còn đang trên đường
@@ -356,7 +356,7 @@ class Rooms {
     if (!leaving && !tourStop && room.awaitingNextGame) {
       const game = room.gameNo;
       setTimeout(() => {
-        if (this.rooms.get(room.code) !== room || room.gameNo !== game || !room.awaitingNextGame || room.tourDone) return;
+        if (this.closed || this.rooms.get(room.code) !== room || room.gameNo !== game || !room.awaitingNextGame || room.tourDone) return;
         this.startNext(room);
       }, this.T.NEXT_GAME_MS).unref?.();
     }

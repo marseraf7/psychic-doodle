@@ -21,6 +21,10 @@
       state.ext = ctrl;
       if (state.clocks && state.clocks.local) state.clocks = null; // đồng hồ ván trên máy đã lưu, khôi phục khi quay lại
       toBoard();
+      // Dấu của bảng phân tích (nước sai / tốt nhất) thuộc ván cũ: không để sót trên bàn câu đố / bài học; study.js đóng
+      // bảng phân tích (trừ khi chính nó mở "Thử lại")
+      state.marks = null;
+      window.dispatchEvent(new Event('caro:extenter'));
       state.thinking = false;
       state.pending = null;
       state.clock = null;

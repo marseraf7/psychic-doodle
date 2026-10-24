@@ -25,9 +25,14 @@ test('M-S1: Origin cùng host / của app / khai thêm thì qua, Origin lạ và
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'capacitor://localhost' })), true, 'app iOS (Capacitor): qua');
     assert.strictEqual(wsOriginAllowed(req({ host: 'caro.example:8080', origin: 'https://evil.example' })), false, 'trang lạ mượn trình duyệt người dùng: chặn');
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'không-phải-url' })), false, 'Origin rác: chặn');
+    // #110 P3: bản tĩnh chính thức trên GitHub Pages được phép sẵn (không cần đặt WS_ALLOWED_ORIGINS trên máy chủ);
+    // tên miền giống nhưng khác (tài khoản GitHub khác, http) thì vẫn chặn
+    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'https://marseraf7.github.io' })), true, 'bản GitHub Pages chính thức: qua');
+    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'https://evil.github.io' })), false, 'GitHub Pages của người khác: chặn');
+    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'http://marseraf7.github.io' })), false, 'http (không mã hoá): chặn');
   });
-  withEnv({ WS_ALLOWED_ORIGINS: 'https://marseraf7.github.io', PUBLIC_URL: 'https://caroxo.duckdns.org' }, () => {
-    assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'https://marseraf7.github.io' })), true, 'Origin khai qua env: qua');
+  withEnv({ WS_ALLOWED_ORIGINS: 'https://example.org', PUBLIC_URL: 'https://caroxo.duckdns.org' }, () => {
+    assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'https://example.org' })), true, 'Origin khai qua env: qua');
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'https://caroxo.duckdns.org' })), true, 'Origin của PUBLIC_URL: qua');
   });
 });

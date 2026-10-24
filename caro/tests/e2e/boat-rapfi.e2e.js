@@ -11,7 +11,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { setup } = require('./helpers');
+const { setup, gotoRetry } = require('./helpers');
 
 const NET_RE = /mix9svq.*\.bin\.lz4$/;
 
@@ -60,7 +60,7 @@ if (process.env.RAPFI_NETS && process.env.E2E_BROWSER === 'webkit') {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => errors.push(e.message));
     p.on('console', (m) => { if (m.type() === 'error' && !/404/.test(m.text())) errors.push('console: ' + m.text()); });
-    await p.goto(`http://localhost:${port}/`);
+    await gotoRetry(p, `http://localhost:${port}/`); // Firefox trên CI thỉnh thoảng treo lần mở đầu
     await sleep(500);
     return { ctx, p };
   }
@@ -258,7 +258,7 @@ if (process.env.RAPFI_NETS && process.env.E2E_BROWSER === 'webkit') {
   // Firefox (Playwright) có khi chờ sự kiện load mãi khi trang cũ còn Worker WebAssembly
   p = await ctx.newPage();
   p.on('pageerror', (e) => errors.push(e.message));
-  await p.goto(`http://localhost:${port}/`);
+  await gotoRetry(p, `http://localhost:${port}/`);
   await firstPage.close();
   await sleep(600);
   ok(await warm('free'), 'sau khi tải lại trang: Rapfi sẵn sàng từ bộ nhớ đệm');
@@ -311,7 +311,7 @@ if (process.env.RAPFI_NETS && process.env.E2E_BROWSER === 'webkit') {
   const lic = await p.$eval('#page-more .licenses-link', (a) => ({ href: a.getAttribute('href'), text: a.textContent }));
   ok(/licenses\.html$/.test(lic.href) && /Giấy phép mã nguồn mở/.test(lic.text), 'Xem thêm: dòng "Giấy phép mã nguồn mở"');
   const lp = await ctx.newPage();
-  await lp.goto(`http://localhost:${port}/licenses.html#en`);
+  await gotoRetry(lp, `http://localhost:${port}/licenses.html#en`);
   await sleep(300);
   ok(/GPL-3/.test(await lp.textContent('#en')) && !(await lp.isVisible('#vi')), 'trang giấy phép: 4 ngôn ngữ, chọn theo #en');
   for (const href of await lp.$$eval('#en a[href^="rapfi/"]', (as) => as.map((a) => a.getAttribute('href')))) {

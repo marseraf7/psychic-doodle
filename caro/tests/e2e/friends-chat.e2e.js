@@ -143,14 +143,34 @@ const { setup, gotoRetry } = require('./helpers');
   ok(await a.evaluate(() => document.activeElement === document.querySelector('#add-friend input[name="u"]')), 'M-F6: ô thêm bạn đang focus vẫn giữ focus sau khi vẽ lại');
 
   // ---------------------------------------------------------------- 4. Điện thoại: hộp chat toàn màn hình
-  await a.setViewportSize({ width: 390, height: 844 });
+  // Dưới 900px thanh tab nằm ở đáy (shell.css): nút bong bóng phải nằm trên thanh tab, kể cả máy tính bảng dọc 700–899px
+  const fabAbove = () => a.evaluate(() => {
+    const r = document.querySelector('.cb-launch').getBoundingClientRect(), t = document.getElementById('tabbar').getBoundingClientRect();
+    return r.width > 0 && r.right <= innerWidth && r.bottom <= t.top;
+  });
+  await a.setViewportSize({ width: 800, height: 900 });
   await a.click('#tabbar [data-tab="home"]');
   await sleep(200);
-  const lb = await a.evaluate(() => { const r = document.querySelector('.cb-launch').getBoundingClientRect(); return r.right <= innerWidth && r.bottom <= innerHeight && r.width > 0; });
-  ok(lb, 'điện thoại: nút bong bóng nằm gọn phía trên thanh tab');
+  ok(await fabAbove(), 'máy tính bảng dọc 800px: nút bong bóng nằm trên thanh tab, không đè');
+  await a.setViewportSize({ width: 390, height: 844 });
+  await sleep(200);
+  ok(await fabAbove(), 'điện thoại: nút bong bóng nằm gọn phía trên thanh tab');
   await a.click('.cb-launch');
   await a.click('.cb-list [data-open]');
   ok(await until(a, () => document.getElementById('chat').open), 'điện thoại: bấm bạn → hộp chat toàn màn hình');
+  // Đầu hộp chat ở 360px, cả 4 ngôn ngữ: tên bạn chat không bị nút Báo cáo / Chặn (tiếng Nga rất dài) bóp mất
+  await a.setViewportSize({ width: 360, height: 760 });
+  for (const l of ['vi', 'en', 'ru', 'zh']) {
+    const h = await a.evaluate((lang) => {
+      window.I18N.setLang(lang);
+      const n = document.getElementById('chat-name').getBoundingClientRect(), d = document.querySelector('#chat .dlg').getBoundingClientRect();
+      const btns = [...document.querySelectorAll('#chat .dlg-head button')].map((b) => b.getBoundingClientRect());
+      return { name: Math.round(n.width), inside: btns.every((r) => r.right <= d.right + 1 && r.left >= d.left - 1) };
+    }, l);
+    ok(h.name >= 120 && h.inside, `hộp chat 360px [${l}]: tên bạn chat rộng ${h.name}px, các nút nằm trong hộp`);
+    if (l === 'ru') await shot(a, 'fc-mobile-chat-ru.png');
+  }
+  await a.evaluate(() => window.I18N.setLang('vi'));
   await shot(a, 'fc-mobile-chat.png');
 
   await finish();
