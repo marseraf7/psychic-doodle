@@ -55,6 +55,10 @@ class Hub {
     clearInterval(this.tourTimer);
     for (const t of (this.presenceTimers || new Map()).values()) clearTimeout(t); // lobby.js
     for (const timer of (this.tourPushTimers || new Map()).values()) clearTimeout(timer);
+    // Hẹn giờ của từng phòng (hết giờ, xử thua khi mất kết nối, số người xem): chạy sau khi CSDL đã đóng sẽ ghi kết quả
+    // ván vào CSDL đã đóng và làm sập tiến trình ("statement has been finalized")
+    for (const room of this.rooms.values()) { clearTimeout(room.clockTimer); clearTimeout(room.watchTimer); }
+    for (const t of this.forfeitTimers.values()) clearTimeout(t);
   }
 
   /** Chạy một việc hẹn giờ của hub (quét dọn, nhịp giải đấu, ghép trận, đẩy cập nhật…):
@@ -178,7 +182,7 @@ class Hub {
     const game = room.gameNo;
     const t = setTimeout(() => {
       this.forfeitTimers.delete(pid);
-      if (this.isOnline(pid) || this.rooms.get(room.code) !== room) return;
+      if (this.closed || this.isOnline(pid) || this.rooms.get(room.code) !== room) return;
       if (!room.active || room.gameNo !== game || !room.has(pid)) return;
       room.finish(3 - room.sideOf(pid), 'timeout');
       this.afterChange(room);
