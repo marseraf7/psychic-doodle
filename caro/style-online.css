@@ -277,6 +277,15 @@ body.replay #banner { display: none; }
 .chat-dlg { height: min(620px, calc(100dvh - 40px)); }
 .chat-dlg .dlg-head .pn small { white-space: normal; }
 .chat-dlg .dlg-head .x-close { margin-left: 0; }
+/* Màn hình hẹp: nút Báo cáo / Chặn (tiếng Nga rất dài) xuống hàng thứ hai, tên bạn chat giữ cả hàng đầu cùng nút đóng
+   – trước đây hai nút chiếm hết hàng, tên bị bóp về bề rộng 0 */
+@media (max-width: 480px) {
+  .chat-dlg .dlg-head { flex-wrap: wrap; row-gap: 6px; }
+  .chat-dlg .dlg-head .pn { flex: 1 1 calc(100% - 48px); }
+  .chat-dlg .dlg-head .x-close { order: 1; }
+  .chat-dlg .dlg-head #chat-report { order: 2; margin-left: auto; }
+  .chat-dlg .dlg-head #chat-block { order: 3; }
+}
 .msgs { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 4px 2px; }
 .msg { align-self: flex-start; max-width: 80%; display: flex; flex-direction: column; }
 .msg span {
