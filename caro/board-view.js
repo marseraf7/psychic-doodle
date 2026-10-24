@@ -43,10 +43,12 @@
       const sy = (wy - cam.y) * cam.size + H / 2;
       return [flipH ? W - sx : sx, flipV ? H - sy : sy];
     };
-    const toCell = (sx, sy) => [
-      Math.round(((flipH ? W - sx : sx) - W / 2) / cam.size + cam.x),
-      Math.round(((flipV ? H - sy : sy) - H / 2) / cam.size + cam.y),
+    // Toạ độ bàn cờ liên tục (không làm tròn) của một điểm màn hình – neo phóng to / chụm
+    const toWorld = (sx, sy) => [
+      ((flipH ? W - sx : sx) - W / 2) / cam.size + cam.x,
+      ((flipV ? H - sy : sy) - H / 2) / cam.size + cam.y,
     ];
+    const toCell = (sx, sy) => toWorld(sx, sy).map(Math.round);
     function setFlip(h, v) { flipH = !!h; flipV = !!v; requestDraw(); }
     function getFlip() { return { h: flipH, v: flipV }; }
 
@@ -349,7 +351,7 @@
 
     function zoomAt(sx, sy, newSize) {
       newSize = clamp(newSize, MIN_SIZE, MAX_SIZE);
-      const [wx, wy] = toCell(sx, sy); // qua toCell để đúng cả khi lật bàn
+      const [wx, wy] = toWorld(sx, sy); // không làm tròn (làm tròn thì mỗi nấc phóng bàn giật nửa ô); đúng cả khi lật bàn
       cam.size = newSize;
       cam.x = wx - (flipH ? -(sx - W / 2) : (sx - W / 2)) / newSize;
       cam.y = wy - (flipV ? -(sy - H / 2) : (sy - H / 2)) / newSize;
@@ -364,7 +366,7 @@
     }
 
     return {
-      readColors, resize, toScreen, toCell, requestDraw, animateCamera, ensureVisible, centerView, clamp, zoomAt, saveSoon, colName,
+      readColors, resize, toScreen, toCell, toWorld, requestDraw, animateCamera, ensureVisible, centerView, clamp, zoomAt, saveSoon, colName,
       setFlip, getFlip, setDrafts, setDrawLines,
       get W() { return W; },
       get H() { return H; },

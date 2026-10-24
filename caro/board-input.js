@@ -9,7 +9,7 @@
     const { EMPTY, X, O } = window.Caro;
     const { canvas, cam, state, V, MIN_SIZE, MAX_SIZE, canPlaceNow, play, showBanner, vibrate, shellOn, undo, openNewGame,
       seekReplay, toggleReplayPlay, closeReplay, stopReplay } = env;
-    const { toCell, animateCamera, requestDraw, zoomAt, clamp, saveSoon, centerView, getFlip } = V;
+    const { toCell, toWorld, animateCamera, requestDraw, zoomAt, clamp, saveSoon, centerView, getFlip } = V;
 
     // ------------------------------------------------------------ Nhập liệu
     const pointers = new Map();
@@ -52,7 +52,7 @@
     function startPinch() {
       const [a, b] = [...pointers.values()];
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-      const [wx, wy] = toCell(mx, my); // qua toCell để đúng cả khi lật bàn
+      const [wx, wy] = toWorld(mx, my); // không làm tròn; đúng cả khi lật bàn
       return {
         type: 'pinch',
         dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
