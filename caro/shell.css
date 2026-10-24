@@ -185,7 +185,7 @@ input.tog:checked::after { transform: translateX(20px); }
 .resume-card small { color: var(--muted); font-size: var(--fs-xs); }
 .home-resume[hidden] { display: none; }
 /* Lần đầu mở game: thẻ chọn trình độ nằm trong Trang chủ (không nổi trên bàn cờ) */
-.home .welcome-card { position: static; transform: none; width: 100%; box-shadow: none; border: 0; animation: none; }
+.home .welcome-card { position: static; z-index: auto; transform: none; width: 100%; box-shadow: none; border: 0; animation: none; }
 body.online .home .welcome-card { display: flex; }
 .home .welcome-card[hidden] { display: none; }
 
