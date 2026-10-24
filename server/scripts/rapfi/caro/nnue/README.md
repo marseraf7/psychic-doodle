@@ -30,7 +30,8 @@ tmux new -s caro 'bash server/scripts/rapfi/caro/nnue/run.sh'           # chạy
 - Xem tiến độ: `tail -f ~/caro-nnue/logs/progress.log` (mỗi vòng một dòng: loss, kết quả đấu với mạng cũ, có thay mạng
   không, và tỉ lệ thắng engine của game sau mỗi lần thay). Quay lại tmux: `tmux attach -t caro`.
 - Dừng: tạo file `~/caro-nnue/STOP` (dừng sau vòng đang chạy) hoặc Ctrl-C trong tmux. Chạy lại `run.sh` thì tiếp tục từ
-  vòng cuối (dữ liệu, mạng, điểm kiểm tra đều giữ trong `~/caro-nnue`).
+  vòng cuối (dữ liệu, mạng, điểm kiểm tra đều giữ trong `~/caro-nnue`). Máy bị dừng giữa lúc huấn luyện (Spot): vòng
+  đó học nốt từ lần lưu tạm cuối (`TEMP_SAVE`, mặc định mỗi 100 bước trên CPU ≈ 10–15 phút), không phải học lại từ đầu.
 - Đổi tham số bằng biến môi trường, vd. `SP_PROCS=6 TRAIN_THREADS=2 bash run.sh` (đầu `run.sh` có danh sách và giá trị
   mặc định theo phần cứng: số tiến trình tự đấu, số nút mỗi nước, số bước mỗi vòng, cỡ lô, ngưỡng thay mạng…).
 - VPS khởi động lại: chỉ cần chạy lại lệnh tmux ở trên – hoặc cài thành dịch vụ (`install-service.sh`, mục dưới) để máy

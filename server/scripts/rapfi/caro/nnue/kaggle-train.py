@@ -9,8 +9,7 @@ Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi)
   HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
   BATCH 1024 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước
 Học tiếp qua nhiều phiên: thư mục chạy (/kaggle/working/run) là đầu ra của notebook. Phiên sau: Add Input → chọn đầu ra
-của phiên trước – script tự chép thư mục chạy đó về và bộ huấn luyện học tiếp từ điểm kiểm tra cuối (không có thì học
-từ đầu). Chỉ giữ 2 điểm kiểm tra mới nhất cho đầu ra gọn.
+của phiên trước – script lấy điểm kiểm tra cuối của phiên đó làm điểm xuất phát (không có thì học từ đầu). Chỉ giữ 2 điểm kiểm tra mới nhất cho đầu ra gọn.
 Token chỉ đọc từ Kaggle Secrets / biến môi trường GITHUB_TOKEN, không in ra; cần quyền ghi (Contents) repo dữ liệu.
 Chạy được cả trên máy không có GPU (để kiểm thử: HOURS=0.02 …) – khi đó dùng CPU.
 """
@@ -96,15 +95,19 @@ def fetch_data():
 
 
 def resume_previous():
-    """Phiên trước (đầu ra notebook gắn làm Input): chép thư mục chạy về để học tiếp."""
+    """Phiên trước (đầu ra notebook gắn làm Input): lấy điểm kiểm tra cuối làm điểm xuất phát (load_from).
+    Dữ liệu packed_binary không học tiếp "chính xác" từ state_*.pt được (bộ huấn luyện từ chối), nên chỉ nạp trọng số."""
     if (RUN / "ckpts").exists():
-        return
-    for st in sorted(glob.glob("/kaggle/input/**/run/ckpts/state_*.pt", recursive=True)):
-        src = Path(st).parent.parent
-        say(f"Học tiếp từ phiên trước: {src}")
-        shutil.copytree(src, RUN, dirs_exist_ok=True)
-        (RUN / "train").exists() and shutil.rmtree(RUN / "train")
-        return
+        return ""
+    cks = [f for f in glob.glob("/kaggle/input/**/run/ckpts/ckpt_mix9svq_*.pt", recursive=True) if os.path.getsize(f) > 0]
+    if not cks:
+        return ""
+    ck = max(cks, key=lambda f: Path(f).name)
+    dst = OUT / "prev" / Path(ck).name
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(ck, dst)
+    say(f"Học tiếp từ phiên trước: {Path(ck).name}")
+    return str(dst)
 
 
 def prune(keep=2):
@@ -119,14 +122,14 @@ def prune(keep=2):
             os.remove(f)
 
 
-def train(tr, files):
+def train(tr, files, load_from=""):
     gpu = subprocess.run([sys.executable, "-c", "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)"]).returncode == 0
     train_dir = RUN / "train"
     shutil.rmtree(train_dir, ignore_errors=True)
     train_dir.mkdir(parents=True)
     for f in files:
         (train_dir / Path(f).name).symlink_to(f)
-    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, "", SAVE_EVERY)
+    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY, SAVE_EVERY)
     cmd = [sys.executable, "-m", "accelerate.commands.launch", "--num_processes", "1"] + ([] if gpu else ["--cpu"]) + ["train.py", "-c", str(RUN / "config.yaml")]
     if not gpu:
         cmd.append("--use_cpu")
@@ -216,8 +219,7 @@ if __name__ == "__main__":
     files = fetch_data()
     if not files:
         sys.exit("Repo dữ liệu chưa có ván nào (data/…/sp-*.binpack.lz4)")
-    resume_previous()
-    train(tr, files)
+    train(tr, files, resume_previous())
     ck = latest_ckpt()
     if not ck:
         sys.exit(f"Huấn luyện không ra điểm kiểm tra nào – xem {RUN / 'train.log'}")
