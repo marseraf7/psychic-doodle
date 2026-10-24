@@ -151,6 +151,19 @@ const { setup, gotoRetry } = require('./helpers');
   await a.click('.cb-launch');
   await a.click('.cb-list [data-open]');
   ok(await until(a, () => document.getElementById('chat').open), 'điện thoại: bấm bạn → hộp chat toàn màn hình');
+  // Đầu hộp chat ở 360px, cả 4 ngôn ngữ: tên bạn chat không bị nút Báo cáo / Chặn (tiếng Nga rất dài) bóp mất
+  await a.setViewportSize({ width: 360, height: 760 });
+  for (const l of ['vi', 'en', 'ru', 'zh']) {
+    const h = await a.evaluate((lang) => {
+      window.I18N.setLang(lang);
+      const n = document.getElementById('chat-name').getBoundingClientRect(), d = document.querySelector('#chat .dlg').getBoundingClientRect();
+      const btns = [...document.querySelectorAll('#chat .dlg-head button')].map((b) => b.getBoundingClientRect());
+      return { name: Math.round(n.width), inside: btns.every((r) => r.right <= d.right + 1 && r.left >= d.left - 1) };
+    }, l);
+    ok(h.name >= 120 && h.inside, `hộp chat 360px [${l}]: tên bạn chat rộng ${h.name}px, các nút nằm trong hộp`);
+    if (l === 'ru') await shot(a, 'fc-mobile-chat-ru.png');
+  }
+  await a.evaluate(() => window.I18N.setLang('vi'));
   await shot(a, 'fc-mobile-chat.png');
 
   await finish();
