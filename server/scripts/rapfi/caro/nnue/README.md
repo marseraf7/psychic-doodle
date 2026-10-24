@@ -23,7 +23,6 @@ và chơi được bằng mạng luyện ra.
 
 ```bash
 git clone https://github.com/marseraf7/psychic-doodle.git && cd psychic-doodle
-git checkout claude/adoring-ritchie-ra610s
 bash server/scripts/rapfi/caro/nnue/setup.sh                          # một lần, ~5–15 phút
 tmux new -s caro 'bash server/scripts/rapfi/caro/nnue/run.sh'           # chạy liên tục; Ctrl-b d để rời tmux
 ```
@@ -34,7 +33,48 @@ tmux new -s caro 'bash server/scripts/rapfi/caro/nnue/run.sh'           # chạy
   vòng cuối (dữ liệu, mạng, điểm kiểm tra đều giữ trong `~/caro-nnue`).
 - Đổi tham số bằng biến môi trường, vd. `SP_PROCS=6 TRAIN_THREADS=2 bash run.sh` (đầu `run.sh` có danh sách và giá trị
   mặc định theo phần cứng: số tiến trình tự đấu, số nút mỗi nước, số bước mỗi vòng, cỡ lô, ngưỡng thay mạng…).
-- VPS khởi động lại: chỉ cần chạy lại lệnh tmux ở trên.
+- VPS khởi động lại: chỉ cần chạy lại lệnh tmux ở trên – hoặc cài thành dịch vụ (`install-service.sh`, mục dưới) để máy
+  bật lại là tự luyện tiếp.
+
+## Chạy phân tán: repo dữ liệu chung, trợ lý sinh ván, GPU Kaggle
+
+Khâu chậm nhất là **huấn luyện** (CPU ~15 thế / giây trên 4 lõi). Chia việc qua repo dữ liệu private
+`marseraf7/caro-nnue-data` (bố cục: đầu `lib.sh`):
+
+| Nơi | Việc | Lệnh |
+|---|---|---|
+| Trợ lý Muse (mỗi máy 2+ vCPU) | Rapfi-CARO tự đấu bằng mạng tốt nhất, đẩy từng lô 200 ván lên `data/<tên>/` | `WORKER=<tên> bash server/scripts/rapfi/caro/nnue/worker.sh` |
+| Máy luyện (Google Cloud, Spot) | Thôi tự đấu, dồn mọi lõi cho huấn luyện trên ván của cả nhóm; đấu chọn mọi mạng ứng viên; đẩy mạng tốt nhất lên `best/` | `DATA_REPO=… bash install-service.sh` |
+| Kaggle (GPU miễn phí ~30 giờ / tuần) | Huấn luyện GPU tới 9 giờ mỗi phiên, đẩy mạng ứng viên lên `cand/` | notebook: `kaggle-train.py` |
+
+Mọi mạng (luyện ở máy luyện hay Kaggle) đều qua **cùng một vòng đấu chọn** trên máy luyện (128 ván, ≥ 57%, khai cuộc để
+riêng) rồi mới thành mạng tốt nhất; mỗi lần thay thì đo với engine của game.
+
+**Quyền git:** mọi nơi cần đẩy được lên repo dữ liệu. Tạo một *fine-grained personal access token* chỉ cho repo
+`caro-nnue-data`, quyền *Contents: Read and write*. Token chỉ đặt tại chỗ (không gửi qua chat, không ghi vào repo):
+- máy luyện: `git config --global credential.helper store` rồi `git clone https://github.com/marseraf7/caro-nnue-data.git /tmp/t`
+  (nhập tên GitHub + token một lần, git lưu ở `~/.git-credentials`), xoá `/tmp/t`;
+- Kaggle: *Add-ons → Secrets*, tên `GITHUB_TOKEN`;
+- trợ lý Muse: theo cách trợ lý đó vẫn đẩy commit lên GitHub (quyền ghi repo `caro-nnue-data`).
+
+**Máy luyện** (thay cho lệnh tmux; dừng tmux cũ trước – `tmux kill-session -t caro`):
+```bash
+cd ~/psychic-doodle && git pull
+DATA_REPO=https://github.com/marseraf7/caro-nnue-data.git bash server/scripts/rapfi/caro/nnue/install-service.sh
+```
+Lần đầu nó đẩy mạng tốt nhất sẵn có lên `best/` để các trợ lý dùng ngay. Khi Kaggle luyện ổn định, có thể để máy luyện
+chỉ đấu chọn và tự đấu: thêm `TRAIN=0 SP_PROCS=$(nproc)` vào lệnh cài.
+
+**Trợ lý:** `WORKER=laplace bash server/scripts/rapfi/caro/nnue/worker.sh` (mỗi trợ lý một tên). Máy bị thay giữa chừng
+thì chạy lại lệnh; lô dở bị bỏ, lô xong đã ở trên repo. Xem: `tail -f ~/caro-nnue/logs/worker.log`.
+
+**Kaggle:** notebook mới → *Settings*: Accelerator **GPU**, Internet **On**; Secrets `GITHUB_TOKEN`; một ô:
+```
+!git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle
+!python psychic-doodle/server/scripts/rapfi/caro/nnue/kaggle-train.py
+```
+*Save Version → Save & Run All* (chạy nền, tắt trình duyệt được). Phiên sau muốn học tiếp: *Add Input* → đầu ra của phiên
+trước (script tự học tiếp từ điểm kiểm tra cuối).
 
 ## Gửi mạng về để đưa vào app
 
@@ -55,8 +95,13 @@ Sau đó Claude đo lại (bản WebAssembly như trên điện thoại), dựng
 
 | File | Việc |
 |---|---|
-| `setup.sh` | Cài gói, dựng Rapfi-CARO bản gốc (`-march=native`), tải + vá bộ huấn luyện, tạo môi trường Python |
-| `run.sh` | Vòng luyện liên tục: tự đấu nền, huấn luyện, xuất, đấu chọn mạng, đo với engine của game |
+| `setup.sh` | Cài gói, dựng Rapfi-CARO bản gốc (`-march=native`), tải + vá bộ huấn luyện, tạo môi trường Python (`--engine-only`: chỉ Rapfi-CARO, cho trợ lý) |
+| `run.sh` | Vòng luyện liên tục: tự đấu nền, huấn luyện, xuất, đấu chọn mạng (cả mạng Kaggle), đo với engine của game, đẩy mạng tốt nhất lên repo dữ liệu |
+| `install-service.sh` | Cài `run.sh` thành dịch vụ systemd: máy bật lại là tự luyện tiếp |
+| `worker.sh` | Trợ lý sinh ván: tự đấu bằng mạng tốt nhất, đẩy từng lô lên repo dữ liệu |
+| `kaggle-train.py` | Huấn luyện GPU trên Kaggle, đẩy mạng ứng viên lên repo dữ liệu |
+| `lib.sh` | Hàm dùng chung: tự đấu một lô, kiểm Rapfi nạp mạng, đồng bộ repo dữ liệu |
+| `make-train-config.py` | `config.yaml` của bộ huấn luyện (mix9svq) – dùng chung cho máy luyện và Kaggle |
 | `trainer-add-caro.py` | Thêm luật caro vào bộ huấn luyện (mã luật 7 trong dữ liệu, bit 8 trong file mạng) |
 | `make-config.js` | `config.toml` cho Rapfi-CARO (giống app: `caro/rapfi/worker.js`), có / không mạng NNUE |
 | `make-openings.js` | Khai cuộc cho tự đấu: sách luật Việt Nam, ván Gomocup (tuỳ chọn); loại mọi thế trùng `openings.json` (bộ đo) |
