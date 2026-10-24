@@ -1,0 +1,224 @@
+"""
+Huấn luyện mạng NNUE luật Việt Nam bằng GPU trên Kaggle (miễn phí ~30 giờ GPU / tuần), rồi đẩy mạng ứng viên lên repo
+dữ liệu chung (cand/) – máy luyện (run.sh, DATA_REPO) đấu chọn mạng này với mạng tốt nhất như mọi vòng.
+Trong notebook Kaggle (Settings: Accelerator GPU, Internet On; Add-ons → Secrets: GITHUB_TOKEN), một ô:
+    !git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle
+    !python psychic-doodle/server/scripts/rapfi/caro/nnue/kaggle-train.py
+Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi):
+  DATA_REPO   https://github.com/marseraf7/caro-nnue-data (mặc định)
+  HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
+  BATCH 1024 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước
+Học tiếp qua nhiều phiên: thư mục chạy (/kaggle/working/run) là đầu ra của notebook. Phiên sau: Add Input → chọn đầu ra
+của phiên trước – script tự chép thư mục chạy đó về và bộ huấn luyện học tiếp từ điểm kiểm tra cuối (không có thì học
+từ đầu). Chỉ giữ 2 điểm kiểm tra mới nhất cho đầu ra gọn.
+Token chỉ đọc từ Kaggle Secrets / biến môi trường GITHUB_TOKEN, không in ra; cần quyền ghi (Contents) repo dữ liệu.
+Chạy được cả trên máy không có GPU (để kiểm thử: HOURS=0.02 …) – khi đó dùng CPU.
+"""
+import glob
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+TRAINER_COMMIT = "ed6ff57cbd9d31bc5217ecbdf0de2a004c6be374"
+DATA_REPO = os.environ.get("DATA_REPO", "https://github.com/marseraf7/caro-nnue-data").removesuffix(".git")
+HOURS = float(os.environ.get("HOURS", "9"))
+BATCH = os.environ.get("BATCH", "1024")
+LR = os.environ.get("LR", "0.001")
+WINDOW = int(os.environ.get("WINDOW", "3000"))
+SAVE_EVERY = os.environ.get("SAVE_EVERY", "5000")
+KAGGLE = Path("/kaggle/working").exists()
+OUT = Path(os.environ.get("OUT", "/kaggle/working" if KAGGLE else str(Path.home() / "kaggle-out")))
+TMP = Path(os.environ.get("TMP_DIR", "/kaggle/temp" if KAGGLE else str(Path.home() / "kaggle-tmp")))
+RUN = OUT / "run"
+T0 = time.time()
+
+
+def say(msg):
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
+
+
+def sh(*cmd, cwd=None, quiet=False):
+    """Chạy lệnh; lỗi thì dừng (không in lệnh – có thể chứa token)."""
+    r = subprocess.run(cmd, cwd=cwd, stdout=subprocess.DEVNULL if quiet else None, stderr=subprocess.STDOUT if quiet else None)
+    if r.returncode:
+        sys.exit(f"Lệnh {cmd[0]} {cmd[1] if len(cmd) > 1 else ''} lỗi (mã {r.returncode})")
+
+
+def token():
+    t = os.environ.get("GITHUB_TOKEN", "")
+    if not t and KAGGLE:
+        try:
+            from kaggle_secrets import UserSecretsClient
+            t = UserSecretsClient().get_secret("GITHUB_TOKEN")
+        except Exception:
+            t = ""
+    return t
+
+
+def repo_url():
+    """URL có kèm token (nếu có) – chỉ đưa cho git, không in. Repo cục bộ (kiểm thử) để nguyên."""
+    t = token()
+    if t and DATA_REPO.startswith("https://github.com/"):
+        return DATA_REPO.replace("https://", f"https://x-access-token:{t}@") + ".git"
+    return DATA_REPO if not DATA_REPO.startswith("https://") else DATA_REPO + ".git"
+
+
+def setup_trainer():
+    tr = TMP / "trainer"
+    if not (tr / ".git").exists():
+        say("Tải bộ huấn luyện pytorch-nnue-trainer (ghim commit) + thêm luật caro")
+        sh("git", "clone", "-q", "https://github.com/dhbloo/pytorch-nnue-trainer", str(tr))
+    sh("git", "-C", str(tr), "checkout", "-q", TRAINER_COMMIT)
+    sh(sys.executable, str(HERE / "trainer-add-caro.py"), str(tr))
+    say("Cài phụ thuộc + dựng phần mở rộng C++ của bộ huấn luyện (vài phút)")
+    sh(sys.executable, "-m", "pip", "install", "-q", str(tr), quiet=True)
+    return tr
+
+
+def fetch_data():
+    """Clone nông repo dữ liệu, trả danh sách WINDOW file ván mới nhất (theo epoch trong tên sp-<epoch>-…)."""
+    d = TMP / "data-repo"
+    if d.exists():
+        shutil.rmtree(d)
+    say("Tải dữ liệu tự đấu từ repo dữ liệu")
+    os.environ["GIT_TERMINAL_PROMPT"] = "0"
+    sh("git", "clone", "-q", "--depth", "1", repo_url(), str(d))
+    files = glob.glob(str(d / "data" / "**" / "sp-*.binpack.lz4"), recursive=True)
+    files.sort(key=lambda f: int(re.match(r"sp-(\d+)-", Path(f).name).group(1)), reverse=True)
+    return files[:WINDOW]
+
+
+def resume_previous():
+    """Phiên trước (đầu ra notebook gắn làm Input): chép thư mục chạy về để học tiếp."""
+    if (RUN / "ckpts").exists():
+        return
+    for st in sorted(glob.glob("/kaggle/input/**/run/ckpts/state_*.pt", recursive=True)):
+        src = Path(st).parent.parent
+        say(f"Học tiếp từ phiên trước: {src}")
+        shutil.copytree(src, RUN, dirs_exist_ok=True)
+        (RUN / "train").exists() and shutil.rmtree(RUN / "train")
+        return
+
+
+def prune(keep=2):
+    """Chỉ giữ `keep` điểm kiểm tra mới nhất mỗi loại (ckpt_, ckpt_ema…, state_) cho đầu ra Kaggle gọn."""
+    groups = {}
+    for f in glob.glob(str(RUN / "ckpts" / "*.pt")):
+        m = re.match(r"(.*_)(\d{7})(.*)\.pt$", Path(f).name)
+        if m:
+            groups.setdefault(m.group(1) + m.group(3), []).append(f)
+    for fs in groups.values():
+        for f in sorted(fs)[:-keep]:
+            os.remove(f)
+
+
+def train(tr, files):
+    gpu = subprocess.run([sys.executable, "-c", "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)"]).returncode == 0
+    train_dir = RUN / "train"
+    shutil.rmtree(train_dir, ignore_errors=True)
+    train_dir.mkdir(parents=True)
+    for f in files:
+        (train_dir / Path(f).name).symlink_to(f)
+    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, "", SAVE_EVERY)
+    cmd = [sys.executable, "-m", "accelerate.commands.launch", "--num_processes", "1"] + ([] if gpu else ["--cpu"]) + ["train.py", "-c", str(RUN / "config.yaml")]
+    if not gpu:
+        cmd.append("--use_cpu")
+    deadline = T0 + HOURS * 3600
+    say(f"Huấn luyện ({'GPU' if gpu else 'CPU'}) trên {len(files)} file đến {time.strftime('%H:%M', time.localtime(deadline))}")
+    with open(RUN / "train.log", "a") as lg:
+        # Nhóm tiến trình riêng: hết giờ thì dừng cả accelerate lẫn tiến trình huấn luyện con (không giữ GPU)
+        p = subprocess.Popen(cmd, cwd=tr, stdout=lg, stderr=subprocess.STDOUT, start_new_session=True)
+        while p.poll() is None and time.time() < deadline:
+            time.sleep(30)
+            prune()
+        # Hết giờ mà chưa lưu lần nào (máy chậm / bộ dữ liệu lớn): chờ thêm tối đa 30 phút cho điểm kiểm tra đầu tiên.
+        # Bộ huấn luyện không lưu khi bị ngắt – dừng là mất phần học sau lần lưu gần nhất (vài phút với SAVE_EVERY)
+        while p.poll() is None and not latest_ckpt() and time.time() < deadline + 1800:
+            time.sleep(15)
+        if p.poll() is None:
+            # Hết giờ: dừng sau lần lưu gần nhất (điểm kiểm tra đang ghi dở bị bỏ – xuất từ file hoàn chỉnh trước đó)
+            os.killpg(p.pid, signal.SIGTERM)
+            try:
+                p.wait(120)
+            except subprocess.TimeoutExpired:
+                os.killpg(p.pid, signal.SIGKILL)
+                p.wait()
+    prune()
+
+
+def latest_ckpt():
+    cks = sorted(f for f in glob.glob(str(RUN / "ckpts" / "ckpt_mix9svq_*.pt")))
+    good = []
+    for f in cks:
+        try:
+            if os.path.getsize(f) > 0:
+                good.append(f)
+        except OSError:
+            pass
+    return good[-1] if good else None
+
+
+def value_loss():
+    v = None
+    try:
+        for line in open(RUN / "training_log.jsonl"):
+            if "train_loss" in line:
+                v = json.loads(line)["train_loss"].get("value_loss")
+    except (OSError, ValueError):
+        pass
+    return v
+
+
+def export_and_push(tr, ck, nfiles):
+    label = time.strftime("k-%Y%m%d-%H%M", time.gmtime())
+    net = OUT / f"{label}.bin.lz4"
+    say(f"Xuất mạng từ {Path(ck).name}")
+    sh(sys.executable, "export.py", "-c", str(RUN / "run_config.yaml"), "-p", ck, "-o", str(net),
+       "--export_type", "bin-lz4", "--export_args", "{rule: caro, board_size: 20}", cwd=tr)
+    if not net.exists() or net.stat().st_size == 0:
+        sys.exit("Xuất mạng lỗi")
+    meta = {"label": label, "checkpoint": Path(ck).name, "value_loss": value_loss(), "files": nfiles,
+            "batch": int(BATCH), "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    say(f"Đẩy mạng ứng viên cand/{label} lên repo dữ liệu")
+    d = TMP / "cand-repo"
+    shutil.rmtree(d, ignore_errors=True)
+    sh("git", "clone", "-q", "--filter=blob:none", "--sparse", repo_url(), str(d))
+    sh("git", "-C", str(d), "sparse-checkout", "set", "cand")
+    (d / "cand").mkdir(exist_ok=True)
+    shutil.copy(net, d / "cand" / net.name)
+    (d / "cand" / f"{label}.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1))
+    sh("git", "-C", str(d), "config", "user.name", "caro-nnue-kaggle")
+    sh("git", "-C", str(d), "config", "user.email", "caro-nnue-kaggle@users.noreply.github.com")
+    sh("git", "-C", str(d), "add", "--sparse", f"cand/{net.name}", f"cand/{label}.json")
+    sh("git", "-C", str(d), "commit", "-q", "-m", f"Kaggle: mạng ứng viên {label} (value loss {meta['value_loss']})")
+    for i in range(6):
+        if subprocess.run(["git", "-C", str(d), "push", "-q"], stderr=subprocess.DEVNULL).returncode == 0:
+            say(f"Xong: cand/{label}.bin.lz4 – máy luyện sẽ đấu chọn với mạng tốt nhất")
+            return
+        time.sleep(2 ** (i + 1))
+        subprocess.run(["git", "-C", str(d), "pull", "-q", "--rebase"], stderr=subprocess.DEVNULL)
+    sys.exit(f"Đẩy mạng lỗi – mạng vẫn ở {net} (tải về rồi đẩy tay vào cand/)")
+
+
+if __name__ == "__main__":
+    OUT.mkdir(parents=True, exist_ok=True)
+    TMP.mkdir(parents=True, exist_ok=True)
+    if DATA_REPO.startswith("https://github.com/") and not token():
+        sys.exit("Thiếu GITHUB_TOKEN (Kaggle: Add-ons → Secrets) – cần quyền ghi repo dữ liệu")
+    tr = setup_trainer()
+    files = fetch_data()
+    if not files:
+        sys.exit("Repo dữ liệu chưa có ván nào (data/…/sp-*.binpack.lz4)")
+    resume_previous()
+    train(tr, files)
+    ck = latest_ckpt()
+    if not ck:
+        sys.exit(f"Huấn luyện không ra điểm kiểm tra nào – xem {RUN / 'train.log'}")
+    export_and_push(tr, ck, len(files))

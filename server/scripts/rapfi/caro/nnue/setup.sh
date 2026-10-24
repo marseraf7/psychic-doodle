@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Cài đặt một lần trên máy luyện (VPS Linux x86-64, Ubuntu / Debian) để luyện mạng NNUE luật Việt Nam cho Rapfi-CARO.
-#   bash server/scripts/rapfi/caro/nnue/setup.sh
+#   bash server/scripts/rapfi/caro/nnue/setup.sh                 máy luyện (đủ cả bộ huấn luyện)
+#   bash server/scripts/rapfi/caro/nnue/setup.sh --engine-only   trợ lý sinh ván (worker.sh): chỉ Rapfi-CARO, bỏ bước 4–5
 # Chạy trong bản clone của repo này, bằng tài khoản thường có sudo (chỉ để cài gói hệ thống). Mọi thứ khác nằm trong
 # WORK (mặc định ~/caro-nnue): bin/ (Rapfi-CARO bản gốc + bảng cổ điển), trainer/ + venv/ (bộ huấn luyện), engines/
 # (thư mục chạy: classic, best), data/, runs/, nets/, logs/. Chạy lại an toàn (bỏ qua bước đã xong).
@@ -9,14 +10,21 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../../../.." && pwd)"
 WORK="${WORK:-$HOME/caro-nnue}"
 TRAINER_COMMIT=ed6ff57cbd9d31bc5217ecbdf0de2a004c6be374
+ENGINE_ONLY=0; [ "${1:-}" = --engine-only ] && ENGINE_ONLY=1
 mkdir -p "$WORK"/{bin,data,runs,nets,logs,engines}
 say() { printf '\n=== %s\n' "$*"; }
 SUDO=$([ "$(id -u)" = 0 ] && echo "" || echo sudo)
 
 say "1/5 Gói hệ thống"
 if command -v apt-get > /dev/null; then
-  $SUDO apt-get update -y
-  $SUDO apt-get install -y git curl build-essential clang cmake ninja-build python3-venv python3-dev patch tmux
+  # Cài khi còn thiếu (máy trợ lý có thể không có sudo nhưng đã đủ công cụ)
+  need=""
+  for c in git curl clang cmake ninja patch tmux python3; do command -v $c > /dev/null || need=1; done
+  [ $ENGINE_ONLY = 0 ] && ! python3 -c 'import venv, ensurepip' 2> /dev/null && need=1
+  if [ -n "$need" ]; then
+    $SUDO apt-get update -y
+    $SUDO apt-get install -y git curl build-essential clang cmake ninja-build python3-venv python3-dev patch tmux
+  fi
 fi
 if ! command -v node > /dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 18 ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | $SUDO bash -
@@ -50,6 +58,12 @@ for e in classic best; do
   fi
 done
 node "$HERE/make-openings.js" "$WORK/openings.txt"
+
+if [ $ENGINE_ONLY = 1 ]; then
+  printf 'START 20\nINFO rule 8\nINFO timeout_turn 300\nBEGIN\nEND\n' | (cd "$WORK/engines/classic" && timeout 30 ./pbrain-rapfi) | grep -E '^[0-9]+,[0-9]+$' > /dev/null &&
+    echo "Rapfi-CARO OK" || { echo "Rapfi-CARO không chạy được"; exit 1; }
+  exit 0
+fi
 
 say "4/5 Bộ huấn luyện pytorch-nnue-trainer (của tác giả Rapfi, ghim commit) + luật caro"
 if [ ! -d "$WORK/trainer/.git" ]; then
