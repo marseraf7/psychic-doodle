@@ -80,12 +80,17 @@ body:has(#cb:not([hidden])) .online-count { margin-right: 72px; }
   background: var(--bg); color: var(--text); font-size: var(--fs-input);
 }
 
-/* Điện thoại: nút nổi phía trên thanh tab, chỉ ở các trang (không đè bàn cờ) */
+/* Dưới 900px thanh tab nằm ở đáy (shell.css): nhấc nút bong bóng lên trên thanh tab,
+   và chừa chỗ cuối trang để cuộn hết thì nội dung cuối không nằm dưới nút */
+@media (max-width: 899px) {
+  .cb { bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); }
+  body:has(#cb:not([hidden])) .pg-body::after { height: calc(var(--tabbar-h) + 76px + env(safe-area-inset-bottom)); }
+}
+
+/* Điện thoại nhỏ: nút gọn hơn, panel cố định, ẩn cửa sổ chat kiểu desktop */
 @media (max-width: 699px) {
-  .cb { right: 12px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); }
+  .cb { right: 12px; }
   .cb-launch { width: 48px; height: 48px; }
   .cb-panel { position: fixed; left: 12px; right: 12px; width: auto; bottom: calc(var(--tabbar-h) + 72px + env(safe-area-inset-bottom)); }
   .cb-wins, .cb-heads { display: none; }
-  /* Chừa chỗ cuối trang: cuộn hết thì nội dung cuối không nằm dưới nút */
-  body:has(#cb:not([hidden])) .pg-body::after { height: calc(var(--tabbar-h) + 76px + env(safe-area-inset-bottom)); }
 }
