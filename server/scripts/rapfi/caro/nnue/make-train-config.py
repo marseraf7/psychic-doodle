@@ -2,7 +2,10 @@
 Ghi config.yaml cho pytorch-nnue-trainer – dùng chung cho run.sh (máy luyện, CPU) và kaggle-train.py (Kaggle, GPU) để
 hai nơi luyện cùng một kiểu mạng (Rapfi-CARO chỉ nạp được đúng mix9svq với các tham số này).
   python3 make-train-config.py <rundir> <thư mục dữ liệu> <cỡ lô> <số bước> <tốc độ học> [điểm kiểm tra để học tiếp]
-                               [lưu mỗi … bước]
+                               [lưu mỗi … bước] [lưu tạm mỗi … bước]
+Lưu tạm (temp_save_interval) là bản cuốn chiếu – chỉ giữ bản mới nhất: máy bị dừng giữa chừng (Spot) thì run.sh nạp bản
+đó (load_from) và học nốt phần còn lại, không mất cả vòng. (state_*.pt không dùng được: dữ liệu packed_binary không học
+tiếp "chính xác" được, bộ huấn luyện từ chối.)
 Ghi chú các tham số bắt buộc (đều đã kiểm – Laplace cũng tìm ra độc lập, gói review ngày 24/10):
   - model_type mix9svq: bản Rapfi chỉ nạp kiến trúc này ("incompatible architecture" với mix9 thường)
   - codebook_size 65536 như mạng chính thức: 16384 (mặc định) cho file sai độ dài, Rapfi không nạp
@@ -15,6 +18,7 @@ from pathlib import Path
 rundir, data, batch, iters, lr = sys.argv[1:6]
 load_from = sys.argv[6] if len(sys.argv) > 6 and sys.argv[6] else ""
 save_every = sys.argv[7] if len(sys.argv) > 7 and sys.argv[7] else iters
+temp_every = sys.argv[8] if len(sys.argv) > 8 and sys.argv[8] else "5000"
 
 cfg = f"""rundir: {rundir}
 dataset_type: packed_binary
@@ -27,6 +31,7 @@ loss_args: {{policy_reg_lambda: 0.001}}
 batch_size: {batch}
 iterations: {iters}
 save_interval: {save_every}
+temp_save_interval: {temp_every}
 log_interval: 100
 val_interval: 100000000
 learning_rate: {lr}

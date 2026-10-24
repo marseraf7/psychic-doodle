@@ -39,6 +39,7 @@ GAMES=${GAMES:-200}
 ROUND_GAMES=${ROUND_GAMES:-$([ $GPU = 1 ] && echo 20000 || echo 5000)}
 WINDOW=${WINDOW:-1000}                     # số file dữ liệu mới nhất dùng để huấn luyện (mỗi file GAMES ván)
 ITERS=${ITERS:-$([ $GPU = 1 ] && echo 20000 || echo 1500)}
+TEMP_SAVE=${TEMP_SAVE:-$([ $GPU = 1 ] && echo 1000 || echo 100)}   # lưu tạm mỗi … bước: máy bị dừng thì học tiếp từ đây
 BATCH=${BATCH:-$([ $GPU = 1 ] && echo 1024 || echo 128)}
 LR=${LR:-0.001}
 LR_DECAY=${LR_DECAY:-0.8}
@@ -149,6 +150,10 @@ fi
 
 # ---------------------------------------------------------------- các vòng luyện
 round=$(ls -d "$WORK"/runs/r* 2> /dev/null | sed 's/.*\/r//' | sort -n | tail -1); round=${round:-0}
+# Vòng cuối chưa xong (máy bị dừng giữa lúc huấn luyện / xuất / đấu): làm lại đúng vòng đó – học nốt từ lần lưu
+# tạm cuối (cùng rundir), không bỏ cả vòng như trước. Vòng xong có file done (bản cũ: có mạng nets/rN.bin.lz4).
+resume=0
+if [ "$round" -gt 0 ] && [ ! -e "$WORK/runs/r$round/done" ] && [ ! -s "$WORK/nets/r$round.bin.lz4" ]; then resume=1; fi
 last_games=$(cat "$WORK/runs/last_games" 2> /dev/null || echo 0)
 while [ ! -f "$WORK/STOP" ]; do
   # Mạng ứng viên luyện ở Kaggle (cand/<nhãn>.bin.lz4): mỗi mạng đấu chọn một lần
@@ -163,21 +168,42 @@ while [ ! -f "$WORK/STOP" ]; do
       evaluate "$f" "$label" "$WORK/runs/cand-$label" "$closs"
     done
   fi
-  if [ "$TRAIN" != 1 ] || [ $(( $(count_games) - last_games )) -lt "$ROUND_GAMES" ]; then nap 300; continue; fi
-  round=$((round + 1)); R="$WORK/runs/r$round"; mkdir -p "$R/train"
-  last_games=$(count_games); echo "$last_games" > "$WORK/runs/last_games"
-  data_files "$WINDOW" "${DATA_DIRS[@]}" | while read -r f; do ln -sf "$f" "$R/train/"; done
-  prev=$(ls -t "$WORK"/runs/r*/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | head -1)
-  lr=$(python3 -c "print(max($LR_MIN, $LR * $LR_DECAY ** (($round - 1) // $LR_EVERY)))")
-  python3 "$HERE/make-train-config.py" "$R" "$R/train" "$BATCH" "$ITERS" "$lr" "$prev"
-  log "Vòng $round: huấn luyện trên $(ls "$R/train" | wc -l) file (~$last_games ván đã có), LR $lr, từ ${prev:-đầu}"
+  [ "$TRAIN" != 1 ] && { nap 300; continue; }
+  if [ $resume = 1 ]; then
+    resume=0; R="$WORK/runs/r$round"
+    lr=$(python3 -c "print(max($LR_MIN, $LR * $LR_DECAY ** (($round - 1) // $LR_EVERY)))")
+    prev=$(grep -s '^load_from:' "$R/config.yaml" | cut -d' ' -f2-)
+    # Dữ liệu packed_binary không học tiếp "chính xác" được từ state_*.pt (bộ huấn luyện từ chối) → nạp trọng số lần
+    # lưu cuối (load_from) và học nốt số bước còn lại; các lần lưu cũ chuyển sang ckpts-<số bước đã học>
+    done_steps=$(cat "$R/steps" 2> /dev/null || echo 0)
+    ck=$(ls "$R"/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | tail -1)
+    if [ -n "$ck" ]; then
+      done_steps=$((done_steps + $(basename "$ck" .pt | sed 's/.*_0*//')))
+      mv "$R/ckpts" "$R/ckpts-$done_steps"; prev="$R/ckpts-$done_steps/$(basename "$ck")"
+      echo "$done_steps" > "$R/steps"
+    fi
+    rm -f "$R"/training_log.jsonl
+    left=$((ITERS - done_steps)); [ "$left" -lt "$TEMP_SAVE" ] && left=$TEMP_SAVE
+    python3 "$HERE/make-train-config.py" "$R" "$R/train" "$BATCH" "$left" "$lr" "$prev" "$left" "$TEMP_SAVE"
+    log "Vòng $round: làm tiếp sau khi máy bị dừng – đã học $done_steps/$ITERS bước, học nốt $left bước từ ${prev:-đầu}"
+  else
+    if [ $(( $(count_games) - last_games )) -lt "$ROUND_GAMES" ]; then nap 300; continue; fi
+    round=$((round + 1)); R="$WORK/runs/r$round"; mkdir -p "$R/train"
+    last_games=$(count_games); echo "$last_games" > "$WORK/runs/last_games"
+    data_files "$WINDOW" "${DATA_DIRS[@]}" | while read -r f; do ln -sf "$f" "$R/train/"; done
+    prev=$(ls -t "$WORK"/runs/r*/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | head -1)
+    lr=$(python3 -c "print(max($LR_MIN, $LR * $LR_DECAY ** (($round - 1) // $LR_EVERY)))")
+    python3 "$HERE/make-train-config.py" "$R" "$R/train" "$BATCH" "$ITERS" "$lr" "$prev" "$ITERS" "$TEMP_SAVE"
+    log "Vòng $round: huấn luyện trên $(ls "$R/train" | wc -l) file (~$last_games ván đã có), LR $lr, từ ${prev:-đầu}"
+  fi
   if [ $GPU = 1 ]; then
     bg bash -c 'cd "$1/trainer" && exec accelerate launch --num_processes 1 train.py -c "$2/config.yaml" > "$2/train.log" 2>&1' _ "$WORK" "$R"
   else
     bg bash -c 'cd "$1/trainer" && OMP_NUM_THREADS=$3 exec nice accelerate launch --cpu --num_processes 1 train.py -c "$2/config.yaml" --use_cpu > "$2/train.log" 2>&1' _ "$WORK" "$R" "$TRAIN_THREADS"
   fi
   ck=$(ls "$R"/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | tail -1)
-  if [ -z "$ck" ]; then log "Vòng $round: huấn luyện lỗi – xem $R/train.log"; nap 600; continue; fi
+  if [ -z "$ck" ]; then log "Vòng $round: huấn luyện lỗi – xem $R/train.log"; touch "$R/done"; nap 600; continue; fi
+  rm -rf "$R"/ckpts-*   # lần lưu của các đoạn trước (học tiếp) – đã học xong, bỏ cho nhẹ đĩa (~140 MB mỗi đoạn)
   # Loss giá trị (value) của lần ghi cuối có train_loss
   loss=$(python3 -c "
 import json, sys
@@ -189,7 +215,8 @@ print('?' if v is None else round(v, 4))" "$R/training_log.jsonl" 2> /dev/null)
   net="$WORK/nets/r$round.bin.lz4"
   bg bash -c 'cd "$1/trainer" && OMP_NUM_THREADS=$5 exec python export.py -c "$2/run_config.yaml" -p "$3" -o "$4" \
     --export_type bin-lz4 --export_args "{rule: caro, board_size: 20}" > "$2/export.log" 2>&1' _ "$WORK" "$R" "$ck" "$net" "$TRAIN_THREADS"
-  [ -s "$net" ] || { log "Vòng $round: xuất mạng lỗi – xem $R/export.log"; continue; }
+  [ -s "$net" ] || { log "Vòng $round: xuất mạng lỗi – xem $R/export.log"; touch "$R/done"; continue; }
   evaluate "$net" "r$round" "$R" "$loss"
+  touch "$R/done"
 done
 cleanup

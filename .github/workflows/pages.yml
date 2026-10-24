@@ -11,14 +11,16 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
   deploy:
     # Chỉ đăng từ nhánh mặc định của repo (dù tên nhánh là gì), hoặc khi bấm chạy tay.
     if: github.event_name == 'workflow_dispatch' || github.ref_name == github.event.repository.default_branch
+    # Nhóm chạy đặt ở job (không ở workflow): lần push lên nhánh khác bị bỏ qua (if ở trên) thì không vào nhóm, nên không
+    # huỷ được lần đăng của nhánh mặc định. Trước đây đặt ở workflow + cancel-in-progress: reset nhánh làm việc ngay sau
+    # merge đã huỷ lần đăng của #119 và #121. Không huỷ lần đăng đang chạy – lần sau xếp hàng chờ.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     environment:
       name: github-pages
