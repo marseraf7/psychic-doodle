@@ -91,6 +91,7 @@
         el.className = 'cb-win';
         el.dataset.id = w.id;
         el.innerHTML = `<header></header><div class="cb-msgs"></div>
+          <div class="cb-quick"><button type="button" class="ghost sm" data-qc="okee"></button><button type="button" class="ghost sm" data-qc="bye"></button></div>
           <form class="cb-form"><input name="text" maxlength="500" autocomplete="off"><button class="primary sm" type="submit"></button></form>`;
         box.appendChild(el);
         el.querySelector('form').onsubmit = (e) => {
@@ -98,6 +99,8 @@
           const inp = e.target.text, text = inp.value.trim();
           if (text && N.send({ t: 'dmSend', to: w.id, text })) inp.value = '';
         };
+        // Chat nhanh (Issue #128): bấm là gửi, khỏi gõ.
+        el.querySelectorAll('[data-qc]').forEach((b) => { b.onclick = () => N.send({ t: 'dmSend', to: w.id, text: T(b.dataset.qc === 'okee' ? 'qc_okee' : 'qc_bye') }); });
         el.querySelector('input').addEventListener('focus', () => markRead(w));
       }
       const f = friend(w.id) || { id: w.id, name: '?', status: 'offline' };
@@ -105,20 +108,42 @@
         <button type="button" class="cb-ic" data-min="${esc(w.id)}" aria-label="${esc(T('cb_min'))}">–</button><button type="button" class="cb-ic" data-close="${esc(w.id)}" aria-label="${esc(T('cb_close'))}">×</button>`;
       el.querySelector('input').placeholder = T('cb_placeholder');
       el.querySelector('button[type=submit]').textContent = T('cb_send');
+      el.querySelector('[data-qc="okee"]').textContent = T('qc_okee');
+      el.querySelector('[data-qc="bye"]').textContent = T('qc_bye');
       drawMsgs(el, w);
     }
   }
 
+  // Tin nhắn kèm lời thách đấu (challenge-msg.js): bên nhận vẽ thành thẻ bấm được,
+  // bên gửi vẽ thành dòng thông báo, lời đã hết hạn vẽ thành dòng chữ (không nút).
+  function msgHtml(m, w) {
+    const me = S.me && S.me.uid;
+    const chId = window.CaroChallengeMsg ? window.CaroChallengeMsg.parse(m.text) : null;
+    if (!chId) return `<div class="msg ${m.sender === me ? 'mine' : ''}"><span>${esc(m.text)}</span><time>${esc(time(m.created))}</time></div>`;
+    const f = friend(w.id) || { id: w.id, name: '?' };
+    if (m.sender === me) return `<div class="msg mine"><span>🎮 ${esc(T('challenge_sent_chat', { name: f.name }))}</span><time>${esc(time(m.created))}</time></div>`;
+    if (!S.invites || !S.invites.has(chId)) return `<div class="msg"><span>🎮 ${esc(T('challenge_gone_chat'))}</span><time>${esc(time(m.created))}</time></div>`;
+    return `<div class="msg challenge"><span>🎮 ${esc(T('invite_from', { name: f.name }))}</span><span class="ch-btns"><button type="button" class="primary sm" data-ch-yes="${esc(chId)}">${esc(T('receive'))}</button><button type="button" class="ghost sm" data-ch-no="${esc(chId)}">${esc(T('decline'))}</button></span><time>${esc(time(m.created))}</time></div>`;
+  }
   function drawMsgs(el, w) {
     const box = el.querySelector('.cb-msgs');
-    const me = S.me && S.me.uid;
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
     let html = w.more ? `<button type="button" class="ghost sm cb-older" data-older="${esc(w.id)}">${esc(T('older'))}</button>` : '';
     if (!w.msgs.length && !w.loading) html += `<p class="hint center">${esc(T('no_msgs'))}</p>`;
-    html += w.msgs.map((m) => `<div class="msg ${m.sender === me ? 'mine' : ''}"><span>${esc(m.text)}</span><time>${esc(time(m.created))}</time></div>`).join('');
+    html += w.msgs.map((m) => msgHtml(m, w)).join('');
     if (box.dataset.html === html) return; // không đổi: khỏi vẽ lại (giữ vị trí cuộn)
     box.dataset.html = html;
     box.innerHTML = html;
+    box.querySelectorAll('[data-ch-yes]').forEach((b) => { b.onclick = () => {
+      const r = S.room;
+      if (r && r.players.length === 2 && !r.winner && r.moves.length && !confirm(T('confirm_accept_busy'))) return;
+      N.send({ t: 'challengeRespond', id: b.dataset.chYes, accept: true });
+    }; });
+    box.querySelectorAll('[data-ch-no]').forEach((b) => { b.onclick = () => {
+      N.send({ t: 'challengeRespond', id: b.dataset.chNo, accept: false });
+      if (S.invites) S.invites.delete(b.dataset.chNo);
+      draw();
+    }; });
     if (atBottom || w.stick) box.scrollTop = box.scrollHeight;
     w.stick = false;
   }
@@ -199,7 +224,8 @@
       N.send({ t: 'dmHistory', peer: m.peer });
     } else if (!w.loading && !w.msgs.some((x) => x.id === m.msg.id)) w.msgs.push(m.msg);
     if (mine) { w.stick = true; draw(); return; }
-    w.last = m.msg.text.length > 80 ? m.msg.text.slice(0, 80) + '…' : m.msg.text;
+    const chId = window.CaroChallengeMsg ? window.CaroChallengeMsg.parse(m.msg.text) : null;
+    w.last = chId ? T('invite_from', { name: (friend(m.peer) || { name: '?' }).name }) : (m.msg.text.length > 80 ? m.msg.text.slice(0, 80) + '…' : m.msg.text);
     if (w.open && document.activeElement && root.contains(document.activeElement)) markRead(w);
     else w.unread++;
     w.stick = w.open;
@@ -208,6 +234,7 @@
 
   N.on('friends', draw);
   N.on('close', draw);
+  N.on('inviteGone', draw); // lời mời biến mất: thẻ chat kèm lời mời vẽ lại thành dòng hết hạn
   window.addEventListener('caro:online', draw);
   window.addEventListener('caro:page', draw);
   window.addEventListener('caro:board', () => setTimeout(draw, 0));

@@ -75,6 +75,9 @@ body:has(#cb:not([hidden])) .online-count { margin-right: 72px; }
 .cb-msgs .msg time { font-size: var(--fs-2xs); color: var(--muted); padding: 2px 6px 0; }
 .cb-older { align-self: center; }
 .cb-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--line); }
+/* Chat nhanh (Issue #128): 2 nút bấm là gửi, nằm trên ô nhập. */
+.cb-quick { display: flex; gap: 6px; padding: 6px 8px 0; }
+.cb-quick button { flex: 1; }
 .cb-form input {
   flex: 1; min-width: 0; height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--line);
   background: var(--bg); color: var(--text); font-size: var(--fs-input);

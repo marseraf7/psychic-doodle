@@ -127,6 +127,8 @@
   // ------------------------------------------------------------ Luật chơi
   function placeRaw(x, y) {
     const p = state.turn;
+    if (window.CaroDraft) window.CaroDraft.onRealMove(); // nước thật làm quân nháp cũ hết hạn (Issue #128)
+    if (window.CaroDraw) window.CaroDraw.onRealMove(); // nước thật xóa hết đường vẽ chuột phải
     state.board.play(x, y, p);
     const win = checkWin(state.board, x, y, p);
     if (win) { state.winner = p; state.winCells = win; state.winReason = null; }
@@ -271,6 +273,8 @@
     }
     if (!b.moves.length) return;
     if (state.winner) state.score[state.winner] = Math.max(0, state.score[state.winner] - 1);
+    if (window.CaroDraft) window.CaroDraft.clear(); // đi lại đổi thế cờ: quân nháp cũ hết hạn
+    if (window.CaroDraw) window.CaroDraw.clear(); // đi lại xóa hết đường vẽ
     const undoOne = () => {
       const m = b.undo();
       if (m) state.turn = m.p;
@@ -449,6 +453,10 @@
     extPlace,
     setMarks,
     setCoords,
+    setFlip: (h, v) => V.setFlip(h, v), // bar-menu.js: quay bàn
+    getFlip: () => V.getFlip(),
+    setDrafts: (list) => V.setDrafts(list), // draft-mode.js: quân nháp
+    setDrawLines: (list, prev) => V.setDrawLines(list, prev), // draw-lines.js: đường vẽ chuột phải
     cellName,
     fitReplayView,
     resize,
@@ -456,7 +464,7 @@
     seek: (i) => { stopReplay(); seekReplay(i, true); },
     get board() { return state.board; },
     /** Toạ độ màn hình của ô (x, y) – dùng cho kiểm thử bấm bàn cờ thật. */
-    screenOf: (x, y) => [(x - cam.x) * cam.size + V.W / 2, (y - cam.y) * cam.size + V.H / 2],
+    screenOf: (x, y) => V.toScreen(x, y), // qua toScreen để đúng cả khi lật bàn
     /** Chọn nhân vật máy (nếu đã mở khoá); unlockTo: mở khoá tới nhân vật thứ n (người chơi tự nhận là đã giỏi). */
     /**
      * Ván mới, bày sẵn vài nước đầu (luyện khai cuộc – learn-practice.js; ô chơi nhanh ở Trang chủ – home.js).

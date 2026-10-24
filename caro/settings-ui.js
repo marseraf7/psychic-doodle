@@ -25,7 +25,8 @@
   function values() {
     const v = {
       sound: form.sound.checked ? checkedText('soundStyle') : T('off'),
-      look: [checkedText('theme'), checkedText('board')].join(' · '),
+      look: [checkedText('theme'), checkedText('board'), checkedText('barPos')].join(' · '),
+      matchui: window.CaroBarPos ? T('barpos_' + window.CaroBarPos.saved()) : '',
       lang: checkedText('lang'),
       game: [form.mode.value === 'pvp' ? T('mode_pvp') : T('mode_ai'), T('grule_s_' + form.rule.value), form.tc ? tcText(form.tc.value) : ''].filter(Boolean).join(' · '),
       bot: form.bot ? T('bot_' + form.bot.value) : '',
@@ -42,7 +43,8 @@
     title.dataset.i18n = id === 'root' ? 'settings' : sp.dataset.title;
     title.textContent = T(title.dataset.i18n);
     page.querySelector('.pg-body').scrollTo?.(0, 0);
-    if (id === 'look') drawPreview();
+    if (id === 'look') { if (window.CaroBarPos) form.barPos.value = window.CaroBarPos.saved(); drawPreview(); }
+    if (id === 'matchui' && window.CaroMatchUI) window.CaroMatchUI.sync();
     if (id === 'root') values();
   }
 
