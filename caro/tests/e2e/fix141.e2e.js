@@ -304,17 +304,16 @@ const { setup, play, roomOf, sleep } = require('./helpers');
     await sleep(600);
     return pg;
   });
-  await p.evaluate(() => window.CaroApp.startPreset({
-    mode: 'pvp', rule: 'vn',
-    moves: [[0, 0], [0, 4], [1, 0], [1, 4], [2, 0], [2, 4], [3, 0], [3, 4]],
-  }));
+  // Thế cờ thắng dùng lại của localhist.e2e.js (đã kiểm chứng ở đó): X thắng khi đặt quân ở (3, 0)
+  await p.evaluate((g) => window.CaroApp.startPreset({ mode: 'pvp', human: 1, moves: g }),
+    [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5]]);
   await sleep(300);
-  const [wx, wy] = await p.evaluate(() => window.CaroApp.screenOf(4, 0));
-  await p.mouse.click(wx, wy); // X đi nước thắng (5 quân hàng 0) — bấm 2 lần như localhist.e2e.js:
-  await sleep(120);            // lần đầu chọn ô, lần hai xác nhận đặt quân
+  const [wx, wy] = await p.evaluate(() => window.CaroApp.screenOf(3, 0));
+  await p.mouse.click(wx, wy); // bấm 2 lần như localhist.e2e.js: lần đầu chọn ô, lần hai xác nhận đặt quân
+  await sleep(120);
   await p.mouse.click(wx, wy);
   await sleep(600);
-  ok((await p.evaluate(() => window.CaroApp.local.moves)) === 9 && !!(await p.evaluate(() => window.CaroApp.local.winner)), 'mục 11: ván trên máy đã kết thúc, chờ hỏi lưu');
+  ok((await p.evaluate(() => window.CaroApp.local.moves)) === 7 && (await p.evaluate(() => window.CaroApp.local.winner)) === 1, 'mục 11: ván trên máy đã kết thúc, chờ hỏi lưu');
   await p.click('#btn-new');
   await sleep(400);
   await p.click('#newgame-form .ng-go');
@@ -323,7 +322,7 @@ const { setup, play, roomOf, sleep } = require('./helpers');
     askOpen: !!document.getElementById('lh-ask').open,
     moves: window.CaroApp.local.moves,
   }));
-  ok(askState.askOpen && askState.moves === 9, 'mục 11: hộp "Lưu lịch sử đấu?" mở ra trong khi bàn cờ vẫn là ván cũ (9 nước) — hỏi TRƯỚC');
+  ok(askState.askOpen && askState.moves === 7, 'mục 11: hộp "Lưu lịch sử đấu?" mở ra trong khi bàn cờ vẫn là ván cũ (7 nước) — hỏi TRƯỚC');
   await p.click('#lh-ask button[value=no]');
   await sleep(600);
   ok((await p.evaluate(() => window.CaroApp.local.moves)) === 0, 'mục 11: trả lời xong mới tạo ván mới (bàn trống)');
