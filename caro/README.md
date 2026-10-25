@@ -490,7 +490,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 |---|---|
 | `rules.js`, `rules-ai.js` | 4 luật thắng, nước cấm Renju; AI cục bộ (ứng viên, chấm điểm, VCF, chọn nước) – dùng chung cho trình duyệt, Worker và Node (Node: `rules.js` tự nạp `rules-ai.js`) |
 | `app.js` | Điều phối: trạng thái ván, lưu trạng thái, máy đánh, thanh trên, kết quả, `window.CaroApp` |
-| `app-clock.js`, `app-online.js`, `app-dialogs.js`, `app-ext.js` | Phần ván của `app.js`: đồng hồ; chơi / xem online; bảng Ván mới + Cài đặt; bàn cờ cho module khác (giải đố, bài học) + thông tin thẻ người chơi |
+| `app-clock.js`, `app-online.js`, `app-dialogs.js`, `app-ext.js`, `app-ai.js`, `app-status.js` | Phần ván của `app.js`: đồng hồ; chơi / xem online; bảng Ván mới + Cài đặt; bàn cờ cho module khác (giải đố, bài học) + thông tin thẻ người chơi; máy đánh (Worker, mở khoá nhân vật); dòng lượt / tỉ số, báo tới lượt, thẻ kết quả ván |
 | `board-view.js`, `board-input.js`, `board-replay.js` | Bàn cờ: vẽ canvas + camera (zoom, kéo, quán tính); chạm / chuột / phím; chế độ xem lại ván |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 31 nhân vật máy (6 mức × 5 lối đánh + trùm cuối BOAT): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |

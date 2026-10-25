@@ -3,7 +3,8 @@
  * Ván mới / Cài đặt, bàn cờ cho module khác (enterExt), window.CaroApp. Phần bàn cờ ở file riêng (nạp trước file này):
  * board-view.js (vẽ canvas + camera), board-replay.js (xem lại ván), board-input.js (chuột, cảm ứng, bàn phím).
  * Phần ván: app-clock.js (đồng hồ), app-online.js (chơi / xem online), app-dialogs.js (Ván mới, Cài đặt),
- * app-ext.js (bàn cờ cho module khác, thông tin thẻ người chơi).
+ * app-ext.js (bàn cờ cho module khác, thông tin thẻ người chơi), app-ai.js (máy đánh, Worker, mở khoá nhân vật),
+ * app-status.js (dòng lượt / tỉ số, báo tới lượt, thẻ kết quả ván).
  */
 (function () {
   'use strict';
@@ -170,94 +171,15 @@
     resetClock();
   }
 
-  const isAITurn = () => !state.online && !state.replay && !state.ext && state.mode === 'ai' && !state.winner && state.turn !== state.human;
+  // ------------------------------------------------------------ Hiển thị trạng thái, kết quả ván (app-status.js)
+  // Ba hàm sau tạo ở phía dưới (app-online.js, board-replay.js, app-ext.js): chỉ gọi lúc vẽ, khi đó đã có
+  const { updateUI, showBanner, hideBanner } = window.CaroAppStatus({
+    state, esc, glyph, ruleChip, botName, net,
+    updateOnlineUI: () => updateOnlineUI(), updateReplayUI: () => updateReplayUI(), attentionInfo: () => attentionInfo(),
+  });
 
-  /** Hết ván với máy: người thắng thì mở khoá nhân vật kế tiếp. */
-  function botGameOver() {
-    // Chuỗi ngày chơi / thành tích (habits.js); record: ván vừa xong cho Lịch sử đấu trên máy (local-save.js)
-    window.dispatchEvent(new CustomEvent('caro:gameover', { detail: { mode: state.mode, won: state.mode === 'ai' && state.winner === state.human, bot: state.bot, record: localRecord() } }));
-    if (state.mode !== 'ai' || state.winner !== state.human) return;
-    const t = unlockAfter(state.bot);
-    if (t) setTimeout(() => toast(T(t.boss ? 'boss_unlocked' : 'tier_unlocked', { elo: t.elo }), 4500), 900);
-  }
-
-  /** Ván trên máy vừa kết thúc → bản ghi cho Lịch sử đấu trên máy (local-games.js). Tên bot / "Bạn" dịch lúc hiển thị. */
-  function localRecord() {
-    const ai = state.mode === 'ai';
-    return {
-      at: Date.now(), kind: ai ? 'bot' : 'pvp', bot: ai ? state.bot : null, me: ai ? state.human : 0, x: '', o: '',
-      winner: state.winner, reason: state.winReason === 'time' ? 'timeout' : 'win', rule: state.rule,
-      timeLimit: state.timeLimit || 0, clock: state.clockSpec || null, moves: state.board.moves.map((m) => [m.x, m.y]),
-    };
-  }
-
-  // AI chạy trong Web Worker để bàn cờ và đồng hồ không bị khựng khi máy suy nghĩ lâu (mức Khó).
-  // Trình duyệt không hỗ trợ (vd. mở file trực tiếp) thì tính ngay trên luồng chính.
-  let aiWorker = null, aiSeq = 0;
-  // Worker ở mọi giao thức trừ file: – app iOS chạy ở capacitor:// (M-A4: trước đây chỉ http(s) nên bot tính trên luồng giao diện, đơ vài giây)
-  try { if (window.Worker && location.protocol !== 'file:') aiWorker = new Worker('ai-worker.js'); } catch (e) { aiWorker = null; }
-
-  function askAI(p, bot) {
-    // BOAT ở luật tự do / tiêu chuẩn / Renju: Rapfi (boat-rapfi.js); không chạy được thì engine của game như mọi bot
-    const R = window.CaroRapfi;
-    if (R && R.handles(bot, state.board.rule)) return R.move(state.board, p, bot).then((m) => m || askEngine(p, bot));
-    return askEngine(p, bot);
-  }
-
-  // Worker không nạp được (vd. giao thức capacitor:// của iOS không cho) hoặc chết: bỏ Worker, các lần hỏi đang chờ và
-  // về sau tính trên luồng chính như khi không có Worker – chậm hơn nhưng bot vẫn đi, không treo "đang nghĩ" mãi.
-  const AI_TIMEOUT_MS = 20000; // nước khó nhất ~3 giây (bots.js) + VCF: quá mức này coi như Worker hỏng
-  const aiWaiting = new Set(); // hàm chuyển sang luồng chính của các lần hỏi đang chờ
-  function dropWorker() {
-    if (!aiWorker) return;
-    try { aiWorker.terminate(); } catch (e) { /* đã chết */ }
-    aiWorker = null;
-    for (const fallback of [...aiWaiting]) fallback();
-  }
-  if (aiWorker) aiWorker.addEventListener('error', dropWorker);
-
-  function askEngine(p, bot) {
-    const moves = state.board.moves.map((m) => [m.x, m.y, m.p]);
-    const local = () => new Promise((resolve) => setTimeout(() => resolve(Bots.botMove(state.board, p, bot)), 30));
-    if (!aiWorker) return local();
-    const id = ++aiSeq;
-    return new Promise((resolve) => {
-      const w = aiWorker;
-      let timer = 0;
-      const done = () => { clearTimeout(timer); w.removeEventListener('message', onMsg); aiWaiting.delete(fallback); };
-      const onMsg = (e) => {
-        if (e.data.id !== id) return;
-        done();
-        // C3: Worker báo lỗi (vd. ván trải quá rộng) → null để maybeAI thôi chờ, thay vì treo "đang nghĩ" mãi
-        resolve(e.data.error ? null : e.data.move);
-      };
-      const fallback = () => { done(); resolve(local()); };
-      aiWaiting.add(fallback);
-      timer = setTimeout(dropWorker, AI_TIMEOUT_MS);
-      w.addEventListener('message', onMsg);
-      w.postMessage({ id, moves, p, bot, rule: state.board.rule });
-    });
-  }
-
-  function maybeAI() {
-    if (!isAITurn() || state.thinking) return;
-    state.thinking = true;
-    updateUI();
-    const started = performance.now();
-    const board = state.board, count = board.moves.length;
-    askAI(state.turn, state.bot).then((mv) => {
-      if (!mv) { state.thinking = false; updateUI(); return; } // C3: máy không tính được (Worker báo lỗi) — nhả lượt chờ, đừng khoá ván
-      const [x, y] = mv;
-      const wait = Math.max(0, 250 - (performance.now() - started));
-      setTimeout(() => {
-        // Trong lúc máy nghĩ mà người chơi đã đi lại / ván mới thì bỏ kết quả cũ.
-        if (state.board !== board || board.moves.length !== count) return;
-        state.thinking = false;
-        if (isAITurn()) play(x, y);
-        else updateUI();
-      }, wait);
-    });
-  }
+  // ------------------------------------------------------------ Máy đánh (app-ai.js)
+  const { isAITurn, botGameOver, maybeAI } = window.CaroAppAI({ state, toast, unlockAfter, updateUI, play: (x, y) => play(x, y) });
 
   function undo() {
     if (state.thinking || state.online || state.replay || state.ext || !state.allowUndo) return;
@@ -343,100 +265,11 @@
     closeReplay: (silent) => closeReplay(silent), exitExt: (silent) => exitExt(silent), // tạo ở phía dưới
   });
 
-  // ------------------------------------------------------------ Giao diện
-
-  function updateUI() {
-    drawStatus();
-    turnCue();
-    if (window.CaroStrips) window.CaroStrips.render();
-    // Phân tích ngầm ván đang chơi (live-analysis.js); xem lại / giải đố không phải ván đang chơi
-    if (window.CaroLive && !state.replay && !state.ext) window.CaroLive.sync(state.board, { busy: state.thinking, over: !!state.winCells });
-    if (window.CaroAttention) window.CaroAttention.update(attentionInfo());
-  }
-
-  /**
-   * Tới lượt mình: thanh trên viền màu nhấn + nảy nhẹ một lần (thấy ngay mà không cần đọc chữ).
-   * Trình đọc màn hình: chỉ đọc khi tới lượt mình và khi ván kết thúc (dòng "Lượt…" không tự đọc mỗi nước đi nữa).
-   */
-  let cueMine = false, cueKey = '';
-  function turnCue() {
-    const o = state.online;
-    let mine = false, over = false;
-    if (o && !o.watch) {
-      const r = o.room;
-      over = !!r.winner;
-      const opp = r.players.some((p) => p.id !== o.me);
-      mine = !over && opp && (r.actor !== undefined ? r.actor === o.me : r.turn === o.side);
-    } else if (o) {
-      over = !!o.room.winner;
-    } else if (!state.ext && !state.replay) {
-      over = !!state.winner;
-      mine = !over && !state.thinking && (state.mode === 'pvp' || state.turn === state.human);
-    }
-    // 2 người cùng máy: lượt nào cũng là "của mình" nên không tô (chỉ đọc cho trình đọc màn hình)
-    const show = mine && !(!o && state.mode === 'pvp');
-    const bar = document.querySelector('.bar.top');
-    bar.classList.toggle('my-turn', show);
-    if (show && !cueMine) { bar.classList.remove('turn-pulse'); void bar.offsetWidth; bar.classList.add('turn-pulse'); }
-    cueMine = show;
-    const n = o ? o.room.moves.length : state.board.moves.length;
-    const key = over ? 'end' + n : mine ? 'turn' + n : '';
-    if (key && key !== cueKey) $('sr-live').textContent = $('turn').textContent.replace(/\s+/g, ' ').trim();
-    cueKey = key;
-  }
-
-  function drawStatus() {
-    const t = $('turn');
-    if (state.online) return updateOnlineUI();
-    if (state.ext) {
-      const r = state.ext.render();
-      t.innerHTML = r.turn;
-      $('score').innerHTML = r.score || '';
-      return;
-    }
-    if (state.replay) return updateReplayUI();
-    if (state.winner) {
-      t.innerHTML = T('p_wins', { p: glyph(state.winner) });
-    } else {
-      let who = '';
-      if (state.mode === 'ai') who = ' ' + (state.turn === state.human ? esc(T('you_tag')) : `<span class="bot-tag">(${esc(botName(state.bot))})</span>`);
-      t.innerHTML = T('turn', { p: glyph(state.turn) }) + who +
-        (state.thinking ? ` <span class="thinking">${esc(T('thinking'))}</span>` : '');
-    }
-    $('score').innerHTML = ruleChip(state.rule) + `<span class="x">X</span> ${state.score[X]} : ${state.score[O]} <span class="o">O</span>`;
-    $('btn-undo').hidden = !state.allowUndo;
-    $('btn-undo').disabled = !state.board.moves.length || state.thinking;
-    $('btn-analyze').disabled = state.board.moves.length < 2 || state.thinking;
-  }
-
   // ------------------------------------------------------------ Xem lại ván đã lưu (board-replay.js)
   const { openReplay, fitReplayView, seekReplay, stopReplay, toggleReplayPlay, closeReplay, updateReplayUI } = window.CaroBoardReplay({
     state, V, MIN_SIZE, save, toBoard, renderClock, hideBanner, updateUI, exitExt: (silent) => exitExt(silent), restoreLocal, glyph, esc, ruleChip, net, sfx,
   });
 
-  function showBanner() {
-    if (!state.winner) return;
-    if (state.online) return net().showBanner();
-    const name = (p) => (p === X ? 'X' : 'O');
-    let text, sub = '';
-    if (state.mode === 'ai') {
-      const won = state.winner === state.human;
-      text = T(won ? 'you_win' : 'bot_wins', { name: botName(state.bot) });
-      sub = `${botName(state.bot)}: “${T('bot_' + state.bot + (won ? '_lose' : '_win'))}”`;
-    } else text = T('p_wins', { p: name(state.winner) });
-    if (state.winReason === 'time') {
-      const loser = other(state.winner);
-      sub = state.mode === 'ai' && loser === state.human ? T('you_timeout') : T('p_timeout', { p: name(loser) });
-      $('banner-analyze').hidden = true;
-    }
-    if (state.winReason !== 'time') $('banner-analyze').hidden = state.board.moves.length < 6;
-    // Đấu với máy: ảnh đại diện nhỏ của nhân vật cạnh dòng kết quả
-    const av = state.mode === 'ai' && window.CaroBotPicker ? window.CaroBotPicker.avatarHtml(state.bot, 'sm') + ' ' : '';
-    $('banner-title').innerHTML = av + esc(text);
-    $('banner-sub').textContent = sub;
-    $('banner').hidden = false;
-  }
-  function hideBanner() { $('banner').hidden = true; }
 
   function vibrate(ms) {
     try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { /* không hỗ trợ */ }
