@@ -65,7 +65,7 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   const b = await user141('m141_b');
   const c = await user141('m141_c');
 
-  // ---------------------------------------------------------- Phòng chung cho mục 1, 2, 4
+  // ---------------------------------------------------------- Phòng chung cho mục 1, 2
   const code = await createRoomUI(a);
   ok(!!code, 'mục 1: A tạo được phòng ' + code);
   await send(b, { t: 'joinRoom', code });
@@ -91,7 +91,8 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   await sleep(600);
   const rNew = await roomOf(b);
   ok(rNew && rNew.code !== code && rNew.players.length === 1, 'mục 1: bấm Đồng ý → sang phòng mới, ván cũ bị bỏ');
-  await b.keyboard.press('Escape'); // đóng hộp thông tin phòng tự mở
+  await b.evaluate(() => window.CaroApp.toBoard()); // đang online sẵn nên khung trang chưa tự ẩn: vào bàn cờ như người chơi bấm thẻ tiếp tục ván
+  await sleep(300);
 
   // Mục 2a — Rời phòng ở màn chờ → về Trang chủ, thẻ Phòng chờ (không mở lại ván với máy)
   await b.click('#btn-leave');
@@ -99,10 +100,15 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   ok(!(await b.evaluate(() => !!window.CaroApp.online)), 'mục 2: rời phòng chờ xong không còn ở chế độ online');
   ok(await inLobbyPane(b), 'mục 2: rời phòng chờ → về Trang chủ, thẻ Phòng chờ');
 
-  // Mục 1 — vào phòng khác bằng form khi đang có ván dở
-  await send(b, { t: 'joinRoom', code }); // B quay lại phòng của A (lúc này không có ván dở nên không hỏi)
+  // Mục 1 — vào phòng khác bằng form khi đang có ván dở.
+  // (Ván ở phòng đầu đã kết thúc ngay khi B rời đi lần đầu, nên phải dựng một ván dở mới.)
+  const code1 = await createRoomUI(a);
+  await send(b, { t: 'joinRoom', code: code1 });
   await sleep(600);
-  ok((await roomOf(b)).code === code, 'mục 1: B vào lại phòng của A');
+  await move(a, 0, 0); await sleep(250);
+  await move(b, 5, 5); await sleep(250);
+  ok((await roomOf(b)).code === code1 && (await roomOf(b)).moves.length === 2, 'mục 1: dựng ván dở mới cho đoạn form vào phòng');
+  const codeOld = code1;
   const codeC = await createRoomUI(c);
   ok(!!codeC && codeC !== code, 'mục 1: C tạo phòng riêng ' + codeC);
   const pwC = await c.evaluate(() => window.CaroOnline.state.room.password);
@@ -121,7 +127,7 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   await b.click('#join-form .primary');
   await sleep(400);
   ok(b.dialogs.some((m) => /xử thua/.test(m)), 'mục 1: gửi form vào phòng khác lúc có ván dở hiện hỏi xác nhận');
-  ok((await roomOf(b)).code === code, 'mục 1: Huỷ ở form vào phòng → vẫn ở phòng cũ');
+  ok((await roomOf(b)).code === codeOld, 'mục 1: Huỷ ở form vào phòng → vẫn ở phòng cũ');
   await b.keyboard.press('Escape');
   b.dialogMode = 'accept';
   await fillJoin();
@@ -129,6 +135,8 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   await sleep(600);
   ok((await roomOf(b)).code === codeC, 'mục 1: Đồng ý ở form vào phòng → sang phòng của C');
   // B rời phòng của C (phòng chưa có nước đi): cũng về sảnh; C rời phòng của mình
+  await b.evaluate(() => window.CaroApp.toBoard());
+  await sleep(300);
   await b.click('#btn-leave');
   await sleep(500);
   ok(await inLobbyPane(b), 'mục 2: rời phòng chưa đấu → về sảnh');
@@ -166,47 +174,52 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   await sleep(600);
   ok(!(await b.evaluate(() => !!window.CaroApp.online)), 'mục 2: Đồng ý rời phòng giữa ván → rời hẳn');
   ok(await inLobbyPane(b), 'mục 2: rời giữa ván → về Trang chủ, thẻ Phòng chờ');
-  // A dọn phòng (một mình, chưa có kết quả): rời về sảnh
-  await a.click('#btn-leave');
+  // A dọn phòng (bước dọn dẹp, không thuộc khẳng định nào): rời bằng lệnh gửi
+  await send(a, { t: 'leaveRoom' });
   await sleep(500);
 
-  // ---------------------------------------------------------- Mục 4: chat nhanh
-  const code3 = await createRoomUI(a);
-  await send(b, { t: 'joinRoom', code: code3 });
+  // ------------------------------------------- Mục 4, 10, 7: hai tài khoản MỚI
+  // (A/B đã bỏ ván nhiều lần ở các mục trên nên bị máy chủ tạm cấm vào phòng —
+  //  cơ chế chống bỏ ván có sẵn của máy chủ; đoạn này cần người chơi chưa bị cấm.)
+  const f = await user141('m141_f');
+  const g = await user141('m141_g');
+  const code3 = await createRoomUI(f);
+  await send(g, { t: 'joinRoom', code: code3 });
   await sleep(600);
-  await move(a, 0, 0); await sleep(250);
-  await move(b, 5, 5); await sleep(250);
-  await send(a, { t: 'quick', id: 'hello' });
+  ok((await roomOf(g) || {}).code === code3, 'mục 4: người chơi mới vào được phòng');
+  await move(f, 0, 0); await sleep(250);
+  await move(g, 5, 5); await sleep(250);
+  await send(f, { t: 'quick', id: 'hello' });
   await sleep(500);
-  const bubbleText = await b.textContent('.toast.bubble').catch(() => '');
+  const bubbleText = await g.textContent('.toast.bubble').catch(() => '');
   ok(/Xin chào/.test(bubbleText || ''), 'mục 4: đối thủ thấy bong bóng chat nhanh — ' + (bubbleText || '').replace(/\s+/g, ' '));
-  const pinText = await b.textContent('#pl-top .quick-pin').catch(() => '');
+  const pinText = await g.textContent('#pl-top .quick-pin').catch(() => '');
   ok(/Xin chào/.test(pinText || ''), 'mục 4: câu chat được ghim lên thẻ người chơi của đối thủ');
   await sleep(3300); // mốc cũ: bong bóng biến mất sau ~3,3 giây
-  ok(await b.evaluate(() => !!document.querySelector('.toast.bubble')), 'mục 4: sau 3,8 giây bong bóng của đối thủ vẫn còn (nay hiện 7 giây)');
-  await move(a, 1, 0); await sleep(700);
-  ok(await b.evaluate(() => !document.querySelector('#pl-top .quick-pin')), 'mục 4: có nước đi mới thì ghim chat biến mất');
+  ok(await g.evaluate(() => !!document.querySelector('.toast.bubble')), 'mục 4: sau 3,8 giây bong bóng của đối thủ vẫn còn (nay hiện 7 giây)');
+  await move(f, 1, 0); await sleep(700);
+  ok(await g.evaluate(() => !document.querySelector('#pl-top .quick-pin')), 'mục 4: có nước đi mới thì ghim chat biến mất');
 
   // Mục 10 — ô link phòng: bấm vào là chọn hết chữ
-  await a.click('#btn-room');
+  await f.click('#btn-room');
   await sleep(400);
-  await a.click('#ri-link');
+  await f.click('#ri-link');
   await sleep(150);
-  const sel = await a.evaluate(() => {
+  const sel = await f.evaluate(() => {
     const el = document.getElementById('ri-link');
     return { s: el.selectionStart, e: el.selectionEnd, v: el.value };
   });
   ok(sel.s === 0 && sel.e === sel.v.length && sel.v.includes('?room='), 'mục 10: bấm ô link → chọn toàn bộ link, thấy phần ?room=');
-  await a.keyboard.press('Escape');
+  await f.keyboard.press('Escape');
 
   // Mục 7 — chơi hết ván tính điểm: thẻ kết quả có dòng giải thích điểm tạm
-  await play(a, b); // a thắng ở hàng 0 (đã có sẵn 2 quân), b đánh rải rác hàng 5
+  await play(f, g); // f thắng ở hàng 0 (đã có sẵn 2 quân), g đánh rải rác hàng 5
   await sleep(700);
-  const sub = (await a.textContent('#banner-sub').catch(() => '')) || '';
+  const sub = (await f.textContent('#banner-sub').catch(() => '')) || '';
   ok(/Điểm/.test(sub) && /điểm tạm/.test(sub), 'mục 7: thẻ kết quả có cộng/trừ điểm và dòng giải thích điểm tạm — ' + sub.replace(/\s+/g, ' '));
-  await shot(a, 'fix141-result.png');
-  await a.click('#banner-leave'); await sleep(400);
-  await b.click('#banner-leave'); await sleep(400);
+  await shot(f, 'fix141-result.png');
+  await f.click('#banner-leave'); await sleep(400);
+  await g.click('#banner-leave'); await sleep(400);
 
   // ---------------------------------------------------------- Mục 3: mức phóng ở hồ sơ điện thoại riêng
   const d = await user141('m141_d', { viewport: { width: 390, height: 844 }, hasTouch: true });
