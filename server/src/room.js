@@ -122,6 +122,7 @@ class Room {
   addPlayer(player, side) {
     if (this.has(player.id)) return;
     if (this.full) throw E('room_full');
+    if (this.stale) this.freshWait(); // ván cũ còn giữ cho người ở lại xem (#155): người mới vào thì bắt đầu sạch
     this.players.push({ id: player.id, name: player.name, av: player.av || 0 });
     if (!(player.id in this.score)) this.score[player.id] = 0;
     const want = side === O ? O : side === X ? X : 0;
@@ -142,13 +143,21 @@ class Room {
     // chờ trận sau – đối thủ được chuyển sang trận khác không làm mất kết quả của mình
     if (this.tour) { this.touch(); return; }
     this.seats[this.sideOf(id)] = null;
-    // Người ở lại chờ đối thủ mới: làm mới bàn cờ và tỉ số.
+    // Ván đã có kết quả (vd. đối thủ vừa rời giữa ván = xử thua, #155): người ở lại vẫn thấy bàn cờ, kết quả, tỉ số
+    // của ván vừa xong (thẻ "đối thủ đã rời phòng – bạn thắng"); phòng chỉ làm mới khi có người mới vào (addPlayer).
+    if (this.winner) { this.stale = true; this.touch(); return; }
+    this.freshWait();
+    this.touch();
+  }
+
+  /** Người ở lại chờ đối thủ mới: làm mới bàn cờ và tỉ số. */
+  freshWait() {
+    this.stale = false;
     this.score = {};
     for (const p of this.players) this.score[p.id] = 0;
     this.seriesWinner = null;
     this.gameNo = 1;
     this.resetBoard();
-    this.touch();
   }
 
   rename(id, name) {

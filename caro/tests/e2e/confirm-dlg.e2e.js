@@ -68,6 +68,15 @@ const { setup } = require('./helpers');
   await a.click('#confirm-ok');
   await sleep(800);
   ok((await room(a)) === null, 'rời phòng + Đồng ý: đã ra khỏi phòng');
+  // #155: người rời được báo đã bị xử thua; người ở lại thấy thẻ kết quả "đối thủ đã rời phòng" (không phải phòng chờ trống)
+  ok((await a.textContent('#toasts')).includes('tính là thua'), 'rời phòng: người rời được báo ván tính là thua');
+  const rb = await waitRoom(b, (x) => x.players.length === 1, 'B nhận phòng sau khi A rời');
+  ok(rb.reason === 'leave' && rb.winner === (rb.seats.x === await meId(b) ? 1 : 2) && rb.moves.length === 2, 'người ở lại: phòng còn ván vừa xong, B thắng vì A rời phòng');
+  await sleep(500);
+  ok(await b.isVisible('#banner') && (await b.textContent('#banner-sub')).includes('rời phòng'), 'người ở lại: thẻ kết quả – ' + (await b.textContent('#banner')).replace(/\s+/g, ' ').trim());
+  await b.evaluate(() => window.CaroShell.open('home'));
+  await sleep(300);
+  ok(!(await b.textContent('#home-resume')).includes('đang chơi'), 'Trang chủ: thẻ không còn ghi "Quay lại ván đang chơi" – ' + (await b.textContent('#home-resume')).replace(/\s+/g, ' ').trim());
 
   // ---------------------------------------------------------------- Đăng xuất giữa ván: Huỷ rồi Đồng ý
   const c = await user('vi', 'hx_c');

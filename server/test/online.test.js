@@ -407,6 +407,28 @@ test('#140: cả hai cùng mất kết nối → huỷ ván (abandoned), không 
   a2.close();
 });
 
+test('#155: đối thủ rời phòng giữa ván → người ở lại nhận phòng còn kết quả (thắng, lý do rời phòng); người mới vào thì bắt đầu sạch', async () => {
+  const a = await Client.open();
+  const b = await Client.open();
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  await move(a, b, 0, 0); await move(b, a, 5, 5); await move(a, b, 1, 0); // quá nước huỷ được: rời = xử thua
+  const pw = a.room.password;
+  const got = b.wait('room', (m) => m.room && m.room.players.length === 1);
+  a.send({ t: 'leaveRoom' });
+  const r = (await got).room;
+  assert.strictEqual(r.winner, side(r, b.me.id), 'B thắng');
+  assert.strictEqual(r.reason, 'leave');
+  assert.strictEqual(r.moves.length, 3, 'vẫn thấy bàn cờ ván vừa xong');
+  assert.strictEqual(r.score[b.me.id], 1, 'tỉ số còn giữ');
+  const c = await Client.open();
+  const fresh = b.wait('room', (m) => m.room && m.room.players.length === 2);
+  await c.req({ t: 'joinRoom', code: r.code, password: pw }, 'room');
+  const r2 = (await fresh).room;
+  assert.deepStrictEqual([r2.winner, r2.moves.length, r2.score[b.me.id], r2.gameNo], [null, 0, 0, 1], 'người mới vào: bàn và tỉ số mới');
+  [a, b, c].forEach((x) => x.close());
+});
+
 test('#140: chỉ một bên mất kết nối → vẫn xử thua như cũ (timeout)', async () => {
   const a = await Client.open();
   const b = await Client.open();
