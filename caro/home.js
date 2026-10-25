@@ -82,8 +82,15 @@
     const on = App.online;
     let html = '';
     if (on && !App.watching) {
+      // Ván đã có kết quả: thẻ không còn là "đang chơi" — đổi nhãn thành xem kết quả (trước đây ván
+      // xong lâu rồi thẻ vẫn ghi "Quay lại ván đang chơi"). Phòng đang chờ / ván đang đánh giữ nhãn cũ.
+      const r = on.room;
+      const done = !!r.winner;
+      const opp = r.players.find((p) => p.id !== on.me);
+      const wantsRematch = done && opp && (r.rematch || []).includes(opp.id);
+      const small = `${esc(T('room_code_label'))} ${esc(r.code || '')}` + (wantsRematch ? ` · ${esc(T('home_resume_rematch'))}` : '');
       html = `<button type="button" class="resume-card" data-resume><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg>
-        <span><b>${esc(T('home_resume_online'))}</b><small>${esc(T('room_code_label'))} ${esc(on.room.code || '')}</small></span></button>`;
+        <span><b>${esc(T(done ? 'home_resume_result' : 'home_resume_online'))}</b><small>${small}</small></span></button>`;
     } else if (!on && !App.replay && !App.ext) {
       const L = App.local;
       if (L.moves && !L.winner) {
