@@ -152,6 +152,31 @@ if [ -n "$DATA_REPO" ] && [ -f "$WORK/engines/best/caro-nnue.bin.lz4" ] &&
   publish_best "mạng tốt nhất sẵn có trên máy luyện"
 fi
 
+# Mạng ứng viên luyện ở Kaggle (cand/<nhãn>.bin.lz4): mỗi mạng đấu chọn một lần. Gọi ở đầu mỗi vòng và cả trong lúc
+# huấn luyện (train_bg) – mạng GPU không phải chờ hết một vòng CPU (hàng giờ) mới được đấu chọn
+check_cands() {
+  [ -n "$DATA_REPO" ] || return 0
+  local f label closs
+  repo_pull "$REPO"
+  for f in $(ls "$REPO"/cand/*.bin.lz4 2> /dev/null | sort); do
+    label=$(basename "$f" .bin.lz4)
+    [ -e "$WORK/runs/cand-$label" ] && continue
+    mkdir -p "$WORK/runs/cand-$label"
+    closs=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('value_loss','?'))" "${f%.bin.lz4}.json" 2> /dev/null || echo '?')
+    log "$label: mạng ứng viên từ Kaggle – đấu chọn"
+    evaluate "$f" "$label" "$WORK/runs/cand-$label" "$closs"
+  done
+}
+# Huấn luyện ở nền; trong lúc chờ, mỗi 5 phút xem có mạng ứng viên mới để đấu chọn (chạy song song, chia CPU)
+train_bg() {
+  "$@" & local pid=$!
+  while kill -0 "$pid" 2> /dev/null; do
+    sleep "${CAND_EVERY:-300}" & wait $!
+    kill -0 "$pid" 2> /dev/null && check_cands
+  done
+  wait "$pid"
+}
+
 # ---------------------------------------------------------------- các vòng luyện
 round=$(ls -d "$WORK"/runs/r* 2> /dev/null | sed 's/.*\/r//' | sort -n | tail -1); round=${round:-0}
 # Vòng cuối chưa xong (máy bị dừng giữa lúc huấn luyện / xuất / đấu): làm lại đúng vòng đó – học nốt từ lần lưu
@@ -160,18 +185,7 @@ resume=0
 if [ "$round" -gt 0 ] && [ ! -e "$WORK/runs/r$round/done" ] && [ ! -s "$WORK/nets/r$round.bin.lz4" ]; then resume=1; fi
 last_games=$(cat "$WORK/runs/last_games" 2> /dev/null || echo 0)
 while [ ! -f "$WORK/STOP" ]; do
-  # Mạng ứng viên luyện ở Kaggle (cand/<nhãn>.bin.lz4): mỗi mạng đấu chọn một lần
-  if [ -n "$DATA_REPO" ]; then
-    repo_pull "$REPO"
-    for f in $(ls "$REPO"/cand/*.bin.lz4 2> /dev/null | sort); do
-      label=$(basename "$f" .bin.lz4)
-      [ -e "$WORK/runs/cand-$label" ] && continue
-      mkdir -p "$WORK/runs/cand-$label"
-      closs=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('value_loss','?'))" "${f%.bin.lz4}.json" 2> /dev/null || echo '?')
-      log "$label: mạng ứng viên từ Kaggle – đấu chọn"
-      evaluate "$f" "$label" "$WORK/runs/cand-$label" "$closs"
-    done
-  fi
+  check_cands
   [ "$TRAIN" != 1 ] && { nap 300; continue; }
   if [ $resume = 1 ]; then
     resume=0; R="$WORK/runs/r$round"
@@ -201,9 +215,9 @@ while [ ! -f "$WORK/STOP" ]; do
     log "Vòng $round: huấn luyện trên $(ls "$R/train" | wc -l) file (~$last_games ván đã có), LR $lr, từ ${prev:-đầu}"
   fi
   if [ $GPU = 1 ]; then
-    bg bash -c 'cd "$1/trainer" && exec accelerate launch --num_processes 1 train.py -c "$2/config.yaml" > "$2/train.log" 2>&1' _ "$WORK" "$R"
+    train_bg bash -c 'cd "$1/trainer" && exec accelerate launch --num_processes 1 train.py -c "$2/config.yaml" > "$2/train.log" 2>&1' _ "$WORK" "$R"
   else
-    bg bash -c 'cd "$1/trainer" && OMP_NUM_THREADS=$3 exec nice accelerate launch --cpu --num_processes 1 train.py -c "$2/config.yaml" --use_cpu > "$2/train.log" 2>&1' _ "$WORK" "$R" "$TRAIN_THREADS"
+    train_bg bash -c 'cd "$1/trainer" && OMP_NUM_THREADS=$3 exec nice accelerate launch --cpu --num_processes 1 train.py -c "$2/config.yaml" --use_cpu > "$2/train.log" 2>&1' _ "$WORK" "$R" "$TRAIN_THREADS"
   fi
   ck=$(ls "$R"/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | tail -1)
   if [ -z "$ck" ]; then log "Vòng $round: huấn luyện lỗi – xem $R/train.log"; touch "$R/done"; nap 600; continue; fi
