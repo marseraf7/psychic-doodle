@@ -1,7 +1,7 @@
 /*
  * Kiểm thử trình duyệt cho Issue #141 (giao diện ván online) — các mục 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11.
  * Mục 1–3 chạy với HAI HỒ SƠ TRÌNH DUYỆT RIÊNG (hai browser.newContext()), không dùng hai tab chung hồ sơ.
- * Khác helpers.user(): ở đây tự đăng ký tài khoản để ghi lại hộp confirm() gốc và chọn Chấp nhận / Huỷ
+ * Khác helpers.user(): ở đây tự đăng ký tài khoản để ghi lại hộp xác nhận (gốc hoặc #confirm-dlg) và chọn Chấp nhận / Huỷ
  * theo từng bước (helpers.user tự động chấp nhận mọi hộp thoại nên không kiểm được nhánh Huỷ).
  *   node caro/tests/e2e/fix141.e2e.js
  */
@@ -26,6 +26,22 @@ const { setup, play, roomOf, sleep } = require('./helpers');
       p.dialogs.push(d.message());
       if (p.dialogMode === 'accept') d.accept(); else d.dismiss();
     });
+    // Hộp xác nhận trong app (confirm.js, #144) thay confirm() gốc ở luồng ván online: ghi nội dung và bấm
+    // Đồng ý / Huỷ theo p.dialogMode, như với hộp gốc ở trên (đọc và bấm trong cùng một lần evaluate)
+    const poll = setInterval(async () => {
+      try {
+        const q = await p.evaluate((accept) => {
+          const d = document.getElementById('confirm-dlg');
+          if (!d || !d.open) return null;
+          const text = document.getElementById('confirm-q').textContent;
+          document.getElementById(accept ? 'confirm-ok' : 'confirm-no').click();
+          return text;
+        }, p.dialogMode === 'accept');
+        if (q != null) p.dialogs.push(q);
+      } catch (e) { /* trang đang chuyển / đã đóng */ }
+    }, 80);
+    poll.unref();
+    p.on('close', () => clearInterval(poll));
     p.on('pageerror', (e) => errors.push(name + ': ' + e.message));
     p.on('console', (m) => { if (m.type() === 'error') errors.push(name + ' console: ' + m.text()); });
     await p.goto(url);
