@@ -2,6 +2,7 @@
 'use strict';
 const { E, fmt } = require('../msg.js');
 const R = require('../rating.js');
+const { DRAW } = require('../room.js');
 const { OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, DRAW_COOLDOWN_MS, userPid, uidOf } = require('./shared.js');
 
 class Hub {
@@ -184,7 +185,17 @@ class Hub {
       this.forfeitTimers.delete(pid);
       if (this.closed || this.isOnline(pid) || this.rooms.get(room.code) !== room) return;
       if (!room.active || room.gameNo !== game || !room.has(pid)) return;
-      room.finish(3 - room.sideOf(pid), 'timeout');
+      const opp = room.opponentOf(pid);
+      if (opp && !this.isOnline(opp.id)) {
+        // Cả hai cùng mất kết nối (#140): huỷ ván thay vì xử thua người rớt trước — ván không ai
+        // chơi thì không ai thua. Huỷ luôn hẹn giờ của đối thủ để không xử lý lần hai; ván kết thúc
+        // kiểu 'abandoned' được settle() bỏ qua như 'abort' (không điểm, không hồ sơ, không lưu).
+        clearTimeout(this.forfeitTimers.get(opp.id));
+        this.forfeitTimers.delete(opp.id);
+        room.finish(DRAW, 'abandoned');
+      } else {
+        room.finish(3 - room.sideOf(pid), 'timeout');
+      }
       this.afterChange(room);
     }, this.T.OFFLINE_FORFEIT_MS);
     t.unref?.();

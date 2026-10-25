@@ -377,6 +377,65 @@ test('mất kết nối trước nước đầu tiên vẫn bị xử thua', asy
   b.close();
 });
 
+test('#140: cả hai cùng mất kết nối → huỷ ván (abandoned), không tính điểm, không ghi hồ sơ', async () => {
+  const a = await Client.open();
+  await a.req({ t: 'register', username: 'ab_a', password: 'caro-pass1' }, 'welcome');
+  const b = await Client.open();
+  await b.req({ t: 'register', username: 'ab_b', password: 'caro-pass1' }, 'welcome');
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  // Đánh 10 nước: đủ MIN_RATED_MOVES để ván đủ điều kiện tính điểm nếu kết thúc bình thường.
+  // Quân rải xa nhau, không ai thắng.
+  for (let i = 0; i < 5; i++) { await move(a, b, i * 2, 0); await move(b, a, i * 2, 10); }
+  const pa = a.me.id, pb = b.me.id;
+  a.close(); // A rớt trước
+  b.close(); // B rớt ngay sau: khi hẹn giờ của A hết hạn thì B cũng đang offline
+  await sleep(700); // quá OFFLINE_FORFEIT_MS (200ms) của cả hai bên
+
+  // A vào lại: welcome phải mang theo phòng với kết quả huỷ rõ ràng, không phải sảnh trống.
+  const a2 = await Client.open({ token: a.token });
+  assert.ok(a2.room, 'vào lại vẫn thấy phòng vừa huỷ');
+  assert.strictEqual(a2.room.reason, 'abandoned');
+  assert.strictEqual(a2.room.winner, 3, 'không ai thắng');
+  assert.deepStrictEqual(a2.me.stats, { wins: 0, losses: 0, draws: 0 }, 'không ghi thắng/thua/hoà vào hồ sơ');
+  assert.strictEqual(a2.me.rating, 1200, 'điểm không đổi');
+  assert.strictEqual(a2.me.rated, 0, 'ván huỷ không tính là ván đã đấu điểm');
+  assert.deepStrictEqual(app.store.users.get(b.me.uid).stats, { wins: 0, losses: 0, draws: 0 }, 'hồ sơ của B cũng không đổi');
+  // Hẹn giờ xử thua của cả hai đã bị dọn sạch, không xử lý lần hai.
+  assert.strictEqual(app.hub.forfeitTimers.has(pa), false);
+  assert.strictEqual(app.hub.forfeitTimers.has(pb), false);
+  a2.close();
+});
+
+test('#140: chỉ một bên mất kết nối → vẫn xử thua như cũ (timeout)', async () => {
+  const a = await Client.open();
+  const b = await Client.open();
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  await move(a, b, 0, 0);
+  a.close(); // chỉ A rớt, B vẫn online
+  const m = await b.wait('room', (x) => x.room.reason === 'timeout', 3000);
+  assert.strictEqual(m.room.winner, side(m.room, b.me.id), 'B thắng vì A mất kết nối quá hạn');
+  b.close();
+});
+
+test('#140: A rớt, B rớt rồi vào lại trước hạn → hẹn giờ của A vẫn chạy, A bị xử thua', async () => {
+  const a = await Client.open();
+  const b = await Client.open();
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  await move(a, b, 0, 0);
+  a.close(); // A rớt: hẹn giờ xử thua của A bắt đầu
+  const key = b.guestKey;
+  b.close(); // B cũng rớt
+  const b2 = await Client.open({ guestKey: key }); // B vào lại ngay, trước khi hẹn giờ của A hết hạn
+  assert.ok(b2.room, 'B vào lại phòng cũ');
+  assert.strictEqual(b2.room.winner, null, 'ván chưa kết thúc khi B vừa vào lại');
+  const m = await b2.wait('room', (x) => x.room.reason === 'timeout', 3000);
+  assert.strictEqual(m.room.winner, side(m.room, b2.me.id), 'A vẫn bị xử thua khi hết hạn vì lúc đó B đang online');
+  b2.close();
+});
+
 test('Bo3: rớt mạng giữa 2 ván thì ván sau vẫn bị xử thua, không treo', async () => {
   const a = await Client.open();
   await a.req({ t: 'register', username: 'gap_a', password: 'caro-pass1' }, 'welcome');

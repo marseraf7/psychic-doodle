@@ -159,6 +159,7 @@
       let sub = '';
       // Lý do kết thúc khác (đầu hàng, rời phòng, mất kết nối, hết giờ): nói ai là người thua.
       if (r.reason === 'abort') { title = T('aborted_title'); sub = ''; } // ván bị huỷ: không ai thắng
+      else if (r.reason === 'abandoned') { title = T('abandoned_title'); sub = T('abandoned_sub'); } // cả hai mất kết nối (#140): huỷ ván, nói rõ để người vào lại không tưởng là hoà thường
       else if (draw) sub = T('r_draw');
       else if (r.reason && r.reason !== 'win') sub = won ? T(`r_${r.reason}_opp`, { name: oppName }) : T(`r_${r.reason}_you`);
       const score = `${r.score[me] || 0} – ${opp ? r.score[opp.id] || 0 : 0}`;

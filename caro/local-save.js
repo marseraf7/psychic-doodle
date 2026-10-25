@@ -164,7 +164,7 @@
       const key = r.code + ':' + r.gameNo;
       if (key === lastEnd) return;
       lastEnd = key;
-      if (r.reason === 'abort' || !r.moves.length) return;
+      if (r.reason === 'abort' || r.reason === 'abandoned' || !r.moves.length) return; // ván bị huỷ: không lưu lịch sử, như máy chủ
       const side = r.seats.x === me.id ? 1 : r.seats.o === me.id ? 2 : 0;
       const nameOf = (pid) => (r.players.find((p) => p.id === pid) || {}).name || '';
       capture({
