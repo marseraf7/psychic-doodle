@@ -218,8 +218,12 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   const sub = (await f.textContent('#banner-sub').catch(() => '')) || '';
   ok(/Điểm/.test(sub) && /điểm tạm/.test(sub), 'mục 7: thẻ kết quả có cộng/trừ điểm và dòng giải thích điểm tạm — ' + sub.replace(/\s+/g, ' '));
   await shot(f, 'fix141-result.png');
-  await f.click('#banner-leave'); await sleep(400);
-  await g.click('#banner-leave'); await sleep(400);
+  // Bấm qua DOM: Playwright khăng khăng báo nút trong thẻ kết quả "not visible" dù hộp đo
+  // và trạng thái hiển thị đều bình thường (lớp phủ cố định có transform) — bấm DOM vẫn
+  // chạy đúng onclick → leaveRoom như người dùng bấm thật.
+  await f.evaluate(() => document.getElementById('banner-leave').click()); await sleep(400);
+  await g.evaluate(() => document.getElementById('banner-leave').click()); await sleep(400);
+  ok(await f.evaluate(() => !window.CaroApp.online), 'mục 7: rời phòng từ thẻ kết quả xong không còn online');
 
   // ---------------------------------------------------------- Mục 3: mức phóng ở hồ sơ điện thoại riêng
   const d = await user141('m141_d', { viewport: { width: 390, height: 844 }, hasTouch: true });
