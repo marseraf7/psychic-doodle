@@ -2,12 +2,13 @@
 Huấn luyện mạng NNUE luật Việt Nam bằng GPU trên Kaggle (miễn phí ~30 giờ GPU / tuần), rồi đẩy mạng ứng viên lên repo
 dữ liệu chung (cand/) – máy luyện (run.sh, DATA_REPO) đấu chọn mạng này với mạng tốt nhất như mọi vòng.
 Trong notebook Kaggle (Settings: Accelerator GPU, Internet On; Add-ons → Secrets: GITHUB_TOKEN), một ô:
-    !git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle
-    !python psychic-doodle/server/scripts/rapfi/caro/nnue/kaggle-train.py
+    !git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle /kaggle/temp/pd
+    !python /kaggle/temp/pd/server/scripts/rapfi/caro/nnue/kaggle-train.py
+(clone vào /kaggle/temp: không lẫn mã nguồn vào Output của notebook)
 Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi):
   DATA_REPO   https://github.com/marseraf7/caro-nnue-data (mặc định)
   HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
-  BATCH 1024 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước
+  BATCH 256 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước · TEMP_SAVE 1000 bước (lưu tạm)
 Học tiếp qua nhiều phiên: thư mục chạy (/kaggle/working/run) là đầu ra của notebook. Phiên sau: Add Input → chọn đầu ra
 của phiên trước – script lấy điểm kiểm tra cuối của phiên đó làm điểm xuất phát (không có thì học từ đầu). Chỉ giữ 2 điểm kiểm tra mới nhất cho đầu ra gọn.
 Token chỉ đọc từ Kaggle Secrets / biến môi trường GITHUB_TOKEN, không in ra; cần quyền ghi (Contents) repo dữ liệu.
@@ -28,10 +29,12 @@ HERE = Path(__file__).resolve().parent
 TRAINER_COMMIT = "ed6ff57cbd9d31bc5217ecbdf0de2a004c6be374"
 DATA_REPO = os.environ.get("DATA_REPO", "https://github.com/marseraf7/caro-nnue-data").removesuffix(".git")
 HOURS = float(os.environ.get("HOURS", "9"))
-BATCH = os.environ.get("BATCH", "1024")
+BATCH = os.environ.get("BATCH", "256")  # 1024 hết bộ nhớ GPU T4 16 GB (mix9svq, codebook 65536)
 LR = os.environ.get("LR", "0.001")
 WINDOW = int(os.environ.get("WINDOW", "3000"))
 SAVE_EVERY = os.environ.get("SAVE_EVERY", "5000")
+# Lưu tạm cuốn chiếu: T4 lô 256 chạy ~1,4 bước/giây → 1000 bước ≈ 12 phút (hết giờ thì xuất từ bản này)
+TEMP_SAVE = os.environ.get("TEMP_SAVE", "1000")
 KAGGLE = Path("/kaggle/working").exists()
 OUT = Path(os.environ.get("OUT", "/kaggle/working" if KAGGLE else str(Path.home() / "kaggle-out")))
 TMP = Path(os.environ.get("TMP_DIR", "/kaggle/temp" if KAGGLE else str(Path.home() / "kaggle-tmp")))
@@ -126,6 +129,42 @@ def prune(keep=2):
             os.remove(f)
 
 
+def keops_cuda_env():
+    """KeOps (lượng tử hoá vector của mix9svq) tự dịch nhân CUDA lúc chạy, cần liên kết -lnvrtc / -lcuda và header
+    nvrtc.h, cuda.h. Kaggle chỉ có libnvrtc.so.12 (không có libnvrtc.so) nên ld báo "cannot find -lnvrtc".
+    Tìm thư viện / header (CUDA hệ thống + gói pip nvidia-*), tạo symlink tên trần trong TMP/keops-cuda, đặt
+    LIBRARY_PATH / LD_LIBRARY_PATH / CPATH rồi xoá bộ đệm KeOps đã dịch hỏng."""
+    import site
+    roots = ["/usr/local/cuda/lib64", "/usr/local/cuda/targets/x86_64-linux/lib", "/usr/lib/x86_64-linux-gnu",
+             "/usr/local/nvidia/lib64"]
+    for sp in site.getsitepackages():
+        roots += glob.glob(sp + "/nvidia/*/lib")
+    incs = ["/usr/local/cuda/include", "/usr/local/cuda/targets/x86_64-linux/include"]
+    for sp in site.getsitepackages():
+        incs += glob.glob(sp + "/nvidia/*/include")
+    need_nvrtc = not any(Path(r, "nvrtc.h").exists() for r in incs)
+    if need_nvrtc or not any(glob.glob(r + "/libnvrtc.so*") for r in roots):
+        say("Cài gói nvidia-cuda-nvrtc-cu12 cho KeOps")
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "nvidia-cuda-nvrtc-cu12"], stdout=subprocess.DEVNULL)
+        for sp in site.getsitepackages():
+            roots += glob.glob(sp + "/nvidia/*/lib")
+            incs += glob.glob(sp + "/nvidia/*/include")
+    out = TMP / "keops-cuda"
+    out.mkdir(parents=True, exist_ok=True)
+    for name in ("nvrtc", "cuda", "nvrtc-builtins"):
+        cand = sorted(f for r in roots for f in glob.glob(f"{r}/lib{name}.so*") if os.path.exists(f))
+        if cand and not (out / f"lib{name}.so").exists():
+            (out / f"lib{name}.so").symlink_to(cand[0])
+        say(f"KeOps: lib{name}.so → {cand[0] if cand else 'KHÔNG THẤY'}")
+    have = [r for r in incs if Path(r).is_dir()]
+    say(f"KeOps: nvrtc.h {'có' if any(Path(r, 'nvrtc.h').exists() for r in have) else 'KHÔNG THẤY'}, "
+        f"cuda.h {'có' if any(Path(r, 'cuda.h').exists() for r in have) else 'KHÔNG THẤY'}")
+    libs = [str(out)] + [r for r in roots if Path(r).is_dir()]
+    for var, extra in (("LIBRARY_PATH", libs), ("LD_LIBRARY_PATH", libs), ("CPATH", have)):
+        os.environ[var] = ":".join(extra + [p for p in os.environ.get(var, "").split(":") if p])
+    shutil.rmtree(Path.home() / ".cache" / "keops2.3", ignore_errors=True)
+
+
 def train(tr, files, load_from=""):
     gpu = subprocess.run([sys.executable, "-c", "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)"]).returncode == 0
     train_dir = RUN / "train"
@@ -133,7 +172,9 @@ def train(tr, files, load_from=""):
     train_dir.mkdir(parents=True)
     for f in files:
         (train_dir / Path(f).name).symlink_to(f)
-    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY, SAVE_EVERY)
+    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY, TEMP_SAVE)
+    if gpu:
+        keops_cuda_env()
     cmd = [sys.executable, "-m", "accelerate.commands.launch", "--num_processes", "1"] + ([] if gpu else ["--cpu"]) + ["train.py", "-c", str(RUN / "config.yaml")]
     if not gpu:
         cmd.append("--use_cpu")
@@ -226,5 +267,10 @@ if __name__ == "__main__":
     train(tr, files, resume_previous())
     ck = latest_ckpt()
     if not ck:
+        # In đuôi train.log ngay trong log notebook (khỏi phải tải Output về mới biết lỗi gì)
+        try:
+            print("".join(open(RUN / "train.log", errors="replace").readlines()[-40:]), flush=True)
+        except OSError:
+            pass
         sys.exit(f"Huấn luyện không ra điểm kiểm tra nào – xem {RUN / 'train.log'}")
     export_and_push(tr, ck, len(files))
