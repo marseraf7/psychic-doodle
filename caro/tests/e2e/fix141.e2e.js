@@ -310,7 +310,9 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   }));
   await sleep(300);
   const [wx, wy] = await p.evaluate(() => window.CaroApp.screenOf(4, 0));
-  await p.mouse.click(wx, wy); // X đi nước thắng (5 quân hàng 0)
+  await p.mouse.click(wx, wy); // X đi nước thắng (5 quân hàng 0) — bấm 2 lần như localhist.e2e.js:
+  await sleep(120);            // lần đầu chọn ô, lần hai xác nhận đặt quân
+  await p.mouse.click(wx, wy);
   await sleep(600);
   ok((await p.evaluate(() => window.CaroApp.local.moves)) === 9 && !!(await p.evaluate(() => window.CaroApp.local.winner)), 'mục 11: ván trên máy đã kết thúc, chờ hỏi lưu');
   await p.click('#btn-new');
@@ -322,7 +324,7 @@ const { setup, play, roomOf, sleep } = require('./helpers');
     moves: window.CaroApp.local.moves,
   }));
   ok(askState.askOpen && askState.moves === 9, 'mục 11: hộp "Lưu lịch sử đấu?" mở ra trong khi bàn cờ vẫn là ván cũ (9 nước) — hỏi TRƯỚC');
-  await p.click('#lh-ask-form [data-ans="no"]');
+  await p.click('#lh-ask button[value=no]');
   await sleep(600);
   ok((await p.evaluate(() => window.CaroApp.local.moves)) === 0, 'mục 11: trả lời xong mới tạo ván mới (bàn trống)');
 
