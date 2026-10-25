@@ -154,8 +154,10 @@
         <div><b class="loss">${st.losses}</b><small>${esc(T('res_loss'))} · ${pct(st.losses)}%</small></div>
         <div><b>${st.draws || 0}</b><small>${esc(T('res_draw'))}</small></div>
         <div><b>${p.streak ? p.streak.best : 0}</b><small>${esc(T('profile_best_streak'))}</small></div>
+        <div><b class="loss">${p.lstreak ? p.lstreak.best : 0}</b><small>${esc(T('profile_worst_streak'))}</small></div>
         <div><b>${p.tours ? p.tours.won : 0}<span class="muted">/${p.tours ? p.tours.played : 0}</span></b><small>${esc(T('profile_tours'))}</small></div>
       </div>
+      ${total ? `<p class="hint">${esc(T('profile_perf_note'))}</p>` : ''}
       ${h && h.wins + h.losses + h.draws ? `<p class="hint">${esc(T('h2h_line', { w: h.wins, l: h.losses, d: h.draws }))}</p>` : ''}
       ${perfHtml(p)}
       ${activityHtml(p)}

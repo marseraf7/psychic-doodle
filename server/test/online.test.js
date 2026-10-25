@@ -451,6 +451,46 @@ test('loi-07: đăng xuất ở kết nối khác không bỏ hàng chờ xếp 
   a1.close(); a2.close();
 });
 
+test('hồ sơ: chuỗi thua toàn cục (lstreak) chạy đối xứng chuỗi thắng ở ván hai tài khoản', async () => {
+  const a = await Client.open();
+  await a.req({ t: 'register', username: 'chuoi_a', password: 'caro-pass1' }, 'welcome');
+  const b = await Client.open();
+  await b.req({ t: 'register', username: 'chuoi_b', password: 'caro-pass1' }, 'welcome');
+  const userB = () => app.hub.store.byUsername.get('chuoi_b');
+  const userA = () => app.hub.store.byUsername.get('chuoi_a');
+  // Ván 1: B đầu hàng sau 2 nước (ván không tính điểm vẫn tính chuỗi — phạm vi là ván hai tài khoản)
+  await a.req({ t: 'createRoom', side: 'first' }, 'room');
+  await b.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'room');
+  await move(a, b, 0, 0); await move(b, a, 5, 5);
+  await b.req({ t: 'resign' }, 'room', (m) => !!m.room.winner);
+  assert.deepStrictEqual(userB().lstreak, { cur: 1, best: 1 }, 'thua ván 1: chuỗi thua hiện tại = 1');
+  assert.deepStrictEqual(userA().wstreak, { cur: 1, best: 1 }, 'thắng ván 1: chuỗi thắng hiện tại = 1');
+  // Ván 2 (tái đấu trong cùng phòng): B lại thua
+  a.send({ t: 'rematch' });
+  await b.req({ t: 'rematch' }, 'room', (m) => m.room.gameNo === 2 && !m.room.winner);
+  await a.wait('room', (m) => m.room.gameNo === 2 && !m.room.winner);
+  // Ván tái đấu có thể đổi người đi trước: đọc actor thay vì mặc định A đi đầu
+  const first2 = a.room.actor === a.me.id ? a : b;
+  const second2 = first2 === a ? b : a;
+  await move(first2, second2, 0, 0); await move(second2, first2, 5, 5);
+  await b.req({ t: 'resign' }, 'room', (m) => !!m.room.winner);
+  assert.deepStrictEqual(userB().lstreak, { cur: 2, best: 2 }, 'thua 2 ván liền: chuỗi thua dài nhất = 2 (trước đây hồ sơ chỉ có số theo thể loại của ván tính điểm nên hiện 0)');
+  // Tin hồ sơ gửi kèm lstreak cho máy khách hiện ô "Chuỗi thua dài nhất" toàn cục
+  const pf = await a.req({ t: 'profile', username: 'chuoi_b' }, 'profile');
+  assert.strictEqual(pf.profile.lstreak.best, 2, 'profile.lstreak.best = 2');
+  assert.strictEqual(pf.profile.stats.losses, 2, 'tổng số ván thua vẫn đếm mọi ván');
+  // Ván với khách KHÔNG đụng chuỗi (đúng phạm vi hai tài khoản, đối xứng wstreak): B thua khách, chuỗi giữ nguyên
+  const g = await Client.open();
+  await b.req({ t: 'leaveRoom' }, 'room', (m) => m.room === null);
+  await b.req({ t: 'createRoom', side: 'first' }, 'room');
+  await g.req({ t: 'joinRoom', code: b.room.code, password: b.room.password }, 'room');
+  await move(b, g, 0, 0); await move(g, b, 5, 5);
+  await b.req({ t: 'resign' }, 'room', (m) => !!m.room.winner);
+  assert.deepStrictEqual(userB().lstreak, { cur: 2, best: 2 }, 'thua với khách: chuỗi thua không đổi');
+  assert.strictEqual(userB().stats.losses, 3, 'nhưng tổng số ván thua vẫn tăng');
+  a.close(); b.close(); g.close();
+});
+
 test('loi-07: đăng xuất ở kết nối cuối cùng vẫn rời phòng như cũ', async () => {
   const a = await Client.open();
   await a.req({ t: 'register', username: 'loi07_c', password: 'caro-pass1' }, 'welcome');

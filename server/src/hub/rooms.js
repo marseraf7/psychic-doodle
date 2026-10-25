@@ -315,10 +315,14 @@ class Rooms {
       Perf.addRated(uo, pool, { result: resultOf(2), r: uo.pools[pool].r, opp: { name: ux.name, r: before.x }, share: room.lastShare, at });
     }
     if (ux && uo && ux !== uo) {
-      // Chuỗi thắng (ván giữa 2 tài khoản)
+      // Chuỗi thắng / chuỗi thua (ván giữa 2 tài khoản) — trước đây chỉ có chuỗi thắng nên hồ sơ
+      // không có "chuỗi thua dài nhất" toàn cục, chỉ có số theo thể loại của ván tính điểm (dễ gây
+      // hiểu lầm là 0 dù vừa thua nhiều ván với khách / ván không tính điểm).
       for (const [u, side] of [[ux, 1], [uo, 2]]) {
         if (draw || room.winner !== side) u.wstreak.cur = 0;
         else { u.wstreak.cur++; u.wstreak.best = Math.max(u.wstreak.best, u.wstreak.cur); }
+        if (draw || room.winner === side) u.lstreak.cur = 0;
+        else { u.lstreak.cur++; u.lstreak.best = Math.max(u.lstreak.best, u.lstreak.cur); }
       }
     }
     // Nhật ký hoạt động 30 ngày

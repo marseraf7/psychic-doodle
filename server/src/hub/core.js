@@ -211,7 +211,7 @@ class Hub {
     return {
       id: pid, uid, name: u.name, username: u.username, av: u.avatar ? u.avatar.v : 0, guest: false, google: !!u.google, hasPassword: !!u.pass,
       stats: u.stats, rating: u.rating, rated: u.rated, email: u.email,
-      pools: Object.fromEntries(R.POOLS.map((p) => [p, R.ratingIn(u, p)])), streak: u.wstreak, tours: u.tours,
+      pools: Object.fromEntries(R.POOLS.map((p) => [p, R.ratingIn(u, p)])), streak: u.wstreak, lstreak: u.lstreak, tours: u.tours,
       pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
       blocked: u.blocked.map((id) => ({ id, name: this.store.users.get(id)?.name || '?' })),
       admin: this.isAdmin(uid),
