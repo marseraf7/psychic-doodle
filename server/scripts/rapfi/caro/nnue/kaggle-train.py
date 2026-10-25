@@ -127,6 +127,42 @@ def prune(keep=2):
             os.remove(f)
 
 
+def keops_cuda_env():
+    """KeOps (lượng tử hoá vector của mix9svq) tự dịch nhân CUDA lúc chạy, cần liên kết -lnvrtc / -lcuda và header
+    nvrtc.h, cuda.h. Kaggle chỉ có libnvrtc.so.12 (không có libnvrtc.so) nên ld báo "cannot find -lnvrtc".
+    Tìm thư viện / header (CUDA hệ thống + gói pip nvidia-*), tạo symlink tên trần trong TMP/keops-cuda, đặt
+    LIBRARY_PATH / LD_LIBRARY_PATH / CPATH rồi xoá bộ đệm KeOps đã dịch hỏng."""
+    import site
+    roots = ["/usr/local/cuda/lib64", "/usr/local/cuda/targets/x86_64-linux/lib", "/usr/lib/x86_64-linux-gnu",
+             "/usr/local/nvidia/lib64"]
+    for sp in site.getsitepackages():
+        roots += glob.glob(sp + "/nvidia/*/lib")
+    incs = ["/usr/local/cuda/include", "/usr/local/cuda/targets/x86_64-linux/include"]
+    for sp in site.getsitepackages():
+        incs += glob.glob(sp + "/nvidia/*/include")
+    need_nvrtc = not any(Path(r, "nvrtc.h").exists() for r in incs)
+    if need_nvrtc or not any(glob.glob(r + "/libnvrtc.so*") for r in roots):
+        say("Cài gói nvidia-cuda-nvrtc-cu12 cho KeOps")
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "nvidia-cuda-nvrtc-cu12"], stdout=subprocess.DEVNULL)
+        for sp in site.getsitepackages():
+            roots += glob.glob(sp + "/nvidia/*/lib")
+            incs += glob.glob(sp + "/nvidia/*/include")
+    out = TMP / "keops-cuda"
+    out.mkdir(parents=True, exist_ok=True)
+    for name in ("nvrtc", "cuda", "nvrtc-builtins"):
+        cand = sorted(f for r in roots for f in glob.glob(f"{r}/lib{name}.so*") if os.path.exists(f))
+        if cand and not (out / f"lib{name}.so").exists():
+            (out / f"lib{name}.so").symlink_to(cand[0])
+        say(f"KeOps: lib{name}.so → {cand[0] if cand else 'KHÔNG THẤY'}")
+    have = [r for r in incs if Path(r).is_dir()]
+    say(f"KeOps: nvrtc.h {'có' if any(Path(r, 'nvrtc.h').exists() for r in have) else 'KHÔNG THẤY'}, "
+        f"cuda.h {'có' if any(Path(r, 'cuda.h').exists() for r in have) else 'KHÔNG THẤY'}")
+    libs = [str(out)] + [r for r in roots if Path(r).is_dir()]
+    for var, extra in (("LIBRARY_PATH", libs), ("LD_LIBRARY_PATH", libs), ("CPATH", have)):
+        os.environ[var] = ":".join(extra + [p for p in os.environ.get(var, "").split(":") if p])
+    shutil.rmtree(Path.home() / ".cache" / "keops2.3", ignore_errors=True)
+
+
 def train(tr, files, load_from=""):
     gpu = subprocess.run([sys.executable, "-c", "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)"]).returncode == 0
     train_dir = RUN / "train"
@@ -135,6 +171,8 @@ def train(tr, files, load_from=""):
     for f in files:
         (train_dir / Path(f).name).symlink_to(f)
     sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY, SAVE_EVERY)
+    if gpu:
+        keops_cuda_env()
     cmd = [sys.executable, "-m", "accelerate.commands.launch", "--num_processes", "1"] + ([] if gpu else ["--cpu"]) + ["train.py", "-c", str(RUN / "config.yaml")]
     if not gpu:
         cmd.append("--use_cpu")
