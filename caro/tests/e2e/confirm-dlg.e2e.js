@@ -48,7 +48,8 @@ const { setup } = require('./helpers');
   await sleep(600);
   await a.click('#confirm-ok');
   await waitRoom(b, (x) => !!x.winner, 'đầu hàng có hiệu lực');
-  ok((await room(a)).winner === (r1.seats.x === await meId(b) ? 1 : 2), 'đầu hàng + Đồng ý: ván kết thúc, đối thủ là người thắng');
+  const end1 = await waitRoom(a, (x) => !!x.winner, 'A nhận kết quả đầu hàng'); // B nhận trước A thì đọc ngay phòng của A còn cũ
+  ok(end1.winner === (r1.seats.x === await meId(b) ? 1 : 2), 'đầu hàng + Đồng ý: ván kết thúc, đối thủ là người thắng');
 
   // ---------------------------------------------------------------- Rời phòng giữa ván: Huỷ rồi Đồng ý
   await send(a, { t: 'rematch' }); await send(b, { t: 'rematch' });
