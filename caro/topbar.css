@@ -22,6 +22,13 @@
 .tb-link:hover { color: var(--accent); }
 .tb-btn { background: var(--accent); color: #fff; }
 .tb-me { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 10px; color: var(--text); }
+/* Khung chờ vùng tên / ảnh đại diện trên thanh trên, trước khi máy chủ trả lời (topbar.js — loi-04) */
+.tb-me.cached { opacity: 0.65; }
+.tb-skel { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
+.tb-skel-av { width: 28px; height: 28px; border-radius: 8px; background: rgba(127, 127, 127, 0.25); }
+.tb-skel-bar { width: 72px; height: 10px; border-radius: 5px; background: rgba(127, 127, 127, 0.25); }
+.tb-skel-av, .tb-skel-bar { animation: tb-skel-pulse 1.2s ease-in-out infinite alternate; }
+@keyframes tb-skel-pulse { from { opacity: 0.45; } to { opacity: 1; } }
 .tb-me:hover { background: rgba(127, 127, 127, 0.12); }
 .tb-name { display: none; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
 
