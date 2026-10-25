@@ -142,10 +142,11 @@ class Room {
     // Phòng của giải: không ai vào thêm được, nên người ở lại vẫn thấy ván vừa xong (bàn cờ, kết quả, tỉ số) trong lúc
     // chờ trận sau – đối thủ được chuyển sang trận khác không làm mất kết quả của mình
     if (this.tour) { this.touch(); return; }
-    this.seats[this.sideOf(id)] = null;
     // Ván đã có kết quả (vd. đối thủ vừa rời giữa ván = xử thua, #155): người ở lại vẫn thấy bàn cờ, kết quả, tỉ số
     // của ván vừa xong (thẻ "đối thủ đã rời phòng – bạn thắng"); phòng chỉ làm mới khi có người mới vào (addPlayer).
+    // Giữ cả ghế của người rời để khán giả / người ở lại vẫn biết ai cầm quân nào, ai thắng (watch.js tra tên theo ghế).
     if (this.winner) { this.stale = true; this.touch(); return; }
+    this.seats[this.sideOf(id)] = null;
     this.freshWait();
     this.touch();
   }
@@ -153,6 +154,7 @@ class Room {
   /** Người ở lại chờ đối thủ mới: làm mới bàn cờ và tỉ số. */
   freshWait() {
     this.stale = false;
+    for (const side of [X, O]) if (this.seats[side] && !this.has(this.seats[side])) this.seats[side] = null; // ghế người đã rời
     this.score = {};
     for (const p of this.players) this.score[p.id] = 0;
     this.seriesWinner = null;
