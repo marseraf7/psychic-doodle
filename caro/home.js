@@ -54,8 +54,9 @@
     const ts = tiers();
     $('home-bots').innerHTML = RULES.map((rule) => ts.map((tier) => {
       const b = Bots.of(tier, st); // mức trùm cuối chỉ có BOAT
+      // Hiện cả tên nhân vật máy trên thẻ (trước đây chỉ có ~Elo và luật, tên chỉ nằm trong title — loi-03)
       return `<button type="button" class="qm-tile" data-bot-rule="${rule}" data-bot="${b.id}" title="${esc(T('bot_' + b.id))}">
-        <b>~${b.elo}</b><small>${esc(T('grule_s_' + rule))}</small></button>`;
+        <b>${esc(T('bot_' + b.id))}</b><small>~${b.elo} · ${esc(T('grule_s_' + rule))}</small></button>`;
     }).join('')).join('');
     $('home-bot-hint').textContent = T('home_bot_hint', { style: T('style_' + st) });
   }

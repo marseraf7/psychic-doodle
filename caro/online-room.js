@@ -16,6 +16,8 @@
 
     // ------------------------------------------------------------ Phòng
     $('create-room').onclick = () => {
+      // Đang có ván dở: tạo phòng mới là rời ván cũ và bị xử thua — hỏi trước (Issue #141 mục 1)
+      if (roomActive() && !confirm(T('confirm_leave'))) return;
       const side = document.querySelector('input[name="room-side"]:checked').value;
       send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, rule: $('room-rule').value, public: $('room-public').checked });
     };
@@ -34,6 +36,8 @@
     $('join-form').onsubmit = (e) => {
       e.preventDefault();
       const f = e.target;
+      // Vào phòng khác cũng là bỏ ván dở (bị xử thua) — hỏi trước như khi tạo phòng (Issue #141 mục 1)
+      if (roomActive() && !confirm(T('confirm_leave'))) return;
       $('join-err').textContent = '';
       send({ t: 'joinRoom', code: f.code.value.trim(), password: f.password.value.trim() });
     };
@@ -89,6 +93,11 @@
     }
     function openRoomInfo() { fillRoomInfo(); openDlg('room-info'); }
 
+    // Ô link phòng hẹp nên chữ bị cắt, không thấy phần ?room=…: bấm vào (hoặc Tab tới) là chọn hết
+    // chữ để thấy/kéo chọn được cả link, thay vì chỉ đoạn giữa bị cắt (Issue #141 mục 10, loi-05)
+    $('ri-link').addEventListener('click', (e) => e.target.select());
+    $('ri-link').addEventListener('focus', (e) => e.target.select());
+
     $('ri-copy').onclick = async () => {
       const link = $('ri-link').value;
       try { await navigator.clipboard.writeText(link); }
@@ -133,13 +142,24 @@
       return !!(r && r.players.length === 2 && !r.winner && r.moves.length);
     }
 
+    /** Về Trang chủ, thẻ Phòng chờ (sau khi rời phòng lúc ván chưa kết thúc). */
+    function goLobby() {
+      if (window.CaroHome) { window.CaroHome.open(); window.CaroHome.pane('lobby'); }
+    }
+
     function leaveRoom() {
       if (roomActive() && !confirm(T('confirm_leave'))) return;
+      const r = S.room;
+      // Ván chưa kết thúc (đang chờ đối thủ hoặc đang đánh dở): rời xong về sảnh, không mở lại ván
+      // với máy đang dở — ván đó vẫn hiện thành thẻ "Tiếp tục ván" ở Trang chủ (Issue #141 mục 2).
+      // Ván đã kết thúc (nút ở thẻ kết quả) giữ hành vi cũ: về bàn cờ trên máy.
+      const toLobby = !!r && !r.winner;
       if (!send({ t: 'leaveRoom' })) {
         // Mất kết nối: vẫn cho quay về chơi cục bộ.
         S.room = null;
         App.leaveOnline();
-      }
+        if (toLobby) goLobby();
+      } else if (toLobby) S.toLobby = true; // online.js (setRoom) đưa về sảnh khi máy chủ xác nhận đã rời phòng
     }
     $('btn-leave').onclick = leaveRoom;
     $('banner-leave').onclick = leaveRoom;
@@ -178,6 +198,9 @@
       if (r.delta && typeof r.delta[me] === 'number') {
         const d = r.delta[me];
         sub = (sub ? sub + ' · ' : '') + T('rating_delta', { d: (d >= 0 ? '+' : '') + d, pool: T('pool_' + (r.pool || 'rapid')) });
+        // Điểm còn tạm (RD cao): giải thích ngay vì sao điểm nhảy nhiều (vd. ±162 ở ván đầu) — loi-08
+        const meP = r.players.find((p) => p.id === me);
+        if (meP && meP.prov) sub = (sub ? sub + ' · ' : '') + T('rating_prov_note');
       }
       if (!opp && !r.tour) { sub = T('opp_left'); rematch = false; } // giải: đối thủ đã sang trận khác, vẫn hiện kết quả
       // Ván của giải đấu: không tái đấu; Arena tự ghép ván sau

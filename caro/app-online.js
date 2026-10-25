@@ -12,6 +12,7 @@
     const { Board, X, O } = window.Caro;
     const { state, cam, esc, glyph, ruleChip, net, sfx, placeRaw, vibrate, updateUI, requestDraw, ensureVisible, animateCamera, renderClock,
       resetClock, showBanner, hideBanner, closeReplay, exitExt, toBoard, save, load, maybeAI, isAITurn, toast } = env;
+    const MIN_SIZE = env.MIN_SIZE || 14, MAX_SIZE = env.MAX_SIZE || 96; // khớp MIN_SIZE / MAX_SIZE của app.js
 
     // H-F1: nước đi online hiện ngay trên bàn (lạc quan) nhưng chỉ là tạm — phải khoá lần
     // chạm tiếp theo cho tới khi máy chủ xác nhận bằng trạng thái phòng mới, nếu không
@@ -34,6 +35,32 @@
       // Máy chủ cho biết ai phải hành động (luật Swap2: một người đặt cả quân X lẫn O; lúc chọn bên thì không đặt quân)
       if (room.actor !== undefined) return room.actor === me && !/^choose/.test(room.phase || '');
       return room.turn === side;
+    }
+
+    // ------------------------------------------------------------ Mức phóng khi vào ván online (Issue #141 mục 3)
+    // Bàn mặc định quá nhỏ thì ngón tay dễ chạm nhầm ô: vào ván phải tự phóng vừa màn hình (mỗi ô ít nhất
+    // TOUCH_MIN px như ngưỡng chạm trong board-input.js) và nhớ mức phóng người chơi đã chọn ở ván online trước.
+    const TOUCH_MIN = 26; // khớp TOUCH_MIN trong board-input.js
+    const FIT_CELLS = 15; // số ô muốn thấy theo chiều hẹp của màn hình khi chưa có mức phóng đã lưu
+    const ZOOM_KEY = 'caro.zoomOnline';
+    /** Mức phóng đã lưu của riêng chế độ online (app.js ghi mỗi lần lưu khi đang online), null nếu chưa có. */
+    function storedZoom() {
+      try {
+        const v = Number(localStorage.getItem(ZOOM_KEY));
+        return v >= MIN_SIZE && v <= MAX_SIZE ? v : null;
+      } catch (e) { return null; }
+    }
+    /** Mức phóng vừa màn hình hiện tại: đủ ô để chơi mà mỗi ô không nhỏ hơn TOUCH_MIN. */
+    function fitSize() {
+      const cv = document.getElementById('board');
+      const W = (cv && cv.clientWidth) || window.innerWidth || 0;
+      const H = (cv && cv.clientHeight) || window.innerHeight || 0;
+      if (!W || !H) return 0;
+      return Math.max(TOUCH_MIN, Math.min(48, Math.floor(Math.min(W, H - 160) / FIT_CELLS)));
+    }
+    /** Mức phóng lúc mới vào ván: ưu tiên mức người chơi đã chọn, chưa có thì tự vừa màn hình. */
+    function entrySize() {
+      return storedZoom() || fitSize() || Math.max(cam.size, 32);
     }
 
     const COORD_LIMIT = 512; // khớp server/src/room.js – ngoài vùng này máy chủ từ chối (C3)
@@ -110,7 +137,7 @@
         save();
         document.body.classList.add('online');
         hideBanner();
-        animateCamera(0, 0, Math.max(cam.size, 32));
+        animateCamera(0, 0, entrySize()); // tự phóng vừa màn hình / mức đã nhớ (Issue #141 mục 3)
       }
       if (was && !!was.watch !== !!watch) { state.online = null; hideBanner(); } // đổi giữa xem và chơi: coi như phòng mới
       document.body.classList.toggle('watching', !!watch);

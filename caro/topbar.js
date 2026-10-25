@@ -36,9 +36,33 @@
 
   // ------------------------------------------------------------ Đăng nhập / Đăng ký hoặc ảnh đại diện
   const auth = $('tb-auth');
+  // Trước khi máy chủ trả lời (vài giây đầu), vùng này trước đây trống trơn trông như bị đăng xuất (loi-04).
+  // Nay: có danh tính đã lưu cục bộ thì hiện ngay từ bản lưu; chưa có thì hiện khung chờ (skeleton);
+  // máy chủ báo không có / đang ngoại tuyến hẳn thì hiện nút Đăng nhập / Đăng ký như với khách.
+  const ME_KEY = 'caro.meCache';
+  const guestBtns = () => `<button type="button" class="tb-link" data-auth="login">${esc(T('login'))}</button><button type="button" class="tb-btn" data-auth="register">${esc(T('tb_register'))}</button>`;
+  function cacheMe(me) {
+    try {
+      if (me.guest) localStorage.removeItem(ME_KEY);
+      else localStorage.setItem(ME_KEY, JSON.stringify({ name: me.name, username: me.username, av: me.av || 0, uid: me.uid || me.id }));
+    } catch (e) { /* chế độ riêng tư */ }
+  }
   function drawAuth() {
     const me = O && O.state.me;
-    if (!me) { auth.innerHTML = ''; return; }
+    if (!me) {
+      if (!O) { auth.innerHTML = ''; return; } // không có module online: chỉ còn bánh răng (như trước)
+      if (document.body.classList.contains('no-online') || O.state.status === 'offline') { auth.innerHTML = guestBtns(); return; }
+      try {
+        const c = JSON.parse(localStorage.getItem(ME_KEY) || 'null');
+        if (c && c.name) {
+          auth.innerHTML = `<span class="tb-me cached" aria-busy="true">${window.CaroAvatar.html(c, 'sm')}<span class="tb-name">${esc(c.name)}</span></span>`;
+          return;
+        }
+      } catch (e) { /* dữ liệu hỏng: dùng khung chờ */ }
+      auth.innerHTML = '<span class="tb-skel" aria-hidden="true"><span class="tb-skel-av"></span><span class="tb-skel-bar"></span></span>';
+      return;
+    }
+    cacheMe(me);
     if (me.guest) {
       auth.innerHTML = `<button type="button" class="tb-link" data-auth="login">${esc(T('login'))}</button><button type="button" class="tb-btn" data-auth="register">${esc(T('tb_register'))}</button>`;
     } else {

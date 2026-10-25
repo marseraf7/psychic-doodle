@@ -111,7 +111,12 @@
     } catch (e) { /* bỏ qua dữ liệu hỏng */ }
   }
   function save() {
-    if (state.online || state.replay || state.ext) return; // ván online / xem lại / giải đố: không ghi đè ván cục bộ
+    if (state.online) {
+      // Ván online: không ghi đè ván cục bộ, chỉ nhớ mức phóng bàn cờ của chế độ online (Issue #141 mục 3)
+      try { localStorage.setItem('caro.zoomOnline', String(cam.size)); } catch (e) { /* chế độ riêng tư */ }
+      return;
+    }
+    if (state.replay || state.ext) return; // xem lại / giải đố: không ghi đè ván cục bộ
     try {
       localStorage.setItem(STORE, JSON.stringify({
         mode: state.mode, human: state.human, bot: state.bot, rule: state.rule,
@@ -295,6 +300,18 @@
   function newGame() {
     if (state.online || state.replay || state.ext) return;
     window.dispatchEvent(new Event('caro:newgame')); // rời ván cũ: local-save.js hỏi lưu ván vừa xong
+    // Hộp hỏi "Lưu lịch sử đấu?" đang mở thì CHỜ trả lời xong mới tạo ván mới — trước đây ván mới
+    // tạo ngay rồi hộp hỏi mới bật lên che bàn mới (Issue #141 mục 11, loi-06)
+    const ask = $('lh-ask');
+    if (ask && ask.open) {
+      ask.addEventListener('close', () => startNewGame(), { once: true });
+      return;
+    }
+    startNewGame();
+  }
+
+  function startNewGame() {
+    if (state.online || state.replay || state.ext) return;
     state.board = new Board(state.rule);
     state.turn = X;
     state.winner = null;
