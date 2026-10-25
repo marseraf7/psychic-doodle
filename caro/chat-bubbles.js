@@ -134,9 +134,9 @@
     if (box.dataset.html === html) return; // không đổi: khỏi vẽ lại (giữ vị trí cuộn)
     box.dataset.html = html;
     box.innerHTML = html;
-    box.querySelectorAll('[data-ch-yes]').forEach((b) => { b.onclick = () => {
+    box.querySelectorAll('[data-ch-yes]').forEach((b) => { b.onclick = async () => {
       const r = S.room;
-      if (r && r.players.length === 2 && !r.winner && r.moves.length && !confirm(T('confirm_accept_busy'))) return;
+      if (r && r.players.length === 2 && !r.winner && r.moves.length && !(await window.CaroConfirm.ask(T('confirm_accept_busy')))) return;
       N.send({ t: 'challengeRespond', id: b.dataset.chYes, accept: true });
     }; });
     box.querySelectorAll('[data-ch-no]').forEach((b) => { b.onclick = () => {

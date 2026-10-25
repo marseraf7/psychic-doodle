@@ -395,6 +395,17 @@
     </div>
   </div>
 
+  <!-- Thẻ kết quả cho khán giả (watch.js điền): ván đang xem kết thúc / bị huỷ thì hiện rõ kết quả -->
+  <div class="banner" id="wt-result" hidden>
+    <div class="banner-card">
+      <div class="banner-title" id="wt-result-title"></div>
+      <div class="banner-sub" id="wt-result-sub"></div>
+      <div class="banner-actions">
+        <button id="wt-result-more" type="button" class="primary" data-i18n="tv_other"></button>
+      </div>
+    </div>
+  </div>
+
   <!-- Cài đặt: các hàng kiểu danh sách, bấm vào hàng có dấu › để mở trang con (settings-ui.js).
        Trang Cài đặt nằm trong khung trang (shell.js chuyển nội dung hộp thoại này vào trang). -->
   <dialog id="settings">
@@ -422,7 +433,7 @@
         <a class="li privacy-link" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-shield"/></svg><span class="li-t" data-i18n="privacy"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
         <a class="li licenses-link" href="licenses.html" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-info"/></svg><span class="li-t" data-i18n="licenses"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
       </div>
-      <h3 class="list-h" data-i18n="set_data"></h3>
+      <!-- Không lặp lại tiêu đề "Dữ liệu" (set_g_data ở trên) cho mục đặt lại tỉ số — loi-02 -->
       <div class="list">
         <button type="button" class="li danger" id="reset-score"><svg class="ico li-ic" aria-hidden="true"><use href="#i-trash"/></svg><span class="li-t"><span data-i18n="reset_score"></span><small data-i18n="reset_score_d"></small></span></button>
       </div>
@@ -539,6 +550,11 @@
         <button type="button" class="li" data-mu-pos="top"><span class="li-t"><span data-i18n="barpos_top"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
         <button type="button" class="li" data-mu-pos="left"><span class="li-t"><span data-i18n="barpos_left"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
         <button type="button" class="li" data-mu-pos="right"><span class="li-t"><span data-i18n="barpos_right"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
+      </div>
+      <h3 class="list-h" data-i18n="set_barlabels"></h3>
+      <div class="list">
+        <button type="button" class="li" data-mu-labels="labels"><span class="li-t"><span data-i18n="barlabels_on"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
+        <button type="button" class="li" data-mu-labels="icons"><span class="li-t"><span data-i18n="barlabels_off"></span></span><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></button>
       </div>
       <div class="list">
         <button type="button" class="li" id="mu-reset"><span class="li-t" data-i18n="matchui_reset"></span></button>
@@ -973,6 +989,17 @@
     </div>
   </dialog>
 
+  <!-- Hộp xác nhận trong app (confirm.js): thay confirm() gốc cho đầu hàng / rời phòng / đăng xuất… -->
+  <dialog id="confirm-dlg">
+    <div class="dlg">
+      <p id="confirm-q"></p>
+      <div class="row">
+        <button type="button" class="ghost" id="confirm-no"></button>
+        <button type="button" class="primary" id="confirm-ok"></button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Hỏi lưu ván vừa xong vào Lịch sử đấu trên máy này (local-save.js) -->
   <dialog id="lh-ask">
     <form method="dialog" class="dlg" id="lh-ask-form">
@@ -1074,6 +1101,7 @@
   <script src="app-ext.js"></script>
   <script src="app.js"></script>
   <script src="shell.js"></script>
+  <script src="confirm.js"></script>
   <script src="online-auth.js"></script>
   <script src="challenge-msg.js"></script>
   <script src="online-friends.js"></script>

@@ -203,7 +203,7 @@
       if (m.ctx === 'joinRoom' && probing) {
         const code = probing;
         probing = null;
-        if (m.code === 'wrong_room_password') return openJoin(code);
+        if (m.code === 'wrong_room_password') return ctx.openJoin(code, true);
       }
       const target = m.ctx === 'joinRoom' && isOpen('join') ? 'join-err'
         : ['login', 'register'].includes(m.ctx) && isOpen('auth') ? 'auth-err'
@@ -229,6 +229,11 @@
     } else if (!room) {
       App.leaveOnline();
       closeDlg('room-info');
+      // Người chơi vừa bấm "Rời phòng" lúc ván chưa kết thúc: về Trang chủ → Phòng chờ (Issue #141 mục 2)
+      if (S.toLobby) {
+        S.toLobby = false;
+        if (window.CaroHome) { window.CaroHome.open(); window.CaroHome.pane('lobby'); }
+      }
     }
     ctx.renderDraw();
     ctx.renderInvites();
@@ -286,7 +291,7 @@
 
   // Mở bằng link mời: ?room=123456 -> hỏi mật khẩu.
   let pendingLink = new URLSearchParams(location.search).get('room');
-  function checkJoinLink() {
+  async function checkJoinLink() {
     if (!pendingLink) return;
     const code = pendingLink.replace(/\D/g, '').slice(0, 6);
     pendingLink = null;
@@ -294,6 +299,8 @@
     url.searchParams.delete('room');
     history.replaceState(null, '', url);
     if (S.room && S.room.code === code) return;
+    // Đang có ván dở mà mở link phòng khác: vào phòng đó là bỏ ván (bị xử thua) — hỏi trước (Issue #141 mục 1)
+    if (ctx.roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
     probing = code;
     send({ t: 'joinRoom', code }); // không gửi mật khẩu: phòng công khai thì vào luôn
   }

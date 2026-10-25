@@ -87,6 +87,14 @@ async function setup(port, timers = {}) {
     p.on('crash', () => { errors.push(name + ': trang bị sập (crash)'); annotate(`${name}: trang bị sập (crash) sau bước "${lastOk}"`); });
     p.on('console', (m) => { if (m.type() === 'error') errors.push(name + ' console: ' + m.text()); });
     p.on('dialog', (d) => d.accept(d.type() === 'prompt' ? 'Tên chưa phù hợp' : undefined));
+    // Hộp xác nhận trong app (confirm.js) cũng tự Đồng ý như hộp gốc; bài thử cần bấm tay (Huỷ / Đồng ý)
+    // thì đặt p.autoConfirm = false
+    p.autoConfirm = true;
+    const poll = setInterval(() => {
+      if (p.autoConfirm) p.evaluate(() => { const d = document.getElementById('confirm-dlg'); if (d && d.open) document.getElementById('confirm-ok').click(); }).catch(() => {});
+    }, 100);
+    poll.unref();
+    p.on('close', () => clearInterval(poll));
     // Đếm số bản vá trang giải nhận được (cập nhật chỉ gửi phần đổi)
     p.patches = 0;
     p.on('websocket', (ws) => ws.on('framereceived', (f) => { if (typeof f.payload === 'string' && f.payload.startsWith('{"t":"tourPatch"')) p.patches++; }));

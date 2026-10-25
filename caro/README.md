@@ -409,7 +409,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   kéo thả trực tiếp chỉ đổi trong ván hiện tại (hết ván về vị trí đã lưu), chọn trong Cài đặt → Giao diện thì lưu lâu dài.
 - **Giao diện ván đấu** (`matchui.js`, Issue #128): trang con mới trong Cài đặt, xem trước giao diện ván đấu như khi thi đấu
   (thanh trên, thẻ người chơi, bàn cờ mẫu, thanh công cụ, nút Xin đi lại); kéo thả thanh công cụ (snap 4 vị trí) và nút Xin đi lại
-  ngay trong khung xem trước, thay đổi áp dụng ngay cho ván thật; có nút Về mặc định.
+  ngay trong khung xem trước, thay đổi áp dụng ngay cho ván thật; có nút Về mặc định. Khung xem trước theo đúng máy đang dùng
+  (full-width trên điện thoại, tối đa 560px trên tablet/máy tính — không còn khung 360px cố định); nút thanh giả lập dùng đúng
+  luật nút thanh thật nên chữ không bẻ dòng, thanh không che thẻ người chơi, nút Xin đi lại đứng tách khỏi thanh. Tùy chọn
+  "Chữ trên thanh công cụ" (`bar-pos.js`: `caro.barlabels`): Hiện chữ hoặc Chỉ biểu tượng, áp cho cả thanh thật lẫn khung xem trước.
 - **Chế độ tập trung** (`focus-mode.js`, Issue #128): chỉ để lại bàn cờ — ẩn thanh trên, thẻ người chơi, thanh công cụ, nút Về giữa,
   thẻ nổi, bong bóng chat và toast (thẻ kết quả vẫn hiện); góc trên bên trái có logo + nút thoát, thoát bằng Esc hoặc bấm nút đó;
   chỉ có hiệu lực trong phiên, điểm vào từ menu 3 gạch (hạng mục 7).
@@ -527,6 +530,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `i18n-online.js`, `i18n-play.js`, `i18n-account.js`, `i18n-social.js`, `i18n-tour.js`, `i18n-tour-stages.js`, `i18n-club.js`, `i18n-study.js`, `i18n-puzzles.js`, `i18n-bots-old.js`, `i18n-learn.js` | Chuỗi 4 ngôn ngữ tách từ `i18n.js` theo chủ đề: phòng / sảnh / thách đấu; trong ván (hoà, Swap2, xem, phát lại, chia sẻ); tài khoản; bạn bè, tin nhắn, xếp hạng, hồ sơ; giải đấu; thể thức + khiếu nại; CLB; phân tích ván + Thử lại; giải đố + Storm; 6 nhân vật máy đầu tiên + mở khoá đối thủ; học chơi + huy hiệu. Nạp ngay sau `i18n.js` |
 | `online.js`, `online-auth.js`, `online-friends.js`, `online-room.js`, `config.js` | Chế độ online (lõi kết nối trong `online.js`; tài khoản / đăng nhập, bạn bè + lời mời, phòng + kết thúc ván ở 3 file `online-*.js`): kết nối máy chủ (ping mỗi 10 giây, trượt 2 lần liên tiếp thì tự kết nối lại; quá 10 giây chưa có "welcome" cũng kết nối lại; máy chủ cũ chưa có lệnh ping thì thôi ping, không báo lỗi), tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
+| `confirm.js` | Hộp xác nhận trong app (`CaroConfirm.ask` → Promise) thay `confirm()` gốc cho luồng ván online: đầu hàng, rời phòng, đăng xuất, bỏ ván dở, nhận thách đấu khi đang bận, Berserk |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
 | `gamex.js` | Thao tác phụ trong ván: đếm ngược nước đầu, +15 giây, xin đi lại, Berserk |
 | `storm.js` | Puzzle Storm (3 phút) |

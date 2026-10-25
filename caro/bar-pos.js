@@ -11,16 +11,22 @@
  * không bấm nhầm nút); thả thì thanh snap về cạnh gần nhất. Kéo dùng Pointer Events nên
  * chuột và cảm ứng đều được. Vị trí top được đặt dưới thanh trên (.bar.top) đo thật lúc chạy.
  *
- *   window.CaroBarPos = { POSITIONS, saved(), setSaved(pos), effective(), apply(), snap(cx, cy, vw, vh) }
+ * Chữ trên thanh (tùy chọn trong trang con Giao diện): 'labels' (mặc định, hiện chữ)
+ * hoặc 'icons' (chỉ biểu tượng). Áp bằng class body.bar-icons-only để cả thanh thật
+ * lẫn thanh giả lập trong khung xem trước cùng ẩn chữ.
+ *
+ *   window.CaroBarPos = { POSITIONS, saved(), setSaved(pos), effective(), apply(), snap(cx, cy, vw, vh), labels(), setLabels(v) }
  */
 (function () {
   'use strict';
   const POSITIONS = ['bottom', 'top', 'left', 'right'];
   const KEY = 'caro.barpos';
+  const LABEL_KEY = 'caro.barlabels';
   const DRAG_MIN = 8;
   let temp = null;
 
   const valid = (p) => (POSITIONS.includes(p) ? p : 'bottom');
+  const validLabels = (v) => (v === 'icons' ? 'icons' : 'labels');
 
   function saved() {
     try { return valid(localStorage.getItem(KEY)); } catch (e) { return 'bottom'; }
@@ -32,6 +38,15 @@
     apply();
   }
   function effective() { return temp || saved(); }
+
+  function labels() {
+    try { return validLabels(localStorage.getItem(LABEL_KEY)); } catch (e) { return 'labels'; }
+  }
+  function setLabels(v) {
+    v = validLabels(v);
+    try { localStorage.setItem(LABEL_KEY, v); } catch (e) { /* chế độ riêng tư */ }
+    apply();
+  }
 
   function bars() {
     try { return [...document.querySelectorAll('nav.bar.bottom')]; } catch (e) { return []; }
@@ -61,6 +76,7 @@
       if (pos === 'top') bar.style.top = topOffset() + 'px';
       else bar.style.top = '';
     }
+    try { document.body.classList.toggle('bar-icons-only', labels() === 'icons'); } catch (e) { /* chưa có body */ }
   }
 
   function clearTemp() { if (temp !== null) { temp = null; apply(); } }
@@ -116,5 +132,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  window.CaroBarPos = { POSITIONS, saved, setSaved, effective, apply, snap };
+  window.CaroBarPos = { POSITIONS, saved, setSaved, effective, apply, snap, labels, setLabels };
 })();

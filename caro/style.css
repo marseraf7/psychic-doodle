@@ -255,6 +255,9 @@ button {
   justify-content: center;
   pointer-events: none;
   padding: 0 8px;
+  /* Trên chồng thẻ nổi (.invites, z-index 15): thẻ kết quả là chỗ quyết định Tái đấu / Tìm trận mới /
+     Rời phòng — trước đây thẻ "Đang tìm đối thủ…" trong .invites che mất nút Tái đấu, bấm không tới. */
+  z-index: 16;
 }
 .banner[hidden] { display: none; }
 .banner-card {

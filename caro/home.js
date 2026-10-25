@@ -54,8 +54,9 @@
     const ts = tiers();
     $('home-bots').innerHTML = RULES.map((rule) => ts.map((tier) => {
       const b = Bots.of(tier, st); // mức trùm cuối chỉ có BOAT
+      // Hiện cả tên nhân vật máy trên thẻ (trước đây chỉ có ~Elo và luật, tên chỉ nằm trong title — loi-03)
       return `<button type="button" class="qm-tile" data-bot-rule="${rule}" data-bot="${b.id}" title="${esc(T('bot_' + b.id))}">
-        <b>~${b.elo}</b><small>${esc(T('grule_s_' + rule))}</small></button>`;
+        <b>${esc(T('bot_' + b.id))}</b><small>~${b.elo} · ${esc(T('grule_s_' + rule))}</small></button>`;
     }).join('')).join('');
     $('home-bot-hint').textContent = T('home_bot_hint', { style: T('style_' + st) });
   }
@@ -82,8 +83,15 @@
     const on = App.online;
     let html = '';
     if (on && !App.watching) {
+      // Ván đã có kết quả: thẻ không còn là "đang chơi" — đổi nhãn thành xem kết quả (trước đây ván
+      // xong lâu rồi thẻ vẫn ghi "Quay lại ván đang chơi"). Phòng đang chờ / ván đang đánh giữ nhãn cũ.
+      const r = on.room;
+      const done = !!r.winner;
+      const opp = r.players.find((p) => p.id !== on.me);
+      const wantsRematch = done && opp && (r.rematch || []).includes(opp.id);
+      const small = `${esc(T('room_code_label'))} ${esc(r.code || '')}` + (wantsRematch ? ` · ${esc(T('home_resume_rematch'))}` : '');
       html = `<button type="button" class="resume-card" data-resume><svg class="ico" aria-hidden="true"><use href="#i-play"/></svg>
-        <span><b>${esc(T('home_resume_online'))}</b><small>${esc(T('room_code_label'))} ${esc(on.room.code || '')}</small></span></button>`;
+        <span><b>${esc(T(done ? 'home_resume_result' : 'home_resume_online'))}</b><small>${small}</small></span></button>`;
     } else if (!on && !App.replay && !App.ext) {
       const L = App.local;
       if (L.moves && !L.winner) {

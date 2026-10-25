@@ -10,6 +10,10 @@
   const Q = { searching: false, since: 0, lobby: null };
   let ticker = 0;
   let watching = false;
+  // Ý định tìm trận: còn bật từ lúc bấm tìm tới khi người chơi huỷ hoặc máy chủ báo hết tìm (đã ghép /
+  // bị bỏ khỏi hàng chờ). Rớt WebSocket là máy chủ bỏ hàng chờ ngay, nên nối lại mà cờ còn bật thì máy
+  // khách tự gửi lại yêu cầu tìm — giữ trong bộ nhớ, chỉ cho ca rớt kết nối (không gồm tải lại trang).
+  let resumeSearch = false;
 
   const waited = () => {
     const s = Math.max(0, Math.floor((Date.now() - Q.since) / 1000));
@@ -21,14 +25,15 @@
   // Ô vừa chọn trên lưới "Chơi nhanh" (dùng lại cho nút "Tìm trận khác" trên thẻ kết quả)
   Q.time = -1;
   Q.clock = null; // đồng hồ tổng '3+2' (ô đồng hồ) hoặc null (ô giới hạn mỗi nước)
-  function start(time, clock) {
-    if (O.roomActive() && !confirm(T('confirm_leave'))) return;
+  async function start(time, clock) {
+    if (O.roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
     if (typeof time === 'number') { Q.time = time; Q.clock = clock || null; }
+    resumeSearch = true;
     O.send({ t: 'quickMatch', timeLimit: Q.time, clock: Q.clock });
   }
   const tileOn = (b) => Q.searching && Number(b.dataset.time) === Q.time && (b.dataset.clock || null) === Q.clock;
   document.querySelectorAll('#qm-grid .qm-tile[data-time]').forEach((b) => { b.onclick = () => start(Number(b.dataset.time), b.dataset.clock); });
-  $('qm-cancel').onclick = () => O.send({ t: 'quickCancel' });
+  $('qm-cancel').onclick = () => { resumeSearch = false; O.send({ t: 'quickCancel' }); };
   $('banner-quick').onclick = () => start();
 
   function setSearching(on) {
@@ -78,11 +83,18 @@
 
   O.on('queue', (m) => {
     if (m.state === 'searching' && typeof m.timeLimit === 'number') { Q.time = m.timeLimit; Q.clock = m.clock || null; } // ô đang tìm (cả sau khi kết nối lại)
+    if (m.state !== 'searching') resumeSearch = false; // máy chủ đã kết thúc tìm: đã ghép, bị bỏ, hoặc đã huỷ
     setSearching(m.state === 'searching');
   });
   O.on('welcome', (m) => {
     setBan(m.me);
-    setSearching(false); // máy chủ gửi lại trạng thái hàng chờ ngay sau đây nếu vẫn đang tìm
+    // Rớt kết nối là máy chủ bỏ hàng chờ ngay (wentOffline → dequeue), còn welcome chỉ gửi lại trạng
+    // thái hàng chờ khi VẪN còn trong hàng chờ — câu "gửi lại ngay sau đây" trước đây là sai, và đó là
+    // gốc của lỗi hàng chờ tự tắt lặng lẽ sau 1–5 phút (buổi kiểm thử 25/10). Đang có ý định tìm trận
+    // thì tự gửi lại quickMatch với đúng ô đã chọn (máy chủ giữ nguyên mốc chờ khi trùng ô). Gửi lại
+    // mà bị từ chối (đang bị cấm tìm trận…) thì máy chủ trả lỗi hiện thành toast — không lặng lẽ nữa.
+    if (resumeSearch && !O.roomActive()) O.send({ t: 'quickMatch', timeLimit: Q.time, clock: Q.clock });
+    else { resumeSearch = false; setSearching(false); }
     if ($('online').open) watch(true);
   });
   O.on('close', () => {
@@ -120,8 +132,8 @@
           <small>⏱ ${esc(window.I18N.tc(r.timeLimit, r.clock))}${r.opening === 'swap2' ? ' · Swap2' : ''}${esc(window.I18N.ruleTag(r.rule))}${r.host.rating ? '' : ' · ' + esc(T('guest'))}</small></div>
         <button type="button" class="primary sm" data-lobby-join="${esc(r.code)}">${esc(T('lobby_join'))}</button></li>`).join('');
     el.querySelectorAll('[data-lobby-join]').forEach((b) => {
-      b.onclick = () => {
-        if (O.roomActive() && !confirm(T('confirm_leave'))) return;
+      b.onclick = async () => {
+        if (O.roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
         O.send({ t: 'joinRoom', code: b.dataset.lobbyJoin });
       };
     });

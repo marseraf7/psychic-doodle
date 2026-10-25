@@ -75,7 +75,7 @@ class Profile {
       profile: {
         id: u.id, name: u.name, username: u.username, av: u.avatar ? u.avatar.v : 0, created: u.created || null, status: this.status(u.id),
         rating: u.rating, main: R.mainPool(u), pools, history: this.store.ratingPoints(u.id),
-        stats: u.stats, rated: u.rated, streak: u.wstreak, tours: u.tours, recent, canHistory, histVis: this.histVisOf(u),
+        stats: u.stats, rated: u.rated, streak: u.wstreak, lstreak: u.lstreak, tours: u.tours, recent, canHistory, histVis: this.histVisOf(u),
         perf: u.perf || {}, activity: Perf.activity(u), // thống kê sâu theo loại + hoạt động 30 ngày
         self: meUid === u.id, friend: !!(me && me.friends.includes(u.id)), h2h: me && me.id !== u.id ? this.store.h2h(me.id, u.id) : null,
       },

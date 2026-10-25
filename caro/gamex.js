@@ -153,7 +153,7 @@
     if (act === 'more') O.send({ t: 'moretime' });
     else if (act === 'tb') { if (!b.classList.contains('tb-sent')) O.send({ t: 'takeback' }); }
     else if (act === 'tb-yes' || act === 'tb-no') O.send({ t: 'takebackAnswer', accept: act === 'tb-yes' });
-    else if (act === 'berserk' && confirm(T('berserk_confirm'))) O.send({ t: 'berserk' });
+    else if (act === 'berserk') window.CaroConfirm.ask(T('berserk_confirm')).then((ok) => { if (ok) O.send({ t: 'berserk' }); });
   });
 
   // Đang bị cấm tìm trận (bỏ ván nhiều): nhắc một lần khi kết nối
