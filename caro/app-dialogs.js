@@ -69,6 +69,7 @@
       form.theme.value = window.CaroTheme.get();
       form.elements.lang.value = window.I18N.lang;
       form.confirm.checked = state.confirm;
+      if (form.premove) form.premove.checked = window.CaroPremove.enabled;
       form.classList.toggle('pvp', state.mode === 'pvp');
     }
     $('btn-settings').onclick = () => {
@@ -90,6 +91,7 @@
       if (window.CaroStyle.board !== form.board.value || window.CaroStyle.pieces !== form.pieces.value) window.CaroStyle.set({ board: form.board.value, pieces: form.pieces.value });
       if (window.CaroBarPos && window.CaroBarPos.saved() !== form.barPos.value) window.CaroBarPos.setSaved(form.barPos.value);
       state.confirm = form.confirm.checked;
+      if (form.premove) window.CaroPremove.setEnabled(form.premove.checked);
       window.CaroTheme.set(form.theme.value);
       window.I18N.setLang(form.elements.lang.value);
       if (prevTime !== tcValue()) { if (state.clocks && state.clocks.local) state.clocks = null; resetClock(); }

@@ -264,6 +264,8 @@
     resetClock, showBanner, hideBanner, toBoard, save, load, maybeAI, isAITurn, toast,
     closeReplay: (silent) => closeReplay(silent), exitExt: (silent) => exitExt(silent), // tạo ở phía dưới
   });
+  // Đặt trước nước đi khi đối thủ đang nghĩ (premove.js)
+  window.CaroPremove.init({ state, canPlaceNow, play, requestDraw, vibrate });
 
   // ------------------------------------------------------------ Xem lại ván đã lưu (board-replay.js)
   const { openReplay, fitReplayView, seekReplay, stopReplay, toggleReplayPlay, closeReplay, updateReplayUI } = window.CaroBoardReplay({
@@ -365,6 +367,7 @@
       const prev = state.online.room;
       const fresh = prev.code !== room.code || (prev.gameNo !== room.gameNo && room.players.length === 2);
       applyRoom(room, me);
+      window.CaroPremove.afterRoom(); // tới lượt mình: đánh ngay ô đã đặt trước
       if (fresh && shellOn()) toBoard();
     },
     /** Xem ván của người khác (chỉ đọc). */

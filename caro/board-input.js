@@ -33,7 +33,16 @@
         return;
       }
       if (state.winner) { if (!state.ext) showBanner(); return; }
-      if (!canPlaceNow()) return;
+      if (!canPlaceNow()) {
+        // Chưa tới lượt (online): chạm là đặt trước nước đi (premove.js); ô quá nhỏ thì phóng to trước như khi đánh
+        const P = window.CaroPremove;
+        if (P && P.canSet()) {
+          const [x, y] = toCell(sx, sy);
+          if (!mouse && cam.size < TOUCH_MIN) { animateCamera(x, y, TOUCH_ZOOM); vibrate(5); return; }
+          P.tap(x, y);
+        }
+        return;
+      }
       const [x, y] = toCell(sx, sy);
       if (state.board.get(x, y) !== EMPTY) return;
       if (!mouse && cam.size < TOUCH_MIN) {

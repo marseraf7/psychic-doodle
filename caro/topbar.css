@@ -120,6 +120,8 @@
   text-transform: none; letter-spacing: 0; max-height: calc(100vh - 80px); overflow-y: auto;
 }
 .qs[hidden] { display: none; }
+/* Bảng nổi trong ván (mở từ menu ☰, topbar.js): neo theo nút ☰, right / bottom đặt bằng JS */
+.qs.qs-float { position: fixed; top: auto; z-index: 70; max-width: calc(100vw - 16px); max-height: min(70vh, 520px); }
 .qs-row {
   width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 9px;
   color: var(--text); font-size: var(--fs-sm); text-align: left;

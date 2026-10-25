@@ -83,7 +83,28 @@
   const gear = $('tb-gear');
   const panel = $('qs');
   window.CaroQuickSet.mount(panel);
+  // Mở từ menu ☰ trong ván (bar-menu.js): thanh trên đang ẩn cùng khung trang, nên đưa chính bảng này ra body thành
+  // bảng nổi cạnh nút ☰; đóng thì trả về chỗ cũ (một bảng duy nhất, không nhân đôi trạng thái)
+  const home = panel.parentElement;
+  function unfloat() {
+    if (!panel.classList.contains('qs-float')) return;
+    panel.classList.remove('qs-float');
+    panel.style.right = panel.style.bottom = '';
+    home.appendChild(panel);
+  }
+  window.addEventListener('caro:quickset', (e) => {
+    const at = e.detail || {};
+    // Chờ hết cú bấm hiện tại: không để trình nghe "bấm ra ngoài" bên dưới đóng ngay bảng vừa mở
+    setTimeout(() => {
+      document.body.appendChild(panel);
+      panel.classList.add('qs-float');
+      panel.style.right = at.right || '12px';
+      panel.style.bottom = at.bottom || '72px';
+      openPanel(true);
+    }, 0);
+  });
   function openPanel(on) {
+    if (!on) unfloat();
     panel.hidden = !on;
     gear.setAttribute('aria-expanded', String(on));
     gear.classList.toggle('on', on);

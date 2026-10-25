@@ -492,6 +492,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `app.js` | Điều phối: trạng thái ván, lưu trạng thái, máy đánh, thanh trên, kết quả, `window.CaroApp` |
 | `app-clock.js`, `app-online.js`, `app-dialogs.js`, `app-ext.js`, `app-ai.js`, `app-status.js` | Phần ván của `app.js`: đồng hồ; chơi / xem online; bảng Ván mới + Cài đặt; bàn cờ cho module khác (giải đố, bài học) + thông tin thẻ người chơi; máy đánh (Worker, mở khoá nhân vật); dòng lượt / tỉ số, báo tới lượt, thẻ kết quả ván |
 | `board-view.js`, `board-input.js`, `board-replay.js` | Bàn cờ: vẽ canvas + camera (zoom, kéo, quán tính); chạm / chuột / phím; chế độ xem lại ván |
+| `premove.js` | Đặt trước nước đi (premove, ý tưởng từ Lichess): ván online chưa tới lượt thì chạm ô để đặt trước, tới lượt là tự đánh; bật / tắt trong Cài đặt → Bàn cờ |
 | `ai-worker.js` | Chạy AI (nhân vật máy) và phân tích ván trong Web Worker để giao diện không bị khựng |
 | `bots.js` | 31 nhân vật máy (6 mức × 5 lối đánh + trùm cuối BOAT): số liệu sức cờ, trọng số lối đánh, sách khai cuộc, `botMove` |
 | `policy-data.js` | Trọng số chính sách nước đi theo luật (sinh bởi `server/scripts/train-policy.js`) – engine dùng để xếp ứng viên |
