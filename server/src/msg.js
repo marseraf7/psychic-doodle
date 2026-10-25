@@ -41,6 +41,7 @@ const VI = {
   room_full: 'Phòng đã đủ 2 người',
   not_in_room: 'Bạn không ở trong phòng nào',
   wants_rematch: '{name} muốn tái đấu',
+  rematch_no_opponent: 'Đối thủ đã rời phòng — không còn ai để tái đấu',
   challenge_friends_only: 'Chỉ thách đấu được bạn bè',
   friend_offline: '{name} đang offline',
   busy_in_game: 'Bạn đang trong một ván đấu, hãy kết thúc hoặc rời phòng trước',

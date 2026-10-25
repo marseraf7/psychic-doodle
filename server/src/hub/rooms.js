@@ -247,6 +247,10 @@ class Rooms {
   on_rematch(conn) {
     const room = this.inRoom(conn);
     if (room.tour) throw E('tour_no_rematch');
+    // Không còn đối thủ trong phòng (đã rời hẳn, phòng đã tái chế thành phòng chờ): báo ngay cho
+    // người bấm thay vì ghi phiếu lặng lẽ — buổi kiểm thử 25/10 người bấm chờ mãi mà không biết
+    // đối thủ đã đi, phía kia cũng không nhận được lời mời nào.
+    if (!room.opponentOf(conn.pid)) { conn.send(note('rematch_no_opponent')); return; }
     const started = room.voteRematch(conn.pid);
     if (started) for (const p of room.players) this.dequeue(p.id);
     else {
