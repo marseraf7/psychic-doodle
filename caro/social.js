@@ -328,15 +328,33 @@
     el.className = 'toast bubble' + (mine ? ' mine' : '');
     el.innerHTML = `<b>${esc(name)}</b> ${esc(text)}`;
     $('toasts').appendChild(el);
-    setTimeout(() => el.classList.add('out'), 3000);
-    setTimeout(() => el.remove(), 3300);
+    // Bong bóng của đối thủ hiện 7 giây (trước đây 3 giây — quá ngắn nên người chơi dễ lỡ, tưởng chat
+    // không tới nơi; Issue #141 mục 4). Bong bóng của mình giữ 3 giây vì mình biết mình vừa gửi gì.
+    const hold = mine ? 3000 : 7000;
+    setTimeout(() => el.classList.add('out'), hold);
+    setTimeout(() => el.remove(), hold + 300);
+  }
+  /** Ghim câu chat nhanh gần nhất của đối thủ lên thẻ người chơi (#pl-top) cho tới nước đi tiếp theo:
+   * thẻ được vẽ lại mỗi lần giao diện đổi (nước đi mới, hết ván…) nên ghim tự biến mất, không cần hẹn giờ. */
+  function pinQuick(name, text) {
+    const top = $('pl-top');
+    if (!top || top.hidden) return;
+    let el = top.querySelector('.quick-pin');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'quick-pin';
+      top.appendChild(el);
+    }
+    el.innerHTML = `<b>${esc(name)}</b> ${esc(text)}`;
   }
   N.on('quick', (m) => {
     const r = S.room;
     const p = r && r.players.find((x) => x.id === m.from);
     if (!QUICK.includes(m.id)) return;
     sfx('chat');
-    bubble(p ? p.name : T('opponent'), T('q_' + m.id), false);
+    const name = p ? p.name : T('opponent');
+    bubble(name, T('q_' + m.id), false);
+    pinQuick(name, T('q_' + m.id));
   });
   N.on('room', (m) => { if (!m.room) menu.hidden = true; });
 

@@ -25,6 +25,15 @@
   font-weight: var(--fw-bold); color: #fff; background: var(--o);
 }
 .pl-av.x { background: var(--x); }
+/* Câu chat nhanh gần nhất của đối thủ, ghim ngay dưới thẻ người chơi tới nước đi tiếp theo (social.js).
+ * Thẻ có chiều cao cố định nên ghim phải nổi ra ngoài (absolute), không chen vào hàng của thẻ. */
+.quick-pin {
+  position: absolute; top: calc(100% + 4px); left: 8px; max-width: calc(100% - 16px);
+  padding: 2px 8px; border-radius: 8px; background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--panel-border); font-size: var(--fs-2xs); color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.quick-pin b { color: var(--o); font-weight: var(--fw-semibold); }
 .pl-t { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.2; }
 .pl-name { font-size: var(--fs-sm); font-weight: var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pl-t small { font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
