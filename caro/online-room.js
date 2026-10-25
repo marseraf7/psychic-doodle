@@ -93,6 +93,11 @@
     }
     function openRoomInfo() { fillRoomInfo(); openDlg('room-info'); }
 
+    // Ô link phòng hẹp nên chữ bị cắt, không thấy phần ?room=…: bấm vào (hoặc Tab tới) là chọn hết
+    // chữ để thấy/kéo chọn được cả link, thay vì chỉ đoạn giữa bị cắt (Issue #141 mục 10, loi-05)
+    $('ri-link').addEventListener('click', (e) => e.target.select());
+    $('ri-link').addEventListener('focus', (e) => e.target.select());
+
     $('ri-copy').onclick = async () => {
       const link = $('ri-link').value;
       try { await navigator.clipboard.writeText(link); }
