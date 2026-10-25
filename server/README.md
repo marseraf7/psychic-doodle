@@ -294,6 +294,14 @@ máy chủ tự nhập vào `caro.db` và đổi tên file cũ thành `db.json.i
 `.backup` ở trên không chép nó. Chuyển máy chủ thì chép file này riêng (quyền 600), cất tách khỏi các bản sao lưu CSDL;
 không có nó máy chủ vẫn chạy, chỉ là các lần gửi điểm cũ không còn gắn được với tài khoản (tự hết hạn sau 30 ngày).
 
+**Sao lưu ngoài máy** (VPS hỏng thì các bản trong `/var/backups/caro` mất theo): `sudo bash server/deploy/offsite-backup.sh`
+cài một lần – mỗi ngày 3:25 chụp CSDL + `eval-key`, kiểm toàn vẹn, **mã hoá bằng age** rồi đặt ở
+`https://<tên miền>/offsite/<tên bí mật>/caro.tar.gz.age` cho người giữ bản sao tự kéo về. Khoá giải mã chỉ in ra một lần
+lúc cài (không lưu trên máy chủ) – chủ máy chủ giữ riêng, không gửi cho người giữ bản sao, nên link có lộ cũng không đọc
+được gì. Không bao giờ đưa `caro.db` / `eval-key` chưa mã hoá lên web hay vào chat: CSDL có email, mật khẩu đã băm và phiên
+đăng nhập đang hoạt động. Khôi phục: `age -d -i khoá.txt caro.tar.gz.age | tar xz` rồi làm như mục 3 của
+`deploy/CHUYEN-MAY-CHU.md`.
+
 ### Giao diện ở nơi khác, máy chủ ở nơi khác
 
 Nếu muốn giữ giao diện trên GitHub Pages, sửa `caro/config.js`:
