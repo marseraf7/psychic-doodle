@@ -300,6 +300,18 @@
   function newGame() {
     if (state.online || state.replay || state.ext) return;
     window.dispatchEvent(new Event('caro:newgame')); // rời ván cũ: local-save.js hỏi lưu ván vừa xong
+    // Hộp hỏi "Lưu lịch sử đấu?" đang mở thì CHỜ trả lời xong mới tạo ván mới — trước đây ván mới
+    // tạo ngay rồi hộp hỏi mới bật lên che bàn mới (Issue #141 mục 11, loi-06)
+    const ask = $('lh-ask');
+    if (ask && ask.open) {
+      ask.addEventListener('close', () => startNewGame(), { once: true });
+      return;
+    }
+    startNewGame();
+  }
+
+  function startNewGame() {
+    if (state.online || state.replay || state.ext) return;
     state.board = new Board(state.rule);
     state.turn = X;
     state.winner = null;
