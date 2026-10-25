@@ -8,7 +8,7 @@ Trong notebook Kaggle (Settings: Accelerator GPU, Internet On; Add-ons → Secre
 Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi):
   DATA_REPO   https://github.com/marseraf7/caro-nnue-data (mặc định)
   HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
-  BATCH 256 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước
+  BATCH 256 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước · TEMP_SAVE 1000 bước (lưu tạm)
 Học tiếp qua nhiều phiên: thư mục chạy (/kaggle/working/run) là đầu ra của notebook. Phiên sau: Add Input → chọn đầu ra
 của phiên trước – script lấy điểm kiểm tra cuối của phiên đó làm điểm xuất phát (không có thì học từ đầu). Chỉ giữ 2 điểm kiểm tra mới nhất cho đầu ra gọn.
 Token chỉ đọc từ Kaggle Secrets / biến môi trường GITHUB_TOKEN, không in ra; cần quyền ghi (Contents) repo dữ liệu.
@@ -33,6 +33,8 @@ BATCH = os.environ.get("BATCH", "256")  # 1024 hết bộ nhớ GPU T4 16 GB (mi
 LR = os.environ.get("LR", "0.001")
 WINDOW = int(os.environ.get("WINDOW", "3000"))
 SAVE_EVERY = os.environ.get("SAVE_EVERY", "5000")
+# Lưu tạm cuốn chiếu: T4 lô 256 chạy ~1,4 bước/giây → 1000 bước ≈ 12 phút (hết giờ thì xuất từ bản này)
+TEMP_SAVE = os.environ.get("TEMP_SAVE", "1000")
 KAGGLE = Path("/kaggle/working").exists()
 OUT = Path(os.environ.get("OUT", "/kaggle/working" if KAGGLE else str(Path.home() / "kaggle-out")))
 TMP = Path(os.environ.get("TMP_DIR", "/kaggle/temp" if KAGGLE else str(Path.home() / "kaggle-tmp")))
@@ -170,7 +172,7 @@ def train(tr, files, load_from=""):
     train_dir.mkdir(parents=True)
     for f in files:
         (train_dir / Path(f).name).symlink_to(f)
-    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY, SAVE_EVERY)
+    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY, TEMP_SAVE)
     if gpu:
         keops_cuda_env()
     cmd = [sys.executable, "-m", "accelerate.commands.launch", "--num_processes", "1"] + ([] if gpu else ["--cpu"]) + ["train.py", "-c", str(RUN / "config.yaml")]
