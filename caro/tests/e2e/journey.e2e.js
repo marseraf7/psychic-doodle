@@ -183,6 +183,12 @@ const { setup } = require('./helpers');
     p.on('pageerror', (e) => errs.push(name + ': ' + e.message));
     p.on('console', (m) => { if (m.type() === 'error') errs.push(name + ' console: ' + m.text()); });
     p.on('dialog', (d) => d.accept());
+    // Hộp xác nhận trong app (confirm.js) cũng tự Đồng ý như hộp gốc (đầu hàng, rời phòng…)
+    const poll = setInterval(() => {
+      p.evaluate(() => { const d = document.getElementById('confirm-dlg'); if (d && d.open) document.getElementById('confirm-ok').click(); }).catch(() => {});
+    }, 100);
+    poll.unref();
+    p.on('close', () => clearInterval(poll));
     await p.goto(`http://localhost:${PORT}/`);
     await sleep(500);
     await p.evaluate(() => document.querySelectorAll('dialog[open]').forEach((d) => d.close()));
