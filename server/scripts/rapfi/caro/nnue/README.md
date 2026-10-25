@@ -71,8 +71,8 @@ thì chạy lại lệnh; lô dở bị bỏ, lô xong đã ở trên repo. Xem:
 
 **Kaggle:** notebook mới → *Settings*: Accelerator **GPU**, Internet **On**; Secrets `GITHUB_TOKEN`; một ô:
 ```
-!git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle
-!python psychic-doodle/server/scripts/rapfi/caro/nnue/kaggle-train.py
+!git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle /kaggle/temp/pd
+!python /kaggle/temp/pd/server/scripts/rapfi/caro/nnue/kaggle-train.py
 ```
 *Save Version → Save & Run All* (chạy nền, tắt trình duyệt được). Phiên sau muốn học tiếp: *Add Input* → đầu ra của phiên
 trước (script tự học tiếp từ điểm kiểm tra cuối).
