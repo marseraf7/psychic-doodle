@@ -121,9 +121,11 @@
     const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
     const pools = POOLS.map((k) => {
       const x = p.pools[k];
-      return `<button type="button" class="pf-pool${k === chartPool ? ' on' : ''}" data-pool="${k}">
+      // Điểm tạm: chú thích ngay ở số điểm (title) và một dòng ghi chú dưới hàng điểm (loi-01)
+      return `<button type="button" class="pf-pool${k === chartPool ? ' on' : ''}" data-pool="${k}"${x.prov ? ` title="${esc(T('profile_prov_note'))}"` : ''}>
         <small>${esc(T('pool_' + k))}</small><b>${x.r}${x.prov ? '?' : ''}</b><small>${esc(T('lb_games', { n: x.n }))}</small></button>`;
     }).join('');
+    const anyProv = POOLS.some((k) => p.pools[k].prov);
     const recent = (p.recent || []).map((g) => `<li>
         <span class="res ${esc(g.result)}">${esc(T('res_' + g.result))}</span>
         <div class="pn"><b>${esc(T('vs', { name: g.opponent || T('deleted_player') }))}</b>
@@ -147,6 +149,7 @@
         <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
         <div class="row pf-act">${actions.join('')}</div></div>
       <div class="pf-pools">${pools}</div>
+      ${anyProv ? `<p class="hint prov-note">${esc(T('profile_prov_note'))}</p>` : ''}
       <div class="pf-chart">${chartSvg(p.history[chartPool])}</div>
       <div class="pf-stats">
         <div><b>${total}</b><small>${esc(T('profile_games'))}</small></div>
