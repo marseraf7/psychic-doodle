@@ -37,7 +37,7 @@
     return worker;
   }
   const cache = new Map(); // khoá: chuỗi nước đi -> kết quả
-  const an = { result: null, running: false, seq: 0, refining: null, job: 0, key: null, prog: 0 };
+  const an = { result: null, running: false, seq: 0, refining: null, job: 0, key: null, prog: 0, pv: null }; // pv: dòng máy gợi ý đang hiện
 
   /**
    * opts: { evals: thế đã chấm sẵn, ms: thời gian mỗi thế }. Có Worker (an-pool.js – 1 tới 4 Worker, nhớ các thế đã chấm
@@ -190,27 +190,8 @@
     return n || T('deleted_player');
   };
 
-  /** Biểu đồ lợi thế (như Lichess): trên vạch giữa là X hơn, dưới là O hơn; vạch dọc là nước đang xem. */
-  function graphSvg(res, idx) {
-    const n = res.moves.length;
-    if (!n) return '';
-    const pts = [[0, 50]].concat(res.moves.map((m, k) => [k + 1, 50 - m.e * 46]));
-    const line = pts.map(([x, y]) => `${x},${y.toFixed(1)}`).join(' ');
-    const area = `0,50 ${line} ${n},50`;
-    const ticks = res.moves.map((m, k) => (['blunder', 'mistake', 'miss', 'inacc'].includes(m.cls)
-      ? `<line x1="${k + 1}" x2="${k + 1}" y1="0" y2="100" stroke="${CLS[m.cls].color}" stroke-width="1.5" vector-effect="non-scaling-stroke" opacity="0.55"/>` : '')).join('');
-    return `<svg class="an-graph" viewBox="0 0 ${n} 100" preserveAspectRatio="none" role="img" aria-label="${esc(T('an_graph'))}">
-      <title>${esc(T('an_graph'))}</title>
-      <defs><clipPath id="an-top"><rect x="0" y="0" width="${n}" height="50"/></clipPath><clipPath id="an-bot"><rect x="0" y="50" width="${n}" height="50"/></clipPath></defs>
-      ${ticks}
-      <polygon points="${area}" class="an-ga-x" clip-path="url(#an-top)"/>
-      <polygon points="${area}" class="an-ga-o" clip-path="url(#an-bot)"/>
-      <line x1="0" x2="${n}" y1="50" y2="50" class="an-mid" vector-effect="non-scaling-stroke"/>
-      <polyline points="${line}" class="an-gl-x" clip-path="url(#an-top)" vector-effect="non-scaling-stroke"/>
-      <polyline points="${line}" class="an-gl-o" clip-path="url(#an-bot)" vector-effect="non-scaling-stroke"/>
-      <line id="an-cur" x1="${idx}" x2="${idx}" y1="0" y2="100" class="an-cur" vector-effect="non-scaling-stroke"/>
-    </svg>`;
-  }
+  const G = window.CaroAnGraph; // biểu đồ (kéo để tua) + khoảnh khắc quyết định (an-graph.js)
+  const EX = window.CaroExplore; // đi thử / tìm nước tốt hơn / dòng máy gợi ý (an-explore.js)
 
   function renderPanel() {
     const res = an.result;
@@ -230,7 +211,8 @@
     $('an-body').innerHTML = `<div class="an-players">${player(C.X)}${player(C.O)}</div>
       ${an.refining != null ? `<p class="an-refine muted" id="an-refine" role="status">${esc(T(an.rapfi ? 'an_refining_rapfi' : 'an_refining', { p: Math.round(an.refining * 100) }))}</p>` : ''}
       ${res.engine === 'rapfi' ? `<p class="an-eng muted">${esc(T('an_by_rapfi'))}</p>` : ''}
-      <div class="an-gwrap" id="an-gwrap">${graphSvg(res, App.replay.idx)}</div>
+      ${G.moments(res, CLS, glyph)}
+      <div class="an-gwrap" id="an-gwrap">${G.svg(res, App.replay.idx, CLS)}</div>
       <div class="an-moves" id="an-moves" role="list" aria-label="${esc(T('an_moves'))}">${list}</div>
       <div class="an-now" id="an-now"></div>`;
     renderNow();
@@ -259,20 +241,57 @@
     if (curLine) { curLine.setAttribute('x1', idx); curLine.setAttribute('x2', idx); }
     const m = res.moves[idx - 1];
     const el = $('an-now');
-    if (!m) { App.setMarks(null); if (el) el.innerHTML = `<span class="muted">${esc(T('an_start'))}</span>`; return; }
+    if (an.pv && an.pv.at !== idx) an.pv = null; // dòng máy chỉ hiện ở đúng thế đã tính
+    const pvMarks = an.pv && an.pv.line ? an.pv.line.map(([x, y], k) => ({ x, y, kind: 'ghost', color: GOOD, p: (idx + k) % 2 ? C.O : C.X, text: String(k + 1) })) : [];
+    const tapHint = EX ? `<p class="an-tap muted">${esc(T('an_tap_explore'))}</p>` : '';
+    if (!m) {
+      App.setMarks(pvMarks);
+      if (el) el.innerHTML = `<span class="muted">${esc(T('an_start'))}</span>${pvHtml(idx)}${tapHint}`;
+      return;
+    }
     const meta = CLS[m.cls];
     const marks = [{ x: m.x, y: m.y, kind: 'badge', color: meta.color, text: meta.text || (m.cls === 'good' ? '' : '') }];
-    if (m.best) marks.push({ x: m.best[0], y: m.best[1], kind: 'ghost', color: GOOD, p: m.p });
-    App.setMarks(marks.filter((k) => k.text || k.kind === 'ghost'));
+    if (m.best && !pvMarks.length) marks.push({ x: m.best[0], y: m.best[1], kind: 'ghost', color: GOOD, p: m.p });
+    App.setMarks(marks.filter((k) => k.text || k.kind === 'ghost').concat(pvMarks));
     if (!el) return;
     // Xếp loại theo mức tụt khả năng thắng (engine) thì ghi rõ tụt bao nhiêu %
     let text = m.ev ? T('ex_' + (m.cls === 'inacc' ? 'inacc' : m.cls + '_ev'), { d: m.drop }) : T('ex_' + m.cls, { len: m.len });
     if (m.cls === 'miss' && m.len === 1) text = T('ex_miss1');
     if (m.best) text += ' ' + T('ex_bestmove').replace(/[.。]$/, '') + ` → ${App.cellName(m.best[0], m.best[1])}`;
     const canRetry = ['miss', 'mistake', 'blunder'].includes(m.cls) && !m.ev; // "Thử lại" cần chuỗi thắng / thua chắc
+    // Nước chưa chính xác / sai lầm chấm theo khả năng thắng: "Tìm nước tốt hơn" – đi thử, nước đầu so với nước của máy
+    const canBetter = !canRetry && EX && m.best && ['inacc', 'mistake', 'blunder', 'miss'].includes(m.cls);
     el.innerHTML = `<span class="an-badge" style="--c:${meta.color}">${meta.text || '•'}</span>
       <span><b>${esc(T('an_move', { n: idx }))} ${glyph(m.p)} ${esc(App.cellName(m.x, m.y))} · ${esc(T('cls_' + m.cls))}</b> — ${esc(text)}</span>
-      ${canRetry ? `<button type="button" class="primary sm" data-retry="${idx - 1}">${ico('retry')} ${esc(T('an_retry'))}</button>` : ''}`;
+      ${canRetry ? `<button type="button" class="primary sm" data-retry="${idx - 1}">${ico('retry')} ${esc(T('an_retry'))}</button>` : ''}
+      ${canBetter ? `<button type="button" class="primary sm" data-better="${idx - 1}">${ico('retry')} ${esc(T('an_better'))}</button>` : ''}
+      ${EX && !an.pv ? `<button type="button" class="ghost sm" data-pv="${idx - 1}">${ico('bulb')} ${esc(T('an_pv'))}</button>` : ''}
+      ${pvHtml(idx)}${tapHint}`;
+  }
+
+  /** Dòng máy gợi ý đang hiện ở thế idx: "Dòng máy: e5 → f6 → …" + Đi thử từ đây / Ẩn. */
+  function pvHtml(idx) {
+    const pv = an.pv;
+    if (!pv || pv.at !== idx) return '';
+    if (!pv.line) return `<p class="an-pv muted" role="status">${esc(T('an_pv_loading'))}</p>`;
+    if (!pv.line.length) return `<p class="an-pv muted" role="status">${esc(T('an_pv_none'))}</p>`;
+    const names = pv.line.map(([x, y], k) => `<b>${k + 1}</b> ${esc(App.cellName(x, y))}`).join(' → ');
+    return `<p class="an-pv" role="status">${esc(T('an_pv_line'))} ${names}
+      <button type="button" class="ghost sm" data-pvtry="${idx}">${esc(T('an_pv_try'))}</button>
+      <button type="button" class="ghost sm" data-pvhide>${esc(T('an_pv_hide'))}</button></p>`;
+  }
+
+  /** Tính dòng máy gợi ý từ thế trước nước i (lùi bàn về thế đó để quân đánh số nằm đúng chỗ). */
+  async function showPv(i) {
+    const r = App.replay;
+    if (!r || !EX) return;
+    an.pv = { at: i, line: null };
+    const pv = an.pv;
+    if (r.idx !== i) App.seek(i); else renderNow();
+    const line = await EX.line(r.data.moves.slice(0, i), r.data.rule, 4);
+    if (an.pv !== pv) return; // đã tua đi chỗ khác / ẩn
+    pv.line = line;
+    renderNow();
   }
 
   /** Nút Chạy / Dừng trong bảng giống nút ở thanh dưới. */
@@ -294,17 +313,16 @@
   $('an-close').onclick = closePanel;
   $('an-body').addEventListener('click', (e) => {
     const b = e.target.closest('button');
-    if (!b) {
-      // Bấm vào biểu đồ: nhảy tới nước gần nhất
-      const g = e.target.closest('.an-graph');
-      if (g && an.result) {
-        const r = g.getBoundingClientRect();
-        App.seek(Math.round(((e.clientX - r.left) / r.width) * an.result.moves.length));
-      }
-      return;
-    }
+    if (!b) return; // biểu đồ: kéo / bấm để tua do an-graph.js lo
     if (b.dataset.i) App.seek(+b.dataset.i);
     else if (b.dataset.retry != null) retry(+b.dataset.retry);
+    else if (b.dataset.better != null) better(+b.dataset.better);
+    else if (b.dataset.pv != null) showPv(+b.dataset.pv);
+    else if (b.dataset.pvtry != null && App.replay) {
+      const i = +b.dataset.pvtry;
+      an.pv = null;
+      EX.start({ base: App.replay.data.moves.slice(0, i), backTo: i, rule: App.replay.data.rule });
+    } else if (b.hasAttribute('data-pvhide')) { an.pv = null; renderNow(); }
     else if (b.dataset.jump && an.result) {
       // Nước tiếp theo cùng loại của người chơi đó (hết thì quay lại nước đầu tiên)
       const p = +b.dataset.p, all = an.result.moves.filter((m) => m.p === p && m.cls === b.dataset.jump);
@@ -334,7 +352,17 @@
   // Mở câu đố / bài học khi bảng phân tích đang mở: dừng phân tích, đóng bảng (dấu nước cũ không sót trên bàn mới).
   // "Thử lại" (retry) cũng vào chế độ luyện nhưng là của chính bảng phân tích: giữ nguyên.
   let retrying = false;
-  window.addEventListener('caro:extenter', () => { if (retrying) return; cancel(); closePanel(); an.result = null; });
+  window.addEventListener('caro:extenter', () => { if (retrying || (EX && EX.entering)) return; cancel(); closePanel(); an.result = null; });
+  if (G) G.bind($('an-body'), () => an.result);
+
+  /** "Tìm nước tốt hơn" cho nước i (chấm theo khả năng thắng): đi thử từ thế trước nước đó, nước đầu được chấm. */
+  function better(i) {
+    const res = an.result, r = App.replay;
+    if (!res || !r || !EX) return;
+    const m = res.moves[i];
+    an.pv = null;
+    EX.start({ base: r.data.moves.slice(0, i), backTo: i + 1, rule: r.data.rule, goal: 'better', p: m.p, best: m.best });
+  }
 
   /** "Thử lại": đặt lại thế cờ trước nước i, cho người chơi tìm nước tốt hơn. */
   function retry(i) {

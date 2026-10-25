@@ -76,6 +76,26 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .an-gl-o { stroke: var(--o); }
 .an-mid { stroke: var(--grid-strong); stroke-width: 1; }
 .an-cur { stroke: var(--accent); stroke-width: 2; }
+/* Kéo trên biểu đồ để tua (an-graph.js): vuốt dọc vẫn cuộn bảng; nhãn nổi ghi số nước + khả năng thắng */
+.an-gwrap { position: relative; touch-action: pan-y; }
+.an-tip {
+  position: absolute; top: 4px; left: 0; padding: 2px 7px; border-radius: 7px; pointer-events: none; white-space: nowrap;
+  background: var(--panel); border: 1px solid var(--panel-border); color: var(--text); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums;
+}
+.an-tip[hidden] { display: none; }
+/* Thời điểm quan trọng: 2–3 nước lật cán cân mạnh nhất, bấm để tới */
+.an-kms { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex: none; }
+.an-km-h { font-size: var(--fs-xs); color: var(--muted); margin-right: 2px; }
+.an-km {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; color: var(--text);
+  background: color-mix(in srgb, var(--text) 6%, transparent); font-size: var(--fs-xs); font-variant-numeric: tabular-nums;
+}
+@media (hover: hover) { .an-km:hover { background: rgba(127, 127, 127, 0.18); } }
+.an-km .dot { font-weight: var(--fw-bold); }
+.an-km-n { color: var(--muted); }
+.an-km-d { font-weight: var(--fw-semibold); }
+.an-km-d.up { color: #5c9e31; }
+.an-km-d.down { color: #ca3431; }
 
 /* Danh sách nước đi: 2 cột (X | O) với số thứ tự, nước đang xem tô nền màu nhấn */
 .an-moves {
@@ -94,6 +114,14 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .an-now { display: flex; align-items: center; gap: 8px; min-height: 40px; line-height: 1.35; flex: none; }
 .an-now > span:nth-child(2) { flex: 1; min-width: 0; }
 .an-now .dot { font-weight: var(--fw-bold); }
+.an-now { flex-wrap: wrap; }
+/* Dòng máy gợi ý (quân mờ đánh số trên bàn) + lời nhắc chạm để đi thử: xuống dòng riêng dưới nhận xét */
+.an-pv, .an-tap { flex-basis: 100%; margin: 0; font-size: var(--fs-xs); line-height: 1.5; }
+.an-pv b { color: #5c9e31; }
+.an-pv button { margin-left: 4px; }
+/* Đi thử: khả năng thắng hai bên trên thanh trên (an-explore.js) */
+.ex-wc b.x { color: var(--x); }
+.ex-wc b.o { color: var(--o); }
 
 /* Nút điều khiển trong bảng (máy tính) */
 .an-nav { display: flex; align-items: center; gap: 2px; flex: none; }

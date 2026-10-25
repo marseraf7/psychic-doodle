@@ -21,6 +21,13 @@ body.online .banner-actions .online-only { display: inline-block !important; }
 .name { display: inline-block; max-width: 9em; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap; }
 .banner-sub { color: var(--muted); font-size: var(--fs-sm); margin: -4px 0 12px; max-width: 320px; }
 .banner-sub:empty { display: none; }
+/* Ván với máy: dòng "Phân tích nhanh" (an-banner.js) – bấm để mở bảng phân tích */
+.banner-an {
+  display: block; margin: -4px auto 12px; padding: 6px 12px; border-radius: 10px; max-width: 340px; line-height: 1.4;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--text); font-size: var(--fs-sm);
+}
+.banner-an[hidden] { display: none; }
+@media (hover: hover) { .banner-an:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); } }
 .primary:disabled { opacity: 0.6; cursor: default; }
 
 .dlg { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
