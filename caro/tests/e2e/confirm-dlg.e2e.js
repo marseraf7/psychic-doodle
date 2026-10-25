@@ -31,6 +31,7 @@ const { setup } = require('./helpers');
   // ---------------------------------------------------------------- Đầu hàng: Huỷ rồi Đồng ý
   const a = await user('vi', 'hx_a');
   const b = await user('vi', 'hx_b');
+  a.autoConfirm = b.autoConfirm = false; // bài này tự bấm Huỷ / Đồng ý ở hộp xác nhận
   await quick(a); await quick(b);
   const r1 = await waitRoom(a, (x) => x.players.length === 2 && !x.winner, 'ghép ván 1');
   const f1 = r1.actor === await meId(a) ? a : b;
@@ -70,6 +71,7 @@ const { setup } = require('./helpers');
   // ---------------------------------------------------------------- Đăng xuất giữa ván: Huỷ rồi Đồng ý
   const c = await user('vi', 'hx_c');
   const d = await user('vi', 'hx_d');
+  c.autoConfirm = d.autoConfirm = false;
   await quick(c); await quick(d);
   const r3 = await waitRoom(c, (x) => x.players.length === 2 && !x.winner, 'ghép ván 3');
   const f3 = r3.actor === await meId(c) ? c : d;
