@@ -531,6 +531,30 @@ async function reconnect(c) {
   return n;
 }
 
+test('ván giải: cả hai cùng mất kết nối vẫn xử thua người rớt trước (không huỷ kiểu #140), có khiếu nại', async () => {
+  const B = await organizer();
+  const keep = app.hub.T.TOUR_DISPUTE_MS;
+  app.hub.T.TOUR_DISPUTE_MS = 60000;
+  try {
+    const p1 = await account('bo', 1600);
+    const p2 = await account('bo', 1500);
+    const { id } = await B.req({ t: 'tourCreate', name: 'Cả hai rớt', format: 'knockout', startsAt: soon(), timeLimit: 30, bestOf: 1, thirdPlace: false, checkin: false }, 'tourCreated');
+    for (const p of [p1, p2]) await p.req({ t: 'tourJoin', id }, 'toast');
+    B.send({ t: 'tourStart', id });
+    await waitRoom(p1, (r) => r.tour && r.players.length === 2);
+    const t = app.hub.tours.get(id);
+    const room = app.hub.roomFor(p1.me.id);
+    p1.close();
+    await sleep(50);
+    p2.close(); // p2 rớt sau, lúc hẹn giờ của p1 hết hạn thì p2 cũng offline
+    await until(() => !!room.winner);
+    assert.strictEqual(room.reason, 'timeout');
+    assert.strictEqual(room.winner, room.sideOf(p2.me.id), 'người rớt trước (p1) thua');
+    await until(() => t.disputes.length > 0);
+    assert.strictEqual(t.disputes[t.disputes.length - 1].l, p1.me.uid, 'p1 khiếu nại mất kết nối được');
+  } finally { app.hub.T.TOUR_DISPUTE_MS = keep; }
+});
+
 test('loại trực tiếp Bo3: mất kết nối thì trận tạm dừng; ban tổ chức huỷ kết quả -> đánh tiếp từ tỉ số trước', async () => {
   const B = await organizer();
   const keep = app.hub.T.TOUR_DISPUTE_MS;

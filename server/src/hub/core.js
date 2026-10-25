@@ -186,10 +186,13 @@ class Hub {
       if (this.closed || this.isOnline(pid) || this.rooms.get(room.code) !== room) return;
       if (!room.active || room.gameNo !== game || !room.has(pid)) return;
       const opp = room.opponentOf(pid);
-      if (opp && !this.isOnline(opp.id)) {
+      if (opp && !this.isOnline(opp.id) && !room.tour) {
         // Cả hai cùng mất kết nối (#140): huỷ ván thay vì xử thua người rớt trước — ván không ai
         // chơi thì không ai thua. Huỷ luôn hẹn giờ của đối thủ để không xử lý lần hai; ván kết thúc
         // kiểu 'abandoned' được settle() bỏ qua như 'abort' (không điểm, không hồ sơ, không lưu).
+        // Ván của giải giữ cách cũ (xử thua 'timeout'): giải cần một kết quả để đi tiếp, và người rớt
+        // trước vẫn khiếu nại mất kết nối được (tour-disputes) – huỷ ở đây thì Arena cộng điểm hoà,
+        // nhánh đấu nhận ván không người thắng.
         clearTimeout(this.forfeitTimers.get(opp.id));
         this.forfeitTimers.delete(opp.id);
         room.finish(DRAW, 'abandoned');
