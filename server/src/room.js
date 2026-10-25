@@ -71,7 +71,7 @@ class Room {
     this.turn = X;
     this.winner = null; // X | O | DRAW
     this.winCells = null;
-    this.reason = null; // 'win' | 'resign' | 'leave' | 'timeout' (mất kết nối) | 'time' (hết giờ) | 'draw' | 'abort' (huỷ)
+    this.reason = null; // 'win' | 'resign' | 'leave' | 'timeout' (mất kết nối) | 'time' (hết giờ) | 'draw' | 'abort' (huỷ) | 'abandoned' (cả hai mất kết nối, #140)
     this.turnEndsAt = null;
     this.drawOffer = null; // id người đang xin hoà
     this.drawWait = {}; // id -> thời điểm được xin hoà lại

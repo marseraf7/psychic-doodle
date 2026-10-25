@@ -269,7 +269,7 @@ class Rooms {
     room.lastShare = null;
     this.recordRoomOutcomes(room); // chống bỏ ván (playban.js)
     room.lastUnrated = false;
-    if (room.reason === 'abort') return this.afterSettle(room, leaving); // ván bị huỷ: không tính gì, không lưu
+    if (room.reason === 'abort' || room.reason === 'abandoned') return this.afterSettle(room, leaving); // ván bị huỷ (người chơi huỷ / cả hai mất kết nối #140): không tính gì, không lưu
     const draw = room.winner === DRAW;
     const xPid = room.seats[1], oPid = room.seats[2];
     const U = (pid) => (uidOf(pid) && this.store.users.get(uidOf(pid))) || null;
