@@ -137,13 +137,24 @@
       return !!(r && r.players.length === 2 && !r.winner && r.moves.length);
     }
 
+    /** Về Trang chủ, thẻ Phòng chờ (sau khi rời phòng lúc ván chưa kết thúc). */
+    function goLobby() {
+      if (window.CaroHome) { window.CaroHome.open(); window.CaroHome.pane('lobby'); }
+    }
+
     function leaveRoom() {
       if (roomActive() && !confirm(T('confirm_leave'))) return;
+      const r = S.room;
+      // Ván chưa kết thúc (đang chờ đối thủ hoặc đang đánh dở): rời xong về sảnh, không mở lại ván
+      // với máy đang dở — ván đó vẫn hiện thành thẻ "Tiếp tục ván" ở Trang chủ (Issue #141 mục 2).
+      // Ván đã kết thúc (nút ở thẻ kết quả) giữ hành vi cũ: về bàn cờ trên máy.
+      const toLobby = !!r && !r.winner;
       if (!send({ t: 'leaveRoom' })) {
         // Mất kết nối: vẫn cho quay về chơi cục bộ.
         S.room = null;
         App.leaveOnline();
-      }
+        if (toLobby) goLobby();
+      } else if (toLobby) S.toLobby = true; // online.js (setRoom) đưa về sảnh khi máy chủ xác nhận đã rời phòng
     }
     $('btn-leave').onclick = leaveRoom;
     $('banner-leave').onclick = leaveRoom;

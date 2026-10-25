@@ -229,6 +229,11 @@
     } else if (!room) {
       App.leaveOnline();
       closeDlg('room-info');
+      // Người chơi vừa bấm "Rời phòng" lúc ván chưa kết thúc: về Trang chủ → Phòng chờ (Issue #141 mục 2)
+      if (S.toLobby) {
+        S.toLobby = false;
+        if (window.CaroHome) { window.CaroHome.open(); window.CaroHome.pane('lobby'); }
+      }
     }
     ctx.renderDraw();
     ctx.renderInvites();
