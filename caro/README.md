@@ -417,6 +417,12 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   mỗi nước), hết giờ tự hủy; máy chủ đổi TTL lời mời 60 giây → 5 phút (`server/src/hub/shared.js`, khớp đếm ngược máy khách).
   Thách đấu còn gửi kèm tin nhắn DM mang mã lời mời (`challenge-msg.js`): bên nhận vẽ thành thẻ bấm được Chấp nhận / Từ chối
   (cả bong bóng desktop lẫn hộp chat mobile, thẻ vẽ lại thành "đã hết hạn" khi lời mời biến mất), bên gửi thấy dòng thông báo.
+  Thẻ lời mời nổi gọn lại: một ô hẹp (tối đa 340px) dạt hẳn sang phải, không đè thanh công cụ; đồng hồ đếm ngược chỉ cập nhật
+  chữ mỗi giây, không vẽ lại thẻ nên không nhấp nháy (trước đây ticker vẽ lại innerHTML mỗi giây làm animation pop chạy lại).
+  Thẻ thách đấu nhận được có thêm nút góc trên phải: − thu gọn thành bong bóng chat kèm đồng hồ đếm ngược (bấm bong bóng
+  khôi phục lại thẻ), × tắt thẻ nổi — tắt thẻ không gửi từ chối và không xóa lời mời: thẻ trong đoạn chat vẫn còn nút
+  Nhận/Từ chối, hộp thoại Online vẫn còn lời mời (muốn từ chối hẳn thì bấm Từ chối). Thẻ nhận hiện đầy đủ cũng có đồng hồ
+  đếm ngược 5 phút (cùng TTL máy chủ), cập nhật mỗi giây như thẻ chờ, kể cả khi thu gọn thành bong bóng.
 - **Chat nhanh** (Issue #128): 2 nút bấm là gửi trên ô nhập chat (cả bong bóng desktop lẫn hộp chat mobile) — "Okeeee"
   (giữ nguyên cả 4 ngôn ngữ, vốn là câu cửa miệng chơi game) và "Hẹn gặp lại" (vi / See you again / До встречи / 再见);
   câu gửi đi là bản theo ngôn ngữ giao diện của người gửi.

@@ -178,6 +178,33 @@ input:not([type="range"]):focus { outline: 2px solid var(--accent); outline-offs
 .invite small { display: block; color: var(--muted); font-size: var(--fs-xs); }
 /* Lời thách đấu đã gửi (online-friends.js, Issue #128): dạt sang bên phải cho đỡ vướng giữa màn hình. */
 .invites .invite.invite-right { align-self: flex-end; }
+/* Thẻ lời mời nổi gọn lại (1 ô hẹp dạt hẳn phải, không đè thanh công cụ): chỉ áp cho thẻ
+   nổi trong #invites, bản trong hộp thoại Online giữ nguyên dạng danh sách đầy đủ. */
+.invites > .invite { width: min(340px, 100%); }
+.invites > .invite-mini { width: auto; border-radius: 999px; padding: 8px 14px; font-size: var(--fs-sm); }
+/* Nút góc trên phải của thẻ thách đấu nhận được: thu gọn (−) / tắt (×). Thẻ chừa đệm trên
+   để nút góc không đè lên nút Nhận/Từ chối. */
+.invite.has-ctl { position: relative; padding-top: 26px; }
+.invite-ctl { position: absolute; top: 4px; right: 8px; display: flex; gap: 2px; }
+.invite-ctl button {
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: var(--fs-md); border-radius: 8px;
+}
+.invite-ctl button:hover { background: rgba(127, 127, 127, 0.12); color: var(--text); }
+/* Nhóm nút của thẻ lời mời (để xếp chồng được khi thẻ hẹp). */
+.invite-btns { display: flex; gap: 8px; flex: none; }
+/* Máy tính: thẻ nổi phải nằm GỌN trong lề phải, không lấn vào cột nội dung 760px căn giữa
+   (ở màn laptop thẻ 340px lấn ~45-90px vào cột, che mất mép cuối các hàng menu — đó là chỗ
+   trông như "đè lên thanh tab"). Bề rộng thẻ = lề phải trừ khe 16px, tối đa 340px; lề hẹp
+   thì thẻ xếp chồng (chữ trên, nút dưới dồn phải) để nút không vỡ. */
+@media (min-width: 900px) {
+  .invites > .invite:not(.invite-mini) {
+    /* Tối thiểu 240px: màn 900–1100px lề phải chỉ còn ~54–150px, thẻ hẹp vậy thì không đọc được – chấp nhận lấn cột một ít */
+    width: min(340px, max(240px, calc((100vw - min(760px, 100vw)) / 2 - 16px)));
+    flex-direction: column; align-items: stretch;
+  }
+  .invites > .invite:not(.invite-mini) .invite-btns { justify-content: flex-end; flex-wrap: wrap; }
+}
 /* Thẻ lời thách đấu trong đoạn chat (challenge-msg.js): dòng thông báo + 2 nút bấm. */
 .msg.challenge span:first-child { background: var(--panel); border: 1px solid var(--panel-border); }
 .msg .ch-btns { display: flex; gap: 6px; margin-top: 6px; background: none !important; border: 0 !important; padding: 0 !important; }

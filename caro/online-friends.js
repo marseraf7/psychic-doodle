@@ -16,12 +16,17 @@
     // Lời thách đấu gửi đi sống 5 phút (Issue #128, khớp TTL máy chủ INVITE_TTL_MS):
     // thẻ chờ hiện sang bên phải + đếm ngược, hết giờ tự hủy.
     const SENT_MS = 5 * 60 * 1000;
-    let sentTicker = 0;
-    const sentLeft = () => (S.sent ? SENT_MS - (Date.now() - (S.sent.sentAt || Date.now())) : 0);
-    const sentClock = () => {
-      const left = Math.max(0, sentLeft());
+    let clockTicker = 0;
+    const minimized = new Set(); // id lời mời đang thu gọn thành bong bóng
+    const dismissed = new Set(); // id lời mời đã tắt thẻ nổi (lời mời vẫn còn, chỉ ẩn thẻ)
+    const inviteAt = new Map(); // id -> ms nhận được (đếm ngược bong bóng thu gọn)
+    const fmtClock = (ms) => {
+      const left = Math.max(0, ms);
       return Math.floor(left / 60000) + ':' + String(Math.floor(left / 1000) % 60).padStart(2, '0');
     };
+    const sentLeft = () => (S.sent ? SENT_MS - (Date.now() - (S.sent.sentAt || Date.now())) : 0);
+    const sentClock = () => fmtClock(sentLeft());
+    const invClock = (id) => fmtClock(SENT_MS - (Date.now() - (inviteAt.get(id) || Date.now())));
 
     const statusText = (st) => T('st_' + st);
 
@@ -124,32 +129,53 @@
       // Thông tin trận: Bo3 · ai đi trước · thời gian mỗi nước
       const details = (inv, first) => [`Bo${inv.bestOf}`, first, inv.timeLimit || inv.clock ? '⏱ ' + window.I18N.tc(inv.timeLimit, inv.clock) : '',
         inv.opening === 'swap2' ? 'Swap2' : '', inv.rule && inv.rule !== 'vn' ? T('grule_s_' + inv.rule) : ''].filter(Boolean).join(' · ');
-      let html = '';
+      // Dọn mục đã biến mất + đóng dấu thời gian nhận (đếm ngược bong bóng thu gọn).
+      for (const id of [...minimized]) if (!S.invites.has(id)) minimized.delete(id);
+      for (const id of [...dismissed]) if (!S.invites.has(id)) dismissed.delete(id);
+      for (const id of [...inviteAt.keys()]) if (!S.invites.has(id)) inviteAt.delete(id);
+      for (const id of S.invites.keys()) if (!inviteAt.has(id)) inviteAt.set(id, Date.now());
+      // Thẻ nổi (box) gọn sang phải + có nút thu gọn/tắt; bản trong hộp thoại Online giữ
+      // nguyên dạng danh sách đầy đủ (không thu gọn, không nút góc) để vẫn nhận/từ chối được.
+      let floatHtml = '', dlgHtml = '';
       for (const inv of S.invites.values()) {
         const first = inv.first === 'random' ? T('first_random') : inv.first === 'me' ? T('first_name', { name: inv.from.name }) : T('first_you');
-        html += `<div class="invite"><div><b>${esc(T('invite_from', { name: inv.from.name }))}</b><small>${esc(details(inv, first))}</small></div>
-          <button type="button" class="ghost sm" data-no="${esc(inv.id)}">${esc(T('decline'))}</button>
-          <button type="button" class="primary sm" data-yes="${esc(inv.id)}">${esc(T('receive'))}</button></div>`;
+        const body = `<div><b>${esc(T('invite_from', { name: inv.from.name }))}</b><small>${esc(details(inv, first))} · <span data-inv-clock="${esc(inv.id)}">⏳ ${esc(invClock(inv.id))}</span></small></div>
+          <span class="invite-btns"><button type="button" class="ghost sm" data-no="${esc(inv.id)}">${esc(T('decline'))}</button>
+          <button type="button" class="primary sm" data-yes="${esc(inv.id)}">${esc(T('receive'))}</button></span>`;
+        dlgHtml += `<div class="invite">${body}</div>`;
+        if (minimized.has(inv.id)) {
+          floatHtml += `<button type="button" class="invite invite-mini invite-right" data-restore="${esc(inv.id)}" title="${esc(T('invite_from', { name: inv.from.name }))}">💬 <span data-inv-clock="${esc(inv.id)}">⏳ ${esc(invClock(inv.id))}</span></button>`;
+        } else if (!dismissed.has(inv.id)) {
+          floatHtml += `<div class="invite invite-right has-ctl">${body}
+          <span class="invite-ctl"><button type="button" data-min="${esc(inv.id)}" title="${esc(T('invite_minimize'))}">−</button><button type="button" data-dismiss="${esc(inv.id)}" title="${esc(T('invite_dismiss'))}">×</button></span></div>`;
+        }
       }
       if (S.sent) {
         const s = S.sent;
         const first = s.first === 'random' ? T('first_random') : s.first === 'me' ? T('first_you') : T('first_name', { name: s.to.name });
-        const small = [details(s, first), '⏳ ' + sentClock()].filter(Boolean).join(' · '); // ⏳ = còn lại (khác ⏱ của thời gian mỗi nước)
-        html += `<div class="invite invite-right"><div>${esc(T('waiting_accept', { name: s.to.name }))}<small>${esc(small)}</small></div>
-          <button type="button" class="ghost sm" data-cancel-sent>${esc(T('cancel'))}</button></div>`;
+        const det = details(s, first);
+        // ⏳ = còn lại (khác ⏱ của thời gian mỗi nước). Đồng hồ nằm trong span riêng để
+        // ticker chỉ cập nhật chữ, không vẽ lại thẻ (xem dưới).
+        const small = `${det ? esc(det) + ' · ' : ''}<span data-sent-clock>⏳ ${esc(sentClock())}</span>`;
+        const body = `<div>${esc(T('waiting_accept', { name: s.to.name }))}<small>${small}</small></div>
+          <span class="invite-btns"><button type="button" class="ghost sm" data-cancel-sent>${esc(T('cancel'))}</button></span>`;
+        floatHtml += `<div class="invite invite-right">${body}</div>`;
+        dlgHtml += `<div class="invite">${body}</div>`;
       }
       const r = S.room;
       if (r && S.me && r.drawOffer && r.drawOffer !== S.me.id && !r.winner) {
         const opp = r.players.find((p) => p.id === r.drawOffer);
-        html += `<div class="invite"><div><b>🤝 ${esc(T('draw_ask', { name: opp ? opp.name : T('opponent') }))}</b></div>
-          <button type="button" class="ghost sm" data-draw="no">${esc(T('decline'))}</button>
-          <button type="button" class="primary sm" data-draw="yes">${esc(T('accept'))}</button></div>`;
+        const draw = `<div class="invite"><div><b>🤝 ${esc(T('draw_ask', { name: opp ? opp.name : T('opponent') }))}</b></div>
+          <span class="invite-btns"><button type="button" class="ghost sm" data-draw="no">${esc(T('decline'))}</button>
+          <button type="button" class="primary sm" data-draw="yes">${esc(T('accept'))}</button></span></div>`;
+        floatHtml += draw;
+        dlgHtml += draw;
       }
       // Hiện cả trong bảng Online (hộp thoại đang mở che mất thẻ lời mời phía dưới)
       const inner = $('dlg-invites');
-      box.innerHTML = html + ((window.CaroGameX && window.CaroGameX.floatHtml()) || '') + ((window.CaroMatch && window.CaroMatch.floatHtml()) || '');
-      inner.innerHTML = html;
-      inner.hidden = !html;
+      box.innerHTML = floatHtml + ((window.CaroGameX && window.CaroGameX.floatHtml()) || '') + ((window.CaroMatch && window.CaroMatch.floatHtml()) || '');
+      inner.innerHTML = dlgHtml;
+      inner.hidden = !dlgHtml;
       const all = (sel) => [...box.querySelectorAll(sel), ...inner.querySelectorAll(sel)];
       all('[data-draw]').forEach((b) => { b.onclick = () => send({ t: 'drawAnswer', accept: b.dataset.draw === 'yes' }); });
       all('[data-yes]').forEach((b) => {
@@ -164,21 +190,32 @@
       box.querySelectorAll('[data-qm-cancel]').forEach((b) => { b.onclick = () => send({ t: 'quickCancel' }); });
       box.querySelectorAll('[data-qm-open]').forEach((b) => { b.onclick = () => $('btn-online').click(); });
       all('[data-cancel-sent]').forEach((c) => { c.onclick = () => { send({ t: 'challengeCancel', id: S.sent.id }); S.sent = null; renderInvites(); }; });
-      // Đếm ngược lời đã gửi: mỗi giây vẽ lại; hết giờ tự hủy (khớp TTL máy chủ).
-      if (S.sent && !sentTicker) {
-        sentTicker = setInterval(() => {
-          if (!S.sent) { clearInterval(sentTicker); sentTicker = 0; return; }
-          if (sentLeft() <= 0) {
-            send({ t: 'challengeCancel', id: S.sent.id });
-            S.sent = null;
-            clearInterval(sentTicker);
-            sentTicker = 0;
+      // Thu gọn thành bong bóng / tắt thẻ nổi (chỉ thẻ nổi, không đụng bản trong hộp thoại
+      // và không đụng lời mời: tắt thẻ KHÔNG gửi từ chối, không xóa khỏi S.invites — thẻ
+      // trong đoạn chat vẫn vẽ nút Nhận/Từ chối vì nó kiểm tra S.invites, hộp thoại Online
+      // vẫn còn lời mời, huy hiệu vẫn đếm. Tắt hẳn lời mời thì bấm Từ chối.
+      box.querySelectorAll('[data-min]').forEach((b) => { b.onclick = () => { minimized.add(b.dataset.min); renderInvites(); }; });
+      box.querySelectorAll('[data-restore]').forEach((b) => { b.onclick = () => { minimized.delete(b.dataset.restore); renderInvites(); }; });
+      box.querySelectorAll('[data-dismiss]').forEach((b) => { b.onclick = () => { dismissed.add(b.dataset.dismiss); renderInvites(); }; });
+      // Đếm ngược: mỗi giây chỉ cập nhật chữ đồng hồ, KHÔNG vẽ lại thẻ — vẽ lại làm
+      // animation pop chạy lại mỗi giây nên thẻ nhấp nháy. Đổi trạng thái (hết giờ, hủy,
+      // thu gọn, tắt...) mới vẽ lại.
+      // Ticker chạy khi còn đồng hồ nào hiển thị: lời gửi, bong bóng thu gọn, hoặc thẻ
+      // nhận hiện đầy đủ (thẻ nhận cũng có đếm ngược 5 phút).
+      const needClock = !!(S.sent || minimized.size || S.invites.size);
+      if (needClock && !clockTicker) {
+        clockTicker = setInterval(() => {
+          for (const el of [box, inner]) {
+            if (!el) continue;
+            const sc = el.querySelector('[data-sent-clock]');
+            if (sc && S.sent) sc.textContent = '⏳ ' + sentClock();
+            el.querySelectorAll('[data-inv-clock]').forEach((sp) => { sp.textContent = '⏳ ' + invClock(sp.dataset.invClock); });
           }
-          renderInvites();
+          if (S.sent && sentLeft() <= 0) { send({ t: 'challengeCancel', id: S.sent.id }); S.sent = null; renderInvites(); return; }
         }, 1000);
-      } else if (!S.sent && sentTicker) {
-        clearInterval(sentTicker);
-        sentTicker = 0;
+      } else if (!needClock && clockTicker) {
+        clearInterval(clockTicker);
+        clockTicker = 0;
       }
     }
 
