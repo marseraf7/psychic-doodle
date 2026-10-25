@@ -16,6 +16,8 @@
 
     // ------------------------------------------------------------ Phòng
     $('create-room').onclick = () => {
+      // Đang có ván dở: tạo phòng mới là rời ván cũ và bị xử thua — hỏi trước (Issue #141 mục 1)
+      if (roomActive() && !confirm(T('confirm_leave'))) return;
       const side = document.querySelector('input[name="room-side"]:checked').value;
       send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, rule: $('room-rule').value, public: $('room-public').checked });
     };
@@ -34,6 +36,8 @@
     $('join-form').onsubmit = (e) => {
       e.preventDefault();
       const f = e.target;
+      // Vào phòng khác cũng là bỏ ván dở (bị xử thua) — hỏi trước như khi tạo phòng (Issue #141 mục 1)
+      if (roomActive() && !confirm(T('confirm_leave'))) return;
       $('join-err').textContent = '';
       send({ t: 'joinRoom', code: f.code.value.trim(), password: f.password.value.trim() });
     };

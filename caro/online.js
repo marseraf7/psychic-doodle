@@ -294,6 +294,8 @@
     url.searchParams.delete('room');
     history.replaceState(null, '', url);
     if (S.room && S.room.code === code) return;
+    // Đang có ván dở mà mở link phòng khác: vào phòng đó là bỏ ván (bị xử thua) — hỏi trước (Issue #141 mục 1)
+    if (ctx.roomActive() && !confirm(T('confirm_leave'))) return;
     probing = code;
     send({ t: 'joinRoom', code }); // không gửi mật khẩu: phòng công khai thì vào luôn
   }
