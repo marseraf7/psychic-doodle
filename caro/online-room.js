@@ -192,6 +192,9 @@
       if (r.delta && typeof r.delta[me] === 'number') {
         const d = r.delta[me];
         sub = (sub ? sub + ' · ' : '') + T('rating_delta', { d: (d >= 0 ? '+' : '') + d, pool: T('pool_' + (r.pool || 'rapid')) });
+        // Điểm còn tạm (RD cao): giải thích ngay vì sao điểm nhảy nhiều (vd. ±162 ở ván đầu) — loi-08
+        const meP = r.players.find((p) => p.id === me);
+        if (meP && meP.prov) sub = (sub ? sub + ' · ' : '') + T('rating_prov_note');
       }
       if (!opp && !r.tour) { sub = T('opp_left'); rematch = false; } // giải: đối thủ đã sang trận khác, vẫn hiện kết quả
       // Ván của giải đấu: không tái đấu; Arena tự ghép ván sau
