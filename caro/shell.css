@@ -231,10 +231,19 @@ body.online .home .welcome-card { display: flex; }
   .pg-body::after { height: 28px; }
   /* Cột lăn rộng hết trang, nội dung vẫn căn giữa (Issue #128): trước đây chính khung cuộn
      .pg-body bị bóp về 760px nên lăn chuột ở lề ngoài không cuộn được gì. Giờ khung cuộn giữ
-     full-width, từng khối con tự co về 760px và căn giữa — nhìn y hệt trước, nhưng lăn ở đâu cũng cuộn. */
-  .pg-body:not(.home) > * { width: min(760px, 100%); margin-left: auto; margin-right: auto; }
+     full-width, từng khối con tự co về 760px và căn giữa — nhìn y hệt trước, nhưng lăn ở đâu cũng cuộn.
+     Ghi #shell để luật này thắng các luật margin ngang riêng của từng khối (vd. .pg-body
+     .pz-stats { margin: 0 } hay #page-learn .pg-body > h3 { margin: 10px 4px } ở pages.css):
+     trước đây khung đã 760px sẵn nên các margin đó vô hại, giờ khối nào cũng phải tự căn giữa
+     nên margin ngang riêng kéo khối lệch khỏi cột — đã vỡ ở trang Câu đố (ô thống kê) và
+     Học tập (tiêu đề), và cùng kiểu vỡ ở mọi khối khác có margin ngang riêng. */
+  #shell .pg-body:not(.home) > * { width: min(760px, 100%); margin-left: auto; margin-right: auto; }
   /* Trang Cài đặt: form.setf là display: contents nên các trang con .sp thành khối trực tiếp của khung cuộn. */
-  .pg-body:not(.home) > form.setf > * { width: min(760px, 100%); margin-left: auto; margin-right: auto; }
+  #shell .pg-body:not(.home) > form.setf > * { width: min(760px, 100%); margin-left: auto; margin-right: auto; }
+  /* Dòng tiến độ trang Học tập có luật 2 id ở pages.css (#page-learn #learn-progress),
+     thắng cả luật #shell trên nên ghi đè riêng ở đây; chỉ trong media ≥900px để dưới
+     900px vẫn giữ nguyên margin 4px như cũ. */
+  #shell #page-learn #learn-progress { margin-left: auto; margin-right: auto; }
   .home-grid {
     grid-template-columns: minmax(220px, 1fr) minmax(0, 2fr) minmax(220px, 1fr);
     grid-template-areas: "left main side"; align-items: start; gap: 20px;
