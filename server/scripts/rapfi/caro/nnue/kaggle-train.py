@@ -223,6 +223,22 @@ def value_loss():
         pass
     return v
 
+def tidy():
+    """Cuối phiên: thu gọn đầu ra để Kaggle lưu Output trong vài phút (trước đây phiên 9 giờ kẹt nhiều giờ ở bước lưu,
+    quá giới hạn 12 giờ). Bỏ run/train (symlink tới dữ liệu đã có trên repo – Kaggle đi theo link chép cả trăm file), prev/
+    (bản chép ckpt phiên trước), state_*.pt (trạng thái bộ tối ưu – phiên sau chỉ nạp trọng số, xem resume_previous) và
+    mọi điểm kiểm tra trừ cái mới nhất mỗi loại – vẫn đủ để phiên sau học tiếp."""
+    shutil.rmtree(RUN / "train", ignore_errors=True)
+    shutil.rmtree(OUT / "prev", ignore_errors=True)
+    good = latest_ckpt()  # điểm kiểm tra mới nhất đọc được (file ghi dở lúc hết giờ bị bỏ qua)
+    step = re.search(r"_(\d{7})\.pt$", good).group(1) if good else None
+    for f in glob.glob(str(RUN / "ckpts" / "*.pt")):
+        name = Path(f).name
+        if name.startswith("state_") or not step or f"_{step}." not in name:
+            os.remove(f)
+    mb = sum(f.stat().st_size for f in OUT.rglob("*") if f.is_file() and not f.is_symlink()) / 1e6
+    say(f"Thu gọn đầu ra: còn {mb:.0f} MB (giữ {Path(good).name if good else 'không có điểm kiểm tra'} để phiên sau học tiếp)")
+
 
 def export_and_push(tr, ck, nfiles):
     label = time.strftime("k-%Y%m%d-%H%M", time.gmtime())
@@ -273,4 +289,7 @@ if __name__ == "__main__":
         except OSError:
             pass
         sys.exit(f"Huấn luyện không ra điểm kiểm tra nào – xem {RUN / 'train.log'}")
-    export_and_push(tr, ck, len(files))
+    try:
+        export_and_push(tr, ck, len(files))
+    finally:
+        tidy()  # cả khi đẩy lỗi: mạng .bin.lz4 vẫn nằm trong đầu ra để tải tay

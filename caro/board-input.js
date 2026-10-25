@@ -33,7 +33,25 @@
         return;
       }
       if (state.winner) { if (!state.ext) showBanner(); return; }
-      if (!canPlaceNow()) return;
+      if (!canPlaceNow()) {
+        // Đang xem lại với bảng phân tích mở: chạm ô trống là đi thử nước đó từ thế đang xem (an-explore.js)
+        const EX = window.CaroExplore;
+        if (state.replay && EX && EX.canStart()) {
+          const [x, y] = toCell(sx, sy);
+          if (state.board.get(x, y) !== EMPTY) return;
+          if (!mouse && cam.size < TOUCH_MIN) { animateCamera(x, y, TOUCH_ZOOM); vibrate(5); return; }
+          EX.start({ base: state.replay.data.moves.slice(0, state.replay.idx), first: [x, y], backTo: state.replay.idx, rule: state.replay.data.rule });
+          return;
+        }
+        // Chưa tới lượt (online): chạm là đặt trước nước đi (premove.js); ô quá nhỏ thì phóng to trước như khi đánh
+        const P = window.CaroPremove;
+        if (P && P.canSet()) {
+          const [x, y] = toCell(sx, sy);
+          if (!mouse && cam.size < TOUCH_MIN) { animateCamera(x, y, TOUCH_ZOOM); vibrate(5); return; }
+          P.tap(x, y);
+        }
+        return;
+      }
       const [x, y] = toCell(sx, sy);
       if (state.board.get(x, y) !== EMPTY) return;
       if (!mouse && cam.size < TOUCH_MIN) {

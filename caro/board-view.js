@@ -188,6 +188,21 @@
         drawStone(state.turn, sx, sy, s, state.pending ? 0.55 : 0.3);
       }
 
+      // Nước đặt trước (premove.js): quân mờ của mình + vòng tròn nét đứt, khác ô chờ xác nhận (khung vuông)
+      const pm = window.CaroPremove && window.CaroPremove.cell();
+      if (pm && state.online && state.online.side) {
+        const [sx, sy] = toScreen(pm[0], pm[1]);
+        const side = state.online.side;
+        ctx.strokeStyle = side === X ? colors.x : colors.o;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.arc(sx, sy, s * 0.46, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        drawStone(side, sx, sy, s, 0.4);
+      }
+
       // Đường thắng.
       if (state.winCells) {
         const a = state.winCells[0], b = state.winCells[state.winCells.length - 1];

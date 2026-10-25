@@ -75,7 +75,8 @@ thì chạy lại lệnh; lô dở bị bỏ, lô xong đã ở trên repo. Xem:
 !python /kaggle/temp/pd/server/scripts/rapfi/caro/nnue/kaggle-train.py
 ```
 *Save Version → Save & Run All* (chạy nền, tắt trình duyệt được). Phiên sau muốn học tiếp: *Add Input* → đầu ra của phiên
-trước (script tự học tiếp từ điểm kiểm tra cuối).
+trước (script tự học tiếp từ điểm kiểm tra cuối). Cuối phiên script tự thu gọn đầu ra (chỉ giữ điểm kiểm tra mới nhất +
+mạng vừa xuất, bỏ dữ liệu ván và điểm kiểm tra cũ) để Kaggle lưu Output trong vài phút.
 
 ## Gửi mạng về để đưa vào app
 

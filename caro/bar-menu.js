@@ -5,6 +5,7 @@
  * - Lật bàn ngang / dọc: bật tắt, có dấu ✓, lật ở tầng ánh xạ của board-view.js nên bấm vẫn đúng ô.
  * - Chế độ tập trung: vào focus-mode.js rồi đóng menu.
  * - Quân nháp X / O: bật tắt chế độ nháp (draft-mode.js); Xóa hết quân nháp: xóa lớp phủ nháp.
+ * - Cài đặt nhanh: mở bảng cài đặt nhanh (bàn, quân, âm thanh…) nổi ngay trong ván – topbar.js nghe 'caro:quickset'.
  * Các hàng bật tắt giữ menu mở để kết hợp (ví dụ lật cả ngang lẫn dọc = xoay 180°).
  */
 (function () {
@@ -23,7 +24,8 @@
     menu.innerHTML = row('flipH', 'menu_flip_h') + row('flipV', 'menu_flip_v')
       + `<button type="button" data-act="focus"><span>${esc(T('focus_mode'))}</span></button>`
       + row('draftX', 'menu_draft_x') + row('draftO', 'menu_draft_o')
-      + `<button type="button" data-act="clearDrafts"><span>${esc(T('menu_draft_clear'))}</span></button>`;
+      + `<button type="button" data-act="clearDrafts"><span>${esc(T('menu_draft_clear'))}</span></button>`
+      + `<button type="button" data-act="quickset"><span>${esc(T('menu_quickset'))}</span></button>`;
     document.body.appendChild(menu);
     menu.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-act]');
@@ -50,6 +52,12 @@
         return;
       }
       if (act === 'clearDrafts' && window.CaroDraft) window.CaroDraft.clear();
+      if (act === 'quickset') {
+        // Cài đặt nhanh ngay trong ván (như "dasher" của Lichess): topbar.js mở bảng nổi đúng chỗ menu vừa hiện
+        const at = { right: menu.style.right, bottom: menu.style.bottom };
+        close();
+        window.dispatchEvent(new CustomEvent('caro:quickset', { detail: at }));
+      }
     });
   }
   function refresh() {
@@ -67,6 +75,7 @@
     menu.querySelector('[data-act="draftX"] span:last-child').textContent = T('menu_draft_x');
     menu.querySelector('[data-act="draftO"] span:last-child').textContent = T('menu_draft_o');
     menu.querySelector('[data-act="clearDrafts"] span').textContent = T('menu_draft_clear');
+    menu.querySelector('[data-act="quickset"] span').textContent = T('menu_quickset');
   }
   function open(btn) {
     if (!menu) build();
