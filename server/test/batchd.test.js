@@ -186,7 +186,11 @@ test('phòng của giải: đối thủ sang trận khác thì người ở lạ
   r.move('A', 0, 0); r.move('B', 5, 5);
   r.resign('B');
   r.removePlayer('A');
-  assert.deepStrictEqual([r.winner, r.board.moves.length, r.seats[1]], [null, 0, null], 'phòng thường: chờ đối thủ mới');
+  // #155: phòng thường cũng giữ ván vừa xong cho người ở lại (thẻ kết quả), chỉ bỏ ghế của người rời
+  assert.deepStrictEqual([r.winner, r.board.moves.length, r.seats[1], r.score.B, r.stale], [1, 2, 'A', 0, true], 'phòng thường: còn ván vừa xong (giữ cả ghế người rời)');
+  r.addPlayer({ id: 'C', name: 'C' });
+  assert.deepStrictEqual([r.winner, r.board.moves.length, r.score.B, r.score.C, r.stale, r.gameNo], [null, 0, 0, 0, false, 1], 'người mới vào: bắt đầu sạch');
+  assert.deepStrictEqual([r.seats[1], r.seats[2]], ['C', 'B'], 'người mới vào ghế của người đã rời');
 });
 
 test('ảnh PNG: đúng định dạng, đúng kích thước', () => {

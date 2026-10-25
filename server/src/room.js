@@ -122,6 +122,7 @@ class Room {
   addPlayer(player, side) {
     if (this.has(player.id)) return;
     if (this.full) throw E('room_full');
+    if (this.stale) this.freshWait(); // ván cũ còn giữ cho người ở lại xem (#155): người mới vào thì bắt đầu sạch
     this.players.push({ id: player.id, name: player.name, av: player.av || 0 });
     if (!(player.id in this.score)) this.score[player.id] = 0;
     const want = side === O ? O : side === X ? X : 0;
@@ -141,14 +142,24 @@ class Room {
     // Phòng của giải: không ai vào thêm được, nên người ở lại vẫn thấy ván vừa xong (bàn cờ, kết quả, tỉ số) trong lúc
     // chờ trận sau – đối thủ được chuyển sang trận khác không làm mất kết quả của mình
     if (this.tour) { this.touch(); return; }
+    // Ván đã có kết quả (vd. đối thủ vừa rời giữa ván = xử thua, #155): người ở lại vẫn thấy bàn cờ, kết quả, tỉ số
+    // của ván vừa xong (thẻ "đối thủ đã rời phòng – bạn thắng"); phòng chỉ làm mới khi có người mới vào (addPlayer).
+    // Giữ cả ghế của người rời để khán giả / người ở lại vẫn biết ai cầm quân nào, ai thắng (watch.js tra tên theo ghế).
+    if (this.winner) { this.stale = true; this.touch(); return; }
     this.seats[this.sideOf(id)] = null;
-    // Người ở lại chờ đối thủ mới: làm mới bàn cờ và tỉ số.
+    this.freshWait();
+    this.touch();
+  }
+
+  /** Người ở lại chờ đối thủ mới: làm mới bàn cờ và tỉ số. */
+  freshWait() {
+    this.stale = false;
+    for (const side of [X, O]) if (this.seats[side] && !this.has(this.seats[side])) this.seats[side] = null; // ghế người đã rời
     this.score = {};
     for (const p of this.players) this.score[p.id] = 0;
     this.seriesWinner = null;
     this.gameNo = 1;
     this.resetBoard();
-    this.touch();
   }
 
   rename(id, name) {

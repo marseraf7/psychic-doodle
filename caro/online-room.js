@@ -155,12 +155,17 @@
       // với máy đang dở — ván đó vẫn hiện thành thẻ "Tiếp tục ván" ở Trang chủ (Issue #141 mục 2).
       // Ván đã kết thúc (nút ở thẻ kết quả) giữ hành vi cũ: về bàn cờ trên máy.
       const toLobby = !!r && !r.winner;
+      // Rời ván đang đánh dở (quá nước huỷ được) = xử thua: báo lại sau khi rời, không chỉ trong hộp hỏi (#155)
+      const forfeit = roomActive() && !r.abortable;
       if (!send({ t: 'leaveRoom' })) {
         // Mất kết nối: vẫn cho quay về chơi cục bộ.
         S.room = null;
         App.leaveOnline();
         if (toLobby) goLobby();
-      } else if (toLobby) S.toLobby = true; // online.js (setRoom) đưa về sảnh khi máy chủ xác nhận đã rời phòng
+      } else {
+        if (toLobby) S.toLobby = true; // online.js (setRoom) đưa về sảnh khi máy chủ xác nhận đã rời phòng
+        if (forfeit) toast(T('left_forfeit'), 4000);
+      }
     }
     $('btn-leave').onclick = leaveRoom;
     $('banner-leave').onclick = leaveRoom;
