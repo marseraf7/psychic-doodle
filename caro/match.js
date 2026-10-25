@@ -25,8 +25,8 @@
   // Ô vừa chọn trên lưới "Chơi nhanh" (dùng lại cho nút "Tìm trận khác" trên thẻ kết quả)
   Q.time = -1;
   Q.clock = null; // đồng hồ tổng '3+2' (ô đồng hồ) hoặc null (ô giới hạn mỗi nước)
-  function start(time, clock) {
-    if (O.roomActive() && !confirm(T('confirm_leave'))) return;
+  async function start(time, clock) {
+    if (O.roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
     if (typeof time === 'number') { Q.time = time; Q.clock = clock || null; }
     resumeSearch = true;
     O.send({ t: 'quickMatch', timeLimit: Q.time, clock: Q.clock });
@@ -132,8 +132,8 @@
           <small>⏱ ${esc(window.I18N.tc(r.timeLimit, r.clock))}${r.opening === 'swap2' ? ' · Swap2' : ''}${esc(window.I18N.ruleTag(r.rule))}${r.host.rating ? '' : ' · ' + esc(T('guest'))}</small></div>
         <button type="button" class="primary sm" data-lobby-join="${esc(r.code)}">${esc(T('lobby_join'))}</button></li>`).join('');
     el.querySelectorAll('[data-lobby-join]').forEach((b) => {
-      b.onclick = () => {
-        if (O.roomActive() && !confirm(T('confirm_leave'))) return;
+      b.onclick = async () => {
+        if (O.roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
         O.send({ t: 'joinRoom', code: b.dataset.lobbyJoin });
       };
     });

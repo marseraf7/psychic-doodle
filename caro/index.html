@@ -984,6 +984,17 @@
     </div>
   </dialog>
 
+  <!-- Hộp xác nhận trong app (confirm.js): thay confirm() gốc cho đầu hàng / rời phòng / đăng xuất… -->
+  <dialog id="confirm-dlg">
+    <div class="dlg">
+      <p id="confirm-q"></p>
+      <div class="row">
+        <button type="button" class="ghost" id="confirm-no"></button>
+        <button type="button" class="primary" id="confirm-ok"></button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Hỏi lưu ván vừa xong vào Lịch sử đấu trên máy này (local-save.js) -->
   <dialog id="lh-ask">
     <form method="dialog" class="dlg" id="lh-ask-form">
@@ -1085,6 +1096,7 @@
   <script src="app-ext.js"></script>
   <script src="app.js"></script>
   <script src="shell.js"></script>
+  <script src="confirm.js"></script>
   <script src="online-auth.js"></script>
   <script src="challenge-msg.js"></script>
   <script src="online-friends.js"></script>

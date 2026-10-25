@@ -104,11 +104,11 @@
     // Phòng của giải: mở trang giải (bảng xếp hạng / nhánh đấu) ngay trong lúc chơi
     $('ri-tour').onclick = () => { if (S.room && S.room.tour && window.CaroTour) { closeDlg('room-info'); window.CaroTour.open(S.room.tour.id); } };
     $('btn-center2').onclick = () => $('btn-center').click();
-    $('btn-resign').onclick = () => {
+    $('btn-resign').onclick = async () => {
       const r = S.room;
       if (!r || r.players.length < 2 || r.winner) return toast(T('no_game'));
       if (r.abortable) return send({ t: 'abort' }); // chưa quá 1 nước: huỷ ván (không thắng thua)
-      if (confirm(T('confirm_resign'))) send({ t: 'resign' });
+      if (await window.CaroConfirm.ask(T('confirm_resign'))) send({ t: 'resign' });
     };
     // Xin hoà: chỉ khi ván đang diễn ra; đã xin thì chờ đối thủ trả lời.
     function renderDraw() {
@@ -134,8 +134,8 @@
       return !!(r && r.players.length === 2 && !r.winner && r.moves.length);
     }
 
-    function leaveRoom() {
-      if (roomActive() && !confirm(T('confirm_leave'))) return;
+    async function leaveRoom() {
+      if (roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
       if (!send({ t: 'leaveRoom' })) {
         // Mất kết nối: vẫn cho quay về chơi cục bộ.
         S.room = null;
