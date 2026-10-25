@@ -203,7 +203,7 @@
       if (m.ctx === 'joinRoom' && probing) {
         const code = probing;
         probing = null;
-        if (m.code === 'wrong_room_password') return openJoin(code);
+        if (m.code === 'wrong_room_password') return ctx.openJoin(code, true);
       }
       const target = m.ctx === 'joinRoom' && isOpen('join') ? 'join-err'
         : ['login', 'register'].includes(m.ctx) && isOpen('auth') ? 'auth-err'

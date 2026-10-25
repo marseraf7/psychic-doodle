@@ -23,11 +23,12 @@
     $('room-opening').onchange = () => { $('room-opening-hint').hidden = $('room-opening').value !== 'swap2'; };
     $('open-join').onclick = () => openJoin('');
 
-    function openJoin(code) {
+    // priv = mở từ link mời của phòng riêng: hiện sẵn dòng nhắc "cần mật khẩu" thay vì im lặng.
+    function openJoin(code, priv) {
       const f = $('join-form');
       f.code.value = code || '';
       f.password.value = '';
-      $('join-err').textContent = '';
+      $('join-err').textContent = priv ? T('join_private_hint') : '';
       openDlg('join');
       setTimeout(() => (code ? f.password : f.code).focus(), 50);
     }
