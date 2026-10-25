@@ -29,9 +29,14 @@
   function onRealMove() { clear(); }
   function sync() {
     if (window.CaroApp && window.CaroApp.setDrafts) {
+      // Đẩy quân dạng SỐ như nước thật (rules.js: X = 1, O = 2) vì board-view
+      // vẽ qua CaroStyle.drawStone, trong đó p === 1 mới là X, còn lại là O.
+      // Đẩy chuỗi 'X'/'O' sẽ khiến mọi quân nháp đều vẽ thành O (lỗi 25/10/2026:
+      // chọn nháp X vẫn ra O).
+      const C = window.Caro || { X: 1, O: 2 };
       window.CaroApp.setDrafts([...drafts.entries()].map(([k, p]) => {
         const [x, y] = k.split(',').map(Number);
-        return [x, y, p];
+        return [x, y, p === 'X' ? C.X : C.O];
       }));
     }
     // Nút ☰ sáng lên khi đang ở chế độ nháp để người chơi biết chạm bàn cờ sẽ đặt quân nháp.
