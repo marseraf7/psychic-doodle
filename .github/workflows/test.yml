@@ -86,6 +86,11 @@ jobs:
         timeout-minutes: 10
         if: success() || failure()
         run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/friends-chat.e2e.js
+      # Xếp cặp nhanh: ghép lần 2 từ Trang chủ tự vào bàn cờ, thẻ Quay lại đúng mã phòng, lệnh cấm tìm trận hiện rõ (quickmatch.e2e.js)
+      - name: Kiểm thử trình duyệt Xếp cặp nhanh
+        timeout-minutes: 8
+        if: success() || failure()
+        run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/quickmatch.e2e.js
       # Mở / tải lại khi mạng chậm: Trang chủ hiện sẵn từ HTML, service worker lấy file từ bộ nhớ đệm trước (boot.e2e.js)
       - name: Kiểm thử trình duyệt mở trang khi mạng chậm
         timeout-minutes: 8

@@ -43,6 +43,27 @@
     $('qm-status').textContent = statusText();
     document.querySelectorAll('.qm-time').forEach((el) => { el.textContent = statusText(); });
   }
+  // Đang bị cấm tìm trận (bỏ ván nhiều – server/src/hub/playban.js): máy chủ gửi số ms còn lại trong me.playban.
+  // Hiện ngay dưới lưới ô kèm đếm ngược và khoá các ô – trước đây chỉ có một thông báo lúc kết nối, ô vẫn trông như
+  // bình thường nên người chơi không biết mình còn bị cấm bao lâu (loi-14).
+  let banUntil = 0, banTicker = 0;
+  const banLeft = () => Math.max(0, banUntil - Date.now());
+  function setBan(me) {
+    banUntil = me && me.playban > 0 ? Date.now() + me.playban : 0;
+    clearInterval(banTicker);
+    if (banUntil) banTicker = setInterval(() => { if (!banLeft()) clearInterval(banTicker); renderBan(); }, 1000);
+    renderBan();
+  }
+  function renderBan() {
+    const left = banLeft(), el = $('qm-ban');
+    const s = Math.ceil(left / 1000);
+    el.hidden = !left;
+    el.textContent = left ? T('qm_banned', { t: Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') }) : '';
+    document.querySelectorAll('#qm-grid .qm-tile[data-time]').forEach((b) => { b.disabled = !!left; });
+    $('banner-quick').disabled = Q.searching || !!left;
+  }
+  O.on('me', (m) => setBan(m.me));
+
   function renderQuick() {
     document.querySelectorAll('#qm-grid .qm-tile[data-time]').forEach((b) => {
       b.classList.toggle('on', tileOn(b));
@@ -51,15 +72,16 @@
     $('qm-grid').classList.toggle('searching', Q.searching);
     $('qm-search').hidden = !Q.searching;
     $('qm-status').textContent = Q.searching ? statusText() : '';
-    $('banner-quick').disabled = Q.searching;
     $('banner-quick').textContent = T(Q.searching ? 'qm_searching_short' : 'qm_again');
+    renderBan();
   }
 
   O.on('queue', (m) => {
     if (m.state === 'searching' && typeof m.timeLimit === 'number') { Q.time = m.timeLimit; Q.clock = m.clock || null; } // ô đang tìm (cả sau khi kết nối lại)
     setSearching(m.state === 'searching');
   });
-  O.on('welcome', () => {
+  O.on('welcome', (m) => {
+    setBan(m.me);
     setSearching(false); // máy chủ gửi lại trạng thái hàng chờ ngay sau đây nếu vẫn đang tìm
     if ($('online').open) watch(true);
   });
