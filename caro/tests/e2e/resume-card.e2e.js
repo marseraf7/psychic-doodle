@@ -47,16 +47,19 @@ const { setup } = require('./helpers');
   await send(second, { t: 'rematch' });
   await sleep(600);
 
-  // Ván đã xong: thẻ đổi nhãn + ghi lời mời tái đấu của đối thủ
-  const after = await cardText(a);
+  // Ván đã xong: thẻ đổi nhãn + ghi lời mời tái đấu của đối thủ.
+  // Kiểm thẻ từ phía người đi trước (first): người bấm tái đấu là second, nên first mới là phía
+  // thấy "Đối thủ muốn tái đấu". Kiểm từ phía a sẽ sai khi a chính là second (người đi trước
+  // được chọn ngẫu nhiên khi ghép trận) vì khi đó người bấm tái đấu là a, không phải đối thủ.
+  const after = await cardText(first);
   ok(after.includes('Xem kết quả ván vừa rồi'), 'ván đã xong: thẻ đổi thành "Xem kết quả ván vừa rồi": ' + after);
   ok(!after.includes('Quay lại ván đang chơi'), 'ván đã xong: không còn ghi "đang chơi"');
   ok(after.includes('Đối thủ muốn tái đấu'), 'thẻ ghi thêm "Đối thủ muốn tái đấu" khi đối thủ đã bấm tái đấu');
 
   // Bấm thẻ: vào bàn cờ, thấy thẻ kết quả của ván
-  await a.click('#home-resume [data-resume]');
+  await first.click('#home-resume [data-resume]');
   await sleep(700);
-  ok(await a.evaluate(() => !document.getElementById('banner').hidden), 'bấm thẻ kết quả thì vào bàn cờ và thấy thẻ kết quả ván');
+  ok(await first.evaluate(() => !document.getElementById('banner').hidden), 'bấm thẻ kết quả thì vào bàn cờ và thấy thẻ kết quả ván');
 
   await finish();
 })();
