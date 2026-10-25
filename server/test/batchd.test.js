@@ -109,6 +109,21 @@ test('phòng: huỷ ván khi chưa quá 1 nước; quá hạn đi nước đầu
   assert.deepStrictEqual([q.reason, q.abortedBy, q.noPlay], ['abort', 'A', true]);
 });
 
+test('phòng: cộng giờ cho người phải đi nước đầu thì gia hạn luôn hạn nước đầu', () => {
+  // secondMs: 10 → quỹ đồng hồ '1+0' = 600ms, cộng giờ = 150ms; hạn nước đầu 400ms (ngắn hơn quỹ giờ như thực tế)
+  const r = new Room({ code: '7', password: '1', firstMoveMs: 400, clock: '1+0', secondMs: 10 });
+  r.addPlayer({ id: 'A', name: 'A' }, 1);
+  r.addPlayer({ id: 'B', name: 'B' }, 2);
+  const before = r.firstMoveAt;
+  assert.ok(before && before <= Date.now() + 400, 'ván có đồng hồ thì có hạn đi nước đầu');
+  r.moretime('B'); // B cộng giờ cho A — A là người phải đi nước đầu
+  assert.strictEqual(r.firstMoveAt, before + 150, 'hạn nước đầu được cộng 15 giây (× secondMs)');
+  assert.strictEqual(r.turnEndsAt, r.firstMoveAt, 'hạn lượt bám theo hạn nước đầu mới');
+  const before2 = r.firstMoveAt;
+  r.moretime('A'); // A cộng giờ cho B — B không phải người phải đi nước đầu
+  assert.strictEqual(r.firstMoveAt, before2, 'cộng giờ cho người không phải đi thì hạn nước đầu giữ nguyên');
+});
+
 test('phòng: thêm giờ, xin đi lại (chỉ phòng riêng), Berserk (chỉ giải Arena)', () => {
   const r = room2({ clock: '1+1', secondMs: 10 }); // 1 phút = 600ms
   r.moretime('A');
