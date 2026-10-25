@@ -40,6 +40,11 @@ class ExtrasMixin {
     const opp = this.opponentOf(id).id;
     const add = MORETIME_S * this.secondMs;
     this.clockLeft[opp] = (this.clockLeft[opp] ?? this.clock.base) + add;
+    // Đang trong cửa sổ đi nước đầu mà người được cộng giờ chính là người phải đi: gia hạn luôn hạn
+    // nước đầu. Trước đây chỉ cộng giờ ván, hạn nước đầu giữ nguyên nên ván vẫn tự huỷ đúng hạn cũ
+    // dù đồng hồ đã hiện +15 giây (buổi kiểm thử 25/10) — cộng giờ phải có tác dụng thật với hạn
+    // đang đếm ngược, nhất quán với cách turnEndsAt vốn lấy mốc sớm hơn trong hai hạn.
+    if (this.firstMoveAt && this.board.moves.length < 2 && this.actor() === opp) this.firstMoveAt += add;
     if (this.clockRun && this.clockRun.id === opp) {
       const end = this.clockRun.since + this.clockLeft[opp];
       this.turnEndsAt = this.firstMoveAt && this.firstMoveAt < end && this.board.moves.length < 2 ? this.firstMoveAt : end;

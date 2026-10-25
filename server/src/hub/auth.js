@@ -113,6 +113,17 @@ class Auth {
   }
 
   on_logout(conn) {
+    // loi-07: tài khoản còn kết nối khác đang mở (thiết bị / hồ sơ trình duyệt khác) thì đăng xuất
+    // chỉ tách kết nối này khỏi tài khoản: KHÔNG rời phòng, KHÔNG bỏ hàng chờ của các phiên còn lại.
+    // (Trước đây đăng xuất ở thiết bị khác xoá luôn phòng đang chờ và hàng chờ ở thiết bị này.)
+    const others = [...(this.byPid.get(conn.pid) || [])].filter((c) => c !== conn);
+    if (others.length) {
+      if (conn.token) this.store.dropSession(conn.token);
+      conn.token = null;
+      this.detach(conn);
+      conn.send({ t: 'loggedOut' });
+      return;
+    }
     // Rời phòng trước (đang đánh thì xử thua, client đã hỏi xác nhận) để không bị
     // giữ chỗ rồi âm thầm xử thua sau khi mất kết nối.
     if (this.roomFor(conn.pid)) {

@@ -55,6 +55,7 @@ class Store {
     u.email = u.email || '';
     upgradePools(u); // điểm Glicko-2 theo loại thời gian (tài khoản cũ: bắt đầu từ Elo cũ)
     u.wstreak = { cur: 0, best: 0, ...(u.wstreak || {}) }; // chuỗi thắng
+    u.lstreak = { cur: 0, best: 0, ...(u.lstreak || {}) }; // chuỗi thua (đối xứng wstreak, cùng phạm vi ván hai tài khoản)
     u.tours = { played: 0, won: 0, podium: 0, ...(u.tours || {}) }; // thành tích giải đấu
     return u;
   }

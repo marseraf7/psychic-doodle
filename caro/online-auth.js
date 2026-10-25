@@ -57,8 +57,8 @@
             <button type="button" class="ghost" id="logout">${esc(T('logout'))}</button>
           </div>
           <div id="google-link-btn"></div>`;
-        $('logout').onclick = () => {
-          if (ctx.roomActive() && !confirm(T('confirm_logout'))) return;
+        $('logout').onclick = async () => {
+          if (ctx.roomActive() && !(await window.CaroConfirm.ask(T('confirm_logout')))) return;
           send({ t: 'logout' });
         };
         $('av-change').onclick = () => window.CaroAvatar.pick();

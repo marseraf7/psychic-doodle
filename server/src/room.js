@@ -294,6 +294,7 @@ class Room {
       winner: this.winner,
       winCells: this.winCells,
       reason: this.reason,
+      noPlay: this.noPlay, // ván tự huỷ vì không đi nước đầu (khán giả thấy lý do huỷ rõ ràng)
       score: { ...this.score },
       gameNo: this.gameNo,
       rematch: [...this.rematch],

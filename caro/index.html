@@ -395,6 +395,17 @@
     </div>
   </div>
 
+  <!-- Thẻ kết quả cho khán giả (watch.js điền): ván đang xem kết thúc / bị huỷ thì hiện rõ kết quả -->
+  <div class="banner" id="wt-result" hidden>
+    <div class="banner-card">
+      <div class="banner-title" id="wt-result-title"></div>
+      <div class="banner-sub" id="wt-result-sub"></div>
+      <div class="banner-actions">
+        <button id="wt-result-more" type="button" class="primary" data-i18n="tv_other"></button>
+      </div>
+    </div>
+  </div>
+
   <!-- Cài đặt: các hàng kiểu danh sách, bấm vào hàng có dấu › để mở trang con (settings-ui.js).
        Trang Cài đặt nằm trong khung trang (shell.js chuyển nội dung hộp thoại này vào trang). -->
   <dialog id="settings">
@@ -978,6 +989,17 @@
     </div>
   </dialog>
 
+  <!-- Hộp xác nhận trong app (confirm.js): thay confirm() gốc cho đầu hàng / rời phòng / đăng xuất… -->
+  <dialog id="confirm-dlg">
+    <div class="dlg">
+      <p id="confirm-q"></p>
+      <div class="row">
+        <button type="button" class="ghost" id="confirm-no"></button>
+        <button type="button" class="primary" id="confirm-ok"></button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Hỏi lưu ván vừa xong vào Lịch sử đấu trên máy này (local-save.js) -->
   <dialog id="lh-ask">
     <form method="dialog" class="dlg" id="lh-ask-form">
@@ -1079,6 +1101,7 @@
   <script src="app-ext.js"></script>
   <script src="app.js"></script>
   <script src="shell.js"></script>
+  <script src="confirm.js"></script>
   <script src="online-auth.js"></script>
   <script src="challenge-msg.js"></script>
   <script src="online-friends.js"></script>

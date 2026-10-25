@@ -87,9 +87,9 @@
     }).join('');
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
     el.innerHTML = html;
-    el.querySelectorAll('[data-ch-yes]').forEach((b) => { b.onclick = () => {
+    el.querySelectorAll('[data-ch-yes]').forEach((b) => { b.onclick = async () => {
       const r = S.room;
-      if (r && r.players.length === 2 && !r.winner && r.moves.length && !confirm(T('confirm_accept_busy'))) return;
+      if (r && r.players.length === 2 && !r.winner && r.moves.length && !(await window.CaroConfirm.ask(T('confirm_accept_busy')))) return;
       N.send({ t: 'challengeRespond', id: b.dataset.chYes, accept: true });
     }; });
     el.querySelectorAll('[data-ch-no]').forEach((b) => { b.onclick = () => {

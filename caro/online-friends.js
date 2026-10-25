@@ -179,8 +179,8 @@
       const all = (sel) => [...box.querySelectorAll(sel), ...inner.querySelectorAll(sel)];
       all('[data-draw]').forEach((b) => { b.onclick = () => send({ t: 'drawAnswer', accept: b.dataset.draw === 'yes' }); });
       all('[data-yes]').forEach((b) => {
-        b.onclick = () => {
-          if (ctx.roomActive() && !confirm(T('confirm_accept_busy'))) return;
+        b.onclick = async () => {
+          if (ctx.roomActive() && !(await window.CaroConfirm.ask(T('confirm_accept_busy')))) return;
           send({ t: 'challengeRespond', id: b.dataset.yes, accept: true });
         };
       });

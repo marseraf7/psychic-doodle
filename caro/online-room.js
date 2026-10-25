@@ -15,9 +15,9 @@
     const { S, send, toast, openDlg, closeDlg } = ctx;
 
     // ------------------------------------------------------------ Phòng
-    $('create-room').onclick = () => {
+    $('create-room').onclick = async () => {
       // Đang có ván dở: tạo phòng mới là rời ván cũ và bị xử thua — hỏi trước (Issue #141 mục 1)
-      if (roomActive() && !confirm(T('confirm_leave'))) return;
+      if (roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
       const side = document.querySelector('input[name="room-side"]:checked').value;
       send({ t: 'createRoom', side, ...parseTc($('room-tc').value), opening: $('room-opening').value, rule: $('room-rule').value, public: $('room-public').checked });
     };
@@ -25,19 +25,20 @@
     $('room-opening').onchange = () => { $('room-opening-hint').hidden = $('room-opening').value !== 'swap2'; };
     $('open-join').onclick = () => openJoin('');
 
-    function openJoin(code) {
+    // priv = mở từ link mời của phòng riêng: hiện sẵn dòng nhắc "cần mật khẩu" thay vì im lặng.
+    function openJoin(code, priv) {
       const f = $('join-form');
       f.code.value = code || '';
       f.password.value = '';
-      $('join-err').textContent = '';
+      $('join-err').textContent = priv ? T('join_private_hint') : '';
       openDlg('join');
       setTimeout(() => (code ? f.password : f.code).focus(), 50);
     }
-    $('join-form').onsubmit = (e) => {
+    $('join-form').onsubmit = async (e) => {
       e.preventDefault();
       const f = e.target;
       // Vào phòng khác cũng là bỏ ván dở (bị xử thua) — hỏi trước như khi tạo phòng (Issue #141 mục 1)
-      if (roomActive() && !confirm(T('confirm_leave'))) return;
+      if (roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
       $('join-err').textContent = '';
       send({ t: 'joinRoom', code: f.code.value.trim(), password: f.password.value.trim() });
     };
@@ -112,11 +113,11 @@
     // Phòng của giải: mở trang giải (bảng xếp hạng / nhánh đấu) ngay trong lúc chơi
     $('ri-tour').onclick = () => { if (S.room && S.room.tour && window.CaroTour) { closeDlg('room-info'); window.CaroTour.open(S.room.tour.id); } };
     $('btn-center2').onclick = () => $('btn-center').click();
-    $('btn-resign').onclick = () => {
+    $('btn-resign').onclick = async () => {
       const r = S.room;
       if (!r || r.players.length < 2 || r.winner) return toast(T('no_game'));
       if (r.abortable) return send({ t: 'abort' }); // chưa quá 1 nước: huỷ ván (không thắng thua)
-      if (confirm(T('confirm_resign'))) send({ t: 'resign' });
+      if (await window.CaroConfirm.ask(T('confirm_resign'))) send({ t: 'resign' });
     };
     // Xin hoà: chỉ khi ván đang diễn ra; đã xin thì chờ đối thủ trả lời.
     function renderDraw() {
@@ -147,8 +148,8 @@
       if (window.CaroHome) { window.CaroHome.open(); window.CaroHome.pane('lobby'); }
     }
 
-    function leaveRoom() {
-      if (roomActive() && !confirm(T('confirm_leave'))) return;
+    async function leaveRoom() {
+      if (roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
       const r = S.room;
       // Ván chưa kết thúc (đang chờ đối thủ hoặc đang đánh dở): rời xong về sảnh, không mở lại ván
       // với máy đang dở — ván đó vẫn hiện thành thẻ "Tiếp tục ván" ở Trang chủ (Issue #141 mục 2).
