@@ -231,9 +231,15 @@ nav.bar.bottom.dragging { transition: none; cursor: grabbing; touch-action: none
  * Khung mô hình thu nhỏ của màn hình khi thi đấu: thanh trên, thẻ người chơi, bàn cờ, thanh công cụ, nút Xin đi lại.
  * Vùng đệm trên/dưới chừa chỗ cho thanh công cụ ở vị trí ngang trên / ngang dưới. */
 .mu-preview {
-  position: relative; width: min(360px, 100%); margin: 0 auto; padding: 52px 12px 64px;
+  /* Khung xem trước theo đúng máy đang dùng (không còn khung 360px cố định kiểu điện thoại):
+     full-width trên điện thoại, tối đa 560px trên tablet/máy tính. Khoảng đệm dưới/trên
+     chừa theo vị trí thanh (xem [data-barpos] bên dưới) để thanh không bao giờ che thẻ người chơi. */
+  position: relative; width: min(100%, 560px); margin: 0 auto; padding: 52px 12px 88px;
   background: var(--panel); border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow);
 }
+/* Thanh ở dưới: đệm dưới 88px = thanh cao ~66px + khe 8px + khe 14px, thẻ dưới không chạm thanh.
+   Thanh ở trên: đệm trên 118px = thanh bắt đầu ở 44px + cao ~66px + khe 8px, thẻ trên không chạm thanh. */
+.mu-preview[data-barpos="top"] { padding-top: 118px; padding-bottom: 64px; }
 .mu-top {
   position: absolute; top: 0; left: 0; right: 0; height: 36px; display: flex; align-items: center;
   justify-content: space-between; padding: 0 14px; font-size: var(--fs-sm); font-weight: var(--fw-semibold);
@@ -249,32 +255,82 @@ nav.bar.bottom.dragging { transition: none; cursor: grabbing; touch-action: none
 .mu-pc.o { background: #fff; border: 1px solid #999; }
 .mu-board {
   position: relative; width: 100%; aspect-ratio: 1; margin: 4px 0; border-radius: 8px;
-  background-color: #e3c188; border: 1px solid rgba(0, 0, 0, .3);
+  /* Nền + lưới theo đúng cài đặt bàn cờ của người chơi: boardstyle.js đặt data-board
+     lên <html> nên var(--board)/var(--board-grid) tự đổi theo — mặc định giấy theo giao
+     diện Sáng/Tối, không còn cứng màu gỗ như trước. */
+  background-color: var(--board); border: 1px solid rgba(0, 0, 0, .3);
   background-image:
-    linear-gradient(to right, rgba(0, 0, 0, .35) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, .35) 1px, transparent 1px);
-  background-size: calc(100% / 14) calc(100% / 14);
+    linear-gradient(to right, var(--board-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--board-grid) 1px, transparent 1px);
+  /* Hình học như bàn thật (board-view.js): đường kẻ nằm ở biên ô, quân nằm giữa ô.
+     Bàn 15 ô: kẻ ở k/15, tâm ô ở (k + 0,5)/15 — trước đây quân đặt lên đường kẻ nên lệch. */
+  background-size: calc(100% / 15) calc(100% / 15);
+  container-type: inline-size; /* cỡ chữ quân X/O theo bề rộng bàn */
 }
 .mu-st {
   position: absolute; width: calc(100% / 15); aspect-ratio: 1; border-radius: 50%;
-  left: calc(var(--cx) * 100% / 14); top: calc(var(--cy) * 100% / 14); transform: translate(-50%, -50%);
+  left: calc((var(--cx) + 0.5) * 100% / 15); top: calc((var(--cy) + 0.5) * 100% / 15); transform: translate(-50%, -50%);
 }
 .mu-st.x { background: #222; }
 .mu-st.o { background: #fff; border: 1px solid #999; }
+/* Kiểu quân theo cài đặt của người chơi (data-pieces do matchui.js đặt từ CaroStyle):
+   stones = đĩa đá như cũ; classic/bold = chữ X/O màu như bàn thật (--x/--o). */
+#mu-preview[data-pieces="classic"] .mu-st,
+#mu-preview[data-pieces="bold"] .mu-st {
+  background: none; border: 0; border-radius: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-size: 4.5cqw; line-height: 1;
+  font-style: normal; /* thẻ <i> mặc định nghiêng, còn X/O bàn thật vẽ thẳng */
+}
+#mu-preview[data-pieces="bold"] .mu-st { font-weight: 800; }
+#mu-preview[data-pieces="classic"] .mu-st.x::after,
+#mu-preview[data-pieces="bold"] .mu-st.x::after { content: 'X'; color: var(--x); }
+#mu-preview[data-pieces="classic"] .mu-st.o::after,
+#mu-preview[data-pieces="bold"] .mu-st.o::after { content: 'O'; color: var(--o); }
+#mu-preview[data-pieces="classic"] .mu-pc,
+#mu-preview[data-pieces="bold"] .mu-pc {
+  background: none; border: 0; border-radius: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; line-height: 1;
+}
+#mu-preview[data-pieces="bold"] .mu-pc { font-weight: 800; }
+#mu-preview[data-pieces="classic"] .mu-pc.x::after,
+#mu-preview[data-pieces="bold"] .mu-pc.x::after { content: 'X'; color: var(--x); }
+#mu-preview[data-pieces="classic"] .mu-pc.o::after,
+#mu-preview[data-pieces="bold"] .mu-pc.o::after { content: 'O'; color: var(--o); }
 .mu-bar {
   position: absolute; display: flex; gap: 6px; padding: 6px; z-index: 2;
   background: var(--bg); border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow);
 }
-.mu-bar button { padding: 6px; }
+/* Nút trong khung giả lập dùng đúng luật nút thanh thật (.bar.bottom button): cột dọc,
+   chữ không bẻ dòng, cao tối thiểu 52px — trước đây nút giả lập thiếu các luật này nên
+   chữ bẻ 2-3 dòng, thanh phình 87-102px và che thẻ người chơi + đè nút Xin đi lại. */
+.mu-bar button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-height: 52px; padding: 6px 8px; font-size: var(--fs-xs); font-weight: var(--fw-medium);
+  color: var(--muted); white-space: nowrap;
+}
 .mu-bar[data-pos="bottom"] { left: 50%; bottom: 8px; transform: translateX(-50%); }
 .mu-bar[data-pos="top"] { left: 50%; top: 44px; transform: translateX(-50%); }
 .mu-bar[data-pos="left"] { left: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; }
 .mu-bar[data-pos="right"] { right: 8px; top: 50%; transform: translateY(-50%); flex-direction: column; }
 .mu-bar[data-pos="left"] button span, .mu-bar[data-pos="right"] button span { display: none; }
-.mu-tb { position: absolute; left: 50%; transform: translateX(-50%); bottom: 76px; z-index: 3; cursor: grab; }
+/* Màn hẹp (điện thoại): thanh giả lập trải hết bề ngang khung như thanh thật (luật
+   @media 599px của .bar.bottom) và các nút chia đều, chữ vẫn 1 dòng không bẻ. */
+@media (max-width: 599px) {
+  .mu-bar[data-pos="bottom"], .mu-bar[data-pos="top"] { left: 0; right: 0; transform: none; }
+  .mu-bar[data-pos="bottom"] button, .mu-bar[data-pos="top"] button { flex: 1 1 0; min-width: 0; }
+}
+/* Nút Xin đi lại giả lập đứng đúng chỗ nút thật (.tb-float: cách đáy 86px, tức 12px trên
+   mép trên của thanh dưới cao ~66px) — trước đây 76px nên chìm vào thanh khi thanh phình ra. */
+.mu-tb { position: absolute; left: 50%; transform: translateX(-50%); bottom: 86px; z-index: 3; cursor: grab; }
 .mu-bar.dragging, .mu-tb.dragging { cursor: grabbing; touch-action: none; }
-[data-mu-pos] .tick { visibility: hidden; }
-[data-mu-pos].sel .tick { visibility: visible; }
+[data-mu-pos] .tick, [data-mu-labels] .tick { visibility: hidden; }
+[data-mu-pos].sel .tick, [data-mu-labels].sel .tick { visibility: visible; }
+/* Tùy chọn "chỉ biểu tượng": ẩn chữ trên thanh thật (trừ dọc trái/phải vốn đã ẩn) và thanh giả lập. */
+body.bar-icons-only nav.bar.bottom button span,
+body.bar-icons-only .mu-bar[data-pos="bottom"] button span,
+body.bar-icons-only .mu-bar[data-pos="top"] button span { display: none; }
 
 /* ============================ Chế độ tập trung (focus-mode.js, Issue #128) ============================
  * Chỉ để lại bàn cờ: ẩn thanh trên, thẻ người chơi, thanh công cụ, nút Về giữa, thẻ nổi,

@@ -1,6 +1,9 @@
 /*
  * Trang Cài đặt "Giao diện ván đấu" (Issue #128, hạng mục 3): xem trước giao diện ván đấu
  * như khi thi đấu thật và tùy chỉnh trực tiếp trong khung xem trước.
+ *   - Bàn cờ + quân cờ: theo đúng cài đặt của người chơi (CaroStyle). Nền bàn tự theo
+ *     qua var(--board)/var(--board-grid) vì boardstyle.js đặt data-board lên <html>;
+ *     kiểu quân do sync() đặt data-pieces để CSS vẽ X/O hay đĩa đá cho khớp ván thật.
  *   - Thanh công cụ: kéo thả trong khung (snap 4 vị trí như CaroBarPos) hoặc bấm nút chọn
  *     sẵn; vị trí lưu qua CaroBarPos (khóa caro.barpos) nên áp dụng ngay cho ván thật.
  *   - Nút Xin đi lại: kéo thả tự do trong khung; vị trí lưu dạng tỉ lệ khung (khóa
@@ -31,10 +34,16 @@
   function sync() {
     const bar = $('mu-bar'), tb = $('mu-tb'), prev = $('mu-preview');
     if (!bar || !tb || !prev) return;
+    // Kiểu quân theo cài đặt của người chơi; không có CaroStyle thì mặc định classic (X/O).
+    prev.dataset.pieces = (window.CaroStyle && window.CaroStyle.pieces) || 'classic';
     const saved = window.CaroBarPos ? window.CaroBarPos.saved() : 'bottom';
     bar.dataset.pos = saved;
+    // Khoảng đệm khung theo vị trí thanh (CSS .mu-preview[data-barpos]) để thanh không che thẻ người chơi.
+    prev.dataset.barpos = saved;
     bar.style.left = ''; bar.style.top = ''; bar.style.transform = ''; bar.style.bottom = '';
     document.querySelectorAll('[data-mu-pos]').forEach((b) => b.classList.toggle('sel', b.dataset.muPos === saved));
+    const lab = window.CaroBarPos && window.CaroBarPos.labels ? window.CaroBarPos.labels() : 'labels';
+    document.querySelectorAll('[data-mu-labels]').forEach((b) => b.classList.toggle('sel', b.dataset.muLabels === lab));
     const pos = tbSaved();
     if (pos) {
       const r = prev.getBoundingClientRect();
@@ -85,15 +94,27 @@
     window.addEventListener('pointercancel', onUp);
   }
 
+  let styleSubscribed = false;
   function init() {
+    // Đổi bàn/quân ở chỗ khác (trang Giao diện, bảng cài đặt nhanh) thì khung này
+    // cập nhật theo ngay, không cần mở lại trang con.
+    if (window.CaroStyle && window.CaroStyle.onChange && !styleSubscribed) {
+      styleSubscribed = true;
+      window.CaroStyle.onChange(() => sync());
+    }
     document.querySelectorAll('[data-mu-pos]').forEach((b) => b.addEventListener('click', () => {
       if (window.CaroBarPos) window.CaroBarPos.setSaved(b.dataset.muPos);
+      sync();
+    }));
+    document.querySelectorAll('[data-mu-labels]').forEach((b) => b.addEventListener('click', () => {
+      if (window.CaroBarPos && window.CaroBarPos.setLabels) window.CaroBarPos.setLabels(b.dataset.muLabels);
       sync();
     }));
     const reset = $('mu-reset');
     if (reset) reset.addEventListener('click', () => {
       try { localStorage.removeItem(TB_KEY); } catch (e) { /* chế độ riêng tư */ }
       if (window.CaroBarPos) window.CaroBarPos.setSaved('bottom');
+      if (window.CaroBarPos && window.CaroBarPos.setLabels) window.CaroBarPos.setLabels('labels');
       sync();
     });
     const bar = $('mu-bar'), tb = $('mu-tb'), prev = $('mu-preview');

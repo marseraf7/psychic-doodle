@@ -35,10 +35,13 @@ function fakeEl(rect, extra = {}) {
   };
 }
 
-function load() {
+function load(opts = {}) {
   const winListeners = {};
   const store = new Map();
   let savedBar = 'bottom';
+  let savedLabels = 'labels';
+  let stylePieces = opts.stylePieces || 'classic';
+  const styleListeners = [];
   const bar = fakeEl({ left: 180, top: 640, width: 200, height: 50 });
   const tb = fakeEl({ left: 240, top: 600, width: 80, height: 36 });
   const prev = fakeEl({ left: 100, top: 200, width: 360, height: 520 });
@@ -48,14 +51,25 @@ function load() {
     el.dataset.muPos = pos;
     return el;
   });
+  const labelOpts = ['labels', 'icons'].map((v) => {
+    const el = fakeEl({ left: 0, top: 0, width: 100, height: 30 });
+    el.dataset.muLabels = v;
+    return el;
+  });
   const byId = { 'mu-bar': bar, 'mu-tb': tb, 'mu-preview': prev, 'mu-reset': reset };
   const sandbox = {
     window: {
       innerWidth: 1200, innerHeight: 900,
       addEventListener: (t, fn) => { (winListeners[t] = winListeners[t] || []).push(fn); },
+      CaroStyle: opts.withStyle ? {
+        get pieces() { return stylePieces; },
+        onChange: (fn) => styleListeners.push(fn),
+      } : undefined,
       CaroBarPos: {
         saved: () => savedBar,
         setSaved: (v) => { savedBar = v; },
+        labels: () => savedLabels,
+        setLabels: (v) => { savedLabels = v; },
         snap: (cx, cy, w, h) => {
           const d = { left: cx, right: w - cx, top: cy, bottom: h - cy };
           let best = 'left';
@@ -68,7 +82,7 @@ function load() {
       readyState: 'complete',
       addEventListener: () => {},
       getElementById: (id) => byId[id] || null,
-      querySelectorAll: (sel) => (sel === '[data-mu-pos]' ? presets : []),
+      querySelectorAll: (sel) => (sel === '[data-mu-pos]' ? presets : sel === '[data-mu-labels]' ? labelOpts : []),
     },
     localStorage: {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -82,20 +96,46 @@ function load() {
   const fireWin = (type, ev) => (winListeners[type] || []).forEach((fn) => fn(ev));
   const fireEl = (el, type, ev) => (el.listeners[type] || []).forEach((fn) => fn(ev));
   return {
-    api: sandbox.window.CaroMatchUI, bar, tb, prev, reset, presets, store,
+    api: sandbox.window.CaroMatchUI, bar, tb, prev, reset, presets, labelOpts, store,
     fireWin, fireEl,
+    fireStyle: () => styleListeners.forEach((fn) => fn()),
+    setStylePieces: (v) => { stylePieces = v; },
     get savedBar() { return savedBar; },
+    get savedLabels() { return savedLabels; },
   };
 }
 
 test('sync: áp vị trí thanh + vị trí nút đã lưu, đánh dấu nút chọn sẵn', () => {
-  const { api, bar, tb, presets, store } = load();
+  const { api, bar, tb, prev, presets, store } = load();
   store.set('caro.tbpos', JSON.stringify({ fx: 0.5, fy: 0.5 }));
   api.sync();
   assert.equal(bar.dataset.pos, 'bottom');
+  assert.equal(prev.dataset.barpos, 'bottom'); // đệm khung theo vị trí thanh
   assert.equal(presets.find((p) => p.dataset.muPos === 'bottom').classList.contains('sel'), true);
   assert.equal(tb.style.left, '180px'); // 0.5*360, kẹp 360-80=280 -> 180
   assert.equal(tb.style.top, '260px'); // 0.5*520
+});
+
+test('sync: kiểu quân theo CaroStyle; không có CaroStyle thì mặc định classic (X/O)', () => {
+  const dflt = load();
+  dflt.api.sync();
+  assert.equal(dflt.prev.dataset.pieces, 'classic');
+  const ctx = load({ withStyle: true, stylePieces: 'stones' });
+  ctx.api.sync();
+  assert.equal(ctx.prev.dataset.pieces, 'stones');
+  ctx.setStylePieces('bold');
+  ctx.fireStyle(); // CaroStyle.onChange -> sync lại, không cần mở lại trang
+  assert.equal(ctx.prev.dataset.pieces, 'bold');
+});
+
+test('sync: đánh dấu tùy chọn chữ thanh theo giá trị đã lưu; bấm đổi thì lưu', () => {
+  const ctx = load();
+  ctx.api.sync();
+  assert.equal(ctx.labelOpts.find((o) => o.dataset.muLabels === 'labels').classList.contains('sel'), true);
+  ctx.fireEl(ctx.labelOpts.find((o) => o.dataset.muLabels === 'icons'), 'click', {});
+  assert.equal(ctx.savedLabels, 'icons');
+  ctx.api.sync();
+  assert.equal(ctx.labelOpts.find((o) => o.dataset.muLabels === 'icons').classList.contains('sel'), true);
 });
 
 test('bấm nút chọn sẵn đổi vị trí thanh đã lưu và đồng bộ xem trước', () => {

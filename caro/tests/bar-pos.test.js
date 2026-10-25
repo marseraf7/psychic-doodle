@@ -33,6 +33,7 @@ function load() {
   const store = new Map();
   const bar = fakeBar();
   const topBar = { getBoundingClientRect: () => ({ bottom: 60 }) };
+  const bodyClasses = new Set();
   const sandbox = {
     window: {
       innerWidth: 1200,
@@ -44,6 +45,14 @@ function load() {
       addEventListener: () => {},
       querySelector: (sel) => (sel === '.bar.top' ? topBar : null),
       querySelectorAll: () => [bar],
+      body: {
+        classList: {
+          add: (c) => bodyClasses.add(c),
+          remove: (c) => bodyClasses.delete(c),
+          contains: (c) => bodyClasses.has(c),
+          toggle: (c, force) => { if (force) bodyClasses.add(c); else bodyClasses.delete(c); },
+        },
+      },
     },
     localStorage: {
       getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -55,7 +64,7 @@ function load() {
   vm.runInContext(SRC, sandbox);
   const fireWin = (type, ev) => (winListeners[type] || []).forEach((fn) => fn(ev));
   const fireBar = (type, ev) => (bar.listeners[type] || []).forEach((fn) => fn(ev));
-  return { api: sandbox.window.CaroBarPos, bar, store, fireWin, fireBar };
+  return { api: sandbox.window.CaroBarPos, bar, store, fireWin, fireBar, bodyClasses };
 }
 
 test('snap: cạnh gần nhất thắng, hòa thì ưu tiên trái', () => {
@@ -125,4 +134,20 @@ test('vị trí top được đặt dưới thanh trên đo thật', () => {
   api.setSaved('top');
   assert.equal(bar.dataset.pos, 'top');
   assert.equal(bar.style.top, '68px'); // thanh trên bottom=60 + 8px khe hở
+});
+
+test('chữ thanh công cụ: mặc định hiện chữ, giá trị hỏng về hiện chữ', () => {
+  const { api, store } = load();
+  assert.equal(api.labels(), 'labels');
+  store.set('caro.barlabels', 'nonsense');
+  assert.equal(api.labels(), 'labels');
+});
+
+test('setLabels icons: lưu lâu dài và bật class body.bar-icons-only', () => {
+  const { api, store, bodyClasses } = load();
+  api.setLabels('icons');
+  assert.equal(store.get('caro.barlabels'), 'icons');
+  assert.equal(bodyClasses.has('bar-icons-only'), true);
+  api.setLabels('labels');
+  assert.equal(bodyClasses.has('bar-icons-only'), false);
 });

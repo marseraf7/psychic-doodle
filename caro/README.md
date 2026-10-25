@@ -409,7 +409,10 @@ Mở trực tiếp `index.html` cũng chơi được (khi đó không có chế 
   kéo thả trực tiếp chỉ đổi trong ván hiện tại (hết ván về vị trí đã lưu), chọn trong Cài đặt → Giao diện thì lưu lâu dài.
 - **Giao diện ván đấu** (`matchui.js`, Issue #128): trang con mới trong Cài đặt, xem trước giao diện ván đấu như khi thi đấu
   (thanh trên, thẻ người chơi, bàn cờ mẫu, thanh công cụ, nút Xin đi lại); kéo thả thanh công cụ (snap 4 vị trí) và nút Xin đi lại
-  ngay trong khung xem trước, thay đổi áp dụng ngay cho ván thật; có nút Về mặc định.
+  ngay trong khung xem trước, thay đổi áp dụng ngay cho ván thật; có nút Về mặc định. Khung xem trước theo đúng máy đang dùng
+  (full-width trên điện thoại, tối đa 560px trên tablet/máy tính — không còn khung 360px cố định); nút thanh giả lập dùng đúng
+  luật nút thanh thật nên chữ không bẻ dòng, thanh không che thẻ người chơi, nút Xin đi lại đứng tách khỏi thanh. Tùy chọn
+  "Chữ trên thanh công cụ" (`bar-pos.js`: `caro.barlabels`): Hiện chữ hoặc Chỉ biểu tượng, áp cho cả thanh thật lẫn khung xem trước.
 - **Chế độ tập trung** (`focus-mode.js`, Issue #128): chỉ để lại bàn cờ — ẩn thanh trên, thẻ người chơi, thanh công cụ, nút Về giữa,
   thẻ nổi, bong bóng chat và toast (thẻ kết quả vẫn hiện); góc trên bên trái có logo + nút thoát, thoát bằng Esc hoặc bấm nút đó;
   chỉ có hiệu lực trong phiên, điểm vào từ menu 3 gạch (hạng mục 7).
