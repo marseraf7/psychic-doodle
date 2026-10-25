@@ -44,7 +44,18 @@ test('setDrafts đẩy đúng danh sách [x, y, p] lên CaroApp', () => {
   ctx.api.setStone('X');
   ctx.api.place(3, 4);
   ctx.api.place(7, 2);
-  assert.deepEqual(ctx.pushed, [[3, 4, 'X'], [7, 2, 'X']]);
+  assert.deepEqual(ctx.pushed, [[3, 4, 1], [7, 2, 1]]);
+});
+
+test('setDrafts đẩy quân dạng số như nước thật (X = 1, O = 2), không đẩy chuỗi', () => {
+  // Hồi quy 25/10/2026: đẩy chuỗi 'X' khiến board-view vẽ thành O vì
+  // CaroStyle.drawStone chỉ coi p === 1 là X.
+  const ctx = load();
+  ctx.api.setStone('X');
+  ctx.api.place(1, 1);
+  ctx.api.setStone('O');
+  ctx.api.place(2, 2);
+  assert.deepEqual(ctx.pushed, [[1, 1, 1], [2, 2, 2]]);
 });
 
 test('nước thật / ván mới / tắt chế độ: xóa hết quân nháp', () => {
