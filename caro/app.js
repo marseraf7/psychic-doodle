@@ -507,7 +507,16 @@
     get ext() { return state.ext; },
     get marks() { return state.marks; }, // dấu thêm trên bàn (test)
     enterOnline,
-    applyRoom: (room, me) => (state.online && !state.online.watch ? applyRoom(room, me) : enterOnline(room, me)),
+    applyRoom: (room, me) => {
+      if (!state.online || state.online.watch) return enterOnline(room, me);
+      // Phòng khác (ghép trận nhanh, cặp đấu của giải…) hoặc ván mới vừa bắt đầu trong phòng: vào bàn cờ ngay, kể cả
+      // khi đang xem trang khác của khung. Máy chủ không báo "rời phòng" cho phòng cũ đã xong, nên state.online còn giữ
+      // phòng trước và trước đây chỉ cập nhật ngầm – người chơi đứng ở Trang chủ, quá hạn nước đầu thì ván bị huỷ (loi-13).
+      const prev = state.online.room;
+      const fresh = prev.code !== room.code || (prev.gameNo !== room.gameNo && room.players.length === 2);
+      applyRoom(room, me);
+      if (fresh && shellOn()) toBoard();
+    },
     /** Xem ván của người khác (chỉ đọc). */
     watchRoom: (room, me) => (state.online && state.online.watch && state.online.room.code === room.code ? applyRoom(room, me, true) : enterOnline(room, me, true)),
     get watching() { return !!(state.online && state.online.watch); },

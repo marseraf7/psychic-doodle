@@ -475,6 +475,7 @@ node caro/tests/e2e/boat-rapfi.e2e.js    # BOAT chạy Rapfi ở 3 luật + Rapf
 node caro/tests/e2e/localhist.e2e.js     # Lịch sử đấu trên máy (hỏi lưu khi khách / offline, chọn nhiều ván để xoá, phân tích lưu kèm, Cài đặt), Thiết bị
 node caro/tests/e2e/journey.e2e.js       # hành trình người chơi: quét mọi hộp thoại 4 ngôn ngữ × 360/1280 px, luật Swap2/Renju, chạm thật trên điện thoại, online + xem ván
 node caro/tests/e2e/friends-chat.e2e.js  # thanh trên với tên dài ở mọi bề rộng (khách / đăng nhập, vi / ru), nút Kết bạn ↔ Huỷ kết bạn, bong bóng chat + trạng thái bạn bè
+node caro/tests/e2e/quickmatch.e2e.js    # xếp cặp nhanh: ghép lần 2 từ Trang chủ tự vào bàn cờ + đi được nước đầu, thẻ "Quay lại ván" đúng mã phòng, lệnh cấm tìm trận + đếm ngược
 node caro/tests/e2e/topbar.e2e.js        # thanh trên: tìm kỳ thủ, Đăng nhập / Đăng ký, Cài đặt nhanh + ping, số kỳ thủ / ván, ảnh nền, ảnh đại diện
 node caro/tests/e2e/boot.e2e.js          # mở / tải lại khi mạng chậm: Trang chủ hiện ngay (không phải bàn cờ trống), service worker lấy file từ bộ nhớ đệm trước
 node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện thoại (360/390/430 px), iPad dọc/ngang (768/820/1024/1180 px), xoay màn hình, 4 ngôn ngữ

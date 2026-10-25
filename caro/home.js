@@ -118,6 +118,9 @@
   if (badge) new MutationObserver(() => { $('home-badge').hidden = badge.hidden; }).observe(badge, { attributes: true, attributeFilter: ['hidden'] });
 
   window.addEventListener('caro:page', (e) => { if (e.detail.id === 'home') render(); });
+  // Phòng đổi (ghép trận mới, ván xong…) trong lúc đang ở Trang chủ: vẽ lại thẻ "Quay lại ván" – trước đây thẻ giữ mã
+  // phòng của ván trước tới khi mở lại trang
+  if (N) N.on('room', () => { if (Shell.current === 'home') renderResume(); });
   // Bản tĩnh không có máy chủ (online.js gắn class no-online sau khi hỏi máy chủ): chuyển sang thẻ Với máy
   new MutationObserver(() => { if (noOnline() && pane !== 'bot' && Shell.current === 'home') render(); })
     .observe(document.body, { attributes: true, attributeFilter: ['class'] });

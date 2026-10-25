@@ -388,6 +388,9 @@ body.replay #banner { display: none; }
 .qm-search { align-items: center; }
 .qm-search[hidden] { display: none; }
 .qm-status { flex: 1; font-size: var(--fs-sm); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+/* Đang bị cấm tìm trận (bỏ ván nhiều): dòng nhắc + đếm ngược ngay dưới lưới ô (match.js) */
+.qm-ban { margin: 6px 0 0; color: var(--danger, #d64545); font-size: var(--fs-sm); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.qm-ban[hidden] { display: none; }
 .qm-float b { font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
 .spinner {
   width: 18px; height: 18px; flex: none; border-radius: 50%;
