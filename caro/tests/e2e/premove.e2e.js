@@ -76,22 +76,21 @@ const { setup } = require('./helpers');
   // ---------------------------------------------------------------- Menu ☰: công tắc + Quay bàn cờ
   await first.evaluate(() => [...document.querySelectorAll('.bar-menu-btn')].find((x) => x.offsetParent).click());
   await sleep(200);
-  const rows = await first.$$eval('#bar-menu [data-act]', (bs) => bs.map((b) => ({ a: b.dataset.act, sw: !!b.querySelector('.qs-sw'), t: b.textContent.trim() })));
+  const rows = await first.$$eval('#bar-menu [data-act]', (bs) => bs.map((b) => ({ a: b.dataset.act, sw: !!b.querySelector('.qs-sw'), t: b.querySelector('.bm-t').textContent.trim() })));
   ok(rows.map((r) => r.a).join() === 'rotate,focus,draftX,draftO,clearDrafts,quickset'
     && rows.filter((r) => r.sw).map((r) => r.a).join() === 'rotate,focus,draftX,draftO'
     && rows[0].t === 'Quay bàn cờ' && !!(await first.$('#bar-menu [data-act="rotate"] use[href="#i-rotate"]')),
     'menu ☰: Quay bàn cờ (icon hình vuông) thay 2 mục lật; các mục bật tắt có công tắc – ' + JSON.stringify(rows));
-  const [cx, cy] = await first.evaluate(() => window.CaroApp.screenOf(0, 0));
+  const rotState = () => first.evaluate(() => { const b = document.querySelector('#bar-menu [data-act="rotate"]'); return { deg: window.CaroApp.getRotation(), aria: b.getAttribute('aria-checked'), v: b.querySelector('.bm-v').textContent, open: !document.getElementById('bar-menu').hidden }; });
+  ok(JSON.stringify(await rotState()) === JSON.stringify({ deg: 0, aria: 'false', v: '0°', open: true }), 'Quay bàn cờ: ban đầu 0°, công tắc tắt');
   await first.click('#bar-menu [data-act="rotate"]');
-  await sleep(200);
-  const rot = await first.evaluate(() => ({ f: window.CaroApp.getFlip(), aria: document.querySelector('#bar-menu [data-act="rotate"]').getAttribute('aria-checked'), sw: document.querySelector('#bar-menu [data-act="rotate"] .qs-sw').classList.contains('on'), open: !document.getElementById('bar-menu').hidden }));
-  const [rx, ry] = await first.evaluate(() => window.CaroApp.screenOf(0, 0));
-  ok(rot.f.h && rot.f.v && rot.aria === 'true' && rot.sw && rot.open && (Math.abs(rx - cx) > 1 || Math.abs(ry - cy) > 1),
-    'Quay bàn cờ: quay 180°, công tắc bật, menu vẫn mở – ' + JSON.stringify({ rot, before: [cx, cy], after: [rx, ry] }));
+  await sleep(300);
+  const r1 = await rotState();
+  ok(r1.deg === 90 && r1.aria === 'true' && r1.v === '90°' && r1.open, 'bấm Quay bàn cờ: quay 90°, công tắc bật, menu vẫn mở – ' + JSON.stringify(r1));
   await shot(first, 'bar-menu-rotate.png');
-  await first.click('#bar-menu [data-act="rotate"]');
-  await sleep(150);
-  ok(await first.evaluate(() => { const f = window.CaroApp.getFlip(); return !f.h && !f.v && document.querySelector('#bar-menu [data-act="rotate"]').getAttribute('aria-checked') === 'false'; }), 'bấm lần nữa: quay về như cũ, công tắc tắt');
+  for (let k = 0; k < 3; k++) { await first.click('#bar-menu [data-act="rotate"]'); await sleep(260); }
+  const r0 = await rotState();
+  ok(r0.deg === 0 && r0.aria === 'false' && r0.v === '0°', 'bấm đủ 4 lần: về 0°, công tắc tắt – ' + JSON.stringify(r0));
   await first.click('#bar-menu [data-act="draftX"]');
   await sleep(150);
   ok(await first.evaluate(() => window.CaroDraft.current() === 'X' && document.querySelector('#bar-menu [data-act="draftX"] .qs-sw.on') && !document.querySelector('#bar-menu [data-act="draftO"] .qs-sw.on')), 'Quân nháp X: công tắc bật (O tắt)');

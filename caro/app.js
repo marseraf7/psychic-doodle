@@ -305,8 +305,8 @@
     extPlace,
     setMarks,
     setCoords,
-    setFlip: (h, v) => V.setFlip(h, v), // bar-menu.js: quay bàn
-    getFlip: () => V.getFlip(),
+    rotateBoard: () => V.rotation.turn(), // bar-menu.js: quay bàn thêm 90° (board-rotate.js)
+    getRotation: () => V.rotation.target() * 90,
     setDrafts: (list) => V.setDrafts(list), // draft-mode.js: quân nháp
     setDrawLines: (list, prev) => V.setDrawLines(list, prev), // draw-lines.js: đường vẽ chuột phải
     cellName,

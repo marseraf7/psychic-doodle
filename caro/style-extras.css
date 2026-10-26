@@ -370,6 +370,7 @@ body.focus-mode #focus-exit-btn { display: flex; }
 #bar-menu button > .ico { color: var(--muted); }
 #bar-menu button.on > .ico, #bar-menu button.on .bm-t { color: var(--accent); }
 #bar-menu .bm-t { flex: 1; }
+#bar-menu .bm-v { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
 #bar-menu .bm-sep { height: 1px; margin: 4px 8px; background: var(--panel-border); }
 
 /* Hộp thoại: thanh cuộn mảnh, không đè lên góc bo; nội dung cách đều hai bên */

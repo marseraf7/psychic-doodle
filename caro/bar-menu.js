@@ -3,7 +3,8 @@
  * Một nút ☰ gắn cuối mỗi thanh công cụ trong ván (trừ thanh luyện tập #ext-bar do study-trainer.js
  * vẽ lại bằng innerHTML); bấm thì menu bật lên phía trên nút, bấm ngoài thì đóng.
  * - Mỗi mục bật tắt có công tắc bên trái (như Lichess) – trừ Xóa hết quân nháp và Cài đặt nhanh (hành động, không bật tắt).
- * - Quay bàn cờ (icon hình vuông 4 mũi tên): quay 180° = lật cả ngang lẫn dọc ở tầng ánh xạ của board-view.js nên bấm vẫn đúng ô.
+ * - Quay bàn cờ (icon hình vuông 4 mũi tên): mỗi lần bấm quay thêm 90° theo chiều kim đồng hồ như xoay màn hình điện thoại
+ *   (board-rotate.js); công tắc bật khi bàn đang quay khác 0°, bên phải ghi góc hiện tại. Bấm vẫn đúng ô.
  * - Chế độ tập trung: vào focus-mode.js rồi đóng menu.
  * - Quân nháp X / O: bật tắt chế độ nháp (draft-mode.js); Xóa hết quân nháp: xóa lớp phủ nháp.
  * - Cài đặt nhanh: mở bảng cài đặt nhanh (bàn, quân, âm thanh…) nổi ngay trong ván – topbar.js nghe 'caro:quickset'.
@@ -18,7 +19,7 @@
 
   // Hàng bật tắt: công tắc bên trái (như menu của Lichess) cho dễ thấy đang bật mục nào; icon (nếu có) đứng cạnh chữ
   function sw(act, key, icon) {
-    return `<button type="button" role="switch" aria-checked="false" data-act="${act}"><span class="qs-sw"></span>${icon ? ico(icon) : ''}<span class="bm-t" data-k="${key}">${esc(T(key))}</span></button>`;
+    return `<button type="button" role="switch" aria-checked="false" data-act="${act}"><span class="qs-sw"></span>${icon ? ico(icon) : ''}<span class="bm-t" data-k="${key}">${esc(T(key))}</span>${act === 'rotate' ? '<span class="bm-v"></span>' : ''}</button>`;
   }
   // Hàng hành động (không bật tắt): icon đứng ở chỗ công tắc để chữ các hàng thẳng cột
   function action(act, key, icon) {
@@ -38,9 +39,7 @@
       if (!b) return;
       const act = b.dataset.act;
       if (act === 'rotate') {
-        // Quay 180° = lật cả ngang lẫn dọc (lật ở tầng ánh xạ của board-view.js nên bấm vẫn đúng ô)
-        const on = isRotated();
-        window.CaroApp.setFlip(!on, !on);
+        window.CaroApp.rotateBoard(); // thêm 90°, menu vẫn mở để bấm tiếp
         refresh();
         return;
       }
@@ -67,7 +66,6 @@
       }
     });
   }
-  function isRotated() { const f = window.CaroApp.getFlip(); return f.h && f.v; }
   function setOn(act, on) {
     const b = menu.querySelector(`[data-act="${act}"]`);
     b.classList.toggle('on', on);
@@ -76,7 +74,9 @@
   }
   function refresh() {
     if (!menu) return;
-    setOn('rotate', isRotated());
+    const deg = window.CaroApp.getRotation();
+    setOn('rotate', deg !== 0);
+    menu.querySelector('[data-act="rotate"] .bm-v').textContent = deg + '°';
     setOn('focus', !!(window.CaroFocus && window.CaroFocus.isOn()));
     const cur = window.CaroDraft ? window.CaroDraft.current() : null;
     setOn('draftX', cur === 'X');
