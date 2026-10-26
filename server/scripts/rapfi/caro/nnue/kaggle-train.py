@@ -111,7 +111,7 @@ def fetch_data():
     files = glob.glob(str(d / "data" / "**" / "sp-*.binpack.lz4"), recursive=True)
     files.sort(key=lambda f: int(re.match(r"sp-(\d+)-", Path(f).name).group(1)), reverse=True)
     val = [f for f in files if is_val(f)][:VAL_FILES]
-    if len(files) - len(val) < 20:
+    if len(files) - len(val) < 10:
         val = []  # quá ít ván (kiểm thử): học hết, không chấm val
     train = [f for f in files if f not in set(val)][:WINDOW]
     return train, val
@@ -289,9 +289,10 @@ def best_ckpt():
     """Điểm kiểm tra để xuất: bản có val_loss thấp nhất (nếu còn file), không thì bản mới nhất."""
     b = best_val()
     if b:
-        f = RUN / "ckpts" / f"ckpt_mix9svq_{b[0]:07d}.pt"
-        if f.exists() and f.stat().st_size > 0:
-            return str(f)
+        # Tên đầy đủ có cả mô tả kiến trúc: ckpt_mix9svq_basicns_…_0005000.pt
+        for f in glob.glob(str(RUN / "ckpts" / f"ckpt_mix9svq_*_{b[0]:07d}.pt")):
+            if os.path.getsize(f) > 0:
+                return f
     return latest_ckpt()
 
 
