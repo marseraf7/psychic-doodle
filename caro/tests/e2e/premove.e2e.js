@@ -81,6 +81,7 @@ const { setup } = require('./helpers');
   const fl = await first.evaluate(() => { const q = document.getElementById('qs'); const rc = q.getBoundingClientRect(); return { open: !q.hidden, float: q.classList.contains('qs-float'), inBody: q.parentElement === document.body, w: rc.width, x: rc.x, right: rc.right, vw: innerWidth }; });
   ok(fl.open && fl.float && fl.inBody && fl.x >= 0 && fl.right <= fl.vw, 'menu ☰ → Cài đặt nhanh: bảng nổi hiện trong ván, nằm gọn màn hình – ' + JSON.stringify(fl));
   await shot(first, 'premove-quickset.png');
+  ok(!(await first.$('#qs [data-all]')), 'bảng nổi trong ván: không có "Tất cả cài đặt" (bấm là rời bàn cờ)');
   await first.click('#qs [data-sub="board"]');
   await sleep(150);
   await first.click('#qs [data-v="wood"]');

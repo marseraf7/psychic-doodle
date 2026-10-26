@@ -65,7 +65,8 @@
         ${s.look ? '<div class="qs-sep"></div>' + range('corner', 'qs_corner', window.CaroCorners.value, window.CaroCorners.MIN, window.CaroCorners.MAX, 'px') + (window.CaroBackdrop ? tog('bg', window.CaroBackdrop.on) : '') : ''}`;
     } else {
       el.innerHTML = SUBS.map((s) => `<button type="button" class="qs-row" data-sub="${s.name}">${ico(s.icon)}<span class="qs-t">${esc(T(s.title))}</span><span class="qs-v">${esc(s.toggle && !window.CaroSound.enabled ? T('off') : textOf(s.name))}</span>${ico('i-chev')}</button>`).join('') +
-        `<button type="button" class="qs-row" data-all>${ico('i-sliders')}<span class="qs-t">${esc(T('qs_all'))}</span>${ico('i-chev')}</button>` +
+        // Bảng nổi trong ván (mở từ ☰): không có "Tất cả cài đặt" – mở trang Cài đặt là rời bàn cờ
+        (el.classList.contains('qs-float') ? '' : `<button type="button" class="qs-row" data-all>${ico('i-sliders')}<span class="qs-t">${esc(T('qs_all'))}</span>${ico('i-chev')}</button>`) +
         (document.body.classList.contains('no-online') ? '' : netHtml());
     }
   }
