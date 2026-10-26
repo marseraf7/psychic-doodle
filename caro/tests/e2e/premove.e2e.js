@@ -73,6 +73,32 @@ const { setup } = require('./helpers');
   ok((await pm(first)) === null && !(await first.evaluate(() => window.CaroPremove.enabled)), 'tắt trong Cài đặt: bấm lúc chưa tới lượt không đặt trước');
   await first.evaluate(() => window.CaroApp.setSetting('premove', true));
 
+  // ---------------------------------------------------------------- Menu ☰: công tắc + Quay bàn cờ
+  await first.evaluate(() => [...document.querySelectorAll('.bar-menu-btn')].find((x) => x.offsetParent).click());
+  await sleep(200);
+  const rows = await first.$$eval('#bar-menu [data-act]', (bs) => bs.map((b) => ({ a: b.dataset.act, sw: !!b.querySelector('.qs-sw'), t: b.querySelector('.bm-t').textContent.trim() })));
+  ok(rows.map((r) => r.a).join() === 'rotate,focus,draftX,draftO,clearDrafts,quickset'
+    && rows.filter((r) => r.sw).map((r) => r.a).join() === 'rotate,focus,draftX,draftO'
+    && rows[0].t === 'Quay bàn cờ' && !!(await first.$('#bar-menu [data-act="rotate"] use[href="#i-rotate"]')),
+    'menu ☰: Quay bàn cờ (icon hình vuông) thay 2 mục lật; các mục bật tắt có công tắc – ' + JSON.stringify(rows));
+  const rotState = () => first.evaluate(() => { const b = document.querySelector('#bar-menu [data-act="rotate"]'); return { deg: window.CaroApp.getRotation(), aria: b.getAttribute('aria-checked'), v: b.querySelector('.bm-v').textContent, open: !document.getElementById('bar-menu').hidden }; });
+  ok(JSON.stringify(await rotState()) === JSON.stringify({ deg: 0, aria: 'false', v: '0°', open: true }), 'Quay bàn cờ: ban đầu 0°, công tắc tắt');
+  await first.click('#bar-menu [data-act="rotate"]');
+  await sleep(300);
+  const r1 = await rotState();
+  ok(r1.deg === 90 && r1.aria === 'true' && r1.v === '90°' && r1.open, 'bấm Quay bàn cờ: quay 90°, công tắc bật, menu vẫn mở – ' + JSON.stringify(r1));
+  await shot(first, 'bar-menu-rotate.png');
+  for (let k = 0; k < 3; k++) { await first.click('#bar-menu [data-act="rotate"]'); await sleep(260); }
+  const r0 = await rotState();
+  ok(r0.deg === 0 && r0.aria === 'false' && r0.v === '0°', 'bấm đủ 4 lần: về 0°, công tắc tắt – ' + JSON.stringify(r0));
+  await first.click('#bar-menu [data-act="draftX"]');
+  await sleep(150);
+  ok(await first.evaluate(() => window.CaroDraft.current() === 'X' && document.querySelector('#bar-menu [data-act="draftX"] .qs-sw.on') && !document.querySelector('#bar-menu [data-act="draftO"] .qs-sw.on')), 'Quân nháp X: công tắc bật (O tắt)');
+  await first.click('#bar-menu [data-act="draftX"]');
+  await sleep(150);
+  await first.keyboard.press('Escape');
+  await sleep(150);
+
   // ---------------------------------------------------------------- Cài đặt nhanh trong ván
   await first.evaluate(() => [...document.querySelectorAll('.bar-menu-btn')].find((x) => x.offsetParent).click()); // nút ☰ của thanh đang hiện
   await sleep(200);
@@ -81,6 +107,7 @@ const { setup } = require('./helpers');
   const fl = await first.evaluate(() => { const q = document.getElementById('qs'); const rc = q.getBoundingClientRect(); return { open: !q.hidden, float: q.classList.contains('qs-float'), inBody: q.parentElement === document.body, w: rc.width, x: rc.x, right: rc.right, vw: innerWidth }; });
   ok(fl.open && fl.float && fl.inBody && fl.x >= 0 && fl.right <= fl.vw, 'menu ☰ → Cài đặt nhanh: bảng nổi hiện trong ván, nằm gọn màn hình – ' + JSON.stringify(fl));
   await shot(first, 'premove-quickset.png');
+  ok(!(await first.$('#qs [data-all]')), 'bảng nổi trong ván: không có "Tất cả cài đặt" (bấm là rời bàn cờ)');
   await first.click('#qs [data-sub="board"]');
   await sleep(150);
   await first.click('#qs [data-v="wood"]');

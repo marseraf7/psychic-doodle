@@ -281,8 +281,9 @@ const { setup } = require('./helpers');
     ok(/bạn/.test(await p.textContent('#sr-live')), 'máy đi xong: trình đọc màn hình báo tới lượt mình – ' + await p.textContent('#sr-live'));
     // Đổi giao diện, ngôn ngữ trong cài đặt
     await closeAll(p);
-    await p.tap('#btn-settings'); await sleep(250);
-    ok(await p.isVisible('#page-settings'), 'nút Cài đặt trên bàn cờ: mở trang Cài đặt');
+    ok(!(await p.isVisible('#btn-settings')), 'thanh công cụ trong ván không còn nút Cài đặt');
+    await p.evaluate(() => document.getElementById('btn-settings').click()); await sleep(250); // như Xem thêm › Cài đặt
+    ok(await p.isVisible('#page-settings'), 'Xem thêm › Cài đặt: mở trang Cài đặt');
     await p.tap('#settings-form [data-go="lang"]'); await sleep(200);
     await p.tap('#lang-list label:has(input[value="en"])'); await sleep(250);
     ok(/Language/.test(await p.textContent('#page-settings .pg-title')) && /Home/.test(await p.textContent('#tabbar')), 'đổi ngôn ngữ sang tiếng Anh ngay lập tức');

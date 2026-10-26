@@ -2,43 +2,49 @@
  * Menu 3 gạch cuối thanh công cụ trong ván (Issue #128, hạng mục 7).
  * Một nút ☰ gắn cuối mỗi thanh công cụ trong ván (trừ thanh luyện tập #ext-bar do study-trainer.js
  * vẽ lại bằng innerHTML); bấm thì menu bật lên phía trên nút, bấm ngoài thì đóng.
- * - Lật bàn ngang / dọc: bật tắt, có dấu ✓, lật ở tầng ánh xạ của board-view.js nên bấm vẫn đúng ô.
+ * - Mỗi mục bật tắt có công tắc bên trái (như Lichess) – trừ Xóa hết quân nháp và Cài đặt nhanh (hành động, không bật tắt).
+ * - Quay bàn cờ (icon hình vuông 4 mũi tên): mỗi lần bấm quay thêm 90° theo chiều kim đồng hồ như xoay màn hình điện thoại
+ *   (board-rotate.js); công tắc bật khi bàn đang quay khác 0°, bên phải ghi góc hiện tại. Bấm vẫn đúng ô.
  * - Chế độ tập trung: vào focus-mode.js rồi đóng menu.
  * - Quân nháp X / O: bật tắt chế độ nháp (draft-mode.js); Xóa hết quân nháp: xóa lớp phủ nháp.
  * - Cài đặt nhanh: mở bảng cài đặt nhanh (bàn, quân, âm thanh…) nổi ngay trong ván – topbar.js nghe 'caro:quickset'.
- * Các hàng bật tắt giữ menu mở để kết hợp (ví dụ lật cả ngang lẫn dọc = xoay 180°).
+ * Các hàng bật tắt (trừ Chế độ tập trung – ẩn cả thanh công cụ) giữ menu mở.
  */
 (function () {
   'use strict';
   const T = (k, a) => window.I18N.t(k, a);
   const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   let menu = null;
+  const ico = (id) => `<svg class="ico" aria-hidden="true"><use href="#${id}"/></svg>`;
 
-  function row(act, key) {
-    return `<button type="button" data-act="${act}"><span class="tick">✓</span><span>${esc(T(key))}</span></button>`;
+  // Hàng bật tắt: công tắc bên trái (như menu của Lichess) cho dễ thấy đang bật mục nào; icon (nếu có) đứng cạnh chữ
+  function sw(act, key, icon) {
+    return `<button type="button" role="switch" aria-checked="false" data-act="${act}"><span class="qs-sw"></span>${icon ? ico(icon) : ''}<span class="bm-t" data-k="${key}">${esc(T(key))}</span>${act === 'rotate' ? '<span class="bm-v"></span>' : ''}</button>`;
+  }
+  // Hàng hành động (không bật tắt): icon đứng ở chỗ công tắc để chữ các hàng thẳng cột
+  function action(act, key, icon) {
+    return `<button type="button" data-act="${act}"><span class="bm-ic">${ico(icon)}</span><span class="bm-t" data-k="${key}">${esc(T(key))}</span></button>`;
   }
   function build() {
     menu = document.createElement('div');
     menu.id = 'bar-menu';
     menu.hidden = true;
-    menu.innerHTML = row('flipH', 'menu_flip_h') + row('flipV', 'menu_flip_v')
-      + `<button type="button" data-act="focus"><span>${esc(T('focus_mode'))}</span></button>`
-      + row('draftX', 'menu_draft_x') + row('draftO', 'menu_draft_o')
-      + `<button type="button" data-act="clearDrafts"><span>${esc(T('menu_draft_clear'))}</span></button>`
-      + `<button type="button" data-act="quickset"><span>${esc(T('menu_quickset'))}</span></button>`;
+    menu.innerHTML = sw('rotate', 'menu_rotate', 'i-rotate') + sw('focus', 'focus_mode')
+      + sw('draftX', 'menu_draft_x') + sw('draftO', 'menu_draft_o')
+      + action('clearDrafts', 'menu_draft_clear', 'i-trash')
+      + '<div class="bm-sep"></div>' + action('quickset', 'menu_quickset', 'i-sliders');
     document.body.appendChild(menu);
     menu.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-act]');
       if (!b) return;
       const act = b.dataset.act;
-      if (act === 'flipH' || act === 'flipV') {
-        const f = window.CaroApp.getFlip();
-        window.CaroApp.setFlip(act === 'flipH' ? !f.h : f.h, act === 'flipV' ? !f.v : f.v);
+      if (act === 'rotate') {
+        window.CaroApp.rotateBoard(); // thêm 90°, menu vẫn mở để bấm tiếp
         refresh();
         return;
       }
       if (act === 'focus') {
-        if (window.CaroFocus) window.CaroFocus.enter();
+        if (window.CaroFocus) window.CaroFocus.toggle();
         close();
         return;
       }
@@ -60,22 +66,23 @@
       }
     });
   }
+  function setOn(act, on) {
+    const b = menu.querySelector(`[data-act="${act}"]`);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', String(on));
+    b.querySelector('.qs-sw').classList.toggle('on', on);
+  }
   function refresh() {
     if (!menu) return;
-    const f = window.CaroApp.getFlip();
-    menu.querySelector('[data-act="flipH"]').classList.toggle('on', f.h);
-    menu.querySelector('[data-act="flipV"]').classList.toggle('on', f.v);
+    const deg = window.CaroApp.getRotation();
+    setOn('rotate', deg !== 0);
+    menu.querySelector('[data-act="rotate"] .bm-v').textContent = deg + '°';
+    setOn('focus', !!(window.CaroFocus && window.CaroFocus.isOn()));
     const cur = window.CaroDraft ? window.CaroDraft.current() : null;
-    menu.querySelector('[data-act="draftX"]').classList.toggle('on', cur === 'X');
-    menu.querySelector('[data-act="draftO"]').classList.toggle('on', cur === 'O');
+    setOn('draftX', cur === 'X');
+    setOn('draftO', cur === 'O');
     // Nhãn theo ngôn ngữ hiện tại (đổi ngôn ngữ giữa chừng thì menu mở lại vẫn đúng chữ).
-    menu.querySelector('[data-act="flipH"] span:last-child').textContent = T('menu_flip_h');
-    menu.querySelector('[data-act="flipV"] span:last-child').textContent = T('menu_flip_v');
-    menu.querySelector('[data-act="focus"] span').textContent = T('focus_mode');
-    menu.querySelector('[data-act="draftX"] span:last-child').textContent = T('menu_draft_x');
-    menu.querySelector('[data-act="draftO"] span:last-child').textContent = T('menu_draft_o');
-    menu.querySelector('[data-act="clearDrafts"] span').textContent = T('menu_draft_clear');
-    menu.querySelector('[data-act="quickset"] span').textContent = T('menu_quickset');
+    menu.querySelectorAll('.bm-t').forEach((el) => { el.textContent = T(el.dataset.k); });
   }
   function open(btn) {
     if (!menu) build();

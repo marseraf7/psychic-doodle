@@ -35,22 +35,22 @@
       requestDraw();
     }
 
-    // Quay bàn (bar-menu.js, Issue #128): lật ngang / dọc ở tầng ánh xạ — mọi thứ vẽ qua
-    // toScreen (lưới, quân, đánh dấu, toạ độ) và mọi cú bấm qua toCell đều lật theo, chữ không bị soi gương.
-    let flipH = false, flipV = false;
+    // Quay bàn 90° mỗi nấc (bar-menu.js → board-rotate.js) ở tầng ánh xạ — mọi thứ vẽ qua toScreen (lưới, quân,
+    // đánh dấu, toạ độ) và mọi cú bấm qua toCell đều quay theo, quân và chữ vẫn đứng thẳng.
+    const R = window.CaroBoardRotate.create(canvas, () => requestDraw());
     const toScreen = (wx, wy) => {
-      const sx = (wx - cam.x) * cam.size + W / 2;
-      const sy = (wy - cam.y) * cam.size + H / 2;
-      return [flipH ? W - sx : sx, flipV ? H - sy : sy];
+      const [u, v] = R.rot((wx - cam.x) * cam.size, (wy - cam.y) * cam.size);
+      return [u + W / 2, v + H / 2];
     };
     // Toạ độ bàn cờ liên tục (không làm tròn) của một điểm màn hình – neo phóng to / chụm
-    const toWorld = (sx, sy) => [
-      ((flipH ? W - sx : sx) - W / 2) / cam.size + cam.x,
-      ((flipV ? H - sy : sy) - H / 2) / cam.size + cam.y,
-    ];
+    const toWorld = (sx, sy) => {
+      R.settle(); // chạm / lăn chuột khi bàn đang quay dở: xong ngay để bấm đúng ô theo hướng mới
+      const [u, v] = R.unrot(sx - W / 2, sy - H / 2);
+      return [u / cam.size + cam.x, v / cam.size + cam.y];
+    };
     const toCell = (sx, sy) => toWorld(sx, sy).map(Math.round);
-    function setFlip(h, v) { flipH = !!h; flipV = !!v; requestDraw(); }
-    function getFlip() { return { h: flipH, v: flipV }; }
+    /** Độ dời trên màn hình (px) → độ dời camera trên bàn (ô): kéo, vuốt, lăn chuột, phím mũi tên theo hướng đã quay. */
+    const screenDelta = (dx, dy) => R.unrot(dx / cam.size, dy / cam.size);
 
     // Quân nháp (draft-mode.js): danh sách [x, y, p] do module nháp đẩy vào, vẽ mờ viền chấm.
     let drafts = [];
@@ -80,20 +80,20 @@
       ctx.fillStyle = colors.bg;
       ctx.fillRect(0, 0, W, H);
 
-      // Lưới: đường kẻ nằm giữa các ô (toạ độ nửa nguyên).
-      const x0 = Math.floor(cam.x - W / 2 / s) - 1, x1 = Math.ceil(cam.x + W / 2 / s) + 1;
-      const y0 = Math.floor(cam.y - H / 2 / s) - 1, y1 = Math.ceil(cam.y + H / 2 / s) + 1;
+      // Lưới: đường kẻ nằm giữa các ô (toạ độ nửa nguyên). Bàn quay 90° / 270°: trục x của bàn chạy dọc màn hình
+      const odd = R.quarter() % 2 === 1;
+      const rx = (odd ? H : W) / 2 / s, ry = (odd ? W : H) / 2 / s;
+      const x0 = Math.floor(cam.x - rx) - 1, x1 = Math.ceil(cam.x + rx) + 1;
+      const y0 = Math.floor(cam.y - ry) - 1, y1 = Math.ceil(cam.y + ry) + 1;
       ctx.lineWidth = 1;
       ctx.strokeStyle = colors.grid;
       ctx.beginPath();
-      for (let i = x0; i <= x1; i++) {
-        const sx = Math.round(toScreen(i + 0.5, 0)[0]) + 0.5;
-        ctx.moveTo(sx, 0); ctx.lineTo(sx, H);
-      }
-      for (let j = y0; j <= y1; j++) {
-        const sy = Math.round(toScreen(0, j + 0.5)[1]) + 0.5;
-        ctx.moveTo(0, sy); ctx.lineTo(W, sy);
-      }
+      const line = ([ax, ay], [bx]) => { // đường kẻ thẳng đứng (cùng x) hoặc nằm ngang, khớp điểm ảnh
+        if (Math.abs(ax - bx) < 0.5) { const x = Math.round(ax) + 0.5; ctx.moveTo(x, 0); ctx.lineTo(x, H); return; }
+        const y = Math.round(ay) + 0.5; ctx.moveTo(0, y); ctx.lineTo(W, y);
+      };
+      for (let i = x0; i <= x1; i++) line(toScreen(i + 0.5, 0), toScreen(i + 0.5, 1));
+      for (let j = y0; j <= y1; j++) line(toScreen(0, j + 0.5), toScreen(1, j + 0.5));
       ctx.stroke();
 
       // Đánh dấu gốc toạ độ để dễ định hướng.
@@ -106,7 +106,8 @@
       const moves = state.board.moves;
       const last = moves[moves.length - 1];
       if (last) {
-        const [sx, sy] = toScreen(last.x - 0.5, last.y - 0.5);
+        const [cx, cy] = toScreen(last.x, last.y); // tâm ô (góc trên trái của ô đổi theo hướng quay)
+        const sx = cx - s / 2, sy = cy - s / 2;
         ctx.fillStyle = colors.last;
         ctx.fillRect(sx + 1, sy + 1, s - 1, s - 1);
         // Chấm nhỏ màu của người vừa đánh ở góc ô
@@ -226,9 +227,11 @@
         ctx.font = `600 ${Math.round(Math.min(13, s * 0.36))}px ${fontFamily || (fontFamily = getComputedStyle(document.body).fontFamily)}`;
         ctx.fillStyle = colors.muted;
         ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-        for (let x = Math.max(x0, minX); x <= Math.min(x1, maxX); x++) ctx.fillText(colName(x - minX), toScreen(x, 0)[0], H - 3);
-        ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-        for (let y = Math.max(y0, minY); y <= Math.min(y1, maxY); y++) ctx.fillText(String(maxY - y + 1), 4, toScreen(0, y)[1]);
+        // Bàn quay 90° / 270°: cột chạy dọc màn hình nên chữ cái sang mép trái, số hàng xuống mép dưới
+        const bottom = (txt, p) => { ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(txt, p[0], H - 3); };
+        const left = (txt, p) => { ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(txt, 4, p[1]); };
+        for (let x = Math.max(x0, minX); x <= Math.min(x1, maxX); x++) (odd ? left : bottom)(colName(x - minX), toScreen(x, cam.y));
+        for (let y = Math.max(y0, minY); y <= Math.min(y1, maxY); y++) (odd ? bottom : left)(String(maxY - y + 1), toScreen(cam.x, y));
       }
 
       if (camAnim || inertia) again = true;
@@ -331,8 +334,9 @@
       if (inertia) {
         const dt = Math.min(40, now - inertia.t);
         inertia.t = now;
-        cam.x -= (flipH ? -inertia.vx : inertia.vx) * dt / cam.size; // lật bàn: quán tính theo hướng vuốt trên màn hình
-        cam.y -= (flipV ? -inertia.vy : inertia.vy) * dt / cam.size;
+        const [ix, iy] = screenDelta(inertia.vx * dt, inertia.vy * dt); // quay bàn: quán tính theo hướng vuốt trên màn hình
+        cam.x -= ix;
+        cam.y -= iy;
         const k = Math.pow(0.994, dt);
         inertia.vx *= k;
         inertia.vy *= k;
@@ -358,7 +362,8 @@
         minY = Math.min(minY, m.y); maxY = Math.max(maxY, m.y);
       }
       const w = maxX - minX + 5, h = maxY - minY + 5;
-      const size = clamp(Math.min(W / w, (H - 160) / h), MIN_SIZE, 48);
+      const odd = R.quarter() % 2 === 1; // bàn quay 90° / 270°: chiều ngang của bàn nằm dọc màn hình
+      const size = clamp(Math.min(W / (odd ? h : w), (H - 160) / (odd ? w : h)), MIN_SIZE, 48);
       animateCamera((minX + maxX) / 2, (minY + maxY) / 2, size);
     }
 
@@ -368,8 +373,9 @@
       newSize = clamp(newSize, MIN_SIZE, MAX_SIZE);
       const [wx, wy] = toWorld(sx, sy); // không làm tròn (làm tròn thì mỗi nấc phóng bàn giật nửa ô); đúng cả khi lật bàn
       cam.size = newSize;
-      cam.x = wx - (flipH ? -(sx - W / 2) : (sx - W / 2)) / newSize;
-      cam.y = wy - (flipV ? -(sy - H / 2) : (sy - H / 2)) / newSize;
+      const [dx, dy] = screenDelta(sx - W / 2, sy - H / 2);
+      cam.x = wx - dx;
+      cam.y = wy - dy;
       requestDraw();
       saveSoon();
     }
@@ -382,7 +388,7 @@
 
     return {
       readColors, resize, toScreen, toCell, toWorld, requestDraw, animateCamera, ensureVisible, centerView, clamp, zoomAt, saveSoon, colName,
-      setFlip, getFlip, setDrafts, setDrawLines,
+      screenDelta, rotation: R, setDrafts, setDrawLines,
       get W() { return W; },
       get H() { return H; },
       /** Chạm vào bàn cờ: dừng hoạt ảnh camera và quán tính. */

@@ -364,9 +364,14 @@ body.focus-mode #focus-exit-btn { display: flex; }
   font: inherit; font-size: var(--fs-md); color: var(--text); text-align: left; cursor: pointer;
 }
 #bar-menu button:hover { background: rgba(127, 127, 127, 0.14); }
-#bar-menu .tick { visibility: hidden; width: 1em; color: var(--accent); font-weight: var(--fw-bold); }
-#bar-menu button.on .tick { visibility: visible; }
-#bar-menu button.on { color: var(--accent); }
+/* Công tắc (.qs-sw – topbar.css) đứng đầu hàng; hàng hành động đặt icon vào đúng chỗ đó để chữ thẳng cột */
+#bar-menu button { gap: 10px; }
+#bar-menu .bm-ic { width: 36px; flex: none; display: flex; justify-content: center; color: var(--muted); }
+#bar-menu button > .ico { color: var(--muted); }
+#bar-menu button.on > .ico, #bar-menu button.on .bm-t { color: var(--accent); }
+#bar-menu .bm-t { flex: 1; }
+#bar-menu .bm-v { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+#bar-menu .bm-sep { height: 1px; margin: 4px 8px; background: var(--panel-border); }
 
 /* Hộp thoại: thanh cuộn mảnh, không đè lên góc bo; nội dung cách đều hai bên */
 dialog { scrollbar-width: thin; scrollbar-color: var(--grid-strong) transparent; scrollbar-gutter: stable both-edges; overscroll-behavior: contain; }

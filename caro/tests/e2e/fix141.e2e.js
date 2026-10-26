@@ -286,7 +286,7 @@ const { setup, play, roomOf, sleep } = require('./helpers');
   // ---------------------------------------------------------- Mục 8: Cài đặt chỉ còn một tiêu đề "Dữ liệu"
   await a.evaluate(() => window.CaroApp.toBoard());
   await sleep(300);
-  await a.click('#btn-settings');
+  await a.evaluate(() => document.getElementById('btn-settings').click());
   await sleep(500);
   const dataHeads = await a.evaluate(() => [...document.querySelectorAll('#settings-form h3.list-h')].filter((h) => h.textContent.trim() === 'Dữ liệu').length);
   ok(dataHeads === 1, 'mục 8: trang Cài đặt còn đúng 1 tiêu đề "Dữ liệu" (trước đây 2)');

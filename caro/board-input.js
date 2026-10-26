@@ -9,7 +9,7 @@
     const { EMPTY, X, O } = window.Caro;
     const { canvas, cam, state, V, MIN_SIZE, MAX_SIZE, canPlaceNow, play, showBanner, vibrate, shellOn, undo, openNewGame,
       seekReplay, toggleReplayPlay, closeReplay, stopReplay } = env;
-    const { toCell, toWorld, animateCamera, requestDraw, zoomAt, clamp, saveSoon, centerView, getFlip } = V;
+    const { toCell, toWorld, animateCamera, requestDraw, zoomAt, clamp, saveSoon, centerView, screenDelta } = V;
 
     // ------------------------------------------------------------ Nhập liệu
     const pointers = new Map();
@@ -121,9 +121,9 @@
       if (gesture.type === 'pan') {
         const dx = e.clientX - gesture.lx, dy = e.clientY - gesture.ly;
         const dt = Math.max(1, e.timeStamp - gesture.lt);
-        const fl = getFlip(); // lật bàn: kéo phải thì camera đi ngược dấu để nội dung vẫn bám theo ngón tay
-        cam.x -= (fl.h ? -dx : dx) / cam.size;
-        cam.y -= (fl.v ? -dy : dy) / cam.size;
+        const [mx, my] = screenDelta(dx, dy); // quay bàn: nội dung vẫn bám theo ngón tay
+        cam.x -= mx;
+        cam.y -= my;
         gesture.vx = 0.7 * (dx / dt) + 0.3 * gesture.vx;
         gesture.vy = 0.7 * (dy / dt) + 0.3 * gesture.vy;
         gesture.lx = e.clientX; gesture.ly = e.clientY; gesture.lt = e.timeStamp;
@@ -134,9 +134,9 @@
         const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
         const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
         cam.size = clamp(gesture.size * (d / gesture.dist), MIN_SIZE, MAX_SIZE);
-        const fl = getFlip(); // neo điểm chụm đúng cả khi lật bàn (cùng công thức với zoomAt)
-        cam.x = gesture.wx - (fl.h ? -(mx - V.W / 2) : (mx - V.W / 2)) / cam.size;
-        cam.y = gesture.wy - (fl.v ? -(my - V.H / 2) : (my - V.H / 2)) / cam.size;
+        const [ox, oy] = screenDelta(mx - V.W / 2, my - V.H / 2); // neo điểm chụm đúng cả khi quay bàn (như zoomAt)
+        cam.x = gesture.wx - ox;
+        cam.y = gesture.wy - oy;
         requestDraw();
       }
     });
@@ -188,10 +188,10 @@
         const f = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015) * (e.deltaMode === 1 ? 30 : 1));
         zoomAt(e.clientX, e.clientY, cam.size * f);
       } else {
-        // Vuốt 2 ngón trên touchpad: di chuyển (lật bàn thì đổi dấu để nội dung cuộn cùng hướng).
-        const fl = getFlip();
-        cam.x += (fl.h ? -e.deltaX : e.deltaX) / cam.size;
-        cam.y += (fl.v ? -e.deltaY : e.deltaY) / cam.size;
+        // Vuốt 2 ngón trên touchpad: di chuyển (quay bàn thì đổi hướng để nội dung cuộn cùng hướng).
+        const [wx, wy] = screenDelta(e.deltaX, e.deltaY);
+        cam.x += wx;
+        cam.y += wy;
         requestDraw();
         saveSoon();
       }
@@ -211,11 +211,16 @@
           Home: () => seekReplay(0, true), End: () => seekReplay(r.data.moves.length, true), ' ': toggleReplayPlay, Escape: () => closeReplay() }[e.key];
         if (act) { e.preventDefault(); if (e.key !== ' ') stopReplay(); act(); return; }
       }
+      // Phím mũi tên: dời theo hướng trên màn hình (bàn đã quay thì đổi trục cho đúng)
+      const dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+      if (dir) {
+        const [dx, dy] = V.rotation.unrot(dir[0] * step, dir[1] * step);
+        cam.x += dx; cam.y += dy;
+        requestDraw();
+        saveSoon();
+        return;
+      }
       switch (e.key) {
-        case 'ArrowLeft': cam.x -= step; break;
-        case 'ArrowRight': cam.x += step; break;
-        case 'ArrowUp': cam.y -= step; break;
-        case 'ArrowDown': cam.y += step; break;
         case '+': case '=': zoomAt(V.W / 2, V.H / 2, cam.size * 1.2); return;
         case '-': case '_': zoomAt(V.W / 2, V.H / 2, cam.size / 1.2); return;
         case 'c': case 'C': centerView(); return;
