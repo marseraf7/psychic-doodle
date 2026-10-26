@@ -2,7 +2,9 @@
 Ghi config.yaml cho pytorch-nnue-trainer – dùng chung cho run.sh (máy luyện, CPU) và kaggle-train.py (Kaggle, GPU) để
 hai nơi luyện cùng một kiểu mạng (Rapfi-CARO chỉ nạp được đúng mix9svq với các tham số này).
   python3 make-train-config.py <rundir> <thư mục dữ liệu> <cỡ lô> <số bước> <tốc độ học> [điểm kiểm tra để học tiếp]
-                               [lưu mỗi … bước] [lưu tạm mỗi … bước]
+                               [lưu mỗi … bước] [lưu tạm mỗi … bước] [thư mục ván kiểm tra] [kiểm tra mỗi … bước]
+Ván kiểm tra (val): file để riêng, không đưa vào học – loss trên đó (val_loss) mới cho biết mạng học được quy luật hay chỉ
+thuộc lòng ván đã học (train_loss giảm mà val_loss đứng / tăng là đang quá khớp).
 Lưu tạm (temp_save_interval) là bản cuốn chiếu – chỉ giữ bản mới nhất: máy bị dừng giữa chừng (Spot) thì run.sh nạp bản
 đó (load_from) và học nốt phần còn lại, không mất cả vòng. (state_*.pt không dùng được: dữ liệu packed_binary không học
 tiếp "chính xác" được, bộ huấn luyện từ chối.)
@@ -19,6 +21,8 @@ rundir, data, batch, iters, lr = sys.argv[1:6]
 load_from = sys.argv[6] if len(sys.argv) > 6 and sys.argv[6] else ""
 save_every = sys.argv[7] if len(sys.argv) > 7 and sys.argv[7] else iters
 temp_every = sys.argv[8] if len(sys.argv) > 8 and sys.argv[8] else "5000"
+val_data = sys.argv[9] if len(sys.argv) > 9 and sys.argv[9] else ""
+val_every = sys.argv[10] if len(sys.argv) > 10 and sys.argv[10] else "100000000"
 
 cfg = f"""rundir: {rundir}
 dataset_type: packed_binary
@@ -33,11 +37,13 @@ iterations: {iters}
 save_interval: {save_every}
 temp_save_interval: {temp_every}
 log_interval: 100
-val_interval: 100000000
+val_interval: {val_every}
 learning_rate: {lr}
 weight_decay: 1.0e-7
 clip_grad_norm: 1.0
 """
+if val_data:
+    cfg += f"val_datas: [{val_data}]\n"
 if load_from:
     cfg += f"load_from: {load_from}\n"
 Path(rundir).mkdir(parents=True, exist_ok=True)

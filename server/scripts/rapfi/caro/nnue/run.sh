@@ -132,6 +132,13 @@ evaluate() {
   bg bash -c 'exec node "$1/arena.js" "$2" "$3/engines/best" "$4" "$5" > "$6/arena.out" 2>> "$6/arena.err"' _ "$HERE" "$C" "$WORK" "$ARENA_OPENINGS" "$ARENA_MS" "$R"
   res=$(tail -1 "$R/arena.out")
   score=$(echo "$res" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['score'])" 2> /dev/null || echo 0)
+  # Khoảng tin cậy 95% của điểm (128 ván: ±~8,7%) – 52–53% là chưa phân biệt được với ngang sức
+  res="$res $(echo "$res" | python3 -c "
+import json, math, sys
+d = json.loads(sys.stdin.read()); n = d['games']; p = d['score']
+e = 1.96 * math.sqrt(max(p * (1 - p), 1e-9) / n)
+elo = lambda x: -400 * math.log10(1 / min(max(x, 0.001), 0.999) - 1)
+print(f'≈ {elo(p):+.0f} Elo (95%: {elo(p - e):+.0f}…{elo(p + e):+.0f})')" 2> /dev/null)"
   if python3 -c "import sys; sys.exit(0 if float('$score') >= $PROMOTE else 1)"; then
     cp "$net" "$WORK/engines/best/caro-nnue.bin.lz4.new" && mv "$WORK/engines/best/caro-nnue.bin.lz4.new" "$WORK/engines/best/caro-nnue.bin.lz4"
     node "$HERE/make-config.js" "$WORK/engines/best" caro-nnue.bin.lz4
@@ -162,7 +169,12 @@ check_cands() {
     label=$(basename "$f" .bin.lz4)
     [ -e "$WORK/runs/cand-$label" ] && continue
     mkdir -p "$WORK/runs/cand-$label"
-    closs=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('value_loss','?'))" "${f%.bin.lz4}.json" 2> /dev/null || echo '?')
+    # train_loss đo trên ván đã học (giảm mãi); val_loss đo trên ván để riêng – mới cho biết mạng mạnh lên thật
+    closs=$(python3 -c "
+import json, sys
+m = json.load(open(sys.argv[1]))
+r = lambda v: '?' if v is None else round(v, 4)
+print(f\"{r(m.get('value_loss'))} · val {r(m.get('val_loss'))}\" + (' (dừng sớm)' if m.get('early_stop') else ''))" "${f%.bin.lz4}.json" 2> /dev/null || echo '?')
     log "$label: mạng ứng viên từ Kaggle – đấu chọn"
     evaluate "$f" "$label" "$WORK/runs/cand-$label" "$closs"
   done

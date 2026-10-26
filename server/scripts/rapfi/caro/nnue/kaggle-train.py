@@ -9,6 +9,12 @@ Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi)
   DATA_REPO   https://github.com/marseraf7/caro-nnue-data (mặc định)
   HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
   BATCH 256 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước · TEMP_SAVE 1000 bước (lưu tạm)
+  VAL_MOD 40 · VAL_FILES 30 · PATIENCE 2 – xem "Ván kiểm tra" dưới
+Ván kiểm tra: khoảng 1/VAL_MOD số file (chọn theo mã băm tên file – phiên nào cũng đúng những file đó, không bao giờ đưa
+vào học), lấy tối đa VAL_FILES file mới nhất. Mỗi lần lưu điểm kiểm tra, bộ huấn luyện chấm loss trên các ván này
+(val_loss). train_loss chỉ đo trên ván đã học nên giảm mãi (thuộc lòng); val_loss mới cho biết mạng có mạnh lên với ván
+chưa gặp. val_loss không tốt hơn mức tốt nhất PATIENCE lần liền thì dừng sớm (học thêm chỉ quá khớp, phí giờ GPU) và
+xuất mạng ở điểm kiểm tra có val_loss thấp nhất.
 Học tiếp qua nhiều phiên: thư mục chạy (/kaggle/working/run) là đầu ra của notebook. Phiên sau: Add Input → chọn đầu ra
 của phiên trước – script lấy điểm kiểm tra cuối của phiên đó làm điểm xuất phát (không có thì học từ đầu). Chỉ giữ 2 điểm kiểm tra mới nhất cho đầu ra gọn.
 Token chỉ đọc từ Kaggle Secrets / biến môi trường GITHUB_TOKEN, không in ra; cần quyền ghi (Contents) repo dữ liệu.
@@ -23,6 +29,7 @@ import signal
 import subprocess
 import sys
 import time
+import zlib
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -32,6 +39,9 @@ HOURS = float(os.environ.get("HOURS", "9"))
 BATCH = os.environ.get("BATCH", "256")  # 1024 hết bộ nhớ GPU T4 16 GB (mix9svq, codebook 65536)
 LR = os.environ.get("LR", "0.001")
 WINDOW = int(os.environ.get("WINDOW", "3000"))
+VAL_MOD = int(os.environ.get("VAL_MOD", "40"))
+VAL_FILES = int(os.environ.get("VAL_FILES", "30"))
+PATIENCE = int(os.environ.get("PATIENCE", "2"))
 SAVE_EVERY = os.environ.get("SAVE_EVERY", "5000")
 # Lưu tạm cuốn chiếu: T4 lô 256 chạy ~1,4 bước/giây → 1000 bước ≈ 12 phút (hết giờ thì xuất từ bản này)
 TEMP_SAVE = os.environ.get("TEMP_SAVE", "1000")
@@ -84,8 +94,14 @@ def setup_trainer():
     return tr
 
 
+def is_val(f):
+    """File để riêng làm ván kiểm tra – theo mã băm tên file nên cố định qua mọi phiên."""
+    return VAL_MOD > 0 and zlib.crc32(Path(f).name.encode()) % VAL_MOD == 0
+
+
 def fetch_data():
-    """Clone nông repo dữ liệu, trả danh sách WINDOW file ván mới nhất (theo epoch trong tên sp-<epoch>-…)."""
+    """Clone nông repo dữ liệu, trả (WINDOW file ván mới nhất để học, tối đa VAL_FILES file ván kiểm tra mới nhất) –
+    theo epoch trong tên sp-<epoch>-…; hai danh sách không bao giờ chung file."""
     d = TMP / "data-repo"
     if d.exists():
         shutil.rmtree(d)
@@ -94,7 +110,11 @@ def fetch_data():
     sh("git", "clone", "-q", "--depth", "1", repo_url(), str(d))
     files = glob.glob(str(d / "data" / "**" / "sp-*.binpack.lz4"), recursive=True)
     files.sort(key=lambda f: int(re.match(r"sp-(\d+)-", Path(f).name).group(1)), reverse=True)
-    return files[:WINDOW]
+    val = [f for f in files if is_val(f)][:VAL_FILES]
+    if len(files) - len(val) < 20:
+        val = []  # quá ít ván (kiểm thử): học hết, không chấm val
+    train = [f for f in files if f not in set(val)][:WINDOW]
+    return train, val
 
 
 def resume_previous():
@@ -118,7 +138,9 @@ def resume_previous():
 
 
 def prune(keep=2):
-    """Chỉ giữ `keep` điểm kiểm tra mới nhất mỗi loại (ckpt_, ckpt_ema…, state_) cho đầu ra Kaggle gọn."""
+    """Chỉ giữ `keep` điểm kiểm tra mới nhất mỗi loại (ckpt_, ckpt_ema…, state_) cho đầu ra Kaggle gọn – cộng điểm kiểm
+    tra có val_loss thấp nhất (để xuất mạng từ đó)."""
+    best = best_val()
     groups = {}
     for f in glob.glob(str(RUN / "ckpts" / "*.pt")):
         m = re.match(r"(.*_)(\d{7})(.*)\.pt$", Path(f).name)
@@ -126,6 +148,8 @@ def prune(keep=2):
             groups.setdefault(m.group(1) + m.group(3), []).append(f)
     for fs in groups.values():
         for f in sorted(fs)[:-keep]:
+            if best and f"_{best[0]:07d}" in Path(f).name:
+                continue
             os.remove(f)
 
 
@@ -165,27 +189,75 @@ def keops_cuda_env():
     shutil.rmtree(Path.home() / ".cache" / "keops2.3", ignore_errors=True)
 
 
-def train(tr, files, load_from=""):
+def val_history():
+    """[(bước, val_loss phần giá trị)] theo thứ tự – từ training_log.jsonl của bộ huấn luyện."""
+    out = []
+    try:
+        for line in open(RUN / "training_log.jsonl"):
+            if '"val_loss"' in line:
+                d = json.loads(line)
+                v = (d.get("val_loss") or {}).get("value_loss")
+                if v is not None:
+                    out.append((int(d["it"]), float(v)))
+    except (OSError, ValueError, KeyError):
+        pass
+    return out
+
+
+def best_val():
+    """(bước, val_loss) thấp nhất trong phiên này, hoặc None."""
+    h = val_history()
+    return min(h, key=lambda x: x[1]) if h else None
+
+
+def stalled():
+    """val_loss không thấp hơn mức tốt nhất trước đó PATIENCE lần chấm liền."""
+    h = val_history()
+    if PATIENCE <= 0 or len(h) <= PATIENCE:
+        return False
+    before = min(v for _, v in h[:-PATIENCE])
+    return min(v for _, v in h[-PATIENCE:]) >= before
+
+
+def train(tr, files, val_files, load_from=""):
     gpu = subprocess.run([sys.executable, "-c", "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)"]).returncode == 0
     train_dir = RUN / "train"
     shutil.rmtree(train_dir, ignore_errors=True)
     train_dir.mkdir(parents=True)
     for f in files:
         (train_dir / Path(f).name).symlink_to(f)
-    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY, TEMP_SAVE)
+    val_dir = RUN / "val"
+    shutil.rmtree(val_dir, ignore_errors=True)
+    if val_files:
+        val_dir.mkdir(parents=True)
+        for f in val_files:
+            (val_dir / Path(f).name).symlink_to(f)
+    # Chấm val đúng lúc lưu điểm kiểm tra: mỗi val_loss ứng với một file ckpt để xuất
+    sh(sys.executable, str(HERE / "make-train-config.py"), str(RUN), str(train_dir), BATCH, "100000000", LR, load_from, SAVE_EVERY,
+       TEMP_SAVE, str(val_dir) if val_files else "", SAVE_EVERY)
     if gpu:
         keops_cuda_env()
     cmd = [sys.executable, "-m", "accelerate.commands.launch", "--num_processes", "1"] + ([] if gpu else ["--cpu"]) + ["train.py", "-c", str(RUN / "config.yaml")]
     if not gpu:
         cmd.append("--use_cpu")
     deadline = T0 + HOURS * 3600
-    say(f"Huấn luyện ({'GPU' if gpu else 'CPU'}) trên {len(files)} file đến {time.strftime('%H:%M', time.localtime(deadline))}")
+    say(f"Huấn luyện ({'GPU' if gpu else 'CPU'}) trên {len(files)} file (+ {len(val_files)} file ván kiểm tra) đến "
+        f"{time.strftime('%H:%M', time.localtime(deadline))}")
     with open(RUN / "train.log", "a") as lg:
         # Nhóm tiến trình riêng: hết giờ thì dừng cả accelerate lẫn tiến trình huấn luyện con (không giữ GPU)
         p = subprocess.Popen(cmd, cwd=tr, stdout=lg, stderr=subprocess.STDOUT, start_new_session=True)
+        seen = 0
         while p.poll() is None and time.time() < deadline:
             time.sleep(30)
             prune()
+            h = val_history()
+            if len(h) > seen:
+                seen = len(h)
+                b = best_val()
+                say(f"Bước {h[-1][0]}: val_loss {h[-1][1]:.4f} (thấp nhất {b[1]:.4f} ở bước {b[0]})")
+                if stalled():
+                    say(f"val_loss không giảm {PATIENCE} lần liền – dừng sớm (học thêm chỉ thuộc lòng ván cũ)")
+                    break
         # Hết giờ mà chưa lưu lần nào (máy chậm / bộ dữ liệu lớn): chờ thêm tối đa 30 phút cho điểm kiểm tra đầu tiên.
         # Bộ huấn luyện không lưu khi bị ngắt – dừng là mất phần học sau lần lưu gần nhất (vài phút với SAVE_EVERY)
         while p.poll() is None and not latest_ckpt() and time.time() < deadline + 1800:
@@ -213,6 +285,16 @@ def latest_ckpt():
     return good[-1] if good else None
 
 
+def best_ckpt():
+    """Điểm kiểm tra để xuất: bản có val_loss thấp nhất (nếu còn file), không thì bản mới nhất."""
+    b = best_val()
+    if b:
+        f = RUN / "ckpts" / f"ckpt_mix9svq_{b[0]:07d}.pt"
+        if f.exists() and f.stat().st_size > 0:
+            return str(f)
+    return latest_ckpt()
+
+
 def value_loss():
     v = None
     try:
@@ -223,14 +305,15 @@ def value_loss():
         pass
     return v
 
-def tidy():
+def tidy(keep=None):
     """Cuối phiên: thu gọn đầu ra để Kaggle lưu Output trong vài phút (trước đây phiên 9 giờ kẹt nhiều giờ ở bước lưu,
     quá giới hạn 12 giờ). Bỏ run/train (symlink tới dữ liệu đã có trên repo – Kaggle đi theo link chép cả trăm file), prev/
     (bản chép ckpt phiên trước), state_*.pt (trạng thái bộ tối ưu – phiên sau chỉ nạp trọng số, xem resume_previous) và
     mọi điểm kiểm tra trừ cái mới nhất mỗi loại – vẫn đủ để phiên sau học tiếp."""
     shutil.rmtree(RUN / "train", ignore_errors=True)
+    shutil.rmtree(RUN / "val", ignore_errors=True)
     shutil.rmtree(OUT / "prev", ignore_errors=True)
-    good = latest_ckpt()  # điểm kiểm tra mới nhất đọc được (file ghi dở lúc hết giờ bị bỏ qua)
+    good = keep or latest_ckpt()  # bản vừa xuất (val_loss thấp nhất) – phiên sau học tiếp từ đây, không từ bản đã quá khớp
     step = re.search(r"_(\d{7})\.pt$", good).group(1) if good else None
     for f in glob.glob(str(RUN / "ckpts" / "*.pt")):
         name = Path(f).name
@@ -240,7 +323,7 @@ def tidy():
     say(f"Thu gọn đầu ra: còn {mb:.0f} MB (giữ {Path(good).name if good else 'không có điểm kiểm tra'} để phiên sau học tiếp)")
 
 
-def export_and_push(tr, ck, nfiles):
+def export_and_push(tr, ck, nfiles, nval):
     label = time.strftime("k-%Y%m%d-%H%M", time.gmtime())
     net = OUT / f"{label}.bin.lz4"
     say(f"Xuất mạng từ {Path(ck).name}")
@@ -248,7 +331,9 @@ def export_and_push(tr, ck, nfiles):
        "--export_type", "bin-lz4", "--export_args", "{rule: caro, board_size: 20}", cwd=tr)
     if not net.exists() or net.stat().st_size == 0:
         sys.exit("Xuất mạng lỗi")
+    b = best_val()
     meta = {"label": label, "checkpoint": Path(ck).name, "value_loss": value_loss(), "files": nfiles,
+            "val_loss": b[1] if b else None, "val_files": nval, "early_stop": stalled(),
             "batch": int(BATCH), "time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     say(f"Đẩy mạng ứng viên cand/{label} lên repo dữ liệu")
     d = TMP / "cand-repo"
@@ -261,7 +346,7 @@ def export_and_push(tr, ck, nfiles):
     sh("git", "-C", str(d), "config", "user.name", "caro-nnue-kaggle")
     sh("git", "-C", str(d), "config", "user.email", "caro-nnue-kaggle@users.noreply.github.com")
     sh("git", "-C", str(d), "add", "--sparse", f"cand/{net.name}", f"cand/{label}.json")
-    sh("git", "-C", str(d), "commit", "-q", "-m", f"Kaggle: mạng ứng viên {label} (value loss {meta['value_loss']})")
+    sh("git", "-C", str(d), "commit", "-q", "-m", f"Kaggle: mạng ứng viên {label} (val loss {meta['val_loss']})")
     for i in range(6):
         if subprocess.run(["git", "-C", str(d), "push", "-q"], stderr=subprocess.DEVNULL).returncode == 0:
             say(f"Xong: cand/{label}.bin.lz4 – máy luyện sẽ đấu chọn với mạng tốt nhất")
@@ -277,11 +362,11 @@ if __name__ == "__main__":
     if DATA_REPO.startswith("https://github.com/") and not token():
         sys.exit("Thiếu GITHUB_TOKEN (Kaggle: Add-ons → Secrets) – cần quyền ghi repo dữ liệu")
     tr = setup_trainer()
-    files = fetch_data()
+    files, val_files = fetch_data()
     if not files:
         sys.exit("Repo dữ liệu chưa có ván nào (data/…/sp-*.binpack.lz4)")
-    train(tr, files, resume_previous())
-    ck = latest_ckpt()
+    train(tr, files, val_files, resume_previous())
+    ck = best_ckpt()
     if not ck:
         # In đuôi train.log ngay trong log notebook (khỏi phải tải Output về mới biết lỗi gì)
         try:
@@ -290,6 +375,6 @@ if __name__ == "__main__":
             pass
         sys.exit(f"Huấn luyện không ra điểm kiểm tra nào – xem {RUN / 'train.log'}")
     try:
-        export_and_push(tr, ck, len(files))
+        export_and_push(tr, ck, len(files), len(val_files))
     finally:
-        tidy()  # cả khi đẩy lỗi: mạng .bin.lz4 vẫn nằm trong đầu ra để tải tay
+        tidy(ck)  # cả khi đẩy lỗi: mạng .bin.lz4 vẫn nằm trong đầu ra để tải tay

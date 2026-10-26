@@ -78,6 +78,50 @@ thì chạy lại lệnh; lô dở bị bỏ, lô xong đã ở trên repo. Xem:
 trước (script tự học tiếp từ điểm kiểm tra cuối). Cuối phiên script tự thu gọn đầu ra (chỉ giữ điểm kiểm tra mới nhất +
 mạng vừa xuất, bỏ dữ liệu ván và điểm kiểm tra cũ) để Kaggle lưu Output trong vài phút.
 
+## Đọc kết quả: train_loss, val_loss, đấu chọn
+
+- **train_loss** đo trên chính các ván mạng đã học – học tiếp nhiều lần trên cùng dữ liệu thì giảm mãi (thuộc lòng), không
+  nói mạng mạnh lên. **val_loss** đo trên ván để riêng (khoảng 1/40 số file, chọn theo mã băm tên file, không bao giờ đưa
+  vào học): đó mới là thước đo. Kaggle chấm val_loss mỗi lần lưu điểm kiểm tra; 2 lần liền không tốt hơn thì **dừng sớm**
+  (học thêm chỉ phí giờ GPU) và xuất mạng ở điểm có val_loss thấp nhất; phiên sau học tiếp từ điểm đó.
+  `progress.log` ghi cả hai: `loss giá trị 0.30 · val 0.58 (dừng sớm)`.
+- **Đấu chọn 128 ván** có sai số lớn: khoảng tin cậy 95% của điểm là ±~8,7% (≈ ±60 Elo), nên log ghi kèm, vd.
+  `≈ +22 Elo (95%: -39…+83)`. 52–53% là *chưa phân biệt được* với ngang sức – ngưỡng 57% để không nhận nhầm mạng như vậy.
+- train_loss giảm mạnh mà val_loss / đấu chọn đứng yên = **thiếu ván mới**, không phải lỗi: thêm ván tự đấu (mục dưới)
+  rồi mới luyện tiếp.
+
+## Tăng ván tự đấu mới
+
+Mạng chỉ mạnh lên khi học trên ván *mới* do mạng tốt nhất hiện tại sinh ra. Kaggle cho ~30 giờ GPU / tuần miễn phí – đủ
+học nhanh hơn tốc độ sinh ván nhiều lần – nên khâu cần thêm là **CPU tự đấu**. Mọi nơi dưới đây đều chạy `worker.sh` (tự
+đấu bằng mạng tốt nhất `best/`, đẩy lô ván lên `data/<tên>/`); mỗi nơi một tên `WORKER` khác nhau.
+
+| Nơi | Chi phí | Cách chạy |
+|---|---|---|
+| Trợ lý Muse / VPS sẵn có | sẵn có | `WORKER=<tên> bash worker.sh` (mục trên) |
+| Máy luyện GCP khi Kaggle đã luyện | sẵn có | cài lại với `TRAIN=0 SP_PROCS=$(nproc)`: máy này chỉ đấu chọn + tự đấu |
+| **Kaggle notebook CPU** | miễn phí, không tốn giờ GPU | notebook mới (Accelerator **None**, Internet On, Secret `GITHUB_TOKEN`), một ô ↓, *Save & Run All*; chạy được vài notebook cùng lúc, mỗi cái một tên |
+| **Modal** (credit) | ~0,4 USD / container 8 nhân / giờ | `modal-selfplay.py` ↓ |
+
+Kaggle CPU (11 giờ, ~4 luồng; hết giờ đánh nốt lô dở rồi đẩy lên):
+```
+!git clone -q --depth 1 https://github.com/marseraf7/psychic-doodle /kaggle/temp/pd
+!WORKER=kaggle-cpu1 python /kaggle/temp/pd/server/scripts/rapfi/caro/nnue/cloud-selfplay.py
+```
+
+Modal – dùng credit cho tự đấu (không cho huấn luyện: GPU Kaggle miễn phí đã thừa so với lượng ván):
+```bash
+pip install modal && modal setup                     # một lần, đăng nhập Modal
+modal secret create caro-nnue-github GITHUB_TOKEN=…   # gõ token tại terminal của mình (quyền Contents repo caro-nnue-data)
+CONTAINERS=4 CPU=8 HOURS=6 modal run --detach server/scripts/rapfi/caro/nnue/modal-selfplay.py
+```
+Lệnh in ước tính chi phí trước khi chạy (mặc định ~10 USD cho 4 × 8 nhân × 6 giờ). Đặt thêm giới hạn chi tiêu trong
+cài đặt workspace Modal để không vượt credit. Dừng sớm: trang *Apps* của Modal → Stop. Số ván thật xem trong log từng
+container (`Lô …: đã đẩy …`) hoặc trong repo dữ liệu.
+
+Thứ tự nên làm mỗi đợt: sinh thêm ván (≥ 100.000 ván mới so với lần luyện trước) → phiên Kaggle GPU (Add Input = đầu ra
+phiên trước) → máy luyện đấu chọn → nếu thay mạng, các trợ lý tự đấu bằng mạng mới từ lô sau.
+
 ## Gửi mạng về để đưa vào app
 
 Mạng tốt nhất luôn ở `~/caro-nnue/nets/best.bin.lz4` (vài MB). Khi `progress.log` báo tỉ lệ thắng engine của game cao
@@ -101,7 +145,9 @@ Sau đó Claude đo lại (bản WebAssembly như trên điện thoại), dựng
 | `run.sh` | Vòng luyện liên tục: tự đấu nền, huấn luyện, xuất, đấu chọn mạng (cả mạng Kaggle), đo với engine của game, đẩy mạng tốt nhất lên repo dữ liệu |
 | `install-service.sh` | Cài `run.sh` thành dịch vụ systemd: máy bật lại là tự luyện tiếp |
 | `worker.sh` | Trợ lý sinh ván: tự đấu bằng mạng tốt nhất, đẩy từng lô lên repo dữ liệu |
-| `kaggle-train.py` | Huấn luyện GPU trên Kaggle, đẩy mạng ứng viên lên repo dữ liệu |
+| `kaggle-train.py` | Huấn luyện GPU trên Kaggle (val_loss, dừng sớm, xuất điểm tốt nhất), đẩy mạng ứng viên lên repo dữ liệu |
+| `cloud-selfplay.py` | Chạy `worker.sh` có giới hạn giờ trên máy thuê / notebook (Kaggle CPU, Modal), đăng nhập git bằng `GITHUB_TOKEN` |
+| `modal-selfplay.py` | Tự đấu trên Modal: N container CPU song song, in ước tính chi phí |
 | `lib.sh` | Hàm dùng chung: tự đấu một lô, kiểm Rapfi nạp mạng, đồng bộ repo dữ liệu |
 | `make-train-config.py` | `config.yaml` của bộ huấn luyện (mix9svq) – dùng chung cho máy luyện và Kaggle |
 | `trainer-add-caro.py` | Thêm luật caro vào bộ huấn luyện (mã luật 7 trong dữ liệu, bit 8 trong file mạng) |
