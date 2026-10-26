@@ -111,8 +111,13 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .an-mv.cur b { color: #fff !important; }
 
 /* Nhận xét nước đang xem */
-.an-now { display: flex; align-items: center; gap: 8px; min-height: 40px; line-height: 1.35; flex: none; }
-.an-now > span:nth-child(2) { flex: 1; min-width: 0; }
+.an-now { display: flex; align-items: flex-start; gap: 8px; min-height: 40px; line-height: 1.35; flex: none; }
+/* Nhận xét chiếm trọn hàng đầu (cạnh huy hiệu); nút Thử lại / Tìm nước tốt hơn / Dòng máy xuống hàng dưới, thẳng mép
+   chữ – trước đây nút đứng cạnh, ép nhận xét thành cột hẹp vài chữ một dòng */
+.an-now > span:nth-child(2) { flex: 1 1 calc(100% - 2.6em); min-width: 0; }
+.an-now > .an-badge { margin-top: 0.05em; }
+.an-now > button { margin-left: calc(1.45em * 0.86 + 14px); }
+.an-now > button ~ button { margin-left: 0; }
 .an-now .dot { font-weight: var(--fw-bold); }
 .an-now { flex-wrap: wrap; }
 /* Dòng máy gợi ý (quân mờ đánh số trên bàn) + lời nhắc chạm để đi thử: xuống dòng riêng dưới nhận xét */
@@ -137,6 +142,10 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
   body.analysis:not(.ext) #board { width: calc(100% - var(--an-w)); }
   body.analysis:not(.ext) .bar.top { left: calc((100% - var(--an-w)) / 2); max-width: calc(100% - var(--an-w) - 2 * var(--edge)); }
   body.analysis:not(.ext) .bar.bottom.replay-only { display: none !important; }
+  /* Màn thấp (thu phóng 100–150%, laptop 720p): cả bảng cuộn thay vì nội dung tràn đè nút điều khiển; danh sách nước
+     đi luôn đủ ~4 hàng để bấm */
+  .an-body { overflow-y: auto; scrollbar-width: thin; }
+  .an-moves { min-height: 132px; }
 }
 /* ---- Điện thoại / màn hẹp: bảng dưới bàn cờ, ngay trên thanh điều khiển; danh sách nước đi cuộn ngang */
 @media (max-width: 859px) {

@@ -97,7 +97,7 @@ jobs:
         timeout-minutes: 15
         if: matrix.browser == 'chromium' && (success() || failure())
         run: |
-          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate; do
+          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox; do
             E2E_BROWSER=chromium E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/$t.e2e.js || exit 1
           done
       # Mở / tải lại khi mạng chậm: Trang chủ hiện sẵn từ HTML, service worker lấy file từ bộ nhớ đệm trước (boot.e2e.js)

@@ -14,6 +14,17 @@
   background: var(--accent); color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 .cb-launch .ico { width: 26px; height: 26px; }
+/* Nút × ẩn bong bóng (như Facebook bản web): rê chuột vào nút tròn mới hiện; màn cảm ứng luôn hiện (không rê được) */
+.cb-lw { position: relative; display: block; }
+.cb-lw[hidden] { display: none; }
+.cb-hide {
+  position: absolute; top: -6px; left: -6px; width: 22px; height: 22px; border-radius: 50%; display: none; place-items: center;
+  background: var(--panel); color: var(--text); font-size: 15px; line-height: 1; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.cb-lw:hover .cb-hide, .cb-hide:focus-visible { display: grid; }
+@media (hover: none) { .cb-hide { display: grid; } }
+/* Bảng phân tích ván ở cột phải (máy tính): bong bóng dời sang trái bảng, không che nút điều khiển của bảng */
+@media (min-width: 860px) { body.analysis:not(.ext) .cb { right: calc(var(--an-w) + 16px); } }
 .cb .count {
   position: absolute; top: -4px; right: -4px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
   background: var(--danger, #e5484d); color: #fff; font-size: var(--fs-2xs); font-style: normal; font-weight: var(--fw-bold);

@@ -5,7 +5,11 @@
  *     Có tin mới từ người chưa mở cửa sổ: tự hiện chat head kèm số tin.
  *   - Điện thoại: mở hộp chat sẵn có (social.js – toàn màn hình, hợp bàn phím ảo).
  * Dùng lại các lệnh nhắn tin bạn bè của máy chủ (dmHistory, dmSend, dmRead, tin 'dm'). Chỉ hiện khi đã đăng nhập.
- *   CaroChatBubbles = { open(friendId), active(), isOpen(peerId) } – social.js dùng active / isOpen để không báo trùng
+ * Ẩn bong bóng (như Facebook bản web): nút × nhỏ ở góc nút tròn (rê chuột; màn cảm ứng luôn hiện) – ẩn nút tròn và
+ * chat head tự bật lên, nhớ lại trên máy này. Tin mới khi đó báo bằng thông báo nhỏ + số trên nút Hộp thư ở thanh trên
+ * (topbar-inbox.js); mở chat từ Hộp thư vẫn ra cửa sổ chat; "Hiện lại bong bóng chat" ở cuối Hộp thư.
+ *   CaroChatBubbles = { open(friendId), active(), canOpen(), isOpen(peerId), hidden(), setHidden(on) } – social.js dùng
+ *   active / isOpen để không báo trùng
  */
 (function () {
   'use strict';
@@ -24,11 +28,15 @@
   root.innerHTML = `<div class="cb-wins"></div>
     <div class="cb-side"><div class="cb-heads"></div>
       <div class="cb-panel" hidden></div>
-      <button type="button" class="cb-launch" aria-haspopup="true" aria-expanded="false"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg><i class="count" hidden></i></button></div>`;
+      <span class="cb-lw"><button type="button" class="cb-launch" aria-haspopup="true" aria-expanded="false"><svg class="ico" aria-hidden="true"><use href="#i-chat"/></svg><i class="count" hidden></i></button>
+      <button type="button" class="cb-hide" data-hide>×</button></span></div>`;
   document.body.appendChild(root);
   const $ = (sel) => root.querySelector(sel);
   const wins = []; // { id, open (false = thu nhỏ thành chat head), msgs, more, loading, unread, draft }
   let panelOpen = false;
+  const HIDE_KEY = 'caro.cb.hidden';
+  let hiddenByUser = false;
+  try { hiddenByUser = localStorage.getItem(HIDE_KEY) === '1'; } catch (e) { /* chế độ riêng tư */ }
 
   const friends = () => (S.friends && S.friends.friends) || [];
   const friend = (id) => friends().find((f) => f.id === id);
@@ -41,8 +49,13 @@
   // ------------------------------------------------------------ Vẽ
   function draw() {
     const show = signedIn() && (wide.matches || !document.getElementById('shell').hidden);
-    root.hidden = !show;
-    if (!show) return;
+    // Đã ẩn: chỉ còn cửa sổ / chat head người chơi tự mở từ Hộp thư (không có thì ẩn cả khối)
+    root.hidden = !show || (hiddenByUser && !wins.length);
+    $('.cb-lw').hidden = hiddenByUser;
+    if (hiddenByUser) panelOpen = false;
+    $('.cb-hide').setAttribute('aria-label', T('cb_hide'));
+    $('.cb-hide').title = T('cb_hide');
+    if (root.hidden) return;
     const unread = friends().reduce((n, f) => n + (f.unread || 0), 0);
     const badge = $('.cb-launch .count');
     badge.hidden = !unread;
@@ -182,8 +195,9 @@
   }
 
   root.addEventListener('click', (e) => {
-    const t = e.target.closest('[data-close],[data-min],[data-open],[data-older],.cb-launch');
+    const t = e.target.closest('[data-close],[data-min],[data-open],[data-older],[data-hide],.cb-launch');
     if (!t) return;
+    if (t.hasAttribute('data-hide')) { e.stopPropagation(); setHidden(true); return N.toast(T('cb_hidden_toast'), 4500); }
     if (t.dataset.close) { e.stopPropagation(); return close(t.dataset.close); }
     if (t.dataset.min) return minimize(t.dataset.min);
     if (t.dataset.open) return open(t.dataset.open);
@@ -218,6 +232,7 @@
     const mine = S.me && m.msg.sender === S.me.uid;
     let w = wins.find((x) => x.id === m.peer);
     if (!w && mine) return;
+    if (!w && hiddenByUser) return; // đã ẩn bong bóng: social.js báo bằng thông báo nhỏ, số tin hiện ở Hộp thư
     if (!w) { // tin mới từ người chưa mở: hiện chat head (như Messenger)
       w = { id: m.peer, open: false, msgs: [], more: false, loading: true, unread: 0 };
       wins.push(w);
@@ -243,10 +258,23 @@
   setInterval(() => { if (!root.hidden && (panelOpen || wins.length)) draw(); }, 30000); // "x phút trước"
   draw();
 
+  function setHidden(on) {
+    hiddenByUser = !!on;
+    try { if (on) localStorage.setItem(HIDE_KEY, '1'); else localStorage.removeItem(HIDE_KEY); } catch (e) { /* chế độ riêng tư */ }
+    panelOpen = false;
+    draw();
+    if (window.CaroTopInbox) window.CaroTopInbox.refresh();
+  }
+
   window.CaroChatBubbles = {
     open,
-    /** Bong bóng đang dùng (màn hình rộng, đã đăng nhập): tin mới hiện ở chat head – social.js khỏi báo thông báo nhỏ. */
-    active: () => wide.matches && signedIn(),
+    /** Bong bóng đang dùng (màn hình rộng, đã đăng nhập, chưa ẩn): tin mới hiện ở chat head – social.js khỏi báo
+     *  thông báo nhỏ. */
+    active: () => wide.matches && signedIn() && !hiddenByUser,
+    /** Mở được cửa sổ chat dạng bong bóng (màn hình rộng, đã đăng nhập) – kể cả khi đã ẩn nút tròn. */
+    canOpen: () => wide.matches && signedIn(),
+    hidden: () => hiddenByUser,
+    setHidden,
     /** Cửa sổ chat với người này đang mở (không thu nhỏ). */
     isOpen: (id) => wins.some((w) => w.id === id && w.open),
   };

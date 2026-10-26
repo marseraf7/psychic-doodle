@@ -1,11 +1,26 @@
 /*
  * Chuỗi 4 ngôn ngữ của thanh trên (topbar.js: tìm kỳ thủ, Đăng nhập / Đăng ký, Cài đặt nhanh – quick-settings.js),
- * số người online / số ván (online-count.js), ảnh nền (backdrop.js), ảnh đại diện (avatar.js).
+ * Hộp thư / Thông báo (topbar-inbox.js), ẩn bong bóng chat (chat-bubbles.js), số người online / số ván (online-count.js), ảnh nền (backdrop.js), ảnh đại diện (avatar.js).
  */
 (function () {
   'use strict';
   const I = window.I18N;
   I.extend('vi', {
+    // Hộp thư / Thông báo (topbar-inbox.js), ẩn bong bóng chat (chat-bubbles.js)
+    tb_inbox: 'Hộp thư',
+    tb_notif: 'Thông báo',
+    nt_none: 'Chưa có thông báo nào',
+    nt_request: '{name} muốn kết bạn với bạn',
+    nt_deny: 'Từ chối',
+    nt_invite: '{name} thách đấu bạn',
+    nt_accepted: '{name} đã chấp nhận lời mời kết bạn',
+    nt_now: 'vừa xong',
+    nt_min: '{n} phút trước',
+    nt_hour: '{n} giờ trước',
+    nt_day: '{n} ngày trước',
+    cb_hide: 'Ẩn bong bóng chat',
+    cb_hidden_toast: 'Đã ẩn bong bóng chat – mở lại ở Hộp thư trên thanh trên',
+    cb_show: 'Hiện lại bong bóng chat',
     pf_request_sent: 'Đã gửi lời mời kết bạn',
     pf_request_cancelled: 'Đã huỷ lời mời kết bạn tới {name}',
     pf_unfriended: 'Đã huỷ kết bạn với {name}',
@@ -54,6 +69,21 @@
     srv_avatar_removed: 'Đã xoá ảnh đại diện',
   });
   I.extend('en', {
+    // Hộp thư / Thông báo (topbar-inbox.js), ẩn bong bóng chat (chat-bubbles.js)
+    tb_inbox: 'Inbox',
+    tb_notif: 'Notifications',
+    nt_none: 'No notifications yet',
+    nt_request: '{name} wants to be your friend',
+    nt_deny: 'Decline',
+    nt_invite: '{name} challenged you',
+    nt_accepted: '{name} accepted your friend request',
+    nt_now: 'just now',
+    nt_min: '{n} min ago',
+    nt_hour: '{n} h ago',
+    nt_day: '{n} d ago',
+    cb_hide: 'Hide chat bubble',
+    cb_hidden_toast: 'Chat bubble hidden – bring it back from Inbox in the top bar',
+    cb_show: 'Show chat bubble again',
     pf_request_sent: 'Friend request sent',
     pf_request_cancelled: 'Friend request to {name} cancelled',
     pf_unfriended: '{name} removed from friends',
@@ -102,6 +132,21 @@
     srv_avatar_removed: 'Avatar removed',
   });
   I.extend('ru', {
+    // Hộp thư / Thông báo (topbar-inbox.js), ẩn bong bóng chat (chat-bubbles.js)
+    tb_inbox: 'Сообщения',
+    tb_notif: 'Уведомления',
+    nt_none: 'Уведомлений пока нет',
+    nt_request: '{name} хочет добавить вас в друзья',
+    nt_deny: 'Отклонить',
+    nt_invite: '{name} вызывает вас на партию',
+    nt_accepted: '{name} принял(а) вашу заявку в друзья',
+    nt_now: 'только что',
+    nt_min: '{n} мин назад',
+    nt_hour: '{n} ч назад',
+    nt_day: '{n} дн назад',
+    cb_hide: 'Скрыть пузырь чата',
+    cb_hidden_toast: 'Пузырь чата скрыт — вернуть можно в разделе «Сообщения» на верхней панели',
+    cb_show: 'Снова показывать пузырь чата',
     pf_request_sent: 'Заявка в друзья отправлена',
     pf_request_cancelled: 'Заявка для {name} отменена',
     pf_unfriended: '{name} удалён(а) из друзей',
@@ -150,6 +195,21 @@
     srv_avatar_removed: 'Аватар удалён',
   });
   I.extend('zh', {
+    // Hộp thư / Thông báo (topbar-inbox.js), ẩn bong bóng chat (chat-bubbles.js)
+    tb_inbox: '消息',
+    tb_notif: '通知',
+    nt_none: '暂无通知',
+    nt_request: '{name} 想加你为好友',
+    nt_deny: '拒绝',
+    nt_invite: '{name} 向你发起挑战',
+    nt_accepted: '{name} 接受了你的好友请求',
+    nt_now: '刚刚',
+    nt_min: '{n} 分钟前',
+    nt_hour: '{n} 小时前',
+    nt_day: '{n} 天前',
+    cb_hide: '隐藏聊天气泡',
+    cb_hidden_toast: '聊天气泡已隐藏——可在顶栏的“消息”中重新显示',
+    cb_show: '重新显示聊天气泡',
     pf_request_sent: '已发送好友请求',
     pf_request_cancelled: '已取消发给 {name} 的好友请求',
     pf_unfriended: '已与 {name} 解除好友',
