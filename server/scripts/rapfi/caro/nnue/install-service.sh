@@ -44,5 +44,8 @@ Nice=5
 WantedBy=multi-user.target
 EOF
 sudo systemctl daemon-reload
-sudo systemctl enable --now caro-nnue
+sudo systemctl enable caro-nnue
+# restart (không phải enable --now): dịch vụ đang chạy thì enable --now giữ nguyên tiến trình cũ – run.sh cũ vẫn chạy
+# với tham số cũ dù đã git pull và cài lại (27/10: đấu chọn vẫn 128 ván / 57% sau khi đổi sang 400 ván / 52%)
+sudo systemctl restart caro-nnue
 echo "Đã cài dịch vụ caro-nnue (chạy ngay và mỗi lần máy bật). Xem: journalctl -u caro-nnue -f"
