@@ -8,7 +8,7 @@ Trong notebook Kaggle (Settings: Accelerator GPU, Internet On; Add-ons → Secre
 Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi):
   DATA_REPO   https://github.com/marseraf7/caro-nnue-data (mặc định)
   HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
-  BATCH 256 · LR 0.001 · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước · TEMP_SAVE 1000 bước (lưu tạm)
+  BATCH 256 · LR 0.001 (học tiếp từ phiên trước: 0.0003) · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước · TEMP_SAVE 1000 bước (lưu tạm)
   VAL_MOD 40 · VAL_FILES 30 · PATIENCE 2 – xem "Ván kiểm tra" dưới
 Ván kiểm tra: khoảng 1/VAL_MOD số file (chọn theo mã băm tên file – phiên nào cũng đúng những file đó, không bao giờ đưa
 vào học), lấy tối đa VAL_FILES file mới nhất. Mỗi lần lưu điểm kiểm tra, bộ huấn luyện chấm loss trên các ván này
@@ -38,6 +38,9 @@ DATA_REPO = os.environ.get("DATA_REPO", "https://github.com/marseraf7/caro-nnue-
 HOURS = float(os.environ.get("HOURS", "9"))
 BATCH = os.environ.get("BATCH", "256")  # 1024 hết bộ nhớ GPU T4 16 GB (mix9svq, codebook 65536)
 LR = os.environ.get("LR", "0.001")
+# Học tiếp từ một mạng đã khá: tốc độ học 0.001 làm val_loss xuống thấp nhất rất sớm rồi tăng vọt (Kaggle 27/10: bước 5000
+# 0,447 → 0,52–0,54) – mạng nhảy khỏi điểm tốt rồi thuộc lòng. Không đặt LR thì phiên học tiếp dùng mức này
+LR_RESUME = os.environ.get("LR", "0.0003")
 WINDOW = int(os.environ.get("WINDOW", "3000"))
 VAL_MOD = int(os.environ.get("VAL_MOD", "40"))
 VAL_FILES = int(os.environ.get("VAL_FILES", "30"))
@@ -374,7 +377,11 @@ if __name__ == "__main__":
     files, val_files = fetch_data()
     if not files:
         sys.exit("Repo dữ liệu chưa có ván nào (data/…/sp-*.binpack.lz4)")
-    train(tr, files, val_files, resume_previous())
+    prev = resume_previous()
+    if prev:
+        LR = LR_RESUME
+        say(f"Tốc độ học {LR} (học tiếp từ phiên trước)")
+    train(tr, files, val_files, prev)
     ck = best_ckpt()
     if not ck:
         # In đuôi train.log ngay trong log notebook (khỏi phải tải Output về mới biết lỗi gì)
