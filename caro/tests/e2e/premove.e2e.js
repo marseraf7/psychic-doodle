@@ -21,6 +21,15 @@ const { setup } = require('./helpers');
   const pm = (p) => p.evaluate(() => window.CaroPremove.cell());
   const has = (r, x, y) => r.moves.some((m) => m[0] === x && m[1] === y); // room.moves: [x, y, …]
   async function click(p, x, y) {
+    // Chờ camera đứng yên: sau nước của đối thủ bàn tự trượt (~320 ms) – lấy toạ độ giữa lúc trượt thì cú bấm rơi sang
+    // ô khác (CI chậm: "bấm lại đúng ô" bấm trúng hai ô khác nhau, không huỷ được)
+    let prev = null;
+    for (let i = 0; i < 30; i++) {
+      const cur = await p.evaluate(([x, y]) => window.CaroApp.screenOf(x, y), [x, y]);
+      if (prev && Math.abs(cur[0] - prev[0]) < 0.5 && Math.abs(cur[1] - prev[1]) < 0.5) break;
+      prev = cur;
+      await sleep(60);
+    }
     const [sx, sy] = await p.evaluate(([x, y]) => window.CaroApp.screenOf(x, y), [x, y]);
     await p.mouse.click(sx, sy);
     await sleep(150);
