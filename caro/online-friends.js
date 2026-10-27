@@ -93,9 +93,10 @@
       el.querySelectorAll('[data-accept]').forEach((b) => { b.onclick = () => send({ t: 'friendRespond', id: b.dataset.accept, accept: true }); });
       el.querySelectorAll('[data-deny]').forEach((b) => { b.onclick = () => send({ t: 'friendRespond', id: b.dataset.deny, accept: false }); });
       el.querySelectorAll('[data-remove]').forEach((b) => {
-        b.onclick = () => {
+        b.onclick = async () => {
           const p = f.friends.find((x) => x.id === b.dataset.remove);
-          if (p && confirm(T('confirm_unfriend', { name: p.name }))) send({ t: 'friendRemove', id: p.id });
+          // Hỏi bằng hộp xác nhận trong app (CaroConfirm) thay confirm() gốc — đồng bộ với các thao tác khác
+          if (p && (await window.CaroConfirm.ask(T('confirm_unfriend', { name: p.name })))) send({ t: 'friendRemove', id: p.id });
         };
       });
       el.querySelectorAll('[data-chat]').forEach((b) => {

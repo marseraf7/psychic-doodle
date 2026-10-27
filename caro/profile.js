@@ -174,9 +174,9 @@
     body.querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendAdd', id: b.dataset.add }); b.disabled = true; }; });
     body.querySelectorAll('[data-accept-pf]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendRespond', id: b.dataset.acceptPf, accept: true }); b.disabled = true; }; });
     body.querySelectorAll('[data-unfriend]').forEach((b) => {
-      b.onclick = () => {
-        // Đã là bạn: hỏi lại trước khi huỷ; mới gửi lời mời: huỷ lời mời ngay
-        if (b.dataset.rel === 'friend' && !confirm(T('confirm_unfriend', { name: p.name }))) return;
+      b.onclick = async () => {
+        // Đã là bạn: hỏi lại trước khi huỷ (hộp xác nhận trong app); mới gửi lời mời: huỷ lời mời ngay
+        if (b.dataset.rel === 'friend' && !(await window.CaroConfirm.ask(T('confirm_unfriend', { name: p.name })))) return;
         if (N.send({ t: 'friendRemove', id: b.dataset.unfriend })) N.toast(T(b.dataset.rel === 'friend' ? 'pf_unfriended' : 'pf_request_cancelled', { name: p.name }));
         b.disabled = true;
       };
