@@ -270,6 +270,14 @@ def train(tr, files, val_files, load_from=""):
             except subprocess.TimeoutExpired:
                 os.killpg(p.pid, signal.SIGKILL)
                 p.wait()
+        elif p.returncode and time.time() < deadline and not stalled():
+            # Bộ huấn luyện tự thoát lỗi giữa chừng (không phải hết giờ / dừng sớm): báo rõ + in đuôi train.log ngay trong
+            # log notebook – trước đây script lặng lẽ xuất mạng từ điểm kiểm tra cuối như thể đã học xong
+            say(f"LỖI: bộ huấn luyện dừng giữa chừng (mã {p.returncode}) – xuất mạng từ điểm kiểm tra cuối. Đuôi train.log:")
+            try:
+                print("".join(open(RUN / "train.log", errors="replace").readlines()[-30:]), flush=True)
+            except OSError:
+                pass
     prune()
 
 
