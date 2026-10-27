@@ -4,6 +4,10 @@ commit ed6ff57 – bộ huấn luyện NNUE của tác giả Rapfi; không kèm 
   - utils/data_utils.py: Rule.CARO = 7 (mã luật caro trong dữ liệu .binpack của Rapfi-CARO), chỉ số 3, tên "caro"
   - model/serialization/__init__.py: mặt nạ luật của file mạng bit 8 = caro (Rapfi-CARO: eval/weightloader.h)
   - export.py: đọc lại bit 8
+  - trainer/loss/supervised.py: khi chấm ván kiểm tra (val) bỏ qua chỉ số phụ vq_cluster_size_q* / vq_num_expired_codes.
+    Bộ huấn luyện coi chúng là hằng số giống nhau mọi lô, nhưng với mix9svq chúng đổi theo lô → lần chấm đầu tiên trên
+    GPU dừng lỗi "replicated constant 'sum' differs across ranks" (Kaggle 27/10). Chỉ là thống kê phụ, không ảnh
+    hưởng loss / val_loss.
   python3 trainer-add-caro.py <thư mục trainer>
 Giữ nguyên kiểu xuống dòng (CRLF) của file gốc; chạy lại lần hai không đổi gì.
 """
@@ -26,6 +30,11 @@ EDITS = {
     ],
     "export.py": [
         ('        rules.append("renju")\n', '        rules.append("renju")\n    if rule_mask & 8:\n        rules.append("caro")\n'),
+    ],
+    "trainer/loss/supervised.py": [
+        ('        if name in {"vq_perplexity", "vq_normed_perplexity"}:\n            continue\n',
+         '        if name in {"vq_perplexity", "vq_normed_perplexity"} or name.startswith("vq_cluster_size_q") or name == "vq_num_expired_codes":\n'
+         '            continue  # caro: đổi theo lô khi chấm val – không phải hằng số (xem đầu trainer-add-caro.py)\n'),
     ],
 }
 
