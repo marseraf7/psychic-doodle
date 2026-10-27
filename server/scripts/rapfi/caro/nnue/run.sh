@@ -8,7 +8,10 @@
 #   - Mỗi vòng (khi có thêm ít nhất ROUND_GAMES ván): huấn luyện tiếp ITERS bước trên WINDOW file dữ liệu mới nhất → xuất
 #     mạng nets/rN.bin.lz4 → đấu với mạng tốt nhất (arena.js, ARENA_OPENINGS × 2 ván, ARENA_MS ms / nước) → điểm ≥ PROMOTE
 #     thì thay mạng tốt nhất (tự đấu dùng mạng mới từ lô sau) và đo với engine của game (boat-match.js, như README).
-#     128 ván, ngưỡng 0,57: hai mạng ngang sức chỉ ~6% lần lọt ngưỡng (64 ván / 0,55 là ~20% – mạng tốt nhất trôi dạt).
+#     400 ván (64 khai cuộc để riêng + 136 khai cuộc sinh cố định, × 2), ngưỡng 0,52 (≈ +14 Elo): mỗi vòng tự đấu – học
+#     chỉ hơn mạng cũ chừng +15–30 Elo, ngưỡng cũ 0,57 / 128 ván (≈ +50 Elo) loại cả 9 ứng viên 25–27/10 (50–55,5 %, gộp
+#     ~+20 Elo) nên mạng tốt nhất đứng yên, tự đấu mãi bằng mạng cũ. Mạng ngang sức lọt ngưỡng ~20% lần – vô hại (không
+#     yếu đi); mạng chắc chắn yếu hơn bị loại sớm sau nửa số ván (arena.js).
 #   - Tốc độ học giảm dần: LR × LR_DECAY sau mỗi LR_EVERY vòng, không dưới LR_MIN.
 # Repo dữ liệu chung (đặt DATA_REPO, vd. https://github.com/marseraf7/caro-nnue-data.git – xem lib.sh và README):
 #   - huấn luyện thêm trên ván các trợ lý đẩy lên (worker.sh); mặc định máy này thôi tự đấu, dồn mọi lõi cho huấn luyện
@@ -45,9 +48,9 @@ LR=${LR:-0.001}
 LR_DECAY=${LR_DECAY:-0.8}
 LR_EVERY=${LR_EVERY:-5}
 LR_MIN=${LR_MIN:-0.0001}
-ARENA_OPENINGS=${ARENA_OPENINGS:-64}       # khai cuộc 32–95 của openings.json (không dùng cho tự đấu), × 2 ván
+ARENA_OPENINGS=${ARENA_OPENINGS:-200}      # khai cuộc 32–95 của openings.json (không dùng cho tự đấu) + sinh thêm cố định, × 2 ván
 ARENA_MS=${ARENA_MS:-300}
-PROMOTE=${PROMOTE:-0.57}
+PROMOTE=${PROMOTE:-0.52}
 VS_OPENINGS=${VS_OPENINGS:-16}             # đo với engine của game: số khai cuộc (× 2 ván)
 LOG="$WORK/logs/progress.log"
 # Chỉ một run.sh mỗi WORK: hai bản cùng chạy sẽ cùng học tiếp / ghi đè một vòng (vd. dịch vụ + tmux quên tắt)
@@ -132,13 +135,12 @@ evaluate() {
   bg bash -c 'exec node "$1/arena.js" "$2" "$3/engines/best" "$4" "$5" > "$6/arena.out" 2>> "$6/arena.err"' _ "$HERE" "$C" "$WORK" "$ARENA_OPENINGS" "$ARENA_MS" "$R"
   res=$(tail -1 "$R/arena.out")
   score=$(echo "$res" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['score'])" 2> /dev/null || echo 0)
-  # Khoảng tin cậy 95% của điểm (128 ván: ±~8,7%) – 52–53% là chưa phân biệt được với ngang sức
+  # Elo ± 95% tính theo cặp ván đổi bên (arena.js – sprt.js)
   res="$res $(echo "$res" | python3 -c "
-import json, math, sys
-d = json.loads(sys.stdin.read()); n = d['games']; p = d['score']
-e = 1.96 * math.sqrt(max(p * (1 - p), 1e-9) / n)
-elo = lambda x: -400 * math.log10(1 / min(max(x, 0.001), 0.999) - 1)
-print(f'≈ {elo(p):+.0f} Elo (95%: {elo(p - e):+.0f}…{elo(p + e):+.0f})')" 2> /dev/null)"
+import json, sys
+d = json.loads(sys.stdin.read())
+f = lambda x: '?' if x is None else f'{x:+.0f}'
+print(f'≈ {f(d.get(\"elo\"))} Elo (95%: {f(d.get(\"lo\"))}…{f(d.get(\"hi\"))})')" 2> /dev/null)"
   if python3 -c "import sys; sys.exit(0 if float('$score') >= $PROMOTE else 1)"; then
     cp "$net" "$WORK/engines/best/caro-nnue.bin.lz4.new" && mv "$WORK/engines/best/caro-nnue.bin.lz4.new" "$WORK/engines/best/caro-nnue.bin.lz4"
     node "$HERE/make-config.js" "$WORK/engines/best" caro-nnue.bin.lz4

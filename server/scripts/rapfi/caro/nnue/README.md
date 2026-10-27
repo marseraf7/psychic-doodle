@@ -85,8 +85,12 @@ mạng vừa xuất, bỏ dữ liệu ván và điểm kiểm tra cũ) để Kag
   vào học): đó mới là thước đo. Kaggle chấm val_loss mỗi lần lưu điểm kiểm tra; 2 lần liền không tốt hơn thì **dừng sớm**
   (học thêm chỉ phí giờ GPU) và xuất mạng ở điểm có val_loss thấp nhất; phiên sau học tiếp từ điểm đó.
   `progress.log` ghi cả hai: `loss giá trị 0.30 · val 0.58 (dừng sớm)`.
-- **Đấu chọn 128 ván** có sai số lớn: khoảng tin cậy 95% của điểm là ±~8,7% (≈ ±60 Elo), nên log ghi kèm, vd.
-  `≈ +22 Elo (95%: -39…+83)`. 52–53% là *chưa phân biệt được* với ngang sức – ngưỡng 57% để không nhận nhầm mạng như vậy.
+- **Đấu chọn 400 ván, ngưỡng 52 %** (≈ +14 Elo; trước 27/10: 128 ván / 57 %). Mỗi vòng tự đấu – học thường chỉ hơn mạng
+  cũ +15–30 Elo; ngưỡng cũ (≈ +50 Elo) loại cả 9 ứng viên 25–27/10 (50–55,5 %, gộp lại ~+20 Elo) nên mạng tốt nhất đứng
+  yên và tự đấu mãi bằng mạng cũ. Log ghi Elo ± 95% tính theo cặp ván, vd. `≈ +21 Elo (95%: -3…+45)`; mạng chắc chắn yếu
+  hơn bị loại sớm sau nửa số ván. Muốn đấu lại một mạng Kaggle theo cách mới: xoá `~/caro-nnue/runs/cand-<nhãn>`.
+- **Kaggle học tiếp** (Add Input = phiên trước) mặc định tốc độ học 0.0003 thay vì 0.001 (0.001 làm val_loss tăng vọt sau
+  vài nghìn bước); đặt `%env LR=…` để đổi.
 - train_loss giảm mạnh mà val_loss / đấu chọn đứng yên = **thiếu ván mới**, không phải lỗi: thêm ván tự đấu (mục dưới)
   rồi mới luyện tiếp.
 
