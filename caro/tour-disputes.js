@@ -36,9 +36,9 @@
       <ul class="people">${rows}</ul></details>`;
   }
 
-  K.acts.dispute = (b) => {
+  K.acts.dispute = async (b) => {
     const v = b.dataset.v;
-    if (!confirm(T('dispute_confirm_' + v))) return;
+    if (!(await window.CaroConfirm.ask(T('dispute_confirm_' + v)))) return;
     b.disabled = true;
     O.send({ t: 'tourDispute', id: D.tour.id, dispute: b.dataset.did, action: v });
   };
