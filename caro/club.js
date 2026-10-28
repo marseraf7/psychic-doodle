@@ -108,19 +108,19 @@
   K.acts.clubNew = () => { open('clubNew', null); };
   K.acts.clubShare = (b) => { share(shareLink('club', D.club.id), D.club.name); };
   K.acts.clubJoin = (b) => { O.send({ t: 'clubJoin', id: D.club.id, code: ($('club-code') || {}).value }); };
-  K.acts.clubLeave = (b) => { if (confirm(T('confirm_club_leave', { name: D.club.name }))) O.send({ t: 'clubLeave', id: D.club.id }); };
+  K.acts.clubLeave = async (b) => { if (await window.CaroConfirm.ask(T('confirm_club_leave', { name: D.club.name }))) O.send({ t: 'clubLeave', id: D.club.id }); };
   K.acts.clubReq = (b) => { O.send({ t: 'clubRequest', id: D.club.id, uid: b.dataset.uid, accept: b.dataset.v === '1' }); };
   K.acts.clubNewCode = (b) => { O.send({ t: 'clubNewCode', id: D.club.id }); };
-  K.acts.clubDisband = (b) => { if (confirm(T('confirm_club_disband', { name: D.club.name }))) { O.send({ t: 'clubDisband', id: D.club.id }); back() || top('clubs'); } };
+  K.acts.clubDisband = async (b) => { if (await window.CaroConfirm.ask(T('confirm_club_disband', { name: D.club.name }))) { O.send({ t: 'clubDisband', id: D.club.id }); back() || top('clubs'); } };
 
   K.binders.push((body) => {
     body.querySelectorAll('select.mops').forEach((s) => {
-      s.onchange = () => {
+      s.onchange = async () => {
         const v = s.value, uid = s.dataset.uid, name = s.dataset.name;
         s.value = '';
         if (!v) return;
-        if (v === 'kick') { if (confirm(T('confirm_club_kick', { name }))) O.send({ t: 'clubKick', id: D.club.id, uid }); }
-        else if (v === 'owner') { if (confirm(T('confirm_club_owner', { name }))) O.send({ t: 'clubRole', id: D.club.id, uid, role: 'owner' }); }
+        if (v === 'kick') { if (await window.CaroConfirm.ask(T('confirm_club_kick', { name }))) O.send({ t: 'clubKick', id: D.club.id, uid }); }
+        else if (v === 'owner') { if (await window.CaroConfirm.ask(T('confirm_club_owner', { name }))) O.send({ t: 'clubRole', id: D.club.id, uid, role: 'owner' }); }
         else O.send({ t: 'clubRole', id: D.club.id, uid, role: v });
       };
     });
