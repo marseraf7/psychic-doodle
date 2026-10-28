@@ -107,8 +107,8 @@
     return ok;
   }
 
-  function remove(ids) {
-    if (!ids.length || !confirm(T('lh_confirm_delete', { n: ids.length }))) return;
+  async function remove(ids) {
+    if (!ids.length || !(await window.CaroConfirm.ask(T('lh_confirm_delete', { n: ids.length })))) return;
     const n = store.remove(ids);
     picked.clear();
     selecting = false; // xoá xong: thoát chế độ chọn
