@@ -415,3 +415,9 @@ Việc lặp lại như soát dịch 4 ngôn ngữ, chạy e2e nhiều lần và
   - **Thanh tiến độ + thống kê**: số trận xong / tổng, số ván (set), đang đấu, hoà, xử thắng – tính ở trình duyệt, không thêm việc cho máy chủ.
   - **JSON công khai** `/api/tour/<mã>.json` (như Challonge): chỉ giải người chưa đăng nhập xem được; bỏ khiếu nại và trạng thái online; máy chủ giữ bản dựng 10 giây, chỉ tính lượt theo IP khi phải dựng mới.
   - **Trang nhúng** `embed.html?t=<mã>&view=bracket|standings|players&theme=light|dark&lang=…` cho phép đặt trong iframe của website khác (chỉ trang này bỏ chặn khung); tự cập nhật 20 giây một lần khi đang hiện, dừng khi giải xong. Tab Quản lý có khu **Nhúng vào website** sinh sẵn mã iframe.
+- **Đợt 7 – xong**:
+  - Cài đặt CLB: biểu tượng (chọn trong 24 biểu tượng, không tải ảnh lên), giới thiệu ngắn hiện ở danh sách, mô tả nhiều dòng, **mô tả chỉ thành viên thấy**, ẩn danh sách thành viên với người ngoài, chọn ai dùng chat / diễn đàn (dùng ở Đợt 8).
+  - **8 quyền của quản lý** tick riêng (Công khai, Cài đặt, Giải đấu, Kiểm duyệt, Duyệt yêu cầu, Gửi tin, Mời ra / chặn, Phân quyền). Quản lý cũ giữ đúng quyền của vai trò cũ. Quyền "Phân quyền" chỉ chủ CLB cấp; quản lý có quyền này không sửa được nhau. Trao quyền chủ thì chủ cũ thành quản lý đủ quyền.
+  - Yêu cầu vào **kèm lời nhắn**; từ chối thì vào danh sách **đã từ chối** (không gửi lại được, ban quản lý duyệt lại hoặc cho gửi lại); **mời ra kèm chặn** + danh sách bị chặn.
+  - **Tin gửi toàn CLB** (1 tin / 12 giờ): người online nhận ngay, người offline nhận khi vào lại, hiện trong chuông thông báo; thành viên tự tắt nhận tin được.
+  - Trang CLB có ngày vào của từng người, lọc thành viên đang online. Các việc quản lý chuyển sang trang **Quản lý CLB** riêng (`club-admin.js`); máy chủ tách `club-manage.js`.

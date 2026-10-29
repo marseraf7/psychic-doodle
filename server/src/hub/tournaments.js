@@ -81,7 +81,7 @@ class Tournaments {
     if (!uid) return null;
     if (t.creator === uid || this.isAdmin(uid)) return 'owner';
     const c = t.club && this.clubs.get(t.club);
-    if (c && this.isOfficer(c, uid)) return 'owner';
+    if (c && this.clubCan(c, uid, 'tours')) return 'owner'; // quản lý CLB có quyền Giải đấu
     const s = (t.staff || []).find((x) => x.uid === uid);
     return s ? s.perms : null;
   }
@@ -224,7 +224,7 @@ class Tournaments {
       const c = this.clubs.get(o.club);
       // Sửa giải CLB (đồng ban tổ chức không là quản lý CLB): giữ nguyên CLB thì không cần kiểm lại
       const same = keepClub && c && c.id === keepClub;
-      if (!c || c.status !== 'approved' || (!same && !this.isOfficer(c, me.id))) throw E('tour_club_officers');
+      if (!c || c.status !== 'approved' || (!same && !this.clubCan(c, me.id, 'tours'))) throw E('tour_club_officers');
       club = c.id;
     }
     // Bản trước gửi format 'knockout' = 1 vòng loại trực tiếp

@@ -28,12 +28,12 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   await B.evaluate(() => document.getElementById('open-clubs').click()); await sleep(500);
   await B.click('[data-act="club"]'); await sleep(400);
   await B.click('[data-act="clubJoin"]'); await sleep(400);
+  await A.click('[data-act="clubAdmin"]'); await sleep(400); // trang Quản lý CLB (club-admin.js)
   await A.click('[data-act="clubReq"][data-v="1"]'); await sleep(400);
+  await A.fill('#club-set input[name=announcement]', 'Giải Arena tối thứ 7 lúc 20:00!');
+  await A.click('#club-set button.primary'); await sleep(400);
+  await A.click('#tour-back'); await sleep(400);
   ok((await A.textContent('#tour-body')).includes('bob_en'), 'A: B vào CLB');
-  await A.click('#club-manage summary'); await sleep(100);
-  await A.fill('#club-edit input[name=announcement]', 'Giải Arena tối thứ 7 lúc 20:00!');
-  await A.click('#club-edit button.primary'); await sleep(400);
-  await A.click('#club-manage summary'); await sleep(100);
   await shot(A, 't3-club-page-vi.png');
   // A tạo giải Arena của CLB -> gửi duyệt -> boss duyệt
   await A.click('[data-act="tourNewClub"]'); await sleep(400);

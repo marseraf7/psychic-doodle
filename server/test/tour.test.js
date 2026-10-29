@@ -1152,3 +1152,82 @@ test('Đợt 6: JSON công khai của giải (chỉ giải công khai / link, đ
   assert.strictEqual(idx.headers.get('x-frame-options'), 'DENY');
   B.close();
 });
+
+test('Đợt 7: cài đặt CLB, 8 quyền quản lý, yêu cầu kèm lời nhắn, đã từ chối / chặn, tin gửi toàn CLB (online + khi vào lại), tắt nhận tin', async () => {
+  const B = await admin();
+  const owner = await account('k7o'), a = await account('k7a'), b = await account('k7b'), d = await account('k7d'), e = await account('k7e');
+  const { id } = await owner.req({ t: 'clubCreate', name: 'CLB Đợt Bảy ' + seq, intro: 'Chơi mỗi tối', icon: '🐉', join: 'request' }, 'clubCreated');
+  await B.req({ t: 'adminReview', kind: 'club', id, approve: true }, 'adminQueue');
+  const c = app.hub.clubs.get(id);
+  await owner.req({ t: 'clubGet', id }, 'club');
+  assert.strictEqual(owner.club.icon, '🐉');
+  assert.strictEqual(owner.club.intro, 'Chơi mỗi tối');
+  // Yêu cầu kèm lời nhắn → từ chối → không gửi lại được → duyệt lại
+  await a.req({ t: 'clubJoin', id, msg: 'Em học lớp 10A' }, 'toast', (m) => m.code === 'club_request_sent');
+  await until(() => owner.club.requests.length === 1);
+  assert.strictEqual(owner.club.requests[0].msg, 'Em học lớp 10A');
+  await owner.req({ t: 'clubRequest', id, uid: a.me.uid, accept: false }, 'club', (m) => m.club.declined.length === 1);
+  assert.strictEqual(owner.club.declined[0].msg, 'Em học lớp 10A');
+  assert.strictEqual((await a.req({ t: 'clubJoin', id }, 'error')).code, 'club_request_declined');
+  await owner.req({ t: 'clubReconsider', id, uid: a.me.uid, accept: true }, 'club', (m) => m.club.members.length === 2 && !m.club.declined.length);
+  assert.ok(owner.club.members.find((x) => x.id === a.me.uid).joined > Date.now() - 5000, 'có ngày vào');
+  // Cài đặt: vào tự do, mô tả nhiều dòng, phần chỉ thành viên thấy, ẩn danh sách thành viên
+  await owner.req({ t: 'clubUpdate', id, join: 'open', desc: 'Dòng 1\nDòng 2', privDesc: 'Mật khẩu wifi: caro123', hideMembers: true, icon: 'không hợp lệ', chat: 'officers', forum: 'everyone' }, 'club', (m) => m.club.join === 'open');
+  assert.strictEqual(owner.club.desc, 'Dòng 1\nDòng 2');
+  assert.strictEqual(owner.club.icon, '', 'biểu tượng ngoài danh sách: bỏ');
+  assert.deepStrictEqual([owner.club.chat, owner.club.forum], ['officers', 'everyone']);
+  await b.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+  const out = (await d.req({ t: 'clubGet', id }, 'club')).club;
+  assert.ok(out.membersHidden && out.members.length === 1 && out.members[0].role === 'owner', 'người ngoài chỉ thấy chủ CLB');
+  assert.strictEqual(out.privDesc, '', 'người ngoài không thấy mô tả riêng');
+  assert.strictEqual(out.count, 3);
+  const inn = (await b.req({ t: 'clubGet', id }, 'club')).club;
+  assert.ok(!inn.membersHidden && inn.members.length === 3 && inn.privDesc === 'Mật khẩu wifi: caro123');
+  // Quản lý mới: quyền mặc định; chỉ để quyền "gửi tin" (không công khai) → không sửa cài đặt / duyệt / mời ra được
+  await owner.req({ t: 'clubRole', id, uid: a.me.uid, role: 'officer' }, 'club', (m) => m.club.members.find((x) => x.id === a.me.uid).role === 'officer');
+  assert.deepStrictEqual(c.perms[a.me.uid], ['public', 'settings', 'tours', 'requests', 'kick']);
+  await owner.req({ t: 'clubPerms', id, uid: a.me.uid, perms: ['broadcast', 'bogus'] }, 'club', () => c.perms[a.me.uid].join() === 'broadcast');
+  assert.strictEqual((await a.req({ t: 'clubUpdate', id, intro: 'x' }, 'error')).code, 'club_officers_only');
+  assert.strictEqual((await a.req({ t: 'clubKick', id, uid: b.me.uid }, 'error')).code, 'club_officers_only');
+  assert.strictEqual((await a.req({ t: 'clubPerms', id, uid: a.me.uid, perms: CLUB_ALL }, 'error')).code, 'club_officers_only', 'không tự cấp quyền');
+  assert.strictEqual((await b.req({ t: 'clubGet', id }, 'club')).club.members.find((x) => x.id === a.me.uid).role, 'member', 'quản lý không công khai: thành viên thấy như thành viên');
+  // Tin gửi toàn CLB: thành viên online nhận ngay; 12 giờ mới gửi được tin tiếp
+  await a.req({ t: 'clubGet', id }, 'club');
+  const got = b.wait('clubMsgs', (m) => m.items[0].msg.text === 'Tối nay 20h đấu giải');
+  await a.req({ t: 'clubBroadcast', id, text: 'Tối nay 20h đấu giải' }, 'club');
+  const m1 = await got;
+  assert.strictEqual(m1.items[0].club.id, id);
+  assert.strictEqual((await a.req({ t: 'clubBroadcast', id, text: 'Spam' }, 'error')).code, 'club_msg_wait');
+  // Thành viên offline nhận khi vào lại; thành viên tắt nhận tin thì không
+  await e.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+  await b.req({ t: 'clubMute', id, mute: true }, 'club', (m) => m.club.muted);
+  const eName = e.me.username;
+  e.close(); b.close();
+  await until(() => !app.hub.isOnline('u_' + e.me.uid));
+  await B.req({ t: 'clubGet', id }, 'club');
+  await B.req({ t: 'clubBroadcast', id, text: 'Đổi giờ: 21h' }, 'club'); // quản trị viên: không bị giới hạn 12 giờ
+  const e2 = await reconnect({ me: { username: eName } });
+  await until(() => e2.msgs.some((m) => m.t === 'clubMsgs'));
+  const inbox = e2.msgs.find((m) => m.t === 'clubMsgs').items.map((x) => x.msg.text);
+  assert.deepStrictEqual(inbox, ['Đổi giờ: 21h'], 'chỉ tin sau khi vào CLB');
+  const b2 = await reconnect({ me: { username: b.me.username } });
+  await sleep(150);
+  assert.ok(!b2.msgs.some((m) => m.t === 'clubMsgs'), 'đã tắt nhận tin');
+  // Vào lại lần nữa: không nhận lại tin cũ
+  e2.close();
+  const e3 = await reconnect({ me: { username: eName } });
+  await sleep(150);
+  assert.ok(!e3.msgs.some((m) => m.t === 'clubMsgs'), 'tin đã nhận không gửi lại');
+  // Mời ra kèm chặn → không vào lại được; bỏ chặn → vào được
+  await owner.req({ t: 'clubKick', id, uid: e3.me.uid, ban: true }, 'club', (m) => m.club.banned.length === 1);
+  assert.strictEqual((await e3.req({ t: 'clubJoin', id }, 'error')).code, 'club_banned');
+  await owner.req({ t: 'clubUnban', id, uid: e3.me.uid }, 'club', (m) => !m.club.banned.length);
+  await e3.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+  // Trao quyền chủ: chủ cũ thành quản lý đủ quyền
+  await owner.req({ t: 'clubRole', id, uid: a.me.uid, role: 'owner' }, 'club', (m) => m.club.members.find((x) => x.id === a.me.uid).role === 'owner');
+  assert.strictEqual(c.owner, a.me.uid);
+  assert.strictEqual(c.perms[owner.me.uid].length, 8);
+  assert.strictEqual((await owner.req({ t: 'clubRole', id, uid: b2.me.uid, role: 'owner' }, 'error')).code, 'club_owner_only');
+  [B, owner, a, b2, d, e3].forEach((x) => x.close());
+});
+const CLUB_ALL = ['public', 'settings', 'tours', 'mod', 'requests', 'broadcast', 'kick', 'admin'];

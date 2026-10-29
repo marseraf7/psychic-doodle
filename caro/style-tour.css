@@ -310,3 +310,20 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .em-opt { display: flex; flex-direction: column; gap: 2px; flex: 1 1 140px; }
 .em-code { font: var(--fs-xs) / 1.4 ui-monospace, monospace; color: var(--text); background: var(--bg); border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px; width: 100%; resize: vertical; -webkit-user-select: all; user-select: all; }
 .em-json { color: var(--accent); font-size: var(--fs-sm); align-self: center; }
+/* Câu lạc bộ – Đợt 7 (club.js, club-admin.js) */
+.club-logo.emoji { font-weight: var(--fw-regular); }
+.icon-pick { display: flex; flex-wrap: wrap; gap: 4px; border: 0; padding: 0; margin: 0; }
+.icon-pick legend { font-size: var(--fs-sm); color: var(--muted); margin-bottom: 4px; }
+.icon-pick label { display: inline-grid; place-items: center; min-width: 38px; height: 38px; border: 1px solid var(--panel-border); border-radius: 10px; cursor: pointer; font-size: 1.25em; }
+.icon-pick label:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.icon-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.icon-pick .ip-none { font-size: var(--fs-xs); padding: 0 8px; }
+.note.priv { display: flex; gap: 8px; align-items: flex-start; }
+.note.priv p { margin: 0; white-space: pre-wrap; }
+.club-msgs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.club-msgs li { border-left: 3px solid var(--accent); padding: 4px 10px; }
+.club-msgs p, .req-msg { margin: 0; white-space: pre-wrap; font-size: var(--fs-sm); }
+.req-msg { color: var(--muted); font-style: italic; }
+.club-mhead { justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+.club-mhead h4 { margin: 0; }
+#club-msg { width: 100%; font: inherit; }

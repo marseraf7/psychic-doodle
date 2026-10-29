@@ -1,6 +1,8 @@
 /*
- * Câu lạc bộ (học theo Team của Lichess): danh sách CLB, trang CLB (thông báo, thành viên xếp theo Elo,
- * giải của CLB), tạo CLB, quản lý (duyệt yêu cầu, vai trò, mã mời, giải tán). Nạp sau tour.js.
+ * Câu lạc bộ (học theo Team của Lichess): danh sách CLB, trang CLB (biểu tượng, giới thiệu, mô tả + phần chỉ thành viên
+ * thấy, thông báo ghim, tin gửi toàn CLB, thành viên xếp theo Elo – lọc người đang online, ngày vào; giải của CLB),
+ * tạo CLB, gửi yêu cầu vào kèm lời nhắn. Trang Quản lý CLB (cài đặt, phân quyền, duyệt, chặn, gửi tin): club-admin.js.
+ * Nạp sau tour.js.
  */
 (function () {
   'use strict';
@@ -13,8 +15,8 @@
     if (c.status !== 'approved') tags.push(`<span class="pill ${c.status === 'pending' ? 'wait' : 'off'}">${esc(T('cst_' + c.status))}</span>`);
     if (c.role) tags.push(`<span class="pill mine">${esc(T('role_' + c.role))}</span>`);
     else if (c.requested) tags.push(`<span class="pill wait">${esc(T('club_requested'))}</span>`);
-    return `<li><button type="button" class="titem" data-act="club" data-id="${esc(c.id)}">${logo(c.name)}
-      <span class="pn"><b>${esc(c.name)}</b><small>${esc(T('members_n', { n: c.count }))} · ${esc(T('join_' + c.join))}</small>${c.desc ? `<small>${esc(c.desc)}</small>` : ''}</span>
+    return `<li><button type="button" class="titem" data-act="club" data-id="${esc(c.id)}">${logo(c.name, c.icon)}
+      <span class="pn"><b>${esc(c.name)}</b><small>${esc(T('members_n', { n: c.count }))} · ${esc(T('join_' + c.join))}</small>${c.intro ? `<small>${esc(c.intro)}</small>` : ''}</span>
       <span class="tags">${tags.join('')}</span></button></li>`;
   }
   function pageClubs() {
@@ -27,63 +29,61 @@
     html += `<h4>${esc(T('all_clubs'))}</h4><ul class="tlist">${D.clubs.map(clubItem).join('') || `<li class="empty">${esc(T('club_none'))}</li>`}</ul>`;
     return html;
   }
+  const day = (ms) => new Intl.DateTimeFormat(document.documentElement.lang || 'vi', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(ms);
   function pageClub() {
     const c = D.club;
     if (!c) { setTitle('clubs_title'); return `<p class="hint">…</p>`; }
     setTitle(null, c.name);
     const uid = me() && me().uid;
-    let html = `<div class="chead">${logo(c.name)}<div class="pn"><b>${esc(c.name)}</b><small>${esc(T('members_n', { n: c.count }))} · ${esc(T('join_' + c.join))} · ${esc(T('club_owner_name', { name: c.owner }))}</small></div></div>`;
+    const can = (p) => (c.perms || []).includes(p);
+    let html = `<div class="chead">${logo(c.name, c.icon)}<div class="pn"><b>${esc(c.name)}</b><small>${esc(T('members_n', { n: c.count }))} · ${esc(T('join_' + c.join))} · ${esc(T('club_owner_name', { name: c.owner }))}</small>${c.intro ? `<small>${esc(c.intro)}</small>` : ''}</div></div>`;
     if (c.status === 'pending') html += `<p class="note">${esc(T('club_pending_note'))}</p>`;
     if (c.status === 'rejected') html += `<p class="note bad">${esc(T('club_rejected_note'))}${c.reviewNote ? ': ' + esc(c.reviewNote) : ''}</p>`;
     if (c.announcement) html += `<p class="announce">${icon('pin')}${esc(c.announcement)}</p>`;
     if (c.desc) html += `<p class="tdesc">${esc(c.desc)}</p>`;
+    if (c.privDesc) html += `<div class="note priv">${icon('lock')}<p>${esc(c.privDesc)}</p></div>`; // chỉ thành viên thấy
     const b = [];
     if (me() && c.status === 'approved' && !c.role) {
       if (c.join === 'code') b.push(`<input id="club-code" placeholder="${esc(T('club_code'))}" maxlength="12" autocapitalize="characters">`);
+      if (c.join === 'request' && !c.requested) b.push(`<textarea id="club-msg" rows="2" maxlength="300" placeholder="${esc(T('club_req_msg_ph'))}"></textarea>`);
       b.push(c.requested ? `<span class="pill wait">${esc(T('club_requested'))}</span>`
         : `<button type="button" class="primary" data-act="clubJoin">${esc(T(c.join === 'request' ? 'club_request' : 'club_join'))}</button>`);
     }
     if (c.role && c.role !== 'owner') b.push(`<button type="button" class="ghost" data-act="clubLeave">${esc(T('club_leave'))}</button>`);
-    if (c.officer && c.status === 'approved') b.push(`<button type="button" class="ghost" data-act="tourNewClub">${icon('trophy')}${esc(T('club_new_tour'))}</button>`);
+    if (can('tours') && c.status === 'approved') b.push(`<button type="button" class="ghost" data-act="tourNewClub">${icon('trophy')}${esc(T('club_new_tour'))}</button>`);
+    if (c.officer) b.push(`<button type="button" class="ghost" data-act="clubAdmin">${icon('gear')}${esc(T('club_manage'))}${c.requests.length ? ` <i class="count">${c.requests.length}</i>` : ''}</button>`);
     b.push(`<button type="button" class="ghost" data-act="clubShare">${icon('link')}${esc(T('share'))}</button>`);
     if (!me()) b.push(`<span class="hint">${esc(T('tour_login_hint'))}</span>`);
     html += `<div class="row tactions">${b.join('')}</div>`;
-    if (c.officer) {
-      html += `<details class="card" id="club-manage" ${D.manageOpen ? 'open' : ''}><summary>${icon('gear')}${esc(T('club_manage'))}</summary>
-        <form id="club-edit" class="tform">
-          <label class="field"><span>${esc(T('club_announcement'))}</span><input name="announcement" maxlength="300" value="${esc(c.announcement)}"></label>
-          <label class="field"><span>${esc(T('club_desc'))}</span><textarea name="desc" maxlength="500" rows="3">${esc(c.desc)}</textarea></label>
-          ${c.isOwner || (me() && me().admin) ? `<label class="field"><span>${esc(T('club_join_policy'))}</span><select name="join">${['open', 'request', 'code'].map((j) => `<option value="${j}" ${c.join === j ? 'selected' : ''}>${esc(T('join_' + j))}</option>`).join('')}</select></label>` : ''}
-          <button class="primary">${esc(T('save'))}</button>
-        </form>
-        ${c.code ? `<p>${esc(T('club_code'))}: <b class="code">${esc(c.code)}</b> <button type="button" class="ghost sm" data-act="clubNewCode">${esc(T('club_new_code'))}</button></p>` : ''}
-        ${c.isOwner || (me() && me().admin) ? `<button type="button" class="ghost danger sm" data-act="clubDisband">${esc(T('club_disband'))}</button>` : ''}
-      </details>`;
-      if (c.requests.length) {
-        html += `<h4>${esc(T('club_requests', { n: c.requests.length }))}</h4><ul class="people">${c.requests.map((r) => `
-          <li><div class="pn"><b>${esc(r.name)}</b><small>${esc(String(r.rating))}</small></div>
-          <button type="button" class="ghost sm" data-act="clubReq" data-uid="${esc(r.id)}" data-v="0">${esc(T('decline'))}</button>
-          <button type="button" class="primary sm" data-act="clubReq" data-uid="${esc(r.id)}" data-v="1">${esc(T('accept'))}</button></li>`).join('')}</ul>`;
-      }
+    // Tin gửi toàn CLB (thành viên): mới nhất trước; tự tắt / bật nhận tin
+    if (c.role) {
+      html += `<h4>${esc(T('club_msgs'))}</h4>${c.msgs.length ? `<ul class="club-msgs">${c.msgs.slice(0, 3).map((m) => `<li><p>${esc(m.text)}</p><small class="muted">${esc(m.by)} · ${esc(day(m.at))}</small></li>`).join('')}</ul>` : `<p class="hint">${esc(T('club_msgs_none'))}</p>`}
+        <label class="check"><input type="checkbox" data-act="clubMute" ${c.muted ? '' : 'checked'}> <span>${esc(T('club_msgs_receive'))}</span></label>`;
     }
     if (c.tours && c.tours.length) html += `<h4>${esc(T('club_tours'))}</h4><ul class="tlist">${c.tours.map(tourItem).join('')}</ul>`;
-    html += `<h4>${esc(T('club_members_rank'))}</h4><ol class="ranks">${c.members.map((m, i) => {
-      const ops = [];
-      if (m.id !== uid && m.role !== 'owner') {
-        if (c.isOwner) {
-          ops.push(`<option value="">⋯</option>`);
-          ops.push(m.role === 'officer' ? `<option value="member">${esc(T('make_member'))}</option>` : `<option value="officer">${esc(T('make_officer'))}</option>`);
-          ops.push(`<option value="owner">${esc(T('make_owner'))}</option>`);
-          ops.push(`<option value="kick">${esc(T('club_kick'))}</option>`);
-        } else if (c.officer && m.role === 'member') {
-          ops.push(`<option value="">⋯</option><option value="kick">${esc(T('club_kick'))}</option>`);
-        }
-      }
+    // Thành viên: lọc tất cả / đang online
+    const list = D.clubFilter === 'online' ? c.members.filter((m) => m.status !== 'offline') : c.members;
+    html += `<div class="row club-mhead"><h4>${esc(T('club_members_rank'))}</h4>${c.membersHidden ? '' : `<div class="seg sm">${['all', 'online'].map((k) => `<label><input type="radio" name="clubfilter" data-act="clubFilter" value="${k}" ${(D.clubFilter || 'all') === k ? 'checked' : ''}> <span>${esc(T('club_filter_' + k))}</span></label>`).join('')}</div>`}</div>`;
+    if (c.membersHidden) html += `<p class="hint">${esc(T('club_members_hidden'))}</p>`;
+    html += `<ol class="ranks">${list.map((m, i) => {
+      const ops = memberOps(c, m, uid);
       return `<li class="${m.id === uid ? 'me' : ''}"><span class="rank">${i + 1}</span><span class="st ${esc(m.status)}"></span>
-        <div class="pn"><b>${esc(m.name)}${m.role !== 'member' ? ` <span class="role">${esc(T('role_' + m.role))}</span>` : ''}</b><small>@${esc(m.username)}</small></div>
-        <span class="pts">${m.rating}</span>${ops.length ? `<select class="mops" data-uid="${esc(m.id)}" data-name="${esc(m.name)}" aria-label="${esc(T('club_manage'))}">${ops.join('')}</select>` : ''}</li>`;
-    }).join('')}</ol>`;
+        <div class="pn"><b>${esc(m.name)}${m.role !== 'member' ? ` <span class="role">${esc(T('role_' + m.role))}</span>` : ''}</b><small>@${esc(m.username)} · ${esc(T('club_joined_at', { d: day(m.joined) }))}</small></div>
+        <span class="pts">${m.rating}</span>${ops ? `<select class="mops" data-uid="${esc(m.id)}" data-name="${esc(m.name)}" aria-label="${esc(T('club_manage'))}"><option value="">⋯</option>${ops}</select>` : ''}</li>`;
+    }).join('') || `<li class="empty">${esc(T('club_filter_none'))}</li>`}</ol>`;
     return html;
+  }
+  /** Thao tác với một thành viên theo quyền của mình (máy chủ kiểm lại). */
+  function memberOps(c, m, uid) {
+    if (!uid || m.id === uid || m.role === 'owner') return '';
+    const can = (p) => (c.perms || []).includes(p);
+    const ops = [];
+    // Đổi vai trò: chủ CLB; quản lý có quyền admin (không đổi được quản lý cũng có quyền admin)
+    const setRole = c.isOwner || (can('admin') && !(m.role === 'officer' && (m.perms || []).includes('admin')));
+    if (setRole) ops.push(m.role === 'officer' ? `<option value="member">${esc(T('make_member'))}</option>` : `<option value="officer">${esc(T('make_officer'))}</option>`);
+    if (c.isOwner) ops.push(`<option value="owner">${esc(T('make_owner'))}</option>`);
+    if (can('kick') && (m.role === 'member' || c.isOwner)) ops.push(`<option value="kick">${esc(T('club_kick'))}</option><option value="ban">${esc(T('club_kick_ban'))}</option>`);
+    return ops.join('');
   }
   function pageClubNew() {
     setTitle('club_create');
@@ -91,7 +91,9 @@
     return `<form id="cf" class="tform">
       <p class="note">${esc(T('review_note_club'))}</p>
       <label class="field"><span>${esc(T('club_name'))}</span><input name="name" maxlength="40" required></label>
-      <label class="field"><span>${esc(T('club_desc'))}</span><textarea name="desc" maxlength="500" rows="3"></textarea></label>
+      <label class="field"><span>${esc(T('club_intro'))}</span><input name="intro" maxlength="200" placeholder="${esc(T('club_intro_ph'))}"></label>
+      ${K.clubIconPicker ? K.clubIconPicker('') : ''}
+      <label class="field"><span>${esc(T('club_desc'))}</span><textarea name="desc" maxlength="2000" rows="3"></textarea></label>
       <fieldset><legend>${esc(T('club_join_policy'))}</legend><div class="seg col">${['open', 'request', 'code'].map((j, i) => `<label><input type="radio" name="join" value="${j}" ${i === 0 ? 'checked' : ''}> <span>${esc(T('join_' + j))} – ${esc(T('join_' + j + '_hint'))}</span></label>`).join('')}</div></fieldset>
       <p class="err" id="cf-err"></p>
       <button class="primary wide">${esc(T('club_submit'))}</button>
@@ -107,11 +109,12 @@
   K.acts.tourNewClub = () => { if (K.tourDraft) K.tourDraft.begin(D.club.id); open('tourNew', D.club.id); };
   K.acts.clubNew = () => { open('clubNew', null); };
   K.acts.clubShare = (b) => { share(shareLink('club', D.club.id), D.club.name); };
-  K.acts.clubJoin = (b) => { O.send({ t: 'clubJoin', id: D.club.id, code: ($('club-code') || {}).value }); };
+  K.acts.clubJoin = (b) => { O.send({ t: 'clubJoin', id: D.club.id, code: ($('club-code') || {}).value, msg: ($('club-msg') || {}).value }); };
+  K.acts.clubAdmin = () => { open('clubAdmin', D.club.id); };
+  K.acts.clubMute = (b) => { O.send({ t: 'clubMute', id: D.club.id, mute: !b.checked }); };
+  K.acts.clubFilter = (b) => { D.clubFilter = b.value; render(true); };
   K.acts.clubLeave = (b) => { if (confirm(T('confirm_club_leave', { name: D.club.name }))) O.send({ t: 'clubLeave', id: D.club.id }); };
   K.acts.clubReq = (b) => { O.send({ t: 'clubRequest', id: D.club.id, uid: b.dataset.uid, accept: b.dataset.v === '1' }); };
-  K.acts.clubNewCode = (b) => { O.send({ t: 'clubNewCode', id: D.club.id }); };
-  K.acts.clubDisband = (b) => { if (confirm(T('confirm_club_disband', { name: D.club.name }))) { O.send({ t: 'clubDisband', id: D.club.id }); back() || top('clubs'); } };
 
   K.binders.push((body) => {
     body.querySelectorAll('select.mops').forEach((s) => {
@@ -119,7 +122,7 @@
         const v = s.value, uid = s.dataset.uid, name = s.dataset.name;
         s.value = '';
         if (!v) return;
-        if (v === 'kick') { if (confirm(T('confirm_club_kick', { name }))) O.send({ t: 'clubKick', id: D.club.id, uid }); }
+        if (v === 'kick' || v === 'ban') { if (confirm(T(v === 'ban' ? 'confirm_club_ban' : 'confirm_club_kick', { name }))) O.send({ t: 'clubKick', id: D.club.id, uid, ban: v === 'ban' }); }
         else if (v === 'owner') { if (confirm(T('confirm_club_owner', { name }))) O.send({ t: 'clubRole', id: D.club.id, uid, role: 'owner' }); }
         else O.send({ t: 'clubRole', id: D.club.id, uid, role: v });
       };
@@ -134,17 +137,7 @@
       cf.onsubmit = (e) => {
         e.preventDefault();
         $('cf-err').textContent = '';
-        O.send({ t: 'clubCreate', name: cf.name.value.trim(), desc: cf.desc.value.trim(), join: cf.join.value });
-      };
-    }
-    const cm = $('club-manage');
-    if (cm) cm.ontoggle = () => { D.manageOpen = cm.open; }; // giữ trạng thái mở khi trang được vẽ lại
-    const ce = $('club-edit');
-    if (ce) {
-      ce.onsubmit = (e) => {
-        e.preventDefault();
-        O.send({ t: 'clubUpdate', id: D.club.id, desc: ce.desc.value, announcement: ce.announcement.value, join: ce.join ? ce.join.value : undefined });
-        O.toast(T('saved'));
+        O.send({ t: 'clubCreate', name: cf.name.value.trim(), intro: cf.intro.value.trim(), icon: cf.icon ? cf.icon.value : '', desc: cf.desc.value.trim(), join: cf.join.value });
       };
     }
   });
@@ -158,10 +151,10 @@
   O.on('club', (m) => {
     if (m.id !== V.id) return;
     D.club = m.club;
-    if (!m.club && isOpen() && V.page === 'club') { back() || top('clubs'); return; }
-    if (isOpen() && V.page === 'club') {
-      // Đang gõ trong form quản lý thì không vẽ lại (tránh mất chữ đang gõ)
-      if (document.activeElement && document.activeElement.closest('#club-edit')) return;
+    if (!m.club && isOpen() && /^club/.test(V.page)) { V.stack = []; top('clubs'); return; }
+    if (isOpen() && (V.page === 'club' || V.page === 'clubAdmin')) {
+      // Đang gõ (lời nhắn, cài đặt, tin gửi) thì không vẽ lại – tránh mất chữ đang gõ
+      if (document.activeElement && document.activeElement.closest('#club-msg, #club-set, #club-bc')) return;
       render();
     }
   });
