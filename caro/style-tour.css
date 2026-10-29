@@ -327,3 +327,15 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .club-mhead { justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
 .club-mhead h4 { margin: 0; }
 #club-msg { width: 100%; font: inherit; }
+/* Chat + diễn đàn CLB – Đợt 8 (club-talk.js) */
+.cc-log { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; border: 1px solid var(--panel-border); border-radius: 10px; font-size: var(--fs-sm); -webkit-user-select: text; user-select: text; }
+.cc-log li { overflow-wrap: anywhere; }
+.cc-log .cc-del { display: inline-grid; padding: 0 4px; vertical-align: middle; opacity: 0.6; }
+.cc-form { margin-top: 6px; flex-wrap: nowrap; }
+.cc-form input { flex: 1; min-width: 0; }
+.ft-posts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ft-posts > li { border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px 10px; }
+.ft-ph { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.ft-ops { margin-inline-start: auto; display: flex; gap: 4px; }
+.ft-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); -webkit-user-select: text; user-select: text; }
+.pager { justify-content: center; align-items: center; gap: 8px; }

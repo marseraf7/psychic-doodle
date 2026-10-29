@@ -1228,6 +1228,87 @@ test('Đợt 7: cài đặt CLB, 8 quyền quản lý, yêu cầu kèm lời nh�
   assert.strictEqual(c.owner, a.me.uid);
   assert.strictEqual(c.perms[owner.me.uid].length, 8);
   assert.strictEqual((await owner.req({ t: 'clubRole', id, uid: b2.me.uid, role: 'owner' }, 'error')).code, 'club_owner_only');
-  [B, owner, a, b2, d, e3].forEach((x) => x.close());
+  [owner, a, b2, d, e3].forEach((x) => x.close()); // B (quản trị viên) dùng chung giữa các bài: không đóng
 });
 const CLUB_ALL = ['public', 'settings', 'tours', 'mod', 'requests', 'broadcast', 'kick', 'admin'];
+
+test('Đợt 8: chat CLB (theo cài đặt, thời gian thực, xoá, cấm nói), diễn đàn (chủ đề, bài, sửa / xoá, ghim, khoá), người ngoài đọc khi để "mọi người"', async () => {
+  const keep = app.hub.T.THROTTLE_SCALE;
+  app.hub.T.THROTTLE_SCALE = 0; // bỏ giãn cách gửi trong bài thử
+  try {
+    const B = await admin();
+    const owner = await account('k8o'), a = await account('k8a'), mod = await account('k8m'), out = await account('k8x');
+    const { id } = await owner.req({ t: 'clubCreate', name: 'CLB Đợt Tám ' + seq, join: 'open' }, 'clubCreated');
+    await B.req({ t: 'adminReview', kind: 'club', id, approve: true }, 'adminQueue');
+    for (const x of [a, mod]) await x.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+    await owner.req({ t: 'clubGet', id }, 'club');
+    await owner.req({ t: 'clubRole', id, uid: mod.me.uid, role: 'officer' }, 'club', (m) => m.club.members.some((x) => x.id === mod.me.uid && x.role === 'officer'));
+    await owner.req({ t: 'clubPerms', id, uid: mod.me.uid, perms: ['mod'] }, 'club', () => app.hub.clubs.get(id).perms[mod.me.uid].join() === 'mod');
+    // Chat: thành viên viết, người đang mở trang nhận ngay; mở trang nhận lịch sử
+    await a.req({ t: 'clubGet', id }, 'club');
+    const got = owner.wait('clubChat', (m) => m.msg.text === 'Chào cả nhà');
+    a.send({ t: 'clubChat', id, text: 'Chào cả nhà' });
+    const m1 = (await got).msg;
+    const log = await mod.req({ t: 'clubGet', id }, 'clubChatLog');
+    assert.ok(log.msgs.some((x) => x.id === m1.id), 'mở trang: có lịch sử chat');
+    const outView = await out.req({ t: 'clubGet', id }, 'club');
+    assert.ok(!outView.club.talk.chat, 'người ngoài không đọc được chat');
+    await sleep(100);
+    assert.ok(!out.msgs.some((m) => m.t === 'clubChatLog'), 'người ngoài không nhận lịch sử chat');
+    assert.strictEqual((await out.req({ t: 'clubChat', id, text: 'x' }, 'error')).code, 'club_talk_denied');
+    // Kiểm duyệt: xoá tin, cấm nói
+    const del = a.wait('clubChatDel', (m) => m.msg === m1.id);
+    mod.send({ t: 'clubChatDel', id, msg: m1.id });
+    await del;
+    await mod.req({ t: 'clubTalkMute', id, uid: a.me.uid, mute: true }, 'club', (m) => m.club.talkMuted.includes(a.me.uid));
+    assert.strictEqual((await a.req({ t: 'clubChat', id, text: 'Spam' }, 'error')).code, 'club_talk_denied', 'bị cấm nói');
+    assert.strictEqual((await mod.req({ t: 'clubTalkMute', id, uid: owner.me.uid, mute: true }, 'error')).code, 'club_cannot_kick', 'không cấm nói chủ CLB');
+    await mod.req({ t: 'clubTalkMute', id, uid: a.me.uid, mute: false }, 'club', (m) => !m.club.talkMuted.length);
+    // Chat chỉ ban quản lý
+    await owner.req({ t: 'clubUpdate', id, chat: 'officers' }, 'club', (m) => m.club.chat === 'officers');
+    assert.strictEqual((await a.req({ t: 'clubChat', id, text: 'x' }, 'error')).code, 'club_talk_denied');
+    await mod.req({ t: 'clubChat', id, text: 'Thông báo từ ban quản lý' }, 'clubChat');
+    // Diễn đàn: chủ đề + bài, sửa / xoá bài của mình, người khác không sửa được
+    const { topic } = await a.req({ t: 'clubTopicNew', id, title: 'Lịch thi đấu tháng 11', text: 'Mọi người góp ý nhé' }, 'clubTopicCreated');
+    assert.strictEqual((await a.req({ t: 'clubTopicNew', id, title: 'x', text: 'y' }, 'error')).code, 'club_topic_short');
+    const list = await owner.req({ t: 'clubTopics', id }, 'clubTopics');
+    assert.strictEqual(list.total, 1);
+    assert.strictEqual(list.topics[0].title, 'Lịch thi đấu tháng 11');
+    const view = await owner.req({ t: 'clubTopic', id, topic }, 'clubTopic');
+    assert.ok(view.canPost && view.posts.length === 1 && view.posts[0].text === 'Mọi người góp ý nhé');
+    const dirty = a.wait('clubTopicDirty', (m) => m.topic === topic);
+    await a.req({ t: 'clubTopic', id, topic }, 'clubTopic');
+    owner.send({ t: 'clubPost', id, topic, text: 'Tối thứ 7 được không?' });
+    await dirty;
+    let v = await a.req({ t: 'clubTopic', id, topic, page: -1 }, 'clubTopic');
+    assert.strictEqual(v.posts.length, 2);
+    const ownerPost = v.posts[1].id;
+    assert.strictEqual((await a.req({ t: 'clubPostEdit', id, post: ownerPost, text: 'sửa trộm' }, 'error')).code, 'club_officers_only');
+    a.send({ t: 'clubPostEdit', id, post: v.posts[0].id, text: 'Mọi người góp ý giúp' });
+    await until(() => app.hub.store.clubPost(id, v.posts[0].id).edited);
+    // Ghim, khoá: thành viên không viết được nữa, kiểm duyệt vẫn viết được
+    await mod.req({ t: 'clubTopicMod', id, topic, pinned: true, locked: true }, 'clubTopicModDone');
+    v = await a.req({ t: 'clubTopic', id, topic }, 'clubTopic');
+    assert.ok(v.topic.pinned && v.topic.locked && !v.canPost);
+    assert.strictEqual((await a.req({ t: 'clubPost', id, topic, text: 'x' }, 'error')).code, 'club_topic_locked');
+    mod.send({ t: 'clubPost', id, topic, text: 'Đã chốt: thứ 7' });
+    await until(() => app.hub.store.clubTopic(id, topic).posts === 3);
+    // Diễn đàn "mọi người": người ngoài đọc được, không viết được; "tắt": không đọc được
+    assert.strictEqual((await out.req({ t: 'clubTopics', id }, 'error')).code, 'club_not_found');
+    await owner.req({ t: 'clubUpdate', id, forum: 'everyone' }, 'club', (m) => m.club.forum === 'everyone');
+    assert.strictEqual((await out.req({ t: 'clubTopics', id }, 'clubTopics')).total, 1);
+    assert.strictEqual((await out.req({ t: 'clubTopicNew', id, title: 'Quảng cáo', text: 'x' }, 'error')).code, 'club_talk_denied');
+    // Xoá bài của mình; kiểm duyệt xoá chủ đề
+    a.send({ t: 'clubPostDel', id, post: v.posts[0].id });
+    await until(() => app.hub.store.clubTopic(id, topic).posts === 2);
+    await mod.req({ t: 'clubTopicMod', id, topic, del: true }, 'clubTopicModDone');
+    assert.strictEqual(app.hub.store.clubTopicCount(id), 0);
+    // Giải tán CLB: xoá chat + diễn đàn
+    owner.send({ t: 'clubDisband', id });
+    await until(() => !app.hub.clubs.get(id));
+    assert.strictEqual(app.hub.store.clubChatList(id).length, 0);
+    [owner, a, mod, out].forEach((x) => x.close());
+  } finally {
+    app.hub.T.THROTTLE_SCALE = keep;
+  }
+});

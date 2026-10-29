@@ -91,7 +91,7 @@
   function open(page, id, push) {
     if (push !== false && (V.page !== page || V.id !== id)) V.stack.push({ page: V.page, id: V.id });
     if (V.page === 'tour' && page !== 'tour') O.send({ t: 'tourUnwatch' });
-    if (/^club(Admin)?$/.test(V.page) && !/^club(Admin)?$/.test(page)) O.send({ t: 'clubUnwatch' });
+    if (/^club(Admin|Topic|TopicNew)?$/.test(V.page) && !/^club(Admin|Topic|TopicNew)?$/.test(page)) O.send({ t: 'clubUnwatch' });
     V.page = page;
     V.id = id || null;
     if (K.enter[page]) K.enter[page]();
@@ -381,6 +381,7 @@
       if (ctx === 'tourJoin' && $('rf-err') && isOpen()) return 'rf-err';
       if (ctx === 'tourScore' && $('sp-err') && isOpen()) return 'sp-err';
       if (ctx === 'clubCreate' && $('cf-err') && isOpen()) return 'cf-err';
+      if (ctx === 'clubTopicNew' && $('ft-err') && isOpen()) return 'ft-err';
       return null;
     },
     open: (id) => { V.stack = [{ page: 'tours', id: null }]; open('tour', id, false); },

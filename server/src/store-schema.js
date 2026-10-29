@@ -47,6 +47,16 @@ const SCHEMA = `
     mate INTEGER, at INTEGER NOT NULL, used INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS eval_cache_used ON eval_cache (used);
   CREATE TABLE IF NOT EXISTS avatars (uid TEXT PRIMARY KEY, type TEXT NOT NULL, data BLOB NOT NULL);
+  CREATE TABLE IF NOT EXISTS club_chat (id INTEGER PRIMARY KEY AUTOINCREMENT, club TEXT NOT NULL, uid TEXT, name TEXT, at INTEGER NOT NULL,
+    text TEXT NOT NULL);
+  CREATE INDEX IF NOT EXISTS club_chat_club ON club_chat (club, id);
+  CREATE TABLE IF NOT EXISTS club_topics (id INTEGER PRIMARY KEY AUTOINCREMENT, club TEXT NOT NULL, title TEXT NOT NULL, uid TEXT, name TEXT,
+    at INTEGER NOT NULL, last INTEGER NOT NULL, posts INTEGER NOT NULL DEFAULT 0, pinned INTEGER NOT NULL DEFAULT 0, locked INTEGER NOT NULL DEFAULT 0);
+  CREATE INDEX IF NOT EXISTS club_topics_club ON club_topics (club, pinned, last);
+  CREATE TABLE IF NOT EXISTS club_posts (id INTEGER PRIMARY KEY AUTOINCREMENT, topic INTEGER NOT NULL, club TEXT NOT NULL, uid TEXT, name TEXT,
+    at INTEGER NOT NULL, text TEXT NOT NULL, edited INTEGER);
+  CREATE INDEX IF NOT EXISTS club_posts_topic ON club_posts (topic, id);
+  CREATE INDEX IF NOT EXISTS club_posts_uid ON club_posts (uid);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
 // Phiên đăng nhập: thông tin thiết bị (mục Thiết bị – store-sessions.js)

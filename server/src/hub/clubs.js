@@ -95,6 +95,12 @@ class Clubs {
       hideMembers: !!c.hideMembers, chat: c.chat, forum: c.forum,
       members, membersHidden: !showAll, officer, isOwner: c.owner === uid, perms: myPerms,
       muted: !!(uid && c.muted.includes(uid)),
+      // Chat / diễn đàn (club-talk.js): mình đọc / viết được không; người bị cấm nói (ban quản lý thấy)
+      talk: {
+        chat: this.canChat(c, uid, false), chatWrite: this.canChat(c, uid, true), forum: this.canForum(c, uid, false), forumWrite: this.canForum(c, uid, true),
+        muted: !!(uid && c.talkMuted.includes(uid)),
+      },
+      talkMuted: can('mod') ? c.talkMuted : [],
       msgs: member || officer ? c.msgs.slice(-10).reverse() : [],
       msgWait: can('broadcast') ? Math.max(0, (c.lastMsgAt || 0) + this.T.CLUB_MSG_MS - Date.now()) : 0,
       code: (can('settings') || can('requests')) && c.join === 'code' ? c.code : null,
@@ -159,10 +165,12 @@ class Clubs {
     const c = this.findClub(id, uid);
     conn.watchClub = c.id;
     conn.send({ t: 'club', club: this.clubView(c, uid), id: c.id });
+    this.clubTalkOpen(conn, c, uid); // chat gần nhất (club-talk.js)
   }
 
   on_clubUnwatch(conn) {
     conn.watchClub = null;
+    conn.watchTopic = null;
   }
 
   on_clubJoin(conn, { id, code, msg }) {
@@ -262,6 +270,7 @@ class Clubs {
     delete c.joinedAt[uid];
     delete c.seen[uid];
     c.muted = c.muted.filter((x) => x !== uid);
+    c.talkMuted = c.talkMuted.filter((x) => x !== uid);
   }
 
   /** Những người có quyền perm (chủ + quản lý có quyền đó) – để gửi thông báo. */
@@ -312,6 +321,7 @@ function normalizeClub(c) {
   c.muted = c.muted || [];
   c.msgs = c.msgs || [];
   c.seen = c.seen || {};
+  c.talkMuted = c.talkMuted || []; // bị cấm nói ở chat / diễn đàn (club-talk.js)
   c.chat = c.chat || 'members';
   c.forum = c.forum || 'members';
   if (c.intro == null) c.intro = '';
