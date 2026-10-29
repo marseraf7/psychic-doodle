@@ -45,7 +45,7 @@
       ${num('minGames', d.minGames, 1, 10000, T('reg_min_games'))}${num('minAccountDays', d.minAccountDays, 1, 3650, T('reg_min_days'))}</div></fieldset>`,
     code: (d) => `<label class="field only-online"><span>${esc(T('reg_code'))}</span><input name="code" maxlength="40" value="${esc(d.code)}" placeholder="${esc(T('reg_code_ph'))}" autocomplete="off"></label>`,
     checkinMin: (d) => `<label class="field short only-ko only-online" hidden><span>${esc(T('reg_checkin_at'))}</span><select name="checkinMin">${CHECKIN_MIN.map((n) => `<option value="${n}" ${String(n) === String(d.checkinMin) ? 'selected' : ''}>${esc(T('reg_before', { t: minutesLabel(n) }))}</option>`).join('')}</select></label>`,
-    questions: (d) => `<fieldset class="only-online qs"><legend>${esc(T('reg_questions'))}</legend><p class="hint">${esc(T('reg_questions_hint'))}</p>
+    questions: (d) => `<fieldset class="only-online reg-qs"><legend>${esc(T('reg_questions'))}</legend><p class="hint">${esc(T('reg_questions_hint'))}</p>
       <div class="q-list">${questionRows(d.questions || [])}</div>
       <button type="button" class="ghost sm" data-qact="add" ${(d.questions || []).length >= MAX_Q ? 'hidden' : ''}>${icon('plus')}${esc(T('reg_q_add'))}</button></fieldset>`,
   });
@@ -53,7 +53,7 @@
   // Câu hỏi không phải một ô form: đọc từ các dòng .q-row
   DR.EXT.collectors.push((form, d) => {
     const rows = form.querySelectorAll('.q-row');
-    if (!form.querySelector('.qs')) return; // form nhanh không có câu hỏi: giữ nguyên nháp
+    if (!form.querySelector('.reg-qs')) return; // form nhanh không có câu hỏi: giữ nguyên nháp
     d.questions = [...rows].map((r) => ({ q: r.querySelector('[data-q="q"]').value, type: r.querySelector('[data-q="type"]').value, opts: r.querySelector('[data-q="opts"]').value }));
   });
 
@@ -94,7 +94,7 @@
   // Thêm / bỏ câu hỏi (chỉ trang nâng cao)
   K.binders.push(() => {
     const form = document.getElementById('ta');
-    const box = form && form.querySelector('.qs');
+    const box = form && form.querySelector('.reg-qs');
     if (!box) return;
     box.addEventListener('click', (e) => {
       const b = e.target.closest('[data-qact]');

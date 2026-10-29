@@ -210,7 +210,7 @@ button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.
 
 /* ---- Đăng ký nâng cao (tour-adv-reg.js, tour-reg.js), nhập tỉ số giải offline (tour-score.js) */
 .reg-limits { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-.qs .q-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
+.reg-qs .q-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 6px; }
 .q-row { display: grid; grid-template-columns: minmax(0, 2fr) minmax(110px, 1fr) auto; gap: 6px; align-items: center; }
 .q-row input[data-q="opts"] { grid-column: 1 / 3; }
 .q-row input[data-q="opts"][hidden] { display: none; }
