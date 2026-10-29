@@ -43,6 +43,8 @@
     if (m.walkover) extra.push(esc(T('walkover')));
     if (m.double) extra.push(esc(T('both_absent')));
     if (m.bo) extra.push(`<span class="pill bo">Bo${m.bo}</span>`); // Bo riêng bán kết / chung kết
+    if (m.sets && K.setsText) extra.push(`<span class="sets">${esc(K.setsText(m))}</span>`); // tỉ số từng set (giải offline)
+    if (m.override) extra.push(esc(T('score_override_tag')));
     extra.push(...replays(m));
     return `<div class="b-match ${m.live ? 'live' : ''}" data-mid="${esc(m.id)}">${row(m.a, m.wa, m.winner && m.a && m.winner === m.a.uid)}${row(m.b, m.wb, m.winner && m.b && m.winner === m.b.uid)}${extra.length ? `<small>${extra.join(' ')}</small>` : ''}</div>`;
   }
@@ -60,6 +62,8 @@
     else mid = `<span class="muted">vs</span>`;
     const tags = [];
     if (m.draw) tags.push(esc(T('draw')));
+    if (m.sets && K.setsText) tags.push(`<span class="sets">${esc(K.setsText(m))}</span>`); // tỉ số từng set (giải offline)
+    if (m.override) tags.push(esc(T('score_override_tag')));
     if (m.walkover) tags.push(esc(T('walkover')));
     if (m.double) tags.push(esc(T('both_absent')));
     tags.push(...replays(m));

@@ -34,6 +34,8 @@
 
   // ------------------------------------------------------------ Bản nháp (dùng chung form nhanh và trang nâng cao)
   const F = { preset: 'arena', stages: null, d: null, tab: 'basic' };
+  // Phần mở rộng (vd. tour-adv-reg.js – đăng ký nâng cao): ô mặc định, đọc thêm từ form, kiểm, thêm vào lệnh tạo giải
+  const EXT = { defaults: {}, loaders: [], collectors: [], validators: [], payloads: [] };
   /** Giờ bắt đầu mặc định: 1 giờ nữa, làm tròn 5 phút (chuỗi datetime-local theo giờ máy). */
   function defaultStart() {
     const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -42,7 +44,7 @@
   }
   const blank = () => ({
     name: '', desc: '', start: defaultStart(), time: 't20', opening: 'free', rule: 'vn', minutes: '30', seeding: 'rating',
-    checkin: true, rated: true, max: '32', access: 'public', club: '', noshow: '',
+    checkin: true, rated: true, max: '32', access: 'public', club: '', noshow: '', ...structuredClone(EXT.defaults),
   });
   let saveTimer = 0;
   function saveDraft() {
@@ -58,6 +60,7 @@
     if (F.preset === 'custom' && !F.stages) F.stages = PRESETS.groups_single();
     // Giờ bắt đầu đã qua (nháp cũ) → về mặc định
     if (!F.d.start || new Date(F.d.start).getTime() < Date.now()) F.d.start = defaultStart();
+    for (const f of EXT.loaders) f(F.d);
   }
   function resetDraft() {
     try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* bỏ qua */ }
@@ -79,6 +82,7 @@
       if (!el) continue;
       F.d[k] = el.type === 'checkbox' ? el.checked : el.value;
     }
+    for (const f of EXT.collectors) f(form, F.d);
     if (lazy) { clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 500); } else saveDraft();
   }
   const isKo = () => F.preset !== 'arena';
@@ -91,6 +95,7 @@
     if (!Number.isFinite(start) || start < now + 60 * 1000 || start > now + 30 * 86400000) return { key: 'start', msg: T('srv_tour_bad_start') };
     const n = Number(d.max), lo = isKo() ? 3 : 2;
     if (!Number.isInteger(n) || n < lo || n > 512) return { key: 'max', msg: T('tour_bad_max', { lo, hi: 512 }) };
+    for (const f of EXT.validators) { const bad = f(d, { ko: isKo(), start }); if (bad) return bad; }
     return null;
   }
 
@@ -102,14 +107,14 @@
     desc: (d) => `<label class="field"><span>${esc(T('tour_desc'))}</span><textarea name="desc" maxlength="1000" rows="3">${esc(d.desc)}</textarea></label>`,
     preset: () => `<label class="field"><span>${esc(T('format'))}</span><select name="preset">${Object.keys(PRESETS).map((k) => `<option value="${k}" ${k === F.preset ? 'selected' : ''}>${esc(presetLabel(k))}</option>`).join('')}</select></label>`,
     start: (d) => `<label class="field"><span>${esc(T('tour_start'))}</span><input name="start" type="datetime-local" value="${esc(d.start)}" required></label>`,
-    time: (d) => `<fieldset><legend>${esc(T('time_limit'))}</legend>${radio('time', [['t10', secs(10)], ['t20', secs(20)], ['t30', secs(30)], ['c3+2', '3+2'], ['c5+3', '5+3'], ['c10+5', '10+5']], d.time)}</fieldset>`,
-    opening: (d) => `<fieldset><legend>${esc(T('opening'))}</legend>${radio('opening', [['free', T('opening_free')], ['swap2', T('opening_swap2')]], d.opening)}</fieldset>`,
-    rule: (d) => `<fieldset><legend>${esc(T('grule'))}</legend><select class="select" name="rule">${window.Caro.RULES.map((r) => `<option value="${r}" ${r === d.rule ? 'selected' : ''}>${esc(T('grule_' + r))}</option>`).join('')}</select></fieldset>`,
+    time: (d) => `<fieldset class="only-online"><legend>${esc(T('time_limit'))}</legend>${radio('time', [['t10', secs(10)], ['t20', secs(20)], ['t30', secs(30)], ['c3+2', '3+2'], ['c5+3', '5+3'], ['c10+5', '10+5']], d.time)}</fieldset>`,
+    opening: (d) => `<fieldset class="only-online"><legend>${esc(T('opening'))}</legend>${radio('opening', [['free', T('opening_free')], ['swap2', T('opening_swap2')]], d.opening)}</fieldset>`,
+    rule: (d) => `<fieldset class="only-online"><legend>${esc(T('grule'))}</legend><select class="select" name="rule">${window.Caro.RULES.map((r) => `<option value="${r}" ${r === d.rule ? 'selected' : ''}>${esc(T('grule_' + r))}</option>`).join('')}</select></fieldset>`,
     minutes: (d) => `<fieldset class="only-arena"><legend>${esc(T('duration'))}</legend>${radio('minutes', [15, 30, 45, 60, 90, 120].map((n) => [n, T('minutes_n', { n })]), d.minutes)}</fieldset>`,
-    seeding: (d) => `<fieldset class="only-ko" hidden><legend>${esc(T('seeding'))}</legend>${radio('seeding', [['rating', T('seed_rating')], ['random', T('seed_random')]], d.seeding)}</fieldset>`,
-    checkin: (d) => `<label class="check only-ko" hidden><input type="checkbox" name="checkin" ${d.checkin ? 'checked' : ''}> <span>${esc(T('checkin_opt'))}</span></label>`,
-    noshow: (d) => `<label class="field short only-ko" hidden><span>${esc(T('noshow'))}</span><select name="noshow">${[['', T('noshow_default')], ...[1, 3, 5, 10, 15].map((n) => [String(n), T('minutes_n', { n })])].map(([v, l]) => `<option value="${v}" ${v === String(d.noshow || '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`,
-    rated: (d) => `<label class="check"><input type="checkbox" name="rated" ${d.rated ? 'checked' : ''}> <span>${esc(T('rated_opt'))}</span></label>`,
+    seeding: (d) => `<fieldset class="only-ko" hidden><legend>${esc(T('seeding'))}</legend>${radio('seeding', [['rating', T('seed_rating')], ['random', T('seed_random')], ['list', T('seed_list')]], d.seeding)}</fieldset>`,
+    checkin: (d) => `<label class="check only-ko only-online" hidden><input type="checkbox" name="checkin" ${d.checkin ? 'checked' : ''}> <span>${esc(T('checkin_opt'))}</span></label>`,
+    noshow: (d) => `<label class="field short only-ko only-online" hidden><span>${esc(T('noshow'))}</span><select name="noshow">${[['', T('noshow_default')], ...[1, 3, 5, 10, 15].map((n) => [String(n), T('minutes_n', { n })])].map(([v, l]) => `<option value="${v}" ${v === String(d.noshow || '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`,
+    rated: (d) => `<label class="check only-online"><input type="checkbox" name="rated" ${d.rated ? 'checked' : ''}> <span>${esc(T('rated_opt'))}</span></label>`,
     max: (d) => `<label class="field short"><span>${esc(T('max_players'))}</span><input name="max" type="number" min="2" max="512" value="${esc(d.max)}"></label>`,
     access: (d) => {
       const clubs = officerClubs();
@@ -144,7 +149,7 @@
       <button type="button" class="ghost adv-btn" id="tf-adv" data-act="tourAdv" hidden>${icon('sliders')}${esc(T('tadv_settings'))}</button>
       <div id="tf-stages" class="only-ko" hidden></div>
       <p class="est" id="tf-est" aria-live="polite"></p>
-      ${fields(['start', 'time', 'opening', 'rule', 'minutes', 'seeding', 'checkin', 'rated', 'max', 'access'])}
+      ${fields(['start', 'time', 'opening', 'rule', 'minutes', 'seeding', 'checkin', 'rated', 'max', 'offline', 'access'])}
       <p class="err" id="tf-err"></p>
       <button class="primary wide">${esc(T('tour_submit'))}</button>
     </form>`;
@@ -162,13 +167,17 @@
     const sync = () => {
       const ko = F.preset !== 'arena';
       if (form.preset) form.preset.value = F.preset;
-      form.querySelectorAll('.only-ko').forEach((x) => { x.hidden = !ko; });
-      form.querySelectorAll('.only-arena').forEach((x) => { x.hidden = ko; });
+      collect(form);
+      // Ô chỉ dành cho: thể thức theo giai đoạn / Arena / giải trực tuyến / giải offline
+      const off = ko && !!F.d.offline;
+      form.querySelectorAll('.only-ko, .only-arena, .only-online, .only-offline').forEach((x) => {
+        const c = x.classList;
+        x.hidden = (c.contains('only-ko') && !ko) || (c.contains('only-arena') && ko) || (c.contains('only-online') && off) || (c.contains('only-offline') && !off);
+      });
       form.querySelectorAll('.only-club').forEach((x) => { x.hidden = !form.access || form.access.value !== 'club'; });
       if ($(ids.hint)) $(ids.hint).textContent = T('hint_' + F.preset);
       if (ids.adv && $(ids.adv)) $(ids.adv).hidden = F.preset !== 'custom';
       if (form.max) { form.max.max = 512; form.max.min = ko ? 3 : 2; }
-      collect(form);
       showEst();
     };
     drawStages();
@@ -225,12 +234,14 @@
     if ($(errId)) $(errId).textContent = '';
     const start = new Date(d.start).getTime();
     const ko = F.preset !== 'arena';
+    const extra = Object.assign({}, ...EXT.payloads.map((f) => f(d, { ko })));
     O.send({
       t: 'tourCreate', name: d.name.trim(), desc: d.desc.trim(), format: ko ? 'bracket' : 'arena', startsAt: start - D.skew,
       ...(d.time[0] === 'c' ? { timeLimit: 0, clock: d.time.slice(1) } : { timeLimit: Number(d.time.slice(1)) }),
       opening: d.opening, rule: d.rule, minutes: Number(d.minutes), stages: ko ? F.stages : undefined, seeding: d.seeding,
       checkin: !!d.checkin, rated: !!d.rated, maxPlayers: Number(d.max), noShowMin: d.noshow ? Number(d.noshow) : null,
       access: d.access, club: d.access === 'club' ? d.club || null : null,
+      ...extra, // phần mở rộng ghi đè (vd. giải offline: không tính Elo, không điểm danh)
     });
     return true;
   }
@@ -248,5 +259,5 @@
   K.binders.push(() => { const tf = $('tf'); if (tf) bindForm(tf, { stages: 'tf-stages', hint: 'tf-fmt-hint', est: 'tf-est', adv: 'tf-adv', err: 'tf-err' }); });
   // Tạo xong thì bỏ nháp
   O.on('tourCreated', resetDraft);
-  K.tourDraft = { F, FIELDS, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate };
+  K.tourDraft = { F, FIELDS, EXT, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate, sync: null };
 })();
