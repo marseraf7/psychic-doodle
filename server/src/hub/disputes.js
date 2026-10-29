@@ -32,7 +32,7 @@ class Disputes {
   tourManagers(t, perm) {
     const out = new Set([t.creator]);
     const c = t.club && this.clubs.get(t.club);
-    if (c) for (const uid of Object.keys(c.members)) if (this.isOfficer(c, uid)) out.add(uid);
+    if (c) for (const uid of Object.keys(c.members)) if (this.clubCan(c, uid, 'tours')) out.add(uid);
     for (const s of t.staff || []) if (!perm || s.perms.includes('all') || s.perms.includes(perm)) out.add(s.uid); // đồng ban tổ chức
     return out;
   }

@@ -5,8 +5,8 @@
  *    lên đầu, rồi đang chơi / online) → bấm một người để chat (chat-bubbles.js trên màn rộng, hộp chat toàn màn hình trên
  *    điện thoại). Bong bóng chat đã ẩn thì có nút "Hiện lại bong bóng chat" ở cuối danh sách.
  *  - Thông báo: lời mời kết bạn đang chờ (Chấp nhận / Từ chối ngay tại chỗ), lời thách đấu nhận qua tin nhắn, lời mời
- *    kết bạn của mình vừa được chấp nhận. Lời mời kết bạn lấy từ máy chủ; hai loại sau ghi lại trên máy này (mỗi tài
- *    khoản tối đa 30 mục, localStorage) – mở bảng là đánh dấu đã xem.
+ *    kết bạn của mình vừa được chấp nhận, tin gửi toàn câu lạc bộ (club-manage.js của máy chủ). Lời mời kết bạn lấy từ
+ *    máy chủ; các loại sau ghi lại trên máy này (mỗi tài khoản tối đa 30 mục, localStorage) – mở bảng là đánh dấu đã xem.
  *   window.CaroTopInbox = { refresh() }
  */
 (function () {
@@ -55,8 +55,8 @@
     const req = incoming().map((p) => `<li class="tb-nt unread">${avatar(p)}<span class="tb-pop-t"><b>${esc(T('nt_request', { name: p.name }))}</b>
       <span class="tb-nt-act"><button type="button" class="tb-btn sm" data-accept="${esc(p.id)}">${esc(T('pf_accept'))}</button>
       <button type="button" class="tb-link sm" data-deny="${esc(p.id)}">${esc(T('nt_deny'))}</button></span></span></li>`).join('');
-    const items = readLog().map((n, i) => `<li class="tb-nt${n.read ? '' : ' unread'}"><button type="button" data-item="${i}">${avatar(n)}
-      <span class="tb-pop-t"><b>${esc(T(n.k === 'invite' ? 'nt_invite' : 'nt_accepted', { name: n.name }))}</b><small>${esc(ago(n.at))}</small></span></button></li>`).join('');
+    const items = readLog().map((n, i) => `<li class="tb-nt${n.read ? '' : ' unread'}"><button type="button" data-item="${i}">${n.k === 'club' ? `<span class="tb-club">${esc(n.icon || '♟️')}</span>` : avatar(n)}
+      <span class="tb-pop-t"><b>${esc(n.k === 'club' ? T('nt_club', { club: n.name }) : T(n.k === 'invite' ? 'nt_invite' : 'nt_accepted', { name: n.name }))}</b>${n.k === 'club' ? `<span class="tb-nt-text">${esc(n.text)}</span>` : ''}<small>${esc(ago(n.at))}</small></span></button></li>`).join('');
     return `<div class="tb-pop-h"><b>${esc(T('tb_notif'))}</b></div>
       <ul class="tb-pop-list">${req + items || `<li class="tb-pop-empty">${esc(T('nt_none'))}</li>`}</ul>`;
   }
@@ -104,7 +104,9 @@
       const n = readLog()[+b.dataset.item];
       toggle(null);
       if (!n) return;
-      if (n.k === 'invite') openChat(n.id); else if (window.CaroProfile) window.CaroProfile.open(n.id);
+      if (n.k === 'invite') openChat(n.id);
+      else if (n.k === 'club') { if (window.CaroTour && window.CaroTour.openClub) window.CaroTour.openClub(n.id); }
+      else if (window.CaroProfile) window.CaroProfile.open(n.id);
     }
   });
   function openChat(id) {
@@ -131,6 +133,11 @@
     if (!S.me || m.msg.sender === S.me.uid || !window.CaroChallengeMsg || !window.CaroChallengeMsg.parse(m.msg.text)) return;
     const f = friends().find((x) => x.id === m.peer) || { id: m.peer, name: '?' };
     log({ k: 'invite', id: f.id, name: f.name, av: f.av || 0 });
+  });
+  // Tin gửi toàn câu lạc bộ (nhận ngay khi online, hoặc lúc vào lại – máy chủ chỉ gửi mỗi tin một lần)
+  N.on('clubMsgs', (m) => {
+    for (const x of m.items) writeLog([{ k: 'club', id: x.club.id, name: x.club.name, icon: x.club.icon, text: String(x.msg.text).slice(0, 300), at: x.msg.at, read: false }, ...readLog()]);
+    draw();
   });
   N.on('me', draw);
   N.on('close', draw);

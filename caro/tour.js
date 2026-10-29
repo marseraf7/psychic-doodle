@@ -48,10 +48,10 @@
     if (p === 'owner' || !perm) return true;
     return perm !== 'owner' && (p.includes('all') || p.includes(perm));
   };
-  const logo = (name) => {
+  const logo = (name, emoji) => {
     let h = 0;
     for (const ch of String(name)) h = (h * 31 + ch.codePointAt(0)) % 360;
-    return `<span class="club-logo" style="background:hsl(${h} 55% 45%)">${esc((String(name).trim()[0] || '?').toUpperCase())}</span>`;
+    return `<span class="club-logo ${emoji ? 'emoji' : ''}" style="background:hsl(${h} 55% ${emoji ? 88 : 45}%)">${esc(emoji || (String(name).trim()[0] || '?').toUpperCase())}</span>`;
   };
   /** Biểu tượng SVG (index.html, #i-…) đặt cạnh chữ. */
   const icon = (name, cls = '') => `<svg class="ico i-in ${esc(cls)}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -91,7 +91,7 @@
   function open(page, id, push) {
     if (push !== false && (V.page !== page || V.id !== id)) V.stack.push({ page: V.page, id: V.id });
     if (V.page === 'tour' && page !== 'tour') O.send({ t: 'tourUnwatch' });
-    if (V.page === 'club' && page !== 'club') O.send({ t: 'clubUnwatch' });
+    if (/^club(Admin)?$/.test(V.page) && !/^club(Admin)?$/.test(page)) O.send({ t: 'clubUnwatch' });
     V.page = page;
     V.id = id || null;
     if (K.enter[page]) K.enter[page]();
@@ -115,7 +115,7 @@
     if (V.page === 'tours') O.send({ t: 'tourList' });
     else if (V.page === 'tour') { D.tour = D.tour && D.tour.id === V.id ? D.tour : null; O.send({ t: 'tourGet', id: V.id }); }
     else if (V.page === 'clubs' || V.page === 'tourNew' || V.page === 'tourAdv') O.send({ t: 'clubList' });
-    else if (V.page === 'club') { D.club = D.club && D.club.id === V.id ? D.club : null; O.send({ t: 'clubGet', id: V.id }); }
+    else if (V.page === 'club' || V.page === 'clubAdmin') { D.club = D.club && D.club.id === V.id ? D.club : null; O.send({ t: 'clubGet', id: V.id }); }
     else if (V.page === 'admin') { O.send({ t: 'adminQueue' }); O.send({ t: 'adminStats' }); }
   }
 
@@ -384,6 +384,7 @@
       return null;
     },
     open: (id) => { V.stack = [{ page: 'tours', id: null }]; open('tour', id, false); },
+    openClub: (id) => { V.stack = [{ page: 'clubs', id: null }]; open('club', id, false); },
     page: (p) => top(p), // mở thẳng một trang (vd. 'admin')
     get pendingLink() { return !!pending; },
   };
