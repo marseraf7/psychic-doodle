@@ -246,7 +246,7 @@ class Bracket {
       this.pushTour(t);
       return true;
     }
-    m.games.push({ share: room.lastShare || null, w: winUid });
+    m.games.push({ share: room.lastShare || null, w: winUid, ...(winUid === null ? { draw: true } : {}) });
     m.wins = wins;
     // Bỏ trận giữa chừng (bấm rời phòng) = thua cả trận
     const decided = room.reason === 'leave' && winUid ? winUid : this.decideMatch(t, st, m, room.gameNo);
@@ -265,12 +265,13 @@ class Bracket {
 
   /** Một trận gửi cho client (st: giai đoạn của trận – để biết Bo riêng của bán kết / chung kết). */
   matchView(t, m, st) {
+    const bo = st && m ? ST.boOf(st, m) : 0;
     const sd = (u) => (ST.real(u) ? this.tourSide(t, u) : u === ST.BYE ? { bye: true } : null);
     return m && {
       id: m.id, round: m.round, a: sd(m.a), b: sd(m.b), wa: (ST.real(m.a) && m.wins[m.a]) || 0, wb: (ST.real(m.b) && m.wins[m.b]) || 0,
       done: !!m.done, winner: ST.real(m.winner) ? m.winner : null, draw: !!(m.done && m.winner === null && !m.double),
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
-      bo: st && st.cfg.bestOf !== ST.boOf(st, m) ? ST.boOf(st, m) : 0,
+      bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }

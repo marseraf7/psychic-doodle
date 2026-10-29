@@ -171,7 +171,8 @@ function boOf(st, m) {
     const R = st.rounds.length;
     if (!m.place && !m.third) level = m.round === R - 1 ? 2 : m.round === R - 2 ? 1 : 0;
   } else if (m.gf) level = 2;
-  else if (!m.lb && m.round === st.rounds.length - 1) level = 1; // chung kết nhánh thắng
+  // Chung kết nhánh thắng (không có chung kết tổng thì đây là trận quyết định vô địch)
+  else if (!m.lb && m.round === st.rounds.length - 1) level = st.gf.length ? 1 : 2;
   else if (m.lb && m.round === st.lrounds.length - 1) level = 1; // chung kết nhánh thua
   return (level === 2 && c.boFinal) || (level === 1 && c.boSemi) || c.bestOf;
 }

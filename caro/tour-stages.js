@@ -80,9 +80,8 @@
   function roundsList(key, rounds, label, openLast) {
     return fold(key, esc(T('matches')), () => roundsHtml(rounds.map((r, i) => ({ r, i })), label), openLast);
   }
-  // Tie-break mặc định (như máy chủ) khi giải tạo từ bản trước chưa có danh sách
-  const DEFAULT_TB = { roundrobin: ['h2h', 'gdiff', 'gwins'], swiss: ['bh', 'sb', 'wins'] };
-  const tbsOf = (c) => (c && Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c && c.type] || []);
+  // Tie-break đang dùng (giải tạo từ bản trước chưa có danh sách: mặc định – tour-stage-edit.js, nạp sau file này)
+  const tbsOf = (c) => (c ? K.stageEdit.tbsOf(c) : []);
   /** Bảng xếp hạng của vòng tròn / Thụy Sĩ: thêm cột Buchholz / Median-Buchholz / SB nếu đang dùng làm tie-break. */
   function table(rows, cfg) {
     const extra = ['bh', 'mbh', 'sb'].filter((k) => tbsOf(cfg).includes(k));

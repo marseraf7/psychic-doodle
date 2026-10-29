@@ -184,6 +184,7 @@
     if (t.status === 'pending') html += `<p class="note">${esc(T('tour_pending_note'))}</p>`;
     if (t.status === 'rejected') html += `<p class="note bad">${esc(T('tour_rejected_note'))}${t.reviewNote ? ': ' + esc(t.reviewNote) : ''}</p>`;
     if (t.status === 'cancelled') html += `<p class="note bad">${esc(T('tour_cancelled_note'))}${t.cancelReason ? ' – ' + esc(T('cancel_' + t.cancelReason)) : ''}</p>`;
+    if (t.format === 'bracket' && t.noShowMin && (t.status === 'scheduled' || t.status === 'running')) html += `<p class="hint">${esc(T('noshow_info', { n: t.noShowMin }))}</p>`;
     if (t.format === 'bracket' && t.status === 'scheduled' && t.checkinEnabled) {
       html += `<p class="hint">${esc(T(t.checkin ? 'checkin_open_hint' : 'checkin_hint', { t: when(t.checkinAt) }))}</p>`;
     }

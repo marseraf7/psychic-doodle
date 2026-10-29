@@ -64,7 +64,8 @@
         f.push(field(T('opt_meetings'), sel(i, 'meetings', [[1, T('meet_1')], [2, T('meet_2')], ...(adv ? [[3, T('meet_3')]] : [])], c.meetings)));
         if (adv) more.push(field(T('opt_rankby'), sel(i, 'rankBy', RANK_BY.map((x) => [x, T('rank_' + x)]), c.rankBy || 'points')));
       }
-      if (c.type === 'swiss') f.push(adv ? field(T('opt_rounds_auto'), num(i, 'rounds', c.rounds, 0, 15)) : field(T('opt_rounds'), num(i, 'rounds', c.rounds || 5, 1, 15)));
+      // 0 = tự động (⌈log₂ n⌉) – cả hai form cùng một ô để không hiện số khác với số sẽ gửi
+      if (c.type === 'swiss') f.push(field(T('opt_rounds_auto'), num(i, 'rounds', c.rounds, 0, 15)));
       if (c.points) {
         f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
         if (adv) {

@@ -55,6 +55,7 @@
     no_gf_note: 'Không có chung kết tổng: vô địch nhánh thắng là nhà vô địch, vô địch nhánh thua xếp nhì.',
     noshow: 'Chờ người vắng mặt',
     noshow_default: 'Mặc định (2 phút)',
+    noshow_info: 'Tới lượt đấu mà vắng mặt quá {n} phút thì bị xử thua.',
   });
 
   // ================================================================ English
@@ -105,6 +106,7 @@
     no_gf_note: 'No grand final: the winners-bracket champion wins, the losers-bracket champion is second.',
     noshow: 'Wait for an absent player',
     noshow_default: 'Default (2 min)',
+    noshow_info: 'If you are absent for more than {n} min when your match is ready, you lose it.',
   });
 
   // ================================================================ Русский
@@ -155,6 +157,7 @@
     no_gf_note: 'Без гранд-финала: побеждает чемпион верхней сетки, чемпион нижней — второй.',
     noshow: 'Ждать отсутствующего',
     noshow_default: 'По умолчанию (2 мин)',
+    noshow_info: 'Отсутствие более {n} мин, когда матч готов, — техническое поражение.',
   });
 
   // ================================================================ 中文
@@ -205,5 +208,6 @@
     no_gf_note: '无总决赛：胜者组冠军即为冠军，败者组冠军获第二名。',
     noshow: '等待缺席选手',
     noshow_default: '默认（2 分钟）',
+    noshow_info: '轮到比赛时缺席超过 {n} 分钟即判负。',
   });
 })();

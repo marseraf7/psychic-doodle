@@ -692,6 +692,8 @@ test('tuỳ chọn như Challonge: Bo3 chung kết, trận xếp hạng; nhánh 
   for (const p of ps) await p.req({ t: 'tourJoin', id: sg.id }, 'toast');
   const t = app.hub.tours.get(sg.id);
   assert.strictEqual(t.noShowMin, 5, 'lưu thời gian chờ vắng mặt');
+  const watcher = await account('plw');
+  await watcher.req({ t: 'tourGet', id: sg.id }, 'tour'); // xem trang giải suốt giải: nhận bản vá
   B.send({ t: 'tourStart', id: sg.id });
   await until(() => t.status === 'running');
   const sd = (c) => t.players.find((p) => p.uid === c.me.uid).seed;
@@ -711,6 +713,11 @@ test('tuỳ chọn như Challonge: Bo3 chung kết, trận xếp hạng; nhánh 
   const v = await ps[3].req({ t: 'tourGet', id: sg.id }, 'tour');
   assert.strictEqual(v.tour.noShowMin, 5);
   assert.strictEqual(v.tour.stageViews[0].rounds[1][0].bo, 3, 'trang giải ghi Bo3 cho chung kết');
+  // Người xem từ đầu (chỉ nhận bản vá) có đúng trang giải như bản đầy đủ, kể cả trận tranh hạng ba
+  await until(() => watcher.tours[sg.id] && watcher.tours[sg.id].status === 'finished');
+  await sleep(100);
+  assert.deepStrictEqual(watcher.tours[sg.id].stageViews, v.shared.stageViews);
+  watcher.close();
   // Nhánh thắng – thua 4 người, split, không chung kết tổng: hạt giống 3, 4 bắt đầu ở nhánh thua
   const de = await B.req({ t: 'tourCreate', name: 'Split', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
     stages: [{ type: 'double', bestOf: 1, gf: 'none', split: true }] }, 'tourCreated');

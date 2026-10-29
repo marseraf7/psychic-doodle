@@ -329,6 +329,10 @@ test('Bo riêng bán kết / chung kết', () => {
   assert.strictEqual(S.boOf(d, d.matches[d.rounds[d.rounds.length - 1][0]]), 3, 'chung kết nhánh thắng');
   assert.strictEqual(S.boOf(d, d.matches[d.lrounds[d.lrounds.length - 1][0]]), 3, 'chung kết nhánh thua');
   assert.strictEqual(S.boOf(d, d.matches[d.lrounds[0][0]]), 1);
+  // Không có chung kết tổng: chung kết nhánh thắng quyết định vô địch nên dùng Bo chung kết
+  const n = S.buildStage(S.normalizeStages([{ type: 'double', bestOf: 1, boSemi: 3, boFinal: 5, gf: 'none' }])[0], 0, players(8));
+  assert.strictEqual(S.boOf(n, n.matches[n.rounds[n.rounds.length - 1][0]]), 5);
+  assert.strictEqual(S.boOf(n, n.matches[n.lrounds[n.lrounds.length - 1][0]]), 3);
   // Bản cũ chỉ có reset: false → chung kết tổng 1 trận
   assert.strictEqual(S.normalizeStages([{ type: 'double', reset: false }])[0].gf, '1');
 });

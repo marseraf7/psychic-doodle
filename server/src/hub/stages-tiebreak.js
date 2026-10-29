@@ -43,7 +43,7 @@ function tally(st, only) {
       if (s[m.winner]) { s[m.winner].pts += bye; s[m.winner].w++; s[m.winner].byes++; }
       continue;
     }
-    const ties = (m.games || []).filter((g) => g && !g.w).length; // ván hoà (kín bàn)
+    const ties = (m.games || []).filter((g) => g && (g.draw || g.w === null)).length; // ván hoà (kín bàn)
     for (const [me, op] of [[m.a, m.b], [m.b, m.a]]) {
       const x = s[me];
       if (!x || !real(me)) continue;
@@ -68,14 +68,25 @@ function tally(st, only) {
   return s;
 }
 
+/** Các trận đã đấu của từng người (dựng một lần cho mỗi lần xếp hạng – đối đầu dùng lại cho mọi nhóm bằng nhau). */
+function playedBy(st) {
+  const by = new Map();
+  for (const m of Object.values(st.matches)) {
+    if (!m.done || m.bye || m.double || !real(m.a) || !real(m.b)) continue;
+    for (const u of [m.a, m.b]) { if (!by.has(u)) by.set(u, []); by.get(u).push(m); }
+  }
+  return by;
+}
 /** Bảng điểm riêng giữa một nhóm người (đối đầu): điểm thắng / hoà như vòng chính, chỉ tính trận giữa họ. */
-function miniPoints(st, group) {
+function miniPoints(st, group, by) {
   const p = { w: 1, d: 0, l: 0, ...st.cfg.points };
   const inG = new Set(group);
   const pts = Object.fromEntries(group.map((u) => [u, 0]));
-  for (const m of Object.values(st.matches)) {
-    if (!m.done || m.bye || m.double || !inG.has(m.a) || !inG.has(m.b)) continue;
-    if (m.winner === null) { pts[m.a] += p.d; pts[m.b] += p.d; } else { pts[m.winner] += p.w; pts[m.winner === m.a ? m.b : m.a] += p.l; }
+  for (const u of group) {
+    for (const m of by.get(u) || []) {
+      if (m.a !== u || !inG.has(m.b)) continue; // mỗi trận tính một lần (từ phía người ô a)
+      if (m.winner === null) { pts[m.a] += p.d; pts[m.b] += p.d; } else { pts[m.winner] += p.w; pts[m.winner === m.a ? m.b : m.a] += p.l; }
+    }
   }
   return pts;
 }
@@ -97,12 +108,13 @@ function rankList(st, uids, seedOf) {
   const s = tally(st, uids);
   const primary = PRIMARY[st.type === 'swiss' ? 'points' : st.cfg.rankBy] || PRIMARY.points;
   const tbs = normalizeTiebreaks(st.cfg.tiebreaks, st.type);
+  let by = null; // chỉ dựng khi có nhóm cần xét đối đầu
   const refine = (group, level) => {
     if (group.length < 2) return group;
     if (level >= tbs.length) return [...group].sort((a, b) => seedOf(a) - seedOf(b));
     const tb = tbs[level];
     let key;
-    if (tb === 'h2h') { const mini = miniPoints(st, group); key = (u) => mini[u]; } else key = (u) => KEY[tb](s[u]);
+    if (tb === 'h2h') { const mini = miniPoints(st, group, by || (by = playedBy(st))); key = (u) => mini[u]; } else key = (u) => KEY[tb](s[u]);
     return groupsBy(group, key).flatMap((g) => refine(g, level + 1));
   };
   const list = groupsBy(uids, (u) => primary(s[u])).flatMap((g) => refine(g, 0));
