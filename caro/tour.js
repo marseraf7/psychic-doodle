@@ -120,7 +120,8 @@
 
   // ------------------------------------------------------------ Vẽ
   /** Form tạo giải (nhanh / nâng cao) đang mở trên màn hình. */
-  const formOpen = () => (V.page === 'tourNew' && !!$('tf')) || (V.page === 'tourAdv' && !!$('ta'));
+  const formOpen = () => (V.page === 'tourNew' && !!$('tf')) || (V.page === 'tourAdv' && !!$('ta'))
+    || (V.page === 'tour' && !!(K.isEditing && K.isEditing())); // đang gõ dở trong tab Quản lý (tour-manage.js)
   /** Vẽ lại trang. Form tạo giải đang mở thì chỉ vẽ lại khi bắt buộc (không mất chữ đang gõ). */
   function render(force) {
     if (!force && formOpen() && O.connected) return;

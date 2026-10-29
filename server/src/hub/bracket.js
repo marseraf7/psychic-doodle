@@ -184,7 +184,7 @@ class Bracket {
   draftSeeds(t) {
     const list = this.activePlayers(t).map((p) => ({ uid: p.uid, r: this.store.users.get(p.uid)?.rating || p.rating }));
     if (t.seeding !== 'list') list.sort((a, b) => b.r - a.r); // 'list': thứ tự đăng ký / thêm (như khi bốc thăm)
-    return list.map((x) => x.uid);
+    return this.applySeedPlan(t, list).map((x) => x.uid); // hạt giống xếp tay (như startBracket)
   }
 
   /** Các bảng dự kiến (ban tổ chức xem / sửa trước khi bắt đầu). */

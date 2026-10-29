@@ -86,11 +86,11 @@ class TourManage {
     const { t, uid } = this.managerOf(conn, id);
     if (!/^\d{1,2}:\d{1,3}$/.test(String(key || ''))) throw E('bad_message');
     t.schedule = t.schedule || {};
+    if (!(key in t.schedule) && Object.keys(t.schedule).length >= 200) throw E('bad_message'); // kiểm trước khi ghi
     const ms = Number(at);
     const where = cleanPublicText(place, 80).trim();
     if (!Number.isFinite(ms) || ms <= 0) { if (!where) delete t.schedule[key]; else t.schedule[key] = { at: null, place: where }; }
     else t.schedule[key] = { at: ms, place: where };
-    if (Object.keys(t.schedule).length > 200) throw E('bad_message');
     this.tourLog(t, uid, 'schedule', { key });
     this.saveTour(t);
     this.pushTour(t);
@@ -110,8 +110,11 @@ class TourManage {
       if (f.maxPlayers < count) throw E('tour_max_low', { n: count });
       // Không đổi giữa trực tuyến và offline khi đã có người (người chơi offline không có tài khoản)
       if (count && f.offline !== !!t.offline) throw E('tour_offline_locked');
+      // Người thường đổi tên / giới thiệu của giải đã duyệt: duyệt lại nội dung (quản trị viên sửa thì không cần)
+      const review = !this.isAdmin(uid) && t.status === 'scheduled' && (f.name !== t.name || f.desc !== t.desc);
       Object.assign(t, f);
       t.checkinNotified = false;
+      if (review) { t.status = 'pending'; this.notifyAdmins(t.name); }
     }
     this.tourLog(t, uid, 'edited');
     this.saveTour(t);
@@ -124,6 +127,8 @@ class TourManage {
     const { t, uid } = this.managerOf(conn, id);
     if (t.status !== 'running') throw E('tour_not_running');
     t.held = !!hold;
+    // Chơi tiếp: tính lại giờ chờ vắng mặt từ lúc này (thời gian tạm dừng không tính là vắng mặt)
+    if (!t.held && t.format === 'bracket') for (const m of this.allMatches(t)) if (!m.done) m.readyAt = null;
     this.tourLog(t, uid, t.held ? 'held' : 'resumed');
     this.saveTour(t);
     this.pushTour(t);
@@ -135,7 +140,8 @@ class TourManage {
     const { t, uid } = this.managerOf(conn, id);
     if (t.status !== 'running') throw E('tour_not_running');
     for (const r of this.rooms.values()) if (r.tour && r.tour.id === t.id) r.tour.cancelled = true;
-    Object.assign(t, { status: 'scheduled', st: null, stage: 0, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [] });
+    Object.assign(t, { status: 'scheduled', st: null, stage: 0, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [],
+      checkinNotified: false, checkinWaived: false }); // điểm danh lại từ đầu
     t.startsAt = Math.max(t.startsAt, Date.now() + 10 * 60 * 1000); // không tự bắt đầu lại ngay
     for (const p of t.players) Object.assign(p, { seed: null, out: null, score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, paused: false, checkedIn: false });
     t.players = t.players.filter((p) => !p.withdrawn);
@@ -169,7 +175,7 @@ class TourManage {
     this.saveTour(t);
     this.pushTour(t);
     if (t.status === 'pending') this.notifyAdmins(t.name);
-    conn.send({ t: 'tourCreated', id: t.id, status: t.status });
+    conn.send({ t: 'tourSubmitted', id: t.id, status: t.status }); // không dùng tourCreated: client xoá nháp tạo giải đang soạn
   }
 }
 

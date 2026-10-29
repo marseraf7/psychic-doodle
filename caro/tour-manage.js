@@ -15,7 +15,8 @@
   const K = window.CaroTourKit;
   if (!K) return;
   const { O, T, esc, $, D, when, icon, render, open } = K;
-  const M = { tab: {}, order: null, orderFor: null, flash: 0 }; // tab đang xem theo giải; hạt giống đang sửa (chưa lưu)
+  // tab đang xem theo giải; hạt giống đang sửa (chưa lưu); typing: đang gõ dở trong tab Quản lý (giữ trang, không vẽ lại)
+  const M = { tab: {}, order: null, orderFor: null, flash: 0, typing: false };
 
   const isManage = (t) => t.canManage && M.tab[t.id] === 'manage';
   const preStart = (t) => ['draft', 'pending', 'scheduled'].includes(t.status);
@@ -61,7 +62,10 @@
       const kept = M.order.filter((u) => set.has(u));
       return [...kept, ...live.map((p) => p.uid).filter((u) => !kept.includes(u))];
     }
-    const base = t.seedPlan && t.seedPlan.length ? t.seedPlan : (t.seeding === 'list' ? live : [...live].sort((a, b) => b.rating - a.rating)).map((p) => p.uid);
+    // Như máy chủ khi bốc thăm: hạt giống xếp tay (bỏ người đã rút), không thì theo thứ tự đăng ký ('list') hoặc Elo
+    const ids = new Set(live.map((p) => p.uid));
+    const base = t.seedPlan && t.seedPlan.length ? t.seedPlan.filter((u) => ids.has(u))
+      : (t.seeding === 'list' ? [...live].sort((a, b) => (a.joined || 0) - (b.joined || 0)) : [...live].sort((a, b) => b.rating - a.rating)).map((p) => p.uid);
     return [...base, ...live.map((p) => p.uid).filter((u) => !base.includes(u))];
   }
 
@@ -82,7 +86,8 @@
       pairs = `<h5>${esc(T('mg_pairs'))}</h5><ul class="pairs">${Array.from({ length: size / 2 }, (_, i) => `<li>${cell(so[2 * i])} <span class="muted">vs</span> ${cell(so[2 * i + 1])}</li>`).join('')}</ul>`;
     }
     const dirty = !!(M.orderFor === t.id && M.order);
-    return `<section class="mg-sec"><h4>${esc(T('mg_seeds'))}</h4><p class="hint">${esc(T('mg_seeds_hint'))}</p>
+    const randomNote = t.seeding === 'random' && !t.seedPlan ? `<p class="hint">${esc(T('mg_random_note'))}</p>` : '';
+    return `<section class="mg-sec"><h4>${esc(T('mg_seeds'))}</h4><p class="hint">${esc(T('mg_seeds_hint'))}</p>${randomNote}
       <ol class="seed-list" id="seed-list">${rows}</ol>
       <div class="row"><button type="button" class="ghost sm" data-act="seedShuffle">${icon('retry')}${esc(T('mg_shuffle'))}</button>
         ${t.offline ? '' : `<button type="button" class="ghost sm" data-act="seedRating">${esc(T('mg_by_rating'))}</button>`}
@@ -155,7 +160,9 @@
   // ------------------------------------------------------------ Thao tác
   const tour = () => D.tour;
   // Đổi tab: bỏ thứ tự hạt giống đang sửa mà chưa lưu
-  K.acts.tourTab = (b) => { M.tab[tour().id] = b.value; M.order = null; render(true); };
+  K.acts.tourTab = (b) => { M.tab[tour().id] = b.value; M.order = null; M.typing = false; render(true); };
+  /** Đang gõ dở trong tab Quản lý (thông báo / lịch / tên): tour.js không vẽ lại trang khi có cập nhật. */
+  K.isEditing = () => M.typing && !!document.querySelector('#tour-body .mg-sec');
   K.acts.mgSubmit = () => O.send({ t: 'tourSubmit', id: tour().id });
   K.acts.mgSettings = () => { K.tourDraft.fromTour(tour()); open('tourAdv', null); };
   K.acts.mgHold = (b) => O.send({ t: 'tourHold', id: tour().id, hold: b.dataset.v === '1' });
@@ -190,6 +197,7 @@
   K.acts.seedAuto = () => { M.order = null; O.send({ t: 'tourSeeds', id: tour().id, order: null }); };
   K.acts.seedSave = () => { const t = tour(); O.send({ t: 'tourSeeds', id: t.id, order: currentOrder(t) }); M.order = null; };
   K.acts.schedSave = (b) => {
+    M.typing = false;
     const row = b.closest('.sched-row');
     const at = row.querySelector('[data-f="at"]').value;
     // Lịch chỉ để hiển thị: giữ đúng giờ ban tổ chức gõ (không bù lệch đồng hồ máy chủ như giờ bắt đầu giải)
@@ -197,6 +205,7 @@
     O.toast(T('mg_saved'));
   };
   K.acts.newsPost = () => {
+    M.typing = false;
     const box = $('news-text');
     if (!box || !box.value.trim()) return;
     O.send({ t: 'tourNews', id: tour().id, text: box.value });
@@ -210,9 +219,13 @@
       f.onsubmit = (e) => {
         e.preventDefault();
         const t = tour();
+        M.typing = false;
         O.send({ t: 'tourEdit', id: t.id, name: f.elements.name.value, desc: f.elements.desc.value });
       };
     }
+    // Gõ trong các ô của tab Quản lý: đánh dấu đang sửa (giữ chữ khi có cập nhật từ máy chủ)
+    const body = document.getElementById('tour-body');
+    if (body && body.querySelector('.mg-sec')) body.oninput = (e) => { if (e.target.closest('.mg-sec')) M.typing = true; };
     // Kéo thả hạt giống (máy tính)
     const list = $('seed-list');
     if (!list) return;
@@ -231,4 +244,6 @@
     });
   });
   O.on('tourDeleted', () => { O.toast(T('mg_deleted')); K.top('tours'); });
+  // Nháp đã gửi duyệt (không dùng tourCreated – sẽ xoá nháp tạo giải đang soạn trong máy)
+  O.on('tourSubmitted', (m) => { O.toast(T(m.status === 'pending' ? 'tour_sent_review' : 'tour_created')); });
 })();

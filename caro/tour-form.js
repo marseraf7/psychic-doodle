@@ -73,6 +73,7 @@
    * không giữ lựa chọn "chỉ CLB" của nháp cũ (tránh vô tình tạo giải kín cho CLB).
    */
   function begin(clubId) {
+    F.editId = null; // mở form tạo giải mới: không còn ở chế độ sửa giải cũ
     loadDraft();
     if (clubId) { F.d.access = 'club'; F.d.club = clubId; } else if (F.d.access === 'club') { F.d.access = 'public'; F.d.club = ''; }
   }
@@ -241,11 +242,12 @@
     F.stages = t.stages ? structuredClone(t.stages) : null;
     F.tab = 'basic';
     F.d = {
-      ...blank(), name: t.name, desc: t.desc || '', start: localInput(t.startsAt - (D.skew || 0)),
+      // Giờ máy chủ → giờ máy (ngược với submit: startsAt = giờ máy − skew)
+      ...blank(), name: t.name, desc: t.desc || '', start: localInput(t.startsAt + (D.skew || 0)),
       time: t.clock ? 'c' + t.clock : 't' + (t.timeLimit || 20), opening: t.opening || 'free', rule: t.rule || 'vn',
       minutes: String(t.minutes || 30), seeding: t.seeding || 'rating', checkin: !!t.checkinEnabled, rated: !!t.rated,
       max: String(t.maxPlayers), access: t.access, club: t.club ? t.club.id : '', noshow: t.noShowMin ? String(t.noShowMin) : '',
-      offline: !!t.offline, scoreMode: t.scoreMode || 'sets', closeAt: r.closeAt ? localInput(r.closeAt - (D.skew || 0)) : '',
+      offline: !!t.offline, scoreMode: t.scoreMode || 'sets', closeAt: r.closeAt ? localInput(r.closeAt + (D.skew || 0)) : '',
       approval: !!r.approval, waitlist: !!r.waitlist, minRating: r.minRating || '', maxRating: r.maxRating || '', minGames: r.minGames || '',
       minAccountDays: r.minAccountDays || '', code: (t.regAdmin && t.regAdmin.code) || '', checkinMin: String(r.checkinMin || 10),
       questions: (r.questions || []).map((q) => ({ q: q.q, type: q.type, opts: (q.opts || []).join(', ') })),

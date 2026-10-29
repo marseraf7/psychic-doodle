@@ -959,7 +959,7 @@ test('khu quản trị: nháp → gửi duyệt, sửa cài đặt, thông báo,
   const t = app.hub.tours.get(id);
   assert.strictEqual(t.status, 'draft');
   assert.strictEqual((await ps[0].req({ t: 'tourGet', id }, 'error')).code, 'tour_not_found');
-  await B.req({ t: 'tourSubmit', id }, 'tourCreated');
+  await B.req({ t: 'tourSubmit', id }, 'tourSubmitted');
   assert.strictEqual(t.status, 'scheduled');
   // Sửa cài đặt trước giờ đấu: đổi tên, Bo, số người
   await B.req({ t: 'tourEdit', id, name: 'Quản trị 2', format: 'bracket', startsAt: soon(), timeLimit: 20, checkin: false, maxPlayers: 8,
@@ -1010,4 +1010,33 @@ test('khu quản trị: nháp → gửi duyệt, sửa cài đặt, thông báo,
   await B.req({ t: 'tourDelete', id, confirm: 'Quản trị đang đấu' }, 'tourDeleted');
   assert.ok(!app.hub.tours.has(id));
   ps.forEach((c) => c.close());
+});
+
+test('Đợt 4 – sửa sau review: người thường đổi tên giải đã duyệt thì chờ duyệt lại; đặt lại thì điểm danh lại từ đầu', async () => {
+  const B = await admin();
+  const org = await account('og', 1500);
+  const { id } = await org.req({ t: 'tourCreate', name: 'Giải thường', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: true, stages: [{ type: 'single' }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.strictEqual(t.status, 'pending');
+  B.send({ t: 'adminReview', kind: 'tour', id, approve: true });
+  await until(() => t.status === 'scheduled');
+  // Đổi giờ / Bo (không đổi tên, giới thiệu): vẫn mở đăng ký
+  await org.req({ t: 'tourEdit', id, name: 'Giải thường', format: 'bracket', startsAt: soon() + 60000, timeLimit: 30, checkin: true, stages: [{ type: 'single', bestOf: 5 }] }, 'tourEdited');
+  assert.strictEqual(t.status, 'scheduled');
+  await org.req({ t: 'tourEdit', id, name: 'Giải đổi tên', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: true, stages: [{ type: 'single' }] }, 'tourEdited');
+  assert.strictEqual(t.status, 'pending', 'đổi tên: chờ quản trị viên duyệt lại');
+  B.send({ t: 'adminReview', kind: 'tour', id, approve: true });
+  await until(() => t.status === 'scheduled');
+  // Đặt lại: cờ đã báo điểm danh / bỏ qua điểm danh được xoá
+  const ps = [await account('og', 1400), await account('og', 1300)];
+  for (const c of ps) await c.req({ t: 'tourJoin', id }, 'toast');
+  org.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  // Đặt lại: không còn "bỏ qua điểm danh"; người chơi được báo mở điểm danh lại (giờ bắt đầu mới đã trong khung điểm danh)
+  const again = ps[0].wait('toast', (m) => JSON.stringify(m).includes('tour_checkin_open'));
+  org.send({ t: 'tourReset', id });
+  await until(() => t.status === 'scheduled');
+  assert.ok(!t.checkinWaived);
+  await again;
+  [org, ...ps].forEach((c) => c.close());
 });
