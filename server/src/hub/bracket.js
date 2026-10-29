@@ -23,12 +23,13 @@ class Bracket {
       return;
     }
     for (const p of entrants) p.rating = this.store.users.get(p.uid)?.rating || p.rating;
+    t.queue = []; // hàng chờ duyệt / danh sách chờ hết hiệu lực khi giải bắt đầu
     if (t.seeding === 'random') {
       for (let i = entrants.length - 1; i > 0; i--) {
         const j = crypto.randomInt(i + 1);
         [entrants[i], entrants[j]] = [entrants[j], entrants[i]];
       }
-    } else entrants.sort((a, b) => b.rating - a.rating);
+    } else if (t.seeding !== 'list') entrants.sort((a, b) => b.rating - a.rating); // 'list': thứ tự đăng ký / thêm
     entrants.forEach((p, i) => { p.seed = i + 1; });
     t.status = 'running';
     t.stage = 0;
@@ -104,6 +105,7 @@ class Bracket {
 
   /** Mở các trận đã sẵn sàng của vòng hiện tại; xử thua người vắng mặt / đã rút. */
   runBracket(t, now) {
+    if (t.offline) return this.runOffline(t); // trận ngoài đời: chờ ban tổ chức nhập tỉ số (tour-score.js)
     for (let guard = 0; guard < 500 && t.status === 'running'; guard++) {
       const st = this.curStage(t);
       let changed = false;
@@ -272,6 +274,7 @@ class Bracket {
       done: !!m.done, winner: ST.real(m.winner) ? m.winner : null, draw: !!(m.done && m.winner === null && !m.double),
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
+      sets: m.sets || null, extra: m.extra || null, override: !!m.override, // tỉ số từng set (giải offline), ghi đè
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }

@@ -737,6 +737,137 @@ test('tuỳ chọn như Challonge: Bo3 chung kết, trận xếp hạng; nhánh 
   ps.forEach((c) => c.close());
 });
 
+test('đăng ký nâng cao: mã vào, điều kiện Elo, câu hỏi, duyệt tay, danh sách chờ tự lên, hạn chót', async () => {
+  const B = await organizer();
+  const ps = [];
+  for (let i = 0; i < 5; i++) ps.push(await account('rg', 1500 + i * 10));
+  const { id } = await B.req({ t: 'tourCreate', name: 'Đăng ký', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, maxPlayers: 3,
+    stages: [{ type: 'single', bestOf: 1 }],
+    reg: { code: 'CARO1', minRating: 1505, approval: true, waitlist: true, questions: [{ q: 'CLB của bạn?' }, { q: 'Cỡ áo', type: 'choice', opts: ['S', 'M'] }] } }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  const err = async (c, m) => (await c.req(m, 'error')).code;
+  assert.strictEqual(await err(ps[1], { t: 'tourJoin', id, code: 'sai' }), 'tour_bad_code');
+  assert.strictEqual(await err(ps[0], { t: 'tourJoin', id, code: 'CARO1' }), 'tour_rating_low', 'Elo 1500 < 1505');
+  assert.strictEqual(await err(ps[1], { t: 'tourJoin', id, code: 'CARO1', answers: ['Hà Nội', 'XL'] }), 'tour_answers_required', 'đáp án ngoài lựa chọn');
+  for (const c of ps.slice(1)) await c.req({ t: 'tourJoin', id, code: 'CARO1', answers: ['CLB ' + c.me.name, 'M'] }, 'toast');
+  assert.strictEqual(t.players.length, 0, 'duyệt tay: chưa ai vào giải');
+  assert.strictEqual(t.queue.filter((x) => x.state === 'pending').length, 4);
+  // Người xem thường không thấy câu trả lời; ban tổ chức thấy
+  const pub = await ps[1].req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(pub.tour.regAdmin, null);
+  assert.strictEqual(pub.tour.reg.hasCode, true);
+  assert.ok(!JSON.stringify(pub.tour).includes('CARO1'), 'mã vào không lộ cho người chơi');
+  assert.deepStrictEqual(pub.tour.myQueue, { state: 'pending', pos: 1 });
+  const adm = await B.req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(adm.tour.regAdmin.queue.length, 4);
+  assert.deepStrictEqual(adm.tour.regAdmin.queue[0].answers, ['CLB ' + ps[1].me.name, 'M']);
+  // Duyệt 4 người, giải chỉ 3 chỗ: người thứ 4 vào danh sách chờ
+  for (const c of ps.slice(1)) B.send({ t: 'tourRegDecide', id, uid: c.me.uid, accept: true });
+  await until(() => t.players.length === 3 && t.queue.length === 1 && t.queue[0].state === 'wait');
+  assert.deepStrictEqual(t.players.find((p) => p.uid === ps[1].me.uid).answers, ['CLB ' + ps[1].me.name, 'M']);
+  // Một người rút → người đầu danh sách chờ tự vào
+  await ps[1].req({ t: 'tourLeave', id }, 'tour');
+  await until(() => t.players.some((p) => p.uid === ps[4].me.uid) && !t.queue.length);
+  // Từ chối: người bị từ chối không vào giải
+  const c2 = await account('rg', 1600);
+  await c2.req({ t: 'tourJoin', id, code: 'CARO1', answers: ['X', 'S'] }, 'toast');
+  B.send({ t: 'tourRegDecide', id, uid: c2.me.uid, accept: false });
+  await until(() => !t.queue.length);
+  assert.ok(!t.players.some((p) => p.uid === c2.me.uid));
+  // Hạn chót đã qua: không đăng ký được
+  t.reg.closeAt = Date.now() - 1000;
+  assert.strictEqual(await err(c2, { t: 'tourJoin', id, code: 'CARO1', answers: ['X', 'S'] }), 'tour_reg_closed');
+  [...ps, c2].forEach((c) => c.close());
+});
+
+test('Bulk Add: giải trực tuyến thêm theo tên đăng nhập; giải offline thêm theo tên, nhập tỉ số theo set, huỷ kết quả', async () => {
+  const B = await organizer();
+  const a = await account('ba', 1500), b = await account('ba', 1400);
+  const on = await B.req({ t: 'tourCreate', name: 'Mời', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, stages: [{ type: 'single' }] }, 'tourCreated');
+  const r = await B.req({ t: 'tourAddPlayers', id: on.id, names: ['@' + a.me.username, b.me.username.toUpperCase(), 'khongcoai_' + seq, a.me.username] }, 'tourAddResult');
+  assert.deepStrictEqual(r.added.length, 2);
+  assert.deepStrictEqual(r.missing, ['khongcoai_' + seq]);
+  assert.strictEqual(app.hub.tours.get(on.id).players.length, 2);
+  assert.strictEqual((await a.req({ t: 'tourAddPlayers', id: on.id, names: ['x'] }, 'error')).code, 'tour_managers_only');
+  // Giải offline: 4 người theo tên (không tài khoản), loại trực tiếp Bo3 nhập theo set
+  const off = await B.req({ t: 'tourCreate', name: 'Cầu lông', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, rated: true,
+    stages: [{ type: 'single', bestOf: 3, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(off.id);
+  assert.ok(t.offline && !t.rated && !t.checkin && t.seeding === 'list', 'offline: không tính Elo, không điểm danh, hạt giống theo danh sách');
+  const r2 = await B.req({ t: 'tourAddPlayers', id: off.id, names: ['An', 'Bình', 'an', '', 'Chi', 'Dũng'] }, 'tourAddResult');
+  assert.deepStrictEqual(r2.added, ['An', 'Bình', 'Chi', 'Dũng'], 'bỏ dòng trống và tên trùng');
+  assert.strictEqual((await a.req({ t: 'tourJoin', id: off.id }, 'error')).code, 'tour_offline_join');
+  B.send({ t: 'tourStart', id: off.id });
+  await until(() => t.status === 'running');
+  await sleep(100);
+  const st = t.st[0];
+  const [m1, m2] = st.rounds[0].map((x) => st.matches[x]);
+  assert.ok(!m1.room && !m2.room, 'không mở phòng cho trận ngoài đời');
+  const name = (u) => t.players.find((p) => p.uid === u).name;
+  assert.deepStrictEqual([name(m1.a), name(m1.b)], ['An', 'Dũng'], 'hạt giống theo thứ tự thêm: 1 gặp 4');
+  const score = (m, sets, extra) => B.send({ t: 'tourScore', id: off.id, match: m.id, sets, extra });
+  // Hoà số set ở loại trực tiếp: phải có kết quả phụ
+  assert.strictEqual((await B.req({ t: 'tourScore', id: off.id, match: m1.id, sets: [[21, 15], [15, 21]] }, 'error')).code, 'tour_score_tie');
+  await score(m1, [[21, 15], [15, 21]], [5, 3]);
+  await until(() => m1.done);
+  assert.strictEqual(name(m1.winner), 'An', 'kết quả phụ quyết định');
+  await score(m2, [[21, 10], [21, 19]]);
+  await until(() => m2.done);
+  assert.deepStrictEqual(m2.sets, [[21, 10], [21, 19]]);
+  const fin = st.matches[st.rounds[1][0]];
+  assert.ok(fin.a && fin.b, 'chung kết đã có đủ 2 người');
+  // Huỷ kết quả bán kết 2: chung kết mất một người; nhập lại người kia thắng
+  B.send({ t: 'tourScoreUndo', id: off.id, match: m2.id });
+  await until(() => !m2.done);
+  assert.strictEqual(fin.b, null);
+  await score(m2, [[10, 21], [19, 21]]);
+  await until(() => m2.done && name(m2.winner) === 'Chi');
+  await score(fin, [[21, 5], [21, 5]]);
+  await until(() => t.status === 'finished');
+  assert.strictEqual(name(t.podium[0]), 'An');
+  // Đã đấu chung kết: không huỷ được bán kết nữa (giải đã xong)
+  assert.strictEqual((await B.req({ t: 'tourScoreUndo', id: off.id, match: m2.id }, 'error')).code, 'tour_not_running');
+  const v = await B.req({ t: 'tourGet', id: off.id }, 'tour');
+  assert.deepStrictEqual(v.tour.stageViews[0].rounds[0][0].sets, [[21, 15], [15, 21]]);
+  assert.deepStrictEqual(v.tour.stageViews[0].rounds[0][0].extra, [5, 3]);
+  [a, b].forEach((c) => c.close());
+});
+
+test('giải offline vòng tròn: tính theo tổng điểm các set, được hoà; giải trực tuyến: ban tổ chức xử thắng trận chưa đấu', async () => {
+  const B = await organizer();
+  const off = await B.req({ t: 'tourCreate', name: 'Bóng bàn', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, scoreMode: 'points',
+    stages: [{ type: 'roundrobin', groups: 1, bestOf: 3, points: { w: 3, d: 1, l: 0 } }] }, 'tourCreated');
+  await B.req({ t: 'tourAddPlayers', id: off.id, names: ['P1', 'P2', 'P3'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id: off.id });
+  const t = app.hub.tours.get(off.id);
+  await until(() => t.status === 'running');
+  const ms = () => Object.values(t.st[0].matches);
+  const first = ms()[0];
+  // 2 set thua nhưng tổng điểm cao hơn: thắng theo tổng điểm
+  B.send({ t: 'tourScore', id: off.id, match: first.id, sets: [[30, 0], [10, 11], [10, 11]] });
+  await until(() => first.done);
+  assert.strictEqual(first.winner, first.a);
+  for (const m of ms().filter((x) => !x.done)) {
+    B.send({ t: 'tourScore', id: off.id, match: m.id, sets: [[11, 11]] }); // hoà
+    await until(() => m.done || t.status === 'finished');
+  }
+  await until(() => t.status === 'finished');
+  assert.ok(ms().filter((m) => m.winner === null).length >= 1, 'có trận hoà');
+  // Giải trực tuyến: xử thắng trận chưa đấu (ghi đè)
+  const p1 = await account('ov', 1500), p2 = await account('ov', 1400);
+  const on = await B.req({ t: 'tourCreate', name: 'Ghi đè', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');
+  for (const c of [p1, p2]) await c.req({ t: 'tourJoin', id: on.id }, 'toast');
+  const o = app.hub.tours.get(on.id);
+  B.send({ t: 'tourStart', id: on.id });
+  await until(() => o.status === 'running');
+  const m = o.st[0].matches[o.st[0].rounds[0][0]];
+  await until(() => m.room);
+  assert.strictEqual((await B.req({ t: 'tourScore', id: on.id, match: m.id, winner: p2.me.uid }, 'error')).code, 'tour_match_live', 'đang đấu thì không ghi đè');
+  app.hub.leave(app.hub.rooms.get(m.room).players[0].id); // một người rời phòng: thua cả trận
+  await until(() => o.status === 'finished');
+  [p1, p2].forEach((c) => c.close());
+});
+
 test('giải của câu lạc bộ: chỉ quản lý tạo được, chỉ thành viên đăng ký được, danh sách theo quyền', async () => {
   const B = await admin();
   const owner = await account('tco');

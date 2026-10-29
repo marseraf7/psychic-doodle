@@ -17,8 +17,10 @@
   const TABS = [
     { id: 'basic', icon: 'info', keys: ['name', 'desc'] },
     { id: 'format', icon: 'trophy', keys: ['preset'], stages: true },
-    { id: 'games', icon: 'clock', keys: ['time', 'opening', 'rule', 'rated', 'minutes', 'noshow'] },
-    { id: 'reg', icon: 'users', keys: ['start', 'max', 'checkin', 'seeding'] },
+    { id: 'games', icon: 'clock', keys: ['scoreMode', 'time', 'opening', 'rule', 'rated', 'minutes', 'noshow'] },
+    // Đăng ký nâng cao: tour-adv-reg.js ('limits' gồm 4 ô Elo / số ván / tuổi tài khoản)
+    { id: 'reg', icon: 'users', keys: ['offline', 'start', 'closeAt', 'max', 'approval', 'waitlist', 'limits', 'code', 'questions', 'checkin', 'checkinMin', 'seeding'],
+      alias: ['minRating', 'maxRating', 'minGames', 'minAccountDays'] },
     { id: 'access', icon: 'lock', keys: ['access'] },
   ];
 
@@ -84,7 +86,7 @@
     };
     // Ô lỗi nằm ở tab đang ẩn (form novalidate): chuyển tới tab chứa ô đó
     DR.bindForm(form, { stages: 'ta-stages', hint: 'ta-fmt-hint', est: 'ta-est', err: 'ta-err', full: true }, (key) => {
-      const tab = TABS.find((x) => x.keys.includes(key));
+      const tab = TABS.find((x) => x.keys.includes(key) || (x.alias || []).includes(key));
       if (tab) showTab(form, tab.id);
       const el = form.elements[key];
       if (el && el.focus) el.focus();

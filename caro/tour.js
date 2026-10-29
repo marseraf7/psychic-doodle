@@ -56,10 +56,11 @@
       parts.push(st.map(K.stageName).join(' → '));
       if (st.length === 1) parts.push('Bo' + st[0].bestOf);
     }
-    parts.push(CLOCK + (t.clock ? window.I18N.tc(0, t.clock) : secs(t.timeLimit)));
+    if (!t.offline) parts.push(CLOCK + (t.clock ? window.I18N.tc(0, t.clock) : secs(t.timeLimit))); // giải offline: không có giờ mỗi nước
     if (t.opening === 'swap2') parts.push('Swap2');
     if (t.rule && t.rule !== 'vn') parts.push(T('grule_s_' + t.rule));
-    if (!t.rated) parts.push(T('unrated_short'));
+    if (t.offline) parts.push(T('tag_offline'));
+    else if (!t.rated) parts.push(T('unrated_short'));
     parts.push(T('players_n', { n: t.count, max: t.maxPlayers }));
     return parts.join(' · ');
   }
@@ -189,6 +190,8 @@
       html += `<p class="hint">${esc(T(t.checkin ? 'checkin_open_hint' : 'checkin_hint', { t: when(t.checkinAt) }))}</p>`;
     }
     html += `<div class="row tactions">${actions(t)}</div>`;
+    if (K.regHtml) html += K.regHtml(t); // điều kiện đăng ký, form mã / câu hỏi, hàng chờ, duyệt + Bulk Add (tour-reg.js)
+    if (K.scoreHtml) html += K.scoreHtml(t); // nhập tỉ số / xử thắng, in biên bản (tour-score.js)
     html += myCard(t);
     if (K.disputesHtml) html += K.disputesHtml(t); // ván mất kết nối (tour-disputes.js)
     if (t.podium && t.podium.length && t.status === 'finished') {
@@ -381,6 +384,8 @@
     errorTarget(ctx) {
       if (ctx === 'tourCreate' && $('tf-err') && isOpen()) return 'tf-err';
       if (ctx === 'tourCreate' && $('ta-err') && isOpen()) return 'ta-err';
+      if (ctx === 'tourJoin' && $('rf-err') && isOpen()) return 'rf-err';
+      if (ctx === 'tourScore' && $('sp-err') && isOpen()) return 'sp-err';
       if (ctx === 'clubCreate' && $('cf-err') && isOpen()) return 'cf-err';
       return null;
     },
