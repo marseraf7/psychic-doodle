@@ -270,6 +270,19 @@ class Bracket {
     return ST.podium(this.curStage(t), this.seedOf(t)).slice(0, 4);
   }
 
+  /** Dải phong độ (như MyLeague): 5 kết quả gần nhất của từng người trong giai đoạn – W thắng, D hoà, L thua (vắng cả hai: thua). */
+  formStrip(st) {
+    const by = new Map();
+    const list = Object.values(st.matches).filter((m) => m.done && !m.bye && ST.real(m.a) && ST.real(m.b)).sort((a, b) => a.round - b.round);
+    for (const m of list) {
+      for (const u of [m.a, m.b]) {
+        const r = m.double ? 'L' : m.winner === null ? 'D' : m.winner === u ? 'W' : 'L';
+        by.set(u, ((by.get(u) || '') + r).slice(-5));
+      }
+    }
+    return by;
+  }
+
   /** Một trận gửi cho client (st: giai đoạn của trận – để biết Bo riêng của bán kết / chung kết). */
   matchView(t, m, st) {
     const bo = st && m ? ST.boOf(st, m) : 0;
@@ -287,9 +300,10 @@ class Bracket {
   /** Các giai đoạn đã bốc thăm, gửi cho client: nhánh đấu / bảng xếp hạng / các vòng. */
   stageViews(t) {
     const seedOf = this.seedOf(t);
-    const table = (rk, adv) => rk.list.map((u, i) => {
+    // form: dải phong độ của giai đoạn (formStrip) – uid → 'WLD' (5 trận gần nhất, cũ → mới)
+    const table = (rk, adv, form) => rk.list.map((u, i) => {
       const x = rk.stats[u];
-      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, mbh: x.mbh, sb: x.sb, adv: i < adv };
+      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, mbh: x.mbh, sb: x.sb, adv: i < adv, form: form.get(u) || '' };
     });
     return (t.st || []).map((st, i) => {
       const M = (id) => this.matchView(t, st.matches[id], st);
@@ -305,11 +319,11 @@ class Bracket {
         if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
         if (st.gf) v.gf = st.gf.map(M);
       } else if (st.type === 'roundrobin') {
-        const tabs = ST.standings(st, seedOf);
-        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv) }));
+        const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
+        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form) }));
       } else {
         v.rounds = st.rounds.map((r) => r.map(M));
-        v.table = table(ST.standings(st, seedOf)[0], adv);
+        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st));
         v.totalRounds = st.cfg.rounds;
       }
       return v;

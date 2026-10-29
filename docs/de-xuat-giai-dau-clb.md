@@ -405,3 +405,13 @@ Việc lặp lại như soát dịch 4 ngôn ngữ, chạy e2e nhiều lần và
   - Thêm trang nâng cao 5 tab: Thông tin cơ bản · Thể thức · Ván đấu · Đăng ký & điểm danh · Hiển thị & quyền xem. Màn rộng có cột tab bên trái; điện thoại có dải tab ngang. Thanh tóm tắt luôn nằm ở đáy.
   - Form nhanh và trang nâng cao dùng chung một bản nháp: chuyển qua lại không mất dữ liệu, tải lại trang vẫn còn, có nút Đặt lại, tạo giải xong thì tự xoá nháp.
   - Dòng ước tính **số trận · số lượt đấu · thời gian** ở cả hai trang (`caro/tour-estimate.js`). Unit test mô phỏng cả giải bằng logic máy chủ, với mọi thể thức từ 2 đến 70 người: số trận và số lượt khớp chính xác.
+- **Đợt 2 – xong**: chung kết tổng 2 trận / 1 trận / không có, split, trận xếp hạng mọi vị trí, Bo riêng bán kết / chung kết, xếp hạng theo (rank by) + điểm thắng / hoà / miễn đấu, tie-break 4 cấp, Thụy Sĩ tự tính số vòng.
+- **Đợt 3 – xong**: hạn chót, danh sách chờ, duyệt tay, điều kiện Elo / số ván / tuổi tài khoản, mã vào, câu hỏi khi đăng ký, Bulk Add; giải offline nhập tỉ số theo set, huỷ kết quả, biên bản in ký tay.
+- **Đợt 4 – xong**: tab Quản lý (checklist, hạt giống thủ công + xem trước cặp vòng 1, lịch theo vòng, thông báo ghim, nhật ký, sửa cài đặt, tạm dừng, đặt lại, xoá), lưu nháp → gửi duyệt; ô ngày giờ thống nhất 29/10/2026 · 09:00.
+- **Đợt 5 – xong**: đồng ban tổ chức theo 6 quyền, giải riêng tư chặn cả link / xem ván, ẩn hạt giống, nhãn vòng tuỳ biến. Nhánh đấu vốn chỉ bốc thăm lúc bắt đầu nên trước giờ đấu chưa ai thấy.
+- **Đợt 6 – xong**:
+  - Nhánh đấu có **đường nối** giữa các trận (SVG đo theo vị trí thật), thanh công cụ **thu nhỏ / phóng to (40–200%) / toàn màn hình / tải ảnh PNG** (vẽ lại bằng canvas từ dữ liệu, không chụp màn hình). Mức phóng giữ qua các lần cập nhật.
+  - **Dải phong độ** 5 trận gần nhất ở bảng vòng tròn / Thụy Sĩ (ô màu + chữ T / H / B, không chỉ dựa vào màu).
+  - **Thanh tiến độ + thống kê**: số trận xong / tổng, số ván (set), đang đấu, hoà, xử thắng – tính ở trình duyệt, không thêm việc cho máy chủ.
+  - **JSON công khai** `/api/tour/<mã>.json` (như Challonge): chỉ giải người chưa đăng nhập xem được; bỏ khiếu nại và trạng thái online; máy chủ giữ bản dựng 10 giây, chỉ tính lượt theo IP khi phải dựng mới.
+  - **Trang nhúng** `embed.html?t=<mã>&view=bracket|standings|players&theme=light|dark&lang=…` cho phép đặt trong iframe của website khác (chỉ trang này bỏ chặn khung); tự cập nhật 20 giây một lần khi đang hiện, dừng khi giải xong. Tab Quản lý có khu **Nhúng vào website** sinh sẵn mã iframe.
