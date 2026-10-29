@@ -327,3 +327,40 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .club-mhead { justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
 .club-mhead h4 { margin: 0; }
 #club-msg { width: 100%; font: inherit; }
+/* Chat + diễn đàn CLB – Đợt 8 (club-talk.js) */
+.cc-log { list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; border: 1px solid var(--panel-border); border-radius: 10px; font-size: var(--fs-sm); -webkit-user-select: text; user-select: text; }
+.cc-log li { overflow-wrap: anywhere; }
+.cc-log .cc-del { display: inline-grid; padding: 0 4px; vertical-align: middle; opacity: 0.6; }
+.cc-form { margin-top: 6px; flex-wrap: nowrap; }
+.cc-form input { flex: 1; min-width: 0; }
+.ft-posts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ft-posts > li { border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px 10px; }
+.ft-ph { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.ft-ops { margin-inline-start: auto; display: flex; gap: 4px; }
+.ft-text { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-sm); -webkit-user-select: text; user-select: text; }
+.pager { justify-content: center; align-items: center; gap: 8px; }
+/* Câu lạc bộ thi đấu – Đợt 9 (club-battle.js, club-match.js) */
+.team-table li.win .pts { color: #b88a00; }
+.tm-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; text-align: center; padding: 8px 0; }
+.tm-side { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.tm-side a { color: inherit; font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
+.tm-num { font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
+.tm-boards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
+.tm-boards li { display: grid; grid-template-columns: 4.5em 1fr auto 1fr; gap: 8px; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--panel-border); }
+.tm-boards .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-boards .nm:last-child { text-align: right; }
+.tm-boards .win { font-weight: var(--fw-bold); color: #2f9a4c; }
+.tm-boards .draw { color: var(--muted); }
+.tm-lineup { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; margin: 6px 0; }
+.tb-clubs { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 180px; overflow-y: auto; }
+/* Giải đấu – Đợt 10 (tour-fun.js, tour-tpl.js) */
+.fun-pred { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; margin-bottom: 6px; }
+.fun-votes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fun-votes li { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 8px; align-items: center; }
+.fun-votes button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fun-votes button.on { border-color: var(--accent); color: var(--accent); font-weight: var(--fw-semibold); }
+.fun-bar { height: 8px; border-radius: 99px; background: color-mix(in srgb, #d2382f 55%, transparent); overflow: hidden; }
+.fun-bar i { display: block; height: 100%; background: color-mix(in srgb, var(--accent) 75%, transparent); }
+.fun-cat { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.fun-awards { margin: 0; padding-inline-start: 1.4em; font-size: var(--fs-sm); }
+.tpl-row { flex-wrap: wrap; align-items: flex-end; gap: 6px; }

@@ -15,6 +15,7 @@ const ST = require('./stages.js');
 
 class Bracket {
   startBracket(t, now) {
+    if (t.teamMatch && !this.prepareTeamMatch(t)) return; // giao hữu CLB: đội hình → người chơi + cặp theo bàn (club-battle.js)
     // Thi đấu theo vòng: chỉ người đã điểm danh (nếu bật điểm danh)
     for (const p of t.players) if (!p.withdrawn && t.checkin && !t.checkinWaived && !p.checkedIn) p.out = 'no_checkin';
     const entrants = this.activePlayers(t);
@@ -36,7 +37,7 @@ class Bracket {
     t.status = 'running';
     this.tourLog(t, null, 'started', { n: entrants.length });
     t.stage = 0;
-    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan })];
+    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan, pairs: t.teamMatch && t.teamMatch.pairs })];
     this.saveTour(t);
     this.notifyPlayers(t, 'tour_started', {}, (p) => !p.out);
     this.notifyPlayers(t, 'tour_no_checkin', {}, (p) => p.out === 'no_checkin');
@@ -293,6 +294,7 @@ class Bracket {
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
       sets: m.sets || null, extra: m.extra || null, override: !!m.override, // tỉ số từng set (giải offline), ghi đè
+      votes: this.voteCount(t, m), // "Ai sẽ thắng?" – số phiếu hai bên (tour-fun.js)
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }

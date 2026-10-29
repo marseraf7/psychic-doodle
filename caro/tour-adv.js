@@ -15,8 +15,8 @@
 
   // Các tab: tên, biểu tượng, các ô của bản nháp (thêm ô mới ở các đợt sau chỉ cần thêm vào đây)
   const TABS = [
-    { id: 'basic', icon: 'info', keys: ['name', 'desc'] },
-    { id: 'format', icon: 'trophy', keys: ['preset'], stages: true },
+    { id: 'basic', icon: 'info', keys: ['name', 'desc', 'recur'] }, // recur: giải định kỳ (tour-tpl.js)
+    { id: 'format', icon: 'trophy', keys: ['preset', 'teams'], stages: true }, // teams: Team Battle (club-battle.js)
     { id: 'games', icon: 'clock', keys: ['scoreMode', 'time', 'opening', 'rule', 'rated', 'minutes', 'noshow'] },
     // Đăng ký nâng cao: tour-adv-reg.js ('limits' gồm 4 ô Elo / số ván / tuổi tài khoản)
     { id: 'reg', icon: 'users', keys: ['offline', 'start', 'closeAt', 'max', 'approval', 'waitlist', 'limits', 'code', 'questions', 'checkin', 'checkinMin', 'seeding'],
@@ -48,6 +48,7 @@
           : `<button type="button" class="ghost" data-act="tourQuick">${icon('back')}${esc(T('tadv_back_quick'))}</button>
              <button type="button" class="ghost sm" data-act="tourReset">${icon('retry')}${esc(T('draft_reset'))}</button>
              <button type="button" class="ghost" data-act="tourSaveDraft">${esc(T('tadv_save_draft'))}</button>
+             ${K.tplSaveBtn ? K.tplSaveBtn() : ''}
              <button class="primary">${esc(T('tour_submit'))}</button>`}
         </div>
       </div>

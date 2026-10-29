@@ -88,7 +88,7 @@ function buildStage(cfg, index, seeds, opts = {}) {
     st.rounds = [];
     const want = cfg.rounds || swissAutoRounds(seeds.length);
     st.cfg = { ...cfg, rounds: Math.min(want, swissMaxRounds(seeds.length)) };
-    swissNextRound(st, opts.seedOf || ((u) => seeds.indexOf(u)), opts.isActive);
+    swissNextRound(st, opts.seedOf || ((u) => seeds.indexOf(u)), opts.isActive, opts.pairs); // pairs: vòng 1 cặp cố định (giao hữu CLB)
   }
   return st;
 }

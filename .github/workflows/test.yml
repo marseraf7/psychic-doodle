@@ -92,13 +92,13 @@ jobs:
         if: success() || failure()
         run: E2E_BROWSER=${{ matrix.browser }} E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/quickmatch.e2e.js
       # Sửa lỗi buổi kiểm thử 25/10 (#141, #144): hộp xác nhận trong app, hàng chờ tự tìm lại, tái đấu, thẻ Quay lại ván,
-      # +15 giây gia hạn nước đầu, mục Xem, giao diện online; trang Cài đặt nâng cao khi tạo giải (tour-adv), giải offline (tour-offline), khu quản trị giải (tour-manage), đồng ban tổ chức (tour-staff), xem nhánh đấu + trang nhúng (tour-view), quản lý CLB (club-admin)
+      # +15 giây gia hạn nước đầu, mục Xem, giao diện online; trang Cài đặt nâng cao khi tạo giải (tour-adv), giải offline (tour-offline), khu quản trị giải (tour-manage), đồng ban tổ chức (tour-staff), xem nhánh đấu + trang nhúng (tour-view), quản lý CLB (club-admin), chat + diễn đàn CLB (club-talk), Team Battle + giao hữu CLB (club-battle), dự đoán + bình chọn + mẫu giải (tour-fun)
       # (chỉ Chromium: luồng máy chủ / giao diện, không phụ thuộc trình duyệt)
       - name: Kiểm thử trình duyệt các bản sửa buổi kiểm thử 25/10
         timeout-minutes: 15
         if: matrix.browser == 'chromium' && (success() || failure())
         run: |
-          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin; do
+          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun; do
             E2E_BROWSER=chromium E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/$t.e2e.js || exit 1
           done
       # Mở / tải lại khi mạng chậm: Trang chủ hiện sẵn từ HTML, service worker lấy file từ bộ nhớ đệm trước (boot.e2e.js)

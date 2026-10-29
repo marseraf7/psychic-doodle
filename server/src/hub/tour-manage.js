@@ -141,11 +141,14 @@ class TourManage {
     const { t, uid } = this.managerOf(conn, o.id, 'config');
     const me = this.store.users.get(uid);
     if (['running', 'finished', 'cancelled', 'rejected'].includes(t.status)) {
-      const f = this.tourFields(me, { ...o, startsAt: Date.now() + 3600000, format: t.format, stages: t.stages });
+      const f = this.tourFields(me, { ...o, startsAt: Date.now() + 3600000, format: t.format, stages: t.stages, teams: null });
       t.name = f.name;
       t.desc = f.desc;
     } else {
-      const f = this.tourFields(me, o, Date.now(), t.club);
+      // Giao hữu CLB: giữ nguyên thể thức / số bàn (chỉ đổi tên, giới thiệu, giờ, thời gian ván…)
+      const fixed = t.teamMatch ? { format: 'bracket', stages: t.stages, maxPlayers: t.maxPlayers, access: 'public', checkin: false, offline: false, seeding: 'list', reg: null } : {};
+      const f = this.tourFields(me, { ...o, ...fixed, teams: o.teams === undefined ? null : o.teams }, Date.now(), t.club);
+      if (o.teams === undefined) f.teams = t.teams || null; // không gửi Team Battle: giữ như cũ
       const count = t.players.filter((p) => !p.withdrawn).length;
       if (f.maxPlayers < count) throw E('tour_max_low', { n: count });
       // Không đổi giữa trực tuyến và offline khi đã có người (người chơi offline không có tài khoản)

@@ -111,6 +111,7 @@ class TourReg {
       t.players.push(p);
     }
     if (answers) p.answers = answers;
+    if (t.teams) p.team = this.pickTeam(t, u.id, t.teamPref && t.teamPref[u.id]); // Team Battle: CLB thi đấu cho
     if (this.inCheckin(t)) p.checkedIn = true; // đăng ký trong lúc điểm danh = điểm danh luôn
     return 'in';
   }
@@ -127,6 +128,11 @@ class TourReg {
     const me = this.requireUser(conn);
     const t = this.findTour(o.id, me.id);
     if (t.access === 'club' && !this.clubs.get(t.club)?.members[me.id]) throw E('tour_club_only');
+    if (t.teamMatch) throw E('tour_team_match'); // giao hữu CLB: ban quản lý xếp đội hình
+    if (t.teams) {
+      if (!this.pickTeam(t, me.id)) throw E('tour_team_only');
+      t.teamPref = { ...(t.teamPref || {}), [me.id]: String(o.team || '') }; // CLB mình chọn đấu cho (nhận khi vào giải)
+    }
     const p = this.player(t, me.id);
     if (p && !p.withdrawn) return;
     if (this.queueEntry(t, me.id)) return; // đã ở hàng chờ
@@ -198,6 +204,7 @@ class TourReg {
   on_tourAddPlayers(conn, { id, names }) {
     const t = this.requireManager(conn, id, 'players');
     if (t.status !== 'scheduled' && t.status !== 'pending') throw E('tour_closed');
+    if (t.teamMatch) throw E('tour_team_match'); // giao hữu CLB: người chơi lấy từ đội hình
     if (!Array.isArray(names) || !names.length) throw E('tour_names_empty');
     const res = { added: [], missing: [], already: [], full: [], bad: [] };
     const seen = new Set();
@@ -224,6 +231,7 @@ class TourReg {
         const p = this.player(t, u.id);
         if (p && !p.withdrawn) { res.already.push(u.name); continue; }
         if (!room) { res.full.push(u.name); continue; }
+        if (t.teams && !this.pickTeam(t, u.id)) { res.bad.push(u.name); continue; } // Team Battle: không thuộc CLB nào tham gia
         t.queue = (t.queue || []).filter((x) => x.uid !== u.id);
         this.regAdmit(t, u, null);
         this.send(userPid(u.id), note('tour_added', { name: t.name }));

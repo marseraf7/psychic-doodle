@@ -161,6 +161,11 @@ class Tournaments {
         x: side(g.x), o: side(g.o), w: g.w, px: g.px, po: g.po, share: g.share || null, dc: !!g.dc, annulled: !!g.annulled,
       })) : null,
       disputes: this.disputeViews(t), // ván mất kết nối và cách ban tổ chức đã xử lý
+      // Team Battle: bảng CLB; giao hữu CLB: tỉ số hai bên + từng bàn (club-battle.js)
+      teams: t.teams ? this.teamTable(t) : null, teamTop: t.teams ? t.teams.top : null, teamPodium: t.teamPodium || null,
+      teamMatch: t.teamMatch ? this.teamMatchView(t) : null,
+      ...this.funShared(t), // dự đoán, bình chọn hạng mục (tour-fun.js)
+      recur: t.recur || null, recurN: t.recurN || null, // giải định kỳ (tour-tpl.js)
       now: Date.now(),
     };
   }
@@ -187,6 +192,8 @@ class Tournaments {
       perms: manage ? this.tourPerms(t, uid) : null, staff: manage ? this.staffView(t) : null,
       myMatch: myMatch ? this.matchView(t, myMatch, this.curStage(t)) : null,
       now: Date.now(), // giờ máy chủ (phần chung có thể là bản đã lưu vài giây trước)
+      ...(t.teams || t.teamMatch ? this.battleMine(t, uid) : {}),
+      ...this.funMine(t, uid),
     };
   }
 
@@ -218,7 +225,7 @@ class Tournaments {
     const timeLimit = clock ? 0 : TOUR_TIME_LIMITS.includes(Number(o.timeLimit)) ? Number(o.timeLimit) : 20;
     const startsAt = Number(o.startsAt);
     if (!Number.isFinite(startsAt) || startsAt < now + 60 * 1000 || startsAt > now + MAX_START_DAYS * 86400000) throw E('tour_bad_start');
-    const access = ACCESS.includes(o.access) ? o.access : 'public';
+    let access = ACCESS.includes(o.access) ? o.access : 'public';
     let club = null;
     if (access === 'club') {
       const c = this.clubs.get(o.club);
@@ -234,7 +241,11 @@ class Tournaments {
     const maxPlayers = Math.max(ko ? 3 : 2, Math.min(MAX_PLAYERS, Math.floor(Number(o.maxPlayers)) || (ko ? 16 : 100)));
     // Giải offline (trận đấu ngoài đời, ban tổ chức thêm người bằng Bulk Add và nhập tỉ số): chỉ thể thức theo giai đoạn
     const offline = ko && o.offline === true;
+    // Team Battle (club-battle.js): Arena giữa các CLB – mở cho thành viên các CLB đó, không phải giải nội bộ một CLB
+    const teams = ko ? null : this.normalizeTeams(me, o);
+    if (teams && access === 'club') { access = 'public'; club = null; }
     return {
+      teams,
       name, desc: cleanPublicText(o.desc, 1000), format: ko ? 'bracket' : 'arena', startsAt, timeLimit, clock, opening, rule,
       rated: !offline && o.rated !== false, access, club, maxPlayers,
       minutes: ko ? null : (ARENA_MINUTES.includes(Number(o.minutes)) ? Number(o.minutes) : 30),
@@ -246,6 +257,7 @@ class Tournaments {
       // Thời gian chờ vắng mặt (phút) trước khi xử thua; null = mặc định của máy chủ (2 phút)
       noShowMin: ko && NOSHOW_MIN.includes(Number(o.noShowMin)) ? Number(o.noShowMin) : null,
       hideSeeds: o.hideSeeds === true, // không hiện số hạt giống cho người xem (như Challonge "Hide seeds")
+      recur: ['weekly', 'monthly'].includes(o.recur) ? o.recur : null, // giải định kỳ (tour-tpl.js)
     };
   }
 
@@ -253,17 +265,23 @@ class Tournaments {
     const me = this.requireUser(conn);
     const now = Date.now();
     const fields = this.tourFields(me, o, now);
+    this.createTour(conn, me, fields, o.draft === true);
+  }
+
+  /** Lưu giải mới (cả giao hữu CLB – club-battle.js): giới hạn số giải đang mở, nháp / chờ duyệt / mở đăng ký. */
+  createTour(conn, me, fields, draft = false) {
+    const now = Date.now();
     const active = [...this.tours.values()].filter((t) => t.creator === me.id && ['draft', 'pending', 'scheduled', 'running'].includes(t.status));
     if (active.length >= MAX_ACTIVE_TOURS_PER_USER) throw E('tour_limit', { n: MAX_ACTIVE_TOURS_PER_USER });
-    const admin = this.isAdmin(me.id);
     // Lưu nháp: chỉ người tạo thấy, chưa gửi duyệt (tour-manage.js: on_tourSubmit)
-    const status = o.draft === true ? 'draft' : admin ? 'scheduled' : 'pending';
+    const status = draft ? 'draft' : this.isAdmin(me.id) ? 'scheduled' : 'pending';
     const t = { id: crypto.randomBytes(5).toString('hex'), ...fields, creator: me.id, status, created: now, players: [], games: [], queue: [] };
     this.tours.set(t.id, t);
     this.tourLog(t, me.id, 'created');
     this.saveTour(t);
     conn.send({ t: 'tourCreated', id: t.id, status: t.status });
     if (status === 'pending') this.notifyAdmins(t.name);
+    return t;
   }
 
   /** Danh sách giải: đang diễn ra, sắp tới, đã xong (giải 'link' chỉ hiện với người liên quan). */
@@ -301,6 +319,8 @@ class Tournaments {
       const c = this.clubs.get(t.club);
       if (!c || !c.members[uid]) return false;
     }
+    if (t.teamMatch) return false; // giao hữu CLB: ban quản lý hai CLB xếp đội hình (club-battle.js)
+    if (t.teams && !t.teams.clubs.some((id) => this.clubs.get(id)?.members[uid])) return false; // Team Battle: thành viên các CLB
     const p = this.player(t, uid);
     if (p && !p.withdrawn) return false;
     return t.players.filter((x) => !x.withdrawn).length < t.maxPlayers || !!(t.reg && t.reg.waitlist);

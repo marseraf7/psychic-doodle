@@ -95,6 +95,12 @@ class Clubs {
       hideMembers: !!c.hideMembers, chat: c.chat, forum: c.forum,
       members, membersHidden: !showAll, officer, isOwner: c.owner === uid, perms: myPerms,
       muted: !!(uid && c.muted.includes(uid)),
+      // Chat / diễn đàn (club-talk.js): mình đọc / viết được không; người bị cấm nói (ban quản lý thấy)
+      talk: {
+        chat: this.canChat(c, uid, false), chatWrite: this.canChat(c, uid, true), forum: this.canForum(c, uid, false), forumWrite: this.canForum(c, uid, true),
+        muted: !!(uid && c.talkMuted.includes(uid)),
+      },
+      talkMuted: can('mod') ? c.talkMuted : [],
       msgs: member || officer ? c.msgs.slice(-10).reverse() : [],
       msgWait: can('broadcast') ? Math.max(0, (c.lastMsgAt || 0) + this.T.CLUB_MSG_MS - Date.now()) : 0,
       code: (can('settings') || can('requests')) && c.join === 'code' ? c.code : null,
@@ -102,7 +108,10 @@ class Clubs {
       declined: can('requests') ? c.declined.map((x) => ({ id: x.uid, name: name(x.uid), at: x.at, msg: x.msg || '' })) : [],
       banned: can('kick') ? Object.entries(c.banned).map(([id, x]) => ({ id, name: name(id), at: x.at })) : [],
       reviewNote: c.owner === uid || this.isAdmin(uid) ? c.reviewNote || '' : '',
-      tours: [...this.tours.values()].filter((t) => t.club === c.id && this.canSeeTour(t, uid))
+      trophies: c.trophies.slice(0, 30), points: c.points,
+      // Giải của CLB + Team Battle / giao hữu có CLB tham gia
+      tours: [...this.tours.values()].filter((t) => (t.club === c.id || (t.teams && t.teams.clubs.includes(c.id)) ||
+        (t.teamMatch && (t.teamMatch.a === c.id || t.teamMatch.b === c.id))) && this.canSeeTour(t, uid))
         .sort((a, b) => b.startsAt - a.startsAt).slice(0, 30).map((t) => this.tourSummary(t, uid)),
     };
   }
@@ -159,10 +168,12 @@ class Clubs {
     const c = this.findClub(id, uid);
     conn.watchClub = c.id;
     conn.send({ t: 'club', club: this.clubView(c, uid), id: c.id });
+    this.clubTalkOpen(conn, c, uid); // chat gần nhất (club-talk.js)
   }
 
   on_clubUnwatch(conn) {
     conn.watchClub = null;
+    conn.watchTopic = null;
   }
 
   on_clubJoin(conn, { id, code, msg }) {
@@ -262,6 +273,7 @@ class Clubs {
     delete c.joinedAt[uid];
     delete c.seen[uid];
     c.muted = c.muted.filter((x) => x !== uid);
+    c.talkMuted = c.talkMuted.filter((x) => x !== uid);
   }
 
   /** Những người có quyền perm (chủ + quản lý có quyền đó) – để gửi thông báo. */
@@ -312,6 +324,9 @@ function normalizeClub(c) {
   c.muted = c.muted || [];
   c.msgs = c.msgs || [];
   c.seen = c.seen || {};
+  c.trophies = c.trophies || []; // tủ cúp: Team Battle hạng 1–3, giao hữu thắng (club-battle.js)
+  c.points = c.points || 0; // điểm xếp hạng CLB toàn hệ thống
+  c.talkMuted = c.talkMuted || []; // bị cấm nói ở chat / diễn đàn (club-talk.js)
   c.chat = c.chat || 'members';
   c.forum = c.forum || 'members';
   if (c.intro == null) c.intro = '';

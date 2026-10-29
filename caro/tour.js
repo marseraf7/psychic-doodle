@@ -91,7 +91,7 @@
   function open(page, id, push) {
     if (push !== false && (V.page !== page || V.id !== id)) V.stack.push({ page: V.page, id: V.id });
     if (V.page === 'tour' && page !== 'tour') O.send({ t: 'tourUnwatch' });
-    if (/^club(Admin)?$/.test(V.page) && !/^club(Admin)?$/.test(page)) O.send({ t: 'clubUnwatch' });
+    if (/^club(Admin|Topic|TopicNew)?$/.test(V.page) && !/^club(Admin|Topic|TopicNew)?$/.test(page)) O.send({ t: 'clubUnwatch' });
     V.page = page;
     V.id = id || null;
     if (K.enter[page]) K.enter[page]();
@@ -213,6 +213,8 @@
     if (t.podium && t.podium.length && t.status === 'finished') {
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
+    if (K.battleHtml) html += K.battleHtml(t); // Team Battle / giao hữu CLB (club-battle.js)
+    if (K.funHtml) html += K.funHtml(t); // poster, dự đoán, bình chọn (tour-fun.js)
     if (t.format === 'bracket') html += (K.statsHtml ? K.statsHtml(t) : '') + (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
     html += t.format === 'arena' ? K.standings(t) : K.playerList(t); // tour-players.js
     if (t.format === 'arena' && t.games && t.games.length) html += K.recentGames(t);
@@ -269,7 +271,7 @@
       if (K.acts[a]) K.acts[a](b);
       else if (a === 'adminStats') O.send({ t: 'adminStats' });
       else if (a === 'tour') open('tour', b.dataset.id);
-      else if (a === 'join') O.send({ t: 'tourJoin', id: t.id });
+      else if (a === 'join') O.send({ t: 'tourJoin', id: t.id, ...(K.joinExtra ? K.joinExtra() : {}) });
       else if (a === 'checkin') O.send({ t: 'tourCheckin', id: t.id });
       else if (a === 'pause') O.send({ t: 'tourPause', id: t.id, paused: b.dataset.v === '1' });
       else if (a === 'leave') { if (confirm(T(t.status === 'running' ? 'confirm_tour_withdraw_running' : 'confirm_tour_withdraw'))) O.send({ t: 'tourLeave', id: t.id }); }
@@ -381,6 +383,7 @@
       if (ctx === 'tourJoin' && $('rf-err') && isOpen()) return 'rf-err';
       if (ctx === 'tourScore' && $('sp-err') && isOpen()) return 'sp-err';
       if (ctx === 'clubCreate' && $('cf-err') && isOpen()) return 'cf-err';
+      if (ctx === 'clubTopicNew' && $('ft-err') && isOpen()) return 'ft-err';
       return null;
     },
     open: (id) => { V.stack = [{ page: 'tours', id: null }]; open('tour', id, false); },

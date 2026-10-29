@@ -54,6 +54,7 @@ class TourRun {
     this.pushTour(t);
     this.notifyPlayers(t, 'tour_cancelled');
     if (wasPending) this.notifyAdmins();
+    if (reason === 'too_few') this.tourRecur(t); // định kỳ: kỳ này thiếu người vẫn tạo kỳ sau (ban tổ chức tự huỷ thì dừng chuỗi)
   }
 
   // ------------------------------------------------------------ Vận hành
@@ -132,6 +133,7 @@ class TourRun {
     t.finishedAt = Date.now();
     this.tickDisputes(t, t.finishedAt); // giải xong: ván mất kết nối chưa xử lý được giữ nguyên kết quả
     t.podium = t.format === 'arena' ? this.arenaPodium(t) : this.bracketPodium(t);
+    this.clubAwards(t); // Team Battle / giao hữu CLB: điểm xếp hạng CLB + tủ cúp (club-battle.js)
     this.saveTour(t);
     this.pushTour(t);
     // Thành tích giải trên trang hồ sơ
@@ -145,6 +147,7 @@ class TourRun {
     }
     const champ = t.podium[0] && this.player(t, t.podium[0]);
     this.notifyPlayers(t, 'tour_finished', { winner: champ ? champ.name : '—' });
+    this.tourRecur(t); // giải định kỳ: tạo giải kế tiếp (tour-tpl.js)
   }
 
   /**

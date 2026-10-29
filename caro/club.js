@@ -22,6 +22,7 @@
   function pageClubs() {
     setTitle('clubs_title');
     let html = `<div class="row"><button type="button" class="primary" data-act="clubNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('club_create'))}</button>
+      <button type="button" class="ghost" data-act="clubRanking">${icon('trophy')}${esc(T('cr_title'))}</button>
       <input id="club-q" placeholder="${esc(T('club_search'))}" maxlength="40" value="${esc(D.clubQ || '')}"></div>`;
     if (!me()) html += needLogin();
     if (!D.clubs) return html + `<p class="hint">…</p>`;
@@ -60,6 +61,8 @@
       html += `<h4>${esc(T('club_msgs'))}</h4>${c.msgs.length ? `<ul class="club-msgs">${c.msgs.slice(0, 3).map((m) => `<li><p>${esc(m.text)}</p><small class="muted">${esc(m.by)} · ${esc(day(m.at))}</small></li>`).join('')}</ul>` : `<p class="hint">${esc(T('club_msgs_none'))}</p>`}
         <label class="check"><input type="checkbox" data-act="clubMute" ${c.muted ? '' : 'checked'}> <span>${esc(T('club_msgs_receive'))}</span></label>`;
     }
+    if (K.clubTalkHtml) html += K.clubTalkHtml(c); // chat + diễn đàn (club-talk.js)
+    if (K.clubCupHtml && c.status === 'approved') html += K.clubCupHtml(c); // tủ cúp, thách đấu, xếp hạng CLB (club-match.js)
     if (c.tours && c.tours.length) html += `<h4>${esc(T('club_tours'))}</h4><ul class="tlist">${c.tours.map(tourItem).join('')}</ul>`;
     // Thành viên: lọc tất cả / đang online
     const list = D.clubFilter === 'online' ? c.members.filter((m) => m.status !== 'offline') : c.members;
@@ -82,6 +85,10 @@
     const setRole = c.isOwner || (can('admin') && !(m.role === 'officer' && (m.perms || []).includes('admin')));
     if (setRole) ops.push(m.role === 'officer' ? `<option value="member">${esc(T('make_member'))}</option>` : `<option value="officer">${esc(T('make_officer'))}</option>`);
     if (c.isOwner) ops.push(`<option value="owner">${esc(T('make_owner'))}</option>`);
+    // Cấm nói ở chat / diễn đàn (quyền Kiểm duyệt; máy chủ không cho cấm người cũng có quyền này)
+    if (can('mod') && !(m.role === 'officer' && (m.perms || []).includes('mod'))) {
+      ops.push((c.talkMuted || []).includes(m.id) ? `<option value="talkon">${esc(T('talk_unmute'))}</option>` : `<option value="talkoff">${esc(T('talk_mute'))}</option>`);
+    }
     if (can('kick') && (m.role === 'member' || c.isOwner)) ops.push(`<option value="kick">${esc(T('club_kick'))}</option><option value="ban">${esc(T('club_kick_ban'))}</option>`);
     return ops.join('');
   }
@@ -123,6 +130,7 @@
         s.value = '';
         if (!v) return;
         if (v === 'kick' || v === 'ban') { if (confirm(T(v === 'ban' ? 'confirm_club_ban' : 'confirm_club_kick', { name }))) O.send({ t: 'clubKick', id: D.club.id, uid, ban: v === 'ban' }); }
+        else if (v === 'talkoff' || v === 'talkon') O.send({ t: 'clubTalkMute', id: D.club.id, uid, mute: v === 'talkoff' });
         else if (v === 'owner') { if (confirm(T('confirm_club_owner', { name }))) O.send({ t: 'clubRole', id: D.club.id, uid, role: 'owner' }); }
         else O.send({ t: 'clubRole', id: D.club.id, uid, role: v });
       };
@@ -154,7 +162,7 @@
     if (!m.club && isOpen() && /^club/.test(V.page)) { V.stack = []; top('clubs'); return; }
     if (isOpen() && (V.page === 'club' || V.page === 'clubAdmin')) {
       // Đang gõ (lời nhắn, cài đặt, tin gửi) thì không vẽ lại – tránh mất chữ đang gõ
-      if (document.activeElement && document.activeElement.closest('#club-msg, #club-set, #club-bc')) return;
+      if (document.activeElement && document.activeElement.closest('#club-msg, #club-set, #club-bc, #cc-form, #fp-form, #ft-form, .fp-edit')) return;
       render();
     }
   });

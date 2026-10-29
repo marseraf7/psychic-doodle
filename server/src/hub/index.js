@@ -41,6 +41,10 @@ const { Challenges } = require('./challenges.js');
 const { Matchmaking } = require('./matchmaking.js');
 const { Clubs } = require('./clubs.js');
 const { ClubManage } = require('./club-manage.js');
+const { ClubTalk } = require('./club-talk.js');
+const { ClubBattle } = require('./club-battle.js');
+const { TourFun } = require('./tour-fun.js');
+const { TourTpl } = require('./tour-tpl.js');
 const { Tournaments } = require('./tournaments.js');
 const { TourRun } = require('./tour-run.js');
 const { Arena } = require('./arena.js');
@@ -60,7 +64,7 @@ const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, Tournaments, TourRun, Arena, Bracket, TourReg, TourScore, TourManage, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, TourReg, TourScore, TourManage, TourFun, TourTpl, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

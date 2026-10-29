@@ -421,3 +421,27 @@ Việc lặp lại như soát dịch 4 ngôn ngữ, chạy e2e nhiều lần và
   - Yêu cầu vào **kèm lời nhắn**; từ chối thì vào danh sách **đã từ chối** (không gửi lại được, ban quản lý duyệt lại hoặc cho gửi lại); **mời ra kèm chặn** + danh sách bị chặn.
   - **Tin gửi toàn CLB** (1 tin / 12 giờ): người online nhận ngay, người offline nhận khi vào lại, hiện trong chuông thông báo; thành viên tự tắt nhận tin được.
   - Trang CLB có ngày vào của từng người, lọc thành viên đang online. Các việc quản lý chuyển sang trang **Quản lý CLB** riêng (`club-admin.js`); máy chủ tách `club-manage.js`.
+- **Đợt 8 – xong**:
+  - **Chat CLB** theo cài đặt: tắt / chỉ ban quản lý / mọi thành viên. Người đang mở trang CLB nhận tin ngay; mở trang thì thấy 50 tin gần nhất. Chỉ cập nhật khung chat, không mất chữ đang gõ.
+  - **Diễn đàn CLB** theo cài đặt: tắt / ban quản lý viết / thành viên / mọi người đọc. Có chủ đề và bài viết theo trang, giữ xuống dòng. Tác giả sửa / xoá bài của mình. Bài mới hiện ngay ở người đang xem.
+  - **Kiểm duyệt** (quyền Kiểm duyệt):
+    - xoá tin chat / bài;
+    - ghim, khoá, xoá chủ đề;
+    - **cấm nói** một thành viên (cả chat và diễn đàn).
+  - Giới hạn tần suất: chat 1 tin / giây, bài 1 / 10 giây, chủ đề 1 / phút, tối đa 500 chủ đề.
+  - Lưu ở bảng SQLite riêng (`store-club.js`). Giải tán CLB thì xoá hết; xoá tài khoản thì xoá tin và bài của người đó.
+- **Đợt 9 – xong**:
+  - **Team Battle**: bật ở tab Thể thức của trang Cài đặt nâng cao (Arena), chọn 2–10 CLB và số người tính điểm N. Chỉ thành viên các CLB đó được vào (thuộc nhiều CLB thì chọn CLB thi đấu cho). Không ghép hai người cùng CLB. Trang giải có bảng CLB (tổng điểm N người cao điểm nhất).
+  - **Giao hữu CLB đấu CLB**: nút "Thách đấu CLB khác" ở trang CLB (quyền Giải đấu): chọn đối thủ, số bàn, giờ, thời gian ván, Bo. Qua quản trị viên duyệt như giải thường. CLB kia phải chấp nhận, không thì huỷ. Mỗi bên xếp đội hình theo bàn; tới giờ, bàn 1 gặp bàn 1… Dùng chung hạ tầng giải (Thụy Sĩ 1 vòng, cặp cố định) nên có sẵn vắng mặt, khiếu nại, xem trực tiếp.
+  - **Bảng xếp hạng CLB** toàn hệ thống: Team Battle hạng 1 / 2 / 3 được 10 / 6 / 4 điểm; giao hữu thắng 3, hoà 1.
+  - **Tủ cúp** ở trang CLB. Trang CLB liệt kê cả Team Battle và giao hữu có CLB tham gia.
+- **Đợt 10 – xong**:
+  - **Dự đoán bục vinh quang** trước giờ đấu (vô địch / á quân / hạng ba). Đúng vị trí 3 điểm, có trên bục nhưng sai vị trí 1 điểm. Giải xong có bảng người đoán giỏi nhất.
+  - **"Ai sẽ thắng?"**: bình chọn các trận đã rõ hai người nhưng chưa bắt đầu (hợp nhất với giải offline và lịch theo vòng). Trận hiện tỉ lệ phiếu; bấm lại để bỏ phiếu.
+  - **Bình chọn cuối giải** (mở 3 ngày): Kỳ thủ xuất sắc, Ván đẹp nhất (giải không có ván trực tuyến thì ẩn mục này).
+  - **Poster** 1080×1350 (tên giải, thể thức, giờ, CLB, bục vinh quang, link) vẽ bằng canvas trên máy người dùng – không thêm việc cho máy chủ.
+  - **Mẫu giải**: "Lưu thành mẫu" ở trang nâng cao (mỗi người tối đa 10, không kèm giờ). "Mẫu của tôi" ở form nhanh.
+  - **Sao chép giải** ở tab Quản lý: mở trang nâng cao với cài đặt cũ, giờ đấu lùi 1 ngày, không sao chép người chơi.
+  - **Giải định kỳ** hằng tuần / hằng tháng (tab Cơ bản): giải xong (hoặc bị huỷ vì thiếu người) tự tạo kỳ sau cùng cài đặt. Kỳ sau vẫn qua quản trị viên duyệt; ban tổ chức tự huỷ thì dừng chuỗi.
+
+Lộ trình 10 đợt đã hoàn tất.

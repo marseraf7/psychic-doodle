@@ -36,7 +36,7 @@
   // editId: đang sửa cài đặt một giải đã tạo (tour-manage.js) – không lưu nháp vào máy, gửi tourEdit thay cho tourCreate
   const F = { preset: 'arena', stages: null, d: null, tab: 'basic', editId: null };
   // Phần mở rộng (vd. tour-adv-reg.js – đăng ký nâng cao): ô mặc định, đọc thêm từ form, kiểm, thêm vào lệnh tạo giải
-  const EXT = { defaults: {}, loaders: [], collectors: [], validators: [], payloads: [] };
+  const EXT = { defaults: {}, loaders: [], collectors: [], validators: [], payloads: [], fromTour: [] };
   /** Giờ bắt đầu mặc định: 1 giờ nữa, làm tròn 5 phút (chuỗi datetime-local theo giờ máy). */
   function defaultStart() {
     const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -149,6 +149,7 @@
     if (!F.d) begin(V.id);
     return `<form id="tf" class="tform">
       <div class="tf-top"><p class="note">${esc(T('review_note_tour'))}</p><button type="button" class="ghost sm" data-act="tourReset">${icon('retry')}${esc(T('draft_reset'))}</button></div>
+      ${K.tplRow ? K.tplRow() : ''}
       ${fields(['name', 'desc', 'preset'])}
       <p class="hint" id="tf-fmt-hint"></p>
       <button type="button" class="ghost adv-btn" id="tf-adv" data-act="tourAdv" hidden>${icon('sliders')}${esc(T('tadv_settings'))}</button>
@@ -253,6 +254,7 @@
       minAccountDays: r.minAccountDays || '', code: (t.regAdmin && t.regAdmin.code) || '', checkinMin: String(r.checkinMin || 10),
       questions: (r.questions || []).map((q) => ({ q: q.q, type: q.type, opts: (q.opts || []).join(', ') })),
     };
+    for (const f of EXT.fromTour) f(F.d, t); // các ô cắm thêm (Team Battle – club-battle.js)
   }
 
   /** Đưa con trỏ tới ô lỗi (ô ngày giờ: ô ngày đang hiện, không phải ô ẩn giữ giá trị). */
@@ -299,5 +301,5 @@
     O.toast(T('tour_edited'));
     if (K.isOpen() && K.V.page === 'tourAdv') { K.V.stack = [{ page: 'tours', id: null }]; open('tour', m.id, false); }
   });
-  K.tourDraft = { F, FIELDS, EXT, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate, fromTour, submit, focusField };
+  K.tourDraft = { F, FIELDS, EXT, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate, fromTour, submit, focusField, blank, saveDraft };
 })();
