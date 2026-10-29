@@ -119,7 +119,7 @@ function swissPairs(order, played, byes) {
   return { pairs, bye };
 }
 
-function swissNextRound(st, seedOf, isActive = () => true) {
+function swissNextRound(st, seedOf, isActive = () => true, fixed = null) {
   const r = st.rounds.length;
   const stats = tally(st);
   // Người đã rút không được ghép nữa (vẫn còn trong bảng xếp hạng)
@@ -128,7 +128,8 @@ function swissNextRound(st, seedOf, isActive = () => true) {
   for (const m of Object.values(st.matches)) if (real(m.a) && real(m.b)) played.add(m.a < m.b ? m.a + '|' + m.b : m.b + '|' + m.a);
   const byes = {};
   for (const m of Object.values(st.matches)) if (m.bye && real(m.winner)) byes[m.winner] = (byes[m.winner] || 0) + 1;
-  const { pairs, bye } = swissPairs(order, played, byes);
+  // Cặp cố định (giao hữu CLB: bàn 1 gặp bàn 1…) chỉ cho vòng đầu
+  const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : swissPairs(order, played, byes);
   const ids = [];
   pairs.forEach(([a, b], i) => {
     const m = newMatch(`${st.key}s${r}m${i}`, r);

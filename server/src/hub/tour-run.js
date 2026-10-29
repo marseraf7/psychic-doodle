@@ -132,6 +132,7 @@ class TourRun {
     t.finishedAt = Date.now();
     this.tickDisputes(t, t.finishedAt); // giải xong: ván mất kết nối chưa xử lý được giữ nguyên kết quả
     t.podium = t.format === 'arena' ? this.arenaPodium(t) : this.bracketPodium(t);
+    this.clubAwards(t); // Team Battle / giao hữu CLB: điểm xếp hạng CLB + tủ cúp (club-battle.js)
     this.saveTour(t);
     this.pushTour(t);
     // Thành tích giải trên trang hồ sơ

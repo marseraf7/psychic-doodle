@@ -75,7 +75,7 @@
       const name = (u) => (t.players.find((p) => p.uid === u) || {}).name || '?';
       html += fold(t.id + ':ans', `<b>${esc(T('reg_answers_title'))}</b>`, `<ul class="people">${ans.map(([u, a]) => `<li><div class="pn"><b>${esc(name(u))}</b><small class="ans">${esc(answersText(t, a))}</small></div></li>`).join('')}</ul>`, false);
     }
-    if (open && K.can(t, 'players')) {
+    if (open && K.can(t, 'players') && !t.teamMatch) { // giao hữu CLB: người chơi lấy từ đội hình
       const res = R.result && R.result.id === t.id ? R.result : null;
       const line = (k, list) => (list && list.length ? `<li><b>${esc(T('reg_res_' + k, { n: list.length }))}</b> <small>${esc(list.join(', '))}</small></li>` : '');
       html += fold(t.id + ':bulk', `<b>${icon('plus')}${esc(T(t.offline ? 'reg_bulk_title_off' : 'reg_bulk_title'))}</b>`, `<div class="bulk">
@@ -104,7 +104,7 @@
   K.acts.join = () => {
     const t = D.tour;
     if (needsForm(t)) { R.form = t.id; render(true); const f = $('rf'); const first = f && f.querySelector('input, select'); if (first) first.focus(); return; }
-    O.send({ t: 'tourJoin', id: t.id });
+    O.send({ t: 'tourJoin', id: t.id, ...(K.joinExtra ? K.joinExtra() : {}) }); // Team Battle: CLB thi đấu cho (club-battle.js)
   };
   K.acts.regCancel = () => { R.form = null; render(true); };
   K.acts.regLeave = () => { O.send({ t: 'tourLeave', id: D.tour.id }); };
@@ -134,7 +134,7 @@
         e.preventDefault();
         const answers = [...f.querySelectorAll('[data-ans]')].sort((a, b) => a.dataset.ans - b.dataset.ans).map((x) => x.value.trim());
         if (answers.some((x) => !x) || (f.code && !f.code.value.trim())) { $('rf-err').textContent = T('srv_tour_answers_required'); return; }
-        O.send({ t: 'tourJoin', id: D.tour.id, code: f.code ? f.code.value : undefined, answers });
+        O.send({ t: 'tourJoin', id: D.tour.id, code: f.code ? f.code.value : undefined, answers, ...(K.joinExtra ? K.joinExtra() : {}) });
       };
     }
     const file = $('bulk-file');

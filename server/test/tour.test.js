@@ -1312,3 +1312,97 @@ test('Đợt 8: chat CLB (theo cài đặt, thời gian thực, xoá, cấm nói
     app.hub.T.THROTTLE_SCALE = keep;
   }
 });
+
+test('Đợt 9: Team Battle (chỉ thành viên các CLB, không ghép cùng CLB, điểm N người đầu), giao hữu CLB đấu CLB (mời, đội hình, bàn 1 gặp bàn 1), tủ cúp + xếp hạng CLB', async () => {
+  // Chủ CLB là người thường (quản trị viên có mọi quyền ở mọi CLB nên không dùng để thử quyền)
+  const B = await admin();
+  const oa = await account('tbo'), ob = await account('tbo');
+  const A = (await oa.req({ t: 'clubCreate', name: 'Đội A ' + seq, join: 'open' }, 'clubCreated')).id;
+  const Bc = (await ob.req({ t: 'clubCreate', name: 'Đội B ' + seq, join: 'open' }, 'clubCreated')).id;
+  for (const c of [A, Bc]) await B.req({ t: 'adminReview', kind: 'club', id: c, approve: true }, 'adminQueue');
+  const approve = (tid) => B.req({ t: 'adminReview', kind: 'tour', id: tid, approve: true }, 'adminQueue');
+  const a1 = await account('tba', 1500), a2 = await account('tba', 1450), b1 = await account('tbb', 1480), x = await account('tbx', 1400);
+  for (const c of [a1, a2]) await c.req({ t: 'clubJoin', id: A }, 'toast', (m) => m.code === 'club_joined');
+  await b1.req({ t: 'clubJoin', id: Bc }, 'toast', (m) => m.code === 'club_joined');
+  // ---------------------------------------------------------------- Team Battle
+  assert.strictEqual((await oa.req({ t: 'tourCreate', name: 'TB lỗi', format: 'arena', startsAt: soon(), timeLimit: 30, teams: { clubs: [A] } }, 'error')).code, 'team_battle_few');
+  const { id } = await oa.req({ t: 'tourCreate', name: 'Team Battle', format: 'arena', startsAt: soon(), timeLimit: 30, minutes: 30, rated: false,
+    teams: { clubs: [A, Bc], top: 1 } }, 'tourCreated');
+  await approve(id);
+  const t = app.hub.tours.get(id);
+  assert.deepStrictEqual(t.teams, { clubs: [A, Bc], top: 1 });
+  assert.strictEqual((await x.req({ t: 'tourJoin', id }, 'error')).code, 'tour_team_only', 'người ngoài các CLB không vào được');
+  for (const c of [a1, a2, b1]) await c.req({ t: 'tourJoin', id }, 'toast');
+  assert.deepStrictEqual(t.players.map((p) => p.team), [A, A, Bc]);
+  const mine = (await a1.req({ t: 'tourGet', id }, 'tour')).tour;
+  assert.deepStrictEqual(mine.myTeams.map((y) => y.id), [A]);
+  oa.send({ t: 'tourStart', id });
+  await until(() => [...app.hub.rooms.values()].some((r) => r.tour && r.tour.id === id && r.active));
+  const rooms = [...app.hub.rooms.values()].filter((r) => r.tour && r.tour.id === id && r.active);
+  assert.strictEqual(rooms.length, 1, '3 người, 2 cùng CLB: chỉ một ván');
+  const inRoom = rooms[0].players.map((p) => p.id.slice(2));
+  assert.ok(inRoom.includes(b1.me.uid), 'không ghép hai người cùng CLB A');
+  const rival = inRoom.includes(a1.me.uid) ? a1 : a2;
+  await waitRoom(rival, (r) => r.tour && !r.winner);
+  await waitRoom(b1, (r) => r.tour && !r.winner);
+  t.endsAt = Date.now() + 60000;
+  await playOut(rival, b1);
+  t.endsAt = Date.now(); // hết giờ: không ghép thêm
+  await until(() => t.status === 'finished', 5000);
+  const table = (await a2.req({ t: 'tourGet', id }, 'tour')).tour.teams;
+  assert.strictEqual(table[0].id, A);
+  assert.strictEqual(table[0].score, 2);
+  assert.strictEqual(table[1].score, 0);
+  const cA = app.hub.clubs.get(A);
+  assert.strictEqual(cA.trophies[0].kind, 'battle');
+  assert.strictEqual(cA.trophies[0].place, 1);
+  assert.strictEqual(cA.points, 10);
+  assert.strictEqual(app.hub.clubs.get(Bc).points, 0, 'CLB 0 điểm không được xếp hạng');
+  // ---------------------------------------------------------------- Giao hữu: không chấp nhận thì huỷ
+  const inv = ob.wait('toast', (m) => m.code === 'club_match_invite');
+  const m1 = await oa.req({ t: 'clubMatchCreate', id: A, opp: Bc, boards: 2, startsAt: soon(), timeLimit: 30, bestOf: 1 }, 'tourCreated');
+  await inv;
+  await approve(m1.id);
+  oa.send({ t: 'tourStart', id: m1.id });
+  await until(() => app.hub.tours.get(m1.id).status === 'cancelled');
+  assert.strictEqual(app.hub.tours.get(m1.id).cancelReason, 'match_not_accepted');
+  // ---------------------------------------------------------------- Giao hữu: chấp nhận, đội hình, bàn 1 gặp bàn 1
+  const m2 = (await oa.req({ t: 'clubMatchCreate', id: A, opp: Bc, boards: 2, startsAt: soon(), timeLimit: 30, bestOf: 1 }, 'tourCreated')).id;
+  await approve(m2);
+  const tm = app.hub.tours.get(m2);
+  assert.strictEqual((await a1.req({ t: 'clubMatchAccept', tour: m2, accept: true }, 'error')).code, 'club_officers_only');
+  assert.strictEqual((await oa.req({ t: 'clubMatchAccept', tour: m2, accept: true }, 'error')).code, 'club_officers_only', 'bên mời không tự chấp nhận');
+  await ob.req({ t: 'clubMatchAccept', tour: m2, accept: true }, 'toast').catch(() => {});
+  await until(() => tm.teamMatch.accepted);
+  assert.strictEqual((await a1.req({ t: 'tourJoin', id: m2 }, 'error')).code, 'tour_team_match');
+  oa.send({ t: 'clubMatchLineup', tour: m2, side: 'a', uids: [a1.me.uid, a2.me.uid, x.me.uid] });
+  ob.send({ t: 'clubMatchLineup', tour: m2, side: 'b', uids: [b1.me.uid, ob.me.uid, a1.me.uid] });
+  await until(() => tm.teamMatch.lineup.a.length === 2 && tm.teamMatch.lineup.b.length === 2);
+  assert.deepStrictEqual(tm.teamMatch.lineup.b, [b1.me.uid, ob.me.uid], 'chỉ thành viên CLB, không ai ở cả hai đội');
+  assert.strictEqual((await ob.req({ t: 'clubMatchLineup', tour: m2, side: 'a', uids: [] }, 'error')).code, 'club_officers_only', 'không xếp đội hình đội kia');
+  oa.send({ t: 'tourStart', id: m2 });
+  await until(() => tm.status === 'running');
+  assert.deepStrictEqual(tm.teamMatch.pairs, [[a1.me.uid, b1.me.uid], [a2.me.uid, ob.me.uid]]);
+  const ms = Object.values(tm.st[0].matches);
+  assert.ok(ms.some((m) => m.a === a1.me.uid && m.b === b1.me.uid) && ms.some((m) => m.a === a2.me.uid && m.b === ob.me.uid), 'bàn 1 gặp bàn 1, bàn 2 gặp bàn 2');
+  for (const [w, l] of [[a1, b1], [a2, ob]]) {
+    await waitRoom(w, (r) => r.tour && r.tour.id === m2 && !r.winner);
+    await waitRoom(l, (r) => r.tour && r.tour.id === m2 && !r.winner);
+    await playOut(w, l);
+  }
+  await until(() => tm.status === 'finished', 5000);
+  const v = (await x.req({ t: 'tourGet', id: m2 }, 'tour')).tour.teamMatch;
+  assert.deepStrictEqual([v.a.score, v.b.score], [2, 0]);
+  assert.deepStrictEqual(v.played.map((b) => b.res), ['a', 'a']);
+  assert.strictEqual(cA.trophies[0].kind, 'match');
+  assert.strictEqual(cA.points, 13);
+  // ---------------------------------------------------------------- Bảng xếp hạng CLB + tủ cúp trên trang CLB
+  const rank = await x.req({ t: 'clubRanking' }, 'clubRanking');
+  const row = rank.list.find((r) => r.id === A);
+  assert.ok(row && row.points === 13 && row.gold === 2);
+  assert.ok(!rank.list.some((r) => r.id === Bc));
+  const page = (await x.req({ t: 'clubGet', id: A }, 'club')).club;
+  assert.strictEqual(page.trophies.length, 2);
+  assert.ok(page.tours.some((y) => y.id === id) && page.tours.some((y) => y.id === m2), 'trang CLB có Team Battle và giao hữu');
+  [oa, ob, a1, a2, b1, x].forEach((c) => c.close());
+});

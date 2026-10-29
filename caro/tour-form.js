@@ -36,7 +36,7 @@
   // editId: đang sửa cài đặt một giải đã tạo (tour-manage.js) – không lưu nháp vào máy, gửi tourEdit thay cho tourCreate
   const F = { preset: 'arena', stages: null, d: null, tab: 'basic', editId: null };
   // Phần mở rộng (vd. tour-adv-reg.js – đăng ký nâng cao): ô mặc định, đọc thêm từ form, kiểm, thêm vào lệnh tạo giải
-  const EXT = { defaults: {}, loaders: [], collectors: [], validators: [], payloads: [] };
+  const EXT = { defaults: {}, loaders: [], collectors: [], validators: [], payloads: [], fromTour: [] };
   /** Giờ bắt đầu mặc định: 1 giờ nữa, làm tròn 5 phút (chuỗi datetime-local theo giờ máy). */
   function defaultStart() {
     const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -253,6 +253,7 @@
       minAccountDays: r.minAccountDays || '', code: (t.regAdmin && t.regAdmin.code) || '', checkinMin: String(r.checkinMin || 10),
       questions: (r.questions || []).map((q) => ({ q: q.q, type: q.type, opts: (q.opts || []).join(', ') })),
     };
+    for (const f of EXT.fromTour) f(F.d, t); // các ô cắm thêm (Team Battle – club-battle.js)
   }
 
   /** Đưa con trỏ tới ô lỗi (ô ngày giờ: ô ngày đang hiện, không phải ô ẩn giữ giá trị). */

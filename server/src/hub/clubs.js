@@ -108,7 +108,10 @@ class Clubs {
       declined: can('requests') ? c.declined.map((x) => ({ id: x.uid, name: name(x.uid), at: x.at, msg: x.msg || '' })) : [],
       banned: can('kick') ? Object.entries(c.banned).map(([id, x]) => ({ id, name: name(id), at: x.at })) : [],
       reviewNote: c.owner === uid || this.isAdmin(uid) ? c.reviewNote || '' : '',
-      tours: [...this.tours.values()].filter((t) => t.club === c.id && this.canSeeTour(t, uid))
+      trophies: c.trophies.slice(0, 30), points: c.points,
+      // Giải của CLB + Team Battle / giao hữu có CLB tham gia
+      tours: [...this.tours.values()].filter((t) => (t.club === c.id || (t.teams && t.teams.clubs.includes(c.id)) ||
+        (t.teamMatch && (t.teamMatch.a === c.id || t.teamMatch.b === c.id))) && this.canSeeTour(t, uid))
         .sort((a, b) => b.startsAt - a.startsAt).slice(0, 30).map((t) => this.tourSummary(t, uid)),
     };
   }
@@ -321,6 +324,8 @@ function normalizeClub(c) {
   c.muted = c.muted || [];
   c.msgs = c.msgs || [];
   c.seen = c.seen || {};
+  c.trophies = c.trophies || []; // tủ cúp: Team Battle hạng 1–3, giao hữu thắng (club-battle.js)
+  c.points = c.points || 0; // điểm xếp hạng CLB toàn hệ thống
   c.talkMuted = c.talkMuted || []; // bị cấm nói ở chat / diễn đàn (club-talk.js)
   c.chat = c.chat || 'members';
   c.forum = c.forum || 'members';

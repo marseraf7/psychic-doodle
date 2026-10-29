@@ -34,13 +34,15 @@ class Arena {
       !this.inTourGame(t, p.uid) && !busy.has(p.uid));
     if (waiting.length < 2) return;
     waiting.sort((a, b) => b.score - a.score || Math.random() - 0.5);
+    // Team Battle: không ghép hai người cùng CLB
+    const rival = (a, b) => !t.teams || a.team !== b.team;
     while (waiting.length >= 2) {
       const a = waiting.shift();
-      let j = waiting.findIndex((b) => b.uid !== a.last && a.uid !== b.last);
+      let j = waiting.findIndex((b) => rival(a, b) && b.uid !== a.last && a.uid !== b.last);
       if (j < 0) {
+        j = waiting.findIndex((b) => rival(a, b));
         // Chỉ còn đúng đối thủ vừa gặp: chờ thêm cho có người khác, quá 20 giây thì cho gặp lại
-        if (now - Math.max(a.restUntil || 0, waiting[0].restUntil || 0) < this.T.ARENA_REPEAT_MS) continue;
-        j = 0;
+        if (j < 0 || now - Math.max(a.restUntil || 0, waiting[j].restUntil || 0) < this.T.ARENA_REPEAT_MS) continue;
       }
       const b = waiting.splice(j, 1)[0];
       const aFirst = a.firsts < b.firsts || (a.firsts === b.firsts && crypto.randomInt(2) === 0);

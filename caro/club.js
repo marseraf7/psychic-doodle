@@ -22,6 +22,7 @@
   function pageClubs() {
     setTitle('clubs_title');
     let html = `<div class="row"><button type="button" class="primary" data-act="clubNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('club_create'))}</button>
+      <button type="button" class="ghost" data-act="clubRanking">${icon('trophy')}${esc(T('cr_title'))}</button>
       <input id="club-q" placeholder="${esc(T('club_search'))}" maxlength="40" value="${esc(D.clubQ || '')}"></div>`;
     if (!me()) html += needLogin();
     if (!D.clubs) return html + `<p class="hint">…</p>`;
@@ -61,6 +62,7 @@
         <label class="check"><input type="checkbox" data-act="clubMute" ${c.muted ? '' : 'checked'}> <span>${esc(T('club_msgs_receive'))}</span></label>`;
     }
     if (K.clubTalkHtml) html += K.clubTalkHtml(c); // chat + diễn đàn (club-talk.js)
+    if (K.clubCupHtml && c.status === 'approved') html += K.clubCupHtml(c); // tủ cúp, thách đấu, xếp hạng CLB (club-match.js)
     if (c.tours && c.tours.length) html += `<h4>${esc(T('club_tours'))}</h4><ul class="tlist">${c.tours.map(tourItem).join('')}</ul>`;
     // Thành viên: lọc tất cả / đang online
     const list = D.clubFilter === 'online' ? c.members.filter((m) => m.status !== 'offline') : c.members;

@@ -430,3 +430,8 @@ Việc lặp lại như soát dịch 4 ngôn ngữ, chạy e2e nhiều lần và
     - **cấm nói** một thành viên (cả chat và diễn đàn).
   - Giới hạn tần suất: chat 1 tin / giây, bài 1 / 10 giây, chủ đề 1 / phút, tối đa 500 chủ đề.
   - Lưu ở bảng SQLite riêng (`store-club.js`). Giải tán CLB thì xoá hết; xoá tài khoản thì xoá tin và bài của người đó.
+- **Đợt 9 – xong**:
+  - **Team Battle**: bật ở tab Thể thức của trang Cài đặt nâng cao (Arena), chọn 2–10 CLB và số người tính điểm N. Chỉ thành viên các CLB đó được vào (thuộc nhiều CLB thì chọn CLB thi đấu cho). Không ghép hai người cùng CLB. Trang giải có bảng CLB (tổng điểm N người cao điểm nhất).
+  - **Giao hữu CLB đấu CLB**: nút "Thách đấu CLB khác" ở trang CLB (quyền Giải đấu): chọn đối thủ, số bàn, giờ, thời gian ván, Bo. Qua quản trị viên duyệt như giải thường. CLB kia phải chấp nhận, không thì huỷ. Mỗi bên xếp đội hình theo bàn; tới giờ, bàn 1 gặp bàn 1… Dùng chung hạ tầng giải (Thụy Sĩ 1 vòng, cặp cố định) nên có sẵn vắng mặt, khiếu nại, xem trực tiếp.
+  - **Bảng xếp hạng CLB** toàn hệ thống: Team Battle hạng 1 / 2 / 3 được 10 / 6 / 4 điểm; giao hữu thắng 3, hoà 1.
+  - **Tủ cúp** ở trang CLB. Trang CLB liệt kê cả Team Battle và giao hữu có CLB tham gia.
