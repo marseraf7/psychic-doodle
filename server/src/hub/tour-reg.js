@@ -140,7 +140,7 @@ class TourReg {
     if (t.reg && t.reg.approval) {
       this.regQueue(t, me, answers, 'pending');
       res = 'pending';
-      for (const uid of this.tourManagers(t)) this.send(userPid(uid), note('tour_reg_new', { name: t.name, player: me.name }));
+      for (const uid of this.tourManagers(t, 'reg')) this.send(userPid(uid), note('tour_reg_new', { name: t.name, player: me.name }));
     } else res = this.regAdmit(t, me, answers);
     this.saveTour(t);
     this.pushTour(t);

@@ -16,7 +16,9 @@
     const bo = m.bo || (t.stages && t.stages[v.index] && t.stages[v.index].bestOf) || 3;
     const filled = !blank && m.sets ? m.sets : [];
     const rows = Math.max(bo, filled.length, 3);
-    const name = (p) => (p && p.name ? `${p.seed ? '#' + p.seed + ' ' : ''}${esc(p.name)}` : '');
+    // Giải ẩn hạt giống: ban tổ chức vẫn có số hạt giống (t.seeds)
+    const seed = (p) => p.seed || (t.seeds && t.seeds[p.uid]) || null;
+    const name = (p) => (p && p.name ? `${seed(p) ? '#' + seed(p) + ' ' : ''}${esc(p.name)}` : '');
     const stage = t.stages && t.stages.length > 1 ? T('stage_n', { n: v.index + 1 }) + ' · ' : '';
     const sets = Array.from({ length: rows }, (_, i) => `<tr><td>${esc(T('score_set_n', { n: i + 1 }))}</td><td>${filled[i] ? filled[i][0] : ''}</td><td>${filled[i] ? filled[i][1] : ''}</td></tr>`).join('');
     const res = !blank && m.done ? `${m.wa} – ${m.wb}` : '';

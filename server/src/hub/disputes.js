@@ -23,16 +23,17 @@ class Disputes {
     const rec = { id: crypto.randomBytes(5).toString('hex'), at: Date.now(), status: 'open', ...d };
     t.disputes = [...(t.disputes || []), rec].slice(-KEEP);
     const args = { name: t.name, loser: this.player(t, d.l)?.name || '?', winner: this.player(t, d.w)?.name || '?' };
-    for (const uid of this.tourManagers(t)) this.send(userPid(uid), note('tour_dispute_new', args));
+    for (const uid of this.tourManagers(t, 'disputes')) this.send(userPid(uid), note('tour_dispute_new', args));
     return rec;
   }
 
   /** Ban tổ chức đang có tài khoản: người tạo giải và quản lý CLB (quản trị viên xem trên trang giải). */
-  tourManagers(t) {
+  /** perm: chỉ đồng ban tổ chức có quyền này (chủ giải luôn nhận). */
+  tourManagers(t, perm) {
     const out = new Set([t.creator]);
     const c = t.club && this.clubs.get(t.club);
     if (c) for (const uid of Object.keys(c.members)) if (this.isOfficer(c, uid)) out.add(uid);
-    for (const s of t.staff || []) out.add(s.uid); // đồng ban tổ chức
+    for (const s of t.staff || []) if (!perm || s.perms.includes('all') || s.perms.includes(perm)) out.add(s.uid); // đồng ban tổ chức
     return out;
   }
 

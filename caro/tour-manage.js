@@ -255,7 +255,11 @@
     if (body && body.querySelector('.mg-sec')) {
       // Gõ chữ (không tính tick ô chọn) = đang sửa; bấm một nút của tab Quản lý = xong (cho phép vẽ lại khi có cập nhật)
       body.oninput = (e) => { if (e.target.closest('.mg-sec') && e.target.type !== 'checkbox') M.typing = true; };
-      body.addEventListener('click', (e) => { if (e.target.closest('.mg-sec button')) M.typing = false; });
+      // Gắn một lần cho #tour-body (phần tử cố định – binder chạy lại mỗi lần vẽ)
+      if (!body.dataset.mgClick) {
+        body.dataset.mgClick = '1';
+        body.addEventListener('click', (e) => { if (e.target.closest('.mg-sec button')) M.typing = false; });
+      }
     }
     // Đổi quyền của một đồng ban tổ chức: gửi ngay danh sách quyền mới
     document.querySelectorAll('.staff-row [data-perm]').forEach((cb) => {
@@ -263,7 +267,10 @@
         const row = cb.closest('.staff-row');
         const perms = [...row.querySelectorAll('[data-perm]')].filter((x) => x.checked).map((x) => x.dataset.perm);
         const t = tour(), x = (t.staff || []).find((s) => s.uid === cb.dataset.uid);
-        if (x && perms.length) O.send({ t: 'tourStaff', id: t.id, username: x.username, perms });
+        if (!x) return;
+        if (perms.length) { O.send({ t: 'tourStaff', id: t.id, username: x.username, perms }); return; }
+        // Bỏ hết quyền = gỡ khỏi ban tổ chức (hỏi lại); không đồng ý thì trả các ô về như cũ
+        window.CaroConfirm.ask(T('mg_staff_del_confirm')).then((ok) => { if (ok) O.send({ t: 'tourStaffDel', id: t.id, uid: x.uid }); else render(true); });
       };
     });
     // Kéo thả hạt giống (máy tính)

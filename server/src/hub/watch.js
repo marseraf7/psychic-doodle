@@ -22,7 +22,12 @@ class Watch {
   canWatch(room, pid) {
     if (!room.players.length || room.has(pid)) return false;
     if (room.players.some((p) => this.isBlocked(p.id, pid))) return false;
-    if (room.public || room.quick || room.tour) return true;
+    // Ván của giải CLB / riêng tư: chỉ ai xem được trang giải mới xem được ván (giải công khai / có link: ai cũng xem)
+    if (room.tour) {
+      const t = this.tours.get(room.tour.id);
+      return !t || !['club', 'private'].includes(t.access) || this.canSeeTour(t, uidOf(pid));
+    }
+    if (room.public || room.quick) return true;
     if (room.kind !== 'series') return false; // phòng riêng có mật khẩu
     // Thách đấu bạn bè: chỉ bạn bè của một trong hai người
     const me = uidOf(pid) && this.store.users.get(uidOf(pid));
@@ -103,6 +108,9 @@ class Watch {
     for (const room of this.rooms.values()) {
       // Danh sách chung chỉ có ván công khai / tìm nhanh / giải (thách đấu bạn bè thì xem từ danh sách bạn bè)
       if (!(room.public || room.quick || room.tour) || !room.full || !room.active) continue;
+      // Danh sách TV công khai: không đưa ván của giải chỉ có link / CLB / riêng tư
+      const tt = room.tour && this.tours.get(room.tour.id);
+      if (tt && tt.access !== 'public') continue;
       const pool = R.poolOf(room);
       const side = (s) => {
         const pid = room.seats[s];

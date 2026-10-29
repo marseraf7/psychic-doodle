@@ -145,7 +145,7 @@ class TourManage {
       t.name = f.name;
       t.desc = f.desc;
     } else {
-      const f = this.tourFields(me, o);
+      const f = this.tourFields(me, o, Date.now(), t.club);
       const count = t.players.filter((p) => !p.withdrawn).length;
       if (f.maxPlayers < count) throw E('tour_max_low', { n: count });
       // Không đổi giữa trực tuyến và offline khi đã có người (người chơi offline không có tài khoản)

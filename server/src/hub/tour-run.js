@@ -176,6 +176,7 @@ class TourRun {
   /** Tài khoản bị xoá: rút khỏi mọi giải chưa xong. */
   tourUserGone(uid) {
     for (const t of this.tours.values()) {
+      if ((t.staff || []).some((s) => s.uid === uid)) { t.staff = t.staff.filter((s) => s.uid !== uid); this.saveTour(t); } // bỏ khỏi ban tổ chức
       if (['pending', 'scheduled'].includes(t.status) && t.creator === uid) this.cancelTour(t, 'organizer');
       if (this.player(t, uid)) this.withdraw(t, uid);
     }

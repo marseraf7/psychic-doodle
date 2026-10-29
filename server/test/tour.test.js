@@ -1078,3 +1078,28 @@ test('Đợt 5: đồng ban tổ chức theo quyền, giải riêng tư chặn c
   assert.strictEqual((await staff.req({ t: 'tourGet', id }, 'error')).code, 'tour_not_found', 'hết quyền: không thấy giải riêng tư nữa');
   [staff, outsider, p1, p2].forEach((c) => c.close());
 });
+
+test('Đợt 5 – sửa sau review: người ngoài không xem được ván của giải riêng tư; quyền "Thông báo" không thấy mã vào / câu trả lời; xoá tài khoản thì rời ban tổ chức', async () => {
+  const B = await organizer();
+  const a = await account('pv', 1500), b = await account('pv', 1400), outsider = await account('pv', 1300), news = await account('pv', 1300);
+  const { id } = await B.req({ t: 'tourCreate', name: 'Kín có ván', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, access: 'private',
+    reg: { code: 'BI_MAT' }, stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  await B.req({ t: 'tourAddPlayers', id, names: [a.me.username, b.me.username] }, 'tourAddResult');
+  B.send({ t: 'tourStaff', id, username: news.me.username, perms: ['news'] });
+  await until(() => t.staff && t.staff.length === 1);
+  const nv = await news.req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(nv.tour.regAdmin, null, 'quyền Thông báo: không thấy mã vào / câu trả lời');
+  assert.ok(!JSON.stringify(nv.tour).includes('BI_MAT'));
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const m = t.st[0].matches[t.st[0].rounds[0][0]];
+  await until(() => m.room);
+  const room = app.hub.rooms.get(m.room);
+  assert.strictEqual(app.hub.canWatch(room, 'u_' + outsider.me.uid), false, 'người ngoài không xem được ván');
+  assert.strictEqual(app.hub.canWatch(room, 'u_' + news.me.uid), true, 'ban tổ chức xem được');
+  // Xoá tài khoản đồng ban tổ chức: tự rời ban tổ chức
+  app.hub.tourUserGone(news.me.uid);
+  assert.strictEqual(t.staff.length, 0);
+  [a, b, outsider, news].forEach((c) => c.close());
+});
