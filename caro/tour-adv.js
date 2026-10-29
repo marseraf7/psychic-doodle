@@ -17,7 +17,7 @@
   const TABS = [
     { id: 'basic', icon: 'info', keys: ['name', 'desc'] },
     { id: 'format', icon: 'trophy', keys: ['preset'], stages: true },
-    { id: 'games', icon: 'clock', keys: ['time', 'opening', 'rule', 'rated', 'minutes'] },
+    { id: 'games', icon: 'clock', keys: ['time', 'opening', 'rule', 'rated', 'minutes', 'noshow'] },
     { id: 'reg', icon: 'users', keys: ['start', 'max', 'checkin', 'seeding'] },
     { id: 'access', icon: 'lock', keys: ['access'] },
   ];
@@ -83,7 +83,7 @@
       form.querySelector(`.ta-tab[data-tab="${next}"]`).focus();
     };
     // Ô lỗi nằm ở tab đang ẩn (form novalidate): chuyển tới tab chứa ô đó
-    DR.bindForm(form, { stages: 'ta-stages', hint: 'ta-fmt-hint', est: 'ta-est', err: 'ta-err' }, (key) => {
+    DR.bindForm(form, { stages: 'ta-stages', hint: 'ta-fmt-hint', est: 'ta-est', err: 'ta-err', full: true }, (key) => {
       const tab = TABS.find((x) => x.keys.includes(key));
       if (tab) showTab(form, tab.id);
       const el = form.elements[key];

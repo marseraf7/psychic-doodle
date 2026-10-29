@@ -3,24 +3,18 @@
  * vòng tròn, Thụy Sĩ, vòng bảng + playoff…) và trình ghép tự do tối đa 3 giai đoạn.
  * Mọi ô nhập nằm trong một bản nháp chung (F.d + F.stages), dùng chung với trang Cài đặt nâng cao (tour-adv.js):
  * chuyển qua lại không mất dữ liệu; nháp lưu ở máy để lỡ tải lại trang vẫn còn, tạo giải xong thì xoá.
- * Dưới ô Thể thức có dòng ước tính số trận / lượt đấu / thời gian (tour-estimate.js).
- * Nạp sau tour.js, tour-stages.js, tour-estimate.js; cắm K.tourDraft cho tour-adv.js.
+ * Dưới ô Thể thức có dòng ước tính số trận / lượt đấu / thời gian (tour-estimate.js). Trình sửa giai đoạn:
+ * tour-stage-edit.js. Nạp sau tour.js, tour-stages.js, tour-stage-edit.js, tour-estimate.js; cắm K.tourDraft cho tour-adv.js.
  */
 (function () {
   'use strict';
   const K = window.CaroTourKit;
   if (!K) return;
   const { O, T, esc, $, D, V, secs, me, setTitle, needLogin, open, icon } = K;
-  const { stageName, advText } = K;
 
   // Mẫu có sẵn; chọn xong vẫn sửa tự do từng giai đoạn (đổi gì cũng thành "Tuỳ chỉnh")
-  const PT = { w: 3, d: 1, l: 0 };
-  const STAGE_DEFAULT = {
-    single: () => ({ type: 'single', bestOf: 3, thirdPlace: true }),
-    double: () => ({ type: 'double', bestOf: 3, reset: true }),
-    roundrobin: () => ({ type: 'roundrobin', bestOf: 1, groups: 1, meetings: 1, points: { ...PT }, advance: 2 }),
-    swiss: () => ({ type: 'swiss', bestOf: 1, rounds: 5, points: { w: 2, d: 1, l: 0 }, advance: 4 }),
-  };
+  const SE = K.stageEdit;
+  const STAGE_DEFAULT = SE.DEFAULT;
   /** Vòng bảng chia theo số người mỗi bảng (số bảng tuỳ số người đăng ký). */
   const groupsOf = (size) => { const c = STAGE_DEFAULT.roundrobin(); delete c.groups; c.groupSize = size; return c; };
   const PRESETS = {
@@ -35,7 +29,7 @@
     custom: null,
   };
   const presetLabel = (k) => T('fmt_' + k); // <option> chỉ hiện được chữ
-  const MAX_STAGES = 3;
+  const MAX_STAGES = SE.MAX;
   const DRAFT_KEY = 'caro.tourDraft';
 
   // ------------------------------------------------------------ Bản nháp (dùng chung form nhanh và trang nâng cao)
@@ -48,7 +42,7 @@
   }
   const blank = () => ({
     name: '', desc: '', start: defaultStart(), time: 't20', opening: 'free', rule: 'vn', minutes: '30', seeding: 'rating',
-    checkin: true, rated: true, max: '32', access: 'public', club: '',
+    checkin: true, rated: true, max: '32', access: 'public', club: '', noshow: '',
   });
   let saveTimer = 0;
   function saveDraft() {
@@ -114,6 +108,7 @@
     minutes: (d) => `<fieldset class="only-arena"><legend>${esc(T('duration'))}</legend>${radio('minutes', [15, 30, 45, 60, 90, 120].map((n) => [n, T('minutes_n', { n })]), d.minutes)}</fieldset>`,
     seeding: (d) => `<fieldset class="only-ko" hidden><legend>${esc(T('seeding'))}</legend>${radio('seeding', [['rating', T('seed_rating')], ['random', T('seed_random')]], d.seeding)}</fieldset>`,
     checkin: (d) => `<label class="check only-ko" hidden><input type="checkbox" name="checkin" ${d.checkin ? 'checked' : ''}> <span>${esc(T('checkin_opt'))}</span></label>`,
+    noshow: (d) => `<label class="field short only-ko" hidden><span>${esc(T('noshow'))}</span><select name="noshow">${[['', T('noshow_default')], ...[1, 3, 5, 10, 15].map((n) => [String(n), T('minutes_n', { n })])].map(([v, l]) => `<option value="${v}" ${v === String(d.noshow || '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`,
     rated: (d) => `<label class="check"><input type="checkbox" name="rated" ${d.rated ? 'checked' : ''}> <span>${esc(T('rated_opt'))}</span></label>`,
     max: (d) => `<label class="field short"><span>${esc(T('max_players'))}</span><input name="max" type="number" min="2" max="512" value="${esc(d.max)}"></label>`,
     access: (d) => {
@@ -124,41 +119,6 @@
     },
   };
   const fields = (keys) => keys.map((k) => FIELDS[k](F.d)).join('');
-
-  /** Trình sửa các giai đoạn (vẽ riêng để không mất các ô khác của form). */
-  function stageEditor() {
-    const st = F.stages || [];
-    const num = (i, k, v, min, max) => `<input type="number" data-i="${i}" data-k="${k}" value="${v}" min="${min}" max="${max}">`;
-    const sel = (i, k, items, v) => `<select data-i="${i}" data-k="${k}">${items.map(([x, l]) => `<option value="${x}" ${String(x) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
-    const chk = (i, k, v, label) => `<label class="check"><input type="checkbox" data-i="${i}" data-k="${k}" ${v ? 'checked' : ''}> <span>${esc(label)}</span></label>`;
-    const field = (label, inner) => `<label class="field inline"><span>${esc(label)}</span>${inner}</label>`;
-    const cards = st.map((c, i) => {
-      const last = i === st.length - 1;
-      const types = (last ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']).map((x) => [x, T('fmt_' + x)]);
-      const f = [field(T('format'), sel(i, 'type', types, c.type)), field(T('format_bo'), sel(i, 'bestOf', [[1, 'Bo1'], [3, 'Bo3'], [5, 'Bo5']], c.bestOf))];
-      if (c.type === 'single') f.push(chk(i, 'thirdPlace', c.thirdPlace, T('third_place_opt')));
-      if (c.type === 'double') f.push(chk(i, 'reset', c.reset, T('opt_reset')));
-      if (c.type === 'roundrobin') {
-        // Chia theo số bảng, hoặc theo số người mỗi bảng (như Challonge)
-        const bySize = c.groupSize != null;
-        f.push(field(T('gmode'), sel(i, 'gmode', [['count', T('gmode_count')], ['size', T('gmode_size')]], bySize ? 'size' : 'count')));
-        f.push(bySize ? field(T('gmode_size'), num(i, 'groupSize', c.groupSize, 2, 16)) : field(T('opt_groups'), num(i, 'groups', c.groups, 1, 64)));
-        f.push(field(T('opt_meetings'), sel(i, 'meetings', [[1, T('meet_1')], [2, T('meet_2')]], c.meetings)));
-      }
-      if (c.type === 'swiss') f.push(field(T('opt_rounds'), num(i, 'rounds', c.rounds, 1, 15)));
-      if (c.points) {
-        f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
-      }
-      if (!last) f.push(field(T(c.type === 'roundrobin' ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
-      const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
-      return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div></div>`;
-    });
-    const arrows = [];
-    st.forEach((c, i) => { arrows.push(stageName(c)); if (i < st.length - 1) arrows.push(advText(c)); });
-    return `<p class="flow">${arrows.map((x, i) => (i % 2 ? `<span class="muted">→ ${esc(x)} →</span>` : `<b>${esc(x)}</b>`)).join(' ')}</p>
-      ${cards.join('<div class="sc-arrow">↓</div>')}
-      ${st.length < MAX_STAGES ? `<button type="button" class="ghost sm" data-sact="add">${icon('plus')}${esc(T('stage_add'))}</button>` : ''}`;
-  }
 
   /** "Thời gian" dạng 2 giờ 40 phút. */
   const hm = (min) => (min >= 60 ? T('est_hm', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') }) : T('minutes_n', { n: Math.max(1, min) }));
@@ -190,10 +150,13 @@
     </form>`;
   }
 
-  /** Gắn sự kiện cho một form tạo giải (nhanh hoặc nâng cao). ids: { stages, hint, est, err, adv? }; onInvalid(key): ô lỗi. */
+  /**
+   * Gắn sự kiện cho một form tạo giải (nhanh hoặc nâng cao). ids: { stages, hint, est, err, adv? (nút mở trang nâng
+   * cao), full? (trình sửa giai đoạn đủ tuỳ chọn nâng cao) }; onInvalid(key): ô lỗi.
+   */
   function bindForm(form, ids, onInvalid) {
     const box = $(ids.stages);
-    const drawStages = () => { if (box) box.innerHTML = stageEditor(); };
+    const drawStages = () => { if (box) box.innerHTML = SE.html(F.stages, !!ids.full); };
     // Chỉ ghi khi đổi (dòng aria-live: trình đọc màn hình không đọc lại câu giống hệt)
     const showEst = () => { const el = $(ids.est), t = estimateText(); if (el && el.textContent !== t) el.textContent = t; };
     const sync = () => {
@@ -230,38 +193,13 @@
       // Sửa một giai đoạn
       const custom = () => { F.preset = 'custom'; sync(); };
       box.addEventListener('change', (e) => {
-        const el = e.target, i = Number(el.dataset.i), k = el.dataset.k;
-        const c = F.stages && F.stages[i];
-        if (!c || !k) return;
-        const n = Number(el.value);
-        if (k === 'type') {
-          const nc = STAGE_DEFAULT[el.value]();
-          nc.bestOf = c.bestOf;
-          if (i === F.stages.length - 1) delete nc.advance; // giai đoạn cuối không có "đi tiếp"
-          F.stages[i] = nc;
-        } else if (k === 'gmode') {
-          if (el.value === 'size') { delete c.groups; c.groupSize = 4; } else { delete c.groupSize; c.groups = 2; }
-        } else if (el.type === 'checkbox') c[k] = el.checked;
-        else if (k === 'pw' || k === 'pd' || k === 'pl') c.points[k[1]] = Math.max(0, Math.min(10, Math.floor(n) || 0));
-        else if (el.tagName === 'SELECT') c[k] = n;
-        else c[k] = Number.isFinite(n) ? Math.max(Number(el.min), Math.min(Number(el.max), Math.floor(n))) : c[k];
+        if (!SE.change(F.stages, e.target)) return;
         custom();
         drawStages();
       });
       box.addEventListener('click', (e) => {
         const b = e.target.closest('[data-sact]');
-        if (!b) return;
-        if (b.dataset.sact === 'add' && F.stages.length < MAX_STAGES) F.stages.unshift(STAGE_DEFAULT.roundrobin());
-        if (b.dataset.sact === 'del' && F.stages.length > 1) {
-          F.stages.splice(Number(b.dataset.i), 1);
-          const last = F.stages[F.stages.length - 1];
-          if (last) delete last.advance; // giai đoạn cuối không có "đi tiếp"
-        }
-        // Giai đoạn đứng trước phải là vòng tròn / Thụy Sĩ và có số người đi tiếp
-        F.stages.forEach((c, i) => {
-          if (i < F.stages.length - 1 && !c.points) F.stages[i] = STAGE_DEFAULT.roundrobin();
-          else if (i < F.stages.length - 1 && !c.advance) c.advance = STAGE_DEFAULT[c.type]().advance;
-        });
+        if (!b || !SE.click(F.stages, b)) return;
         custom();
         drawStages();
       });
@@ -291,7 +229,7 @@
       t: 'tourCreate', name: d.name.trim(), desc: d.desc.trim(), format: ko ? 'bracket' : 'arena', startsAt: start - D.skew,
       ...(d.time[0] === 'c' ? { timeLimit: 0, clock: d.time.slice(1) } : { timeLimit: Number(d.time.slice(1)) }),
       opening: d.opening, rule: d.rule, minutes: Number(d.minutes), stages: ko ? F.stages : undefined, seeding: d.seeding,
-      checkin: !!d.checkin, rated: !!d.rated, maxPlayers: Number(d.max),
+      checkin: !!d.checkin, rated: !!d.rated, maxPlayers: Number(d.max), noShowMin: d.noshow ? Number(d.noshow) : null,
       access: d.access, club: d.access === 'club' ? d.club || null : null,
     });
     return true;

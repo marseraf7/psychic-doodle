@@ -26,7 +26,7 @@ function simulate(cfgIn, n, last, pick) {
       S.recordResult(st, m, w, { seedOf });
     }
   }
-  const played = Object.values(st.matches).filter((m) => m.done && S.real(m.a) && S.real(m.b) && !m.skipped).length;
+  const played = Object.values(st.matches).filter((m) => m.done && S.real(m.a) && S.real(m.b) && !m.skipped && !m.split).length;
   return { played, waves, advance: last ? null : S.advancers(st, seedOf).seeds.length, cfg };
 }
 const top = (m) => (seedOf(m.a) < seedOf(m.b) ? m.a : m.b);
@@ -37,6 +37,13 @@ const CASES = [
   { type: 'single', thirdPlace: false },
   { type: 'double', reset: true },
   { type: 'double', reset: false },
+  { type: 'single', placement: true },
+  { type: 'double', gf: 'none' },
+  { type: 'double', gf: '1', split: true },
+  { type: 'double', gf: '2', split: true },
+  { type: 'double', gf: 'none', split: true },
+  { type: 'roundrobin', groups: 2, meetings: 3 },
+  { type: 'swiss', rounds: 0 },
   { type: 'roundrobin', groups: 1 },
   { type: 'roundrobin', groups: 4, meetings: 2 },
   { type: 'roundrobin', groupSize: 4, advance: 2 },
@@ -61,9 +68,9 @@ test('ước tính khớp mô phỏng của máy chủ: mọi thể thức, 2..7
 });
 
 test('nhánh thắng – thua, kết quả ngẫu nhiên: số trận / lượt nằm trong khoảng ước tính (có thể thêm trận reset)', () => {
-  for (const reset of [true, false]) {
+  for (const cfg of [{ reset: true }, { reset: false }, { gf: '2', split: true }, { gf: 'none' }]) {
     for (let n = 2; n <= 70; n++) {
-      const sim = simulate({ type: 'double', reset }, n, true, coin);
+      const sim = simulate({ type: 'double', ...cfg }, n, true, coin);
       const est = E.stage(sim.cfg, n, true);
       assert.ok(sim.played >= est.matches && sim.played <= est.maxMatches, `trận n=${n} ${sim.played}`);
       assert.ok(sim.waves >= est.waves && sim.waves <= est.maxWaves, `lượt n=${n} ${sim.waves}`);

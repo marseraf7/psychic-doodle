@@ -123,7 +123,8 @@ class Bracket {
         }
         const okA = this.available(m.a), okB = this.available(m.b);
         if (okA && okB) { this.startTourMatch(t, st, m); continue; }
-        if (now - m.readyAt < this.T.TOUR_NOSHOW_MS) continue;
+        // Thời gian chờ vắng mặt: ban tổ chức chọn khi tạo giải (phút), mặc định của máy chủ
+        if (now - m.readyAt < (t.noShowMin ? t.noShowMin * 60000 : this.T.TOUR_NOSHOW_MS)) continue;
         // Quá giờ mà một bên không có mặt: xử thua bên vắng; vắng cả hai thì (loại trực tiếp) hạt giống cao hơn
         // đi tiếp, (vòng tròn / Thụy Sĩ) cả hai cùng thua
         if (okA !== okB) {
@@ -149,7 +150,7 @@ class Bracket {
       for (const u of [m.a, m.b]) room.score[userPid(u)] = carry.wins[u] || 0;
       room.gameNo = carry.games + 1;
     });
-    const room = this.openTourRoom(t, 'series', st.cfg.bestOf, m.a, m.b, aFirst, { match: m.id }, prep);
+    const room = this.openTourRoom(t, 'series', ST.boOf(st, m), m.a, m.b, aFirst, { match: m.id }, prep);
     m.room = room.code;
     m.wins = carry ? { ...carry.wins } : {};
     m.carry = null;
@@ -262,13 +263,14 @@ class Bracket {
     return ST.podium(this.curStage(t), this.seedOf(t)).slice(0, 4);
   }
 
-  /** Một trận gửi cho client. */
-  matchView(t, m) {
+  /** Một trận gửi cho client (st: giai đoạn của trận – để biết Bo riêng của bán kết / chung kết). */
+  matchView(t, m, st) {
     const sd = (u) => (ST.real(u) ? this.tourSide(t, u) : u === ST.BYE ? { bye: true } : null);
     return m && {
       id: m.id, round: m.round, a: sd(m.a), b: sd(m.b), wa: (ST.real(m.a) && m.wins[m.a]) || 0, wb: (ST.real(m.b) && m.wins[m.b]) || 0,
       done: !!m.done, winner: ST.real(m.winner) ? m.winner : null, draw: !!(m.done && m.winner === null && !m.double),
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
+      bo: st && st.cfg.bestOf !== ST.boOf(st, m) ? ST.boOf(st, m) : 0,
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }
@@ -278,15 +280,19 @@ class Bracket {
     const seedOf = this.seedOf(t);
     const table = (rk, adv) => rk.list.map((u, i) => {
       const x = rk.stats[u];
-      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, sb: x.sb, adv: i < adv };
+      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, mbh: x.mbh, sb: x.sb, adv: i < adv };
     });
     return (t.st || []).map((st, i) => {
-      const M = (id) => this.matchView(t, st.matches[id]);
+      const M = (id) => this.matchView(t, st.matches[id], st);
       const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
       const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
       if (st.type === 'single' || st.type === 'double') {
-        v.rounds = st.rounds.map((r) => r.map(M));
+        // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện
+        v.rounds = (st.cfg.split ? st.rounds.slice(1) : st.rounds).map((r) => r.map(M));
+        if (st.cfg.split) v.split = true;
         if (st.third) v.third = M(st.third);
+        // Trận xếp hạng: các nhánh phân hạng 5–8, 9–16… (base = hạng cao nhất của nhánh)
+        if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
         if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
         if (st.gf) v.gf = st.gf.map(M);
       } else if (st.type === 'roundrobin') {

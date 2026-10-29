@@ -14,7 +14,10 @@
     const x = [];
     if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));
     else if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
-    if (c.type === 'swiss') x.push(T('rounds_n', { n: c.rounds }));
+    if (c.type === 'swiss') x.push(c.rounds ? T('rounds_n', { n: c.rounds }) : T('rounds_auto'));
+    if (c.type === 'single' && c.placement) x.push(T('tag_placement'));
+    if (c.type === 'double' && c.gf === 'none') x.push(T('tag_no_gf'));
+    if (c.type === 'double' && c.split) x.push(T('tag_split'));
     return T('fmt_' + c.type) + (x.length ? ` (${x.join(', ')})` : '');
   }
   /** Ai đi tiếp sau giai đoạn này (chỉ giai đoạn trước vòng cuối). */
@@ -39,6 +42,7 @@
     if (m.held) extra.push(`<span class="pill held">⏸ ${esc(T('dispute_held'))}</span>`);
     if (m.walkover) extra.push(esc(T('walkover')));
     if (m.double) extra.push(esc(T('both_absent')));
+    if (m.bo) extra.push(`<span class="pill bo">Bo${m.bo}</span>`); // Bo riêng bán kết / chung kết
     extra.push(...replays(m));
     return `<div class="b-match ${m.live ? 'live' : ''}" data-mid="${esc(m.id)}">${row(m.a, m.wa, m.winner && m.a && m.winner === m.a.uid)}${row(m.b, m.wb, m.winner && m.b && m.winner === m.b.uid)}${extra.length ? `<small>${extra.join(' ')}</small>` : ''}</div>`;
   }
@@ -76,37 +80,55 @@
   function roundsList(key, rounds, label, openLast) {
     return fold(key, esc(T('matches')), () => roundsHtml(rounds.map((r, i) => ({ r, i })), label), openLast);
   }
-  /** Bảng xếp hạng của vòng tròn / Thụy Sĩ. */
-  function table(rows, swiss) {
-    const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th>${swiss ? `<th>${esc(T('col_bh'))}</th>` : ''}<th>${esc(T('col_pts'))}</th></tr>`;
+  // Tie-break mặc định (như máy chủ) khi giải tạo từ bản trước chưa có danh sách
+  const DEFAULT_TB = { roundrobin: ['h2h', 'gdiff', 'gwins'], swiss: ['bh', 'sb', 'wins'] };
+  const tbsOf = (c) => (c && Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c && c.type] || []);
+  /** Bảng xếp hạng của vòng tròn / Thụy Sĩ: thêm cột Buchholz / Median-Buchholz / SB nếu đang dùng làm tie-break. */
+  function table(rows, cfg) {
+    const extra = ['bh', 'mbh', 'sb'].filter((k) => tbsOf(cfg).includes(k));
+    const fmt = (v) => (Number.isInteger(v) ? v : v.toFixed(1));
+    const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th>${extra.map((k) => `<th title="${esc(T('tb_' + k))}">${esc(T('col_' + k))}</th>`).join('')}<th>${esc(T('col_pts'))}</th></tr>`;
     const body = rows.map((x) => `<tr class="${x.adv ? 'adv' : ''} ${x.uid === uidMe() ? 'me' : ''}"><td>${x.rank}</td><td class="l">${esc(x.name)}</td><td>${x.mp}</td><td>${x.w}-${x.d}-${x.l}</td>
-      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td>${swiss ? `<td>${x.bh}</td>` : ''}<td><b>${x.pts}</b></td></tr>`).join('');
+      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td>${extra.map((k) => `<td>${fmt(x[k] || 0)}</td>`).join('')}<td><b>${x.pts}</b></td></tr>`).join('');
     return `<div class="tscroll"><table class="stand"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+  }
+  /** Quy tắc xếp hạng lấy đúng từ cấu hình: "Xếp theo: điểm → đối đầu → hiệu số ván → hạt giống". */
+  function rulesNote(cfg, rr) {
+    const by = T('rank_' + ((rr && cfg.rankBy) || 'points'));
+    const list = [by, ...tbsOf(cfg).map((k) => T('tb_' + k)), T('tb_seed')].join(' → ');
+    return `<p class="hint">${esc(T('tb_rule', { list }))}${rr ? ' ' + esc(T('tb_adv_mark')) : ''}</p>`;
   }
   function stageBody(t, v) {
     const key = t.id + ':' + v.index;
     if (v.type === 'single') {
       let html = bracketCols(v.rounds, (r) => roundName(v.rounds.length, r));
       if (v.third) html += `<h5>${esc(T('third_place'))}</h5><div class="bracket"><div class="b-col">${matchBox(v.third)}</div></div>`;
+      // Trận xếp hạng các vị trí sau (5–8, 9–16…): mỗi nhánh một khối thu gọn
+      if (v.places && v.places.length) {
+        html += `<h5 class="br-h">${esc(T('places_title'))}</h5>` + v.places.map((p) => fold(key + ':p' + p.base, esc(T('place_range', { a: p.base, b: p.base + p.size - 1 })),
+          () => bracketCols(p.rounds, (r) => (r === p.rounds.length - 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 }))), false)).join('');
+      }
       return html;
     }
     if (v.type === 'double') {
       const gf = (v.gf || []).filter((m) => !m.skipped);
-      return `<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => roundName(v.rounds.length, r, 'wb_final'))}
+      // Split: nửa dưới hạt giống bắt đầu ở nhánh thua nên nhánh thắng bắt đầu từ vòng 2
+      return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => roundName(v.rounds.length, r, 'wb_final'))}
         ${v.lrounds && v.lrounds.length ? `<h5 class="br-h">${esc(T('lb'))}</h5>${bracketCols(v.lrounds, (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })))}` : ''}
-        <h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`;
+        ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
+          : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
     }
     if (v.type === 'roundrobin') {
       // Nhiều bảng (> 4): mỗi bảng thu gọn được, mặc định chỉ mở bảng của mình
       const many = v.groups.length > 4;
       return v.groups.map((g, gi) => {
         const cur = g.rounds.findIndex((r) => r.some((m) => !m.done));
-        const inner = () => table(g.table, false) + roundsList(key + ':g' + gi, g.rounds, (i) => T('r_round', { n: i + 1 }), !v.done && cur >= 0 && !many);
+        const inner = () => table(g.table, v.cfg) + roundsList(key + ':g' + gi, g.rounds, (i) => T('r_round', { n: i + 1 }), !v.done && cur >= 0 && !many);
         const name = esc(T('group_name', { name: g.name }));
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
         return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? icon('star', 'star') : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);
-      }).join('') + `<p class="hint">${esc(T('tb_note_rr'))}</p>`;
+      }).join('') + rulesNote(v.cfg, true);
     }
     // Thụy Sĩ: vòng mới nhất lên đầu
     const rounds = v.rounds.map((r, i) => ({ r, i })).reverse();
@@ -115,10 +137,10 @@
     const label = (i) => T('swiss_round', { n: i + 1, m: v.totalRounds });
     // Vòng mới nhất hiện sẵn; các vòng trước nằm trong khối riêng (chỉ dựng khi mở)
     const older = rounds.slice(1);
-    return capped + table(v.table, true)
+    return capped + table(v.table, v.cfg)
       + fold(key + ':r', esc(T('matches')), () => roundsHtml(rounds.slice(0, 1), label)
         + (older.length ? fold(key + ':ro', esc(T('earlier_rounds', { n: older.length })), () => roundsHtml(older, label), false) : ''), !v.done)
-      + `<p class="hint">${esc(T('tb_note_swiss'))}</p>`;
+      + rulesNote(v.cfg, false);
   }
   /** Tất cả giai đoạn của giải (giai đoạn chưa tới thì chỉ ghi cấu hình). */
   function stagesHtml(t) {

@@ -113,6 +113,50 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('[data-act="tourReset"]'); await sleep(200);
   ok(await boss.$eval('#tf input[name=name]', (e) => e.value) === '' && await boss.$eval('#tf select[name=preset]', (e) => e.value) === 'arena', 'Nút Đặt lại: về mặc định');
 
+  // ---------------------------------------------------------------- Đợt 2: tuỳ chọn thể thức nâng cao
+  await openNew(boss);
+  await boss.fill('#tf input[name=name]', 'Cúp Xếp Hạng');
+  await boss.selectOption('#tf select[name=preset]', 'single'); await sleep(100);
+  ok(!(await boss.$('#tf-stages .sc-more')), 'Form nhanh: không có tuỳ chọn nâng cao của giai đoạn');
+  await boss.fill('#tf input[name=max]', '8'); await sleep(80);
+  await boss.selectOption('#tf select[name=preset]', 'custom'); await sleep(100);
+  await boss.click('#tf-adv'); await sleep(300);
+  await boss.click('.ta-tab[data-tab="format"]'); await sleep(100);
+  ok(await boss.isVisible('#ta-stages .sc-more'), 'Trang nâng cao: giai đoạn có khối "Tuỳ chọn nâng cao"');
+  const e0 = await est(boss, 'ta-est');
+  await boss.check('#ta-stages [data-k="placement"]'); await sleep(120);
+  // 8 người, xếp hạng đủ: 4 + 2 + 1 (chính) + 2 + 1 (hạng 5–8) + 1 (hạng 7) + 1 (hạng 3) = 12 trận
+  ok(/12 trận/.test(await est(boss, 'ta-est')), `Bật trận xếp hạng: ước tính 8 → 12 trận (${e0} → ${await est(boss, 'ta-est')})`);
+  await boss.selectOption('#ta-stages [data-k="boFinal"]', '5'); await sleep(80);
+  await boss.click('.ta-tab[data-tab="games"]'); await sleep(80);
+  await boss.selectOption('#ta select[name=noshow]', '5'); await sleep(80);
+  await boss.click('.ta-tab[data-tab="reg"]'); await sleep(80);
+  await boss.uncheck('#ta input[name=checkin]');
+  await boss.click('.ta-foot button.primary'); await sleep(800);
+  const t2 = await boss.evaluate(() => window.CaroTourKit.D.tour);
+  ok(t2 && t2.stages[0].placement === true && t2.stages[0].boFinal === 5 && t2.noShowMin === 5, 'Máy chủ nhận: trận xếp hạng, chung kết Bo5, chờ vắng mặt 5 phút');
+  ok(/xếp hạng đủ/.test(await boss.textContent('#tour-body')), 'Trang giải ghi "xếp hạng đủ" ở thể thức');
+  // Nhánh thắng – thua: chung kết tổng 3 kiểu + split; vòng tròn: xếp theo + tie-break
+  await openNew(boss);
+  await boss.fill('#tf input[name=name]', 'Cúp Hai Nhánh');
+  await boss.selectOption('#tf select[name=preset]', 'groups_double'); await sleep(100);
+  await boss.selectOption('#tf select[name=preset]', 'custom'); await sleep(100);
+  await boss.click('#tf-adv'); await sleep(300);
+  await boss.click('.ta-tab[data-tab="format"]'); await sleep(100);
+  await boss.selectOption('#ta-stages [data-i="1"][data-k="gf"]', 'none'); await sleep(80);
+  await boss.check('#ta-stages [data-i="1"][data-k="split"]'); await sleep(80);
+  await boss.selectOption('#ta-stages [data-i="0"][data-k="rankBy"]', 'game_diff'); await sleep(80);
+  await boss.selectOption('#ta-stages [data-i="0"][data-k="tb0"]', 'mbh'); await sleep(80);
+  const tbs = await boss.$$eval('#ta-stages [data-i="0"][data-k^="tb"]', (x) => x.map((e) => e.value));
+  ok(tbs[0] === 'mbh' && !tbs.slice(1).includes('mbh'), 'Tie-break không trùng nhau – ' + tbs.join(','));
+  ok(/không chung kết tổng/.test(await boss.textContent('#ta-stages .flow')) && /split/.test(await boss.textContent('#ta-stages .flow')), 'Chuỗi giai đoạn ghi "không chung kết tổng", "split"');
+  await shot(boss, 'tadv-stage-more.png');
+  await boss.click('.ta-tab[data-tab="reg"]'); await sleep(80);
+  await boss.uncheck('#ta input[name=checkin]');
+  await boss.click('.ta-foot button.primary'); await sleep(800);
+  const t3 = await boss.evaluate(() => window.CaroTourKit.D.tour);
+  ok(t3 && t3.stages[1].gf === 'none' && t3.stages[1].split === true && t3.stages[0].rankBy === 'game_diff' && t3.stages[0].tiebreaks[0] === 'mbh', 'Máy chủ nhận: không chung kết tổng, split, xếp theo hiệu số ván, tie-break Median-Buchholz trước');
+
   // ---------------------------------------------------------------- 4 ngôn ngữ, mọi bề rộng
   for (const [lang, name, width, title] of [['en', 'ann_en', 1280, 'Advanced settings'], ['ru', 'ivan_ru', 768, 'Расширенные настройки'], ['zh', 'li_zh', 390, '高级设置'], ['vi', 'nam_vi', 360, 'Cài đặt nâng cao']]) {
     const p = await user(lang, name, width);

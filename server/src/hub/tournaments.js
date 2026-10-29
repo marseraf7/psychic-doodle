@@ -23,6 +23,7 @@ const ACCESS = ['public', 'link', 'club'];
 const MAX_ACTIVE_TOURS_PER_USER = 3;
 const MAX_START_DAYS = 30;
 const MAX_PLAYERS = 512; // tối đa người mỗi giải (mọi thể thức)
+const NOSHOW_MIN = [1, 2, 3, 5, 10, 15]; // thời gian chờ vắng mặt chọn được (phút)
 
 class Tournaments {
   loadTours() {
@@ -117,7 +118,7 @@ class Tournaments {
     else players.sort((a, b) => (a.seed || 999) - (b.seed || 999) || b.rating - a.rating);
     return {
       ...this.tourSummary(t, null),
-      desc: t.desc, seeding: t.seeding, checkinEnabled: !!t.checkin,
+      desc: t.desc, seeding: t.seeding, checkinEnabled: !!t.checkin, noShowMin: t.noShowMin || null,
       checkinAt: t.checkin ? t.startsAt - this.T.TOUR_CHECKIN_MS : null, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
       cancelReason: t.cancelReason || '',
       players, stageViews: this.stageViews(t),
@@ -141,7 +142,7 @@ class Tournaments {
       canManage: manage, canJoin: this.canJoinTour(t, uid),
       me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
       groupDraft: manage ? this.groupDraft(t) : null,
-      myMatch: myMatch ? this.matchView(t, myMatch) : null,
+      myMatch: myMatch ? this.matchView(t, myMatch, this.curStage(t)) : null,
       now: Date.now(), // giờ máy chủ (phần chung có thể là bản đã lưu vài giây trước)
     };
   }
@@ -194,6 +195,8 @@ class Tournaments {
       minutes: ko ? null : (ARENA_MINUTES.includes(Number(o.minutes)) ? Number(o.minutes) : 30),
       stages, seeding: o.seeding === 'random' ? 'random' : 'rating',
       checkin: ko && o.checkin !== false, players: [], games: [],
+      // Thời gian chờ vắng mặt (phút) trước khi xử thua; null = mặc định của máy chủ (2 phút)
+      noShowMin: ko && NOSHOW_MIN.includes(Number(o.noShowMin)) ? Number(o.noShowMin) : null,
     };
     this.tours.set(t.id, t);
     this.saveTour(t);
