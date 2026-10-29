@@ -82,16 +82,12 @@
       showTab(form, next);
       form.querySelector(`.ta-tab[data-tab="${next}"]`).focus();
     };
-    DR.bindForm(form, { stages: 'ta-stages', hint: 'ta-fmt-hint', est: 'ta-est', err: 'ta-err' });
-    // Kiểm ô bắt buộc trước khi gửi (form novalidate): thiếu tên → về tab Thông tin cơ bản
-    form.addEventListener('submit', (e) => {
-      if (form.elements.name.value.trim()) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      showTab(form, 'basic');
-      $('ta-err').textContent = T('tour_name_required');
-      form.elements.name.focus();
-    }, true);
+    // Ô lỗi nằm ở tab đang ẩn (form novalidate): chuyển tới tab chứa ô đó
+    DR.bindForm(form, { stages: 'ta-stages', hint: 'ta-fmt-hint', est: 'ta-est', err: 'ta-err' }, (key) => {
+      const tab = TABS.find((x) => x.keys.includes(key));
+      if (tab) showTab(form, tab.id);
+      const el = form.elements[key];
+      if (el && el.focus) el.focus();
+    });
   });
-  K.enter.tourAdv = () => { if (!F.d) DR.begin(null); };
 })();

@@ -92,7 +92,16 @@ const { setup, sleep } = require('./helpers.js');
   await boss.$eval('#ta input[name=name]', (e) => { e.value = ''; }); // ô tên nằm ở tab đang ẩn
   await boss.click('.ta-foot button.primary'); await sleep(250);
   ok(await boss.$eval('.ta-tab.on', (e) => e.dataset.tab) === 'basic' && /tên giải/i.test(await boss.textContent('#ta-err')), 'Thiếu tên: tự chuyển về tab Thông tin cơ bản + báo lỗi');
+  await boss.$eval('#ta input[name=name]', (e) => { e.value = 'ab'; });
+  await boss.click('.ta-tab[data-tab="access"]'); await sleep(80);
+  await boss.click('.ta-foot button.primary'); await sleep(250);
+  ok(await boss.$eval('.ta-tab.on', (e) => e.dataset.tab) === 'basic' && /3 ký tự/.test(await boss.textContent('#ta-err')), 'Tên 2 ký tự: báo "ít nhất 3 ký tự" ngay, về tab Thông tin cơ bản');
+  // Số người ngoài 3–512 (thể thức có giai đoạn): báo lỗi, chuyển tới tab Đăng ký
   await boss.fill('#ta input[name=name]', 'Cúp Nâng Cao');
+  await boss.$eval('#ta input[name=max]', (e) => { e.value = '2'; });
+  await boss.click('.ta-foot button.primary'); await sleep(250);
+  ok(await boss.$eval('.ta-tab.on', (e) => e.dataset.tab) === 'reg' && /3 đến 512/.test(await boss.textContent('#ta-err')), 'Số người 2 với thể thức có giai đoạn: báo "từ 3 đến 512", về tab Đăng ký');
+  await boss.fill('#ta input[name=max]', '16');
   await boss.click('.ta-foot button.primary'); await sleep(800);
   const t = await boss.evaluate(() => window.CaroTourKit.D.tour);
   ok(t && t.name === 'Cúp Nâng Cao', 'Tạo giải từ trang nâng cao → mở trang giải');

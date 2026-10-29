@@ -153,7 +153,7 @@
   O.on('clubList', (m) => {
     D.clubs = m.clubs;
     D.myClubs = m.mine;
-    if (isOpen() && (V.page === 'clubs' || V.page === 'tourNew' || V.page === 'tourAdv') && !$('tf') && !$('ta')) render();
+    if (isOpen() && (V.page === 'clubs' || V.page === 'tourNew' || V.page === 'tourAdv')) render(); // form đang mở: render() tự bỏ qua
   });
   O.on('club', (m) => {
     if (m.id !== V.id) return;

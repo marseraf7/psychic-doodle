@@ -118,9 +118,11 @@
   dlg.querySelectorAll('[data-ttab]').forEach((b) => { b.onclick = () => top(b.dataset.ttab); });
 
   // ------------------------------------------------------------ Vẽ
+  /** Form tạo giải (nhanh / nâng cao) đang mở trên màn hình. */
+  const formOpen = () => (V.page === 'tourNew' && !!$('tf')) || (V.page === 'tourAdv' && !!$('ta'));
   /** Vẽ lại trang. Form tạo giải đang mở thì chỉ vẽ lại khi bắt buộc (không mất chữ đang gõ). */
   function render(force) {
-    if (!force && ((V.page === 'tourNew' && $('tf')) || (V.page === 'tourAdv' && $('ta'))) && O.connected) return;
+    if (!force && formOpen() && O.connected) return;
     const top3 = ['tours', 'clubs', 'admin'];
     $('tour-back').hidden = !V.stack.length;
     dlg.querySelectorAll('[data-ttab]').forEach((b) => b.classList.toggle('on', b.dataset.ttab === V.page || (b.dataset.ttab === 'tours' && /^tour/.test(V.page)) || (b.dataset.ttab === 'clubs' && /^club/.test(V.page))));

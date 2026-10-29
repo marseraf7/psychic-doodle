@@ -50,7 +50,9 @@
     name: '', desc: '', start: defaultStart(), time: 't20', opening: 'free', rule: 'vn', minutes: '30', seeding: 'rating',
     checkin: true, rated: true, max: '32', access: 'public', club: '',
   });
+  let saveTimer = 0;
   function saveDraft() {
+    clearTimeout(saveTimer);
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ preset: F.preset, stages: F.stages, d: F.d })); } catch (e) { /* chế độ riêng tư */ }
   }
   function loadDraft() {
@@ -67,20 +69,35 @@
     try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* bỏ qua */ }
     F.d = null;
   }
-  /** Mở form nhanh từ ngoài (danh sách giải / trang CLB): nạp nháp; clubId = tạo giải cho CLB đó. */
+  /**
+   * Mở form từ ngoài (danh sách giải / trang CLB): nạp nháp. clubId = tạo giải cho CLB đó; mở từ danh sách chung thì
+   * không giữ lựa chọn "chỉ CLB" của nháp cũ (tránh vô tình tạo giải kín cho CLB).
+   */
   function begin(clubId) {
     loadDraft();
-    if (clubId) { F.d.access = 'club'; F.d.club = clubId; }
+    if (clubId) { F.d.access = 'club'; F.d.club = clubId; } else if (F.d.access === 'club') { F.d.access = 'public'; F.d.club = ''; }
   }
-  /** Đọc mọi ô của form (nhanh hoặc nâng cao – cùng tên ô) vào bản nháp. */
-  function collect(form) {
+  /** Đọc mọi ô của form (nhanh hoặc nâng cao – cùng tên ô) vào bản nháp. lazy: lưu máy sau 0,5 s (khi đang gõ). */
+  function collect(form, lazy) {
     if (!form || !F.d) return;
     for (const k of Object.keys(F.d)) {
       const el = form.elements[k];
       if (!el) continue;
       F.d[k] = el.type === 'checkbox' ? el.checked : el.value;
     }
-    saveDraft();
+    if (lazy) { clearTimeout(saveTimer); saveTimer = setTimeout(saveDraft, 500); } else saveDraft();
+  }
+  const isKo = () => F.preset !== 'arena';
+  /** Kiểm bản nháp như máy chủ (tên ≥ 3 ký tự, giờ bắt đầu, số người). Lỗi: { key: tên ô, msg }; hợp lệ: null. */
+  function validate() {
+    const d = F.d, now = Date.now();
+    const name = d.name.trim();
+    if (name.length < 3) return { key: 'name', msg: T(name ? 'srv_tour_name_short' : 'tour_name_required') };
+    const start = new Date(d.start).getTime();
+    if (!Number.isFinite(start) || start < now + 60 * 1000 || start > now + 30 * 86400000) return { key: 'start', msg: T('srv_tour_bad_start') };
+    const n = Number(d.max), lo = isKo() ? 3 : 2;
+    if (!Number.isInteger(n) || n < lo || n > 512) return { key: 'max', msg: T('tour_bad_max', { lo, hi: 512 }) };
+    return null;
   }
 
   // ------------------------------------------------------------ Các ô (cùng HTML ở hai trang)
@@ -147,7 +164,7 @@
   const hm = (min) => (min >= 60 ? T('est_hm', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') }) : T('minutes_n', { n: Math.max(1, min) }));
   /** Dòng ước tính: số trận, số lượt đấu, thời gian (nếu đủ số người tối đa). */
   function estimateText() {
-    const n = Math.max(2, Math.min(512, Math.floor(Number(F.d.max) || 0)));
+    const n = Math.max(isKo() ? 3 : 2, Math.min(512, Math.floor(Number(F.d.max) || 0))); // như máy chủ
     if (F.preset === 'arena') return T('est_arena', { t: hm(Number(F.d.minutes) || 30), n });
     const tc = F.d.time[0] === 'c' ? { clock: F.d.time.slice(1) } : { timeLimit: Number(F.d.time.slice(1)) };
     const e = window.CaroTourEstimate.estimate({ stages: F.stages, players: n, ...tc });
@@ -173,10 +190,12 @@
     </form>`;
   }
 
-  /** Gắn sự kiện cho một form tạo giải (nhanh hoặc nâng cao). ids: { stages, hint, est, adv? } */
-  function bindForm(form, ids) {
+  /** Gắn sự kiện cho một form tạo giải (nhanh hoặc nâng cao). ids: { stages, hint, est, err, adv? }; onInvalid(key): ô lỗi. */
+  function bindForm(form, ids, onInvalid) {
     const box = $(ids.stages);
     const drawStages = () => { if (box) box.innerHTML = stageEditor(); };
+    // Chỉ ghi khi đổi (dòng aria-live: trình đọc màn hình không đọc lại câu giống hệt)
+    const showEst = () => { const el = $(ids.est), t = estimateText(); if (el && el.textContent !== t) el.textContent = t; };
     const sync = () => {
       const ko = F.preset !== 'arena';
       if (form.preset) form.preset.value = F.preset;
@@ -187,7 +206,7 @@
       if (ids.adv && $(ids.adv)) $(ids.adv).hidden = F.preset !== 'custom';
       if (form.max) { form.max.max = 512; form.max.min = ko ? 3 : 2; }
       collect(form);
-      if ($(ids.est)) $(ids.est).textContent = estimateText();
+      showEst();
     };
     drawStages();
     if (form.preset) {
@@ -200,7 +219,13 @@
       };
     }
     form.addEventListener('change', (e) => { if (!e.target.closest('#' + ids.stages) && e.target !== form.preset) sync(); });
-    form.addEventListener('input', (e) => { if (e.target.name === 'max' || e.target.name === 'name' || e.target.name === 'desc') sync(); });
+    // Đang gõ: chỉ cập nhật nháp (lưu máy chậm 0,5 s); số người đổi thì cập nhật ước tính
+    form.addEventListener('input', (e) => {
+      const k = e.target.name;
+      if (k !== 'max' && k !== 'name' && k !== 'desc') return;
+      collect(form, true);
+      if (k === 'max') showEst();
+    });
     if (box) {
       // Sửa một giai đoạn
       const custom = () => { F.preset = 'custom'; sync(); };
@@ -244,6 +269,13 @@
     form.onsubmit = (e) => {
       e.preventDefault();
       collect(form);
+      const bad = validate();
+      if (bad) {
+        if ($(ids.err)) $(ids.err).textContent = bad.msg;
+        if (onInvalid) onInvalid(bad.key);
+        else if (form.elements[bad.key] && form.elements[bad.key].focus) form.elements[bad.key].focus();
+        return;
+      }
       submit(ids.err);
     };
     sync();
@@ -253,7 +285,6 @@
   function submit(errId) {
     const d = F.d;
     if ($(errId)) $(errId).textContent = '';
-    if (!d.name.trim()) { if ($(errId)) $(errId).textContent = T('tour_name_required'); return false; }
     const start = new Date(d.start).getTime();
     const ko = F.preset !== 'arena';
     O.send({
@@ -274,12 +305,10 @@
     const club = F.d && F.d.access === 'club' ? F.d.club : null;
     resetDraft();
     begin(club);
-    F.preset = 'arena';
-    F.stages = null;
     K.render(true);
   };
   K.binders.push(() => { const tf = $('tf'); if (tf) bindForm(tf, { stages: 'tf-stages', hint: 'tf-fmt-hint', est: 'tf-est', adv: 'tf-adv', err: 'tf-err' }); });
   // Tạo xong thì bỏ nháp
   O.on('tourCreated', resetDraft);
-  K.tourDraft = { F, FIELDS, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText };
+  K.tourDraft = { F, FIELDS, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate };
 })();
