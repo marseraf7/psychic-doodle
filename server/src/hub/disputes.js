@@ -132,7 +132,7 @@ class Disputes {
 
   /** Trận nhánh đấu đủ điều kiện kết thúc chưa (theo tỉ số m.wins sau gameNo ván). undefined = chưa. */
   decideMatch(t, st, m, gameNo) {
-    const bo = st.cfg.bestOf, need = Math.floor(bo / 2) + 1;
+    const bo = ST.boOf(st, m), need = Math.floor(bo / 2) + 1;
     const wa = m.wins[m.a] || 0, wb = m.wins[m.b] || 0;
     if (wa >= need) return m.a;
     if (wb >= need) return m.b;

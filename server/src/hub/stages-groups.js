@@ -1,10 +1,11 @@
 /*
- * Thể thức thi đấu – vòng tròn (chia bảng, gặp nhau 1 hoặc 2 lần), hệ Thụy Sĩ (ghép cùng điểm, không gặp lại),
- * bảng điểm (thắng / hoà / thua, Buchholz, Sonneborn–Berger, đối đầu), người đi tiếp sang vòng sau.
+ * Thể thức thi đấu – vòng tròn (chia bảng, gặp nhau 1–3 lần), hệ Thụy Sĩ (ghép cùng điểm, không gặp lại),
+ * bảng xếp hạng từng bảng và người đi tiếp sang vòng sau (bảng điểm + tie-break: stages-tiebreak.js).
  * Dùng bởi stages.js.
  */
 'use strict';
 const { BYE, MAX_GROUP, MAX_GROUPS, real, newMatch } = require('./stages-base.js');
+const { tally, rankList, crossCompare } = require('./stages-tiebreak.js');
 
 // ------------------------------------------------------------ Vòng tròn
 /** Tên bảng: A..Z, rồi AA, AB… */
@@ -65,7 +66,9 @@ function buildRoundRobin(st, seeds, plan) {
       base.push(pairs);
       arr.splice(1, 0, arr.pop()); // xoay vòng (giữ cố định người đầu)
     }
-    const all = st.cfg.meetings === 2 ? [...base, ...base.map((ps) => ps.map(([x, y]) => [y, x]))] : base;
+    // Gặp nhau 2–3 lần: lượt về đổi bên đi trước, lượt thứ ba như lượt đi
+    const back = base.map((ps) => ps.map(([x, y]) => [y, x]));
+    const all = st.cfg.meetings === 3 ? [...base, ...back, ...base] : st.cfg.meetings === 2 ? [...base, ...back] : base;
     all.forEach((pairs, r) => {
       const ids = [];
       pairs.forEach(([x, y], i) => {
@@ -147,57 +150,7 @@ function swissNextRound(st, seedOf, isActive = () => true) {
   st.rounds.push(ids);
 }
 
-// ------------------------------------------------------------ Bảng điểm
-/** Thống kê từng người trong vòng (vòng tròn / Thụy Sĩ). */
-function tally(st, only) {
-  const p = st.cfg.points || { w: 1, d: 0, l: 0 };
-  const s = {};
-  for (const uid of only || st.entrants) s[uid] = { uid, mp: 0, w: 0, d: 0, l: 0, gw: 0, gl: 0, pts: 0, opps: [], beat: [], drew: [], byes: 0 };
-  for (const m of Object.values(st.matches)) {
-    if (!m.done) continue;
-    if (m.bye) { // miễn đấu (Thụy Sĩ): tính như thắng
-      if (s[m.winner]) { s[m.winner].pts += p.w; s[m.winner].w++; s[m.winner].byes++; }
-      continue;
-    }
-    for (const [me, op] of [[m.a, m.b], [m.b, m.a]]) {
-      const x = s[me];
-      if (!x || !real(me)) continue;
-      x.mp++;
-      x.opps.push(op);
-      x.gw += m.wins[me] || 0;
-      x.gl += m.wins[op] || 0;
-      if (m.double) { x.l++; x.pts += p.l; continue; } // cả hai vắng mặt: đều thua
-      if (m.winner === null) { x.d++; x.pts += p.d; x.drew.push(op); } else if (m.winner === me) { x.w++; x.pts += p.w; x.beat.push(op); } else { x.l++; x.pts += p.l; }
-    }
-  }
-  // Buchholz (tổng điểm các đối thủ) và Sonneborn–Berger (điểm đối thủ mình thắng + ½ hoà)
-  for (const x of Object.values(s)) {
-    x.bh = x.opps.reduce((t, o) => t + (s[o] ? s[o].pts : 0), 0);
-    x.sb = x.beat.reduce((t, o) => t + (s[o] ? s[o].pts : 0), 0) + x.drew.reduce((t, o) => t + (s[o] ? s[o].pts / 2 : 0), 0);
-  }
-  return s;
-}
-
-/** Xếp hạng một nhóm người: điểm → (vòng tròn: đối đầu, hiệu số ván) / (Thụy Sĩ: Buchholz, SB) → hạt giống. */
-function rankList(st, uids, seedOf) {
-  const s = tally(st, uids);
-  const cmp = st.type === 'swiss'
-    ? (a, b) => s[b].pts - s[a].pts || s[b].bh - s[a].bh || s[b].sb - s[a].sb || s[b].w - s[a].w || seedOf(a) - seedOf(b)
-    : (a, b) => s[b].pts - s[a].pts || (s[b].gw - s[b].gl) - (s[a].gw - s[a].gl) || s[b].gw - s[a].gw || seedOf(a) - seedOf(b);
-  const list = [...uids].sort(cmp);
-  if (st.type === 'roundrobin') {
-    // Hai người bằng điểm: ai thắng trận đối đầu xếp trên
-    for (let i = 0; i + 1 < list.length; i++) {
-      const a = list[i], b = list[i + 1];
-      if (s[a].pts !== s[b].pts || (list[i + 2] && s[list[i + 2]].pts === s[a].pts) || (i > 0 && s[list[i - 1]].pts === s[a].pts)) continue;
-      const h = Object.values(st.matches).filter((m) => m.done && ((m.a === a && m.b === b) || (m.a === b && m.b === a)));
-      const aw = h.filter((m) => m.winner === a).length, bw = h.filter((m) => m.winner === b).length;
-      if (bw > aw) { list[i] = b; list[i + 1] = a; }
-    }
-  }
-  return { list, stats: s };
-}
-
+// ------------------------------------------------------------ Bảng điểm (tally, rankList: stages-tiebreak.js)
 /** Bảng xếp hạng của vòng: vòng tròn = từng bảng; Thụy Sĩ = một bảng. */
 function standings(st, seedOf) {
   if (st.type === 'roundrobin') return st.groups.map((g) => rankList(st, g.players, seedOf));
@@ -215,7 +168,7 @@ function advancers(st, seedOf) {
   tables.forEach((t, g) => t.list.slice(0, k).forEach((uid, pos) => { (tiers[pos] = tiers[pos] || []).push({ uid, s: t.stats[uid] }); groupOf[uid] = g; }));
   const seeds = [];
   for (const tier of tiers) {
-    tier.sort((a, b) => b.s.pts - a.s.pts || (b.s.gw - b.s.gl) - (a.s.gw - a.s.gl) || b.s.gw - a.s.gw || seedOf(a.uid) - seedOf(b.uid));
+    tier.sort(crossCompare(st, seedOf));
     seeds.push(...tier.map((x) => x.uid));
   }
   return { seeds: seeds.length >= 2 ? seeds : tables.flatMap((t) => t.list).slice(0, 2), groupOf };

@@ -4,7 +4,8 @@
  * (thông tin, nút thao tác, người chơi, bảng xếp hạng Arena), tin từ máy chủ.
  * Các phần khác nạp sau và cắm vào window.CaroTourKit:
  *   tour-stages.js – vẽ các giai đoạn: nhánh đấu, nhánh thắng – thua, bảng vòng tròn, Thụy Sĩ
- *   tour-form.js   – form tạo giải: mẫu có sẵn + trình ghép giai đoạn
+ *   tour-form.js   – form tạo giải nhanh: mẫu có sẵn + trình ghép giai đoạn, bản nháp chung
+ *   tour-adv.js    – trang Cài đặt nâng cao khi tạo giải (các nhóm cài đặt theo tab)
  *   club.js        – câu lạc bộ: danh sách, trang CLB, tạo CLB, quản lý
  *   tour-admin.js  – trang Duyệt của quản trị viên (hàng chờ duyệt, số liệu máy chủ)
  * Link mở thẳng: ?t=<mã giải>, ?club=<mã CLB>.
@@ -101,7 +102,7 @@
     if (!O.connected) return;
     if (V.page === 'tours') O.send({ t: 'tourList' });
     else if (V.page === 'tour') { D.tour = D.tour && D.tour.id === V.id ? D.tour : null; O.send({ t: 'tourGet', id: V.id }); }
-    else if (V.page === 'clubs' || V.page === 'tourNew') O.send({ t: 'clubList' });
+    else if (V.page === 'clubs' || V.page === 'tourNew' || V.page === 'tourAdv') O.send({ t: 'clubList' });
     else if (V.page === 'club') { D.club = D.club && D.club.id === V.id ? D.club : null; O.send({ t: 'clubGet', id: V.id }); }
     else if (V.page === 'admin') { O.send({ t: 'adminQueue' }); O.send({ t: 'adminStats' }); }
   }
@@ -117,9 +118,11 @@
   dlg.querySelectorAll('[data-ttab]').forEach((b) => { b.onclick = () => top(b.dataset.ttab); });
 
   // ------------------------------------------------------------ Vẽ
+  /** Form tạo giải (nhanh / nâng cao) đang mở trên màn hình. */
+  const formOpen = () => (V.page === 'tourNew' && !!$('tf')) || (V.page === 'tourAdv' && !!$('ta'));
   /** Vẽ lại trang. Form tạo giải đang mở thì chỉ vẽ lại khi bắt buộc (không mất chữ đang gõ). */
   function render(force) {
-    if (!force && V.page === 'tourNew' && $('tf') && O.connected) return;
+    if (!force && formOpen() && O.connected) return;
     const top3 = ['tours', 'clubs', 'admin'];
     $('tour-back').hidden = !V.stack.length;
     dlg.querySelectorAll('[data-ttab]').forEach((b) => b.classList.toggle('on', b.dataset.ttab === V.page || (b.dataset.ttab === 'tours' && /^tour/.test(V.page)) || (b.dataset.ttab === 'clubs' && /^club/.test(V.page))));
@@ -181,6 +184,7 @@
     if (t.status === 'pending') html += `<p class="note">${esc(T('tour_pending_note'))}</p>`;
     if (t.status === 'rejected') html += `<p class="note bad">${esc(T('tour_rejected_note'))}${t.reviewNote ? ': ' + esc(t.reviewNote) : ''}</p>`;
     if (t.status === 'cancelled') html += `<p class="note bad">${esc(T('tour_cancelled_note'))}${t.cancelReason ? ' – ' + esc(T('cancel_' + t.cancelReason)) : ''}</p>`;
+    if (t.format === 'bracket' && t.noShowMin && (t.status === 'scheduled' || t.status === 'running')) html += `<p class="hint">${esc(T('noshow_info', { n: t.noShowMin }))}</p>`;
     if (t.format === 'bracket' && t.status === 'scheduled' && t.checkinEnabled) {
       html += `<p class="hint">${esc(T(t.checkin ? 'checkin_open_hint' : 'checkin_hint', { t: when(t.checkinAt) }))}</p>`;
     }
@@ -376,6 +380,7 @@
     /** Lỗi khi tạo giải / CLB hiện ngay trong form (online.js gọi). */
     errorTarget(ctx) {
       if (ctx === 'tourCreate' && $('tf-err') && isOpen()) return 'tf-err';
+      if (ctx === 'tourCreate' && $('ta-err') && isOpen()) return 'ta-err';
       if (ctx === 'clubCreate' && $('cf-err') && isOpen()) return 'cf-err';
       return null;
     },

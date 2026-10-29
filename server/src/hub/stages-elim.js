@@ -1,6 +1,7 @@
 /*
- * Thể thức thi đấu – loại trực tiếp (single, tuỳ chọn tranh hạng 3) và nhánh thắng / nhánh thua (double, chung kết
- * tổng, tuỳ chọn "reset"): dựng nhánh đấu, xếp hạt giống, tự xử trận miễn đấu, chuyển người thắng / thua.
+ * Thể thức thi đấu – loại trực tiếp (single: tranh hạng 3, hoặc trận xếp hạng mọi vị trí) và nhánh thắng / nhánh
+ * thua (double: chung kết tổng 1–2 trận / 1 trận / không có; "split": nửa dưới hạt giống bắt đầu ở nhánh thua):
+ * dựng nhánh đấu, xếp hạt giống, tự xử trận miễn đấu, chuyển người thắng / thua.
  * Dùng bởi stages.js.
  */
 'use strict';
@@ -78,6 +79,34 @@ function firstRound(seeds, size, groupOf) {
   return pairs;
 }
 
+/**
+ * Trận xếp hạng (như "Break ties with placement matches" của Challonge): người thua các trận feeders (theo thứ tự)
+ * đấu một nhánh loại trực tiếp riêng để phân hạng base … base + n − 1; người thua từng vòng của nhánh này lại đấu
+ * tiếp để phân các hạng sau. Chung kết của nhánh base = 3 chính là trận tranh hạng ba.
+ */
+function placement(st, feeders, base, round0) {
+  const n = feeders.length;
+  if (n < 2) return;
+  const R = Math.log2(n);
+  const id = (r, i) => `${st.key}p${base}r${r}m${i}`;
+  const rounds = [];
+  for (let r = 0; r < R; r++) {
+    const ids = [];
+    for (let i = 0; i < n >> (r + 1); i++) {
+      const m = newMatch(id(r, i), round0 + r, { place: base });
+      if (r < R - 1) m.next = { to: id(r + 1, i >> 1), slot: i % 2 ? 'b' : 'a' };
+      if (base === 3) m.third = true;
+      st.matches[m.id] = m;
+      ids.push(m.id);
+    }
+    rounds.push(ids);
+  }
+  feeders.forEach((f, i) => { st.matches[f].loserTo = { to: id(0, i >> 1), slot: i % 2 ? 'b' : 'a' }; });
+  if (base === 3) st.third = id(R - 1, 0);
+  else st.places.push({ base, rounds });
+  for (let r = 0; r < R - 1; r++) placement(st, rounds[r], base + (n >> (r + 1)), round0 + r + 1);
+}
+
 function buildSingle(st, seeds, groupOf) {
   const size = pow2(Math.max(2, seeds.length));
   const R = Math.log2(size);
@@ -93,7 +122,11 @@ function buildSingle(st, seeds, groupOf) {
     }
     st.rounds.push(ids);
   }
-  if (st.cfg.thirdPlace && size >= 4) {
+  if (st.cfg.placement && size >= 4) {
+    // Người thua vòng r (size / 2^(r+1) người) tranh các hạng sau những người còn đi tiếp
+    st.places = [];
+    for (let r = 0; r < R - 1; r++) placement(st, st.rounds[r], (size >> (r + 1)) + 1, r + 1);
+  } else if (st.cfg.thirdPlace && size >= 4) {
     const t = newMatch(`${st.key}third`, R - 1, { third: true });
     st.matches[t.id] = t;
     st.third = t.id;
@@ -116,10 +149,11 @@ function buildDouble(st, seeds, groupOf) {
   st.rounds = [];
   st.lrounds = [];
   st.gf = [];
-  const gf1 = newMatch(`${st.key}gf1`, k, { gf: 1 });
-  st.matches[gf1.id] = gf1;
-  st.gf.push(gf1.id);
-  if (st.cfg.reset) {
+  // Không có chung kết tổng (gf 'none'): vô địch nhánh thắng nhất, vô địch nhánh thua nhì
+  const noGf = st.cfg.gf === 'none';
+  const gf1 = noGf ? null : newMatch(`${st.key}gf1`, k, { gf: 1 });
+  if (gf1) { st.matches[gf1.id] = gf1; st.gf.push(gf1.id); }
+  if (gf1 && st.cfg.reset) {
     const gf2 = newMatch(`${st.key}gf2`, k + 1, { gf: 2 });
     st.matches[gf2.id] = gf2;
     st.gf.push(gf2.id);
@@ -131,7 +165,7 @@ function buildDouble(st, seeds, groupOf) {
     const ids = [];
     for (let i = 0; i < lbCount[j]; i++) {
       const m = newMatch(L(j, i), j, { lb: true });
-      if (j === nL - 1) m.next = { to: gf1.id, slot: 'b' };
+      if (j === nL - 1) { if (gf1) m.next = { to: gf1.id, slot: 'b' }; }
       else if (j % 2 === 0) m.next = { to: L(j + 1, i), slot: 'a' };
       else m.next = { to: L(j + 1, i >> 1), slot: i % 2 ? 'b' : 'a' };
       st.matches[m.id] = m;
@@ -144,7 +178,8 @@ function buildDouble(st, seeds, groupOf) {
     const n = size >> (r + 1);
     for (let i = 0; i < n; i++) {
       const m = newMatch(W(r, i), r);
-      m.next = r < k - 1 ? { to: W(r + 1, i >> 1), slot: i % 2 ? 'b' : 'a' } : { to: gf1.id, slot: 'a' };
+      if (r < k - 1) m.next = { to: W(r + 1, i >> 1), slot: i % 2 ? 'b' : 'a' };
+      else if (gf1) m.next = { to: gf1.id, slot: 'a' };
       if (r === 0) m.loserTo = { to: L(0, i >> 1), slot: i % 2 ? 'b' : 'a' };
       else {
         // Người thua nhánh thắng rơi xuống nhánh thua; đảo thứ tự xen kẽ để tránh gặp lại ngay
@@ -161,6 +196,9 @@ function buildDouble(st, seeds, groupOf) {
     const m = st.matches[W(0, i)];
     m.a = a;
     m.b = b;
+    // Split (như Challonge): nửa trên hạt giống vào thẳng vòng 2 nhánh thắng, nửa dưới bắt đầu ở nhánh thua –
+    // trận vòng 1 nhánh thắng không đấu, tự xử hạt giống cao hơn đi tiếp, hạt giống thấp xuống nhánh thua
+    if (st.cfg.split && real(a) && real(b)) { m.split = true; resolveElim(st, m, a, b, events); }
   });
   for (const mid of st.rounds[0]) autoBye(st, st.matches[mid], events);
 }

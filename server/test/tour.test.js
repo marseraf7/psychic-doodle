@@ -683,6 +683,60 @@ test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh th
   ps.forEach((c) => c.close());
 });
 
+test('tuỳ chọn như Challonge: Bo3 chung kết, trận xếp hạng; nhánh thắng – thua split + không chung kết tổng', async () => {
+  const B = await organizer();
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('pl', 1650 - i * 10));
+  const sg = await B.req({ t: 'tourCreate', name: 'Xếp hạng', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, noShowMin: 5,
+    stages: [{ type: 'single', bestOf: 1, boFinal: 3, placement: true }] }, 'tourCreated');
+  for (const p of ps) await p.req({ t: 'tourJoin', id: sg.id }, 'toast');
+  const t = app.hub.tours.get(sg.id);
+  assert.strictEqual(t.noShowMin, 5, 'lưu thời gian chờ vắng mặt');
+  const watcher = await account('plw');
+  await watcher.req({ t: 'tourGet', id: sg.id }, 'tour'); // xem trang giải suốt giải: nhận bản vá
+  B.send({ t: 'tourStart', id: sg.id });
+  await until(() => t.status === 'running');
+  const sd = (c) => t.players.find((p) => p.uid === c.me.uid).seed;
+  const bos = new Set();
+  await autoPlay(t, ps, (a, b) => {
+    const r = [...app.hub.rooms.values()].find((x) => x.tour && x.tour.id === t.id && x.active && x.full);
+    if (r) bos.add(r.tour.match + ':' + r.bestOf);
+    return sd(a) < sd(b) ? a : b;
+  }, 60000);
+  assert.strictEqual(t.status, 'finished');
+  const st = t.st[0];
+  const final = st.rounds[st.rounds.length - 1][0];
+  assert.ok(bos.has(final + ':3'), 'chung kết Bo3 – ' + [...bos].join(' '));
+  assert.ok([...bos].some((x) => x.startsWith(st.third + ':1')), 'tranh hạng ba Bo1');
+  const bySeed = t.players.filter((p) => p.seed).sort((a, b) => a.seed - b.seed).map((p) => p.uid);
+  assert.deepStrictEqual(t.podium.slice(0, 3), bySeed.slice(0, 3));
+  const v = await ps[3].req({ t: 'tourGet', id: sg.id }, 'tour');
+  assert.strictEqual(v.tour.noShowMin, 5);
+  assert.strictEqual(v.tour.stageViews[0].rounds[1][0].bo, 3, 'trang giải ghi Bo3 cho chung kết');
+  // Người xem từ đầu (chỉ nhận bản vá) có đúng trang giải như bản đầy đủ, kể cả trận tranh hạng ba
+  await until(() => watcher.tours[sg.id] && watcher.tours[sg.id].status === 'finished');
+  await sleep(100);
+  assert.deepStrictEqual(watcher.tours[sg.id].stageViews, v.shared.stageViews);
+  watcher.close();
+  // Nhánh thắng – thua 4 người, split, không chung kết tổng: hạt giống 3, 4 bắt đầu ở nhánh thua
+  const de = await B.req({ t: 'tourCreate', name: 'Split', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
+    stages: [{ type: 'double', bestOf: 1, gf: 'none', split: true }] }, 'tourCreated');
+  for (const p of ps) await p.req({ t: 'tourJoin', id: de.id }, 'toast');
+  B.send({ t: 'tourStart', id: de.id });
+  const d = app.hub.tours.get(de.id);
+  await until(() => d.status === 'running');
+  const sd2 = (c) => d.players.find((p) => p.uid === c.me.uid).seed;
+  let played = 0;
+  await autoPlay(d, ps, (a, b) => { played++; return sd2(a) < sd2(b) ? a : b; }, 60000);
+  assert.strictEqual(d.status, 'finished');
+  assert.strictEqual(played, 3, 'split + không chung kết tổng: 4 người chỉ 3 trận (CK nhánh thắng, 2 trận nhánh thua)');
+  const seeds2 = d.players.filter((p) => p.seed).sort((a, b) => a.seed - b.seed).map((p) => p.uid);
+  assert.deepStrictEqual(d.podium.slice(0, 3), seeds2.slice(0, 3));
+  const dv = await ps[0].req({ t: 'tourGet', id: de.id }, 'tour');
+  assert.ok(dv.tour.stageViews[0].split && dv.tour.stageViews[0].gf.length === 0);
+  ps.forEach((c) => c.close());
+});
+
 test('giải của câu lạc bộ: chỉ quản lý tạo được, chỉ thành viên đăng ký được, danh sách theo quyền', async () => {
   const B = await admin();
   const owner = await account('tco');

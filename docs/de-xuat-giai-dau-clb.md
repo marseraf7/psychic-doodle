@@ -329,8 +329,8 @@ Chủ CLB có mọi quyền. Ngoài ra có **chuyển quyền chủ** và **gi�
 | Phí tham gia, Stripe, gói theo số trận (Challonge, MyLeague) | Không làm. Caro miễn phí, không quảng cáo |
 | Bàn / sân đấu (Stations) | Không cần. Trận chơi trong phòng trực tuyến |
 | Free For All (>2 người mỗi trận), Leaderboard | Caro chỉ 2 người. Arena đã thay Leaderboard |
-| Nhập tỉ số tay theo set | Kết quả tự vào từ ván thật. BTC chỉ ghi đè khi có sự cố |
-| Biên bản PDF in ký tay | Không cần. Đã có phát lại ván |
+| Nhập tỉ số tay theo set | Giải trực tuyến: kết quả tự vào từ ván thật. **Giải offline (danh sách do BTC tự thêm): có nhập tay theo set**, xem mục 10.4 |
+| Biên bản PDF in ký tay | **Có**, trình duyệt tự dựng rồi In → Lưu PDF, không tải máy chủ (mục 10.5) |
 | Bình luận Facebook | Dùng chat / diễn đàn nội bộ |
 | Excel | Dùng CSV: nhẹ, không cần thư viện |
 | Thành viên đội có số áo, vị trí bóng đá | Thay bằng "thứ tự bàn" trong đội hình CLB |
@@ -381,9 +381,27 @@ Kiểm thử:
 
 Việc lặp lại như soát dịch 4 ngôn ngữ, chạy e2e nhiều lần và kiểm trên điện thoại thật sẽ giao Antigravity theo skill `giao-viec-antigravity`.
 
-## 10. Cần anh chọn
+## 10. Quyết định của anh (29/10/2026)
 
-1. **Duyệt giải của quản trị nền tảng**: giữ cho mọi giải (như hiện nay), hay cho CLB đã duyệt / người tin cậy tự mở giải?
-2. **Thứ tự đợt**: làm 1 → 10 như trên, hay đẩy CLB (7–9) lên sớm hơn?
-3. **Giới hạn 512 người/giải**: giữ? (Challonge Free 256, Premier 512.)
-4. Đồng ý thì mình bắt đầu **Đợt 1** ngay: nút + trang Cài đặt nâng cao + số trận ước tính.
+1. **Giải mới vẫn qua quản trị viên duyệt** như hiện nay. Giải định kỳ (Đợt 10) cũng qua duyệt.
+2. **Làm theo thứ tự Đợt 1 → 10.**
+3. **Giữ giới hạn 512 người mỗi giải.**
+4. **Thêm nhập tỉ số tay theo set (ván)**, chỉ dành cho **giải offline**: giải mà danh sách người chơi do BTC tự thêm bằng Bulk Add (thêm lẻ / dán nhiều dòng / CSV).
+   - Người được thêm không cần có tài khoản; trận diễn ra ngoài đời, BTC nhập kết quả.
+   - Form nhập theo mẫu MyLeague: mỗi dòng một set (ván), có nút thêm/xoá dòng. Tỉ số trận tự suy ra theo cách tính đã chọn: số set thắng, hoặc tổng điểm các set. Thêm ô "kết quả phụ" để phân định khi hoà.
+   - Bracket và bảng xếp hạng tự chảy như giải trực tuyến. Hỗ trợ "Huỷ kết quả".
+   - **Quản trị viên (Admin) có quyền cao nhất**: sửa / huỷ mọi kết quả và mọi cài đặt của mọi giải. Mọi thao tác ghi vào nhật ký.
+   - Làm cùng **Đợt 3** (Bulk Add) và **Đợt 4** (kết quả, huỷ kết quả).
+5. **Biên bản trận PDF để in và ký tay**, chỉ làm theo cách **không thêm tải cho máy chủ và không ảnh hưởng người đang chơi**:
+   - Trình duyệt của BTC tự dựng trang biên bản (HTML khổ A4) từ dữ liệu giải đã có, rồi mở hộp thoại In → "Lưu thành PDF". Máy chủ không tạo tệp, không thêm lệnh nặng. Thư viện PDF chỉ nạp khi bấm nút, nên không làm chậm lúc mở web.
+   - Nội dung: tên giải, vòng, trận, hai người chơi, thời gian, tỉ số từng set, và ô ký: Trọng tài 1, Trọng tài 2, Ban tổ chức, Giám sát, hai người chơi.
+   - Có cả biên bản trắng (in trước trận) và biên bản đã điền kết quả. In được nhiều trận một lúc (cả vòng).
+   - Làm ở **Đợt 4** (khu quản trị).
+
+## 11. Tiến độ
+
+- **Đợt 1 – xong** (PR kèm tài liệu này):
+  - Thêm nút **Cài đặt nâng cao** dưới ô Thể thức khi chọn Tuỳ chỉnh.
+  - Thêm trang nâng cao 5 tab: Thông tin cơ bản · Thể thức · Ván đấu · Đăng ký & điểm danh · Hiển thị & quyền xem. Màn rộng có cột tab bên trái; điện thoại có dải tab ngang. Thanh tóm tắt luôn nằm ở đáy.
+  - Form nhanh và trang nâng cao dùng chung một bản nháp: chuyển qua lại không mất dữ liệu, tải lại trang vẫn còn, có nút Đặt lại, tạo giải xong thì tự xoá nháp.
+  - Dòng ước tính **số trận · số lượt đấu · thời gian** ở cả hai trang (`caro/tour-estimate.js`). Unit test mô phỏng cả giải bằng logic máy chủ, với mọi thể thức từ 2 đến 70 người: số trận và số lượt khớp chính xác.

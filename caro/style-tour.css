@@ -162,3 +162,48 @@ button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.
 .b-match small a svg.ico.i-in, .mrow small a svg.ico.i-in, .tgames a svg.ico.i-in { width: 0.9em; height: 0.9em; margin-inline-end: 0.1em; vertical-align: -0.1em; }
 .announce svg.ico.i-in { color: var(--accent); }
 
+
+/* ---- Tạo giải: dòng ước tính, nút Cài đặt nâng cao, trang Cài đặt nâng cao (tour-adv.js) */
+.tf-top { display: flex; align-items: flex-start; gap: 8px; }
+.tf-top .note { flex: 1; margin: 0; }
+.tf-top button { flex: none; }
+.est { margin: 0; font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--accent); font-variant-numeric: tabular-nums; }
+.est:empty { display: none; }
+.adv-btn { align-self: flex-start; }
+/* Trang nâng cao rộng hơn hộp thoại thường (như trang tạo giải của Challonge) */
+#tour-dlg:has(.tadv) { width: min(980px, calc(100% - 16px)); }
+.tadv { display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-areas: 'tabs main' 'foot foot'; gap: 12px 18px; align-items: start; }
+.ta-tabs { grid-area: tabs; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; }
+.ta-tab {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer;
+}
+.ta-tab:hover { background: rgba(127, 127, 127, 0.1); }
+.ta-tab.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); font-weight: var(--fw-semibold); }
+.ta-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ta-main { grid-area: main; min-width: 0; }
+.ta-pane { display: flex; flex-direction: column; gap: 10px; }
+.ta-pane[hidden] { display: none !important; }
+.ta-pane > h4 { margin-top: 0; }
+.ta-pane > .hint { margin: 0; }
+.ta-foot {
+  grid-area: foot; position: sticky; bottom: 0; z-index: 2; display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 0 2px; background: var(--panel, var(--bg)); border-top: 1px solid var(--panel-border);
+}
+.ta-foot .row { justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.ta-foot .row .primary { min-width: 140px; }
+.ta-foot .err:empty { display: none; }
+@media (max-width: 720px) {
+  .tadv { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'tabs' 'main' 'foot'; }
+  .ta-tabs { flex-direction: row; overflow-x: auto; position: static; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .ta-tabs::-webkit-scrollbar { display: none; }
+  .ta-tab { width: auto; flex: none; white-space: nowrap; }
+  .ta-foot .row > * { flex: 1 1 auto; }
+}
+/* Tuỳ chọn nâng cao của từng giai đoạn (trang Cài đặt nâng cao) */
+.sc-more { border-top: 1px dashed var(--panel-border); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.sc-more > b { font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.sc-body .tb-row { grid-column: 1 / -1; }
+.tb4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+@media (max-width: 520px) { .tb4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.pill.bo { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }

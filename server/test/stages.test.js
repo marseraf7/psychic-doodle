@@ -253,3 +253,133 @@ test('vòng tròn: danh sách trận đấu được (cách tính nhanh) khớp 
     }
   }
 });
+
+// ------------------------------------------------------------ Đợt 2: tuỳ chọn như Challonge
+const ranksOf = (st) => {
+  // Hạng đầy đủ từ trận xếp hạng: chung kết của nhánh base → người thắng hạng base, người thua base + 1
+  const out = {};
+  const fin = (base, id) => { const m = st.matches[id]; if (S.real(m.winner)) out[base] = m.winner; if (S.real(m.loser)) out[base + 1] = m.loser; };
+  const R = st.rounds.length;
+  fin(1, st.rounds[R - 1][0]);
+  if (st.third) fin(3, st.third);
+  for (const p of st.places || []) fin(p.base, p.rounds[p.rounds.length - 1][0]);
+  return out;
+};
+
+test('loại trực tiếp có trận xếp hạng: 8 / 16 người xếp đủ mọi hạng đúng hạt giống, mỗi người đấu log₂ n trận', () => {
+  for (const n of [8, 16]) {
+    const cfg = S.normalizeStages([{ type: 'single', placement: true }])[0];
+    assert.strictEqual(cfg.thirdPlace, true, 'có trận xếp hạng thì luôn có tranh hạng ba');
+    const st = playOut(S.buildStage(cfg, 0, players(n)));
+    const r = ranksOf(st);
+    for (let k = 1; k <= n; k++) assert.strictEqual(r[k], 'p' + k, `n=${n} hạng ${k}`);
+    for (const u of players(n)) {
+      const played = Object.values(st.matches).filter((m) => m.done && (m.a === u || m.b === u) && S.real(m.a) && S.real(m.b)).length;
+      assert.strictEqual(played, Math.log2(n), `n=${n} ${u} đấu ${played} trận`);
+    }
+    assert.deepStrictEqual(S.podium(st, seedOf), ['p1', 'p2', 'p3']);
+  }
+  // Số người lẻ (có miễn đấu): chơi hết, không kẹt, bục trao giải đúng
+  for (let n = 3; n <= 33; n++) {
+    const st = playOut(S.buildStage(S.normalizeStages([{ type: 'single', placement: true }])[0], 0, players(n)), (m) => (rnd() < 0.5 ? m.a : m.b));
+    assert.ok(st.done, 'n=' + n);
+    assert.strictEqual(S.podium(st, seedOf).length, 3, 'n=' + n);
+  }
+});
+
+test('nhánh thắng – thua không có chung kết tổng: vô địch nhánh thắng nhất, vô địch nhánh thua nhì', () => {
+  for (let n = 3; n <= 33; n++) {
+    const cfg = S.normalizeStages([{ type: 'double', gf: 'none' }])[0];
+    assert.strictEqual(cfg.reset, false);
+    const st = playOut(S.buildStage(cfg, 0, players(n)));
+    assert.strictEqual(st.gf.length, 0);
+    assert.deepStrictEqual(S.podium(st, seedOf), ['p1', 'p2', 'p3'], 'n=' + n);
+    const r = playOut(S.buildStage(cfg, 0, players(n)), (m) => (rnd() < 0.5 ? m.a : m.b));
+    const champ = S.podium(r, seedOf)[0];
+    assert.strictEqual(Object.values(r.matches).filter((m) => m.done && m.loser === champ).length, 0, 'vô địch chưa thua trận nào');
+  }
+});
+
+test('nhánh thắng – thua split: nửa dưới hạt giống bắt đầu ở nhánh thua, thua 1 trận nữa là bị loại', () => {
+  for (let n = 4; n <= 33; n++) {
+    const cfg = S.normalizeStages([{ type: 'double', split: true, gf: '1' }])[0];
+    const st = playOut(S.buildStage(cfg, 0, players(n)), (m) => (rnd() < 0.5 ? m.a : m.b));
+    const size = 2 ** Math.ceil(Math.log2(n));
+    const split = Object.values(st.matches).filter((m) => m.split);
+    assert.strictEqual(split.length, n - size / 2, 'n=' + n);
+    for (const m of split) assert.ok(seedOf(m.winner) <= size / 2 && seedOf(m.loser) > size / 2, 'hạt giống cao đi tiếp');
+    for (const u of players(n)) {
+      const real = Object.values(st.matches).filter((m) => m.done && m.loser === u && !m.split).length;
+      const startsLow = split.some((m) => m.loser === u);
+      assert.ok(real + (startsLow ? 1 : 0) <= 2, `n=${n} ${u} thua quá 2 lần`);
+    }
+    assert.ok(st.done && S.podium(st, seedOf).length === 3);
+  }
+});
+
+test('Bo riêng bán kết / chung kết', () => {
+  const st = S.buildStage(S.normalizeStages([{ type: 'single', bestOf: 1, boSemi: 3, boFinal: 5, thirdPlace: true }])[0], 0, players(8));
+  const R = st.rounds.length;
+  assert.strictEqual(S.boOf(st, st.matches[st.rounds[0][0]]), 1);
+  assert.strictEqual(S.boOf(st, st.matches[st.rounds[R - 2][0]]), 3);
+  assert.strictEqual(S.boOf(st, st.matches[st.rounds[R - 1][0]]), 5);
+  assert.strictEqual(S.boOf(st, st.matches[st.third]), 1, 'tranh hạng ba theo Bo cả giai đoạn');
+  const d = S.buildStage(S.normalizeStages([{ type: 'double', bestOf: 1, boSemi: 3, boFinal: 5 }])[0], 0, players(8));
+  assert.strictEqual(S.boOf(d, d.matches[d.gf[0]]), 5);
+  assert.strictEqual(S.boOf(d, d.matches[d.rounds[d.rounds.length - 1][0]]), 3, 'chung kết nhánh thắng');
+  assert.strictEqual(S.boOf(d, d.matches[d.lrounds[d.lrounds.length - 1][0]]), 3, 'chung kết nhánh thua');
+  assert.strictEqual(S.boOf(d, d.matches[d.lrounds[0][0]]), 1);
+  // Không có chung kết tổng: chung kết nhánh thắng quyết định vô địch nên dùng Bo chung kết
+  const n = S.buildStage(S.normalizeStages([{ type: 'double', bestOf: 1, boSemi: 3, boFinal: 5, gf: 'none' }])[0], 0, players(8));
+  assert.strictEqual(S.boOf(n, n.matches[n.rounds[n.rounds.length - 1][0]]), 5);
+  assert.strictEqual(S.boOf(n, n.matches[n.lrounds[n.lrounds.length - 1][0]]), 3);
+  // Bản cũ chỉ có reset: false → chung kết tổng 1 trận
+  assert.strictEqual(S.normalizeStages([{ type: 'double', reset: false }])[0].gf, '1');
+});
+
+/** Vòng tròn 1 bảng với kết quả cho trước: [[a, b, thắng (null = hoà), số ván a, số ván b], …]. */
+function rrWith(n, results, cfg = {}) {
+  const st = S.buildStage(S.normalizeStages([{ type: 'roundrobin', groups: 1, ...cfg }])[0], 0, players(n));
+  for (const [a, b, w, ga, gb] of results) {
+    const m = Object.values(st.matches).find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a));
+    m.wins = { [a]: ga, [b]: gb };
+    S.recordResult(st, m, w);
+  }
+  return st;
+}
+
+test('xếp hạng: đối đầu 3 người bằng điểm (bảng điểm riêng), xếp theo số trận thắng, điểm ván thắng', () => {
+  // p1, p2, p3 thắng vòng tròn nhau (bằng điểm, đối đầu cũng bằng) → hiệu số ván quyết định; p4 thua hết
+  const res = [['p1', 'p2', 'p1', 2, 0], ['p2', 'p3', 'p2', 2, 1], ['p3', 'p1', 'p3', 2, 1], ['p1', 'p4', 'p1', 1, 0], ['p2', 'p4', 'p2', 1, 0], ['p3', 'p4', 'p3', 1, 0]];
+  const st = rrWith(4, res);
+  // hiệu số: p1 = 2+1-1-2... tính: p1 thắng p2 2-0, thua p3 1-2, thắng p4 1-0 → +1; p2: 0-2, 2-1, 1-0 → 0; p3: 1-2, 2-1, 1-0 → +1
+  assert.deepStrictEqual(S.standings(st, seedOf)[0].list, ['p1', 'p3', 'p2', 'p4']);
+  // Đối đầu khi chỉ 2 người bằng điểm: người thắng trận đối đầu xếp trên dù hiệu số kém hơn
+  const st2 = rrWith(3, [['p1', 'p2', 'p2', 0, 1], ['p1', 'p3', 'p1', 5, 0], ['p2', 'p3', null, 1, 1]], { points: { w: 3, d: 1, l: 0 } });
+  // p1: 3 điểm (hiệu +4); p2: 3 + 1 = 4 → p2 nhất; đổi sang xếp theo số trận thắng: p1 = p2 = 1 trận → đối đầu: p2 trên
+  assert.strictEqual(S.standings(st2, seedOf)[0].list[0], 'p2');
+  const st3 = rrWith(3, [['p1', 'p2', 'p2', 0, 1], ['p1', 'p3', 'p1', 5, 0], ['p2', 'p3', null, 1, 1]], { rankBy: 'game_diff' });
+  assert.strictEqual(S.standings(st3, seedOf)[0].list[0], 'p1', 'xếp theo hiệu số ván: p1 (+4) nhất');
+  // Điểm mỗi ván thắng: p1 thắng nhiều ván nên vượt lên
+  const st4 = rrWith(3, [['p1', 'p2', 'p2', 0, 1], ['p1', 'p3', 'p1', 5, 0], ['p2', 'p3', null, 1, 1]], { points: { w: 3, d: 1, l: 0, gw: 1 } });
+  const t4 = S.standings(st4, seedOf)[0];
+  assert.strictEqual(t4.stats.p1.pts, 3 + 5);
+  assert.strictEqual(t4.list[0], 'p1');
+  // Tie-break không hợp lệ bị bỏ, tối đa 4, không trùng
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'swiss', tiebreaks: ['mbh', 'x', 'mbh', 'sb', 'h2h', 'wins', 'gdiff'] }])[0].tiebreaks, ['mbh', 'sb', 'h2h', 'wins']);
+});
+
+test('Thụy Sĩ: điểm miễn đấu riêng, Median-Buchholz, số vòng tự động; vòng tròn gặp nhau 3 lần', () => {
+  const sw = playOut(S.buildStage(S.normalizeStages([{ type: 'swiss', rounds: 3, points: { w: 2, d: 1, l: 0, bye: 1 }, tiebreaks: ['mbh'] }])[0], 0, players(5)));
+  const tab = S.standings(sw, seedOf)[0];
+  const byeP = Object.values(sw.matches).filter((m) => m.bye).map((m) => m.winner);
+  assert.strictEqual(byeP.length, 3);
+  for (const u of byeP) assert.ok(tab.stats[u].byes >= 1);
+  const x = tab.stats[tab.list[0]];
+  assert.strictEqual(x.pts, x.w * 2 - x.byes * 1 + x.d, 'miễn đấu được 1 điểm (không phải 2)');
+  for (const u of tab.list) { const y = tab.stats[u]; if (y.opps.length >= 3) assert.ok(y.mbh <= y.bh); }
+  assert.strictEqual(S.buildStage(S.normalizeStages([{ type: 'swiss', rounds: 0 }])[0], 0, players(16), { seedOf }).cfg.rounds, 4, '16 người: tự động 4 vòng');
+  assert.strictEqual(S.buildStage(S.normalizeStages([{ type: 'swiss', rounds: 0 }])[0], 0, players(5), { seedOf }).cfg.rounds, 3);
+  const rr = S.buildStage(S.normalizeStages([{ type: 'roundrobin', groups: 1, meetings: 3 }])[0], 0, players(4));
+  assert.strictEqual(Object.keys(rr.matches).length, 18);
+});
