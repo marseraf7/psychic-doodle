@@ -173,7 +173,7 @@
   // Mỗi khu chỉ hiện với người có quyền tương ứng (chủ giải thấy hết; đồng ban tổ chức theo quyền được giao)
   K.manageHtml = (t) => `<section class="mg-sec"><h4>${esc(T('mg_checklist'))}</h4>${checklist(t)}</section>
     ${K.can(t, 'players') ? seedsHtml(t) : ''}${K.can(t, 'config') ? scheduleHtml(t) : ''}${K.can(t, 'news') ? newsAdmin(t) : ''}
-    ${K.can(t, 'config') ? settingsHtml(t) : ''}${K.can(t, 'owner') ? staffHtml(t) : ''}${K.embedHtml ? K.embedHtml(t) : ''}
+    ${K.can(t, 'config') ? settingsHtml(t) : ''}${K.can(t, 'owner') ? staffHtml(t) : ''}${K.embedHtml ? K.embedHtml(t) : ''}${K.cloneHtml && K.can(t, 'config') ? K.cloneHtml(t) : ''}
     <section class="mg-sec"><h4>${esc(T('mg_log'))}</h4>${(t.log || []).length ? `<ul class="mg-log">${t.log.map(logLine).join('')}</ul>` : `<p class="hint">${esc(T('mg_log_empty'))}</p>`}</section>`;
 
   // ------------------------------------------------------------ Thao tác

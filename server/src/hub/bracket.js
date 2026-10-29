@@ -294,6 +294,7 @@ class Bracket {
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
       sets: m.sets || null, extra: m.extra || null, override: !!m.override, // tỉ số từng set (giải offline), ghi đè
+      votes: this.voteCount(t, m), // "Ai sẽ thắng?" – số phiếu hai bên (tour-fun.js)
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }

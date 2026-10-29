@@ -164,6 +164,8 @@ class Tournaments {
       // Team Battle: bảng CLB; giao hữu CLB: tỉ số hai bên + từng bàn (club-battle.js)
       teams: t.teams ? this.teamTable(t) : null, teamTop: t.teams ? t.teams.top : null, teamPodium: t.teamPodium || null,
       teamMatch: t.teamMatch ? this.teamMatchView(t) : null,
+      ...this.funShared(t), // dự đoán, bình chọn hạng mục (tour-fun.js)
+      recur: t.recur || null, recurN: t.recurN || null, // giải định kỳ (tour-tpl.js)
       now: Date.now(),
     };
   }
@@ -191,6 +193,7 @@ class Tournaments {
       myMatch: myMatch ? this.matchView(t, myMatch, this.curStage(t)) : null,
       now: Date.now(), // giờ máy chủ (phần chung có thể là bản đã lưu vài giây trước)
       ...(t.teams || t.teamMatch ? this.battleMine(t, uid) : {}),
+      ...this.funMine(t, uid),
     };
   }
 
@@ -254,6 +257,7 @@ class Tournaments {
       // Thời gian chờ vắng mặt (phút) trước khi xử thua; null = mặc định của máy chủ (2 phút)
       noShowMin: ko && NOSHOW_MIN.includes(Number(o.noShowMin)) ? Number(o.noShowMin) : null,
       hideSeeds: o.hideSeeds === true, // không hiện số hạt giống cho người xem (như Challonge "Hide seeds")
+      recur: ['weekly', 'monthly'].includes(o.recur) ? o.recur : null, // giải định kỳ (tour-tpl.js)
     };
   }
 

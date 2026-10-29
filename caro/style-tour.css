@@ -353,3 +353,14 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .tm-boards .draw { color: var(--muted); }
 .tm-lineup { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; margin: 6px 0; }
 .tb-clubs { display: flex; flex-wrap: wrap; gap: 4px 14px; max-height: 180px; overflow-y: auto; }
+/* Giải đấu – Đợt 10 (tour-fun.js, tour-tpl.js) */
+.fun-pred { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px; margin-bottom: 6px; }
+.fun-votes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fun-votes li { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 8px; align-items: center; }
+.fun-votes button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fun-votes button.on { border-color: var(--accent); color: var(--accent); font-weight: var(--fw-semibold); }
+.fun-bar { height: 8px; border-radius: 99px; background: color-mix(in srgb, #d2382f 55%, transparent); overflow: hidden; }
+.fun-bar i { display: block; height: 100%; background: color-mix(in srgb, var(--accent) 75%, transparent); }
+.fun-cat { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.fun-awards { margin: 0; padding-inline-start: 1.4em; font-size: var(--fs-sm); }
+.tpl-row { flex-wrap: wrap; align-items: flex-end; gap: 6px; }

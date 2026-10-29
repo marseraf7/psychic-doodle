@@ -149,6 +149,7 @@
     if (!F.d) begin(V.id);
     return `<form id="tf" class="tform">
       <div class="tf-top"><p class="note">${esc(T('review_note_tour'))}</p><button type="button" class="ghost sm" data-act="tourReset">${icon('retry')}${esc(T('draft_reset'))}</button></div>
+      ${K.tplRow ? K.tplRow() : ''}
       ${fields(['name', 'desc', 'preset'])}
       <p class="hint" id="tf-fmt-hint"></p>
       <button type="button" class="ghost adv-btn" id="tf-adv" data-act="tourAdv" hidden>${icon('sliders')}${esc(T('tadv_settings'))}</button>
@@ -300,5 +301,5 @@
     O.toast(T('tour_edited'));
     if (K.isOpen() && K.V.page === 'tourAdv') { K.V.stack = [{ page: 'tours', id: null }]; open('tour', m.id, false); }
   });
-  K.tourDraft = { F, FIELDS, EXT, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate, fromTour, submit, focusField };
+  K.tourDraft = { F, FIELDS, EXT, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate, fromTour, submit, focusField, blank, saveDraft };
 })();

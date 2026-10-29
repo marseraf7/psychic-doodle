@@ -214,6 +214,7 @@
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
     if (K.battleHtml) html += K.battleHtml(t); // Team Battle / giao hữu CLB (club-battle.js)
+    if (K.funHtml) html += K.funHtml(t); // poster, dự đoán, bình chọn (tour-fun.js)
     if (t.format === 'bracket') html += (K.statsHtml ? K.statsHtml(t) : '') + (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
     html += t.format === 'arena' ? K.standings(t) : K.playerList(t); // tour-players.js
     if (t.format === 'arena' && t.games && t.games.length) html += K.recentGames(t);

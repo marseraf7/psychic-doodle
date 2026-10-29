@@ -435,3 +435,13 @@ Việc lặp lại như soát dịch 4 ngôn ngữ, chạy e2e nhiều lần và
   - **Giao hữu CLB đấu CLB**: nút "Thách đấu CLB khác" ở trang CLB (quyền Giải đấu): chọn đối thủ, số bàn, giờ, thời gian ván, Bo. Qua quản trị viên duyệt như giải thường. CLB kia phải chấp nhận, không thì huỷ. Mỗi bên xếp đội hình theo bàn; tới giờ, bàn 1 gặp bàn 1… Dùng chung hạ tầng giải (Thụy Sĩ 1 vòng, cặp cố định) nên có sẵn vắng mặt, khiếu nại, xem trực tiếp.
   - **Bảng xếp hạng CLB** toàn hệ thống: Team Battle hạng 1 / 2 / 3 được 10 / 6 / 4 điểm; giao hữu thắng 3, hoà 1.
   - **Tủ cúp** ở trang CLB. Trang CLB liệt kê cả Team Battle và giao hữu có CLB tham gia.
+- **Đợt 10 – xong**:
+  - **Dự đoán bục vinh quang** trước giờ đấu (vô địch / á quân / hạng ba). Đúng vị trí 3 điểm, có trên bục nhưng sai vị trí 1 điểm. Giải xong có bảng người đoán giỏi nhất.
+  - **"Ai sẽ thắng?"**: bình chọn các trận đã rõ hai người nhưng chưa bắt đầu (hợp nhất với giải offline và lịch theo vòng). Trận hiện tỉ lệ phiếu; bấm lại để bỏ phiếu.
+  - **Bình chọn cuối giải** (mở 3 ngày): Kỳ thủ xuất sắc, Ván đẹp nhất (giải không có ván trực tuyến thì ẩn mục này).
+  - **Poster** 1080×1350 (tên giải, thể thức, giờ, CLB, bục vinh quang, link) vẽ bằng canvas trên máy người dùng – không thêm việc cho máy chủ.
+  - **Mẫu giải**: "Lưu thành mẫu" ở trang nâng cao (mỗi người tối đa 10, không kèm giờ). "Mẫu của tôi" ở form nhanh.
+  - **Sao chép giải** ở tab Quản lý: mở trang nâng cao với cài đặt cũ, giờ đấu lùi 1 ngày, không sao chép người chơi.
+  - **Giải định kỳ** hằng tuần / hằng tháng (tab Cơ bản): giải xong (hoặc bị huỷ vì thiếu người) tự tạo kỳ sau cùng cài đặt. Kỳ sau vẫn qua quản trị viên duyệt; ban tổ chức tự huỷ thì dừng chuỗi.
+
+Lộ trình 10 đợt đã hoàn tất.

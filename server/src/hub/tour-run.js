@@ -54,6 +54,7 @@ class TourRun {
     this.pushTour(t);
     this.notifyPlayers(t, 'tour_cancelled');
     if (wasPending) this.notifyAdmins();
+    if (reason === 'too_few') this.tourRecur(t); // định kỳ: kỳ này thiếu người vẫn tạo kỳ sau (ban tổ chức tự huỷ thì dừng chuỗi)
   }
 
   // ------------------------------------------------------------ Vận hành
@@ -146,6 +147,7 @@ class TourRun {
     }
     const champ = t.podium[0] && this.player(t, t.podium[0]);
     this.notifyPlayers(t, 'tour_finished', { winner: champ ? champ.name : '—' });
+    this.tourRecur(t); // giải định kỳ: tạo giải kế tiếp (tour-tpl.js)
   }
 
   /**
