@@ -76,7 +76,9 @@ class TourScore {
       if (w === null && ST.isElim(st.type)) throw E('tour_score_tie');
       m.sets = list;
       m.extra = ex;
-      m.wins = { [m.a]: ka, [m.b]: kb };
+      // m.wins luôn là số set thắng (bảng điểm / tie-break đọc như số ván thắng); cách tính chỉ quyết định ai thắng
+      const sw = matchScore(list, 'sets');
+      m.wins = { [m.a]: sw.ka, [m.b]: sw.kb };
       this.finishMatch(t, st, m, w);
       if (t.status === 'running') this.runOffline(t);
     }
@@ -89,6 +91,8 @@ class TourScore {
   on_tourScoreUndo(conn, { id, match }) {
     const { t, st, m } = this.scoreTarget(conn, id, match);
     if (!m.done || m.bye || m.split) throw E('tour_undo_locked');
+    // Trận trực tuyến đã đấu thật (đã tính Elo, có ván phát lại): không huỷ được – chỉ trận ban tổ chức xử / vắng mặt
+    if (!t.offline && m.games && m.games.length) throw E('tour_undo_online');
     if (ST.isElim(st.type)) {
       const targets = [m.next, m.loserTo].filter(Boolean).map((r) => ({ r, x: st.matches[r.to] }));
       if (targets.some(({ x }) => x.done || (x.room && this.rooms.has(x.room)))) throw E('tour_undo_locked');

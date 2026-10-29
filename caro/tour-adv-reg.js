@@ -58,11 +58,12 @@
   });
 
   const ms = (s) => (s ? new Date(s).getTime() : NaN);
-  DR.EXT.validators.push((d, { ko, start }) => {
-    if (d.offline && !ko) return { key: 'offline', msg: T('reg_offline_arena') };
-    if (d.offline) return null; // giải offline không dùng các điều kiện đăng ký
+  // Nháp cũ: hạn chót đã qua thì bỏ (không thì chặn mọi người đăng ký)
+  DR.EXT.loaders.push((d) => { if (d.closeAt && !(ms(d.closeAt) > Date.now())) d.closeAt = ''; });
+  DR.EXT.validators.push((d, { ko }) => {
+    if (!ko || d.offline) return null; // Arena bỏ qua "offline"; giải offline không dùng các điều kiện đăng ký
     const close = ms(d.closeAt);
-    if (d.closeAt && (!Number.isFinite(close) || close <= Date.now() || close > start)) return { key: 'closeAt', msg: T('reg_close_bad') };
+    if (d.closeAt && (!Number.isFinite(close) || close <= Date.now())) return { key: 'closeAt', msg: T('reg_close_bad') };
     if (d.minRating && d.maxRating && Number(d.maxRating) < Number(d.minRating)) return { key: 'maxRating', msg: T('reg_rating_range_bad') };
     for (const q of d.questions || []) {
       if (q.q.trim() && q.type === 'choice' && q.opts.split(',').map((x) => x.trim()).filter(Boolean).length < 2) return { key: 'questions', msg: T('reg_q_opts_few') };
@@ -74,10 +75,13 @@
     const offline = ko && !!d.offline;
     if (offline) return { offline: true, scoreMode: d.scoreMode, rated: false, checkin: false };
     const n = (v) => (v === '' || v == null ? null : Number(v));
+    // Hạn chót sau giờ bắt đầu = không có hạn chót riêng (tới giờ đấu)
+    const close = d.closeAt ? ms(d.closeAt) : NaN;
+    const start = ms(d.start);
     return {
       offline: false,
       reg: {
-        closeAt: d.closeAt ? ms(d.closeAt) - (D.skew || 0) : null, approval: !!d.approval, waitlist: !!d.waitlist,
+        closeAt: Number.isFinite(close) && close <= start ? close - (D.skew || 0) : null, approval: !!d.approval, waitlist: !!d.waitlist,
         minRating: n(d.minRating), maxRating: n(d.maxRating), minGames: n(d.minGames), minAccountDays: n(d.minAccountDays),
         code: d.code.trim() || null, checkinMin: Number(d.checkinMin) || 10,
         questions: (d.questions || []).filter((q) => q.q.trim()).map((q) => ({

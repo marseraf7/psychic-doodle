@@ -279,6 +279,7 @@ class Tournaments {
     } else if (t.status === 'running') {
       p.withdrawn = true;
       if (kicked) p.out = 'kicked';
+      if (t.format === 'arena') this.regPromote(t); // Arena: người đầu danh sách chờ vào thay
       const r = this.roomFor(userPid(uid));
       // Đang đánh ván của giải: rời phòng = xử thua (Arena tính ván thua, loại trực tiếp thua cả trận)
       if (r && r.tour && r.tour.id === t.id && r.active) this.leave(userPid(uid));

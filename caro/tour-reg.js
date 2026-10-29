@@ -84,7 +84,7 @@
         <div class="row"><label class="ghost sm file-btn">${icon('book')}${esc(T('reg_bulk_csv'))}<input type="file" id="bulk-file" accept=".csv,.txt,text/csv,text/plain" hidden></label>
           <button type="button" class="ghost sm" data-act="bulkSample">${esc(T('reg_bulk_sample'))}</button>
           <button type="button" class="primary sm" data-act="bulkAdd">${esc(T('reg_bulk_add'))}</button></div>
-        ${res ? `<ul class="bulk-res">${line('added', res.added)}${line('already', res.already)}${line('missing', res.missing)}${line('full', res.full)}</ul>` : ''}</div>`,
+        ${res ? `<ul class="bulk-res">${line('added', res.added)}${line('already', res.already)}${line('missing', res.missing)}${line('full', res.full)}${line('bad', res.bad)}</ul>` : ''}</div>`,
       t.offline && !t.players.length);
     }
     return html;

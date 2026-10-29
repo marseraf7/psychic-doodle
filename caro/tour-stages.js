@@ -62,6 +62,8 @@
     else mid = `<span class="muted">vs</span>`;
     const tags = [];
     if (m.draw) tags.push(esc(T('draw')));
+    if (m.sets && K.setsText) tags.push(`<span class="sets">${esc(K.setsText(m))}</span>`); // tỉ số từng set (giải offline)
+    if (m.override) tags.push(esc(T('score_override_tag')));
     if (m.walkover) tags.push(esc(T('walkover')));
     if (m.double) tags.push(esc(T('both_absent')));
     tags.push(...replays(m));

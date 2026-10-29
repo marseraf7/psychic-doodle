@@ -17,6 +17,8 @@ const MAX_QUESTIONS = 5;
 const MAX_QUEUE = 1000;
 const MAX_BULK = 512;
 const CHECKIN_MIN = [10, 15, 30, 60, 120, 1440, 2880]; // mở điểm danh trước giờ đấu (phút) – như Challonge 15 phút → 2 ngày
+/** Tên đã làm sạch (≤ 40 ký tự), hoặc '' nếu không dùng được (cleanPublicName báo lỗi tên phản cảm). */
+const safeName = (x) => { try { return cleanPublicName(x).slice(0, 40); } catch (e) { return ''; } };
 const int = (v, lo, hi) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? Math.max(lo, Math.min(hi, n)) : null; };
 
 /** Chuẩn hoá phần đăng ký của giải (dữ liệu client gửi khi tạo giải). */
@@ -25,7 +27,7 @@ function normalizeReg(o = {}, startsAt) {
   const closeAt = Number(r.closeAt);
   const qs = Array.isArray(r.questions) ? r.questions.slice(0, MAX_QUESTIONS).map((q) => {
     const text = cleanPublicText(q && q.q, 120).trim();
-    const opts = q && q.type === 'choice' && Array.isArray(q.opts) ? [...new Set(q.opts.map((x) => cleanPublicName(x).slice(0, 40)).filter(Boolean))].slice(0, 10) : [];
+    const opts = q && q.type === 'choice' && Array.isArray(q.opts) ? [...new Set(q.opts.map(safeName).filter(Boolean))].slice(0, 10) : [];
     return text ? { q: text, type: opts.length >= 2 ? 'choice' : 'text', opts: opts.length >= 2 ? opts : undefined } : null;
   }).filter(Boolean) : [];
   const minRating = int(r.minRating, 100, 4000), maxRating = int(r.maxRating, 100, 4000);
@@ -134,7 +136,8 @@ class TourReg {
       : block === 'tour_games_few' ? t.reg.minGames : block === 'tour_account_new' ? t.reg.minAccountDays : 0 });
     const answers = this.regAnswers(t, o.answers);
     let res;
-    if (t.reg && t.reg.approval && t.status === 'scheduled') {
+    // Duyệt tay áp dụng cả khi Arena đang chạy (vào muộn vẫn phải chờ duyệt)
+    if (t.reg && t.reg.approval) {
       this.regQueue(t, me, answers, 'pending');
       res = 'pending';
       for (const uid of this.tourManagers(t)) this.send(userPid(uid), note('tour_reg_new', { name: t.name, player: me.name }));
@@ -147,7 +150,8 @@ class TourReg {
   /** Ban tổ chức duyệt người đăng ký: accept = vào giải (đầy thì vào danh sách chờ nếu bật), không thì loại khỏi hàng. */
   on_tourRegDecide(conn, { id, uid, accept }) {
     const t = this.requireManager(conn, id);
-    if (t.status !== 'scheduled' && t.status !== 'pending') throw E('tour_closed');
+    const arenaOpen = t.status === 'running' && t.format === 'arena' && Date.now() < t.endsAt;
+    if (t.status !== 'scheduled' && t.status !== 'pending' && !arenaOpen) throw E('tour_closed');
     const x = this.queueEntry(t, String(uid || ''));
     if (!x) throw E('player_not_found');
     const u = this.store.users.get(x.uid);
@@ -194,16 +198,16 @@ class TourReg {
     const t = this.requireManager(conn, id);
     if (t.status !== 'scheduled' && t.status !== 'pending') throw E('tour_closed');
     if (!Array.isArray(names) || !names.length) throw E('tour_names_empty');
-    const res = { added: [], missing: [], already: [], full: [] };
+    const res = { added: [], missing: [], already: [], full: [], bad: [] };
     const seen = new Set();
     for (const raw of names.slice(0, MAX_BULK)) {
       const line = String(raw || '').trim();
       if (!line) continue;
       const room = t.players.filter((x) => !x.withdrawn).length < t.maxPlayers;
       if (t.offline) {
-        const name = cleanPublicName(line).slice(0, 40);
+        const name = safeName(line);
         const key = name.toLowerCase();
-        if (!name) continue;
+        if (!name) { res.bad.push(line.slice(0, 40)); continue; } // tên không dùng được: bỏ qua dòng này, thêm tiếp các dòng sau
         if (seen.has(key)) { res.already.push(name); continue; } // trùng ngay trong danh sách dán
         seen.add(key);
         if (t.players.some((p) => p.name.toLowerCase() === key)) { res.already.push(name); continue; }

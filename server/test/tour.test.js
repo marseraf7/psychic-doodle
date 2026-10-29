@@ -921,3 +921,30 @@ test('giải và câu lạc bộ được lưu: máy chủ khởi động lại 
   await srv.stop();
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test('Đợt 3 – sửa sau review: Bulk Add bỏ qua tên không hợp lệ và thêm tiếp; Arena đang chạy: duyệt tay, danh sách chờ tự lên', async () => {
+  const B = await organizer();
+  const off = await B.req({ t: 'tourCreate', name: 'Tên lạ', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, stages: [{ type: 'single' }] }, 'tourCreated');
+  const r = await B.req({ t: 'tourAddPlayers', id: off.id, names: ['An', 'fuck', 'Bình'] }, 'tourAddResult');
+  assert.deepStrictEqual(r.bad, ['fuck'], 'tên phản cảm: báo riêng, các dòng sau vẫn được thêm');
+  assert.deepStrictEqual(r.added, ['An', 'Bình']);
+  const t = app.hub.tours.get(off.id);
+  assert.strictEqual(t.players.length, 2);
+  // Arena đang chạy, 2 chỗ, có duyệt tay + danh sách chờ
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('ar', 1500));
+  const ar = await B.req({ t: 'tourCreate', name: 'Arena duyệt', format: 'arena', startsAt: soon(), timeLimit: 30, minutes: 30, maxPlayers: 2, reg: { approval: true, waitlist: true } }, 'tourCreated');
+  const a = app.hub.tours.get(ar.id);
+  for (const c of ps.slice(0, 2)) { await c.req({ t: 'tourJoin', id: ar.id }, 'toast'); B.send({ t: 'tourRegDecide', id: ar.id, uid: c.me.uid, accept: true }); }
+  await until(() => a.players.length === 2);
+  B.send({ t: 'tourStart', id: ar.id });
+  await until(() => a.status === 'running');
+  await ps[2].req({ t: 'tourJoin', id: ar.id }, 'toast');
+  assert.strictEqual(a.queue[0].state, 'pending', 'Arena đang chạy: vào muộn vẫn chờ duyệt');
+  B.send({ t: 'tourRegDecide', id: ar.id, uid: ps[2].me.uid, accept: true });
+  await until(() => a.queue.length && a.queue[0].state === 'wait');
+  // Một người rút khỏi Arena đang chạy: người đầu danh sách chờ vào thay
+  ps[0].send({ t: 'tourLeave', id: ar.id });
+  await until(() => a.players.some((p) => p.uid === ps[2].me.uid && !p.withdrawn));
+  ps.forEach((c) => c.close());
+});

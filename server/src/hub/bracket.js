@@ -178,8 +178,9 @@ class Bracket {
 
   /** Người sẽ vào giải nếu bắt đầu lúc này, theo thứ tự hạt giống (Elo). */
   draftSeeds(t) {
-    return this.activePlayers(t).map((p) => ({ uid: p.uid, r: this.store.users.get(p.uid)?.rating || p.rating }))
-      .sort((a, b) => b.r - a.r).map((x) => x.uid);
+    const list = this.activePlayers(t).map((p) => ({ uid: p.uid, r: this.store.users.get(p.uid)?.rating || p.rating }));
+    if (t.seeding !== 'list') list.sort((a, b) => b.r - a.r); // 'list': thứ tự đăng ký / thêm (như khi bốc thăm)
+    return list.map((x) => x.uid);
   }
 
   /** Các bảng dự kiến (ban tổ chức xem / sửa trước khi bắt đầu). */

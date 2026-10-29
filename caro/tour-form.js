@@ -35,7 +35,7 @@
   // ------------------------------------------------------------ Bản nháp (dùng chung form nhanh và trang nâng cao)
   const F = { preset: 'arena', stages: null, d: null, tab: 'basic' };
   // Phần mở rộng (vd. tour-adv-reg.js – đăng ký nâng cao): ô mặc định, đọc thêm từ form, kiểm, thêm vào lệnh tạo giải
-  const EXT = { defaults: {}, collectors: [], validators: [], payloads: [] };
+  const EXT = { defaults: {}, loaders: [], collectors: [], validators: [], payloads: [] };
   /** Giờ bắt đầu mặc định: 1 giờ nữa, làm tròn 5 phút (chuỗi datetime-local theo giờ máy). */
   function defaultStart() {
     const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -60,6 +60,7 @@
     if (F.preset === 'custom' && !F.stages) F.stages = PRESETS.groups_single();
     // Giờ bắt đầu đã qua (nháp cũ) → về mặc định
     if (!F.d.start || new Date(F.d.start).getTime() < Date.now()) F.d.start = defaultStart();
+    for (const f of EXT.loaders) f(F.d);
   }
   function resetDraft() {
     try { localStorage.removeItem(DRAFT_KEY); } catch (e) { /* bỏ qua */ }
@@ -235,12 +236,12 @@
     const ko = F.preset !== 'arena';
     const extra = Object.assign({}, ...EXT.payloads.map((f) => f(d, { ko })));
     O.send({
-      ...extra,
       t: 'tourCreate', name: d.name.trim(), desc: d.desc.trim(), format: ko ? 'bracket' : 'arena', startsAt: start - D.skew,
       ...(d.time[0] === 'c' ? { timeLimit: 0, clock: d.time.slice(1) } : { timeLimit: Number(d.time.slice(1)) }),
       opening: d.opening, rule: d.rule, minutes: Number(d.minutes), stages: ko ? F.stages : undefined, seeding: d.seeding,
       checkin: !!d.checkin, rated: !!d.rated, maxPlayers: Number(d.max), noShowMin: d.noshow ? Number(d.noshow) : null,
       access: d.access, club: d.access === 'club' ? d.club || null : null,
+      ...extra, // phần mở rộng ghi đè (vd. giải offline: không tính Elo, không điểm danh)
     });
     return true;
   }
