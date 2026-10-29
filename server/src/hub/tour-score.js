@@ -83,6 +83,8 @@ class TourScore {
       if (t.status === 'running') this.runOffline(t);
     }
     m.by = by ? String(by) : null;
+    const side = (u) => (this.player(t, u) || {}).name || '?';
+    this.tourLog(t, this.requireUser(conn).id, t.offline ? 'score' : 'override', { match: m.id, a: side(m.a), b: side(m.b), s: m.sets ? m.sets.map((x) => x.join('-')).join(' ') : null, w: ST.real(m.winner) ? side(m.winner) : null });
     this.saveTour(t);
     this.pushTour(t);
   }
@@ -107,6 +109,7 @@ class TourScore {
       const p = ST.real(u) && this.player(t, u);
       if (p && p.out === 'lost') p.out = null;
     }
+    this.tourLog(t, this.requireUser(conn).id, 'undo', { match: m.id });
     this.saveTour(t);
     this.pushTour(t);
   }

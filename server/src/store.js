@@ -336,14 +336,20 @@ class Store {
 
   /** Giải chưa kết thúc + các giải đã xong gần đây nhất. */
   loadTours(recentDone = 100) {
-    const active = this.db.prepare("SELECT data FROM tours WHERE status IN ('pending', 'scheduled', 'running')").all();
-    const done = this.db.prepare("SELECT data FROM tours WHERE status NOT IN ('pending', 'scheduled', 'running') ORDER BY created DESC LIMIT ?").all(recentDone);
+    const active = this.db.prepare("SELECT data FROM tours WHERE status IN ('draft', 'pending', 'scheduled', 'running')").all();
+    const done = this.db.prepare("SELECT data FROM tours WHERE status NOT IN ('draft', 'pending', 'scheduled', 'running') ORDER BY created DESC LIMIT ?").all(recentDone);
     return [...active, ...done].map((r) => JSON.parse(r.data));
   }
 
   saveTour(t) {
     this.dirtyDocs.set('tour:' + t.id, t);
     this.schedule();
+  }
+
+  /** Xoá hẳn một giải (ban tổ chức bấm Xoá): bỏ khỏi hàng chờ ghi rồi xoá trong CSDL. */
+  deleteTour(id) {
+    this.dirtyDocs.delete('tour:' + id);
+    this.db.prepare('DELETE FROM tours WHERE id = ?').run(id);
   }
 
   // ------------------------------------------------------------ Đặt lại mật khẩu

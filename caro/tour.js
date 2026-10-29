@@ -65,7 +65,7 @@
     return parts.join(' · ');
   }
   function statusTag(t) {
-    const cls = { running: 'live', scheduled: 'soon', pending: 'wait', finished: 'done', cancelled: 'off', rejected: 'off' }[t.status];
+    const cls = { running: 'live', scheduled: 'soon', pending: 'wait', draft: 'wait', finished: 'done', cancelled: 'off', rejected: 'off' }[t.status];
     const label = t.status === 'scheduled' && t.checkin ? T('st_checkin') : T('tst_' + t.status);
     return `<span class="pill ${esc(cls)}">${esc(label)}</span>`;
   }
@@ -155,7 +155,7 @@
     let html = `<div class="row"><button type="button" class="primary" data-act="tourNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('tour_create'))}</button></div>`;
     if (!me()) html += needLogin();
     if (!list) return html + `<p class="hint">…</p>`;
-    const groups = [['running', 'tg_running'], ['scheduled', 'tg_scheduled'], ['pending', 'tg_pending'], ['done', 'tg_done']];
+    const groups = [['running', 'tg_running'], ['scheduled', 'tg_scheduled'], ['pending', 'tg_pending'], ['draft', 'tg_draft'], ['done', 'tg_done']];
     for (const [st, key] of groups) {
       const items = list.filter((t) => (st === 'done' ? ['finished', 'cancelled', 'rejected'].includes(t.status) : t.status === st));
       if (!items.length) continue;
@@ -190,6 +190,10 @@
       html += `<p class="hint">${esc(T(t.checkin ? 'checkin_open_hint' : 'checkin_hint', { t: when(t.checkinAt) }))}</p>`;
     }
     html += `<div class="row tactions">${actions(t)}</div>`;
+    if (K.newsHtml) html += K.newsHtml(t); // nháp / tạm dừng / thông báo ghim (tour-manage.js)
+    // Ban tổ chức: tab Tổng quan / Quản lý (checklist, hạt giống, lịch, thông báo, nhật ký, cài đặt – tour-manage.js)
+    if (K.tourTabs) html += K.tourTabs(t);
+    if (K.isManageTab && K.isManageTab(t)) return html + K.manageHtml(t);
     if (K.regHtml) html += K.regHtml(t); // điều kiện đăng ký, form mã / câu hỏi, hàng chờ, duyệt + Bulk Add (tour-reg.js)
     if (K.scoreHtml) html += K.scoreHtml(t); // nhập tỉ số / xử thắng, in biên bản (tour-score.js)
     html += myCard(t);
@@ -305,6 +309,7 @@
       };
     });
     for (const f of K.binders) f(body);
+    if (window.CaroDt) window.CaroDt.bind(body); // ô ngày giờ 29/10/2026 · 09:00 (dt-field.js)
   }
 
   // ------------------------------------------------------------ Tin từ máy chủ

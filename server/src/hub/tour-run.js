@@ -23,18 +23,21 @@ class TourRun {
     if (t.status !== 'scheduled') throw E('tour_cannot_start');
     // Bắt đầu sớm trước giờ điểm danh: coi như mọi người đã đăng ký đều điểm danh
     if (t.checkin && !this.inCheckin(t)) t.checkinWaived = true;
+    this.tourLog(t, this.requireUser(conn).id, 'start_now');
     this.startTour(t);
   }
 
   on_tourCancel(conn, { id }) {
     const t = this.requireManager(conn, id);
-    if (!['pending', 'scheduled', 'running'].includes(t.status)) throw E('tour_cannot_cancel');
+    if (!['draft', 'pending', 'scheduled', 'running'].includes(t.status)) throw E('tour_cannot_cancel');
+    this.tourLog(t, this.requireUser(conn).id, 'cancelled');
     this.cancelTour(t, 'organizer');
   }
 
   on_tourKick(conn, { id, uid }) {
     const t = this.requireManager(conn, id);
     if (!this.player(t, uid)) throw E('player_not_found');
+    this.tourLog(t, this.requireUser(conn).id, 'kicked', { name: this.player(t, uid).name });
     this.withdraw(t, uid, true);
     this.send(userPid(uid), note('tour_kicked', { name: t.name }));
   }

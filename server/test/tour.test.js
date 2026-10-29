@@ -948,3 +948,66 @@ test('Đợt 3 – sửa sau review: Bulk Add bỏ qua tên không hợp lệ v�
   await until(() => a.players.some((p) => p.uid === ps[2].me.uid && !p.withdrawn));
   ps.forEach((c) => c.close());
 });
+
+test('khu quản trị: nháp → gửi duyệt, sửa cài đặt, thông báo, lịch, hạt giống thủ công, tạm dừng, đặt lại, xoá, nhật ký', async () => {
+  const B = await organizer();
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('mg', 1500 + i * 10));
+  // Nháp: người khác không thấy; gửi duyệt (quản trị viên: mở đăng ký luôn)
+  const { id } = await B.req({ t: 'tourCreate', name: 'Quản trị', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, draft: true,
+    stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.strictEqual(t.status, 'draft');
+  assert.strictEqual((await ps[0].req({ t: 'tourGet', id }, 'error')).code, 'tour_not_found');
+  await B.req({ t: 'tourSubmit', id }, 'tourCreated');
+  assert.strictEqual(t.status, 'scheduled');
+  // Sửa cài đặt trước giờ đấu: đổi tên, Bo, số người
+  await B.req({ t: 'tourEdit', id, name: 'Quản trị 2', format: 'bracket', startsAt: soon(), timeLimit: 20, checkin: false, maxPlayers: 8,
+    stages: [{ type: 'single', bestOf: 3, thirdPlace: true }] }, 'tourEdited');
+  assert.strictEqual(t.name, 'Quản trị 2');
+  assert.strictEqual(t.stages[0].bestOf, 3);
+  assert.strictEqual(t.maxPlayers, 8);
+  for (const c of ps) await c.req({ t: 'tourJoin', id }, 'toast');
+  assert.strictEqual((await B.req({ t: 'tourEdit', id, name: 'X', format: 'bracket', startsAt: soon(), maxPlayers: 2, stages: [{ type: 'single' }] }, 'error')).code, 'tour_name_short');
+  assert.strictEqual((await B.req({ t: 'tourEdit', id, name: 'Quản trị 3', format: 'bracket', startsAt: soon(), maxPlayers: 3, stages: [{ type: 'single' }] }, 'error')).code, 'tour_max_low');
+  // Thông báo + lịch
+  await B.req({ t: 'tourGet', id }, 'tour');
+  B.send({ t: 'tourNews', id, text: 'Tập trung lúc 19:45' });
+  await ps[0].wait('toast', (m) => /19:45/.test(JSON.stringify(m)));
+  B.send({ t: 'tourSchedule', id, key: '0:0', at: Date.now() + 3600000, place: 'Phòng 2' });
+  await until(() => t.schedule && t.schedule['0:0'] && t.schedule['0:0'].place === 'Phòng 2');
+  // Hạt giống thủ công: người Elo thấp nhất làm hạt giống 1
+  const order = [...ps].reverse().map((c) => c.me.uid);
+  B.send({ t: 'tourSeeds', id, order });
+  await until(() => t.seedPlan && t.seedPlan.length === 4);
+  const v = await ps[1].req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(v.tour.news[0].text, 'Tập trung lúc 19:45');
+  assert.strictEqual(v.tour.schedule['0:0'].place, 'Phòng 2');
+  assert.strictEqual(v.tour.log, null, 'người chơi không thấy nhật ký');
+  assert.strictEqual(v.tour.seedPlan, null);
+  // Tạm dừng trước khi bắt đầu: bắt đầu xong không mở trận nào
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  assert.strictEqual(t.players.find((p) => p.uid === ps[3].me.uid).seed, 1, 'hạt giống theo thứ tự ban tổ chức xếp');
+  // Đang đấu: sửa chỉ đổi được tên / mô tả
+  await B.req({ t: 'tourEdit', id, name: 'Quản trị đang đấu', desc: 'mới', format: 'arena', stages: null }, 'tourEdited');
+  assert.strictEqual(t.name, 'Quản trị đang đấu');
+  assert.strictEqual(t.format, 'bracket', 'đang đấu không đổi thể thức');
+  B.send({ t: 'tourHold', id, hold: true });
+  await until(() => t.held);
+  // Đặt lại: về trước khi bắt đầu, giữ người chơi
+  B.send({ t: 'tourReset', id });
+  await until(() => t.status === 'scheduled');
+  assert.strictEqual(t.st, null);
+  assert.strictEqual(t.players.length, 4);
+  assert.ok(!t.held);
+  const lg = await B.req({ t: 'tourGet', id }, 'tour');
+  const acts = lg.tour.log.map((x) => x.act);
+  for (const a of ['created', 'submitted', 'edited', 'news', 'schedule', 'seeds', 'start_now', 'held', 'reset']) assert.ok(acts.includes(a), 'nhật ký có ' + a + ': ' + acts.join(','));
+  assert.ok(lg.tour.log.every((x) => !x.by || typeof x.by === 'string'));
+  // Xoá: phải gõ đúng tên giải
+  assert.strictEqual((await B.req({ t: 'tourDelete', id, confirm: 'sai' }, 'error')).code, 'tour_delete_confirm');
+  await B.req({ t: 'tourDelete', id, confirm: 'Quản trị đang đấu' }, 'tourDeleted');
+  assert.ok(!app.hub.tours.has(id));
+  ps.forEach((c) => c.close());
+});

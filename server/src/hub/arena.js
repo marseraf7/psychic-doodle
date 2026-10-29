@@ -23,7 +23,7 @@ class Arena {
 
   /** Mỗi nhịp: còn giờ thì ghép ván, hết giờ thì chờ các ván đang dở xong rồi kết thúc. */
   tickArena(t, now) {
-    if (now < t.endsAt) this.pairArena(t, now);
+    if (now < t.endsAt) { if (!t.held) this.pairArena(t, now); } // tạm dừng: không ghép ván mới
     else if (![...this.rooms.values()].some((r) => r.tour && r.tour.id === t.id && r.active)) this.finishTour(t);
   }
 

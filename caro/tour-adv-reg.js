@@ -37,7 +37,7 @@
     scoreMode: (d) => `<label class="field only-offline" hidden><span>${esc(T('reg_score_mode'))}</span><select name="scoreMode">
       <option value="sets" ${d.scoreMode !== 'points' ? 'selected' : ''}>${esc(T('reg_score_sets'))}</option>
       <option value="points" ${d.scoreMode === 'points' ? 'selected' : ''}>${esc(T('reg_score_points'))}</option></select></label>`,
-    closeAt: (d) => `<label class="field only-online"><span>${esc(T('reg_close_at'))}</span><input type="datetime-local" name="closeAt" value="${esc(d.closeAt)}"></label>`,
+    closeAt: (d) => `<div class="field only-online"><span>${esc(T('reg_close_at'))}</span>${window.CaroDt.html('closeAt', d.closeAt)}</div>`,
     approval: (d) => chk('approval', d.approval, T('reg_approval'), 'only-online'),
     waitlist: (d) => chk('waitlist', d.waitlist, T('reg_waitlist'), 'only-online'),
     limits: (d) => `<fieldset class="only-online"><legend>${esc(T('reg_limits'))}</legend><div class="reg-limits">

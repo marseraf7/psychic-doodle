@@ -25,7 +25,7 @@
   ];
 
   function pageTourAdv() {
-    setTitle('tadv_title', null, 'sliders');
+    setTitle(F.editId ? 'tadv_edit_title' : 'tadv_title', null, 'sliders');
     if (!me()) return needLogin();
     if (!F.d) DR.begin(null);
     if (!TABS.some((x) => x.id === F.tab)) F.tab = 'basic';
@@ -42,10 +42,13 @@
       <div class="ta-foot">
         <p class="est" id="ta-est" aria-live="polite"></p>
         <p class="err" id="ta-err"></p>
-        <div class="row">
-          <button type="button" class="ghost" data-act="tourQuick">${icon('back')}${esc(T('tadv_back_quick'))}</button>
-          <button type="button" class="ghost sm" data-act="tourReset">${icon('retry')}${esc(T('draft_reset'))}</button>
-          <button class="primary">${esc(T('tour_submit'))}</button>
+        <div class="row">${F.editId
+          ? `<button type="button" class="ghost" data-act="tourEditCancel">${icon('back')}${esc(T('tadv_back_tour'))}</button>
+             <button class="primary">${esc(T('tadv_save_edit'))}</button>`
+          : `<button type="button" class="ghost" data-act="tourQuick">${icon('back')}${esc(T('tadv_back_quick'))}</button>
+             <button type="button" class="ghost sm" data-act="tourReset">${icon('retry')}${esc(T('draft_reset'))}</button>
+             <button type="button" class="ghost" data-act="tourSaveDraft">${esc(T('tadv_save_draft'))}</button>
+             <button class="primary">${esc(T('tour_submit'))}</button>`}
         </div>
       </div>
     </form>`;
@@ -61,6 +64,22 @@
   }
 
   K.pages.tourAdv = pageTourAdv;
+  // Sửa cài đặt: bỏ, về trang giải
+  K.acts.tourEditCancel = () => {
+    const id = F.editId;
+    F.editId = null;
+    F.d = null;
+    K.V.stack = [{ page: 'tours', id: null }];
+    open('tour', id, false);
+  };
+  // Lưu nháp (chưa gửi duyệt): kiểm như khi tạo
+  K.acts.tourSaveDraft = () => {
+    const form = $('ta');
+    DR.collect(form);
+    const bad = DR.validate();
+    if (bad) { $('ta-err').textContent = bad.msg; return; }
+    DR.submit('ta-err', { draft: true });
+  };
   // Về form nhanh: lưu các ô đang sửa vào nháp rồi quay lại (nếu vừa từ form nhanh sang thì dùng nút Quay lại)
   K.acts.tourQuick = () => {
     DR.collect($('ta'));
@@ -88,8 +107,7 @@
     DR.bindForm(form, { stages: 'ta-stages', hint: 'ta-fmt-hint', est: 'ta-est', err: 'ta-err', full: true }, (key) => {
       const tab = TABS.find((x) => x.keys.includes(key) || (x.alias || []).includes(key));
       if (tab) showTab(form, tab.id);
-      const el = form.elements[key];
-      if (el && el.focus) el.focus();
+      DR.focusField(form.elements[key]);
     });
   });
 })();

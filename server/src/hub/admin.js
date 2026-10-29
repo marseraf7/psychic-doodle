@@ -5,7 +5,7 @@
  */
 'use strict';
 const { E, note } = require('../msg.js');
-const { cleanText, userPid } = require('./shared.js');
+const { cleanText, userPid, uidOf } = require('./shared.js');
 
 class Admin {
   /** Quyền quản trị gắn với ID tài khoản (bất biến), không gắn với tên đăng nhập (H-S4):
@@ -111,6 +111,7 @@ class Admin {
       } else t.status = 'rejected';
       t.reviewNote = reason;
       t.reviewedAt = Date.now();
+      this.tourLog(t, uidOf(conn.pid), approve ? 'approved' : 'rejected');
       this.saveTour(t);
       this.send(userPid(t.creator), note(approve ? 'tour_approved' : 'tour_rejected', { name: t.name, note: reason }));
       this.pushTour(t);
