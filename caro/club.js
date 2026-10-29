@@ -104,7 +104,7 @@
 
   // ------------------------------------------------------------ Thao tác
   K.acts.club = (b) => { open('club', b.dataset.id); };
-  K.acts.tourNewClub = (b) => { open('tourNew', D.club.id); };
+  K.acts.tourNewClub = () => { if (K.tourDraft) K.tourDraft.begin(D.club.id); open('tourNew', D.club.id); };
   K.acts.clubNew = () => { open('clubNew', null); };
   K.acts.clubShare = (b) => { share(shareLink('club', D.club.id), D.club.name); };
   K.acts.clubJoin = (b) => { O.send({ t: 'clubJoin', id: D.club.id, code: ($('club-code') || {}).value }); };
@@ -153,7 +153,7 @@
   O.on('clubList', (m) => {
     D.clubs = m.clubs;
     D.myClubs = m.mine;
-    if (isOpen() && (V.page === 'clubs' || V.page === 'tourNew') && !$('tf')) render();
+    if (isOpen() && (V.page === 'clubs' || V.page === 'tourNew' || V.page === 'tourAdv') && !$('tf') && !$('ta')) render();
   });
   O.on('club', (m) => {
     if (m.id !== V.id) return;
