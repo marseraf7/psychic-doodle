@@ -275,3 +275,10 @@ button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.
 .dt .dt-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .dt .dt-cal { flex: none; }
 .dt.bad .dt-d, .dt.bad .dt-t { border-color: #e5392f; }
+/* Đồng ban tổ chức (tour-manage.js) */
+.perm-list { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--fs-sm); }
+.staff-row { flex-wrap: wrap; }
+.staff-row .perm-list { flex: 1 1 100%; }
+.staff-add { display: flex; flex-direction: column; gap: 6px; }
+.staff-add .primary { align-self: flex-start; }
+.sched-row > input[data-f="label"] { flex: 1 1 140px; min-width: 0; width: auto; }

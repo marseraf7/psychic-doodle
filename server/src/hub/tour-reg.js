@@ -149,7 +149,7 @@ class TourReg {
 
   /** Ban tổ chức duyệt người đăng ký: accept = vào giải (đầy thì vào danh sách chờ nếu bật), không thì loại khỏi hàng. */
   on_tourRegDecide(conn, { id, uid, accept }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'reg');
     const arenaOpen = t.status === 'running' && t.format === 'arena' && Date.now() < t.endsAt;
     if (t.status !== 'scheduled' && t.status !== 'pending' && !arenaOpen) throw E('tour_closed');
     const x = this.queueEntry(t, String(uid || ''));
@@ -196,7 +196,7 @@ class TourReg {
    * Giải offline: mỗi dòng là tên người chơi (không cần tài khoản). Trả kết quả cho ban tổ chức: đã thêm / không có / đã có.
    */
   on_tourAddPlayers(conn, { id, names }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'players');
     if (t.status !== 'scheduled' && t.status !== 'pending') throw E('tour_closed');
     if (!Array.isArray(names) || !names.length) throw E('tour_names_empty');
     const res = { added: [], missing: [], already: [], full: [], bad: [] };

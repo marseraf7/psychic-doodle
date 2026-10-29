@@ -44,7 +44,7 @@ class TourScore {
 
   /** Trận đang sẵn sàng (đủ 2 người, chưa xong) ở giai đoạn hiện tại mà ban tổ chức được nhập / ghi đè. */
   scoreTarget(conn, id, match) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'results');
     if (t.status !== 'running' || t.format !== 'bracket') throw E('tour_not_running');
     const found = this.findMatch(t, match);
     if (!found || found.st !== this.curStage(t)) throw E('tour_match_not_found');

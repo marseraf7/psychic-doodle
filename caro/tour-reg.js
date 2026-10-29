@@ -60,7 +60,7 @@
     const pend = A.queue.filter((x) => x.state === 'pending'), wait = A.queue.filter((x) => x.state === 'wait');
     if (A.code) html += `<p class="hint">${esc(T('reg_code_is'))} <code class="code">${esc(A.code)}</code></p>`;
     const open = ['pending', 'scheduled'].includes(t.status);
-    if (pend.length && open) {
+    if (pend.length && open && K.can(t, 'reg')) {
       html += fold(t.id + ':pend', `<b>${esc(T('reg_pending_title'))}</b> <span class="count">${pend.length}</span>`, `<ul class="people">${pend.map((x) => `<li><div class="pn"><b>${esc(x.name)}</b>
         <small>${esc(String(x.rating))} · ${esc(when(x.at))}</small>${x.answers ? `<small class="ans">${esc(answersText(t, x.answers))}</small>` : ''}</div>
         <div class="row"><button type="button" class="ghost sm danger" data-act="regDecide" data-uid="${esc(x.uid)}" data-v="0">${esc(T('reject'))}</button>
@@ -75,7 +75,7 @@
       const name = (u) => (t.players.find((p) => p.uid === u) || {}).name || '?';
       html += fold(t.id + ':ans', `<b>${esc(T('reg_answers_title'))}</b>`, `<ul class="people">${ans.map(([u, a]) => `<li><div class="pn"><b>${esc(name(u))}</b><small class="ans">${esc(answersText(t, a))}</small></div></li>`).join('')}</ul>`, false);
     }
-    if (open) {
+    if (open && K.can(t, 'players')) {
       const res = R.result && R.result.id === t.id ? R.result : null;
       const line = (k, list) => (list && list.length ? `<li><b>${esc(T('reg_res_' + k, { n: list.length }))}</b> <small>${esc(list.join(', '))}</small></li>` : '');
       html += fold(t.id + ':bulk', `<b>${icon('plus')}${esc(T(t.offline ? 'reg_bulk_title_off' : 'reg_bulk_title'))}</b>`, `<div class="bulk">

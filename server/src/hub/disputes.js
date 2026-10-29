@@ -32,6 +32,7 @@ class Disputes {
     const out = new Set([t.creator]);
     const c = t.club && this.clubs.get(t.club);
     if (c) for (const uid of Object.keys(c.members)) if (this.isOfficer(c, uid)) out.add(uid);
+    for (const s of t.staff || []) out.add(s.uid); // đồng ban tổ chức
     return out;
   }
 
@@ -46,7 +47,7 @@ class Disputes {
 
   /** Ban tổ chức xử lý: action = 'confirm' | 'annul' | 'replay'. */
   on_tourDispute(conn, { id, dispute, action }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'disputes');
     if (!ACTIONS.includes(action)) throw E('bad_message');
     const d = (t.disputes || []).find((x) => x.id === dispute);
     if (!d || d.status !== 'open') throw E('dispute_gone');

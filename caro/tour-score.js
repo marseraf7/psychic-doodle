@@ -14,7 +14,7 @@
   // Trận đang mở khung nhập (của giải nào); saving: vừa bấm Lưu trận này – máy chủ ghi xong thì đóng khung
   const S = { tour: null, match: null, sets: null, extra: false, saving: null };
 
-  const canScore = (t) => t && t.format === 'bracket' && t.status === 'running' && t.canManage;
+  const canScore = (t) => t && t.format === 'bracket' && t.status === 'running' && K.can(t, 'results');
   /** Mọi trận đang hiện của các giai đoạn (để tìm theo mã). */
   function allMatches(t) {
     const out = [];
@@ -70,7 +70,7 @@
   }
 
   function toolbar(t) {
-    if (!t.offline || !t.canManage || !['scheduled', 'running'].includes(t.status)) return '';
+    if (!t.offline || !K.can(t, 'results') || !['scheduled', 'running'].includes(t.status)) return '';
     const n = t.status === 'running' ? waiting(t).length : 0;
     return `<div class="row score-tools">${t.status === 'running' ? `<span class="hint">${esc(T('score_tap_hint'))}</span>` : ''}
       ${n ? `<button type="button" class="ghost sm" data-act="sheetWaiting">${icon('book')}${esc(T('sheet_waiting', { n }))}</button>` : ''}

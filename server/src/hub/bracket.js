@@ -199,7 +199,7 @@ class Bracket {
    * Người đăng ký sau / chưa được xếp sẽ tự vào bảng ít người nhất khi bốc thăm.
    */
   on_tourGroups(conn, { id, groups }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'players');
     if (!this.hasGroups(t)) throw E('tour_no_groups');
     if (!['pending', 'scheduled'].includes(t.status)) throw E('tour_groups_closed');
     if (groups == null) t.groupPlan = null;

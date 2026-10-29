@@ -45,7 +45,7 @@
   }
   const blank = () => ({
     name: '', desc: '', start: defaultStart(), time: 't20', opening: 'free', rule: 'vn', minutes: '30', seeding: 'rating',
-    checkin: true, rated: true, max: '32', access: 'public', club: '', noshow: '', ...structuredClone(EXT.defaults),
+    checkin: true, rated: true, max: '32', access: 'public', club: '', noshow: '', hideSeeds: false, ...structuredClone(EXT.defaults),
   });
   let saveTimer = 0;
   function saveDraft() {
@@ -117,13 +117,14 @@
     minutes: (d) => `<fieldset class="only-arena"><legend>${esc(T('duration'))}</legend>${radio('minutes', [15, 30, 45, 60, 90, 120].map((n) => [n, T('minutes_n', { n })]), d.minutes)}</fieldset>`,
     seeding: (d) => `<fieldset class="only-ko" hidden><legend>${esc(T('seeding'))}</legend>${radio('seeding', [['rating', T('seed_rating')], ['random', T('seed_random')], ['list', T('seed_list')]], d.seeding)}</fieldset>`,
     checkin: (d) => `<label class="check only-ko only-online" hidden><input type="checkbox" name="checkin" ${d.checkin ? 'checked' : ''}> <span>${esc(T('checkin_opt'))}</span></label>`,
+    hideSeeds: (d) => `<label class="check only-ko" hidden><input type="checkbox" name="hideSeeds" ${d.hideSeeds ? 'checked' : ''}> <span>${esc(T('hide_seeds_opt'))}</span></label>`,
     noshow: (d) => `<label class="field short only-ko only-online" hidden><span>${esc(T('noshow'))}</span><select name="noshow">${[['', T('noshow_default')], ...[1, 3, 5, 10, 15].map((n) => [String(n), T('minutes_n', { n })])].map(([v, l]) => `<option value="${v}" ${v === String(d.noshow || '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`,
     rated: (d) => `<label class="check only-online"><input type="checkbox" name="rated" ${d.rated ? 'checked' : ''}> <span>${esc(T('rated_opt'))}</span></label>`,
     max: (d) => `<label class="field short"><span>${esc(T('max_players'))}</span><input name="max" type="number" min="2" max="512" value="${esc(d.max)}"></label>`,
     access: (d) => {
       const clubs = officerClubs();
       const acc = d.access === 'club' && !clubs.length ? 'public' : d.access;
-      return `<fieldset><legend>${esc(T('access'))}</legend>${radio('access', [['public', T('acc_public')], ['link', T('acc_link')], ...(clubs.length ? [['club', T('acc_club')]] : [])], acc)}</fieldset>
+      return `<fieldset><legend>${esc(T('access'))}</legend>${radio('access', [['public', T('acc_public')], ['link', T('acc_link')], ...(clubs.length ? [['club', T('acc_club')]] : []), ['private', T('acc_private')]], acc)}</fieldset>
         ${clubs.length ? `<label class="field only-club" ${acc === 'club' ? '' : 'hidden'}><span>${esc(T('club'))}</span><select name="club">${clubs.map((c) => `<option value="${esc(c.id)}" ${c.id === d.club ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : ''}`;
     },
   };
@@ -246,7 +247,7 @@
       ...blank(), name: t.name, desc: t.desc || '', start: localInput(t.startsAt + (D.skew || 0)),
       time: t.clock ? 'c' + t.clock : 't' + (t.timeLimit || 20), opening: t.opening || 'free', rule: t.rule || 'vn',
       minutes: String(t.minutes || 30), seeding: t.seeding || 'rating', checkin: !!t.checkinEnabled, rated: !!t.rated,
-      max: String(t.maxPlayers), access: t.access, club: t.club ? t.club.id : '', noshow: t.noShowMin ? String(t.noShowMin) : '',
+      max: String(t.maxPlayers), access: t.access, club: t.club ? t.club.id : '', noshow: t.noShowMin ? String(t.noShowMin) : '', hideSeeds: !!t.hideSeeds,
       offline: !!t.offline, scoreMode: t.scoreMode || 'sets', closeAt: r.closeAt ? localInput(r.closeAt + (D.skew || 0)) : '',
       approval: !!r.approval, waitlist: !!r.waitlist, minRating: r.minRating || '', maxRating: r.maxRating || '', minGames: r.minGames || '',
       minAccountDays: r.minAccountDays || '', code: (t.regAdmin && t.regAdmin.code) || '', checkinMin: String(r.checkinMin || 10),
@@ -273,7 +274,7 @@
       ...(d.time[0] === 'c' ? { timeLimit: 0, clock: d.time.slice(1) } : { timeLimit: Number(d.time.slice(1)) }),
       opening: d.opening, rule: d.rule, minutes: Number(d.minutes), stages: ko ? F.stages : undefined, seeding: d.seeding,
       checkin: !!d.checkin, rated: !!d.rated, maxPlayers: Number(d.max), noShowMin: d.noshow ? Number(d.noshow) : null,
-      access: d.access, club: d.access === 'club' ? d.club || null : null,
+      access: d.access, club: d.access === 'club' ? d.club || null : null, hideSeeds: !!d.hideSeeds,
       ...extra, // phần mở rộng ghi đè (vd. giải offline: không tính Elo, không điểm danh)
     });
     return true;
