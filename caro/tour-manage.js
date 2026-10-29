@@ -173,7 +173,7 @@
   // Mỗi khu chỉ hiện với người có quyền tương ứng (chủ giải thấy hết; đồng ban tổ chức theo quyền được giao)
   K.manageHtml = (t) => `<section class="mg-sec"><h4>${esc(T('mg_checklist'))}</h4>${checklist(t)}</section>
     ${K.can(t, 'players') ? seedsHtml(t) : ''}${K.can(t, 'config') ? scheduleHtml(t) : ''}${K.can(t, 'news') ? newsAdmin(t) : ''}
-    ${K.can(t, 'config') ? settingsHtml(t) : ''}${K.can(t, 'owner') ? staffHtml(t) : ''}
+    ${K.can(t, 'config') ? settingsHtml(t) : ''}${K.can(t, 'owner') ? staffHtml(t) : ''}${K.embedHtml ? K.embedHtml(t) : ''}
     <section class="mg-sec"><h4>${esc(T('mg_log'))}</h4>${(t.log || []).length ? `<ul class="mg-log">${t.log.map(logLine).join('')}</ul>` : `<p class="hint">${esc(T('mg_log_empty'))}</p>`}</section>`;
 
   // ------------------------------------------------------------ Thao tác
@@ -254,7 +254,7 @@
     const body = document.getElementById('tour-body');
     if (body && body.querySelector('.mg-sec')) {
       // Gõ chữ (không tính tick ô chọn) = đang sửa; bấm một nút của tab Quản lý = xong (cho phép vẽ lại khi có cập nhật)
-      body.oninput = (e) => { if (e.target.closest('.mg-sec') && e.target.type !== 'checkbox') M.typing = true; };
+      body.oninput = (e) => { if (e.target.closest('.mg-sec') && e.target.type !== 'checkbox' && e.target.tagName !== 'SELECT') M.typing = true; };
       // Gắn một lần cho #tour-body (phần tử cố định – binder chạy lại mỗi lần vẽ)
       if (!body.dataset.mgClick) {
         body.dataset.mgClick = '1';

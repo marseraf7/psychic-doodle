@@ -1103,3 +1103,52 @@ test('Đợt 5 – sửa sau review: người ngoài không xem được ván c�
   assert.strictEqual(t.staff.length, 0);
   [a, b, outsider, news].forEach((c) => c.close());
 });
+
+test('Đợt 6: JSON công khai của giải (chỉ giải công khai / link, đã duyệt; không lộ khiếu nại, online), dải phong độ, trang nhúng cho phép iframe', async () => {
+  const B = await organizer();
+  const base = url.replace(/^ws/, 'http').replace(/\/ws$/, '');
+  const get = (id) => fetch(`${base}/api/tour/${id}.json`);
+  const { id } = await B.req({ t: 'tourCreate', name: 'Nhúng', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true,
+    stages: [{ type: 'roundrobin', groups: 1, bestOf: 1, points: { w: 3, d: 1, l: 0 } }] }, 'tourCreated');
+  await B.req({ t: 'tourAddPlayers', id, names: ['An', 'Bình', 'Chi'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id });
+  const t = app.hub.tours.get(id);
+  await until(() => t.status === 'running');
+  const first = Object.values(t.st[0].matches).find((m) => m.a && m.b && !m.bye);
+  B.send({ t: 'tourScore', id, match: first.id, sets: [[2, 0]] });
+  await until(() => first.done);
+  const r = await get(id);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.headers.get('cache-control'), /max-age=10/);
+  const j = await r.json();
+  assert.strictEqual(j.name, 'Nhúng');
+  assert.strictEqual(j.url, '/?t=' + id);
+  assert.ok(!('disputes' in j) && !('canManage' in j) && !('log' in j) && !('staff' in j), 'không có phần riêng của ban tổ chức');
+  assert.ok(j.players.length === 3 && j.players.every((p) => !('online' in p) && !('playing' in p)), 'không lộ trạng thái online');
+  // Dải phong độ trong bảng xếp hạng: người thắng "W", người thua "L", người chưa đấu ""
+  const rows = j.stageViews[0].groups[0].table;
+  const name = (u) => t.players.find((p) => p.uid === u).name;
+  assert.strictEqual(rows.find((x) => x.name === name(first.winner)).form, 'W');
+  assert.strictEqual(rows.find((x) => x.name === name(first.winner === first.a ? first.b : first.a)).form, 'L');
+  assert.strictEqual(rows.filter((x) => x.form === '').length, 1);
+  // Giữ 10 giây: kết quả mới chưa hiện ngay (đỡ dựng lại khi nhiều trang nhúng cùng tải)
+  const second = Object.values(t.st[0].matches).find((m) => m.a && m.b && !m.bye && !m.done);
+  B.send({ t: 'tourScore', id, match: second.id, sets: [[0, 2]] });
+  await until(() => second.done);
+  const again = await (await get(id)).json();
+  assert.strictEqual(JSON.stringify(again.stageViews), JSON.stringify(j.stageViews));
+  // Giải riêng tư / nháp / không có: 404; mã sai dạng: 404
+  const priv = await B.req({ t: 'tourCreate', name: 'Kín', format: 'bracket', startsAt: soon(), timeLimit: 30, access: 'private', stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');
+  const draft = await B.req({ t: 'tourCreate', name: 'Nháp', format: 'bracket', startsAt: soon(), timeLimit: 30, draft: true, stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');
+  assert.strictEqual(app.hub.tours.get(draft.id).status, 'draft');
+  for (const x of [priv.id, draft.id, 'abcdef0123', '../etc', 'ZZZ']) assert.strictEqual((await get(x)).status, 404, x);
+  // Trang nhúng: cho phép đặt trong iframe của website khác; các trang khác vẫn chặn
+  const em = await fetch(`${base}/embed.html`);
+  assert.strictEqual(em.status, 200);
+  assert.match(em.headers.get('content-security-policy'), /frame-ancestors \*/);
+  assert.strictEqual(em.headers.get('x-frame-options'), null);
+  const idx = await fetch(`${base}/index.html`);
+  assert.match(idx.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.strictEqual(idx.headers.get('x-frame-options'), 'DENY');
+  B.close();
+});

@@ -52,8 +52,14 @@
   const slot = (t, si, r) => (K.slotOf ? K.slotOf(t, si, r) : '');
   /** Tên vòng: nhãn ban tổ chức đặt (vd. "Vòng loại"), không có thì tên mặc định. */
   const label = (t, si, r, def) => (K.roundLabel && K.roundLabel(t, si, r)) || def;
-  /** Các cột của một nhánh đấu; name(r) là tên cột; sl(r): giờ / địa điểm của vòng (tuỳ chọn). */
-  const bracketCols = (rounds, name, sl) => `<div class="bracket">${rounds.map((round, r) => { const s = sl ? sl(r) : ''; return `<div class="b-col"><h5>${esc(name(r))}${s ? `<small class="slot">${esc(s)}</small>` : ''}</h5>${round.map(matchBox).join('')}</div>`; }).join('')}</div>`;
+  /**
+   * Các cột của một nhánh đấu; name(r) là tên cột; sl(r): giờ / địa điểm của vòng (tuỳ chọn); bkey: khoá của khối –
+   * có thì thêm thanh công cụ phóng to / toàn màn hình / PNG và đường nối (tour-bracket-view.js).
+   */
+  const bracketCols = (rounds, name, sl, bkey) => {
+    const cols = `<div class="bracket">${rounds.map((round, r) => { const s = sl ? sl(r) : ''; return `<div class="b-col"><h5>${esc(name(r))}${s ? `<small class="slot">${esc(s)}</small>` : ''}</h5>${round.map(matchBox).join('')}</div>`; }).join('')}</div>`;
+    return bkey && K.bracketTools && rounds.length > 1 ? `<div class="b-wrap">${K.bracketTools(bkey)}${cols}</div>` : cols;
+  };
   /** Một dòng trận (vòng tròn / Thụy Sĩ): A  2–1  B. */
   function matchRow(m) {
     const nm = (p, win) => (p && p.uid ? `<span class="nm ${win ? 'win' : ''} ${p.uid === uidMe() ? 'me' : ''}">${esc(p.name)}</span>`
@@ -90,13 +96,16 @@
   }
   // Tie-break đang dùng (giải tạo từ bản trước chưa có danh sách: mặc định – tour-stage-edit.js, nạp sau file này)
   const tbsOf = (c) => (c ? K.stageEdit.tbsOf(c) : []);
+  /** Dải phong độ: ô màu cho 5 trận gần nhất (cũ → mới), chữ T / H / B theo ngôn ngữ để đọc được cả khi không phân biệt màu. */
+  const formHtml = (f) => [...(f || '')].map((c) => `<i class="fm ${esc(c)}" title="${esc(T('form_' + c))}">${esc(T('form_' + c + '1'))}</i>`).join('');
   /** Bảng xếp hạng của vòng tròn / Thụy Sĩ: thêm cột Buchholz / Median-Buchholz / SB nếu đang dùng làm tie-break. */
   function table(rows, cfg) {
     const extra = ['bh', 'mbh', 'sb'].filter((k) => tbsOf(cfg).includes(k));
     const fmt = (v) => (Number.isInteger(v) ? v : v.toFixed(1));
-    const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th>${extra.map((k) => `<th title="${esc(T('tb_' + k))}">${esc(T('col_' + k))}</th>`).join('')}<th>${esc(T('col_pts'))}</th></tr>`;
+    const form = rows.some((x) => x.form); // dải phong độ (máy chủ cũ không gửi: ẩn cột)
+    const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th>${extra.map((k) => `<th title="${esc(T('tb_' + k))}">${esc(T('col_' + k))}</th>`).join('')}<th>${esc(T('col_pts'))}</th>${form ? `<th title="${esc(T('col_form_t'))}">${esc(T('col_form'))}</th>` : ''}</tr>`;
     const body = rows.map((x) => `<tr class="${x.adv ? 'adv' : ''} ${x.uid === uidMe() ? 'me' : ''}"><td>${x.rank}</td><td class="l">${esc(x.name)}</td><td>${x.mp}</td><td>${x.w}-${x.d}-${x.l}</td>
-      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td>${extra.map((k) => `<td>${fmt(x[k] || 0)}</td>`).join('')}<td><b>${x.pts}</b></td></tr>`).join('');
+      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td>${extra.map((k) => `<td>${fmt(x[k] || 0)}</td>`).join('')}<td><b>${x.pts}</b></td>${form ? `<td class="form">${formHtml(x.form)}</td>` : ''}</tr>`).join('');
     return `<div class="tscroll"><table class="stand"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   }
   /** Quy tắc xếp hạng lấy đúng từ cấu hình: "Xếp theo: điểm → đối đầu → hiệu số ván → hạt giống". */
@@ -108,20 +117,20 @@
   function stageBody(t, v) {
     const key = t.id + ':' + v.index;
     if (v.type === 'single') {
-      let html = bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r)), (r) => slot(t, v.index, r));
+      let html = bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r)), (r) => slot(t, v.index, r), key + ':m');
       if (v.third) html += `<h5>${esc(T('third_place'))}</h5><div class="bracket"><div class="b-col">${matchBox(v.third)}</div></div>`;
       // Trận xếp hạng các vị trí sau (5–8, 9–16…): mỗi nhánh một khối thu gọn
       if (v.places && v.places.length) {
         html += `<h5 class="br-h">${esc(T('places_title'))}</h5>` + v.places.map((p) => fold(key + ':p' + p.base, esc(T('place_range', { a: p.base, b: p.base + p.size - 1 })),
-          () => bracketCols(p.rounds, (r) => (r === p.rounds.length - 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 }))), false)).join('');
+          () => bracketCols(p.rounds, (r) => (r === p.rounds.length - 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 })), null, key + ':p' + p.base), false)).join('');
       }
       return html;
     }
     if (v.type === 'double') {
       const gf = (v.gf || []).filter((m) => !m.skipped);
       // Split: nửa dưới hạt giống bắt đầu ở nhánh thua nên nhánh thắng bắt đầu từ vòng 2
-      return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r, 'wb_final')), (r) => slot(t, v.index, r))}
-        ${v.lrounds && v.lrounds.length ? `<h5 class="br-h">${esc(T('lb'))}</h5>${bracketCols(v.lrounds, (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })))}` : ''}
+      return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r, 'wb_final')), (r) => slot(t, v.index, r), key + ':w')}
+        ${v.lrounds && v.lrounds.length ? `<h5 class="br-h">${esc(T('lb'))}</h5>${bracketCols(v.lrounds, (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })), null, key + ':l')}` : ''}
         ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
     }

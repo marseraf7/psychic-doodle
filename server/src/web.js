@@ -263,6 +263,9 @@ function makeHandler({ store, hub }) {
     });
   }
 
+  const tourCache = new Map(); // trang giải công khai (JSON) đã dựng gần đây
+  const TOUR_CACHE_MS = 10 * 1000;
+
   /** API công khai: giới hạn theo IP, giữ kết quả 60 giây. */
   function serveApi(url, query, req, res) {
     const now = Date.now();
@@ -306,9 +309,29 @@ function makeHandler({ store, hub }) {
       return json(res, 200, { players: c.players, games: c.games }, { 'cache-control': 'no-cache' });
     }
     if (url === '/api/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
+    // Trang giải công khai dạng JSON (nhúng / website ngoài): giới hạn theo IP, giữ 10 giây
+    if (/^\/api\/tour\/[0-9a-f]{6,20}\.json$/.test(url)) {
+      const now = Date.now();
+      const id = url.slice(10, -5);
+      // Bản đã dựng còn mới: trả luôn, không tính lượt (cả lớp học chung một IP cùng mở trang nhúng vẫn xem được)
+      const c = tourCache.get(id);
+      if (c && now - c.at < TOUR_CACHE_MS) return json(res, c.status, c.body, { 'cache-control': 'public, max-age=10' });
+      const wait = hit(apiHits, clientIp(req), API_RATE, 60000, now);
+      if (wait) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });
+      const body = hub.publicTour(id);
+      const entry = { at: now, status: body ? 200 : 404, body: body || { error: 'not_found' } };
+      tourCache.set(id, entry);
+      if (tourCache.size > 500) tourCache.delete(tourCache.keys().next().value);
+      return json(res, entry.status, entry.body, { 'cache-control': 'public, max-age=10' });
+    }
     if (url.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
     if ((url === '/' || url === '/index.html') && u.searchParams.get('replay')) return serveIndex(req, res, u.searchParams.get('replay'));
     if (url.endsWith('/')) url += 'index.html';
+    // Trang nhúng giải (iframe trên website khác): cho phép nhúng – mọi trang khác vẫn chặn (frame-ancestors 'none')
+    if (url === '/embed.html') {
+      res.setHeader('content-security-policy', CSP.replace("frame-ancestors 'none'", 'frame-ancestors *'));
+      res.removeHeader('x-frame-options');
+    }
     const file = path.resolve(STATIC_DIR, '.' + url);
     if (!file.startsWith(STATIC_DIR + path.sep) || url.includes('/tests/')) { res.writeHead(404); return res.end(); }
     fs.stat(file, (err, st) => {

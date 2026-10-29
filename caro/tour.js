@@ -213,7 +213,7 @@
     if (t.podium && t.podium.length && t.status === 'finished') {
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
-    if (t.format === 'bracket') html += (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
+    if (t.format === 'bracket') html += (K.statsHtml ? K.statsHtml(t) : '') + (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
     html += t.format === 'arena' ? K.standings(t) : K.playerList(t); // tour-players.js
     if (t.format === 'arena' && t.games && t.games.length) html += K.recentGames(t);
     return html;

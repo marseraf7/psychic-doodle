@@ -282,3 +282,31 @@ button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.
 .staff-add { display: flex; flex-direction: column; gap: 6px; }
 .staff-add .primary { align-self: flex-start; }
 .sched-row > input[data-f="label"] { flex: 1 1 140px; min-width: 0; width: auto; }
+
+/* ---- Xem nhánh đấu (tour-bracket-view.js): đường nối SVG, thanh công cụ, phóng to, toàn màn hình; dải phong độ; tiến độ */
+.b-wrap { position: relative; }
+.b-wrap .bracket { position: relative; gap: 26px; }
+.b-wrap:fullscreen { background: var(--bg); padding: 16px; overflow: auto; }
+.b-wrap:fullscreen .bracket { overflow: visible; }
+.b-tools { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; margin: 2px 0 4px; }
+.bracket > svg.b-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.b-lines path { fill: none; stroke: var(--grid-strong); stroke-width: 1.5; }
+/* Phóng to bằng cỡ chữ + bề rộng cột (không dùng CSS zoom: Safari đo vị trí sai, đường nối lệch) */
+.bracket.zoomed > .b-col { min-width: calc(150px * var(--bz)); }
+.bracket.zoomed .b-match { font-size: calc(var(--fs-sm) * var(--bz)); }
+.bracket.zoomed .b-col > h5 { font-size: calc(var(--fs-xs) * var(--bz)); }
+.bracket.zoomed .b-match small { font-size: calc(var(--fs-2xs) * var(--bz)); }
+table.stand td.form { display: flex; gap: 2px; justify-content: center; }
+.fm { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 4px; font-style: normal; font-size: var(--fs-2xs); font-weight: var(--fw-bold); color: #fff; }
+.fm.W { background: #2f9a4c; }
+.fm.D { background: #8a8577; }
+.fm.L { background: #d2382f; }
+.t-progress { position: relative; height: 1.4em; border-radius: 99px; background: rgba(127, 127, 127, 0.14); overflow: hidden; margin: 8px 0; }
+.t-progress span { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, #2fb45a 55%, transparent); }
+.t-progress b { position: relative; display: block; text-align: center; font-size: var(--fs-xs); line-height: 1.4em; font-variant-numeric: tabular-nums; }
+.pf-stats.t-stats { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+/* Khu nhúng vào website (tour-embed.js) */
+.em-opts { flex-wrap: wrap; gap: 8px; }
+.em-opt { display: flex; flex-direction: column; gap: 2px; flex: 1 1 140px; }
+.em-code { font: var(--fs-xs) / 1.4 ui-monospace, monospace; color: var(--text); background: var(--bg); border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px; width: 100%; resize: vertical; -webkit-user-select: all; user-select: all; }
+.em-json { color: var(--accent); font-size: var(--fs-sm); align-self: center; }
