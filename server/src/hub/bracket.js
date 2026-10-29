@@ -30,8 +30,11 @@ class Bracket {
         [entrants[i], entrants[j]] = [entrants[j], entrants[i]];
       }
     } else if (t.seeding !== 'list') entrants.sort((a, b) => b.rating - a.rating); // 'list': thứ tự đăng ký / thêm
+    const seeded = this.applySeedPlan(t, entrants); // hạt giống thủ công của ban tổ chức (tour-manage.js)
+    entrants.splice(0, entrants.length, ...seeded);
     entrants.forEach((p, i) => { p.seed = i + 1; });
     t.status = 'running';
+    this.tourLog(t, null, 'started', { n: entrants.length });
     t.stage = 0;
     t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan })];
     this.saveTour(t);
@@ -105,6 +108,7 @@ class Bracket {
 
   /** Mở các trận đã sẵn sàng của vòng hiện tại; xử thua người vắng mặt / đã rút. */
   runBracket(t, now) {
+    if (t.held) return; // ban tổ chức tạm dừng: không mở trận mới
     if (t.offline) return this.runOffline(t); // trận ngoài đời: chờ ban tổ chức nhập tỉ số (tour-score.js)
     for (let guard = 0; guard < 500 && t.status === 'running'; guard++) {
       const st = this.curStage(t);
@@ -180,7 +184,7 @@ class Bracket {
   draftSeeds(t) {
     const list = this.activePlayers(t).map((p) => ({ uid: p.uid, r: this.store.users.get(p.uid)?.rating || p.rating }));
     if (t.seeding !== 'list') list.sort((a, b) => b.r - a.r); // 'list': thứ tự đăng ký / thêm (như khi bốc thăm)
-    return list.map((x) => x.uid);
+    return this.applySeedPlan(t, list).map((x) => x.uid); // hạt giống xếp tay (như startBracket)
   }
 
   /** Các bảng dự kiến (ban tổ chức xem / sửa trước khi bắt đầu). */

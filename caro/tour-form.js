@@ -33,7 +33,8 @@
   const DRAFT_KEY = 'caro.tourDraft';
 
   // ------------------------------------------------------------ Bản nháp (dùng chung form nhanh và trang nâng cao)
-  const F = { preset: 'arena', stages: null, d: null, tab: 'basic' };
+  // editId: đang sửa cài đặt một giải đã tạo (tour-manage.js) – không lưu nháp vào máy, gửi tourEdit thay cho tourCreate
+  const F = { preset: 'arena', stages: null, d: null, tab: 'basic', editId: null };
   // Phần mở rộng (vd. tour-adv-reg.js – đăng ký nâng cao): ô mặc định, đọc thêm từ form, kiểm, thêm vào lệnh tạo giải
   const EXT = { defaults: {}, loaders: [], collectors: [], validators: [], payloads: [] };
   /** Giờ bắt đầu mặc định: 1 giờ nữa, làm tròn 5 phút (chuỗi datetime-local theo giờ máy). */
@@ -49,6 +50,7 @@
   let saveTimer = 0;
   function saveDraft() {
     clearTimeout(saveTimer);
+    if (F.editId) return;
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ preset: F.preset, stages: F.stages, d: F.d })); } catch (e) { /* chế độ riêng tư */ }
   }
   function loadDraft() {
@@ -71,6 +73,7 @@
    * không giữ lựa chọn "chỉ CLB" của nháp cũ (tránh vô tình tạo giải kín cho CLB).
    */
   function begin(clubId) {
+    F.editId = null; // mở form tạo giải mới: không còn ở chế độ sửa giải cũ
     loadDraft();
     if (clubId) { F.d.access = 'club'; F.d.club = clubId; } else if (F.d.access === 'club') { F.d.access = 'public'; F.d.club = ''; }
   }
@@ -106,7 +109,8 @@
     name: (d) => `<label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>`,
     desc: (d) => `<label class="field"><span>${esc(T('tour_desc'))}</span><textarea name="desc" maxlength="1000" rows="3">${esc(d.desc)}</textarea></label>`,
     preset: () => `<label class="field"><span>${esc(T('format'))}</span><select name="preset">${Object.keys(PRESETS).map((k) => `<option value="${k}" ${k === F.preset ? 'selected' : ''}>${esc(presetLabel(k))}</option>`).join('')}</select></label>`,
-    start: (d) => `<label class="field"><span>${esc(T('tour_start'))}</span><input name="start" type="datetime-local" value="${esc(d.start)}" required></label>`,
+    // Ô ngày giờ thống nhất (dt-field.js): 29/10/2026 · 09:00, giá trị ẩn dạng datetime-local
+    start: (d) => `<div class="field"><span>${esc(T('tour_start'))}</span>${window.CaroDt.html('start', d.start, { required: true })}</div>`,
     time: (d) => `<fieldset class="only-online"><legend>${esc(T('time_limit'))}</legend>${radio('time', [['t10', secs(10)], ['t20', secs(20)], ['t30', secs(30)], ['c3+2', '3+2'], ['c5+3', '5+3'], ['c10+5', '10+5']], d.time)}</fieldset>`,
     opening: (d) => `<fieldset class="only-online"><legend>${esc(T('opening'))}</legend>${radio('opening', [['free', T('opening_free')], ['swap2', T('opening_swap2')]], d.opening)}</fieldset>`,
     rule: (d) => `<fieldset class="only-online"><legend>${esc(T('grule'))}</legend><select class="select" name="rule">${window.Caro.RULES.map((r) => `<option value="${r}" ${r === d.rule ? 'selected' : ''}>${esc(T('grule_' + r))}</option>`).join('')}</select></fieldset>`,
@@ -220,7 +224,7 @@
       if (bad) {
         if ($(ids.err)) $(ids.err).textContent = bad.msg;
         if (onInvalid) onInvalid(bad.key);
-        else if (form.elements[bad.key] && form.elements[bad.key].focus) form.elements[bad.key].focus();
+        else focusField(form.elements[bad.key]);
         return;
       }
       submit(ids.err);
@@ -228,15 +232,44 @@
     sync();
   }
 
-  /** Gửi lệnh tạo giải từ bản nháp. */
-  function submit(errId) {
+  /** datetime-local theo giờ máy từ mốc thời gian (ms). */
+  const localInput = (ms) => new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  /** Nạp cài đặt của một giải đã tạo vào form (sửa cài đặt): t = trang giải của ban tổ chức. */
+  function fromTour(t) {
+    const r = t.reg || {};
+    F.editId = t.id;
+    F.preset = t.format === 'arena' ? 'arena' : 'custom';
+    F.stages = t.stages ? structuredClone(t.stages) : null;
+    F.tab = 'basic';
+    F.d = {
+      // Giờ máy chủ → giờ máy (ngược với submit: startsAt = giờ máy − skew)
+      ...blank(), name: t.name, desc: t.desc || '', start: localInput(t.startsAt + (D.skew || 0)),
+      time: t.clock ? 'c' + t.clock : 't' + (t.timeLimit || 20), opening: t.opening || 'free', rule: t.rule || 'vn',
+      minutes: String(t.minutes || 30), seeding: t.seeding || 'rating', checkin: !!t.checkinEnabled, rated: !!t.rated,
+      max: String(t.maxPlayers), access: t.access, club: t.club ? t.club.id : '', noshow: t.noShowMin ? String(t.noShowMin) : '',
+      offline: !!t.offline, scoreMode: t.scoreMode || 'sets', closeAt: r.closeAt ? localInput(r.closeAt + (D.skew || 0)) : '',
+      approval: !!r.approval, waitlist: !!r.waitlist, minRating: r.minRating || '', maxRating: r.maxRating || '', minGames: r.minGames || '',
+      minAccountDays: r.minAccountDays || '', code: (t.regAdmin && t.regAdmin.code) || '', checkinMin: String(r.checkinMin || 10),
+      questions: (r.questions || []).map((q) => ({ q: q.q, type: q.type, opts: (q.opts || []).join(', ') })),
+    };
+  }
+
+  /** Đưa con trỏ tới ô lỗi (ô ngày giờ: ô ngày đang hiện, không phải ô ẩn giữ giá trị). */
+  function focusField(el) {
+    if (!el || !el.focus) return;
+    const box = el.type === 'hidden' && el.closest('[data-dt]');
+    (box ? box.querySelector('.dt-d') : el).focus();
+  }
+
+  /** Gửi lệnh tạo giải (hoặc sửa cài đặt – F.editId) từ bản nháp. opts.draft: lưu nháp (chưa gửi duyệt). */
+  function submit(errId, opts = {}) {
     const d = F.d;
     if ($(errId)) $(errId).textContent = '';
     const start = new Date(d.start).getTime();
     const ko = F.preset !== 'arena';
     const extra = Object.assign({}, ...EXT.payloads.map((f) => f(d, { ko })));
     O.send({
-      t: 'tourCreate', name: d.name.trim(), desc: d.desc.trim(), format: ko ? 'bracket' : 'arena', startsAt: start - D.skew,
+      ...(F.editId ? { t: 'tourEdit', id: F.editId } : { t: 'tourCreate', draft: !!opts.draft }), name: d.name.trim(), desc: d.desc.trim(), format: ko ? 'bracket' : 'arena', startsAt: start - D.skew,
       ...(d.time[0] === 'c' ? { timeLimit: 0, clock: d.time.slice(1) } : { timeLimit: Number(d.time.slice(1)) }),
       opening: d.opening, rule: d.rule, minutes: Number(d.minutes), stages: ko ? F.stages : undefined, seeding: d.seeding,
       checkin: !!d.checkin, rated: !!d.rated, maxPlayers: Number(d.max), noShowMin: d.noshow ? Number(d.noshow) : null,
@@ -247,7 +280,7 @@
   }
 
   K.pages.tourNew = pageTourNew;
-  K.acts.tourNew = () => { F.d = null; open('tourNew', null); };
+  K.acts.tourNew = () => { F.d = null; F.editId = null; open('tourNew', null); };
   K.acts.tourAdv = () => { collect($('tf')); open('tourAdv', null); };
   /** Đặt lại form về mặc định (bỏ nháp), giữ CLB đang chọn nếu mở từ trang CLB. */
   K.acts.tourReset = () => {
@@ -257,7 +290,13 @@
     K.render(true);
   };
   K.binders.push(() => { const tf = $('tf'); if (tf) bindForm(tf, { stages: 'tf-stages', hint: 'tf-fmt-hint', est: 'tf-est', adv: 'tf-adv', err: 'tf-err' }); });
-  // Tạo xong thì bỏ nháp
+  // Tạo xong thì bỏ nháp; sửa xong thì về trang giải
   O.on('tourCreated', resetDraft);
-  K.tourDraft = { F, FIELDS, EXT, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate, sync: null };
+  O.on('tourEdited', (m) => {
+    F.editId = null;
+    F.d = null;
+    O.toast(T('tour_edited'));
+    if (K.isOpen() && K.V.page === 'tourAdv') { K.V.stack = [{ page: 'tours', id: null }]; open('tour', m.id, false); }
+  });
+  K.tourDraft = { F, FIELDS, EXT, fields, PRESETS, presetLabel, bindForm, collect, begin, resetDraft, estimateText, validate, fromTour, submit, focusField };
 })();

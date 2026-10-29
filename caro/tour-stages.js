@@ -48,8 +48,10 @@
     extra.push(...replays(m));
     return `<div class="b-match ${m.live ? 'live' : ''}" data-mid="${esc(m.id)}">${row(m.a, m.wa, m.winner && m.a && m.winner === m.a.uid)}${row(m.b, m.wb, m.winner && m.b && m.winner === m.b.uid)}${extra.length ? `<small>${extra.join(' ')}</small>` : ''}</div>`;
   }
-  /** Các cột của một nhánh đấu; name(r) là tên cột. */
-  const bracketCols = (rounds, name) => `<div class="bracket">${rounds.map((round, r) => `<div class="b-col"><h5>${esc(name(r))}</h5>${round.map(matchBox).join('')}</div>`).join('')}</div>`;
+  /** Giờ / địa điểm ban tổ chức đặt cho vòng (tour-manage.js), "" nếu chưa đặt. */
+  const slot = (t, si, r) => (K.slotOf ? K.slotOf(t, si, r) : '');
+  /** Các cột của một nhánh đấu; name(r) là tên cột; sl(r): giờ / địa điểm của vòng (tuỳ chọn). */
+  const bracketCols = (rounds, name, sl) => `<div class="bracket">${rounds.map((round, r) => { const s = sl ? sl(r) : ''; return `<div class="b-col"><h5>${esc(name(r))}${s ? `<small class="slot">${esc(s)}</small>` : ''}</h5>${round.map(matchBox).join('')}</div>`; }).join('')}</div>`;
   /** Một dòng trận (vòng tròn / Thụy Sĩ): A  2–1  B. */
   function matchRow(m) {
     const nm = (p, win) => (p && p.uid ? `<span class="nm ${win ? 'win' : ''} ${p.uid === uidMe() ? 'me' : ''}">${esc(p.name)}</span>`
@@ -104,7 +106,7 @@
   function stageBody(t, v) {
     const key = t.id + ':' + v.index;
     if (v.type === 'single') {
-      let html = bracketCols(v.rounds, (r) => roundName(v.rounds.length, r));
+      let html = bracketCols(v.rounds, (r) => roundName(v.rounds.length, r), (r) => slot(t, v.index, r));
       if (v.third) html += `<h5>${esc(T('third_place'))}</h5><div class="bracket"><div class="b-col">${matchBox(v.third)}</div></div>`;
       // Trận xếp hạng các vị trí sau (5–8, 9–16…): mỗi nhánh một khối thu gọn
       if (v.places && v.places.length) {
@@ -116,7 +118,7 @@
     if (v.type === 'double') {
       const gf = (v.gf || []).filter((m) => !m.skipped);
       // Split: nửa dưới hạt giống bắt đầu ở nhánh thua nên nhánh thắng bắt đầu từ vòng 2
-      return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => roundName(v.rounds.length, r, 'wb_final'))}
+      return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => roundName(v.rounds.length, r, 'wb_final'), (r) => slot(t, v.index, r))}
         ${v.lrounds && v.lrounds.length ? `<h5 class="br-h">${esc(T('lb'))}</h5>${bracketCols(v.lrounds, (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })))}` : ''}
         ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
@@ -126,7 +128,7 @@
       const many = v.groups.length > 4;
       return v.groups.map((g, gi) => {
         const cur = g.rounds.findIndex((r) => r.some((m) => !m.done));
-        const inner = () => table(g.table, v.cfg) + roundsList(key + ':g' + gi, g.rounds, (i) => T('r_round', { n: i + 1 }), !v.done && cur >= 0 && !many);
+        const inner = () => table(g.table, v.cfg) + roundsList(key + ':g' + gi, g.rounds, (i) => [T('r_round', { n: i + 1 }), slot(t, v.index, i)].filter(Boolean).join(' · '), !v.done && cur >= 0 && !many);
         const name = esc(T('group_name', { name: g.name }));
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
@@ -137,7 +139,7 @@
     const rounds = v.rounds.map((r, i) => ({ r, i })).reverse();
     const want = (t.stages[v.index] || {}).rounds;
     const capped = want > v.totalRounds ? `<p class="hint">${esc(T('swiss_capped', { n: v.totalRounds, m: v.table.length }))}</p>` : '';
-    const label = (i) => T('swiss_round', { n: i + 1, m: v.totalRounds });
+    const label = (i) => [T('swiss_round', { n: i + 1, m: v.totalRounds }), slot(t, v.index, i)].filter(Boolean).join(' · ');
     // Vòng mới nhất hiện sẵn; các vòng trước nằm trong khối riêng (chỉ dựng khi mở)
     const older = rounds.slice(1);
     return capped + table(v.table, v.cfg)

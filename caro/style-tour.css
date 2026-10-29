@@ -234,3 +234,44 @@ button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.
 .b-match.scorable, .mrow.scorable { cursor: pointer; }
 .b-match.scorable:hover, .mrow.scorable:hover { border-color: var(--accent); }
 .b-match small .sets, .mrow small .sets { font-variant-numeric: tabular-nums; }
+
+/* ---- Khu quản trị (tour-manage.js) */
+.tour-seg { margin: 2px 0; }
+.mg-sec { border-top: 1px solid var(--panel-border); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+.mg-sec > h4 { margin-top: 0; }
+.checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.checklist li { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--muted); }
+.checklist li.ok { color: var(--text); }
+.checklist li.ok .ico { color: #2fb45a; }
+.checklist li button { margin-left: auto; }
+.seed-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.seed-list li { display: flex; align-items: center; gap: 8px; border: 1px solid var(--panel-border); border-radius: 10px; padding: 4px 8px; cursor: grab; background: var(--bg); }
+.seed-list li .seed { min-width: 22px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.seed-list li b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seed-list li .row { gap: 2px; flex-wrap: nowrap; }
+.seed-list li.flash { animation: seed-flash 0.6s ease; }
+@keyframes seed-flash { 0% { background: color-mix(in srgb, var(--accent) 30%, transparent); transform: translateX(4px); } 100% { background: var(--bg); transform: none; } }
+@media (prefers-reduced-motion: reduce) { .seed-list li.flash { animation: none; } }
+.pairs { list-style: none; margin: 0; padding: 0; font-size: var(--fs-sm); display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 16px; }
+.sched { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+/* Mỗi vòng: tên vòng một dòng; ngày giờ + địa điểm + Lưu ở dòng dưới (hẹp thì địa điểm xuống dòng tiếp) */
+.sched-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--fs-sm); padding-bottom: 6px; border-bottom: 1px dashed var(--panel-border); }
+.sched-row > b { flex: 0 0 100%; }
+.sched-row > .dt { flex: none; }
+.sched-row > input[data-f="place"] { flex: 1 1 140px; min-width: 0; width: auto; }
+.sched-row > button { flex: none; }
+.news { display: flex; gap: 8px; align-items: flex-start; border-left: 3px solid var(--accent); padding: 6px 10px; background: color-mix(in srgb, var(--accent) 7%, transparent); border-radius: 0 10px 10px 0; }
+.news p { margin: 0; white-space: pre-wrap; }
+#news-text { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--panel-border); border-radius: 10px; padding: 8px 10px; width: 100%; resize: vertical; }
+.mg-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: var(--fs-sm); max-height: 320px; overflow-y: auto; }
+.danger-zone .row { flex-wrap: wrap; gap: 6px; }
+.b-col h5 .slot { display: block; font-weight: var(--fw-medium); color: var(--accent); }
+
+/* ---- Ô ngày giờ thống nhất (dt-field.js): 29/10/2026 · 09:00
+ * (ô input chung có width: 100% với độ ưu tiên cao – dùng flex-basis để cố định bề rộng đủ cho chữ, không bị cắt) */
+.dt { display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; max-width: 100%; }
+.dt .dt-d { flex: 0 1 15ch; min-width: 12.5ch; text-align: center; font-variant-numeric: tabular-nums; }
+.dt .dt-t { flex: 0 0 8.5ch; min-width: 0; text-align: center; font-variant-numeric: tabular-nums; }
+.dt .dt-native { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.dt .dt-cal { flex: none; }
+.dt.bad .dt-d, .dt.bad .dt-t { border-color: #e5392f; }

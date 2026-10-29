@@ -58,7 +58,7 @@ class Tournaments {
 
   canSeeTour(t, uid) {
     if (t.creator === uid || this.isAdmin(uid) || (uid && this.player(t, uid))) return true;
-    if (t.status === 'pending' || t.status === 'rejected') return false;
+    if (t.status === 'pending' || t.status === 'rejected' || t.status === 'draft') return false;
     if (t.access === 'club') {
       const c = this.clubs.get(t.club);
       return !!(c && uid && c.members[uid]);
@@ -114,7 +114,7 @@ class Tournaments {
       if (r.tour && r.tour.id === t.id && r.active) for (const p of r.players) live.add(uidOf(p.id));
     }
     const pv = (p) => p && {
-      uid: p.uid, name: p.name, rating: this.store.users.get(p.uid)?.rating || p.rating, seed: p.seed || null,
+      uid: p.uid, name: p.name, rating: this.store.users.get(p.uid)?.rating || p.rating, seed: p.seed || null, joined: p.joined || 0,
       score: p.score, wins: p.wins, draws: p.draws, losses: p.losses, games: p.games, streak: p.streak, fire: p.streak >= 2,
       paused: !!p.paused, withdrawn: !!p.withdrawn, out: p.out || null, checkedIn: !!p.checkedIn,
       online: this.isOnline(userPid(p.uid)), playing: live.has(p.uid),
@@ -127,7 +127,8 @@ class Tournaments {
       ...this.tourSummary(t, null),
       desc: t.desc, seeding: t.seeding, checkinEnabled: !!t.checkin, noShowMin: t.noShowMin || null,
       checkinAt: t.checkin ? t.startsAt - this.checkinMs(t) : null,
-      reg: this.regPublic(t), scoreMode: t.scoreMode || 'sets', startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
+      reg: this.regPublic(t), scoreMode: t.scoreMode || 'sets',
+      news: t.news || [], schedule: t.schedule || {}, held: !!t.held, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
       cancelReason: t.cancelReason || '',
       players, stageViews: this.stageViews(t),
       podium: (t.podium || []).map((u) => side(u)),
@@ -153,6 +154,8 @@ class Tournaments {
       // Hàng chờ duyệt / danh sách chờ của mình (vị trí trong danh sách chờ), phần đăng ký riêng của ban tổ chức
       myQueue: (() => { const q = uid && this.queueEntry(t, uid); return q ? { state: q.state, pos: t.queue.filter((x) => x.state === q.state).indexOf(q) + 1 } : null; })(),
       regAdmin: manage ? this.regManager(t) : null,
+      // Khu quản trị (tour-manage.js): nhật ký, hạt giống thủ công
+      log: manage ? this.tourLogView(t) : null, seedPlan: manage ? t.seedPlan || null : null,
       myMatch: myMatch ? this.matchView(t, myMatch, this.curStage(t)) : null,
       now: Date.now(), // giờ máy chủ (phần chung có thể là bản đã lưu vài giây trước)
     };
@@ -173,8 +176,11 @@ class Tournaments {
   }
 
   // ------------------------------------------------------------ Tạo / xem / đăng ký
-  on_tourCreate(conn, o) {
-    const me = this.requireUser(conn);
+  /**
+   * Kiểm và chuẩn hoá cấu hình giải từ client (dùng khi tạo giải và khi sửa cài đặt trước giờ đấu – tour-manage.js).
+   * Trả các trường cấu hình (không gồm người chơi, trạng thái…).
+   */
+  tourFields(me, o, now = Date.now()) {
     const name = cleanPublicName(o.name).slice(0, 60);
     if (name.length < 3) throw E('tour_name_short');
     const format = FORMATS.includes(o.format) ? o.format : 'arena';
@@ -182,7 +188,6 @@ class Tournaments {
     const { clock, opening, rule } = cleanTc(o);
     const timeLimit = clock ? 0 : TOUR_TIME_LIMITS.includes(Number(o.timeLimit)) ? Number(o.timeLimit) : 20;
     const startsAt = Number(o.startsAt);
-    const now = Date.now();
     if (!Number.isFinite(startsAt) || startsAt < now + 60 * 1000 || startsAt > now + MAX_START_DAYS * 86400000) throw E('tour_bad_start');
     const access = ACCESS.includes(o.access) ? o.access : 'public';
     let club = null;
@@ -191,8 +196,6 @@ class Tournaments {
       if (!c || c.status !== 'approved' || !this.isOfficer(c, me.id)) throw E('tour_club_officers');
       club = c.id;
     }
-    const active = [...this.tours.values()].filter((t) => t.creator === me.id && ['pending', 'scheduled', 'running'].includes(t.status));
-    if (active.length >= MAX_ACTIVE_TOURS_PER_USER) throw E('tour_limit', { n: MAX_ACTIVE_TOURS_PER_USER });
     // Bản trước gửi format 'knockout' = 1 vòng loại trực tiếp
     const legacyKo = o.format === 'knockout';
     const ko = format === 'bracket' || legacyKo;
@@ -200,24 +203,35 @@ class Tournaments {
     const maxPlayers = Math.max(ko ? 3 : 2, Math.min(MAX_PLAYERS, Math.floor(Number(o.maxPlayers)) || (ko ? 16 : 100)));
     // Giải offline (trận đấu ngoài đời, ban tổ chức thêm người bằng Bulk Add và nhập tỉ số): chỉ thể thức theo giai đoạn
     const offline = ko && o.offline === true;
-    const admin = this.isAdmin(me.id);
-    const t = {
-      id: crypto.randomBytes(5).toString('hex'), name, desc: cleanPublicText(o.desc, 1000), format: ko ? 'bracket' : 'arena', creator: me.id,
-      status: admin ? 'scheduled' : 'pending', created: now, startsAt, timeLimit, clock, opening, rule, rated: !offline && o.rated !== false,
-      access, club, maxPlayers,
+    return {
+      name, desc: cleanPublicText(o.desc, 1000), format: ko ? 'bracket' : 'arena', startsAt, timeLimit, clock, opening, rule,
+      rated: !offline && o.rated !== false, access, club, maxPlayers,
       minutes: ko ? null : (ARENA_MINUTES.includes(Number(o.minutes)) ? Number(o.minutes) : 30),
       // Hạt giống: theo Elo / ngẫu nhiên / theo thứ tự danh sách (giải offline không có Elo: mặc định theo danh sách)
       stages, seeding: ['random', 'list'].includes(o.seeding) ? o.seeding : offline ? 'list' : 'rating',
-      checkin: ko && !offline && o.checkin !== false, players: [], games: [],
-      reg: normalizeReg(o.reg, startsAt), queue: [],
+      checkin: ko && !offline && o.checkin !== false,
+      reg: normalizeReg(o.reg, startsAt),
       offline, scoreMode: offline && o.scoreMode === 'points' ? 'points' : 'sets', // tỉ số trận: số set thắng / tổng điểm các set
       // Thời gian chờ vắng mặt (phút) trước khi xử thua; null = mặc định của máy chủ (2 phút)
       noShowMin: ko && NOSHOW_MIN.includes(Number(o.noShowMin)) ? Number(o.noShowMin) : null,
     };
+  }
+
+  on_tourCreate(conn, o) {
+    const me = this.requireUser(conn);
+    const now = Date.now();
+    const fields = this.tourFields(me, o, now);
+    const active = [...this.tours.values()].filter((t) => t.creator === me.id && ['draft', 'pending', 'scheduled', 'running'].includes(t.status));
+    if (active.length >= MAX_ACTIVE_TOURS_PER_USER) throw E('tour_limit', { n: MAX_ACTIVE_TOURS_PER_USER });
+    const admin = this.isAdmin(me.id);
+    // Lưu nháp: chỉ người tạo thấy, chưa gửi duyệt (tour-manage.js: on_tourSubmit)
+    const status = o.draft === true ? 'draft' : admin ? 'scheduled' : 'pending';
+    const t = { id: crypto.randomBytes(5).toString('hex'), ...fields, creator: me.id, status, created: now, players: [], games: [], queue: [] };
     this.tours.set(t.id, t);
+    this.tourLog(t, me.id, 'created');
     this.saveTour(t);
     conn.send({ t: 'tourCreated', id: t.id, status: t.status });
-    if (!admin) this.notifyAdmins(name);
+    if (status === 'pending') this.notifyAdmins(t.name);
   }
 
   /** Danh sách giải: đang diễn ra, sắp tới, đã xong (giải 'link' chỉ hiện với người liên quan). */
@@ -228,10 +242,10 @@ class Tournaments {
       if (!this.canSeeTour(t, uid)) continue;
       const mine = uid && (t.creator === uid || this.player(t, uid));
       if (t.access === 'link' && !mine) continue;
-      if ((t.status === 'pending' || t.status === 'rejected') && !mine) continue;
+      if ((t.status === 'pending' || t.status === 'rejected' || t.status === 'draft') && !mine) continue;
       items.push(this.tourSummary(t, uid));
     }
-    const rank = { running: 0, scheduled: 1, pending: 2, finished: 3, cancelled: 4, rejected: 5 };
+    const rank = { running: 0, scheduled: 1, pending: 2, draft: 2, finished: 3, cancelled: 4, rejected: 5 };
     items.sort((a, b) => rank[a.status] - rank[b.status] ||
       (a.status === 'finished' || a.status === 'cancelled' ? b.startsAt - a.startsAt : a.startsAt - b.startsAt));
     conn.send({ t: 'tourList', items: items.slice(0, 100), now: Date.now() });

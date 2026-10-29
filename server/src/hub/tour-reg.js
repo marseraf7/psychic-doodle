@@ -155,6 +155,7 @@ class TourReg {
     const x = this.queueEntry(t, String(uid || ''));
     if (!x) throw E('player_not_found');
     const u = this.store.users.get(x.uid);
+    this.tourLog(t, this.requireUser(conn).id, accept ? 'reg_accept' : 'reg_reject', { name: x.name });
     if (accept && u) {
       const res = this.regAdmit(t, u, x.answers);
       this.send(userPid(x.uid), note(res === 'in' ? 'tour_reg_accepted' : 'tour_waitlisted', { name: t.name }));
@@ -229,7 +230,11 @@ class TourReg {
         res.added.push(u.name);
       }
     }
-    if (res.added.length) { this.saveTour(t); this.pushTour(t); }
+    if (res.added.length) {
+      this.tourLog(t, this.requireUser(conn).id, 'players_added', { n: res.added.length });
+      this.saveTour(t);
+      this.pushTour(t);
+    }
     conn.send({ t: 'tourAddResult', id: t.id, ...res });
   }
 }

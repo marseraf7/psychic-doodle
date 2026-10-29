@@ -20,12 +20,15 @@
     const stage = t.stages && t.stages.length > 1 ? T('stage_n', { n: v.index + 1 }) + ' · ' : '';
     const sets = Array.from({ length: rows }, (_, i) => `<tr><td>${esc(T('score_set_n', { n: i + 1 }))}</td><td>${filled[i] ? filled[i][0] : ''}</td><td>${filled[i] ? filled[i][1] : ''}</td></tr>`).join('');
     const res = !blank && m.done ? `${m.wa} – ${m.wb}` : '';
+    // Giờ / địa điểm ban tổ chức đặt cho vòng của trận (tour-manage.js)
+    const slot = (t.schedule && t.schedule[v.index + ':' + m.round]) || {};
+    const slotAt = slot.at ? new Date(slot.at).toLocaleString(document.documentElement.lang || 'vi', { dateStyle: 'short', timeStyle: 'short' }) : '';
     const ex = !blank && m.extra ? m.extra.join(' – ') : '';
     const sign = ['sheet_ref1', 'sheet_ref2', 'sheet_org', 'sheet_sup'].map((k) => `<div class="sg"><span>${esc(T(k))}</span></div>`).join('')
       + `<div class="sg"><span>${esc(T('sheet_player'))} A</span><small>${name(m.a)}</small></div><div class="sg"><span>${esc(T('sheet_player'))} B</span><small>${name(m.b)}</small></div>`;
     return `<section class="pg">
       <header><div><h1>${esc(T('sheet_title'))}</h1><p>${esc(t.name)}</p></div><div class="meta"><b>${esc(stage)}${esc(m.id)}</b><span>${idx + 1} / ${total}</span></div></header>
-      <table class="info"><tr><th>${esc(T('sheet_time'))}</th><td></td><th>${esc(T('sheet_place'))}</th><td></td></tr></table>
+      <table class="info"><tr><th>${esc(T('sheet_time'))}</th><td>${esc(slotAt)}</td><th>${esc(T('sheet_place'))}</th><td>${esc(slot.place || '')}</td></tr></table>
       <table class="score"><thead><tr><th></th><th>A: ${name(m.a) || '&nbsp;'}</th><th>B: ${name(m.b) || '&nbsp;'}</th></tr></thead>
         <tbody>${sets}<tr class="ex"><td>${esc(T('score_extra_short'))}</td><td colspan="2">${esc(ex)}</td></tr>
         <tr class="res"><td>${esc(T('sheet_result'))}</td><td colspan="2">${esc(res)}</td></tr></tbody></table>
