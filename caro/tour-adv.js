@@ -21,7 +21,7 @@
     // Đăng ký nâng cao: tour-adv-reg.js ('limits' gồm 4 ô Elo / số ván / tuổi tài khoản)
     { id: 'reg', icon: 'users', keys: ['offline', 'start', 'closeAt', 'max', 'approval', 'waitlist', 'limits', 'code', 'questions', 'checkin', 'checkinMin', 'seeding'],
       alias: ['minRating', 'maxRating', 'minGames', 'minAccountDays'] },
-    { id: 'access', icon: 'lock', keys: ['access'] },
+    { id: 'access', icon: 'lock', keys: ['access', 'hideSeeds'] },
   ];
 
   function pageTourAdv() {

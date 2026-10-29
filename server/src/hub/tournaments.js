@@ -20,7 +20,12 @@ const { normalizeReg } = require('./tour-reg.js');
 const FORMATS = ['arena', 'bracket'];
 const TOUR_TIME_LIMITS = require('../../../caro/timectl.js').PER_MOVE; // giải luôn có giới hạn thời gian
 const ARENA_MINUTES = [15, 20, 30, 45, 60, 90, 120];
-const ACCESS = ['public', 'link', 'club'];
+// Ai xem được: mọi người / chỉ ai có link (không hiện trong danh sách) / thành viên CLB / riêng tư (chỉ ban tổ chức và
+// người chơi – chặn ở máy chủ, kể cả mở bằng link)
+const ACCESS = ['public', 'link', 'club', 'private'];
+// Quyền của đồng ban tổ chức (như MyLeague): cấu hình, người chơi (thêm / loại / hạt giống / bảng), duyệt đăng ký, kết quả,
+// khiếu nại, thông báo. 'all' = toàn quyền như người tạo (trừ phân quyền / xoá giải).
+const STAFF_PERMS = ['all', 'config', 'players', 'reg', 'results', 'disputes', 'news'];
 const MAX_ACTIVE_TOURS_PER_USER = 3;
 const MAX_START_DAYS = 30;
 const MAX_PLAYERS = 512; // tối đa người mỗi giải (mọi thể thức)
@@ -58,6 +63,8 @@ class Tournaments {
 
   canSeeTour(t, uid) {
     if (t.creator === uid || this.isAdmin(uid) || (uid && this.player(t, uid))) return true;
+    if (uid && (t.staff || []).some((x) => x.uid === uid)) return true;
+    if (t.access === 'private') return !!(uid && this.queueEntry(t, uid)); // riêng tư: chỉ ban tổ chức / người chơi
     if (t.status === 'pending' || t.status === 'rejected' || t.status === 'draft') return false;
     if (t.access === 'club') {
       const c = this.clubs.get(t.club);
@@ -66,11 +73,26 @@ class Tournaments {
     return true; // 'public' và 'link' (giải 'link' không hiện trong danh sách, nhưng mở được bằng link)
   }
 
-  canManageTour(t, uid) {
-    if (!uid) return false;
-    if (t.creator === uid || this.isAdmin(uid)) return true;
+  /**
+   * Quyền ban tổ chức của một người: 'owner' (người tạo, quản trị viên, quản lý CLB của giải – mọi quyền), mảng quyền
+   * (đồng ban tổ chức), hoặc null.
+   */
+  tourPerms(t, uid) {
+    if (!uid) return null;
+    if (t.creator === uid || this.isAdmin(uid)) return 'owner';
     const c = t.club && this.clubs.get(t.club);
-    return !!(c && this.isOfficer(c, uid));
+    if (c && this.isOfficer(c, uid)) return 'owner';
+    const s = (t.staff || []).find((x) => x.uid === uid);
+    return s ? s.perms : null;
+  }
+
+  /** perm: bỏ trống = bất kỳ quyền nào; 'owner' = chỉ chủ giải; còn lại = quyền cụ thể (hoặc 'all'). */
+  canManageTour(t, uid, perm) {
+    const p = this.tourPerms(t, uid);
+    if (!p) return false;
+    if (p === 'owner') return true;
+    if (!perm) return true;
+    return perm !== 'owner' && (p.includes('all') || p.includes(perm));
   }
 
   findTour(id, uid) {
@@ -114,18 +136,21 @@ class Tournaments {
       if (r.tour && r.tour.id === t.id && r.active) for (const p of r.players) live.add(uidOf(p.id));
     }
     const pv = (p) => p && {
-      uid: p.uid, name: p.name, rating: this.store.users.get(p.uid)?.rating || p.rating, seed: p.seed || null, joined: p.joined || 0,
+      uid: p.uid, name: p.name, rating: this.store.users.get(p.uid)?.rating || p.rating, seed: t.hideSeeds ? null : p.seed || null, joined: p.joined || 0,
       score: p.score, wins: p.wins, draws: p.draws, losses: p.losses, games: p.games, streak: p.streak, fire: p.streak >= 2,
       paused: !!p.paused, withdrawn: !!p.withdrawn, out: p.out || null, checkedIn: !!p.checkedIn,
       online: this.isOnline(userPid(p.uid)), playing: live.has(p.uid),
     };
     const side = (u) => this.tourSide(t, u);
-    const players = t.players.filter((p) => !p.withdrawn || p.games).map(pv);
-    if (t.format === 'arena') players.sort((a, b) => b.score - a.score || b.wins - a.wins || b.rating - a.rating);
-    else players.sort((a, b) => (a.seed || 999) - (b.seed || 999) || b.rating - a.rating);
+    // Sắp theo hạt giống thật (trước khi ẩn số hạt giống với người xem)
+    const src = t.players.filter((p) => !p.withdrawn || p.games);
+    const rating = (p) => this.store.users.get(p.uid)?.rating || p.rating;
+    if (t.format === 'arena') src.sort((a, b) => b.score - a.score || b.wins - a.wins || rating(b) - rating(a));
+    else src.sort((a, b) => (a.seed || 999) - (b.seed || 999) || rating(b) - rating(a));
+    const players = src.map(pv);
     return {
       ...this.tourSummary(t, null),
-      desc: t.desc, seeding: t.seeding, checkinEnabled: !!t.checkin, noShowMin: t.noShowMin || null,
+      desc: t.desc, seeding: t.seeding, checkinEnabled: !!t.checkin, noShowMin: t.noShowMin || null, hideSeeds: !!t.hideSeeds,
       checkinAt: t.checkin ? t.startsAt - this.checkinMs(t) : null,
       reg: this.regPublic(t), scoreMode: t.scoreMode || 'sets',
       news: t.news || [], schedule: t.schedule || {}, held: !!t.held, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
@@ -150,12 +175,16 @@ class Tournaments {
       reviewNote: t.creator === uid || this.isAdmin(uid) ? t.reviewNote || '' : '',
       canManage: manage, canJoin: this.canJoinTour(t, uid),
       me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
-      groupDraft: manage ? this.groupDraft(t) : null,
+      groupDraft: this.canManageTour(t, uid, 'players') ? this.groupDraft(t) : null,
       // Hàng chờ duyệt / danh sách chờ của mình (vị trí trong danh sách chờ), phần đăng ký riêng của ban tổ chức
       myQueue: (() => { const q = uid && this.queueEntry(t, uid); return q ? { state: q.state, pos: t.queue.filter((x) => x.state === q.state).indexOf(q) + 1 } : null; })(),
-      regAdmin: manage ? this.regManager(t) : null,
+      regAdmin: this.canManageTour(t, uid, 'reg') ? this.regManager(t) : null, // mã vào + câu trả lời: chỉ người duyệt đăng ký
       // Khu quản trị (tour-manage.js): nhật ký, hạt giống thủ công
-      log: manage ? this.tourLogView(t) : null, seedPlan: manage ? t.seedPlan || null : null,
+      log: manage ? this.tourLogView(t) : null, seedPlan: this.canManageTour(t, uid, 'players') ? t.seedPlan || null : null,
+      // Ẩn hạt giống chỉ với người xem: ban tổ chức vẫn có số hạt giống (danh sách, biên bản)
+      seeds: manage && t.hideSeeds ? Object.fromEntries(t.players.filter((p) => p.seed).map((p) => [p.uid, p.seed])) : null,
+      // Quyền của người xem ('owner' / danh sách quyền đồng ban tổ chức) và danh sách đồng ban tổ chức
+      perms: manage ? this.tourPerms(t, uid) : null, staff: manage ? this.staffView(t) : null,
       myMatch: myMatch ? this.matchView(t, myMatch, this.curStage(t)) : null,
       now: Date.now(), // giờ máy chủ (phần chung có thể là bản đã lưu vài giây trước)
     };
@@ -168,7 +197,7 @@ class Tournaments {
   /** Tên + hạt giống của một người trong giải (gửi cho client). */
   tourSide(t, u) {
     const p = u && this.player(t, u);
-    return u ? { uid: u, name: p?.name || '?', seed: p?.seed || null } : null;
+    return u ? { uid: u, name: p?.name || '?', seed: t.hideSeeds ? null : p?.seed || null } : null; // ẩn hạt giống
   }
 
   notifyPlayers(t, code, args = {}, filter = () => true) {
@@ -180,7 +209,7 @@ class Tournaments {
    * Kiểm và chuẩn hoá cấu hình giải từ client (dùng khi tạo giải và khi sửa cài đặt trước giờ đấu – tour-manage.js).
    * Trả các trường cấu hình (không gồm người chơi, trạng thái…).
    */
-  tourFields(me, o, now = Date.now()) {
+  tourFields(me, o, now = Date.now(), keepClub = null) {
     const name = cleanPublicName(o.name).slice(0, 60);
     if (name.length < 3) throw E('tour_name_short');
     const format = FORMATS.includes(o.format) ? o.format : 'arena';
@@ -193,7 +222,9 @@ class Tournaments {
     let club = null;
     if (access === 'club') {
       const c = this.clubs.get(o.club);
-      if (!c || c.status !== 'approved' || !this.isOfficer(c, me.id)) throw E('tour_club_officers');
+      // Sửa giải CLB (đồng ban tổ chức không là quản lý CLB): giữ nguyên CLB thì không cần kiểm lại
+      const same = keepClub && c && c.id === keepClub;
+      if (!c || c.status !== 'approved' || (!same && !this.isOfficer(c, me.id))) throw E('tour_club_officers');
       club = c.id;
     }
     // Bản trước gửi format 'knockout' = 1 vòng loại trực tiếp
@@ -214,6 +245,7 @@ class Tournaments {
       offline, scoreMode: offline && o.scoreMode === 'points' ? 'points' : 'sets', // tỉ số trận: số set thắng / tổng điểm các set
       // Thời gian chờ vắng mặt (phút) trước khi xử thua; null = mặc định của máy chủ (2 phút)
       noShowMin: ko && NOSHOW_MIN.includes(Number(o.noShowMin)) ? Number(o.noShowMin) : null,
+      hideSeeds: o.hideSeeds === true, // không hiện số hạt giống cho người xem (như Challonge "Hide seeds")
     };
   }
 
@@ -240,8 +272,8 @@ class Tournaments {
     const items = [];
     for (const t of this.tours.values()) {
       if (!this.canSeeTour(t, uid)) continue;
-      const mine = uid && (t.creator === uid || this.player(t, uid));
-      if (t.access === 'link' && !mine) continue;
+      const mine = uid && (t.creator === uid || this.player(t, uid) || (t.staff || []).some((x) => x.uid === uid));
+      if ((t.access === 'link' || t.access === 'private') && !mine) continue;
       if ((t.status === 'pending' || t.status === 'rejected' || t.status === 'draft') && !mine) continue;
       items.push(this.tourSummary(t, uid));
     }
@@ -326,4 +358,4 @@ class Tournaments {
   }
 }
 
-module.exports = { Tournaments };
+module.exports = { Tournaments, STAFF_PERMS };

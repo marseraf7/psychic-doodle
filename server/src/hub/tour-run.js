@@ -10,16 +10,17 @@ const { userPid, uidOf } = require('./shared.js');
 
 class TourRun {
   // ------------------------------------------------------------ Ban tổ chức
-  requireManager(conn, id) {
+  /** perm: quyền cần có (tournaments.js canManageTour) – đồng ban tổ chức chỉ làm được việc mình được giao. */
+  requireManager(conn, id, perm) {
     const me = this.requireUser(conn);
     const t = this.findTour(id, me.id);
-    if (!this.canManageTour(t, me.id)) throw E('tour_managers_only');
+    if (!this.canManageTour(t, me.id, perm)) throw E('tour_managers_only');
     return t;
   }
 
   /** Bắt đầu ngay (không chờ tới giờ). */
   on_tourStart(conn, { id }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'owner');
     if (t.status !== 'scheduled') throw E('tour_cannot_start');
     // Bắt đầu sớm trước giờ điểm danh: coi như mọi người đã đăng ký đều điểm danh
     if (t.checkin && !this.inCheckin(t)) t.checkinWaived = true;
@@ -28,14 +29,14 @@ class TourRun {
   }
 
   on_tourCancel(conn, { id }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'owner');
     if (!['draft', 'pending', 'scheduled', 'running'].includes(t.status)) throw E('tour_cannot_cancel');
     this.tourLog(t, this.requireUser(conn).id, 'cancelled');
     this.cancelTour(t, 'organizer');
   }
 
   on_tourKick(conn, { id, uid }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'players');
     if (!this.player(t, uid)) throw E('player_not_found');
     this.tourLog(t, this.requireUser(conn).id, 'kicked', { name: this.player(t, uid).name });
     this.withdraw(t, uid, true);
@@ -175,6 +176,7 @@ class TourRun {
   /** Tài khoản bị xoá: rút khỏi mọi giải chưa xong. */
   tourUserGone(uid) {
     for (const t of this.tours.values()) {
+      if ((t.staff || []).some((s) => s.uid === uid)) { t.staff = t.staff.filter((s) => s.uid !== uid); this.saveTour(t); } // bỏ khỏi ban tổ chức
       if (['pending', 'scheduled'].includes(t.status) && t.creator === uid) this.cancelTour(t, 'organizer');
       if (this.player(t, uid)) this.withdraw(t, uid);
     }

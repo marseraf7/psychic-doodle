@@ -10,11 +10,13 @@
  *  - Nháp: tạo giải ở trạng thái nháp (chỉ người tạo thấy), bấm Gửi duyệt khi xong.
  */
 'use strict';
-const { E } = require('../msg.js');
-const { cleanPublicText, cleanText } = require('./shared.js');
+const { E, note } = require('../msg.js');
+const { cleanPublicText, cleanText, userPid } = require('./shared.js');
+const { STAFF_PERMS } = require('./tournaments.js');
 
 const MAX_LOG = 300;
 const MAX_NEWS = 20;
+const MAX_STAFF = 10;
 
 class TourManage {
   /** Ghi một dòng nhật ký của giải (giữ MAX_LOG dòng gần nhất). */
@@ -29,13 +31,14 @@ class TourManage {
     return (t.log || []).slice(-100).reverse().map((x) => ({ ...x, by: x.by ? this.store.users.get(x.by)?.name || '?' : null }));
   }
 
-  managerOf(conn, id) {
-    const t = this.requireManager(conn, id);
+  /** Giải + mã người làm; perm: quyền cần có (đồng ban tổ chức), 'owner' = chỉ chủ giải. */
+  managerOf(conn, id, perm) {
+    const t = this.requireManager(conn, id, perm);
     return { t, uid: this.requireUser(conn).id };
   }
 
   on_tourNews(conn, { id, text }) {
-    const { t, uid } = this.managerOf(conn, id);
+    const { t, uid } = this.managerOf(conn, id, 'news');
     const body = cleanPublicText(text, 1000).trim();
     if (!body) throw E('tour_news_empty');
     t.news = t.news || [];
@@ -49,7 +52,7 @@ class TourManage {
   }
 
   on_tourNewsDel(conn, { id, news }) {
-    const { t, uid } = this.managerOf(conn, id);
+    const { t, uid } = this.managerOf(conn, id, 'news');
     const before = (t.news || []).length;
     t.news = (t.news || []).filter((x) => x.id !== news);
     if (t.news.length === before) return;
@@ -60,7 +63,7 @@ class TourManage {
 
   /** Hạt giống thủ công (trước khi bắt đầu): order = mã người chơi theo thứ tự; null = theo cách xếp của giải. */
   on_tourSeeds(conn, { id, order }) {
-    const { t, uid } = this.managerOf(conn, id);
+    const { t, uid } = this.managerOf(conn, id, 'players');
     if (!['draft', 'pending', 'scheduled'].includes(t.status) || t.format !== 'bracket') throw E('tour_seeds_closed');
     if (order == null) t.seedPlan = null;
     else {
@@ -82,30 +85,67 @@ class TourManage {
   }
 
   /** Lịch theo vòng: key = "giai đoạn:vòng" (vd. "0:2"), at = giờ (ms) hoặc null để xoá, place = địa điểm. */
-  on_tourSchedule(conn, { id, key, at, place }) {
-    const { t, uid } = this.managerOf(conn, id);
+  on_tourSchedule(conn, { id, key, at, place, label }) {
+    const { t, uid } = this.managerOf(conn, id, 'config');
     if (!/^\d{1,2}:\d{1,3}$/.test(String(key || ''))) throw E('bad_message');
     t.schedule = t.schedule || {};
     if (!(key in t.schedule) && Object.keys(t.schedule).length >= 200) throw E('bad_message'); // kiểm trước khi ghi
     const ms = Number(at);
     const where = cleanPublicText(place, 80).trim();
-    if (!Number.isFinite(ms) || ms <= 0) { if (!where) delete t.schedule[key]; else t.schedule[key] = { at: null, place: where }; }
-    else t.schedule[key] = { at: ms, place: where };
+    const name = cleanPublicText(label, 30).trim(); // nhãn vòng tuỳ biến (vd. "Vòng loại"), thay tên vòng mặc định
+    const slot = { at: Number.isFinite(ms) && ms > 0 ? ms : null, place: where, label: name };
+    if (!slot.at && !where && !name) delete t.schedule[key]; else t.schedule[key] = slot;
     this.tourLog(t, uid, 'schedule', { key });
     this.saveTour(t);
     this.pushTour(t);
   }
 
+  /** Thêm / sửa đồng ban tổ chức (chỉ chủ giải): username + danh sách quyền (STAFF_PERMS ở tournaments.js). */
+  on_tourStaff(conn, { id, username, perms }) {
+    const { t, uid } = this.managerOf(conn, id, 'owner');
+    const u = this.store.byUsername.get(String(username || '').trim().replace(/^@/, '').toLowerCase());
+    if (!u) throw E('player_not_found');
+    if (u.id === t.creator) throw E('tour_staff_self');
+    const list = [...new Set((Array.isArray(perms) ? perms : []).filter((p) => STAFF_PERMS.includes(p)))];
+    if (!list.length) throw E('tour_staff_perms');
+    t.staff = t.staff || [];
+    const cur = t.staff.find((x) => x.uid === u.id);
+    if (cur) cur.perms = list;
+    else {
+      if (t.staff.length >= MAX_STAFF) throw E('tour_staff_full', { n: MAX_STAFF });
+      t.staff.push({ uid: u.id, perms: list });
+      this.send(userPid(u.id), note('tour_staff_added', { name: t.name }));
+    }
+    this.tourLog(t, uid, 'staff', { name: u.name, perms: list.join(',') });
+    this.saveTour(t);
+    this.pushTour(t);
+  }
+
+  on_tourStaffDel(conn, { id, uid: who }) {
+    const { t, uid } = this.managerOf(conn, id, 'owner');
+    const x = (t.staff || []).find((s) => s.uid === who);
+    if (!x) return;
+    t.staff = t.staff.filter((s) => s !== x);
+    this.tourLog(t, uid, 'staff_del', { name: this.store.users.get(who)?.name || '?' });
+    this.saveTour(t);
+    this.pushTour(t);
+  }
+
+  /** Danh sách đồng ban tổ chức gửi cho ban tổ chức. */
+  staffView(t) {
+    return (t.staff || []).map((x) => ({ uid: x.uid, name: this.store.users.get(x.uid)?.name || '?', username: this.store.users.get(x.uid)?.username || '', perms: x.perms }));
+  }
+
   /** Sửa cài đặt. Trước giờ đấu: mọi cài đặt (kiểm như khi tạo); đang / đã đấu: chỉ tên và mô tả. */
   on_tourEdit(conn, o) {
-    const { t, uid } = this.managerOf(conn, o.id);
+    const { t, uid } = this.managerOf(conn, o.id, 'config');
     const me = this.store.users.get(uid);
     if (['running', 'finished', 'cancelled', 'rejected'].includes(t.status)) {
       const f = this.tourFields(me, { ...o, startsAt: Date.now() + 3600000, format: t.format, stages: t.stages });
       t.name = f.name;
       t.desc = f.desc;
     } else {
-      const f = this.tourFields(me, o);
+      const f = this.tourFields(me, o, Date.now(), t.club);
       const count = t.players.filter((p) => !p.withdrawn).length;
       if (f.maxPlayers < count) throw E('tour_max_low', { n: count });
       // Không đổi giữa trực tuyến và offline khi đã có người (người chơi offline không có tài khoản)
@@ -124,7 +164,7 @@ class TourManage {
 
   /** Tạm dừng (không mở trận / ghép ván mới; ván đang đấu vẫn đánh nốt) / chơi tiếp. */
   on_tourHold(conn, { id, hold }) {
-    const { t, uid } = this.managerOf(conn, id);
+    const { t, uid } = this.managerOf(conn, id, 'config');
     if (t.status !== 'running') throw E('tour_not_running');
     t.held = !!hold;
     // Chơi tiếp: tính lại giờ chờ vắng mặt từ lúc này (thời gian tạm dừng không tính là vắng mặt)
@@ -137,7 +177,7 @@ class TourManage {
 
   /** Đặt lại: giải đang chạy về trước khi bắt đầu (giữ người chơi, bỏ nhánh đấu / điểm); ván đang dở không tính nữa. */
   on_tourReset(conn, { id }) {
-    const { t, uid } = this.managerOf(conn, id);
+    const { t, uid } = this.managerOf(conn, id, 'owner');
     if (t.status !== 'running') throw E('tour_not_running');
     for (const r of this.rooms.values()) if (r.tour && r.tour.id === t.id) r.tour.cancelled = true;
     Object.assign(t, { status: 'scheduled', st: null, stage: 0, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [],
@@ -153,7 +193,7 @@ class TourManage {
 
   /** Xoá hẳn giải (không còn trong danh sách). Đang đấu thì phải huỷ / đặt lại trước. */
   on_tourDelete(conn, { id, confirm }) {
-    const { t } = this.managerOf(conn, id);
+    const { t } = this.managerOf(conn, id, 'owner');
     if (t.status === 'running') throw E('tour_delete_running');
     if (cleanText(confirm, 60) !== t.name) throw E('tour_delete_confirm');
     const wasPending = t.status === 'pending';
@@ -167,7 +207,7 @@ class TourManage {
 
   /** Nháp → gửi duyệt (quản trị viên: mở đăng ký luôn). */
   on_tourSubmit(conn, { id }) {
-    const { t, uid } = this.managerOf(conn, id);
+    const { t, uid } = this.managerOf(conn, id, 'owner');
     if (t.status !== 'draft') throw E('tour_not_draft');
     if (t.startsAt < Date.now() + 60 * 1000) throw E('tour_bad_start');
     t.status = this.isAdmin(uid) ? 'scheduled' : 'pending';

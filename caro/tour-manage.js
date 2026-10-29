@@ -31,6 +31,8 @@
     for (const n of (t.news || []).slice(0, 3)) html += `<div class="news">${icon('pin')}<div><p>${esc(n.text)}</p><small class="muted">${esc(n.by)} · ${esc(when(n.at))}</small></div></div>`;
     return html;
   };
+  /** Nhãn vòng ban tổ chức đặt (vd. "Vòng loại") – thay tên vòng mặc định; "" nếu chưa đặt. */
+  K.roundLabel = (t, stage, round) => { const s = t && t.schedule && t.schedule[stage + ':' + round]; return (s && s.label) || ''; };
   /** Giờ / địa điểm của một vòng ("0:2" = giai đoạn 1, vòng 3) – "15:00 · Phòng 2". */
   K.slotOf = (t, stage, round) => {
     const s = t && t.schedule && t.schedule[stage + ':' + round];
@@ -51,7 +53,9 @@
       [!['draft', 'pending'].includes(t.status), 'mg_ck_review', t.status === 'draft' ? 'mgSubmit' : null],
       [['running', 'finished'].includes(t.status), 'mg_ck_start', t.status === 'scheduled' ? 'start' : null],
     ];
-    return `<ol class="checklist">${items.map(([ok, k, act]) => `<li class="${ok ? 'ok' : ''}">${icon(ok ? 'check' : 'clock')}<span>${esc(T(k))}</span>${!ok && act ? `<button type="button" class="ghost sm" data-act="${esc(act)}">${esc(T('mg_do'))}</button>` : ''}</li>`).join('')}</ol>`;
+    // Nút "Làm ngay" chỉ hiện khi người xem có quyền làm việc đó
+    const allowed = (act) => act && K.can(t, act === 'mgSettings' ? 'config' : 'owner');
+    return `<ol class="checklist">${items.map(([ok, k, act]) => `<li class="${ok ? 'ok' : ''}">${icon(ok ? 'check' : 'clock')}<span>${esc(T(k))}</span>${!ok && allowed(act) ? `<button type="button" class="ghost sm" data-act="${esc(act)}">${esc(T('mg_do'))}</button>` : ''}</li>`).join('')}</ol>`;
   }
 
   /** Thứ tự hạt giống đang sửa: bản đã lưu, không thì theo cách xếp của giải (Elo / danh sách). */
@@ -116,6 +120,7 @@
       return `<li class="sched-row" data-key="${s}:${r}"><b>${esc((t.stages.length > 1 ? T('stage_n', { n: s + 1 }) + ' · ' : '') + T('r_round', { n: r + 1 }))}</b>
         ${window.CaroDt.html('', cur.at ? localInput(cur.at) : '', { attrs: 'data-f="at"' })}
         <input data-f="place" maxlength="80" value="${esc(cur.place || '')}" placeholder="${esc(T('sheet_place'))}" aria-label="${esc(T('sheet_place'))}">
+        <input data-f="label" maxlength="30" value="${esc(cur.label || '')}" placeholder="${esc(T('mg_round_label'))}" aria-label="${esc(T('mg_round_label'))}">
         <button type="button" class="ghost sm" data-act="schedSave">${esc(T('mg_save'))}</button></li>`;
     }).join('');
     return rows ? `<section class="mg-sec"><h4>${esc(T('mg_schedule'))}</h4><p class="hint">${esc(T('mg_schedule_hint'))}</p><ul class="sched">${rows}</ul></section>` : '';
@@ -146,15 +151,29 @@
     const danger = [];
     if (t.status === 'running') {
       danger.push(`<button type="button" class="ghost" data-act="mgHold" data-v="${t.held ? 0 : 1}">${icon(t.held ? 'play' : 'pause')}${esc(T(t.held ? 'mg_resume' : 'mg_hold'))}</button>`);
-      danger.push(`<button type="button" class="ghost danger" data-act="mgReset">${icon('retry')}${esc(T('mg_reset'))}</button>`);
+      if (K.can(t, 'owner')) danger.push(`<button type="button" class="ghost danger" data-act="mgReset">${icon('retry')}${esc(T('mg_reset'))}</button>`);
     }
-    if (t.status !== 'running') danger.push(`<button type="button" class="ghost danger" data-act="mgDelete">${icon('trash')}${esc(T('mg_delete_tour'))}</button>`);
+    if (t.status !== 'running' && K.can(t, 'owner')) danger.push(`<button type="button" class="ghost danger" data-act="mgDelete">${icon('trash')}${esc(T('mg_delete_tour'))}</button>`);
     return `<section class="mg-sec"><h4>${esc(T('mg_settings'))}</h4>${edit}</section>
-      <section class="mg-sec danger-zone"><h4>${esc(T('mg_danger'))}</h4><div class="row">${danger.join('')}</div></section>`;
+      ${danger.length ? `<section class="mg-sec danger-zone"><h4>${esc(T('mg_danger'))}</h4><div class="row">${danger.join('')}</div></section>` : ''}`;
   }
 
+  // Đồng ban tổ chức (chỉ chủ giải): thêm theo tên đăng nhập, tick quyền (như MyLeague "Phân quyền")
+  const PERMS = ['all', 'config', 'players', 'reg', 'results', 'disputes', 'news'];
+  const permBoxes = (sel, uid) => `<span class="perm-list">${PERMS.map((p) => `<label class="check"><input type="checkbox" data-perm="${p}" ${uid ? `data-uid="${esc(uid)}"` : ''} ${sel.includes(p) ? 'checked' : ''}> <span>${esc(T('perm_' + p))}</span></label>`).join('')}</span>`;
+  function staffHtml(t) {
+    const rows = (t.staff || []).map((x) => `<li class="staff-row"><div class="pn"><b>${esc(x.name)}</b><small>@${esc(x.username)}</small></div>${permBoxes(x.perms, x.uid)}
+      <button type="button" class="ghost sm icon" data-act="staffDel" data-uid="${esc(x.uid)}" aria-label="${esc(T('mg_delete'))}">${icon('trash')}</button></li>`).join('');
+    return `<section class="mg-sec"><h4>${esc(T('mg_staff'))}</h4><p class="hint">${esc(T('mg_staff_hint'))}</p>
+      ${rows ? `<ul class="people staff">${rows}</ul>` : ''}
+      <div class="staff-add"><input id="staff-user" maxlength="40" placeholder="${esc(T('mg_staff_ph'))}" autocomplete="off">${permBoxes(['results'], '')}
+      <button type="button" class="primary sm" data-act="staffAdd">${esc(T('mg_staff_add'))}</button></div></section>`;
+  }
+
+  // Mỗi khu chỉ hiện với người có quyền tương ứng (chủ giải thấy hết; đồng ban tổ chức theo quyền được giao)
   K.manageHtml = (t) => `<section class="mg-sec"><h4>${esc(T('mg_checklist'))}</h4>${checklist(t)}</section>
-    ${seedsHtml(t)}${scheduleHtml(t)}${newsAdmin(t)}${settingsHtml(t)}
+    ${K.can(t, 'players') ? seedsHtml(t) : ''}${K.can(t, 'config') ? scheduleHtml(t) : ''}${K.can(t, 'news') ? newsAdmin(t) : ''}
+    ${K.can(t, 'config') ? settingsHtml(t) : ''}${K.can(t, 'owner') ? staffHtml(t) : ''}
     <section class="mg-sec"><h4>${esc(T('mg_log'))}</h4>${(t.log || []).length ? `<ul class="mg-log">${t.log.map(logLine).join('')}</ul>` : `<p class="hint">${esc(T('mg_log_empty'))}</p>`}</section>`;
 
   // ------------------------------------------------------------ Thao tác
@@ -201,7 +220,7 @@
     const row = b.closest('.sched-row');
     const at = row.querySelector('[data-f="at"]').value;
     // Lịch chỉ để hiển thị: giữ đúng giờ ban tổ chức gõ (không bù lệch đồng hồ máy chủ như giờ bắt đầu giải)
-    O.send({ t: 'tourSchedule', id: tour().id, key: row.dataset.key, at: at ? new Date(at).getTime() : null, place: row.querySelector('[data-f="place"]').value });
+    O.send({ t: 'tourSchedule', id: tour().id, key: row.dataset.key, at: at ? new Date(at).getTime() : null, place: row.querySelector('[data-f="place"]').value, label: row.querySelector('[data-f="label"]').value });
     O.toast(T('mg_saved'));
   };
   K.acts.newsPost = () => {
@@ -212,6 +231,14 @@
     box.value = '';
   };
   K.acts.newsDel = (b) => O.send({ t: 'tourNewsDel', id: tour().id, news: b.dataset.nid });
+  K.acts.staffAdd = () => {
+    const box = $('staff-user');
+    const perms = [...document.querySelectorAll('.staff-add [data-perm]')].filter((x) => x.checked).map((x) => x.dataset.perm);
+    if (!box || !box.value.trim() || !perms.length) return;
+    O.send({ t: 'tourStaff', id: tour().id, username: box.value.trim(), perms });
+    box.value = '';
+  };
+  K.acts.staffDel = (b) => window.CaroConfirm.ask(T('mg_staff_del_confirm')).then((ok) => { if (ok) O.send({ t: 'tourStaffDel', id: tour().id, uid: b.dataset.uid }); });
 
   K.binders.push(() => {
     const f = $('mg-name');
@@ -225,7 +252,27 @@
     }
     // Gõ trong các ô của tab Quản lý: đánh dấu đang sửa (giữ chữ khi có cập nhật từ máy chủ)
     const body = document.getElementById('tour-body');
-    if (body && body.querySelector('.mg-sec')) body.oninput = (e) => { if (e.target.closest('.mg-sec')) M.typing = true; };
+    if (body && body.querySelector('.mg-sec')) {
+      // Gõ chữ (không tính tick ô chọn) = đang sửa; bấm một nút của tab Quản lý = xong (cho phép vẽ lại khi có cập nhật)
+      body.oninput = (e) => { if (e.target.closest('.mg-sec') && e.target.type !== 'checkbox') M.typing = true; };
+      // Gắn một lần cho #tour-body (phần tử cố định – binder chạy lại mỗi lần vẽ)
+      if (!body.dataset.mgClick) {
+        body.dataset.mgClick = '1';
+        body.addEventListener('click', (e) => { if (e.target.closest('.mg-sec button')) M.typing = false; });
+      }
+    }
+    // Đổi quyền của một đồng ban tổ chức: gửi ngay danh sách quyền mới
+    document.querySelectorAll('.staff-row [data-perm]').forEach((cb) => {
+      cb.onchange = () => {
+        const row = cb.closest('.staff-row');
+        const perms = [...row.querySelectorAll('[data-perm]')].filter((x) => x.checked).map((x) => x.dataset.perm);
+        const t = tour(), x = (t.staff || []).find((s) => s.uid === cb.dataset.uid);
+        if (!x) return;
+        if (perms.length) { O.send({ t: 'tourStaff', id: t.id, username: x.username, perms }); return; }
+        // Bỏ hết quyền = gỡ khỏi ban tổ chức (hỏi lại); không đồng ý thì trả các ô về như cũ
+        window.CaroConfirm.ask(T('mg_staff_del_confirm')).then((ok) => { if (ok) O.send({ t: 'tourStaffDel', id: t.id, uid: x.uid }); else render(true); });
+      };
+    });
     // Kéo thả hạt giống (máy tính)
     const list = $('seed-list');
     if (!list) return;
