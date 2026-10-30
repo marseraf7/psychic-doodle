@@ -155,9 +155,9 @@
   };
   // Chat nhanh (Issue #128): bấm là gửi, khỏi gõ.
   document.querySelectorAll('.chat-quick [data-qc]').forEach((b) => { b.onclick = () => { if (chat.peer) N.send({ t: 'dmSend', to: chat.peer.id, text: T(b.dataset.qc === 'okee' ? 'qc_okee' : 'qc_bye') }); }; });
-  $('chat-block').onclick = () => {
+  $('chat-block').onclick = async () => {
     const f = chat.peer;
-    if (f && confirm(T('confirm_block', { name: f.name }))) {
+    if (f && (await window.CaroConfirm.ask(T('confirm_block', { name: f.name })))) {
       N.send({ t: 'block', id: f.id });
       N.closeDlg('chat');
     }
@@ -223,12 +223,12 @@
     secret.type = has ? 'password' : 'text';
     secret.autocomplete = has ? 'current-password' : 'off';
   }
-  $('delete-form').onsubmit = (e) => {
+  $('delete-form').onsubmit = async (e) => {
     e.preventDefault();
     const me = S.me;
     if (!me || me.guest) return;
     $('delete-err').textContent = '';
-    if (!confirm(T('delete_confirm_q'))) return;
+    if (!(await window.CaroConfirm.ask(T('delete_confirm_q')))) return;
     const v = e.target.secret.value;
     N.send(me.hasPassword ? { t: 'deleteAccount', password: v } : { t: 'deleteAccount', confirm: v });
   };

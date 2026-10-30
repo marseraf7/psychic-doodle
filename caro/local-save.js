@@ -221,9 +221,9 @@
       r.addEventListener('change', () => { if (r.checked) { store.setSettings({ online: r.value }); fillSettings(); } });
     });
     $('lh-set-open').onclick = () => window.CaroHistory && window.CaroHistory.openTab('local');
-    $('lh-set-clear').onclick = () => {
+    $('lh-set-clear').onclick = async () => {
       const n = store.count();
-      if (!n || !confirm(T('lh_confirm_clear', { n }))) return;
+      if (!n || !(await window.CaroConfirm.ask(T('lh_confirm_clear', { n })))) return;
       store.clear();
       pend = [];
       setLast(null);

@@ -206,8 +206,10 @@ const WIN = [3, 0];
   ok(/Xoá \(2\)/.test(await p.textContent('#history-local [data-lh="del"]')), 'nút Xoá (2)');
   await shot(p, 'lh-select.png');
   await p.click('#history-local [data-lh="del"]');
-  await sleep(300);
-  ok(await count(p) === 1 && await lgKeys(p) === 1, 'xoá 2 ván: xoá hẳn khỏi bộ nhớ máy (còn đúng 1 khoá ván)');
+  // Từ Issue #166: xoá hỏi bằng hộp xác nhận trong app thay confirm() gốc — bấm Đồng ý như người dùng
+  ok(await waitFor(p, () => document.getElementById('confirm-dlg').open), 'xoá ván: hộp xác nhận trong app hiện');
+  await p.click('#confirm-ok');
+  ok(await waitFor(p, () => window.CaroLocalHist.store.count() === 1) && await lgKeys(p) === 1, 'xoá 2 ván: xoá hẳn khỏi bộ nhớ máy (còn đúng 1 khoá ván)');
   await p.click('#history-local [data-lh="select"]');
   await p.click('#history-local [data-lh="all"]');
   await sleep(150);
@@ -225,8 +227,10 @@ const WIN = [3, 0];
   ok(!(await p.isChecked('#settings-form input[name=lhAsk]')) && await p.isChecked('#settings-form input[name=lhOn]'), 'Cài đặt khớp: đang lưu, không hỏi');
   await shot(p, 'lh-settings.png');
   await p.click('#lh-set-clear');
-  await sleep(300);
-  ok(await count(p) === 0 && await lgKeys(p) === 0, 'Xoá toàn bộ: không còn dữ liệu ván trong máy');
+  // Từ Issue #166: xoá toàn bộ cũng hỏi bằng hộp xác nhận trong app — bấm Đồng ý như người dùng
+  ok(await waitFor(p, () => document.getElementById('confirm-dlg').open), 'xoá toàn bộ: hộp xác nhận trong app hiện');
+  await p.click('#confirm-ok');
+  ok(await waitFor(p, () => window.CaroLocalHist.store.count() === 0) && await lgKeys(p) === 0, 'Xoá toàn bộ: không còn dữ liệu ván trong máy');
   await p.click('#settings-form label:has(input[name=lhAsk])');
   await p.click('#settings-form label:has(input[name=lhOn])');
   await sleep(200);

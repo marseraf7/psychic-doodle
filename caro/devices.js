@@ -67,12 +67,12 @@
     N.toast(T('srv_session_revoked'), 5000);
   });
 
-  $('devices-list').addEventListener('click', (e) => {
+  $('devices-list').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-drop]');
     const d = b && list && list.find((x) => x.id === b.dataset.drop);
-    if (d && confirm(T('dev_confirm_one', { name: name(d) }))) N.send({ t: 'dropDevice', id: d.id });
+    if (d && (await window.CaroConfirm.ask(T('dev_confirm_one', { name: name(d) })))) N.send({ t: 'dropDevice', id: d.id });
   });
-  $('devices-others').onclick = () => { if (confirm(T('dev_confirm_others'))) N.send({ t: 'dropOtherDevices' }); };
+  $('devices-others').onclick = async () => { if (await window.CaroConfirm.ask(T('dev_confirm_others'))) N.send({ t: 'dropOtherDevices' }); };
   window.addEventListener('langchange', () => { if (N.isOpen('account-dlg')) render(); });
 
   window.CaroDevices = { load, name };
