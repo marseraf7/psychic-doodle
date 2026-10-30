@@ -64,8 +64,10 @@ class TourScore {
   /**
    * Nhập tỉ số (giải offline): sets = [[a, b], …] theo thứ tự ô a / b của trận; extra = [a, b] kết quả phụ (tuỳ chọn).
    * Ghi đè (giải trực tuyến): winner = mã người thắng.
+   * "Quick advance" (giải offline bật t.quickAdvance – như Challonge): chỉ báo người thắng (winner), hoặc hoà (draw: true,
+   * chỉ vòng tròn / Thụy Sĩ), không nhập tỉ số.
    */
-  on_tourScore(conn, { id, match, sets, extra, winner }) {
+  on_tourScore(conn, { id, match, sets, extra, winner, draw }) {
     const { t, st, m, self } = this.scoreTarget(conn, id, match, true);
     if (m.done) throw E('tour_match_done');
     if (!ST.real(m.a) || !ST.real(m.b)) throw E('tour_match_not_ready');
@@ -75,6 +77,15 @@ class TourScore {
       if (winner !== m.a && winner !== m.b) throw E('tour_score_bad');
       m.override = true;
       this.finishMatch(t, st, m, winner, { walkover: true });
+    } else if (t.quickAdvance && sets == null) {
+      const tie = draw === true && !ST.isElim(st.type);
+      if (!tie && winner !== m.a && winner !== m.b) throw E('tour_score_bad');
+      m.quick = true;
+      m.sets = null;
+      m.extra = null;
+      m.wins = tie ? { [m.a]: 0, [m.b]: 0 } : { [winner]: 1, [winner === m.a ? m.b : m.a]: 0 };
+      this.finishMatch(t, st, m, tie ? null : winner);
+      if (t.status === 'running') this.runOffline(t);
     } else {
       const list = Array.isArray(sets) ? sets.slice(0, MAX_SETS).map(pair) : [];
       if (!list.length || list.some((s) => !s)) throw E('tour_score_bad');
@@ -113,7 +124,7 @@ class TourScore {
       for (const { r, x } of targets) { x[r.slot] = null; x.readyAt = null; }
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, readyAt: Date.now() });
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, quick: false, readyAt: Date.now() });
     st.done = false;
     for (const u of [m.a, m.b]) {
       const p = ST.real(u) && this.player(t, u);

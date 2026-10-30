@@ -22,6 +22,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('#tf-adv'); await sleep(300);
   await boss.click('.ta-tab[data-tab="access"]'); await sleep(100);
   await boss.check('#ta input[name=access][value=private]');
+  await boss.click('.ta-tab[data-tab="bracket"]'); await sleep(100); // "Ẩn số hạt giống" ở tab Nhánh đấu (như Challonge)
   await boss.check('#ta input[name=hideSeeds]');
   await boss.click('.ta-tab[data-tab="reg"]'); await sleep(100);
   await boss.uncheck('#ta input[name=checkin]');

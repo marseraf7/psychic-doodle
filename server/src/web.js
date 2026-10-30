@@ -233,6 +233,17 @@ function makeHandler({ store, hub }) {
     res.end(req.method === 'HEAD' ? undefined : img.buf);
   }
 
+  /** Ảnh trong mô tả giải / đính kèm trận (hub/tour-img.js): mã ảnh không đổi nên giữ lâu trong bộ nhớ đệm. */
+  function serveTourImg(id, req, res) {
+    const img = hub.tourImgOf(id);
+    if (!img) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-cache' }); return res.end('not found'); }
+    res.writeHead(200, {
+      'content-type': img.type, 'content-length': img.buf.length, 'access-control-allow-origin': '*',
+      'content-security-policy': "default-src 'none'; sandbox", 'cache-control': 'public, max-age=31536000, immutable',
+    });
+    res.end(req.method === 'HEAD' ? undefined : img.buf);
+  }
+
   /** Trang chính; mở bằng link ?replay=<mã> thì thêm thẻ og để mạng xã hội hiện ảnh bàn cờ. */
   function serveIndex(req, res, share) {
     const file = path.join(STATIC_DIR, 'index.html');
@@ -302,6 +313,7 @@ function makeHandler({ store, hub }) {
       return share.endsWith('.png') ? serveReplayPng(share.slice(0, -4), req, res) : serveReplay(share, res);
     }
     if (/^\/api\/avatar\/[0-9a-f]{16}$/.test(url)) return serveAvatar(url.slice(12), u.searchParams, req, res);
+    if (/^\/api\/timg\/[0-9a-f]{16}$/.test(url)) return serveTourImg(url.slice(10), req, res);
     if (url === '/api/stats') {
       const wait = hit(apiHits, clientIp(req), API_RATE, 60000, Date.now());
       if (wait) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });

@@ -13,6 +13,7 @@
 const { E, note } = require('../msg.js');
 const { cleanPublicText, cleanText, userPid } = require('./shared.js');
 const { STAFF_PERMS } = require('./tournaments.js');
+const { LIVE_OPTS } = require('./tour-opts.js');
 
 const MAX_LOG = 300;
 const MAX_NEWS = 20;
@@ -141,9 +142,12 @@ class TourManage {
     const { t, uid } = this.managerOf(conn, o.id, 'config');
     const me = this.store.users.get(uid);
     if (['running', 'finished', 'cancelled', 'rejected'].includes(t.status)) {
-      const f = this.tourFields(me, { ...o, startsAt: Date.now() + 3600000, format: t.format, stages: t.stages, teams: null });
+      const f = this.tourFields(me, { ...o, startsAt: Date.now() + 3600000, format: t.format, stages: t.stages, offline: !!t.offline, teams: null });
       t.name = f.name;
       t.desc = f.desc;
+      // Tuỳ chọn chỉ ảnh hưởng cách hiện (link riêng, nhãn vòng, ảnh chia sẻ…): đổi được cả khi đang chạy – chỉ những ô có gửi
+      if (o.slug !== undefined) this.checkSlug(f.slug, t.id);
+      for (const k of LIVE_OPTS) if (o[k] !== undefined) t[k] = f[k];
     } else {
       // Giao hữu CLB: giữ nguyên thể thức / số bàn (chỉ đổi tên, giới thiệu, giờ, thời gian ván…)
       const fixed = t.teamMatch ? { format: 'bracket', stages: t.stages, maxPlayers: t.maxPlayers, access: 'public', checkin: false, offline: false, seeding: 'list', reg: null } : {};
@@ -153,6 +157,7 @@ class TourManage {
       if (f.maxPlayers < count) throw E('tour_max_low', { n: count });
       // Không đổi giữa trực tuyến và offline khi đã có người (người chơi offline không có tài khoản)
       if (count && f.offline !== !!t.offline) throw E('tour_offline_locked');
+      this.checkSlug(f.slug, t.id);
       // Người thường đổi tên / giới thiệu của giải đã duyệt: duyệt lại nội dung (quản trị viên sửa thì không cần)
       const review = !this.isAdmin(uid) && t.status === 'scheduled' && (f.name !== t.name || f.desc !== t.desc);
       Object.assign(t, f);

@@ -38,6 +38,8 @@ const CASES = [
   { type: 'double', reset: true },
   { type: 'double', reset: false },
   { type: 'single', placement: true },
+  { type: 'single', places: [5, 9, 15] },
+  { type: 'single', places: [7] },
   { type: 'double', gf: 'none' },
   { type: 'double', gf: '1', split: true },
   { type: 'double', gf: '2', split: true },

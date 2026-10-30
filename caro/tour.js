@@ -193,7 +193,8 @@
     setTitle(null, t.name, t.format === 'arena' ? 'swords' : 'trophy');
     let html = `<div class="thead">${statusTag(t)} <span class="muted">${metaHtml(t)}</span></div>
       <p class="muted">${timeLine(t)}${t.club ? ` · <a href="#" data-act="club" data-id="${esc(t.club.id)}">${esc(t.club.name)}</a>` : ''} · ${esc(T('organizer', { name: t.creator }))}</p>`;
-    if (t.desc) html += `<p class="tdesc">${esc(t.desc)}</p>`;
+    // Mô tả có định dạng (rich-text.js dựng HTML an toàn)
+    if (t.desc) html += window.CaroRich ? `<div class="tdesc rich">${window.CaroRich.render(t.desc)}</div>` : `<p class="tdesc">${esc(t.desc)}</p>`;
     if (t.status === 'pending') html += `<p class="note">${esc(T('tour_pending_note'))}</p>`;
     if (t.status === 'rejected') html += `<p class="note bad">${esc(T('tour_rejected_note'))}${t.reviewNote ? ': ' + esc(t.reviewNote) : ''}</p>`;
     if (t.status === 'cancelled') html += `<p class="note bad">${esc(T('tour_cancelled_note'))}${t.cancelReason ? ' – ' + esc(T('cancel_' + t.cancelReason)) : ''}</p>`;
@@ -279,7 +280,7 @@
       else if (a === 'start') { if (confirm(T('confirm_tour_start'))) O.send({ t: 'tourStart', id: t.id }); }
       else if (a === 'cancel') { if (confirm(T('confirm_tour_cancel'))) O.send({ t: 'tourCancel', id: t.id }); }
       else if (a === 'kick') { if (confirm(T('confirm_tour_kick', { name: b.dataset.name }))) O.send({ t: 'tourKick', id: t.id, uid: b.dataset.uid }); }
-      else if (a === 'share') share(shareLink('t', t.id), t.name);
+      else if (a === 'share') share(shareLink('t', t.slug || t.id), t.name); // link riêng nếu có
       else if (a === 'toGame') O.closeDlg('tour-dlg');
       else if (a === 'replay') { O.closeDlg('tour-dlg'); O.openReplay(b.dataset.share); }
       else if (a === 'review') {
@@ -303,6 +304,8 @@
   const isOpen = () => dlg.open;
   O.on('tourList', (m) => { D.tours = m.items; D.skew = m.now - Date.now(); if (isOpen() && V.page === 'tours') render(); });
   O.on('tour', (m) => {
+    // Mở bằng link riêng (?t=<url>): từ giờ dùng mã giải
+    if (V.page === 'tour' && m.id !== V.id && m.tour && m.tour.slug && m.tour.slug === String(V.id || '').toLowerCase()) V.id = m.id;
     if (m.id !== V.id) return;
     // Bản cập nhật gồm phần chung (giống mọi người xem) + phần riêng của mình (mine)
     D.tour = m.tour && m.mine ? { ...m.tour, ...m.mine } : m.tour;

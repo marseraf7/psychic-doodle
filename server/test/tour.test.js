@@ -1527,3 +1527,77 @@ test('Advanced options như Challonge: chia sẻ quyền quản trị lúc tạo
   assert.strictEqual(app.hub.store.users.get(pb.me.uid).notes.length, 0, 'đã gửi thì xoá');
   [co, pa, back].forEach((c) => c.close());
 });
+
+test('Link riêng, mô tả nhiều dòng, nhánh xem trước (ẩn được), xếp theo danh sách, Quick advance, đính kèm trận, ảnh mô tả', async () => {
+  const B = await organizer();
+  const out = await account('xem');
+  const base = url.replace(/^ws/, 'http').replace(/\/ws$/, '');
+  const desc = '## Giới thiệu\n**Giải** cuối tuần\n\n- Bo1\n- Offline';
+  const opts = { name: 'Giải Link Riêng', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, desc, placeBy: 'list', quickAdvance: true,
+    attachments: true, hideBracket: true, stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] };
+  assert.strictEqual((await B.req({ t: 'tourCreate', ...opts, slug: 'A b' }, 'error')).code, 'tour_slug_bad');
+  const { id } = await B.req({ t: 'tourCreate', ...opts, slug: 'Giai-Moi-1' }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.deepStrictEqual([t.slug, t.desc, t.placeBy, t.quickAdvance, t.attachments, t.hideBracket], ['giai-moi-1', desc, 'list', true, true, true]);
+  assert.strictEqual((await B.req({ t: 'tourCreate', ...opts, slug: 'giai-moi-1' }, 'error')).code, 'tour_slug_taken');
+  assert.strictEqual((await B.req({ t: 'tourCreate', ...opts, slug: id }, 'error')).code, 'tour_slug_taken', 'không trùng mã giải khác');
+  await B.req({ t: 'tourAddPlayers', id, names: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] }, 'tourAddResult');
+  // Mở bằng link riêng; người xem không thấy nhánh xem trước (đã ẩn), ban tổ chức vẫn thấy
+  const seen = await out.req({ t: 'tourGet', id: 'giai-moi-1' }, 'tour');
+  assert.strictEqual(seen.tour.id, id);
+  assert.strictEqual(seen.tour.preview, null);
+  const mine = await B.req({ t: 'tourGet', id }, 'tour');
+  const pre = mine.tour.preview.rounds[0].map((m) => [m.a && m.a.name, m.b && (m.b.name || 'bye')]);
+  assert.deepStrictEqual(pre, [['P1', 'P2'], ['P3', 'P4'], ['P5', 'bye'], ['P6', 'bye']], 'theo thứ tự danh sách, ô trống dồn về cuối');
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const r0 = t.st[0].rounds[0].map((mid) => t.st[0].matches[mid]);
+  assert.deepStrictEqual(r0.map((m) => [app.hub.player(t, m.a).name, m.b === '-' ? '-' : app.hub.player(t, m.b).name]), [['P1', 'P2'], ['P3', 'P4'], ['P5', '-'], ['P6', '-']]);
+  // Quick advance: chỉ báo người thắng
+  const m = r0[0];
+  B.send({ t: 'tourScore', id, match: m.id, winner: m.b });
+  await until(() => m.done);
+  assert.deepStrictEqual([m.winner, m.quick, m.wins[m.b], m.sets], [m.b, true, 1, null]);
+  // Đính kèm trận: link sai bị từ chối; người ngoài không đính kèm được
+  assert.strictEqual((await B.req({ t: 'tourAttach', id, match: m.id, url: 'javascript:alert(1)' }, 'error')).code, 'tour_att_bad_url');
+  assert.strictEqual((await out.req({ t: 'tourAttach', id, match: m.id, text: 'x' }, 'error')).code, 'tour_managers_only');
+  B.send({ t: 'tourAttach', id, match: m.id, url: 'https://example.com/bien-ban', text: 'Biên bản ký' });
+  await until(() => m.att && m.att.length === 1);
+  const v = (await B.req({ t: 'tourGet', id }, 'tour')).tour.stageViews[0].rounds[0][0];
+  assert.deepStrictEqual(v.att.map((x) => [x.url, x.text]), [['https://example.com/bien-ban', 'Biên bản ký']]);
+  B.send({ t: 'tourAttachDel', id, match: m.id, att: m.att[0].id });
+  await until(() => m.att.length === 0);
+  // Giải đang chạy: đổi được link riêng (tab Quản lý chỉ gửi tên / mô tả thì giữ nguyên các tuỳ chọn)
+  await B.req({ t: 'tourEdit', id, name: t.name, desc: 'Mới' }, 'tourEdited');
+  assert.strictEqual(t.slug, 'giai-moi-1');
+  await B.req({ t: 'tourEdit', id, name: t.name, desc: 'Mới', slug: 'giai-moi-2' }, 'tourEdited');
+  assert.strictEqual(app.hub.tourBySlug('giai-moi-2'), t);
+  // Ảnh mô tả: gửi nhiều phần theo thứ tự, ghép lại, kiểm loại ảnh, phục vụ qua /api/timg/<mã>
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  B.send({ t: 'tourImg', up: 'abcd0001', i: 0, n: 2, data: png.slice(0, 40) });
+  const saved = await B.req({ t: 'tourImg', up: 'abcd0001', i: 1, n: 2, data: png.slice(40) }, 'tourImgSaved');
+  const res = await fetch(`${base}/api/timg/${saved.id}`);
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.headers.get('content-type'), 'image/png');
+  assert.strictEqual(Buffer.from(await res.arrayBuffer()).toString('base64'), png);
+  assert.strictEqual((await fetch(`${base}/api/timg/0123456789abcdef`)).status, 404);
+  assert.strictEqual((await B.req({ t: 'tourImg', up: 'abcd0002', i: 1, n: 2, data: 'AAAA' }, 'error')).code, 'bad_message', 'sai thứ tự');
+  assert.strictEqual((await B.req({ t: 'tourImg', up: 'abcd0003', i: 0, n: 1, data: 'AAAAAAAA' }, 'error')).code, 'tour_img_bad');
+  out.close();
+});
+
+test('Nhánh xem trước: vòng tròn chỉ gửi các bảng dự kiến, Thụy Sĩ gửi cặp vòng 1 (Hà Lan); bỏ khi giải bắt đầu', async () => {
+  const B = await organizer();
+  const mk = async (stages) => {
+    const { id } = await B.req({ t: 'tourCreate', name: 'Xem Trước', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, stages }, 'tourCreated');
+    await B.req({ t: 'tourAddPlayers', id, names: ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'] }, 'tourAddResult');
+    return { id, view: (await B.req({ t: 'tourGet', id }, 'tour')).tour };
+  };
+  const rr = await mk([{ type: 'roundrobin', groups: 2, bestOf: 1, points: { w: 3, d: 1, l: 0 } }]);
+  assert.deepStrictEqual(rr.view.preview.groups.map((g) => [g.name, g.players.length, g.rounds.length]), [['A', 3, 0], ['B', 3, 0]]);
+  const sw = await mk([{ type: 'swiss', rounds: 3, bestOf: 1, points: { w: 2, d: 1, l: 0 } }]);
+  assert.deepStrictEqual(sw.view.preview.rounds[0].map((m) => [m.a.name, m.b.name]), [['A1', 'A4'], ['A2', 'A5'], ['A3', 'A6']]);
+  B.send({ t: 'tourStart', id: sw.id });
+  await until(() => app.hub.tours.get(sw.id).status === 'running');
+  assert.strictEqual((await B.req({ t: 'tourGet', id: sw.id }, 'tour')).tour.preview, null);
+});

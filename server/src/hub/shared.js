@@ -53,6 +53,12 @@ const cleanText = (s, max) => String(s || '').replace(/[\u0000-\u001f\u007f]/g, 
 const { isOffensiveName, mask } = require('../moderation.js');
 /** Chữ công khai (mô tả CLB / giải, thông báo): che từ tục. */
 const cleanPublicText = (s, max) => mask(cleanText(s, max));
+/**
+ * Văn bản có định dạng (mô tả giải – dạng đánh dấu như Markdown, trình duyệt tự dựng HTML an toàn: caro/rich-text.js):
+ * như cleanPublicText nhưng giữ xuống dòng (tối đa 2 dòng trống liền nhau).
+ */
+const cleanRich = (s, max) => mask(String(s || '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ')
+  .replace(/\n{4,}/g, '\n\n\n').trim().slice(0, max));
 /** Tên người chơi / CLB / giải: có từ tục thì báo lỗi bad_name. */
 function cleanPublicName(s) {
   const n = cleanName(s);
@@ -86,5 +92,5 @@ async function verifyGoogleToken(credential, clientId) {
 }
 
 module.exports = {
-  USERNAME_RE, OPENINGS, cleanTc, cleanPublicText, cleanPublicName, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
+  USERNAME_RE, OPENINGS, cleanTc, cleanPublicText, cleanRich, cleanPublicName, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
 };

@@ -146,7 +146,8 @@
     const edit = locked
       ? `<form id="mg-name" class="tform"><p class="hint">${esc(T('mg_locked_hint'))}</p>
           <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" value="${esc(t.name)}" required></label>
-          <label class="field"><span>${esc(T('tour_desc'))}</span><textarea name="desc" maxlength="1000" rows="3">${esc(t.desc || '')}</textarea></label>
+          ${window.CaroRich ? `<div class="field"><span>${esc(T('tour_desc'))}</span>${window.CaroRich.editor('desc', t.desc || '', { rows: 5, max: 4000 })}</div>`
+            : `<label class="field"><span>${esc(T('tour_desc'))}</span><textarea name="desc" maxlength="4000" rows="3">${esc(t.desc || '')}</textarea></label>`}
           <div class="row"><button class="primary sm">${esc(T('mg_save'))}</button></div></form>`
       : `<div class="row"><button type="button" class="ghost" data-act="mgSettings">${icon('sliders')}${esc(T('mg_edit_settings'))}</button></div>`;
     const danger = [];

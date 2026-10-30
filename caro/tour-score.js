@@ -2,6 +2,7 @@
  * Giải đấu – ban tổ chức nhập / sửa kết quả trên trang giải (máy chủ: server/src/hub/tour-score.js):
  *  - Giải offline: bấm một trận → khung nhập tỉ số từng set (thêm / bớt dòng), kết quả phụ (luân lưu) khi hoà;
  *    Lưu, Huỷ KQ (trận trở về chưa đấu), In biên bản. Tỉ số trận tự tính theo cách tính của giải (số set / tổng điểm).
+ *    Bật "Quick advance" (tab Nhánh đấu, như Challonge): chỉ bấm người thắng (vòng tròn / Thụy Sĩ: hoặc Hoà), không nhập tỉ số.
  *  - Giải trực tuyến: trận chưa đấu / không đấu được thì xử thắng cho một bên (ghi đè).
  *  - Thanh công cụ: in biên bản các trận đang chờ, in biên bản trắng (tour-sheet.js).
  *   K.scoreHtml(t) – khung nhập (đầu trang giải). Nạp sau tour.js, tour-stages.js, tour-sheet.js.
@@ -59,6 +60,14 @@
         <button type="button" class="ghost" data-act="scoreWin" data-uid="${esc(m.b.uid)}">${esc(T('score_win_for', { name: m.b.name }))}</button></div></div>`;
     }
     const done = m.done ? `<p class="hint">${esc(T('score_current', { s: setsText(m) || `${m.wa}–${m.wb}` }))}</p>` : '';
+    if (t.quickAdvance) {
+      // Chỉ báo người thắng: hai nút (+ Hoà ở vòng tròn / Thụy Sĩ)
+      const rr = x.v.type === 'roundrobin' || x.v.type === 'swiss';
+      const btns = m.done ? '' : [m.a, m.b].map((p) => `<button type="button" class="ghost" data-act="scoreQuick" data-uid="${esc(p.uid)}">${esc(T('score_win_for', { name: p.name }))}</button>`).join('')
+        + (rr ? `<button type="button" class="ghost" data-act="scoreQuick" data-uid="">${esc(T('draw'))}</button>` : '');
+      return `<div class="score-panel">${head}${done}<p class="hint">${esc(T('score_quick_hint'))}</p>${canScore(t) ? '' : `<p class="hint">${esc(T('score_self_hint'))}</p>`}
+        <div class="row">${btns}${m.done && canScore(t) ? `<button type="button" class="ghost sm danger" data-act="scoreUndo">${esc(T('score_undo'))}</button>` : ''}</div></div>`;
+    }
     return `<form class="score-panel" id="sp">${head}${done}
       <p class="hint">${esc(T(t.scoreMode === 'points' ? 'score_mode_points' : 'score_mode_sets'))}</p>
       <div class="sets" id="sp-sets">${rowsHtml()}</div>
@@ -116,6 +125,10 @@
       S.saving = S.match;
       O.send({ t: 'tourScore', id: D.tour.id, match: S.match, winner: b.dataset.uid });
     });
+  };
+  K.acts.scoreQuick = (b) => {
+    S.saving = S.match;
+    O.send({ t: 'tourScore', id: D.tour.id, match: S.match, ...(b.dataset.uid ? { winner: b.dataset.uid } : { draw: true }) });
   };
   const sheetOf = (list, blank) => window.CaroTourSheet.print(D.tour, list, { blank });
   K.acts.sheetOne = () => { const x = find(D.tour, S.match); if (x) sheetOf([x], false); };

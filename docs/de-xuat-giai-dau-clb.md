@@ -453,3 +453,25 @@ Lộ trình 10 đợt đã hoàn tất.
   - ẩn khỏi danh sách công khai = "Chỉ người có link" (đã có).
 - **Thông báo**: báo khi tới trận (giải offline); gửi kết quả khi giải kết thúc. Thông báo vào chuông của app; người đang offline nhận khi vào lại.
 - **Khác**: hiện / ẩn mục Thông báo và bảng xếp hạng với người xem (ban tổ chức luôn thấy).
+
+**Bổ sung tiếp – trang tạo giải như Challonge, hệ số phụ Thụy Sĩ theo FIDE**:
+- **Thông tin cơ bản**:
+  - **URL** riêng của giải (`…/?t=<url>`, như `challonge.com/<url>`): gợi ý sẵn link ngẫu nhiên, có nút đổi ngẫu nhiên; 3–20 ký tự, không trùng giải khác. Đổi được cả khi giải đang chạy. Nút chia sẻ và poster dùng link này.
+  - **Mô tả có định dạng** như trình soạn của Challonge: kiểu đoạn (tiêu đề / trích dẫn), đậm, nghiêng, gạch ngang, danh sách, danh sách số, link, ảnh, căn trái / giữa / phải / đều, kẻ ngang, xoá định dạng, xem trước. Lưu dạng văn bản đánh dấu (gần Markdown), trình duyệt tự dựng HTML an toàn (`caro/rich-text.js`): mọi chữ được thoát, link chỉ `http(s)` / `mailto`, không lưu HTML nên không chèn được mã. Ảnh được thu nhỏ trên máy (≤ 1600 px, ≤ 110 KB), gửi thành nhiều phần nhỏ, máy chủ kiểm loại ảnh bằng byte đầu file (`server/src/hub/tour-img.js`). Mỗi tài khoản giữ tối đa 40 ảnh. Mô tả dài tối đa 4000 ký tự, giữ xuống dòng.
+- **Thể thức**:
+  - **Trận xếp hạng chọn từng cặp hạng** (3–4, 5–6, 7–8…; có nút Chọn tất cả / Bỏ hết). Chỉ tạo các trận cần thiết, ví dụ chỉ chọn 7–8 thì đấu bán kết nhánh 5–8 rồi trận hạng 7. Hạng không chọn thì đồng hạng.
+  - **Bán kết / Chung kết**: đổi "Như giai đoạn" thành "Giống các vòng khác (BoN)", có dòng giải thích, thêm Bo7 và **Tự nhập** số lẻ tới Bo15.
+- **Tab Nhánh đấu** (Advanced options → Bracket):
+  - hiện nhãn vòng tự đặt;
+  - ẩn số hạt giống;
+  - **ẩn nhánh xem trước** – trước giờ đấu, trang giải có **nhánh đấu dự kiến** (bốc thăm thử theo danh sách hiện tại); bật ô này thì chỉ ban tổ chức thấy;
+  - **Quick advance** (giải offline: chỉ bấm người thắng);
+  - **đính kèm trận** (link, ảnh, ghi chú – ban tổ chức và hai người chơi);
+  - **ảnh chia sẻ kết quả trận** 1200×630 (loại trực tiếp, nhánh thắng – thua, vòng tròn, Thụy Sĩ; vẽ trên máy người dùng);
+  - **xếp người vào nhánh** theo luật hạt giống hoặc theo **thứ tự danh sách** (1 gặp 2, 3 gặp 4…).
+- **Thụy Sĩ / vòng tròn – hệ số phụ theo Quy chế Tie-break FIDE (C.07, 2023)** (`server/src/hub/stages-tb-calc.js`):
+  - tối đa **5 cấp**, chọn trong 21 hệ số: Đối đầu, Buchholz (đủ / Cut-1 / Cut-2 / Median / Median-2 / Fore), trung bình Buchholz đối thủ, Sonneborn–Berger, Koya (vòng tròn), điểm luỹ tiến, số trận thắng (mọi trận / thắng thật), số ván đi sau, Elo trung bình đối thủ (ARO, ARO Cut-1), Elo thành tích (TPR – bảng dp FIDE B.02), trung bình Elo thành tích đối thủ (APRO), hiệu số ván, số ván thắng, tỉ lệ thắng ván;
+  - **trận không đấu theo FIDE**: miễn đấu, thắng / thua do vắng mặt và vòng không được ghép được tính như gặp "đối thủ ảo" có điểm bằng mình (bị cắt trước khi dùng Cut / Median); khi tính cho người khác, trận không đấu của một người coi như hoà. Giải tạo trước bản này giữ cách tính cũ;
+  - bảng xếp hạng có một cột cho mỗi hệ số đang dùng (BH-C1, SB, TPR…), form có **bảng giải thích** từng hệ số;
+  - **xếp cặp kiểu Hà Lan** (chuẩn FIDE): trong mỗi nhóm điểm, nửa trên gặp nửa dưới (8 người vòng 1: 1–5, 2–6, 3–7, 4–8), người lẻ "trôi" xuống nhóm dưới, vẫn tránh gặp lại. Bản cũ ghép người liền kề (1–2, 3–4), giải cũ giữ nguyên.
+- Sửa lỗi có sẵn: dòng "Xếp hạng: điểm → …" dưới bảng vòng tròn / Thụy Sĩ hiện nhầm câu luật Team Battle (trùng khoá dịch `tb_rule`); gợi ý của các ô tick ở trang nâng cao bị dính liền vào nhãn.

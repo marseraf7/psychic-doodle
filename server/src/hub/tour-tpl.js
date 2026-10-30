@@ -16,7 +16,8 @@ const MAX_TPL_BYTES = 16 * 1024;
 const RECUR = ['weekly', 'monthly'];
 // Cấu hình mang sang giải kế tiếp (không mang người chơi, kết quả, hàng chờ, thông báo…)
 const KEEP = ['name', 'desc', 'format', 'timeLimit', 'clock', 'opening', 'rule', 'rated', 'access', 'club', 'maxPlayers', 'minutes', 'stages',
-  'seeding', 'checkin', 'offline', 'scoreMode', 'noShowMin', 'hideSeeds', 'teams', 'recur'];
+  'seeding', 'checkin', 'offline', 'scoreMode', 'noShowMin', 'hideSeeds', 'teams', 'recur', 'selfReport', 'notifyMatch', 'notifyResults', 'showNews',
+  'showStandings', 'roundLabels', 'hideBracket', 'quickAdvance', 'attachments', 'placeBy', 'shareImages']; // không mang link riêng (slug)
 
 class TourTpl {
   // ------------------------------------------------------------ Mẫu giải
