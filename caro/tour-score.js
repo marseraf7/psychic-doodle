@@ -10,11 +10,14 @@
   'use strict';
   const K = window.CaroTourKit;
   if (!K) return;
-  const { O, T, esc, $, D, icon, render } = K;
+  const { O, T, esc, $, D, icon, render, me } = K;
   // Trận đang mở khung nhập (của giải nào); saving: vừa bấm Lưu trận này – máy chủ ghi xong thì đóng khung
   const S = { tour: null, match: null, sets: null, extra: false, saving: null };
 
   const canScore = (t) => t && t.format === 'bracket' && t.status === 'running' && K.can(t, 'results');
+  /** Người chơi tự báo tỉ số trận của mình (giải offline bật "selfReport", người chơi có tài khoản – như Challonge). */
+  const selfOn = (t) => t && t.offline && t.selfReport && t.format === 'bracket' && t.status === 'running' && !!me();
+  const mine = (t, m) => selfOn(t) && m && !m.done && !m.bye && m.a && m.b && (m.a.uid === me().uid || m.b.uid === me().uid);
   /** Mọi trận đang hiện của các giai đoạn (để tìm theo mã). */
   function allMatches(t) {
     const out = [];
@@ -64,8 +67,9 @@
       <div class="set-row" id="sp-extra" ${S.extra ? '' : 'hidden'}><span class="muted">${esc(T('score_extra_short'))}</span>
         <input type="number" min="0" max="999" id="sp-ex0" value="${m.extra ? m.extra[0] : ''}"><span>–</span><input type="number" min="0" max="999" id="sp-ex1" value="${m.extra ? m.extra[1] : ''}"></div>
       <p class="err" id="sp-err"></p>
-      <div class="row"><button type="button" class="ghost sm" data-act="sheetOne">${icon('book')}${esc(T('sheet_print'))}</button>
-        ${m.done ? `<button type="button" class="ghost sm danger" data-act="scoreUndo">${esc(T('score_undo'))}</button>` : ''}
+      ${canScore(t) ? '' : `<p class="hint">${esc(T('score_self_hint'))}</p>`}
+      <div class="row">${canScore(t) ? `<button type="button" class="ghost sm" data-act="sheetOne">${icon('book')}${esc(T('sheet_print'))}</button>` : ''}
+        ${m.done && canScore(t) ? `<button type="button" class="ghost sm danger" data-act="scoreUndo">${esc(T('score_undo'))}</button>` : ''}
         ${m.done ? '' : `<button class="primary">${esc(T('score_save'))}</button>`}</div></form>`;
   }
 
@@ -80,13 +84,14 @@
   K.scoreHtml = (t) => {
     if (S.tour !== t.id) { S.tour = t.id; S.match = null; }
     if (S.saving && S.saving === S.match) { const x = find(t, S.match); if (x && x.m.done) { S.match = null; S.saving = null; } }
-    return toolbar(t) + (canScore(t) && S.match ? panel(t) : '');
+    const x = S.match && find(t, S.match);
+    return toolbar(t) + (S.match && (canScore(t) || (x && mine(t, x.m))) ? panel(t) : '');
   };
   K.setsText = setsText;
 
   function open(t, id) {
     const x = find(t, id);
-    if (!x || !x.m.a || !x.m.a.uid || !x.m.b || !x.m.b.uid || x.m.bye) return;
+    if (!x || !x.m.a || !x.m.a.uid || !x.m.b || !x.m.b.uid || x.m.bye || !(canScore(t) || mine(t, x.m))) return;
     S.match = id;
     S.sets = x.m.sets ? x.m.sets.map((s) => [...s]) : [['', '']];
     S.extra = !!x.m.extra;
@@ -119,9 +124,10 @@
 
   K.binders.push((body) => {
     const t = D.tour;
-    if (!canScore(t) || K.V.page !== 'tour') return;
-    // Bấm một trận (nhánh đấu hoặc danh sách) để mở khung nhập
+    if (!(canScore(t) || selfOn(t)) || K.V.page !== 'tour') return;
+    // Bấm một trận (nhánh đấu hoặc danh sách) để mở khung nhập – người tự báo: chỉ trận chưa xong của mình
     body.querySelectorAll('.b-match[data-mid], .mrow[data-mid]').forEach((el) => {
+      if (!canScore(t)) { const x = find(t, el.dataset.mid); if (!x || !mine(t, x.m)) return; }
       el.classList.add('scorable');
       el.onclick = (e) => { if (e.target.closest('a, button')) return; open(t, el.dataset.mid); };
     });

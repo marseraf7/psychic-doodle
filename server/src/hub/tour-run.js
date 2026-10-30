@@ -148,6 +148,7 @@ class TourRun {
     const champ = t.podium[0] && this.player(t, t.podium[0]);
     this.notifyPlayers(t, 'tour_finished', { winner: champ ? champ.name : '—' });
     this.tourRecur(t); // giải định kỳ: tạo giải kế tiếp (tour-tpl.js)
+    this.notifyResults(t); // gửi kết quả cho người chơi có tài khoản (tour-notes.js)
   }
 
   /**

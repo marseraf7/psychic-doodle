@@ -48,7 +48,7 @@ const { setup, sleep } = require('./helpers.js');
   ok(/Cài đặt nâng cao/.test(await boss.textContent('#tour-title')), 'Tiêu đề: Cài đặt nâng cao');
   const w = await boss.$eval('#tour-dlg', (e) => e.getBoundingClientRect().width);
   ok(w > 900, 'Hộp thoại rộng ra như trang Challonge (' + Math.round(w) + ' px)');
-  ok((await boss.$$('.ta-tab')).length === 5, 'Có 5 tab cài đặt');
+  ok((await boss.$$('.ta-tab')).length === 7, 'Có 7 tab cài đặt (thêm Thông báo, Khác như Challonge)');
   ok(await boss.$eval('#ta input[name=name]', (e) => e.value) === 'Cúp Nâng Cao', 'Tên đã nhập ở form nhanh còn nguyên');
   await boss.click('.ta-tab[data-tab="format"]'); await sleep(120);
   ok(await boss.$eval('#ta select[name=preset]', (e) => e.value) === 'custom', 'Tab Thể thức: đang là Tuỳ chỉnh');

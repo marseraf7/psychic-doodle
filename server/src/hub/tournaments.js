@@ -166,6 +166,8 @@ class Tournaments {
       teamMatch: t.teamMatch ? this.teamMatchView(t) : null,
       ...this.funShared(t), // dự đoán, bình chọn hạng mục (tour-fun.js)
       recur: t.recur || null, recurN: t.recurN || null, // giải định kỳ (tour-tpl.js)
+      selfReport: !!t.selfReport, notifyMatch: t.notifyMatch !== false, notifyResults: t.notifyResults !== false,
+      showNews: t.showNews !== false, showStandings: t.showStandings !== false,
       now: Date.now(),
     };
   }
@@ -258,6 +260,10 @@ class Tournaments {
       noShowMin: ko && NOSHOW_MIN.includes(Number(o.noShowMin)) ? Number(o.noShowMin) : null,
       hideSeeds: o.hideSeeds === true, // không hiện số hạt giống cho người xem (như Challonge "Hide seeds")
       recur: ['weekly', 'monthly'].includes(o.recur) ? o.recur : null, // giải định kỳ (tour-tpl.js)
+      // Như Advanced options của Challonge: người chơi tự báo tỉ số (giải offline có tài khoản), thông báo, mục hiện cho người xem
+      selfReport: offline && o.selfReport !== false,
+      notifyMatch: o.notifyMatch !== false, notifyResults: o.notifyResults !== false,
+      showNews: o.showNews !== false, showStandings: o.showStandings !== false,
     };
   }
 
@@ -265,7 +271,22 @@ class Tournaments {
     const me = this.requireUser(conn);
     const now = Date.now();
     const fields = this.tourFields(me, o, now);
-    this.createTour(conn, me, fields, o.draft === true);
+    const t = this.createTour(conn, me, fields, o.draft === true);
+    // "Share admin access" (Challonge): các tên đăng nhập thành đồng ban tổ chức đủ quyền ngay khi tạo
+    if (Array.isArray(o.admins)) this.addAdmins(t, me, o.admins);
+  }
+
+  /** Thêm đồng ban tổ chức quyền 'all' theo tên đăng nhập (bỏ qua tên không có / chính mình); tối đa 10 người. */
+  addAdmins(t, me, names) {
+    t.staff = t.staff || [];
+    for (const raw of names.slice(0, 10)) {
+      const u = this.store.byUsername.get(String(raw || '').trim().replace(/^@/, '').toLowerCase());
+      if (!u || u.id === me.id || t.staff.some((x) => x.uid === u.id) || t.staff.length >= 10) continue;
+      t.staff.push({ uid: u.id, perms: ['all'] });
+      this.tourLog(t, me.id, 'staff', { name: u.name, perms: 'all' });
+      this.send(userPid(u.id), note('tour_staff_added', { name: t.name }));
+    }
+    this.saveTour(t);
   }
 
   /** Lưu giải mới (cả giao hữu CLB – club-battle.js): giới hạn số giải đang mở, nháp / chờ duyệt / mở đăng ký. */

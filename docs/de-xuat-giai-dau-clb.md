@@ -445,3 +445,11 @@ Việc lặp lại như soát dịch 4 ngôn ngữ, chạy e2e nhiều lần và
   - **Giải định kỳ** hằng tuần / hằng tháng (tab Cơ bản): giải xong (hoặc bị huỷ vì thiếu người) tự tạo kỳ sau cùng cài đặt. Kỳ sau vẫn qua quản trị viên duyệt; ban tổ chức tự huỷ thì dừng chuỗi.
 
 Lộ trình 10 đợt đã hoàn tất.
+
+**Bổ sung sau lộ trình – "Advanced options" của Challonge** (trang Cài đặt nâng cao có thêm tab Thông báo và Khác):
+- **Quyền & hiển thị**:
+  - người chơi có tài khoản tự báo tỉ số trận của mình (giải offline, thêm người bằng dòng `@tên` ở Bulk Add; ban tổ chức vẫn sửa / huỷ được);
+  - chia sẻ quyền quản trị cho tối đa 10 tên đăng nhập ngay lúc tạo giải;
+  - ẩn khỏi danh sách công khai = "Chỉ người có link" (đã có).
+- **Thông báo**: báo khi tới trận (giải offline); gửi kết quả khi giải kết thúc. Thông báo vào chuông của app; người đang offline nhận khi vào lại.
+- **Khác**: hiện / ẩn mục Thông báo và bảng xếp hạng với người xem (ban tổ chức luôn thấy).

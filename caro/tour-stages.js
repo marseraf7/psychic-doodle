@@ -99,7 +99,7 @@
   /** Dải phong độ: ô màu cho 5 trận gần nhất (cũ → mới), chữ T / H / B theo ngôn ngữ để đọc được cả khi không phân biệt màu. */
   const formHtml = (f) => [...(f || '')].map((c) => `<i class="fm ${esc(c)}" title="${esc(T('form_' + c))}">${esc(T('form_' + c + '1'))}</i>`).join('');
   /** Bảng xếp hạng của vòng tròn / Thụy Sĩ: thêm cột Buchholz / Median-Buchholz / SB nếu đang dùng làm tie-break. */
-  function table(rows, cfg) {
+  function standTable(rows, cfg) {
     const extra = ['bh', 'mbh', 'sb'].filter((k) => tbsOf(cfg).includes(k));
     const fmt = (v) => (Number.isInteger(v) ? v : v.toFixed(1));
     const form = rows.some((x) => x.form); // dải phong độ (máy chủ cũ không gửi: ẩn cột)
@@ -116,6 +116,8 @@
   }
   function stageBody(t, v) {
     const key = t.id + ':' + v.index;
+    // Tắt "Hiện bảng xếp hạng" (tab Khác): người xem không thấy bảng điểm vòng tròn / Thụy Sĩ, vẫn thấy các trận
+    const table = (rows, cfg) => (t.showStandings === false && !t.canManage ? '' : standTable(rows, cfg));
     if (v.type === 'single') {
       let html = bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r)), (r) => slot(t, v.index, r), key + ':m');
       if (v.third) html += `<h5>${esc(T('third_place'))}</h5><div class="bracket"><div class="b-col">${matchBox(v.third)}</div></div>`;

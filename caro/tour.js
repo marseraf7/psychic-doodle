@@ -216,7 +216,8 @@
     if (K.battleHtml) html += K.battleHtml(t); // Team Battle / giao hữu CLB (club-battle.js)
     if (K.funHtml) html += K.funHtml(t); // poster, dự đoán, bình chọn (tour-fun.js)
     if (t.format === 'bracket') html += (K.statsHtml ? K.statsHtml(t) : '') + (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
-    html += t.format === 'arena' ? K.standings(t) : K.playerList(t); // tour-players.js
+    // Tắt "Hiện bảng xếp hạng": người xem chỉ thấy danh sách người chơi (ban tổ chức vẫn thấy)
+    html += t.format === 'arena' && (t.showStandings !== false || t.canManage) ? K.standings(t) : K.playerList(t); // tour-players.js
     if (t.format === 'arena' && t.games && t.games.length) html += K.recentGames(t);
     return html;
   }

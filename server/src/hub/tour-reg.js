@@ -212,7 +212,16 @@ class TourReg {
       const line = String(raw || '').trim();
       if (!line) continue;
       const room = t.players.filter((x) => !x.withdrawn).length < t.maxPlayers;
-      if (t.offline) {
+      // Giải offline: dòng "@tên_đăng_nhập" = người chơi có tài khoản (tự báo tỉ số được nếu bật, nhận thông báo)
+      if (t.offline && line.startsWith('@')) {
+        const u = this.store.byUsername.get(line.slice(1).toLowerCase());
+        if (!u) { res.missing.push(line); continue; }
+        if (seen.has('@' + u.id) || t.players.some((p) => p.uid === u.id)) { res.already.push(u.name); continue; }
+        seen.add('@' + u.id);
+        if (!room) { res.full.push(u.name); continue; }
+        t.players.push({ uid: u.id, name: u.name, offline: true, rating: u.rating, joined: Date.now(), score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, firsts: 0 });
+        res.added.push(u.name);
+      } else if (t.offline) {
         const name = safeName(line);
         const key = name.toLowerCase();
         if (!name) { res.bad.push(line.slice(0, 40)); continue; } // tên không dùng được: bỏ qua dòng này, thêm tiếp các dòng sau

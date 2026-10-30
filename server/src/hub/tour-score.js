@@ -10,6 +10,7 @@
 'use strict';
 const { E } = require('../msg.js');
 const ST = require('./stages.js');
+const { uidOf } = require('./shared.js');
 
 const MAX_SETS = 9;
 const MAX_POINT = 999;
@@ -40,15 +41,24 @@ class TourScore {
       this.saveTour(t);
       this.pushTour(t);
     }
+    this.notifyMatchReady(t); // báo người chơi có tài khoản: trận đã sẵn sàng (tour-notes.js)
   }
 
   /** Trận đang sẵn sàng (đủ 2 người, chưa xong) ở giai đoạn hiện tại mà ban tổ chức được nhập / ghi đè. */
-  scoreTarget(conn, id, match) {
-    const t = this.requireManager(conn, id, 'results');
+  scoreTarget(conn, id, match, self = false) {
+    let t, mine = false;
+    try { t = this.requireManager(conn, id, 'results'); } catch (e) {
+      // Người chơi tự báo tỉ số trận của mình (giải offline bật "selfReport", người chơi có tài khoản – như Challonge)
+      const uid = uidOf(conn.pid), x = uid && this.tours.get(String(id || ''));
+      if (!self || !x || !x.offline || !x.selfReport || !this.canSeeTour(x, uid)) throw e;
+      t = x;
+      mine = uid;
+    }
     if (t.status !== 'running' || t.format !== 'bracket') throw E('tour_not_running');
     const found = this.findMatch(t, match);
     if (!found || found.st !== this.curStage(t)) throw E('tour_match_not_found');
-    return { t, ...found };
+    if (mine && (found.m.done || (found.m.a !== mine && found.m.b !== mine))) throw E('tour_managers_only');
+    return { t, ...found, self: !!mine };
   }
 
   /**
@@ -56,7 +66,7 @@ class TourScore {
    * Ghi đè (giải trực tuyến): winner = mã người thắng.
    */
   on_tourScore(conn, { id, match, sets, extra, winner }) {
-    const { t, st, m } = this.scoreTarget(conn, id, match);
+    const { t, st, m, self } = this.scoreTarget(conn, id, match, true);
     if (m.done) throw E('tour_match_done');
     if (!ST.real(m.a) || !ST.real(m.b)) throw E('tour_match_not_ready');
     const by = conn.pid;
@@ -84,7 +94,7 @@ class TourScore {
     }
     m.by = by ? String(by) : null;
     const side = (u) => (this.player(t, u) || {}).name || '?';
-    this.tourLog(t, this.requireUser(conn).id, t.offline ? 'score' : 'override', { match: m.id, a: side(m.a), b: side(m.b), s: m.sets ? m.sets.map((x) => x.join('-')).join(' ') : null, w: ST.real(m.winner) ? side(m.winner) : null });
+    this.tourLog(t, this.requireUser(conn).id, self ? 'self_score' : t.offline ? 'score' : 'override', { match: m.id, a: side(m.a), b: side(m.b), s: m.sets ? m.sets.map((x) => x.join('-')).join(' ') : null, w: ST.real(m.winner) ? side(m.winner) : null });
     this.saveTour(t);
     this.pushTour(t);
   }

@@ -28,7 +28,8 @@
     let html = '';
     if (t.status === 'draft' && t.canManage) html += `<div class="note">${esc(T('mg_draft_note'))} <button type="button" class="primary sm" data-act="mgSubmit">${esc(T('mg_submit'))}</button></div>`;
     if (t.held) html += `<p class="note">${icon('pause')}${esc(T('mg_held_note'))}</p>`;
-    for (const n of (t.news || []).slice(0, 3)) html += `<div class="news">${icon('pin')}<div><p>${esc(n.text)}</p><small class="muted">${esc(n.by)} · ${esc(when(n.at))}</small></div></div>`;
+    // Tắt "Hiện mục Thông báo" (tab Khác của trang nâng cao): chỉ ban tổ chức thấy
+    if (t.showNews !== false || t.canManage) for (const n of (t.news || []).slice(0, 3)) html += `<div class="news">${icon('pin')}<div><p>${esc(n.text)}</p><small class="muted">${esc(n.by)} · ${esc(when(n.at))}</small></div></div>`;
     return html;
   };
   /** Nhãn vòng ban tổ chức đặt (vd. "Vòng loại") – thay tên vòng mặc định; "" nếu chưa đặt. */
