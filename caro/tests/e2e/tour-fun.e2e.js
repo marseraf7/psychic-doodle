@@ -65,7 +65,7 @@ const { setup, sleep } = require('./helpers.js');
     && !(await boss.evaluate(() => window.CaroTourKit.tourDraft.F.editId)), 'Sao chép: mở trang nâng cao với cài đặt cũ, là giải mới');
   ok(await boss.isVisible('#ta select[name=recur]'), 'Tab Cơ bản: có ô Lặp lại (giải định kỳ)');
   await boss.selectOption('#ta select[name=recur]', 'weekly');
-  await boss.click('[data-act="tplSave"]'); await sleep(600); // hộp hỏi tên tự trả lời "Tên chưa phù hợp" (helpers.js)
+  await boss.click('[data-act="tplSave"]'); await sleep(600); // hộp hỏi tên trong app: tự bấm Đồng ý với tên sẵn có (helpers.js – autoConfirm)
   const tpls = app.hub.store.users.get((await boss.evaluate(() => window.CaroOnline.state.me.id)).replace(/^u_/, '')).tourTpls;
   ok(tpls && tpls.length === 1 && tpls[0].data.d.recur === 'weekly' && !tpls[0].data.d.start, 'Lưu thành mẫu (không kèm giờ bắt đầu)');
   await closeDlg(boss);

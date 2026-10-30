@@ -1,9 +1,10 @@
 /*
- * Ảnh trong mô tả giải / đính kèm trận (nút "Chèn ảnh" của trình soạn mô tả – caro/rich-text.js):
+ * Ảnh trong mô tả giải / CLB / giới thiệu bản thân, đính kèm trận (nút "Chèn ảnh" của trình soạn mô tả – caro/rich-text.js):
  *  - Trình duyệt tự thu nhỏ (cạnh dài ≤ 1600 px) và nén (WebP / JPEG) còn ≤ MAX_BYTES rồi gửi thành nhiều phần nhỏ
  *    (mỗi tin WebSocket tối đa 16 KB), lần lượt i = 0 … n − 1 cùng một mã tải lên (up).
  *  - Máy chủ ghép lại, kiểm loại ảnh bằng các byte đầu file và kích thước như ảnh đại diện (../avatar.js – không giải mã
- *    ảnh), lưu trong bảng tour_imgs; mỗi tài khoản giữ tối đa MAX_PER_USER ảnh (ảnh cũ nhất bị xoá).
+ *    ảnh), lưu trong bảng tour_imgs (store-schema.js); mỗi tài khoản giữ tối đa MAX_PER_USER ảnh (ảnh cũ nhất bị xoá);
+ *    xoá tài khoản thì xoá hết ảnh của người đó (store.js – deleteUser).
  *  - Phục vụ qua HTTP /api/timg/<mã> (web.js) – ảnh không đổi nên trình duyệt giữ lâu trong bộ nhớ đệm.
  * Trong mô tả, ảnh được ghi là ![chú thích](timg:<mã>) – chỉ ảnh của máy chủ này hiện được (CSP img-src 'self').
  */
@@ -14,15 +15,14 @@ const { sniff } = require('../avatar.js');
 
 const MAX_BYTES = 120 * 1024;
 const MAX_SIDE = 2000;
-const MAX_PARTS = 12;
+// 14 × 12000 ký tự base64 ≈ 123 KB: đủ cho ảnh 110 KB trình duyệt gửi (rich-text.js), không vượt MAX_BYTES nhiều
+const MAX_PARTS = 14;
 const PART_CHARS = 12000; // ký tự base64 mỗi phần (bội số của 4)
 const MAX_PER_USER = 40;
 const UPLOADS = 30; // lần tải ảnh mỗi 10 phút / tài khoản
 
 class TourImgDb {
   constructor(db) {
-    db.exec(`CREATE TABLE IF NOT EXISTS tour_imgs (id TEXT PRIMARY KEY, uid TEXT NOT NULL, type TEXT NOT NULL, data BLOB NOT NULL, at INTEGER NOT NULL);
-      CREATE INDEX IF NOT EXISTS tour_imgs_uid ON tour_imgs (uid, at);`);
     this.qGet = db.prepare('SELECT type, data FROM tour_imgs WHERE id = ?');
     this.qAdd = db.prepare('INSERT INTO tour_imgs (id, uid, type, data, at) VALUES (?, ?, ?, ?, ?)');
     this.qOld = db.prepare('SELECT id FROM tour_imgs WHERE uid = ? ORDER BY at DESC LIMIT -1 OFFSET ?');

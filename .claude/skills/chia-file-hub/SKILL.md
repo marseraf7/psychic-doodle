@@ -33,6 +33,10 @@ Mục tiêu: mỗi tính năng nằm ở chỗ dễ đoán, sửa một chỗ kh
   sự kiện nhỏ ở `app.js`, phần còn lại viết trong module mới.
 - Logic dùng chung trình duyệt + Web Worker + Node (`rules.js`, `engine.js`, `analysis.js`, `bots.js`) viết dạng UMD
   (`module.exports` hoặc `global.Xxx`), không đụng DOM.
+- Hộp hỏi / báo dùng chung `window.CaroConfirm` (`confirm.js`): `ask` (Đồng ý / Huỷ), `prompt` (hỏi chữ), `info`
+  (thông báo) – **không** dùng `confirm()` / `prompt()` / `alert()` gốc (unit test `no-native-dialogs.test.js` chặn).
+- Ô văn bản dài người dùng tự viết (mô tả, giới thiệu): `CaroRich.editor(tên ô, giá trị)` + hiện bằng
+  `CaroRich.render(văn bản)` (`rich-text.js`), máy chủ làm sạch bằng `cleanRich` (`hub/shared.js`).
 
 **Chuỗi dịch** – `i18n.js` là lõi; chủ đề mới dùng file riêng `i18n-<chủ đề>.js` gọi `I18N.extend(lang, {...})`
 (vd. `i18n-rules.js`, `i18n-bots.js`). Đủ 4 ngôn ngữ vi / en / ru / zh cho mọi khoá.

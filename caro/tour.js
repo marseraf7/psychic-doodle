@@ -263,7 +263,7 @@
   }
   async function share(url, title) {
     if (navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ title, url }).catch(() => {});
-    try { await navigator.clipboard.writeText(url); O.toast(T('copied')); } catch (e) { prompt(T('share'), url); }
+    try { await navigator.clipboard.writeText(url); O.toast(T('copied')); } catch (e) { await window.CaroConfirm.prompt(T('share'), url, { max: 500 }); }
   }
   function bind(body) {
     body.onclick = async (e) => {
@@ -286,7 +286,7 @@
       else if (a === 'replay') { O.closeDlg('tour-dlg'); O.openReplay(b.dataset.share); }
       else if (a === 'review') {
         const approve = b.dataset.v === '1';
-        const note = approve ? '' : prompt(T('reject_reason'), '');
+        const note = approve ? '' : await window.CaroConfirm.prompt(T('reject_reason'), '', { max: 200 });
         if (note === null) return;
         O.send({ t: 'adminReview', kind: b.dataset.kind, id: b.dataset.id, approve, note });
       }

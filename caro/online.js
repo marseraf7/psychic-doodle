@@ -319,7 +319,8 @@
     if (navigator.share && matchMedia('(pointer: coarse)').matches) {
       return navigator.share({ title: T('app_title'), text: T('replay_share_text', { x: g.x || T('deleted_player'), o: g.o || T('deleted_player') }), url }).catch(() => {});
     }
-    try { await navigator.clipboard.writeText(url); } catch (e) { prompt(T('share_game'), url); return; }
+    // Không chép được (trình duyệt nhúng): hiện link trong ô để người dùng tự chép
+    try { await navigator.clipboard.writeText(url); } catch (e) { await window.CaroConfirm.prompt(T('share_game'), url, { max: 500 }); return; }
     toast(T('replay_copied'));
   }
   /** Ván đã lưu trên máy chủ: dữ liệu, 'missing' (không còn) hoặc null (lỗi mạng). Dùng cả cho "Lưu về máy" (history.js). */

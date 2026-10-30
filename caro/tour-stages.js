@@ -144,7 +144,7 @@
       // Trận xếp hạng các vị trí sau (5–8, 9–16…): mỗi nhánh một khối thu gọn
       if (v.places && v.places.length) {
         html += `<h5 class="br-h">${esc(T('places_title'))}</h5>` + v.places.map((p) => fold(key + ':p' + p.base, esc(T('place_range', { a: p.base, b: p.base + p.size - 1 })),
-          () => bracketCols(p.rounds, (r) => (r === p.rounds.length - 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 })), null, key + ':p' + p.base), false)).join('');
+          () => bracketCols(p.rounds, (r) => (p.rounds[r].length === 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 })), null, key + ':p' + p.base), false)).join('');
       }
       return html;
     }

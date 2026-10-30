@@ -27,8 +27,8 @@
     return `<section class="mg-sec"><h4>${esc(T('club_settings'))}</h4><form id="club-set" class="tform">
       ${K.clubIconPicker(c.icon)}
       <label class="field"><span>${esc(T('club_intro'))}</span><input name="intro" maxlength="200" value="${esc(c.intro)}" placeholder="${esc(T('club_intro_ph'))}"></label>
-      <label class="field"><span>${esc(T('club_desc'))}</span><textarea name="desc" maxlength="2000" rows="4">${esc(c.desc)}</textarea></label>
-      <label class="field"><span>${esc(T('club_priv_desc'))}</span><textarea name="privDesc" maxlength="1000" rows="2" placeholder="${esc(T('club_priv_desc_ph'))}">${esc(c.privDesc)}</textarea></label>
+      ${K.richField('desc', T('club_desc'), c.desc, 4000)}
+      ${K.richField('privDesc', T('club_priv_desc'), c.privDesc, 2000, T('club_priv_desc_ph'))}
       <label class="field"><span>${esc(T('club_announcement'))}</span><input name="announcement" maxlength="300" value="${esc(c.announcement)}"></label>
       <label class="field"><span>${esc(T('club_join_policy'))}</span><select name="join">${['open', 'request', 'code'].map((j) => `<option value="${j}" ${c.join === j ? 'selected' : ''}>${esc(T('join_' + j))}</option>`).join('')}</select></label>
       ${c.code ? `<p>${esc(T('club_code'))}: <b class="code">${esc(c.code)}</b> <button type="button" class="ghost sm" data-act="clubNewCode">${esc(T('club_new_code'))}</button></p>` : ''}
@@ -102,11 +102,11 @@
   K.acts.clubRecon = (b) => { O.send({ t: 'clubReconsider', id: club().id, uid: b.dataset.uid, accept: b.dataset.v === '1' }); };
   K.acts.clubUnban = (b) => { O.send({ t: 'clubUnban', id: club().id, uid: b.dataset.uid }); };
   K.acts.clubNewCode = () => { O.send({ t: 'clubNewCode', id: club().id }); };
-  K.acts.clubBroadcast = () => {
+  K.acts.clubBroadcast = async () => {
     const box = $('club-bc');
     const text = box.value.trim();
     if (!text) return box.focus();
-    if (!confirm(T('club_bc_confirm', { n: club().count }))) return;
+    if (!(await window.CaroConfirm.ask(T('club_bc_confirm', { n: club().count })))) return;
     O.send({ t: 'clubBroadcast', id: club().id, text });
     box.value = '';
     O.toast(T('club_bc_sent'));

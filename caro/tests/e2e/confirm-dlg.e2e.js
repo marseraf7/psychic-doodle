@@ -105,5 +105,25 @@ const { setup } = require('./helpers');
   }
   ok(guest, 'đăng xuất + Đồng ý: đã đăng xuất (về khách)');
 
+  // Hộp hỏi chữ trong app (thay prompt() gốc): Enter = Đồng ý trả về chữ đã gõ; Huỷ = null; hộp thông báo (thay alert())
+  c.autoConfirm = false;
+  const typed = c.evaluate(() => window.CaroConfirm.prompt('Tên mẫu?', 'Mẫu cũ'));
+  await sleep(300);
+  ok(await c.evaluate(() => { const i = document.getElementById('confirm-in'); return !i.hidden && i.value === 'Mẫu cũ'; }), 'hỏi chữ: ô nhập hiện với giá trị sẵn có');
+  await c.fill('#confirm-in', 'Mẫu mới');
+  await c.press('#confirm-in', 'Enter');
+  ok(await typed === 'Mẫu mới', 'hỏi chữ + Enter: trả về chữ đã gõ');
+  const cancelled = c.evaluate(() => window.CaroConfirm.prompt('Lý do?', ''));
+  await sleep(300);
+  await c.click('#confirm-no');
+  ok(await cancelled === null, 'hỏi chữ + Huỷ: null');
+  const info = c.evaluate(() => window.CaroConfirm.info('Xong').then(() => 'ok'));
+  await sleep(300);
+  ok(await c.evaluate(() => document.getElementById('confirm-no').hidden && document.getElementById('confirm-in').hidden), 'thông báo: chỉ có một nút, không ô nhập');
+  await c.click('#confirm-ok');
+  ok(await info === 'ok', 'thông báo: bấm Đóng là xong');
+  ok(await c.evaluate(() => { const p = window.CaroConfirm.ask('Hỏi lại?'); setTimeout(() => document.getElementById('confirm-ok').click(), 100); return p.then((v) => v && !document.getElementById('confirm-no').hidden && document.getElementById('confirm-in').hidden); }),
+    'hộp Đồng ý / Huỷ sau đó: hiện lại nút Huỷ, ẩn ô nhập');
+
   await finish();
 })();

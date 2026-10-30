@@ -477,3 +477,5 @@ Lộ trình 10 đợt đã hoàn tất.
   - bảng xếp hạng có một cột cho mỗi hệ số đang dùng (BH-C1, SB, TPR…), form có **bảng giải thích** từng hệ số;
   - **xếp cặp kiểu Hà Lan** (chuẩn FIDE): trong mỗi nhóm điểm, nửa trên gặp nửa dưới (8 người vòng 1: 1–5, 2–6, 3–7, 4–8), người lẻ "trôi" xuống nhóm dưới, vẫn tránh gặp lại. Bản cũ ghép người liền kề (1–2, 3–4), giải cũ giữ nguyên.
 - Sửa lỗi có sẵn: dòng "Xếp hạng: điểm → …" dưới bảng vòng tròn / Thụy Sĩ hiện nhầm câu luật Team Battle (trùng khoá dịch `tb_rule`); gợi ý của các ô tick ở trang nâng cao bị dính liền vào nhãn.
+- **Mô tả có định dạng ở mọi nơi**: mô tả CLB, mô tả riêng (chỉ thành viên thấy) và mục **Giới thiệu** mới ở trang cá nhân (tối đa 2000 ký tự, chính chủ bấm Sửa) dùng chung trình soạn của mô tả giải. Ảnh đã tải lên bị xoá theo khi xoá tài khoản.
+- **Hộp hỏi trong app thay mọi hộp gốc của trình duyệt**: `CaroConfirm.ask / prompt / info` thay `confirm()` / `prompt()` / `alert()` (đổi tên, xoá giải phải gõ tên, lý do từ chối, tên mẫu, chép link khi trình duyệt không cho…). Quy tắc ghi trong `CLAUDE.md`; unit test `no-native-dialogs.test.js` báo đỏ nếu lỡ dùng lại.

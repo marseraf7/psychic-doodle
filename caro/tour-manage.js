@@ -188,9 +188,9 @@
   K.acts.mgSettings = () => { K.tourDraft.fromTour(tour()); open('tourAdv', null); };
   K.acts.mgHold = (b) => O.send({ t: 'tourHold', id: tour().id, hold: b.dataset.v === '1' });
   K.acts.mgReset = () => window.CaroConfirm.ask(T('mg_reset_confirm')).then((ok) => { if (ok) O.send({ t: 'tourReset', id: tour().id }); });
-  K.acts.mgDelete = () => {
+  K.acts.mgDelete = async () => {
     const t = tour();
-    const typed = prompt(T('mg_delete_prompt', { name: t.name }), '');
+    const typed = await window.CaroConfirm.prompt(T('mg_delete_prompt', { name: t.name }), '', { max: 60 });
     if (typed == null) return;
     O.send({ t: 'tourDelete', id: t.id, confirm: typed.trim() });
   };

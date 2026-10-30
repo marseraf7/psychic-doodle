@@ -97,3 +97,10 @@
 .ar-slot.bye { opacity: 0.6; }
 .ar-slot.on, .ar-slot.over { outline: 2px solid var(--accent); }
 .ar-slot.drag { opacity: 0.4; }
+
+/* ---- Hồ sơ: mục Giới thiệu (profile-bio.js) */
+.pf-bio { margin: 10px 0; }
+.pf-bio-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pf-bio-h h3 { margin: 0; }
+.pf-bio .rich { overflow-wrap: anywhere; }
+.note.priv .rich { flex: 1; min-width: 0; }

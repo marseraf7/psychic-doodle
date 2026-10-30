@@ -92,12 +92,12 @@
   K.acts.ftOpen = (b) => { TALK.topicId = Number(b.dataset.id); TALK.topic = null; open('clubTopic', D.club.id); loadTopic(0); };
   K.acts.ftPage = (b) => { O.send({ t: 'clubTopics', id: D.club.id, page: Number(b.dataset.p) }); };
   K.acts.fpPage = (b) => { loadTopic(Number(b.dataset.p)); };
-  K.acts.ftMod = (b) => {
+  K.acts.ftMod = async (b) => {
     const k = b.dataset.k, on = b.dataset.v === '1';
-    if (k === 'del' && !confirm(T('talk_topic_delete_q'))) return;
+    if (k === 'del' && !(await window.CaroConfirm.ask(T('talk_topic_delete_q')))) return;
     O.send({ t: 'clubTopicMod', id: D.club.id, topic: TALK.topicId, [k]: on });
   };
-  K.acts.fpDel = (b) => { if (confirm(T('talk_post_delete_q'))) O.send({ t: 'clubPostDel', id: D.club.id, post: Number(b.dataset.id) }); };
+  K.acts.fpDel = async (b) => { if (await window.CaroConfirm.ask(T('talk_post_delete_q'))) O.send({ t: 'clubPostDel', id: D.club.id, post: Number(b.dataset.id) }); };
   K.acts.fpEdit = (b) => {
     const li = b.closest('li'), p = TALK.topic.posts.find((x) => x.id === Number(b.dataset.id));
     if (!p || li.querySelector('textarea')) return;

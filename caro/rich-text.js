@@ -216,6 +216,11 @@
   }
   if (window.CaroOnline && window.CaroOnline.on) {
     window.CaroOnline.on('tourImgSaved', (m) => { const w = waiting.get(m.up); if (w) { waiting.delete(m.up); w.resolve(m.id); } });
+    // Máy chủ từ chối ảnh (sai loại, quá lớn, tải quá nhiều): dừng chờ ngay, không đợi hết 30 giây
+    window.CaroOnline.on('error', (m) => {
+      if (m.ctx !== 'tourImg') return;
+      for (const [up, w] of waiting) { waiting.delete(up); w.reject(new Error(m.code === 'tour_img_too_big' ? 'big' : m.code)); }
+    });
   }
 
   function act(ed, k, el) {

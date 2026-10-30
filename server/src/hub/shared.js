@@ -59,6 +59,9 @@ const cleanPublicText = (s, max) => mask(cleanText(s, max));
  */
 const cleanRich = (s, max) => mask(String(s || '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ')
   .replace(/\n{4,}/g, '\n\n\n').trim().slice(0, max));
+/** Bỏ đánh dấu của văn bản có định dạng (dòng tóm tắt ở danh sách): giữ chữ, gộp thành một dòng. */
+const plainRich = (s, max) => String(s || '').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/^:::.*$|^(-{3,}|\*{3,})$/gm, '')
+  .replace(/^\s*(#{2,3}|>|[-•]|\d{1,3}[.)])\s+/gm, '').replace(/\*\*|~~|\*/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
 /** Tên người chơi / CLB / giải: có từ tục thì báo lỗi bad_name. */
 function cleanPublicName(s) {
   const n = cleanName(s);
@@ -92,5 +95,5 @@ async function verifyGoogleToken(credential, clientId) {
 }
 
 module.exports = {
-  USERNAME_RE, OPENINGS, cleanTc, cleanPublicText, cleanRich, cleanPublicName, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
+  USERNAME_RE, OPENINGS, cleanTc, cleanPublicText, cleanRich, plainRich, cleanPublicName, OFFLINE_FORFEIT_MS, NEXT_GAME_MS, INVITE_TTL_MS, ROOM_IDLE_MS, SEAT_IDLE_MS, FAIL_WINDOW_MS, TIME_LIMITS, DRAW_COOLDOWN_MS, MIN_RATED_MOVES, MAX_RATED_PER_PAIR_DAY, QUICK, REPORT_REASONS, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, sha256, VERIFY_MAIL, RESET_MAIL, cleanText, cleanName, userPid, uidOf, compareVersions, verifyGoogleToken,
 };

@@ -87,7 +87,7 @@ async function setup(port, timers = {}) {
     p.on('crash', () => { errors.push(name + ': trang bị sập (crash)'); annotate(`${name}: trang bị sập (crash) sau bước "${lastOk}"`); });
     p.on('console', (m) => { if (m.type() === 'error') errors.push(name + ' console: ' + m.text()); });
     p.on('dialog', (d) => d.accept(d.type() === 'prompt' ? 'Tên chưa phù hợp' : undefined));
-    // Hộp xác nhận trong app (confirm.js) cũng tự Đồng ý như hộp gốc; bài thử cần bấm tay (Huỷ / Đồng ý)
+    // Hộp xác nhận / hỏi chữ trong app (confirm.js) cũng tự Đồng ý như hộp gốc (hỏi chữ: giữ giá trị sẵn có); bài thử cần bấm tay (Huỷ / Đồng ý)
     // thì đặt p.autoConfirm = false
     p.autoConfirm = true;
     const poll = setInterval(() => {

@@ -136,7 +136,16 @@ test('đổi / xoá ảnh đại diện: khách không được; ảnh phục v�
   // Đặt lại rồi xoá tài khoản: ảnh mất theo
   await a.req({ t: 'avatarSet', data: b64(jpeg(64, 64)) }, 'me', (m) => m.me.av > 0);
   assert.strictEqual((await fetch(`${base}/api/avatar/${uid}`)).status, 200);
+  // Giới thiệu bản thân (có định dạng, giữ xuống dòng) + ảnh trong mô tả: cũng mất theo khi xoá tài khoản
+  const bio = await a.req({ t: 'setBio', bio: '**Xin chào**\r\n- dòng 2' }, 'bioSaved');
+  assert.strictEqual(bio.bio, '**Xin chào**\n- dòng 2');
+  await new Promise((r) => setTimeout(r, 400)); // xem hồ sơ: tối đa 1 lần / 300 ms mỗi kết nối
+  assert.strictEqual((await b.req({ t: 'profile', id: uid }, 'profile')).profile.bio, '**Xin chào**\n- dòng 2');
+  assert.strictEqual((await g.req({ t: 'setBio', bio: 'x' }, 'error')).code, 'need_account', 'khách không có hồ sơ');
+  const img = await a.req({ t: 'tourImg', up: '0000abcd', i: 0, n: 1, data: b64(png(40, 40)) }, 'tourImgSaved');
+  assert.strictEqual((await fetch(`${base}/api/timg/${img.id}`)).status, 200);
   await a.req({ t: 'deleteAccount', password: 'caro-pass1', confirm: 'av_a' }, 'accountDeleted');
+  assert.strictEqual((await fetch(`${base}/api/timg/${img.id}`)).status, 404, 'ảnh mô tả bị xoá theo tài khoản');
   assert.strictEqual((await fetch(`${base}/api/avatar/${uid}`)).status, 404);
   assert.strictEqual(app.store.db.prepare('SELECT COUNT(*) AS n FROM avatars WHERE uid = ?').get(uid).n, 0);
   for (const c of [g, a, b]) c.ws.close();

@@ -8,6 +8,7 @@
 
   // ================================================================ Tiếng Việt
   X('vi', {
+    bio_title: 'Giới thiệu', bio_edit: 'Sửa', bio_save: 'Lưu', bio_saved: 'Đã lưu phần giới thiệu', bio_empty: 'Chưa có giới thiệu. Bấm Sửa để viết vài dòng về bạn (định dạng như mô tả giải: đậm, danh sách, link, ảnh…).',
     friends: 'Bạn bè',
     friends_login_hint: 'Đăng nhập để kết bạn và thách đấu bạn bè.',
     friends_online: '{on}/{all} online',
@@ -106,6 +107,7 @@
 
   // ================================================================ English
   X('en', {
+    bio_title: 'About', bio_edit: 'Edit', bio_save: 'Save', bio_saved: 'About section saved', bio_empty: 'No about section yet. Press Edit to write a few lines about yourself (formatting like tournament descriptions: bold, lists, links, images…).',
     friends: 'Friends',
     friends_login_hint: 'Log in to add friends and challenge them.',
     friends_online: '{on}/{all} online',
@@ -204,6 +206,7 @@
 
   // ================================================================ Русский
   X('ru', {
+    bio_title: 'О себе', bio_edit: 'Изменить', bio_save: 'Сохранить', bio_saved: 'Раздел «О себе» сохранён', bio_empty: 'Раздела «О себе» пока нет. Нажмите «Изменить», чтобы написать пару строк о себе (форматирование как в описании турнира: жирный, списки, ссылки, картинки…).',
     friends: 'Друзья',
     friends_login_hint: 'Войдите, чтобы добавлять друзей и вызывать их на игру.',
     friends_online: '{on}/{all} онлайн',
@@ -302,6 +305,7 @@
 
   // ================================================================ 中文
   X('zh', {
+    bio_title: '个人简介', bio_edit: '编辑', bio_save: '保存', bio_saved: '个人简介已保存', bio_empty: '还没有个人简介。点“编辑”写几句关于自己的话（格式同赛事简介：加粗、列表、链接、图片…）。',
     friends: '好友',
     friends_login_hint: '登录后即可添加好友并发起挑战。',
     friends_online: '{on}/{all} 在线',

@@ -47,6 +47,8 @@ const SCHEMA = `
     mate INTEGER, at INTEGER NOT NULL, used INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS eval_cache_used ON eval_cache (used);
   CREATE TABLE IF NOT EXISTS avatars (uid TEXT PRIMARY KEY, type TEXT NOT NULL, data BLOB NOT NULL);
+  CREATE TABLE IF NOT EXISTS tour_imgs (id TEXT PRIMARY KEY, uid TEXT NOT NULL, type TEXT NOT NULL, data BLOB NOT NULL, at INTEGER NOT NULL);
+  CREATE INDEX IF NOT EXISTS tour_imgs_uid ON tour_imgs (uid, at);
   CREATE TABLE IF NOT EXISTS club_chat (id INTEGER PRIMARY KEY AUTOINCREMENT, club TEXT NOT NULL, uid TEXT, name TEXT, at INTEGER NOT NULL,
     text TEXT NOT NULL);
   CREATE INDEX IF NOT EXISTS club_chat_club ON club_chat (club, id);

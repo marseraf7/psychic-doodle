@@ -74,7 +74,7 @@ class ClubManage {
     this.requireClubPerm(c, me.id, 'settings');
     if (typeof o.intro === 'string') c.intro = cleanPublicText(o.intro, 200);
     if (typeof o.desc === 'string') c.desc = cleanMultiline(o.desc, MAX_DESC);
-    if (typeof o.privDesc === 'string') c.privDesc = cleanMultiline(o.privDesc, 1000);
+    if (typeof o.privDesc === 'string') c.privDesc = cleanMultiline(o.privDesc, 2000);
     if (typeof o.announcement === 'string') c.announcement = cleanPublicText(o.announcement, 300);
     if (typeof o.icon === 'string') c.icon = CLUB_ICONS.includes(o.icon) ? o.icon : '';
     if (CLUB_JOIN.includes(o.join)) c.join = o.join;

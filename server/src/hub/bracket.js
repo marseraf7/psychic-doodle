@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { E, note } = require('../msg.js');
 const { userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
+const { normalizeTiebreaks } = require('./stages-tiebreak.js');
 
 class Bracket {
   startBracket(t, now) {
@@ -337,10 +338,10 @@ class Bracket {
         if (st.gf) v.gf = st.gf.map(M);
       } else if (st.type === 'roundrobin') {
         const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
-        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, st.cfg.tiebreaks || []) }));
+        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)) }));
       } else {
         v.rounds = st.rounds.map((r) => r.map(M));
-        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), st.cfg.tiebreaks || []);
+        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
         v.totalRounds = st.cfg.rounds;
       }
       return v;

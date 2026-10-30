@@ -8,6 +8,11 @@
   (một file một việc, ~400 dòng; máy chủ gom ở `server/src/hub/index.js`; trình duyệt mỗi tính năng một module
   `window.CaroXxx`, không dồn vào `app.js`; chuỗi dịch theo chủ đề `caro/i18n-<chủ đề>.js`).
 - Chuỗi giao diện luôn đủ 4 ngôn ngữ: vi, en, ru, zh.
+- **Không dùng `confirm()` / `prompt()` / `alert()` gốc** của trình duyệt trong `caro/` (bị chặn / tự đóng trong Zalo,
+  Messenger…). Luôn dùng hộp trong app: `await window.CaroConfirm.ask(…)` (Đồng ý / Huỷ), `CaroConfirm.prompt(…, giá trị)`
+  (hỏi chữ, Huỷ = null), `CaroConfirm.info(…)` (thông báo). Unit test `server/test/no-native-dialogs.test.js` báo đỏ nếu lỡ dùng.
+- Văn bản người dùng tự viết (mô tả giải / CLB, giới thiệu bản thân…): dùng trình soạn có định dạng `CaroRich.editor`
+  và hiện bằng `CaroRich.render` (`caro/rich-text.js`) – không tự chèn HTML.
 - Đổi file trong `caro/` thì tăng `CACHE` trong `caro/sw.js`; thêm file thì thêm vào `FILES`.
 - Chia việc với Antigravity: làm theo skill `.claude/skills/giao-viec-antigravity/SKILL.md` (việc lặp lại / tốn token như chạy test N lần,
   đọc log dài, kiểm trên máy thật, soát dịch, audit chỉ đọc → giao Issue `agent:agy`; việc khó / quan trọng → tự làm).

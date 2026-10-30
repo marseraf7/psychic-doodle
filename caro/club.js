@@ -9,6 +9,10 @@
   const K = window.CaroTourKit;
   if (!K) return;
   const { O, T, esc, $, D, V, me, logo, tourItem, setTitle, needLogin, isOpen, open, top, back, render, share, shareLink, icon } = K;
+  /** Ô văn bản có định dạng như Challonge (rich-text.js; thiếu thì ô chữ thường). hint: dòng gợi ý dưới ô. */
+  const richField = (name, label, value, max, hint) => `<div class="field"><span>${esc(label)}</span>${window.CaroRich
+    ? window.CaroRich.editor(name, value, { rows: 5, max }) : `<textarea name="${esc(name)}" maxlength="${max}" rows="4">${esc(value || '')}</textarea>`}${hint ? `<small class="hint">${esc(hint)}</small>` : ''}</div>`;
+  K.richField = richField; // dùng lại ở trang Quản lý CLB (club-admin.js)
 
   function clubItem(c) {
     const tags = [];
@@ -41,8 +45,10 @@
     if (c.status === 'pending') html += `<p class="note">${esc(T('club_pending_note'))}</p>`;
     if (c.status === 'rejected') html += `<p class="note bad">${esc(T('club_rejected_note'))}${c.reviewNote ? ': ' + esc(c.reviewNote) : ''}</p>`;
     if (c.announcement) html += `<p class="announce">${icon('pin')}${esc(c.announcement)}</p>`;
-    if (c.desc) html += `<p class="tdesc">${esc(c.desc)}</p>`;
-    if (c.privDesc) html += `<div class="note priv">${icon('lock')}<p>${esc(c.privDesc)}</p></div>`; // chỉ thành viên thấy
+    // Mô tả có định dạng (rich-text.js dựng HTML an toàn); mô tả riêng chỉ thành viên thấy
+    const rich = (s) => (window.CaroRich ? window.CaroRich.render(s) : `<p>${esc(s)}</p>`);
+    if (c.desc) html += `<div class="tdesc rich">${rich(c.desc)}</div>`;
+    if (c.privDesc) html += `<div class="note priv">${icon('lock')}<div class="rich">${rich(c.privDesc)}</div></div>`;
     const b = [];
     if (me() && c.status === 'approved' && !c.role) {
       if (c.join === 'code') b.push(`<input id="club-code" placeholder="${esc(T('club_code'))}" maxlength="12" autocapitalize="characters">`);
@@ -100,7 +106,7 @@
       <label class="field"><span>${esc(T('club_name'))}</span><input name="name" maxlength="40" required></label>
       <label class="field"><span>${esc(T('club_intro'))}</span><input name="intro" maxlength="200" placeholder="${esc(T('club_intro_ph'))}"></label>
       ${K.clubIconPicker ? K.clubIconPicker('') : ''}
-      <label class="field"><span>${esc(T('club_desc'))}</span><textarea name="desc" maxlength="2000" rows="3"></textarea></label>
+      ${richField('desc', T('club_desc'), '', 4000)}
       <fieldset><legend>${esc(T('club_join_policy'))}</legend><div class="seg col">${['open', 'request', 'code'].map((j, i) => `<label><input type="radio" name="join" value="${j}" ${i === 0 ? 'checked' : ''}> <span>${esc(T('join_' + j))} – ${esc(T('join_' + j + '_hint'))}</span></label>`).join('')}</div></fieldset>
       <p class="err" id="cf-err"></p>
       <button class="primary wide">${esc(T('club_submit'))}</button>
