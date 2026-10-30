@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { E, note } = require('../msg.js');
 const { userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
+const { normalizeTiebreaks } = require('./stages-tiebreak.js');
 
 class Bracket {
   startBracket(t, now) {
@@ -37,7 +38,7 @@ class Bracket {
     t.status = 'running';
     this.tourLog(t, null, 'started', { n: entrants.length });
     t.stage = 0;
-    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan, pairs: t.teamMatch && t.teamMatch.pairs })];
+    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan, pairs: t.teamMatch && t.teamMatch.pairs, placeBy: t.placeBy })];
     this.saveTour(t);
     this.notifyPlayers(t, 'tour_started', {}, (p) => !p.out);
     this.notifyPlayers(t, 'tour_no_checkin', {}, (p) => p.out === 'no_checkin');
@@ -68,8 +69,11 @@ class Bracket {
     return st && st.matches[id] ? { st, m: st.matches[id] } : null;
   }
 
+  /** Hạt giống của người chơi (thấp = mạnh); .rating: Elo lúc bắt đầu giải (tie-break ARO / TPR – stages-tb-calc.js). */
   seedOf(t) {
-    return (uid) => (this.player(t, uid) && this.player(t, uid).seed) || 999;
+    const f = (uid) => (this.player(t, uid) && this.player(t, uid).seed) || 999;
+    f.rating = (uid) => { const p = this.player(t, uid); return (p && p.rating) || 0; }; // người chơi offline không tài khoản: 0 (bỏ qua)
+    return f;
   }
 
   isActiveIn(t, uid) {
@@ -99,10 +103,17 @@ class Bracket {
       const p = this.player(t, u);
       if (p && !going.has(u) && !p.out) p.out = 'not_advanced';
     }
+    this.notifyPlayers(t, 'tour_not_advanced', {}, (p) => p.out === 'not_advanced' && st.entrants.includes(p.uid));
+    // "Dừng lại để xếp nhánh": chờ ban tổ chức kéo thả rồi mới bốc thăm giai đoạn sau (tour-arrange.js)
+    if (this.arrangeHold(t, st, seeds, groupOf)) {
+      this.notifyPlayers(t, 'tour_arranging', { n: t.stage + 2 }, (p) => going.has(p.uid));
+      this.saveTour(t);
+      this.pushTour(t);
+      return;
+    }
     t.stage++;
     t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, { groupOf, seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u) }));
     this.notifyPlayers(t, 'tour_advanced', { n: t.stage + 1 }, (p) => going.has(p.uid));
-    this.notifyPlayers(t, 'tour_not_advanced', {}, (p) => p.out === 'not_advanced' && st.entrants.includes(p.uid));
     this.saveTour(t);
     this.pushTour(t);
   }
@@ -157,6 +168,8 @@ class Bracket {
       for (const u of [m.a, m.b]) room.score[userPid(u)] = carry.wins[u] || 0;
       room.gameNo = carry.games + 1;
     });
+    // Người đi trước ván đầu (đánh tiếp sau mất kết nối: giữ như cũ) – tie-break "số ván đi sau"
+    if (!carry || !m.first) m.first = aFirst ? m.a : m.b;
     const room = this.openTourRoom(t, 'series', ST.boOf(st, m), m.a, m.b, aFirst, { match: m.id }, prep);
     m.room = room.code;
     m.wins = carry ? { ...carry.wins } : {};
@@ -293,8 +306,9 @@ class Bracket {
       done: !!m.done, winner: ST.real(m.winner) ? m.winner : null, draw: !!(m.done && m.winner === null && !m.double),
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
-      sets: m.sets || null, extra: m.extra || null, override: !!m.override, // tỉ số từng set (giải offline), ghi đè
+      sets: m.sets || null, extra: m.extra || null, override: !!m.override, quick: !!m.quick, // tỉ số từng set (giải offline), ghi đè, chỉ báo người thắng
       votes: this.voteCount(t, m), // "Ai sẽ thắng?" – số phiếu hai bên (tour-fun.js)
+      att: m.att && m.att.length ? this.attView(m) : null, // đính kèm của trận (tour-opts.js)
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }
@@ -303,9 +317,11 @@ class Bracket {
   stageViews(t) {
     const seedOf = this.seedOf(t);
     // form: dải phong độ của giai đoạn (formStrip) – uid → 'WLD' (5 trận gần nhất, cũ → mới)
-    const table = (rk, adv, form) => rk.list.map((u, i) => {
+    // tb: giá trị các tie-break đã chọn của giai đoạn (cùng thứ tự cfg.tiebreaks; đối đầu: null)
+    const table = (rk, adv, form, tbs) => rk.list.map((u, i) => {
       const x = rk.stats[u];
-      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, mbh: x.mbh, sb: x.sb, adv: i < adv, form: form.get(u) || '' };
+      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, mbh: x.mbh, sb: x.sb,
+        tb: tbs.map((k) => ST.tbValue(k, x)), adv: i < adv, form: form.get(u) || '' };
     });
     return (t.st || []).map((st, i) => {
       const M = (id) => this.matchView(t, st.matches[id], st);
@@ -317,15 +333,15 @@ class Bracket {
         if (st.cfg.split) v.split = true;
         if (st.third) v.third = M(st.third);
         // Trận xếp hạng: các nhánh phân hạng 5–8, 9–16… (base = hạng cao nhất của nhánh)
-        if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
+        if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: p.n || 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
         if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
         if (st.gf) v.gf = st.gf.map(M);
       } else if (st.type === 'roundrobin') {
         const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
-        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form) }));
+        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)) }));
       } else {
         v.rounds = st.rounds.map((r) => r.map(M));
-        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st));
+        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
         v.totalRounds = st.cfg.rounds;
       }
       return v;

@@ -5,7 +5,9 @@
  */
 'use strict';
 const { E } = require('../msg.js');
-const { uidOf } = require('./shared.js');
+const { uidOf, cleanRich } = require('./shared.js');
+
+const MAX_BIO = 2000; // giới thiệu bản thân (có định dạng – caro/rich-text.js)
 const R = require('../rating.js');
 const Perf = require('../perf.js');
 
@@ -52,6 +54,15 @@ class Profile {
     });
   }
 
+  /** Sửa phần giới thiệu bản thân ở trang hồ sơ (tài khoản thật, không phải khách). */
+  on_setBio(conn, { bio }) {
+    const me = this.requireUser(conn);
+    this.throttle(conn, 'bio', 2000);
+    me.bio = cleanRich(bio, MAX_BIO);
+    this.store.touch(me);
+    conn.send({ t: 'bioSaved', bio: me.bio });
+  }
+
   /** Trang hồ sơ: điểm từng loại + biểu đồ, thành tích, chuỗi thắng, giải đấu, ván gần đây. */
   on_profile(conn, { id, username }) {
     this.throttle(conn, 'profile', 300);
@@ -77,10 +88,11 @@ class Profile {
         rating: u.rating, main: R.mainPool(u), pools, history: this.store.ratingPoints(u.id),
         stats: u.stats, rated: u.rated, streak: u.wstreak, lstreak: u.lstreak, tours: u.tours, recent, canHistory, histVis: this.histVisOf(u),
         perf: u.perf || {}, activity: Perf.activity(u), // thống kê sâu theo loại + hoạt động 30 ngày
+        bio: u.bio || '', // giới thiệu bản thân (đánh dấu như Markdown; trình duyệt dựng HTML an toàn)
         self: meUid === u.id, friend: !!(me && me.friends.includes(u.id)), h2h: me && me.id !== u.id ? this.store.h2h(me.id, u.id) : null,
       },
     });
   }
 }
 
-module.exports = { Profile };
+module.exports = { Profile, MAX_BIO };

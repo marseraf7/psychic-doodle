@@ -48,7 +48,7 @@ const { setup, sleep } = require('./helpers.js');
   ok(/Cài đặt nâng cao/.test(await boss.textContent('#tour-title')), 'Tiêu đề: Cài đặt nâng cao');
   const w = await boss.$eval('#tour-dlg', (e) => e.getBoundingClientRect().width);
   ok(w > 900, 'Hộp thoại rộng ra như trang Challonge (' + Math.round(w) + ' px)');
-  ok((await boss.$$('.ta-tab')).length === 5, 'Có 5 tab cài đặt');
+  ok((await boss.$$('.ta-tab')).length === 8, 'Có 8 tab cài đặt (thêm Nhánh đấu, Thông báo, Khác như Challonge)');
   ok(await boss.$eval('#ta input[name=name]', (e) => e.value) === 'Cúp Nâng Cao', 'Tên đã nhập ở form nhanh còn nguyên');
   await boss.click('.ta-tab[data-tab="format"]'); await sleep(120);
   ok(await boss.$eval('#ta select[name=preset]', (e) => e.value) === 'custom', 'Tab Thể thức: đang là Tuỳ chỉnh');
@@ -124,7 +124,8 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('.ta-tab[data-tab="format"]'); await sleep(100);
   ok(await boss.isVisible('#ta-stages .sc-more'), 'Trang nâng cao: giai đoạn có khối "Tuỳ chọn nâng cao"');
   const e0 = await est(boss, 'ta-est');
-  await boss.check('#ta-stages [data-k="placement"]'); await sleep(120);
+  // Chọn đủ mọi cặp hạng (8 người: 3–4, 5–6, 7–8)
+  await boss.click('#ta-stages [data-sact="placeAll"]'); await sleep(120);
   // 8 người, xếp hạng đủ: 4 + 2 + 1 (chính) + 2 + 1 (hạng 5–8) + 1 (hạng 7) + 1 (hạng 3) = 12 trận
   ok(/12 trận/.test(await est(boss, 'ta-est')), `Bật trận xếp hạng: ước tính 8 → 12 trận (${e0} → ${await est(boss, 'ta-est')})`);
   await boss.selectOption('#ta-stages [data-k="boFinal"]', '5'); await sleep(80);
@@ -134,7 +135,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.uncheck('#ta input[name=checkin]');
   await boss.click('.ta-foot button.primary'); await sleep(800);
   const t2 = await boss.evaluate(() => window.CaroTourKit.D.tour);
-  ok(t2 && t2.stages[0].placement === true && t2.stages[0].boFinal === 5 && t2.noShowMin === 5, 'Máy chủ nhận: trận xếp hạng, chung kết Bo5, chờ vắng mặt 5 phút');
+  ok(t2 && String(t2.stages[0].places) === '3,5,7' && t2.stages[0].boFinal === 5 && t2.noShowMin === 5, 'Máy chủ nhận: trận xếp hạng (3–4, 5–6, 7–8), chung kết Bo5, chờ vắng mặt 5 phút');
   ok(/xếp hạng đủ/.test(await boss.textContent('#tour-body')), 'Trang giải ghi "xếp hạng đủ" ở thể thức');
   // Nhánh thắng – thua: chung kết tổng 3 kiểu + split; vòng tròn: xếp theo + tie-break
   await openNew(boss);

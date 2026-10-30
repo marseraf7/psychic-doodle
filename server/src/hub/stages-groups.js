@@ -84,8 +84,30 @@ function buildRoundRobin(st, seeds, plan) {
 }
 
 // ------------------------------------------------------------ Thụy Sĩ
-/** Ghép một vòng Thụy Sĩ: cùng điểm gặp nhau, không gặp lại; số lẻ thì người thấp nhất chưa được miễn đấu được miễn. */
-function swissPairs(order, played, byes) {
+/**
+ * Thứ tự đối thủ nên thử cho người đứng đầu a (rest[0]). 'dutch' (FIDE): trong nhóm cùng điểm với a, chia nửa trên /
+ * nửa dưới và ưu tiên người đầu nửa dưới (8 người: 1–5, 2–6, 3–7, 4–8), rồi lần lượt xa dần; sau đó các nhóm điểm thấp
+ * hơn (người "trôi" xuống). Không có điểm (score) hoặc 'adjacent': theo thứ tự (1–2, 3–4…).
+ */
+function candidates(rest, score, mode) {
+  const others = rest.slice(1);
+  if (mode !== 'dutch' || !score) return others.map((_, i) => i);
+  const top = score[rest[0]];
+  let g = 1; // số người cùng điểm với a (kể cả a)
+  while (g < rest.length && score[rest[g]] === top) g++;
+  const half = Math.max(1, Math.floor(g / 2)); // vị trí trong rest của người đầu nửa dưới
+  const order = [];
+  for (let j = half; j < g; j++) order.push(j - 1);
+  for (let j = half - 1; j >= 1; j--) order.push(j - 1);
+  for (let j = g; j < rest.length; j++) order.push(j - 1);
+  return order;
+}
+
+/**
+ * Ghép một vòng Thụy Sĩ: cùng điểm gặp nhau, không gặp lại; số lẻ thì người thấp nhất chưa được miễn đấu được miễn.
+ * mode 'dutch' + score (uid → điểm): nửa trên gặp nửa dưới trong mỗi nhóm điểm (candidates).
+ */
+function swissPairs(order, played, byes, mode, score) {
   const list = [...order];
   let bye = null;
   if (list.length % 2) {
@@ -101,7 +123,7 @@ function swissPairs(order, played, byes) {
     if (!rest.length) return [];
     if (--budget < 0) return null;
     const [a, ...others] = rest;
-    for (let i = 0; i < others.length; i++) {
+    for (const i of candidates(rest, score, mode)) {
       const again = played.has(key(a, others[i]));
       if (again && !allow) continue;
       const sub = dfs(others.filter((_, j) => j !== i), allow - (again ? 1 : 0));
@@ -129,7 +151,8 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null) {
   const byes = {};
   for (const m of Object.values(st.matches)) if (m.bye && real(m.winner)) byes[m.winner] = (byes[m.winner] || 0) + 1;
   // Cặp cố định (giao hữu CLB: bàn 1 gặp bàn 1…) chỉ cho vòng đầu
-  const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : swissPairs(order, played, byes);
+  const score = Object.fromEntries(order.map((u) => [u, stats[u].pts]));
+  const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : swissPairs(order, played, byes, st.cfg.pairing, score);
   const ids = [];
   pairs.forEach(([a, b], i) => {
     const m = newMatch(`${st.key}s${r}m${i}`, r);
@@ -185,4 +208,4 @@ function swissMaxRounds(n) {
   return Math.ceil(n / 2);
 }
 
-module.exports = { groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds };
+module.exports = { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds };

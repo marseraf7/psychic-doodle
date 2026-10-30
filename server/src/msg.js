@@ -159,6 +159,15 @@ const VI = {
   tour_not_joined: 'Bạn chưa đăng ký giải này',
   tour_checkin_closed: 'Chưa tới giờ điểm danh hoặc đã hết giờ',
   tour_managers_only: 'Chỉ ban tổ chức mới làm được việc này',
+  tour_slug_bad: 'Link riêng của giải: 3–20 ký tự, chỉ chữ thường không dấu, số, dấu - và _',
+  tour_slug_taken: 'Link riêng này đã có giải khác dùng, hãy chọn link khác',
+  tour_img_too_big: 'Ảnh quá lớn (tối đa {n} KB sau khi thu nhỏ)',
+  tour_img_bad: 'Ảnh không hợp lệ (chỉ nhận PNG, JPEG, WebP)',
+  tour_att_bad_url: 'Link đính kèm phải bắt đầu bằng http:// hoặc https://',
+  tour_att_empty: 'Hãy nhập link, chọn ảnh hoặc ghi chú',
+  tour_att_limit: 'Mỗi trận tối đa {n} đính kèm',
+  tour_arrange_none: 'Giải không ở bước chờ xếp nhánh',
+  tour_arrange_bad: 'Cách xếp nhánh không hợp lệ (thiếu / thừa người, hoặc một cặp trống cả hai ô)',
   tour_cannot_start: 'Không thể bắt đầu giải lúc này',
   tour_cannot_cancel: 'Không thể huỷ giải lúc này',
   tour_no_groups: 'Giải này không có vòng bảng',
@@ -187,6 +196,8 @@ const VI = {
   dispute_closed: 'Giải đã kết thúc, không đổi được kết quả nữa',
   tour_advanced: 'Bạn đã vào vòng {n} của giải {name}',
   tour_not_advanced: 'Bạn đã dừng bước ở giải {name}',
+  tour_arranging: 'Bạn đã vào giai đoạn {n} của giải {name} – chờ ban tổ chức xếp nhánh',
+  tour_arrange_now: 'Giải {name}: hãy xếp nhánh giai đoạn {n} rồi bấm Bắt đầu',
 };
 
 function fmt(code, args = {}) {

@@ -30,23 +30,24 @@
     if (!x) return;
     const d = x.data || {};
     // Giữ giờ bắt đầu đang có (mẫu không có giờ), còn lại lấy từ mẫu
-    DR.F.d = { ...DR.blank(), ...(d.d || {}), start: DR.F.d ? DR.F.d.start : DR.blank().start };
+    // Link riêng không dùng lại được (mỗi giải một link)
+    DR.F.d = { ...DR.blank(), ...(d.d || {}), start: DR.F.d ? DR.F.d.start : DR.blank().start, slug: DR.F.d ? DR.F.d.slug : '' };
     if (d.preset && DR.PRESETS[d.preset] !== undefined) DR.F.preset = d.preset;
     DR.F.stages = Array.isArray(d.stages) ? d.stages : DR.PRESETS[DR.F.preset] ? DR.PRESETS[DR.F.preset]() : null;
     DR.saveDraft();
     O.toast(T('tpl_used', { name: x.name }));
     render(true);
   };
-  K.acts.tplDel = () => {
+  K.acts.tplDel = async () => {
     const x = picked();
-    if (x && confirm(T('tpl_del_q', { name: x.name }))) O.send({ t: 'tourTplDel', id: x.id });
+    if (x && (await window.CaroConfirm.ask(T('tpl_del_q', { name: x.name })))) O.send({ t: 'tourTplDel', id: x.id });
   };
-  K.acts.tplSave = () => {
+  K.acts.tplSave = async () => {
     const form = $('ta') || $('tf');
     if (form) DR.collect(form);
-    const name = prompt(T('tpl_name_q'), (DR.F.d && DR.F.d.name) || '');
+    const name = await window.CaroConfirm.prompt(T('tpl_name_q'), (DR.F.d && DR.F.d.name) || '', { max: 40 });
     if (name == null || !name.trim()) return;
-    const { start, closeAt, ...d } = DR.F.d; // giờ không lưu vào mẫu
+    const { start, closeAt, slug, ...d } = DR.F.d; // giờ và link riêng không lưu vào mẫu
     P.list = P.list || []; // lưu xong máy chủ gửi danh sách mới: báo "Đã lưu"
     O.send({ t: 'tourTplSave', name: name.trim(), data: { preset: DR.F.preset, stages: DR.F.stages, d } });
   };
@@ -69,6 +70,7 @@
     const pad = (n) => String(n).padStart(2, '0');
     DR.F.d.start = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     DR.F.d.closeAt = '';
+    DR.F.d.slug = ''; // link riêng thuộc giải cũ – giải mới đặt link khác (hoặc để trống)
     DR.saveDraft();
     open('tourAdv', null);
   };

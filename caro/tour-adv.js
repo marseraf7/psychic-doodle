@@ -15,13 +15,19 @@
 
   // Các tab: tên, biểu tượng, các ô của bản nháp (thêm ô mới ở các đợt sau chỉ cần thêm vào đây)
   const TABS = [
-    { id: 'basic', icon: 'info', keys: ['name', 'desc', 'recur'] }, // recur: giải định kỳ (tour-tpl.js)
+    // slug: link riêng; desc: mô tả có định dạng (tour-adv-bracket.js); recur: giải định kỳ (tour-tpl.js)
+    { id: 'basic', icon: 'info', keys: ['name', 'slug', 'desc', 'recur'] },
     { id: 'format', icon: 'trophy', keys: ['preset', 'teams'], stages: true }, // teams: Team Battle (club-battle.js)
+    // Như Advanced options → Bracket của Challonge (tour-adv-bracket.js)
+    { id: 'bracket', icon: 'fork', keys: ['roundLabels', 'hideSeeds', 'hideBracket', 'quickAdvance', 'attachments', 'shareImages', 'placeBy', 'arrangeNext'] },
     { id: 'games', icon: 'clock', keys: ['scoreMode', 'time', 'opening', 'rule', 'rated', 'minutes', 'noshow'] },
     // Đăng ký nâng cao: tour-adv-reg.js ('limits' gồm 4 ô Elo / số ván / tuổi tài khoản)
     { id: 'reg', icon: 'users', keys: ['offline', 'start', 'closeAt', 'max', 'approval', 'waitlist', 'limits', 'code', 'questions', 'checkin', 'checkinMin', 'seeding'],
       alias: ['minRating', 'maxRating', 'minGames', 'minAccountDays'] },
-    { id: 'access', icon: 'lock', keys: ['access', 'hideSeeds'] },
+    // Như Advanced options của Challonge: Quyền (tự báo tỉ số, chia sẻ quyền quản trị), Thông báo, Khác – tour-adv-more.js
+    { id: 'access', icon: 'lock', keys: ['access', 'selfReport', 'admins'] },
+    { id: 'notify', icon: 'bell', keys: ['notifyMatch', 'notifyResults'] },
+    { id: 'misc', icon: 'sliders', keys: ['showNews', 'showStandings'] },
   ];
 
   function pageTourAdv() {

@@ -1,7 +1,9 @@
 /*
  * Giải đấu – vẽ các giai đoạn của giải: nhánh loại trực tiếp, nhánh thắng – thua + chung kết tổng,
  * bảng vòng tròn (từng bảng), bảng Thụy Sĩ (Buchholz), danh sách trận theo vòng.
- * Dữ liệu là tourView().stageViews của máy chủ (server/src/hub/bracket.js). Nạp sau tour.js.
+ * Dữ liệu là tourView().stageViews của máy chủ (server/src/hub/bracket.js); trước giờ đấu: tourView().preview – nhánh xem
+ * trước (bốc thăm thử theo danh sách hiện tại – server/src/hub/tour-opts.js). Ô trận có nút ảnh chia sẻ kết quả và số đính
+ * kèm (tour-match-extra.js). Nạp sau tour.js.
  */
 (function () {
   'use strict';
@@ -15,7 +17,7 @@
     if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));
     else if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
     if (c.type === 'swiss') x.push(c.rounds ? T('rounds_n', { n: c.rounds }) : T('rounds_auto'));
-    if (c.type === 'single' && c.placement) x.push(T('tag_placement'));
+    if (c.type === 'single' && (c.placement || (c.places || []).some((p) => p > 3))) x.push(T('tag_placement'));
     if (c.type === 'double' && c.gf === 'none') x.push(T('tag_no_gf'));
     if (c.type === 'double' && c.split) x.push(T('tag_split'));
     return T('fmt_' + c.type) + (x.length ? ` (${x.join(', ')})` : '');
@@ -33,6 +35,16 @@
   }
   const uidMe = () => me() && me().uid;
   const replays = (m) => m.games.map((g, i) => `<a href="#" data-act="replay" data-share="${esc(g)}">${icon('play')}${i + 1}</a>`);
+  /** Giải đang vẽ (cho nút ảnh chia sẻ / đính kèm của từng trận). */
+  let cur = null;
+  /** Nút của trận: ảnh chia sẻ kết quả (trận đã xong, có hai người thật), đính kèm (tour-match-extra.js). */
+  function matchTools(m) {
+    const out = [];
+    const real = m.a && m.a.uid && m.b && m.b.uid;
+    if (cur && cur.shareImages && m.done && real && !m.preview && K.matchImgBtn) out.push(K.matchImgBtn(m));
+    if (cur && K.matchAttBtn && !m.preview && (m.att || (cur.attachments && real && (cur.canManage || [m.a.uid, m.b.uid].includes(uidMe()))))) out.push(K.matchAttBtn(m));
+    return out;
+  }
   function matchBox(m) {
     const row = (p, w, isWin) => p && p.uid
       ? `<div class="b-p ${isWin ? 'win' : ''} ${p.uid === uidMe() ? 'me' : ''}"><span class="seed">${p.seed || ''}</span><span class="nm">${esc(p.name)}</span><b>${m.bye ? '' : w}</b></div>`
@@ -45,13 +57,13 @@
     if (m.bo) extra.push(`<span class="pill bo">Bo${m.bo}</span>`); // Bo riêng bán kết / chung kết
     if (m.sets && K.setsText) extra.push(`<span class="sets">${esc(K.setsText(m))}</span>`); // tỉ số từng set (giải offline)
     if (m.override) extra.push(esc(T('score_override_tag')));
-    extra.push(...replays(m));
+    extra.push(...replays(m), ...matchTools(m));
     return `<div class="b-match ${m.live ? 'live' : ''}" data-mid="${esc(m.id)}">${row(m.a, m.wa, m.winner && m.a && m.winner === m.a.uid)}${row(m.b, m.wb, m.winner && m.b && m.winner === m.b.uid)}${extra.length ? `<small>${extra.join(' ')}</small>` : ''}</div>`;
   }
   /** Giờ / địa điểm ban tổ chức đặt cho vòng (tour-manage.js), "" nếu chưa đặt. */
   const slot = (t, si, r) => (K.slotOf ? K.slotOf(t, si, r) : '');
-  /** Tên vòng: nhãn ban tổ chức đặt (vd. "Vòng loại"), không có thì tên mặc định. */
-  const label = (t, si, r, def) => (K.roundLabel && K.roundLabel(t, si, r)) || def;
+  /** Tên vòng: nhãn ban tổ chức đặt (vd. "Vòng loại") khi bật "Hiện nhãn vòng tự đặt", không có thì tên mặc định. */
+  const label = (t, si, r, def) => (t.roundLabels !== false && K.roundLabel && K.roundLabel(t, si, r)) || def;
   /**
    * Các cột của một nhánh đấu; name(r) là tên cột; sl(r): giờ / địa điểm của vòng (tuỳ chọn); bkey: khoá của khối –
    * có thì thêm thanh công cụ phóng to / toàn màn hình / PNG và đường nối (tour-bracket-view.js).
@@ -76,7 +88,7 @@
     if (m.override) tags.push(esc(T('score_override_tag')));
     if (m.walkover) tags.push(esc(T('walkover')));
     if (m.double) tags.push(esc(T('both_absent')));
-    tags.push(...replays(m));
+    tags.push(...replays(m), ...matchTools(m));
     return `<li class="mrow" data-mid="${esc(m.id)}">${nm(m.a, m.winner && m.a && m.winner === m.a.uid)}<span class="sc">${mid}</span>${nm(m.b, m.winner && m.b && m.winner === m.b.uid)}${tags.length ? `<small>${tags.join(' ')}</small>` : ''}</li>`;
   }
   /** Khối có thể thu gọn, nhớ trạng thái mở / đóng qua các lần vẽ lại. */
@@ -98,31 +110,41 @@
   const tbsOf = (c) => (c ? K.stageEdit.tbsOf(c) : []);
   /** Dải phong độ: ô màu cho 5 trận gần nhất (cũ → mới), chữ T / H / B theo ngôn ngữ để đọc được cả khi không phân biệt màu. */
   const formHtml = (f) => [...(f || '')].map((c) => `<i class="fm ${esc(c)}" title="${esc(T('form_' + c))}">${esc(T('form_' + c + '1'))}</i>`).join('');
-  /** Bảng xếp hạng của vòng tròn / Thụy Sĩ: thêm cột Buchholz / Median-Buchholz / SB nếu đang dùng làm tie-break. */
-  function table(rows, cfg) {
-    const extra = ['bh', 'mbh', 'sb'].filter((k) => tbsOf(cfg).includes(k));
-    const fmt = (v) => (Number.isInteger(v) ? v : v.toFixed(1));
+  /**
+   * Bảng xếp hạng của vòng tròn / Thụy Sĩ: thêm một cột cho mỗi tie-break đang dùng (giá trị x.tb do máy chủ tính,
+   * cùng thứ tự cfg.tiebreaks; máy chủ cũ chỉ có Buchholz / Median-Buchholz / SB). Đối đầu không có cột riêng.
+   */
+  function standTable(rows, cfg) {
+    const list = tbsOf(cfg);
+    const hasTb = rows.some((x) => Array.isArray(x.tb));
+    const cols = hasTb ? list.map((k, i) => ({ k, i })).filter((c) => c.k !== 'h2h') : ['bh', 'mbh', 'sb'].filter((k) => list.includes(k)).map((k) => ({ k }));
+    const val = (x, c) => (hasTb ? x.tb[c.i] : x[c.k]);
+    const fmt = (v) => (v == null ? '' : Number.isInteger(v) ? v : v.toFixed(Math.abs(v) < 10 ? 2 : 1));
     const form = rows.some((x) => x.form); // dải phong độ (máy chủ cũ không gửi: ẩn cột)
-    const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th>${extra.map((k) => `<th title="${esc(T('tb_' + k))}">${esc(T('col_' + k))}</th>`).join('')}<th>${esc(T('col_pts'))}</th>${form ? `<th title="${esc(T('col_form_t'))}">${esc(T('col_form'))}</th>` : ''}</tr>`;
+    const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th><th>${esc(T('col_pts'))}</th>${cols.map((c) => `<th title="${esc(T('tb_' + c.k))}">${esc(T('tbc_' + c.k))}</th>`).join('')}${form ? `<th title="${esc(T('col_form_t'))}">${esc(T('col_form'))}</th>` : ''}</tr>`;
     const body = rows.map((x) => `<tr class="${x.adv ? 'adv' : ''} ${x.uid === uidMe() ? 'me' : ''}"><td>${x.rank}</td><td class="l">${esc(x.name)}</td><td>${x.mp}</td><td>${x.w}-${x.d}-${x.l}</td>
-      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td>${extra.map((k) => `<td>${fmt(x[k] || 0)}</td>`).join('')}<td><b>${x.pts}</b></td>${form ? `<td class="form">${formHtml(x.form)}</td>` : ''}</tr>`).join('');
+      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td><td><b>${x.pts}</b></td>${cols.map((c) => `<td>${fmt(val(x, c))}</td>`).join('')}${form ? `<td class="form">${formHtml(x.form)}</td>` : ''}</tr>`).join('');
     return `<div class="tscroll"><table class="stand"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   }
   /** Quy tắc xếp hạng lấy đúng từ cấu hình: "Xếp theo: điểm → đối đầu → hiệu số ván → hạt giống". */
   function rulesNote(cfg, rr) {
     const by = T('rank_' + ((rr && cfg.rankBy) || 'points'));
     const list = [by, ...tbsOf(cfg).map((k) => T('tb_' + k)), T('tb_seed')].join(' → ');
-    return `<p class="hint">${esc(T('tb_rule', { list }))}${rr ? ' ' + esc(T('tb_adv_mark')) : ''}</p>`;
+    // tb_rank_rule (không dùng tb_rule – trùng khoá với Team Battle ở i18n-club-battle.js)
+    return `<p class="hint">${esc(T('tb_rank_rule', { list }))}${rr ? ' ' + esc(T('tb_adv_mark')) : ''}</p>`;
   }
   function stageBody(t, v) {
+    cur = t;
     const key = t.id + ':' + v.index;
+    // Tắt "Hiện bảng xếp hạng" (tab Khác): người xem không thấy bảng điểm vòng tròn / Thụy Sĩ, vẫn thấy các trận
+    const table = (rows, cfg) => (t.showStandings === false && !t.canManage ? '' : standTable(rows, cfg));
     if (v.type === 'single') {
       let html = bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r)), (r) => slot(t, v.index, r), key + ':m');
       if (v.third) html += `<h5>${esc(T('third_place'))}</h5><div class="bracket"><div class="b-col">${matchBox(v.third)}</div></div>`;
       // Trận xếp hạng các vị trí sau (5–8, 9–16…): mỗi nhánh một khối thu gọn
       if (v.places && v.places.length) {
         html += `<h5 class="br-h">${esc(T('places_title'))}</h5>` + v.places.map((p) => fold(key + ':p' + p.base, esc(T('place_range', { a: p.base, b: p.base + p.size - 1 })),
-          () => bracketCols(p.rounds, (r) => (r === p.rounds.length - 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 })), null, key + ':p' + p.base), false)).join('');
+          () => bracketCols(p.rounds, (r) => (p.rounds[r].length === 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 })), null, key + ':p' + p.base), false)).join('');
       }
       return html;
     }
@@ -158,15 +180,35 @@
         + (older.length ? fold(key + ':ro', esc(T('earlier_rounds', { n: older.length })), () => roundsHtml(older, rlabel), false) : ''), !v.done)
       + rulesNote(v.cfg, false);
   }
-  /** Tất cả giai đoạn của giải (giai đoạn chưa tới thì chỉ ghi cấu hình). */
+  /**
+   * Nhánh xem trước (trước giờ đấu – như bracket preview của Challonge): vòng đầu theo danh sách hiện tại; vòng tròn: các
+   * bảng dự kiến. Ẩn với người xem nếu ban tổ chức bật "Ẩn nhánh xem trước".
+   */
+  function previewHtml(t, v) {
+    const mark = (r) => r.map((m) => ({ ...m, preview: true }));
+    let body;
+    if (v.type === 'roundrobin') {
+      body = `<div class="pv-groups">${v.groups.map((g) => `<div class="pv-g"><h5>${esc(T('group_name', { name: g.name }))}</h5><ol>${g.players.map((p) => `<li>${esc(p.name)}</li>`).join('')}</ol></div>`).join('')}</div>`;
+    } else if (v.type === 'swiss') body = `<ul class="mlist">${mark(v.rounds[0]).map(matchRow).join('')}</ul>`;
+    else {
+      body = bracketCols(v.rounds.map(mark), (r) => label(t, 0, r, roundName(v.rounds.length, r, v.type === 'double' ? 'wb_final' : 'r_final')), null, t.id + ':pv');
+      if (v.lrounds && v.lrounds.length) body += `<h5 class="br-h">${esc(T('lb'))}</h5>` + bracketCols(v.lrounds.map(mark), (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })), null, t.id + ':pvl');
+    }
+    return `<p class="hint">${esc(T(t.hideBracket ? 'pv_hidden_note' : 'pv_note'))}</p>${body}`;
+  }
+
+  /** Tất cả giai đoạn của giải (giai đoạn chưa tới thì chỉ ghi cấu hình; giai đoạn đầu trước giờ đấu: nhánh xem trước). */
   function stagesHtml(t) {
+    cur = t;
     const cfgs = t.stages || [];
     const views = t.stageViews || [];
     const multi = cfgs.length > 1;
     return cfgs.map((c, i) => {
       const v = views[i];
       const info = [stageName(c), 'Bo' + c.bestOf, advText(c)].filter(Boolean).join(' · ');
-      const body = v ? stageBody(t, v) : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>`;
+      const pv = !v && i === 0 && t.preview;
+      const body = v ? stageBody(t, v) : pv ? fold(t.id + ':pv0', esc(T('pv_title')), () => previewHtml(t, t.preview), true)
+        : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>`;
       if (!multi) return `<h4>${esc(info)}</h4>${body}`;
       const title = `<b>${esc(T('stage_n', { n: i + 1 }))}</b> <span class="muted">${esc(info)}</span>${v && v.done ? icon('check', 'ok') : ''}`;
       const current = t.status === 'finished' ? i === cfgs.length - 1 : i === (t.stage || 0);
@@ -174,5 +216,5 @@
     }).join('');
   }
 
-  Object.assign(K, { stageName, advText, stagesHtml, fold });
+  Object.assign(K, { stageName, advText, stagesHtml, fold, roundName });
 })();

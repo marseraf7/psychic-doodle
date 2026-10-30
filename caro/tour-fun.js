@@ -137,7 +137,7 @@
         g.fillStyle = '#fff'; g.font = font(600, 46); g.fillText(p.name || nameOf(t, p.uid), 160, y); y += 76;
       });
     }
-    const url = (window.CARO_SERVER || location.origin).replace(/\/+$/, '') + '/?t=' + t.id;
+    const url = (window.CARO_SERVER || location.origin).replace(/\/+$/, '') + '/?t=' + (t.slug || t.id);
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, H - 150, W, 150);
     g.fillStyle = '#fff'; g.font = font(600, 36); g.fillText(T('fun_poster_join'), 80, H - 90);
     g.fillStyle = '#ffd166'; g.font = font(500, 30); g.fillText(url, 80, H - 45);

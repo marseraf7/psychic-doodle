@@ -10,6 +10,7 @@
 'use strict';
 const { E } = require('../msg.js');
 const ST = require('./stages.js');
+const { uidOf } = require('./shared.js');
 
 const MAX_SETS = 9;
 const MAX_POINT = 999;
@@ -40,23 +41,34 @@ class TourScore {
       this.saveTour(t);
       this.pushTour(t);
     }
+    this.notifyMatchReady(t); // báo người chơi có tài khoản: trận đã sẵn sàng (tour-notes.js)
   }
 
   /** Trận đang sẵn sàng (đủ 2 người, chưa xong) ở giai đoạn hiện tại mà ban tổ chức được nhập / ghi đè. */
-  scoreTarget(conn, id, match) {
-    const t = this.requireManager(conn, id, 'results');
+  scoreTarget(conn, id, match, self = false) {
+    let t, mine = false;
+    try { t = this.requireManager(conn, id, 'results'); } catch (e) {
+      // Người chơi tự báo tỉ số trận của mình (giải offline bật "selfReport", người chơi có tài khoản – như Challonge)
+      const uid = uidOf(conn.pid), x = uid && this.tours.get(String(id || ''));
+      if (!self || !x || !x.offline || !x.selfReport || !this.canSeeTour(x, uid)) throw e;
+      t = x;
+      mine = uid;
+    }
     if (t.status !== 'running' || t.format !== 'bracket') throw E('tour_not_running');
     const found = this.findMatch(t, match);
     if (!found || found.st !== this.curStage(t)) throw E('tour_match_not_found');
-    return { t, ...found };
+    if (mine && (found.m.done || (found.m.a !== mine && found.m.b !== mine))) throw E('tour_managers_only');
+    return { t, ...found, self: !!mine };
   }
 
   /**
    * Nhập tỉ số (giải offline): sets = [[a, b], …] theo thứ tự ô a / b của trận; extra = [a, b] kết quả phụ (tuỳ chọn).
    * Ghi đè (giải trực tuyến): winner = mã người thắng.
+   * "Quick advance" (giải offline bật t.quickAdvance – như Challonge): chỉ báo người thắng (winner), hoặc hoà (draw: true,
+   * chỉ vòng tròn / Thụy Sĩ), không nhập tỉ số.
    */
-  on_tourScore(conn, { id, match, sets, extra, winner }) {
-    const { t, st, m } = this.scoreTarget(conn, id, match);
+  on_tourScore(conn, { id, match, sets, extra, winner, draw }) {
+    const { t, st, m, self } = this.scoreTarget(conn, id, match, true);
     if (m.done) throw E('tour_match_done');
     if (!ST.real(m.a) || !ST.real(m.b)) throw E('tour_match_not_ready');
     const by = conn.pid;
@@ -65,6 +77,15 @@ class TourScore {
       if (winner !== m.a && winner !== m.b) throw E('tour_score_bad');
       m.override = true;
       this.finishMatch(t, st, m, winner, { walkover: true });
+    } else if (t.quickAdvance && sets == null) {
+      const tie = draw === true && !ST.isElim(st.type);
+      if (!tie && winner !== m.a && winner !== m.b) throw E('tour_score_bad');
+      m.quick = true;
+      m.sets = null;
+      m.extra = null;
+      m.wins = tie ? { [m.a]: 0, [m.b]: 0 } : { [winner]: 1, [winner === m.a ? m.b : m.a]: 0 };
+      this.finishMatch(t, st, m, tie ? null : winner);
+      if (t.status === 'running') this.runOffline(t);
     } else {
       const list = Array.isArray(sets) ? sets.slice(0, MAX_SETS).map(pair) : [];
       if (!list.length || list.some((s) => !s)) throw E('tour_score_bad');
@@ -84,7 +105,7 @@ class TourScore {
     }
     m.by = by ? String(by) : null;
     const side = (u) => (this.player(t, u) || {}).name || '?';
-    this.tourLog(t, this.requireUser(conn).id, t.offline ? 'score' : 'override', { match: m.id, a: side(m.a), b: side(m.b), s: m.sets ? m.sets.map((x) => x.join('-')).join(' ') : null, w: ST.real(m.winner) ? side(m.winner) : null });
+    this.tourLog(t, this.requireUser(conn).id, self ? 'self_score' : t.offline ? 'score' : 'override', { match: m.id, a: side(m.a), b: side(m.b), s: m.sets ? m.sets.map((x) => x.join('-')).join(' ') : null, w: ST.real(m.winner) ? side(m.winner) : null });
     this.saveTour(t);
     this.pushTour(t);
   }
@@ -92,7 +113,8 @@ class TourScore {
   /** Huỷ kết quả một trận: chỉ khi các trận nhận người thắng / thua của nó chưa đấu (và giai đoạn chưa chuyển). */
   on_tourScoreUndo(conn, { id, match }) {
     const { t, st, m } = this.scoreTarget(conn, id, match);
-    if (!m.done || m.bye || m.split) throw E('tour_undo_locked');
+    // Đang chờ xếp nhánh giai đoạn sau (người đi tiếp đã chốt): không huỷ kết quả giai đoạn trước nữa
+    if (!m.done || m.bye || m.split || t.arrange) throw E('tour_undo_locked');
     // Trận trực tuyến đã đấu thật (đã tính Elo, có ván phát lại): không huỷ được – chỉ trận ban tổ chức xử / vắng mặt
     if (!t.offline && m.games && m.games.length) throw E('tour_undo_online');
     if (ST.isElim(st.type)) {
@@ -103,7 +125,7 @@ class TourScore {
       for (const { r, x } of targets) { x[r.slot] = null; x.readyAt = null; }
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, readyAt: Date.now() });
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, quick: false, readyAt: Date.now() });
     st.done = false;
     for (const u of [m.a, m.b]) {
       const p = ST.real(u) && this.player(t, u);

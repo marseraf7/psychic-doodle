@@ -1,6 +1,7 @@
 /*
  * Hồ sơ người chơi: điểm Glicko-2 từng loại thời gian + biểu đồ, thắng/thua/hoà, chuỗi thắng, giải đấu, ván gần đây,
  * thống kê sâu theo loại (điểm cao / thấp nhất, thắng đẹp nhất, thua tệ nhất, chuỗi dài nhất) và hoạt động 30 ngày.
+ * Mục "Giới thiệu" có định dạng: profile-bio.js.
  * Máy chủ: server/src/hub/profile.js. Phần tử có data-profile="<id>" ở bất kỳ đâu mở hồ sơ người đó.
  */
 (function () {
@@ -148,6 +149,7 @@
       <div class="who pf-who">${window.CaroAvatar.html(p)}
         <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
         <div class="row pf-act">${actions.join('')}</div></div>
+      ${window.CaroProfileBio ? window.CaroProfileBio.html(p) : ''}
       <div class="pf-pools">${pools}</div>
       ${anyProv ? `<p class="hint prov-note">${esc(T('profile_prov_note'))}</p>` : ''}
       <div class="pf-chart">${chartSvg(p.history[chartPool])}</div>
@@ -168,6 +170,8 @@
       <ul class="games">${recent || `<li class="empty">${esc(T(p.canHistory === false ? 'hist_hidden' : 'no_history', { name: p.name }))}</li>`}</ul>`;
     const body = $('profile-body');
     bindChart(body);
+    // Mục Giới thiệu (profile-bio.js): lưu xong thì cập nhật nội dung và vẽ lại
+    if (window.CaroProfileBio) window.CaroProfileBio.bind(body, p, (bio) => { if (bio !== undefined) p.bio = bio; renderProfile(); });
     body.querySelectorAll('[data-pool]').forEach((b) => { b.onclick = () => { chartPool = b.dataset.pool; renderProfile(); }; });
     body.querySelectorAll('[data-replay]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); N.openReplay(b.dataset.replay); }; });
     body.querySelectorAll('[data-hist]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroHistory.open(p.id, p.name); }; });

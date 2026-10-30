@@ -167,7 +167,8 @@
    */
   function bindForm(form, ids, onInvalid) {
     const box = $(ids.stages);
-    const drawStages = () => { if (box) box.innerHTML = SE.html(F.stages, !!ids.full); };
+    // max: số người tối đa – số cặp hạng chọn được ở trận xếp hạng
+    const drawStages = () => { if (box) box.innerHTML = SE.html(F.stages, !!ids.full, { max: F.d && F.d.max }); };
     // Chỉ ghi khi đổi (dòng aria-live: trình đọc màn hình không đọc lại câu giống hệt)
     const showEst = () => { const el = $(ids.est), t = estimateText(); if (el && el.textContent !== t) el.textContent = t; };
     const sync = () => {
@@ -196,7 +197,11 @@
         sync();
       };
     }
-    form.addEventListener('change', (e) => { if (!e.target.closest('#' + ids.stages) && e.target !== form.preset) sync(); });
+    form.addEventListener('change', (e) => {
+      if (e.target.closest('#' + ids.stages) || e.target === form.preset) return;
+      sync();
+      if (e.target.name === 'max' && ids.full) drawStages();
+    });
     // Đang gõ: chỉ cập nhật nháp (lưu máy chậm 0,5 s); số người đổi thì cập nhật ước tính
     form.addEventListener('input', (e) => {
       const k = e.target.name;

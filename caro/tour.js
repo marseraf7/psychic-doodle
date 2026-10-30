@@ -193,7 +193,8 @@
     setTitle(null, t.name, t.format === 'arena' ? 'swords' : 'trophy');
     let html = `<div class="thead">${statusTag(t)} <span class="muted">${metaHtml(t)}</span></div>
       <p class="muted">${timeLine(t)}${t.club ? ` · <a href="#" data-act="club" data-id="${esc(t.club.id)}">${esc(t.club.name)}</a>` : ''} · ${esc(T('organizer', { name: t.creator }))}</p>`;
-    if (t.desc) html += `<p class="tdesc">${esc(t.desc)}</p>`;
+    // Mô tả có định dạng (rich-text.js dựng HTML an toàn)
+    if (t.desc) html += window.CaroRich ? `<div class="tdesc rich">${window.CaroRich.render(t.desc)}</div>` : `<p class="tdesc">${esc(t.desc)}</p>`;
     if (t.status === 'pending') html += `<p class="note">${esc(T('tour_pending_note'))}</p>`;
     if (t.status === 'rejected') html += `<p class="note bad">${esc(T('tour_rejected_note'))}${t.reviewNote ? ': ' + esc(t.reviewNote) : ''}</p>`;
     if (t.status === 'cancelled') html += `<p class="note bad">${esc(T('tour_cancelled_note'))}${t.cancelReason ? ' – ' + esc(T('cancel_' + t.cancelReason)) : ''}</p>`;
@@ -208,6 +209,7 @@
     if (K.isManageTab && K.isManageTab(t)) return html + K.manageHtml(t);
     if (K.regHtml) html += K.regHtml(t); // điều kiện đăng ký, form mã / câu hỏi, hàng chờ, duyệt + Bulk Add (tour-reg.js)
     if (K.scoreHtml) html += K.scoreHtml(t); // nhập tỉ số / xử thắng, in biên bản (tour-score.js)
+    if (K.arrangeHtml) html += K.arrangeHtml(t); // kéo thả xếp nhánh giai đoạn sau (tour-arrange.js)
     html += myCard(t);
     if (K.disputesHtml) html += K.disputesHtml(t); // ván mất kết nối (tour-disputes.js)
     if (t.podium && t.podium.length && t.status === 'finished') {
@@ -216,7 +218,8 @@
     if (K.battleHtml) html += K.battleHtml(t); // Team Battle / giao hữu CLB (club-battle.js)
     if (K.funHtml) html += K.funHtml(t); // poster, dự đoán, bình chọn (tour-fun.js)
     if (t.format === 'bracket') html += (K.statsHtml ? K.statsHtml(t) : '') + (K.groupsHtml ? K.groupsHtml(t) : '') + K.stagesHtml(t);
-    html += t.format === 'arena' ? K.standings(t) : K.playerList(t); // tour-players.js
+    // Tắt "Hiện bảng xếp hạng": người xem chỉ thấy danh sách người chơi (ban tổ chức vẫn thấy)
+    html += t.format === 'arena' && (t.showStandings !== false || t.canManage) ? K.standings(t) : K.playerList(t); // tour-players.js
     if (t.format === 'arena' && t.games && t.games.length) html += K.recentGames(t);
     return html;
   }
@@ -260,7 +263,7 @@
   }
   async function share(url, title) {
     if (navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ title, url }).catch(() => {});
-    try { await navigator.clipboard.writeText(url); O.toast(T('copied')); } catch (e) { prompt(T('share'), url); }
+    try { await navigator.clipboard.writeText(url); O.toast(T('copied')); } catch (e) { await window.CaroConfirm.prompt(T('share'), url, { max: 500 }); }
   }
   function bind(body) {
     body.onclick = async (e) => {
@@ -278,12 +281,12 @@
       else if (a === 'start') { if (await window.CaroConfirm.ask(T('confirm_tour_start'))) O.send({ t: 'tourStart', id: t.id }); }
       else if (a === 'cancel') { if (await window.CaroConfirm.ask(T('confirm_tour_cancel'))) O.send({ t: 'tourCancel', id: t.id }); }
       else if (a === 'kick') { if (await window.CaroConfirm.ask(T('confirm_tour_kick', { name: b.dataset.name }))) O.send({ t: 'tourKick', id: t.id, uid: b.dataset.uid }); }
-      else if (a === 'share') share(shareLink('t', t.id), t.name);
+      else if (a === 'share') share(shareLink('t', t.slug || t.id), t.name); // link riêng nếu có
       else if (a === 'toGame') O.closeDlg('tour-dlg');
       else if (a === 'replay') { O.closeDlg('tour-dlg'); O.openReplay(b.dataset.share); }
       else if (a === 'review') {
         const approve = b.dataset.v === '1';
-        const note = approve ? '' : prompt(T('reject_reason'), '');
+        const note = approve ? '' : await window.CaroConfirm.prompt(T('reject_reason'), '', { max: 200 });
         if (note === null) return;
         O.send({ t: 'adminReview', kind: b.dataset.kind, id: b.dataset.id, approve, note });
       }
@@ -302,6 +305,8 @@
   const isOpen = () => dlg.open;
   O.on('tourList', (m) => { D.tours = m.items; D.skew = m.now - Date.now(); if (isOpen() && V.page === 'tours') render(); });
   O.on('tour', (m) => {
+    // Mở bằng link riêng (?t=<url>): từ giờ dùng mã giải
+    if (V.page === 'tour' && m.id !== V.id && m.tour && m.tour.slug && m.tour.slug === String(V.id || '').toLowerCase()) V.id = m.id;
     if (m.id !== V.id) return;
     // Bản cập nhật gồm phần chung (giống mọi người xem) + phần riêng của mình (mine)
     D.tour = m.tour && m.mine ? { ...m.tour, ...m.mine } : m.tour;

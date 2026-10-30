@@ -67,9 +67,9 @@
         if (lg) lg.onclick = () => { lg.hidden = true; mountGoogle($('google-link-btn')); };
       }
       el.querySelectorAll('[data-social]').forEach((b) => { b.onclick = () => window.CaroSocial && window.CaroSocial.open(b.dataset.social); });
-      $('rename').onclick = (e) => {
+      $('rename').onclick = async (e) => {
         e.preventDefault();
-        const name = prompt(T('rename_prompt'), me.name);
+        const name = await window.CaroConfirm.prompt(T('rename_prompt'), me.name, { max: 24 });
         if (name && name.trim()) {
           if (me.guest) LS.set('caro.guestName', name.trim());
           send({ t: 'setName', name: name.trim() });

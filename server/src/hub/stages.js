@@ -22,11 +22,13 @@
  */
 'use strict';
 const { TYPES, GROUP_TYPES, BYE, MAX_GROUP, MAX_GROUPS, isElim, real } = require('./stages-base.js');
-const { seedOrder, resolveElim, buildSingle, buildDouble } = require('./stages-elim.js');
-const { groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds } = require('./stages-groups.js');
-const { RANK_BY, normalizeTiebreaks } = require('./stages-tiebreak.js');
+const { seedOrder, resolveElim, buildSingle, buildDouble, elimSize, checkSlots, defaultSlots } = require('./stages-elim.js');
+const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds } = require('./stages-groups.js');
+const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB } = require('./stages-tiebreak.js');
 
-const BO = [1, 3, 5];
+const MAX_BO = 25;
+/** Bo (số ván tối đa của một trận): số lẻ 1…MAX_BO (cần phân thắng thua); không hợp lệ = 0. */
+const oddBo = (v) => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= MAX_BO && n % 2 === 1 ? n : 0; };
 const GF = ['2', '1', 'none']; // chung kết tổng: 1–2 trận (reset) / 1 trận / không có
 /** Số vòng Thụy Sĩ tự động: ⌈log₂ n⌉ (đủ để còn đúng một người toàn thắng). */
 const swissAutoRounds = (n) => Math.max(1, Math.ceil(Math.log2(Math.max(2, n))));
@@ -37,15 +39,21 @@ function normalizeStage(c, last) {
   let type = TYPES.includes(c.type) ? c.type : 'single';
   if (!last && !GROUP_TYPES.includes(type)) type = 'roundrobin';
   const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
-  const out = { type, bestOf: BO.includes(Number(c.bestOf)) ? Number(c.bestOf) : (isElim(type) ? 3 : 1) };
+  // Bo của cả giai đoạn: chọn sẵn Bo1 / 3 / 5 / 7 hoặc ban tổ chức tự nhập số lẻ tới MAX_BO
+  const out = { type, bestOf: oddBo(c.bestOf) || (isElim(type) ? 3 : 1) };
   if (isElim(type)) {
-    // Bo riêng bán kết / chung kết (0 = như cả giai đoạn)
-    out.boSemi = BO.includes(Number(c.boSemi)) ? Number(c.boSemi) : 0;
-    out.boFinal = BO.includes(Number(c.boFinal)) ? Number(c.boFinal) : 0;
+    // Bo riêng bán kết / chung kết (0 = như các vòng khác): Bo1 / 3 / 5 / 7 hoặc ban tổ chức tự nhập số lẻ tới MAX_BO
+    out.boSemi = oddBo(c.boSemi);
+    out.boFinal = oddBo(c.boFinal);
   }
   if (type === 'single') {
-    out.placement = c.placement === true; // trận xếp hạng mọi vị trí (gồm cả tranh hạng ba)
-    out.thirdPlace = out.placement || c.thirdPlace !== false;
+    // Trận xếp hạng: mọi vị trí (placement), hoặc ban tổ chức chọn từng cặp hạng (places: 3 = tranh hạng 3–4, 5 = 5–6,
+    // 7 = 7–8…; số lẻ 3…MAX_PLAYERS − 1). Bản trước chỉ có placement / thirdPlace.
+    out.placement = c.placement === true;
+    if (!out.placement && Array.isArray(c.places)) {
+      out.places = [...new Set(c.places.map(Number))].filter((x) => Number.isInteger(x) && x >= 3 && x < 512 && x % 2 === 1).sort((a, b) => a - b).slice(0, 256);
+      out.thirdPlace = out.places.includes(3);
+    } else out.thirdPlace = out.placement || c.thirdPlace !== false;
   }
   if (type === 'double') {
     // Bản cũ chỉ có reset (true / false)
@@ -60,13 +68,20 @@ function normalizeStage(c, last) {
     out.meetings = [2, 3].includes(Number(c.meetings)) ? Number(c.meetings) : 1;
     out.rankBy = RANK_BY.includes(c.rankBy) ? c.rankBy : 'points';
   }
-  if (type === 'swiss') out.rounds = int(c.rounds, 0, 15, 5); // 0 = tự động theo số người
+  if (type === 'swiss') {
+    out.rounds = int(c.rounds, 0, 15, 5); // 0 = tự động theo số người
+    // Xếp cặp: 'dutch' (chuẩn FIDE: trong mỗi nhóm điểm, nửa trên gặp nửa dưới – 1 gặp n/2+1…) / 'adjacent' (gặp người
+    // liền kề: 1–2, 3–4…, cách của bản trước – giải cũ không có trường này vẫn chạy như cũ)
+    out.pairing = c.pairing === 'adjacent' ? 'adjacent' : 'dutch';
+  }
   if (!isElim(type)) {
     const p = c.points || {};
     const w = int(p.w, 0, 10, 3);
     // Điểm trận thắng / hoà / thua; mỗi ván thắng / hoà cộng thêm; miễn đấu (Thụy Sĩ số lẻ) mặc định như thắng
     out.points = { w, d: int(p.d, 0, 10, 1), l: int(p.l, 0, 10, 0), gw: int(p.gw, 0, 10, 0), gt: int(p.gt, 0, 10, 0), bye: int(p.bye, 0, 10, w) };
     out.tiebreaks = normalizeTiebreaks(c.tiebreaks, type);
+    // Trận không đấu khi tính hệ số phụ: theo FIDE (mặc định) / như bản trước (stages-tb-calc.js)
+    out.unplayed = c.unplayed === 'raw' ? 'raw' : 'fide';
     if (!last) out.advance = int(c.advance, 1, 32, 2); // RR: mỗi bảng; Thụy Sĩ: tổng số người đi tiếp
   }
   return out;
@@ -81,8 +96,10 @@ function normalizeStages(list) {
 /** Tạo vòng mới với danh sách hạt giống (thứ tự = hạt giống 1, 2, …). */
 function buildStage(cfg, index, seeds, opts = {}) {
   const st = { type: cfg.type, cfg, index, key: `s${index}`, entrants: [...seeds], matches: {}, done: false };
-  if (cfg.type === 'single') buildSingle(st, seeds, opts.groupOf);
-  else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf);
+  // placeBy 'list': xếp vào nhánh theo thứ tự danh sách (1 gặp 2…) thay cho luật hạt giống; slots: ô vòng 1 ban tổ chức
+  // kéo thả (stages-elim.js)
+  if (cfg.type === 'single') buildSingle(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
+  else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
   else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups);
   else {
     st.rounds = [];
@@ -187,5 +204,5 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  tally, eliminated, isElim, real, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, boOf, MAX_GROUP, MAX_GROUPS,
+  tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS,
 };

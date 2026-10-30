@@ -251,6 +251,7 @@ class Hub {
       for (const inv of this.invites.values()) if (inv.to === pid) conn.send(this.inviteMsg(inv));
       if (this.isAdmin(uidOf(pid))) conn.send({ t: 'adminCount', n: this.pendingCount() });
       this.clubInbox(conn, uidOf(pid)); // tin gửi toàn CLB chưa nhận (club-manage.js)
+      this.deliverNotes(conn, uidOf(pid)); // kết quả giải / tới trận khi đang offline (tour-notes.js)
     }
   }
 

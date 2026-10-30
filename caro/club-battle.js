@@ -78,9 +78,9 @@
 
   K.battleHtml = (t) => (t.teams ? teamsHtml(t) : '') + (t.teamMatch ? matchHtml(t) : '');
 
-  K.acts.tmAccept = (b) => {
+  K.acts.tmAccept = async (b) => {
     const yes = b.dataset.v === '1';
-    if (!yes && !confirm(T('tm_decline_q'))) return;
+    if (!yes && !(await window.CaroConfirm.ask(T('tm_decline_q')))) return;
     O.send({ t: 'clubMatchAccept', tour: D.tour.id, accept: yes });
   };
   K.acts.tmLineup = (b) => {

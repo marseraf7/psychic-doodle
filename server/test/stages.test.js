@@ -23,7 +23,7 @@ let seed = 7;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
 test('chuẩn hoá cấu hình: vòng trước chỉ được vòng tròn / Thụy Sĩ, giới hạn giá trị', () => {
-  const st = S.normalizeStages([{ type: 'single' }, { type: 'double', bestOf: 7 }]);
+  const st = S.normalizeStages([{ type: 'single' }, { type: 'double', bestOf: 8 }]);
   assert.strictEqual(st[0].type, 'roundrobin');
   assert.strictEqual(st[1].type, 'double');
   assert.strictEqual(st[1].bestOf, 3);
@@ -365,8 +365,8 @@ test('xếp hạng: đối đầu 3 người bằng điểm (bảng điểm riê
   const t4 = S.standings(st4, seedOf)[0];
   assert.strictEqual(t4.stats.p1.pts, 3 + 5);
   assert.strictEqual(t4.list[0], 'p1');
-  // Tie-break không hợp lệ bị bỏ, tối đa 4, không trùng
-  assert.deepStrictEqual(S.normalizeStages([{ type: 'swiss', tiebreaks: ['mbh', 'x', 'mbh', 'sb', 'h2h', 'wins', 'gdiff'] }])[0].tiebreaks, ['mbh', 'sb', 'h2h', 'wins']);
+  // Tie-break không hợp lệ bị bỏ, tối đa 5, không trùng
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'swiss', tiebreaks: ['mbh', 'x', 'mbh', 'sb', 'h2h', 'wins', 'gdiff', 'tpr'] }])[0].tiebreaks, ['mbh', 'sb', 'h2h', 'wins', 'gdiff']);
 });
 
 test('Thụy Sĩ: điểm miễn đấu riêng, Median-Buchholz, số vòng tự động; vòng tròn gặp nhau 3 lần', () => {
@@ -382,4 +382,120 @@ test('Thụy Sĩ: điểm miễn đấu riêng, Median-Buchholz, số vòng tự
   assert.strictEqual(S.buildStage(S.normalizeStages([{ type: 'swiss', rounds: 0 }])[0], 0, players(5), { seedOf }).cfg.rounds, 3);
   const rr = S.buildStage(S.normalizeStages([{ type: 'roundrobin', groups: 1, meetings: 3 }])[0], 0, players(4));
   assert.strictEqual(Object.keys(rr.matches).length, 18);
+});
+
+test('Thụy Sĩ: xếp cặp kiểu Hà Lan (FIDE) – nửa trên gặp nửa dưới; giải cũ vẫn gặp người liền kề', () => {
+  const pairsOf = (st) => st.rounds[0].map((id) => [st.matches[id].a, st.matches[id].b]);
+  const dutch = S.buildStage(S.normalizeStages([{ type: 'swiss', rounds: 3 }])[0], 0, players(8), { seedOf });
+  assert.strictEqual(dutch.cfg.pairing, 'dutch');
+  assert.deepStrictEqual(pairsOf(dutch), [['p1', 'p5'], ['p2', 'p6'], ['p3', 'p7'], ['p4', 'p8']]);
+  // Số lẻ: người cuối được miễn đấu, nửa trên 3 người gặp nửa dưới
+  const odd = S.buildStage(S.normalizeStages([{ type: 'swiss', rounds: 3 }])[0], 0, players(7), { seedOf });
+  assert.deepStrictEqual(pairsOf(odd), [['p1', 'p4'], ['p2', 'p5'], ['p3', 'p6'], ['p7', '-']]);
+  const adj = S.buildStage(S.normalizeStages([{ type: 'swiss', rounds: 3, pairing: 'adjacent' }])[0], 0, players(4), { seedOf });
+  assert.deepStrictEqual(pairsOf(adj), [['p1', 'p2'], ['p3', 'p4']]);
+  // Đánh hết 3 vòng: không ai gặp lại nhau
+  playOut(dutch);
+  const seen = new Set();
+  for (const m of Object.values(dutch.matches)) {
+    const k = [m.a, m.b].sort().join('|');
+    assert.ok(!seen.has(k), 'gặp lại ' + k);
+    seen.add(k);
+  }
+});
+
+test('Tie-break theo FIDE: trận không đấu, Buchholz Cut, SB, TPR, điểm luỹ tiến, bảng dp', () => {
+  const { dp } = require('../src/hub/stages-tb-calc.js');
+  assert.deepStrictEqual([dp(1), dp(0.5), dp(0.75), dp(0.25), dp(0)], [800, 0, 193, -193, -800]);
+  const mk = (unplayed) => {
+    const M = (id, round, a, b, winner, extra = {}) => ({ id, round, a, b, winner, loser: winner === a ? b : a, done: true, wins: {}, games: [], ...extra });
+    const matches = {
+      r0: M('r0', 0, 'A', 'B', 'A', { wins: { A: 1, B: 0 } }),
+      r0b: M('r0b', 0, 'C', '-', 'C', { bye: true }),
+      r1: M('r1', 1, 'A', 'C', 'C', { walkover: true }), // A vắng mặt: C thắng không đấu
+      r1b: M('r1b', 1, 'B', '-', 'B', { bye: true }),
+    };
+    return { type: 'swiss', cfg: { points: { w: 2, d: 1, l: 0, bye: 2 }, unplayed, rounds: 2 }, entrants: ['A', 'B', 'C'], matches, rounds: [['r0', 'r0b'], ['r1', 'r1b']] };
+  };
+  const rating = { A: 2000, B: 1800, C: 1600 };
+  const s = S.tally(mk('fide'), null, { rating: (u) => rating[u] });
+  assert.deepStrictEqual([s.A.pts, s.B.pts, s.C.pts], [2, 2, 4]);
+  // A: đối thủ thật B (điểm điều chỉnh: miễn đấu coi như hoà = 1) + đối thủ ảo cho vòng không đấu (= điểm của A: 2)
+  assert.strictEqual(s.A.bh, 3);
+  assert.strictEqual(s.A.bh1, 1, 'Cut-1 bỏ đối thủ ảo trước');
+  assert.strictEqual(s.C.bh, 8);
+  assert.strictEqual(s.B.bh, 5);
+  assert.deepStrictEqual([s.A.sb, s.B.sb, s.C.sb], [1, 2, 8]);
+  assert.deepStrictEqual([s.A.won, s.A.w, s.C.won, s.C.w], [1, 1, 0, 2], 'thắng thật / mọi trận thắng');
+  assert.deepStrictEqual([s.A.tpr, s.B.tpr, s.C.tpr], [2600, 1200, 0]);
+  assert.deepStrictEqual([s.A.aro, s.B.aro], [1800, 2000]);
+  assert.deepStrictEqual([s.A.ps, s.B.ps, s.C.ps], [4, 2, 6]);
+  // Giải cũ ('raw'): Buchholz = tổng điểm thật của đối thủ (kể cả trận thắng / thua không đấu), miễn đấu không cộng
+  const r = S.tally(mk('raw'));
+  assert.strictEqual(r.A.bh, 6);
+  assert.strictEqual(r.C.bh, 2);
+  assert.strictEqual(S.tbValue('h2h', r.A), null);
+  assert.strictEqual(S.tbValue('aob', s.A), 5);
+});
+
+test('trận xếp hạng chọn từng cặp hạng (places): chỉ tạo các trận cần, chơi hết không kẹt', () => {
+  const build = (places, n = 16) => S.buildStage(S.normalizeStages([{ type: 'single', places }])[0], 0, players(n));
+  const count = (st) => Object.keys(st.matches).length;
+  // Chỉ tranh hạng 7–8: bán kết nhánh 5–8 (2 trận) + trận hạng 7; hai người thắng bán kết đồng hạng 5
+  const a = build([7]);
+  assert.strictEqual(a.cfg.thirdPlace, false);
+  assert.strictEqual(count(a), 15 + 3);
+  assert.ok(!a.third);
+  playOut(a);
+  assert.ok(a.done);
+  const r = ranksOf(a);
+  assert.deepStrictEqual([r[7], r[8]], ['p7', 'p8']);
+  assert.strictEqual(S.podium(a, seedOf).length, 4, 'không tranh hạng ba: hai người thua bán kết cùng hạng ba');
+  // Hạng 3, 9 và 15: nhánh 9–16 đủ 3 vòng (7 trận), nhánh 13–16 chỉ vòng đầu (2 trận) + trận hạng 15
+  const b = build([3, 9, 15, 15, 4, 'x', 600]);
+  assert.deepStrictEqual(b.cfg.places, [3, 9, 15], 'bỏ số chẵn, trùng, không hợp lệ');
+  assert.strictEqual(count(b), 15 + 1 + 7 + 2 + 1);
+  playOut(b);
+  const rb = ranksOf(b);
+  assert.deepStrictEqual([rb[3], rb[9], rb[10], rb[15], rb[16]], ['p3', 'p9', 'p10', 'p15', 'p16']);
+  // Chọn đủ mọi cặp hạng = như "mọi vị trí"
+  const all = build([3, 5, 7, 9, 11, 13, 15]);
+  assert.strictEqual(count(all), count(S.buildStage(S.normalizeStages([{ type: 'single', placement: true }])[0], 0, players(16))));
+  // Chỉ hạng ba: như bản trước (trận "third")
+  assert.ok(build([3]).third.endsWith('third'));
+  assert.strictEqual(count(build([])), 15);
+  for (let n = 3; n <= 20; n++) assert.ok(playOut(build([5, 11], n), (m) => (rnd() < 0.5 ? m.a : m.b)).done, 'n=' + n);
+});
+
+test('Bo tự nhập (cả giai đoạn, bán kết, chung kết): số lẻ tới 25', () => {
+  const cfg = S.normalizeStages([{ type: 'single', bestOf: 3, boSemi: 7, boFinal: 9 }])[0];
+  assert.deepStrictEqual([cfg.boSemi, cfg.boFinal], [7, 9]);
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'single', boSemi: 8, boFinal: 27 }]).map((c) => [c.boSemi, c.boFinal])[0], [0, 0]);
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'single', bestOf: 17, boFinal: 25 }]).map((c) => [c.bestOf, c.boFinal])[0], [17, 25]);
+  assert.strictEqual(S.normalizeStages([{ type: 'swiss', bestOf: 4 }])[0].bestOf, 1, 'số chẵn: về mặc định');
+  const st = S.buildStage(cfg, 0, players(8));
+  const R = st.rounds.length;
+  assert.strictEqual(S.boOf(st, st.matches[st.rounds[R - 1][0]]), 9);
+  assert.strictEqual(S.boOf(st, st.matches[st.rounds[R - 2][0]]), 7);
+  assert.strictEqual(S.boOf(st, st.matches[st.rounds[0][0]]), 3);
+});
+
+test('xếp nhánh tay (slots): kiểm hợp lệ, dựng vòng 1 đúng thứ tự ô, chơi hết', () => {
+  const seeds = players(5);
+  const def = S.defaultSlots('single', seeds, null, null);
+  assert.strictEqual(def.length, 8);
+  assert.deepStrictEqual(S.checkSlots('single', seeds, def), def);
+  assert.strictEqual(S.checkSlots('single', seeds, def.slice(0, 6)), null, 'sai số ô');
+  assert.strictEqual(S.checkSlots('single', seeds, ['p1', 'p1', 'p2', 'p3', 'p4', 'p5', '-', '-']), null, 'trùng người');
+  assert.strictEqual(S.checkSlots('single', seeds, ['p1', 'p2', 'p3', 'p4', 'p5', '-', '-', '-']), null, 'một cặp trống cả hai ô');
+  assert.strictEqual(S.checkSlots('single', seeds, ['p1', 'x9', 'p3', 'p4', 'p5', '-', 'p2', '-']), null, 'người lạ');
+  const slots = ['p5', 'p1', 'p2', '-', 'p3', '-', 'p4', '-'];
+  assert.deepStrictEqual(S.checkSlots('single', seeds, slots), slots);
+  const st = S.buildStage(S.normalizeStages([{ type: 'single', thirdPlace: false }])[0], 0, seeds, { slots });
+  assert.deepStrictEqual(st.rounds[0].map((id) => [st.matches[id].a, st.matches[id].b]), [['p5', 'p1'], ['p2', '-'], ['p3', '-'], ['p4', '-']]);
+  assert.ok(playOut(st).done);
+  // Nhánh thắng – thua: tối thiểu 4 ô
+  const d = S.buildStage(S.normalizeStages([{ type: 'double' }])[0], 0, players(3), { slots: ['p3', 'p1', 'p2', '-'] });
+  assert.deepStrictEqual([d.matches[d.rounds[0][0]].a, d.matches[d.rounds[0][0]].b], ['p3', 'p1']);
+  assert.ok(playOut(d).done);
 });

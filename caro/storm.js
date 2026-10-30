@@ -111,7 +111,7 @@
       save();
       St.Trainer.exit();
       const msg = T('storm_over', { n: r.solved, w: r.wrong, c: r.maxCombo }) + (best ? ' ' + T('pz_new_best') : '');
-      window.CaroOnline ? window.CaroOnline.toast(msg, 6000) : alert(msg);
+      if (window.CaroOnline) window.CaroOnline.toast(msg, 6000); else window.CaroConfirm.info(msg);
       subLine();
       St.openPuzzles();
     }

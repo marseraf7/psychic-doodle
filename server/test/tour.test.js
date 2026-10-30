@@ -1477,3 +1477,173 @@ test('Đợt 10: bình chọn trận, dự đoán bục vinh quang + bảng ngư
   assert.strictEqual(list.length, 9);
   [p1, p2, fan].forEach((c) => c.close());
 });
+
+test('Advanced options như Challonge: chia sẻ quyền quản trị lúc tạo, người chơi tự báo tỉ số (offline + tài khoản), báo tới trận, gửi kết quả (cả khi offline), ẩn mục', async () => {
+  const B = await organizer();
+  const co = await account('adm'), pa = await account('sr'), pb = await account('sr');
+  const { id } = await B.req({ t: 'tourCreate', name: 'Giải Tự Báo', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, admins: ['@' + co.me.username, 'khongcoai', B.me.username],
+    showNews: false, showStandings: false, stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.deepStrictEqual(t.staff.map((x) => [x.uid, x.perms.join()]), [[co.me.uid, 'all']], 'chỉ tên hợp lệ, không thêm chính mình');
+  assert.deepStrictEqual([t.selfReport, t.notifyMatch, t.notifyResults, t.showNews, t.showStandings], [true, true, true, false, false]);
+  // Bulk Add: "@tên" = người có tài khoản
+  const r = await B.req({ t: 'tourAddPlayers', id, names: ['@' + pa.me.username, '@' + pb.me.username, '@khongcoai', 'Khách', 'Khách Hai'] }, 'tourAddResult');
+  assert.strictEqual(r.added.length, 4);
+  assert.deepStrictEqual(r.missing, ['@khongcoai']);
+  // pb offline lúc giải bắt đầu: nhận "tới trận" khi vào lại
+  const pbName = pb.me.username;
+  pb.close();
+  await until(() => !app.hub.isOnline('u_' + pb.me.uid));
+  const ready = pa.wait('notes', (m) => m.items.some((x) => x.k === 'tour_match'));
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  await ready; // 4 người, không ai miễn đấu: pa (online) nhận "tới trận" ngay
+  const m = Object.values(t.st[0].matches).find((x) => [x.a, x.b].includes(pa.me.uid) && !x.bye);
+  // Người ngoài trận không báo được tỉ số; người trong trận báo được (giải bật selfReport)
+  const other = Object.values(t.st[0].matches).find((x) => x !== m && !x.bye && x.a && x.b);
+  if (other) assert.strictEqual((await pa.req({ t: 'tourScore', id, match: other.id, sets: [[2, 0]] }, 'error')).code, 'tour_managers_only');
+  pa.send({ t: 'tourScore', id, match: m.id, sets: m.a === pa.me.uid ? [[2, 0]] : [[0, 2]] });
+  await until(() => m.done);
+  assert.strictEqual(m.winner, pa.me.uid);
+  assert.ok(t.log.some((x) => x.act === 'self_score'), 'nhật ký ghi người chơi tự báo');
+  assert.strictEqual((await pa.req({ t: 'tourScore', id, match: m.id, sets: [[0, 2]] }, 'error')).code, 'tour_managers_only', 'trận đã xong: không tự sửa');
+  // Ban tổ chức nhập nốt; giải xong: người online nhận kết quả ngay, người offline nhận khi vào lại
+  const res = pa.wait('notes', (x) => x.items.some((y) => y.k === 'tour_result'));
+  for (let i = 0; i < 4 && t.status === 'running'; i++) {
+    for (const x of Object.values(t.st[0].matches)) {
+      const real = (u) => typeof u === 'string' && u !== '-';
+      if (x.done || x.bye || !real(x.a) || !real(x.b)) continue;
+      B.send({ t: 'tourScore', id, match: x.id, sets: [x.a === pa.me.uid ? [2, 0] : x.b === pa.me.uid ? [0, 2] : [2, 1]] });
+      await until(() => x.done);
+    }
+  }
+  await until(() => t.status === 'finished');
+  const got = (await res).items.find((y) => y.k === 'tour_result');
+  assert.deepStrictEqual([got.id, got.place], [id, 1]);
+  const back = await reconnect({ me: { username: pbName } });
+  await until(() => back.msgs.some((x) => x.t === 'notes'));
+  const kinds = back.msgs.filter((x) => x.t === 'notes').flatMap((x) => x.items.map((y) => y.k));
+  assert.ok(kinds.includes('tour_result'), 'người offline nhận kết quả khi vào lại');
+  assert.strictEqual(app.hub.store.users.get(pb.me.uid).notes.length, 0, 'đã gửi thì xoá');
+  [co, pa, back].forEach((c) => c.close());
+});
+
+test('Link riêng, mô tả nhiều dòng, nhánh xem trước (ẩn được), xếp theo danh sách, Quick advance, đính kèm trận, ảnh mô tả', async () => {
+  const B = await organizer();
+  const out = await account('xem');
+  const base = url.replace(/^ws/, 'http').replace(/\/ws$/, '');
+  const desc = '## Giới thiệu\n**Giải** cuối tuần\n\n- Bo1\n- Offline';
+  const opts = { name: 'Giải Link Riêng', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, desc, placeBy: 'list', quickAdvance: true,
+    attachments: true, hideBracket: true, stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] };
+  assert.strictEqual((await B.req({ t: 'tourCreate', ...opts, slug: 'A b' }, 'error')).code, 'tour_slug_bad');
+  const { id } = await B.req({ t: 'tourCreate', ...opts, slug: 'Giai-Moi-1' }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.deepStrictEqual([t.slug, t.desc, t.placeBy, t.quickAdvance, t.attachments, t.hideBracket], ['giai-moi-1', desc, 'list', true, true, true]);
+  assert.strictEqual((await B.req({ t: 'tourCreate', ...opts, slug: 'giai-moi-1' }, 'error')).code, 'tour_slug_taken');
+  assert.strictEqual((await B.req({ t: 'tourCreate', ...opts, slug: id }, 'error')).code, 'tour_slug_taken', 'không trùng mã giải khác');
+  await B.req({ t: 'tourAddPlayers', id, names: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] }, 'tourAddResult');
+  // Mở bằng link riêng; người xem không thấy nhánh xem trước (đã ẩn), ban tổ chức vẫn thấy
+  const seen = await out.req({ t: 'tourGet', id: 'giai-moi-1' }, 'tour');
+  assert.strictEqual(seen.tour.id, id);
+  assert.strictEqual(seen.tour.preview, null);
+  const mine = await B.req({ t: 'tourGet', id }, 'tour');
+  const pre = mine.tour.preview.rounds[0].map((m) => [m.a && m.a.name, m.b && (m.b.name || 'bye')]);
+  assert.deepStrictEqual(pre, [['P1', 'P2'], ['P3', 'P4'], ['P5', 'bye'], ['P6', 'bye']], 'theo thứ tự danh sách, ô trống dồn về cuối');
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const r0 = t.st[0].rounds[0].map((mid) => t.st[0].matches[mid]);
+  assert.deepStrictEqual(r0.map((m) => [app.hub.player(t, m.a).name, m.b === '-' ? '-' : app.hub.player(t, m.b).name]), [['P1', 'P2'], ['P3', 'P4'], ['P5', '-'], ['P6', '-']]);
+  // Quick advance: chỉ báo người thắng
+  const m = r0[0];
+  B.send({ t: 'tourScore', id, match: m.id, winner: m.b });
+  await until(() => m.done);
+  assert.deepStrictEqual([m.winner, m.quick, m.wins[m.b], m.sets], [m.b, true, 1, null]);
+  // Đính kèm trận: link sai bị từ chối; người ngoài không đính kèm được
+  assert.strictEqual((await B.req({ t: 'tourAttach', id, match: m.id, url: 'javascript:alert(1)' }, 'error')).code, 'tour_att_bad_url');
+  assert.strictEqual((await out.req({ t: 'tourAttach', id, match: m.id, text: 'x' }, 'error')).code, 'tour_managers_only');
+  B.send({ t: 'tourAttach', id, match: m.id, url: 'https://example.com/bien-ban', text: 'Biên bản ký' });
+  await until(() => m.att && m.att.length === 1);
+  const v = (await B.req({ t: 'tourGet', id }, 'tour')).tour.stageViews[0].rounds[0][0];
+  assert.deepStrictEqual(v.att.map((x) => [x.url, x.text]), [['https://example.com/bien-ban', 'Biên bản ký']]);
+  B.send({ t: 'tourAttachDel', id, match: m.id, att: m.att[0].id });
+  await until(() => m.att.length === 0);
+  // Giải đang chạy: đổi được link riêng (tab Quản lý chỉ gửi tên / mô tả thì giữ nguyên các tuỳ chọn)
+  await B.req({ t: 'tourEdit', id, name: t.name, desc: 'Mới' }, 'tourEdited');
+  assert.strictEqual(t.slug, 'giai-moi-1');
+  await B.req({ t: 'tourEdit', id, name: t.name, desc: 'Mới', slug: 'giai-moi-2' }, 'tourEdited');
+  assert.strictEqual(app.hub.tourBySlug('giai-moi-2'), t);
+  // Ảnh mô tả: gửi nhiều phần theo thứ tự, ghép lại, kiểm loại ảnh, phục vụ qua /api/timg/<mã>
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  B.send({ t: 'tourImg', up: 'abcd0001', i: 0, n: 2, data: png.slice(0, 40) });
+  const saved = await B.req({ t: 'tourImg', up: 'abcd0001', i: 1, n: 2, data: png.slice(40) }, 'tourImgSaved');
+  const res = await fetch(`${base}/api/timg/${saved.id}`);
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(res.headers.get('content-type'), 'image/png');
+  assert.strictEqual(Buffer.from(await res.arrayBuffer()).toString('base64'), png);
+  assert.strictEqual((await fetch(`${base}/api/timg/0123456789abcdef`)).status, 404);
+  assert.strictEqual((await B.req({ t: 'tourImg', up: 'abcd0002', i: 1, n: 2, data: 'AAAA' }, 'error')).code, 'bad_message', 'sai thứ tự');
+  assert.strictEqual((await B.req({ t: 'tourImg', up: 'abcd0003', i: 0, n: 1, data: 'AAAAAAAA' }, 'error')).code, 'tour_img_bad');
+  out.close();
+});
+
+test('Nhánh xem trước: vòng tròn chỉ gửi các bảng dự kiến, Thụy Sĩ gửi cặp vòng 1 (Hà Lan); bỏ khi giải bắt đầu', async () => {
+  const B = await organizer();
+  const mk = async (stages) => {
+    const { id } = await B.req({ t: 'tourCreate', name: 'Xem Trước', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, stages }, 'tourCreated');
+    await B.req({ t: 'tourAddPlayers', id, names: ['A1', 'A2', 'A3', 'A4', 'A5', 'A6'] }, 'tourAddResult');
+    return { id, view: (await B.req({ t: 'tourGet', id }, 'tour')).tour };
+  };
+  const rr = await mk([{ type: 'roundrobin', groups: 2, bestOf: 1, points: { w: 3, d: 1, l: 0 } }]);
+  assert.deepStrictEqual(rr.view.preview.groups.map((g) => [g.name, g.players.length, g.rounds.length]), [['A', 3, 0], ['B', 3, 0]]);
+  const sw = await mk([{ type: 'swiss', rounds: 3, bestOf: 1, points: { w: 2, d: 1, l: 0 } }]);
+  assert.deepStrictEqual(sw.view.preview.rounds[0].map((m) => [m.a.name, m.b.name]), [['A1', 'A4'], ['A2', 'A5'], ['A3', 'A6']]);
+  B.send({ t: 'tourStart', id: sw.id });
+  await until(() => app.hub.tours.get(sw.id).status === 'running');
+  assert.strictEqual((await B.req({ t: 'tourGet', id: sw.id }, 'tour')).tour.preview, null);
+});
+
+test('Kéo thả xếp nhánh giữa hai giai đoạn: dừng sau Thụy Sĩ, ban tổ chức đổi chỗ, bắt đầu nhánh theo đúng các ô', async () => {
+  const B = await organizer();
+  const out = await account('xem');
+  const { id } = await B.req({ t: 'tourCreate', name: 'Xếp Nhánh Tay', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, arrangeNext: true,
+    stages: [{ type: 'swiss', rounds: 2, bestOf: 1, points: { w: 2, d: 1, l: 0 }, advance: 4 }, { type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.strictEqual(t.arrangeNext, true);
+  await B.req({ t: 'tourAddPlayers', id, names: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const real = (u) => typeof u === 'string' && u !== '-';
+  for (let i = 0; i < 6 && !t.arrange; i++) {
+    for (const x of Object.values(t.st[0].matches)) {
+      if (x.done || !real(x.a) || !real(x.b)) continue;
+      B.send({ t: 'tourScore', id, match: x.id, sets: [[2, 0]] });
+      await until(() => x.done);
+    }
+  }
+  await until(() => !!t.arrange);
+  assert.deepStrictEqual([t.stage, t.st.length], [0, 1], 'chưa bốc thăm giai đoạn 2');
+  // Ban tổ chức thấy 4 ô kèm nhãn thành tích; người ngoài chỉ thấy "đang xếp nhánh"
+  const mine = (await B.req({ t: 'tourGet', id }, 'tour')).tour;
+  assert.strictEqual(mine.arrange.slots.length, 4);
+  assert.ok(mine.arrange.slots.every((x) => /^#\d$/.test(x.label)));
+  const seen = (await out.req({ t: 'tourGet', id }, 'tour')).tour;
+  assert.deepStrictEqual([seen.arranging, seen.arrange], [1, undefined]);
+  // Không hợp lệ: trùng người; không huỷ được kết quả giai đoạn trước khi đã chốt người đi tiếp
+  const s = t.arrange.slots;
+  assert.strictEqual((await B.req({ t: 'tourArrange', id, slots: [s[0], s[0], s[2], s[3]] }, 'error')).code, 'tour_arrange_bad');
+  assert.strictEqual((await out.req({ t: 'tourArrange', id, slots: s }, 'error')).code, 'tour_managers_only');
+  const anyDone = Object.values(t.st[0].matches).find((x) => x.done && !x.bye);
+  assert.strictEqual((await B.req({ t: 'tourScoreUndo', id, match: anyDone.id }, 'error')).code, 'tour_undo_locked');
+  // Đổi chỗ ô 2 và 3 (lưu ngay), rồi bắt đầu
+  const swapped = [s[0], s[2], s[1], s[3]];
+  B.send({ t: 'tourArrange', id, slots: swapped });
+  await until(() => t.arrange.slots[1] === s[2]);
+  B.send({ t: 'tourArrangeGo', id });
+  await until(() => !t.arrange && t.st.length === 2);
+  const r0 = t.st[1].rounds[0].map((mid) => t.st[1].matches[mid]);
+  assert.deepStrictEqual(r0.map((m) => [m.a, m.b]), [[swapped[0], swapped[1]], [swapped[2], swapped[3]]]);
+  assert.strictEqual(t.stage, 1);
+  assert.ok(t.log.some((x) => x.act === 'arranged'));
+  assert.strictEqual((await B.req({ t: 'tourArrange', id, slots: swapped }, 'error')).code, 'tour_arrange_none');
+  out.close();
+});

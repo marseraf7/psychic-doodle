@@ -11,7 +11,7 @@
 'use strict';
 const crypto = require('crypto');
 const { E, note } = require('../msg.js');
-const { cleanText, cleanPublicText, cleanPublicName, userPid, uidOf } = require('./shared.js');
+const { cleanText, cleanPublicText, cleanRich, plainRich, cleanPublicName, userPid, uidOf } = require('./shared.js');
 
 const CLUB_JOIN = ['open', 'request', 'code'];
 /**
@@ -63,7 +63,7 @@ class Clubs {
 
   clubSummary(c, uid) {
     return {
-      id: c.id, name: c.name, icon: c.icon || '', intro: c.intro || c.desc.slice(0, 140), join: c.join, status: c.status,
+      id: c.id, name: c.name, icon: c.icon || '', intro: c.intro || plainRich(c.desc, 140), join: c.join, status: c.status,
       count: Object.keys(c.members).length, role: (uid && c.members[uid]) || null,
       requested: !!(uid && c.requests.includes(uid)), owner: this.store.users.get(c.owner)?.name || '?',
     };
@@ -308,10 +308,10 @@ class Clubs {
 
 // Biểu tượng CLB chọn sẵn (không tải ảnh lên: không phải duyệt ảnh, không tốn chỗ)
 const CLUB_ICONS = ['♟️', '🏆', '⚔️', '🔥', '⭐', '🐉', '🦁', '🐯', '🦅', '🐺', '🦊', '🐼', '🌸', '🍀', '⚡', '🌙', '☀️', '🌊', '🎯', '🎓', '🏫', '🏰', '🚀', '💎'];
-const MAX_DESC = 2000;
+const MAX_DESC = 4000; // mô tả có định dạng (đánh dấu như Markdown – caro/rich-text.js)
 /** Chữ nhiều dòng (mô tả CLB): giữ xuống dòng, bỏ ký tự điều khiển khác, tối đa 2 dòng trống liền nhau, che từ tục. */
-const cleanMultiline = (s, max) => cleanPublicText(String(s || '').replace(/\r\n?/g, '\n').replace(/\n/g, '\u2028'), max)
-  .replace(/\u2028/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+/** Mô tả nhiều dòng của CLB (có định dạng): giữ xuống dòng, che từ tục (cleanRich – shared.js). */
+const cleanMultiline = (s, max) => cleanRich(s, max);
 /** Quyền của một quản lý (chưa phân quyền: quyền mặc định của vai trò quản lý cũ). */
 const clubPerms = (c, uid) => (c.perms && Array.isArray(c.perms[uid]) ? c.perms[uid] : DEFAULT_PERMS);
 /** CLB lưu từ bản trước: thêm các trường mới. */

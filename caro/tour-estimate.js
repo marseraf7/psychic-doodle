@@ -12,7 +12,8 @@
   const MAX_GROUP = 16; // như stages-base.js
   const MAX_GROUPS = 64;
   /** Số ván trung bình của một trận BoN (Bo3 thường 2–3 ván, Bo5 thường 3–5 ván). */
-  const GAMES = { 1: 1, 3: 2.5, 5: 4 };
+  // Số ván trung bình của một trận BoN (Bo1 = 1, Bo3 ≈ 2,5, Bo5 ≈ 4…): (3N + 1) / 4
+  const gamesOf = (bo) => (bo ? (3 * bo + 1) / 4 : 0);
   const BREAK_MIN = 1; // nghỉ giữa hai lượt đấu (chờ trận chậm nhất, vào phòng)
   const STAGE_BREAK_MIN = 2; // giữa hai giai đoạn
 
@@ -42,11 +43,11 @@
     if (a.real && b.real) { out.m++; out.w = Math.max(out.w, t + 1); return [{ real: true, t: t + 1 }, { real: true, t: t + 1 }]; }
     return [{ real: a.real || b.real, t }, { real: false, t }];
   }
-  /** Nhánh loại trực tiếp trên các ô (cặp liền nhau); trả danh sách người thua từng vòng. */
-  function knockout(slots, out) {
+  /** Nhánh loại trực tiếp trên các ô (cặp liền nhau), tối đa K vòng; trả danh sách người thua từng vòng. */
+  function knockout(slots, out, K = Infinity) {
     let cur = slots;
     const losers = [];
-    while (cur.length > 1) {
+    while (cur.length > 1 && losers.length < K) {
       const next = [], lo = [];
       for (let i = 0; i < cur.length; i += 2) { const [w, l] = play(cur[i], cur[i + 1], out); next.push(w); lo.push(l); }
       losers.push(lo);
@@ -54,17 +55,30 @@
     }
     return losers;
   }
-  /** Trận xếp hạng: người thua mỗi vòng (trừ chung kết) đấu tiếp để phân hạng, đệ quy. */
-  function places(losers, out) {
-    for (let r = 0; r < losers.length - 1; r++) if (losers[r].length >= 2) places(knockout(losers[r], out), out);
+  /** Hạng nào cần phân định (như placeWanted ở stages-elim.js): mọi vị trí / các cặp hạng đã chọn / chỉ hạng ba. */
+  function placeWanted(c) {
+    if (c.placement) return () => true;
+    const list = Array.isArray(c.places) ? c.places : c.thirdPlace !== false ? [3] : [];
+    return (lo, k) => list.some((p) => p >= lo && p < lo + k);
+  }
+  /** Trận xếp hạng (như placement ở stages-elim.js): nhánh phân hạng base … base + n − 1, chỉ các vòng còn cần. */
+  function placeBracket(slots, base, want, out) {
+    const n = slots.length, R = Math.log2(n);
+    if (n < 2 || !want(base, n)) return;
+    let K = 0;
+    while (K < R && want(base, n >> K)) K++;
+    const losers = knockout(slots, out, K);
+    for (let r = 0; r < K && r < R - 1; r++) placeBracket(losers[r], base + (n >> (r + 1)), want, out);
   }
   const firstSlots = (n, size) => seedOrder(size).map((sd) => ({ real: sd <= n, t: 0 }));
   function single(c, n) {
     const out = { m: 0, w: 0 };
     const size = pow2(Math.max(2, n));
     const losers = knockout(firstSlots(n, size), out);
-    if (c.placement && size >= 4) places(losers, out);
-    else if (c.thirdPlace !== false && size >= 4) play(losers[losers.length - 2][0], losers[losers.length - 2][1], out);
+    const want = placeWanted(c);
+    if (size >= 4 && (c.placement || (c.places || []).some((p) => p > 3))) {
+      for (let r = 0; r < losers.length - 1; r++) placeBracket(losers[r], (size >> (r + 1)) + 1, want, out);
+    } else if ((Array.isArray(c.places) ? c.places.includes(3) : c.thirdPlace !== false) && size >= 4) play(losers[losers.length - 2][0], losers[losers.length - 2][1], out);
     return { matches: out.m, maxMatches: out.m, waves: out.w, advance: null };
   }
   /** Nhánh thắng – thua: dựng đủ các trận như buildDouble rồi lan dần kết quả tới khi không còn trận nào xử được. */
@@ -149,7 +163,7 @@
       const last = i === list.length - 1;
       const s = { ...stage(c, n, last), players: n };
       // Bo riêng chung kết / bán kết (nếu đặt) cho 1–2 lượt cuối của nhánh đấu
-      const waves = s.maxWaves || s.waves, g = (bo) => GAMES[bo] || GAMES[c.bestOf] || 1;
+      const waves = s.maxWaves || s.waves, g = (bo) => gamesOf(bo) || gamesOf(c.bestOf) || 1;
       const extra = (waves >= 1 ? g(c.boFinal) - g(c.bestOf) : 0) + (waves >= 2 ? g(c.boSemi) - g(c.bestOf) : 0);
       s.minutes = waves * (g(c.bestOf) * per + BREAK_MIN) + extra * per;
       out.stages.push(s);

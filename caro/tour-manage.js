@@ -28,7 +28,8 @@
     let html = '';
     if (t.status === 'draft' && t.canManage) html += `<div class="note">${esc(T('mg_draft_note'))} <button type="button" class="primary sm" data-act="mgSubmit">${esc(T('mg_submit'))}</button></div>`;
     if (t.held) html += `<p class="note">${icon('pause')}${esc(T('mg_held_note'))}</p>`;
-    for (const n of (t.news || []).slice(0, 3)) html += `<div class="news">${icon('pin')}<div><p>${esc(n.text)}</p><small class="muted">${esc(n.by)} · ${esc(when(n.at))}</small></div></div>`;
+    // Tắt "Hiện mục Thông báo" (tab Khác của trang nâng cao): chỉ ban tổ chức thấy
+    if (t.showNews !== false || t.canManage) for (const n of (t.news || []).slice(0, 3)) html += `<div class="news">${icon('pin')}<div><p>${esc(n.text)}</p><small class="muted">${esc(n.by)} · ${esc(when(n.at))}</small></div></div>`;
     return html;
   };
   /** Nhãn vòng ban tổ chức đặt (vd. "Vòng loại") – thay tên vòng mặc định; "" nếu chưa đặt. */
@@ -145,7 +146,8 @@
     const edit = locked
       ? `<form id="mg-name" class="tform"><p class="hint">${esc(T('mg_locked_hint'))}</p>
           <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" value="${esc(t.name)}" required></label>
-          <label class="field"><span>${esc(T('tour_desc'))}</span><textarea name="desc" maxlength="1000" rows="3">${esc(t.desc || '')}</textarea></label>
+          ${window.CaroRich ? `<div class="field"><span>${esc(T('tour_desc'))}</span>${window.CaroRich.editor('desc', t.desc || '', { rows: 5, max: 4000 })}</div>`
+            : `<label class="field"><span>${esc(T('tour_desc'))}</span><textarea name="desc" maxlength="4000" rows="3">${esc(t.desc || '')}</textarea></label>`}
           <div class="row"><button class="primary sm">${esc(T('mg_save'))}</button></div></form>`
       : `<div class="row"><button type="button" class="ghost" data-act="mgSettings">${icon('sliders')}${esc(T('mg_edit_settings'))}</button></div>`;
     const danger = [];
@@ -186,9 +188,9 @@
   K.acts.mgSettings = () => { K.tourDraft.fromTour(tour()); open('tourAdv', null); };
   K.acts.mgHold = (b) => O.send({ t: 'tourHold', id: tour().id, hold: b.dataset.v === '1' });
   K.acts.mgReset = () => window.CaroConfirm.ask(T('mg_reset_confirm')).then((ok) => { if (ok) O.send({ t: 'tourReset', id: tour().id }); });
-  K.acts.mgDelete = () => {
+  K.acts.mgDelete = async () => {
     const t = tour();
-    const typed = prompt(T('mg_delete_prompt', { name: t.name }), '');
+    const typed = await window.CaroConfirm.prompt(T('mg_delete_prompt', { name: t.name }), '', { max: 60 });
     if (typed == null) return;
     O.send({ t: 'tourDelete', id: t.id, confirm: typed.trim() });
   };

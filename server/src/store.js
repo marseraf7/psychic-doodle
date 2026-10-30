@@ -152,6 +152,7 @@ class Store {
       run('DELETE FROM dm_read WHERE uid = ? OR peer = ?', id, id);
       run('DELETE FROM resets WHERE uid = ?', id);
       run('DELETE FROM avatars WHERE uid = ?', id); // ảnh đại diện (avatar.js)
+      run('DELETE FROM tour_imgs WHERE uid = ?', id); // ảnh trong mô tả / đính kèm (hub/tour-img.js)
       run('DELETE FROM eval_sub WHERE who = ?', EvalCache.who(id)); // các lần gửi điểm phân tích (evalcache.js)
       run('DELETE FROM rated_pairs WHERE a = ? OR b = ?', id, id);
       run('DELETE FROM rating_hist WHERE uid = ?', id);

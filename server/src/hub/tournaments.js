@@ -13,7 +13,7 @@
 'use strict';
 const crypto = require('crypto');
 const { E, note } = require('../msg.js');
-const { cleanPublicText, cleanPublicName, cleanTc, userPid, uidOf } = require('./shared.js');
+const { cleanRich, cleanPublicName, cleanTc, userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
 const { normalizeReg } = require('./tour-reg.js');
 
@@ -96,7 +96,7 @@ class Tournaments {
   }
 
   findTour(id, uid) {
-    const t = this.tours.get(String(id || ''));
+    const t = this.tours.get(String(id || '')) || this.tourBySlug(id); // mã giải hoặc link riêng (tour-opts.js)
     if (!t || !this.canSeeTour(t, uid)) throw E('tour_not_found');
     return t;
   }
@@ -166,6 +166,10 @@ class Tournaments {
       teamMatch: t.teamMatch ? this.teamMatchView(t) : null,
       ...this.funShared(t), // dự đoán, bình chọn hạng mục (tour-fun.js)
       recur: t.recur || null, recurN: t.recurN || null, // giải định kỳ (tour-tpl.js)
+      selfReport: !!t.selfReport, notifyMatch: t.notifyMatch !== false, notifyResults: t.notifyResults !== false,
+      showNews: t.showNews !== false, showStandings: t.showStandings !== false,
+      ...this.optShared(t), // link riêng, tab Nhánh đấu, nhánh xem trước (tour-opts.js)
+      ...this.arrangeShared(t), // đang chờ ban tổ chức xếp nhánh giai đoạn sau (tour-arrange.js)
       now: Date.now(),
     };
   }
@@ -194,6 +198,8 @@ class Tournaments {
       now: Date.now(), // giờ máy chủ (phần chung có thể là bản đã lưu vài giây trước)
       ...(t.teams || t.teamMatch ? this.battleMine(t, uid) : {}),
       ...this.funMine(t, uid),
+      ...this.previewMine(t, manage),
+      ...this.arrangeMine(t, uid),
     };
   }
 
@@ -246,7 +252,8 @@ class Tournaments {
     if (teams && access === 'club') { access = 'public'; club = null; }
     return {
       teams,
-      name, desc: cleanPublicText(o.desc, 1000), format: ko ? 'bracket' : 'arena', startsAt, timeLimit, clock, opening, rule,
+      // Mô tả có định dạng (đánh dấu như Markdown – caro/rich-text.js), giữ xuống dòng
+      name, desc: cleanRich(o.desc, 4000), format: ko ? 'bracket' : 'arena', startsAt, timeLimit, clock, opening, rule,
       rated: !offline && o.rated !== false, access, club, maxPlayers,
       minutes: ko ? null : (ARENA_MINUTES.includes(Number(o.minutes)) ? Number(o.minutes) : 30),
       // Hạt giống: theo Elo / ngẫu nhiên / theo thứ tự danh sách (giải offline không có Elo: mặc định theo danh sách)
@@ -258,6 +265,11 @@ class Tournaments {
       noShowMin: ko && NOSHOW_MIN.includes(Number(o.noShowMin)) ? Number(o.noShowMin) : null,
       hideSeeds: o.hideSeeds === true, // không hiện số hạt giống cho người xem (như Challonge "Hide seeds")
       recur: ['weekly', 'monthly'].includes(o.recur) ? o.recur : null, // giải định kỳ (tour-tpl.js)
+      // Như Advanced options của Challonge: người chơi tự báo tỉ số (giải offline có tài khoản), thông báo, mục hiện cho người xem
+      selfReport: offline && o.selfReport !== false,
+      notifyMatch: o.notifyMatch !== false, notifyResults: o.notifyResults !== false,
+      showNews: o.showNews !== false, showStandings: o.showStandings !== false,
+      ...this.optFields(o, ko, offline), // link riêng, tab Nhánh đấu (tour-opts.js)
     };
   }
 
@@ -265,7 +277,23 @@ class Tournaments {
     const me = this.requireUser(conn);
     const now = Date.now();
     const fields = this.tourFields(me, o, now);
-    this.createTour(conn, me, fields, o.draft === true);
+    this.checkSlug(fields.slug);
+    const t = this.createTour(conn, me, fields, o.draft === true);
+    // "Share admin access" (Challonge): các tên đăng nhập thành đồng ban tổ chức đủ quyền ngay khi tạo
+    if (Array.isArray(o.admins)) this.addAdmins(t, me, o.admins);
+  }
+
+  /** Thêm đồng ban tổ chức quyền 'all' theo tên đăng nhập (bỏ qua tên không có / chính mình); tối đa 10 người. */
+  addAdmins(t, me, names) {
+    t.staff = t.staff || [];
+    for (const raw of names.slice(0, 10)) {
+      const u = this.store.byUsername.get(String(raw || '').trim().replace(/^@/, '').toLowerCase());
+      if (!u || u.id === me.id || t.staff.some((x) => x.uid === u.id) || t.staff.length >= 10) continue;
+      t.staff.push({ uid: u.id, perms: ['all'] });
+      this.tourLog(t, me.id, 'staff', { name: u.name, perms: 'all' });
+      this.send(userPid(u.id), note('tour_staff_added', { name: t.name }));
+    }
+    this.saveTour(t);
   }
 
   /** Lưu giải mới (cả giao hữu CLB – club-battle.js): giới hạn số giải đang mở, nháp / chờ duyệt / mở đăng ký. */
