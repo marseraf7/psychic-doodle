@@ -129,7 +129,43 @@ function placeWanted(cfg) {
   return (lo, k) => list.some((p) => p >= lo && p < lo + k);
 }
 
-function buildSingle(st, seeds, groupOf, placeBy) {
+/** Số ô vòng 1 của nhánh (luỹ thừa của 2; nhánh thắng – thua tối thiểu 4). */
+const elimSize = (type, n) => pow2(Math.max(type === 'double' ? 4 : 2, n));
+
+/**
+ * Các cặp vòng 1: theo thứ tự ô ban tổ chức xếp tay (slots – kéo thả ở tour-arrange.js, đã kiểm ở checkSlots) hoặc
+ * tự xếp (firstRound).
+ */
+function firstPairs(seeds, size, groupOf, placeBy, slots) {
+  if (!slots) return firstRound(seeds, size, groupOf, placeBy);
+  const pairs = [];
+  for (let i = 0; i < size; i += 2) pairs.push([slots[i], slots[i + 1]]);
+  return pairs;
+}
+
+/**
+ * Kiểm thứ tự ô xếp tay: đúng số ô, mỗi người trong seeds đúng một lần, còn lại là ô trống, không cặp nào trống cả hai.
+ * Trả mảng ô đã chuẩn hoá hoặc null.
+ */
+function checkSlots(type, seeds, slots) {
+  const size = elimSize(type, seeds.length);
+  if (!Array.isArray(slots) || slots.length !== size) return null;
+  const want = new Set(seeds), seen = new Set();
+  const out = slots.map((x) => (real(x) ? String(x) : BYE));
+  for (const x of out) {
+    if (x === BYE) continue;
+    if (!want.has(x) || seen.has(x)) return null;
+    seen.add(x);
+  }
+  if (seen.size !== want.size) return null;
+  for (let i = 0; i < size; i += 2) if (out[i] === BYE && out[i + 1] === BYE) return null;
+  return out;
+}
+
+/** Thứ tự ô mặc định (như khi tự bốc thăm) – điểm bắt đầu cho kéo thả. */
+const defaultSlots = (type, seeds, groupOf, placeBy) => firstRound(seeds, elimSize(type, seeds.length), groupOf, placeBy).flat();
+
+function buildSingle(st, seeds, groupOf, placeBy, slots) {
   const size = pow2(Math.max(2, seeds.length));
   const R = Math.log2(size);
   const id = (r, i) => `${st.key}w${r}m${i}`;
@@ -156,7 +192,7 @@ function buildSingle(st, seeds, groupOf, placeBy) {
     st.rounds[R - 2].forEach((mid, i) => { st.matches[mid].loserTo = { to: t.id, slot: i % 2 ? 'b' : 'a' }; });
   }
   const events = [];
-  firstRound(seeds, size, groupOf, placeBy).forEach(([a, b], i) => {
+  firstPairs(seeds, size, groupOf, placeBy, slots).forEach(([a, b], i) => {
     const m = st.matches[id(0, i)];
     m.a = a;
     m.b = b;
@@ -164,7 +200,7 @@ function buildSingle(st, seeds, groupOf, placeBy) {
   for (const mid of st.rounds[0]) autoBye(st, st.matches[mid], events);
 }
 
-function buildDouble(st, seeds, groupOf, placeBy) {
+function buildDouble(st, seeds, groupOf, placeBy, slots) {
   const size = pow2(Math.max(4, seeds.length));
   const k = Math.log2(size);
   const W = (r, i) => `${st.key}w${r}m${i}`;
@@ -215,7 +251,7 @@ function buildDouble(st, seeds, groupOf, placeBy) {
     st.rounds.push(ids);
   }
   const events = [];
-  firstRound(seeds, size, groupOf, placeBy).forEach(([a, b], i) => {
+  firstPairs(seeds, size, groupOf, placeBy, slots).forEach(([a, b], i) => {
     const m = st.matches[W(0, i)];
     m.a = a;
     m.b = b;
@@ -226,4 +262,4 @@ function buildDouble(st, seeds, groupOf, placeBy) {
   for (const mid of st.rounds[0]) autoBye(st, st.matches[mid], events);
 }
 
-module.exports = { seedOrder, resolveElim, buildSingle, buildDouble, placeWanted };
+module.exports = { seedOrder, resolveElim, buildSingle, buildDouble, placeWanted, elimSize, checkSlots, defaultSlots };

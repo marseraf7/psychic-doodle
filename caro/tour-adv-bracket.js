@@ -4,7 +4,7 @@
  *    Challonge – rich-text.js; dùng cả ở form nhanh).
  *  - Tab "Nhánh đấu" (Advanced options → Bracket): hiện nhãn vòng tự đặt, ẩn số hạt giống, ẩn nhánh xem trước với người
  *    xem, Quick advance (chỉ báo người thắng – giải offline), cho phép đính kèm trận, ảnh chia sẻ kết quả trận, cách xếp
- *    người vào nhánh (luật hạt giống / thứ tự danh sách).
+ *    người vào nhánh (luật hạt giống / thứ tự danh sách), dừng giữa hai giai đoạn để kéo thả xếp nhánh.
  * Máy chủ: tour-opts.js. Nạp sau tour-form.js, rich-text.js; trước tour-adv.js.
  */
 (function () {
@@ -21,7 +21,7 @@
   const chk = (name, v, label, hint, cls = '') => `<label class="check ${esc(cls)}"><input type="checkbox" name="${name}" ${v ? 'checked' : ''}> <span>${esc(label)}${hint ? `<small class="hint">${esc(hint)}</small>` : ''}</span></label>`;
 
   Object.assign(DR.EXT.defaults, {
-    slug: '', roundLabels: true, hideBracket: false, quickAdvance: false, attachments: false, shareImages: true, placeBy: 'seed',
+    slug: '', roundLabels: true, hideBracket: false, quickAdvance: false, attachments: false, shareImages: true, placeBy: 'seed', arrangeNext: false,
   });
   // Giải mới: gợi ý sẵn một link ngẫu nhiên (như Challonge), sửa được
   DR.EXT.loaders.push((d) => { if (!d.slug && !DR.F.editId) d.slug = randSlug(); });
@@ -39,6 +39,8 @@
     quickAdvance: (d) => chk('quickAdvance', d.quickAdvance, T('adv_quick'), T('adv_quick_hint'), 'only-offline'),
     attachments: (d) => chk('attachments', d.attachments, T('adv_attach'), T('adv_attach_hint'), 'only-ko'),
     shareImages: (d) => chk('shareImages', d.shareImages, T('adv_share_img'), T('adv_share_img_hint'), 'only-ko'),
+    // Dừng giữa hai giai đoạn để kéo thả xếp nhánh loại trực tiếp (tour-arrange.js)
+    arrangeNext: (d) => chk('arrangeNext', d.arrangeNext, T('adv_arrange'), T('adv_arrange_hint'), 'only-ko'),
     placeBy: (d) => `<label class="field only-ko"><span>${esc(T('adv_place_by'))}</span><select name="placeBy">${['seed', 'list'].map((v) => `<option value="${v}" ${v === d.placeBy ? 'selected' : ''}>${esc(T('adv_place_' + v))}</option>`).join('')}</select>
       <small class="hint">${esc(T('adv_place_hint'))}</small></label>`,
   });
@@ -47,11 +49,11 @@
   DR.EXT.payloads.push((d, { ko }) => ({
     slug: String(d.slug || '').trim().toLowerCase(), roundLabels: !!d.roundLabels, hideBracket: ko && !!d.hideBracket,
     quickAdvance: ko && !!d.offline && !!d.quickAdvance, attachments: ko && !!d.attachments, shareImages: !!d.shareImages,
-    placeBy: d.placeBy === 'list' ? 'list' : 'seed',
+    placeBy: d.placeBy === 'list' ? 'list' : 'seed', arrangeNext: ko && !!d.arrangeNext,
   }));
   DR.EXT.fromTour.push((d, t) => {
     Object.assign(d, { slug: t.slug || '', roundLabels: t.roundLabels !== false, hideBracket: !!t.hideBracket, quickAdvance: !!t.quickAdvance,
-      attachments: !!t.attachments, shareImages: t.shareImages !== false, placeBy: t.placeBy || 'seed' });
+      attachments: !!t.attachments, shareImages: t.shareImages !== false, placeBy: t.placeBy || 'seed', arrangeNext: !!t.arrangeNext });
   });
 
   K.acts.slugShuffle = () => {

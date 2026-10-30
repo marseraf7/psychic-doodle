@@ -188,7 +188,7 @@ class TourManage {
     const { t, uid } = this.managerOf(conn, id, 'owner');
     if (t.status !== 'running') throw E('tour_not_running');
     for (const r of this.rooms.values()) if (r.tour && r.tour.id === t.id) r.tour.cancelled = true;
-    Object.assign(t, { status: 'scheduled', st: null, stage: 0, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [],
+    Object.assign(t, { status: 'scheduled', st: null, stage: 0, arrange: null, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [],
       checkinNotified: false, checkinWaived: false }); // điểm danh lại từ đầu
     t.startsAt = Math.max(t.startsAt, Date.now() + 10 * 60 * 1000); // không tự bắt đầu lại ngay
     for (const p of t.players) Object.assign(p, { seed: null, out: null, score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, paused: false, checkedIn: false });

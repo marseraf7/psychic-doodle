@@ -30,7 +30,7 @@
     'gdiff', 'gwins', 'gpct'];
   const MAX_TB = 5;
   const BO_OPTS = [1, 3, 5, 7];
-  const MAX_BO = 15;
+  const MAX_BO = 25; // như máy chủ (stages.js)
   const PLACE_CHIPS = 64; // chọn từng cặp hạng tới hạng 64; sau đó một ô "tất cả các hạng sau"
   const pow2 = (n) => { let s = 2; while (s < n) s *= 2; return s; };
   /** Các cặp hạng đang chọn (số lẻ 3, 5, 7…) – giải cũ: mọi vị trí (placement) / chỉ hạng ba (thirdPlace). */
@@ -49,6 +49,12 @@
     const sel = (i, k, items, v) => `<select data-i="${i}" data-k="${k}">${items.map(([x, l]) => `<option value="${x}" ${String(x) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     const chk = (i, k, v, label) => `<label class="check"><input type="checkbox" data-i="${i}" data-k="${k}" ${v ? 'checked' : ''}> <span>${esc(label)}</span></label>`;
     const field = (label, inner) => `<label class="field inline"><span>${esc(label)}</span>${inner}</label>`;
+    // Bo của cả giai đoạn: Bo1–7 hoặc tự nhập số lẻ bất kỳ tới MAX_BO
+    const boPick = (i, k, v) => {
+      const custom = !BO_OPTS.includes(Number(v));
+      return sel(i, k, [...BO_OPTS.map((n) => [n, 'Bo' + n]), ['c', T('bo_custom')]], custom ? 'c' : v)
+        + (custom ? `<span class="bo-n">Bo${num(i, k + 'N', v, 1, MAX_BO)}</span>` : '');
+    };
     // Bo riêng: "giống các vòng khác (BoN)", Bo1–7, hoặc tự nhập số lẻ (ô số hiện ra khi chọn "Tự nhập")
     const boSel = (i, k, v, stageBo) => {
       const custom = v && !BO_OPTS.includes(Number(v));
@@ -70,7 +76,7 @@
     const cards = st.map((c, i) => {
       const last = i === st.length - 1;
       const types = (last ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']).map((x) => [x, T('fmt_' + x)]);
-      const f = [field(T('format'), sel(i, 'type', types, c.type)), field(T('format_bo'), sel(i, 'bestOf', [[1, 'Bo1'], [3, 'Bo3'], [5, 'Bo5']], c.bestOf))];
+      const f = [field(T('format'), sel(i, 'type', types, c.type)), field(T('format_bo'), boPick(i, 'bestOf', c.bestOf))];
       const more = []; // tuỳ chọn nâng cao (chỉ ở trang nâng cao)
       if (c.type === 'single') {
         f.push(chk(i, 'thirdPlace', placesOf(c, 4).includes(3), T('third_place_opt')));
@@ -145,8 +151,8 @@
       const list = k === 'thirdPlace' ? [3] : k === 'place' ? [Number(el.dataset.p)] : Array.from({ length: (size - PLACE_CHIPS) / 2 }, (_, j) => PLACE_CHIPS + 1 + 2 * j);
       for (const p of list) { if (el.checked) set.add(p); else set.delete(p); }
       setPlaces(c, [...set]);
-    } else if (k === 'boSemi' || k === 'boFinal') c[k] = el.value === 'c' ? 9 : Number(el.value) || 0;
-    else if (k === 'boSemiN' || k === 'boFinalN') {
+    } else if (k === 'boSemi' || k === 'boFinal' || k === 'bestOf') c[k] = el.value === 'c' ? 9 : Number(el.value) || (k === 'bestOf' ? 1 : 0);
+    else if (k === 'boSemiN' || k === 'boFinalN' || k === 'bestOfN') {
       let n = clamp(v);
       if (n % 2 === 0) n = n < MAX_BO ? n + 1 : n - 1; // Bo luôn là số lẻ
       c[k.slice(0, -1)] = n;

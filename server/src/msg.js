@@ -166,6 +166,8 @@ const VI = {
   tour_att_bad_url: 'Link đính kèm phải bắt đầu bằng http:// hoặc https://',
   tour_att_empty: 'Hãy nhập link, chọn ảnh hoặc ghi chú',
   tour_att_limit: 'Mỗi trận tối đa {n} đính kèm',
+  tour_arrange_none: 'Giải không ở bước chờ xếp nhánh',
+  tour_arrange_bad: 'Cách xếp nhánh không hợp lệ (thiếu / thừa người, hoặc một cặp trống cả hai ô)',
   tour_cannot_start: 'Không thể bắt đầu giải lúc này',
   tour_cannot_cancel: 'Không thể huỷ giải lúc này',
   tour_no_groups: 'Giải này không có vòng bảng',
@@ -194,6 +196,8 @@ const VI = {
   dispute_closed: 'Giải đã kết thúc, không đổi được kết quả nữa',
   tour_advanced: 'Bạn đã vào vòng {n} của giải {name}',
   tour_not_advanced: 'Bạn đã dừng bước ở giải {name}',
+  tour_arranging: 'Bạn đã vào giai đoạn {n} của giải {name} – chờ ban tổ chức xếp nhánh',
+  tour_arrange_now: 'Giải {name}: hãy xếp nhánh giai đoạn {n} rồi bấm Bắt đầu',
 };
 
 function fmt(code, args = {}) {

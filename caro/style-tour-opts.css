@@ -81,3 +81,19 @@
 
 /* Ô tick có dòng giải thích (tour-adv-more.js, tour-adv-bracket.js): giải thích xuống dòng dưới nhãn */
 .check > span > small.hint { display: block; margin-top: 2px; }
+
+/* ---- Kéo thả xếp nhánh giữa hai giai đoạn (tour-arrange.js) */
+.ar-box { border: 1px solid var(--accent); border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+.ar-box h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; }
+.ar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; margin: 8px 0; }
+.ar-pair { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--panel-border); border-radius: 10px; padding: 6px; }
+.ar-pair.warn { border-color: #d98a1f; background: color-mix(in srgb, #d98a1f 10%, transparent); }
+.ar-slot { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 6%, transparent);
+  cursor: grab; user-select: none; touch-action: manipulation; }
+.ar-slot .ico { opacity: 0.5; flex: none; }
+.ar-slot .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-slot .seed { min-width: 1.4em; color: var(--muted); font-size: var(--fs-xs); }
+.ar-slot .lbl { color: var(--muted); }
+.ar-slot.bye { opacity: 0.6; }
+.ar-slot.on, .ar-slot.over { outline: 2px solid var(--accent); }
+.ar-slot.drag { opacity: 0.4; }

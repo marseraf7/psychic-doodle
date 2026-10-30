@@ -1601,3 +1601,49 @@ test('Nhánh xem trước: vòng tròn chỉ gửi các bảng dự kiến, Th�
   await until(() => app.hub.tours.get(sw.id).status === 'running');
   assert.strictEqual((await B.req({ t: 'tourGet', id: sw.id }, 'tour')).tour.preview, null);
 });
+
+test('Kéo thả xếp nhánh giữa hai giai đoạn: dừng sau Thụy Sĩ, ban tổ chức đổi chỗ, bắt đầu nhánh theo đúng các ô', async () => {
+  const B = await organizer();
+  const out = await account('xem');
+  const { id } = await B.req({ t: 'tourCreate', name: 'Xếp Nhánh Tay', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, arrangeNext: true,
+    stages: [{ type: 'swiss', rounds: 2, bestOf: 1, points: { w: 2, d: 1, l: 0 }, advance: 4 }, { type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.strictEqual(t.arrangeNext, true);
+  await B.req({ t: 'tourAddPlayers', id, names: ['P1', 'P2', 'P3', 'P4', 'P5', 'P6'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const real = (u) => typeof u === 'string' && u !== '-';
+  for (let i = 0; i < 6 && !t.arrange; i++) {
+    for (const x of Object.values(t.st[0].matches)) {
+      if (x.done || !real(x.a) || !real(x.b)) continue;
+      B.send({ t: 'tourScore', id, match: x.id, sets: [[2, 0]] });
+      await until(() => x.done);
+    }
+  }
+  await until(() => !!t.arrange);
+  assert.deepStrictEqual([t.stage, t.st.length], [0, 1], 'chưa bốc thăm giai đoạn 2');
+  // Ban tổ chức thấy 4 ô kèm nhãn thành tích; người ngoài chỉ thấy "đang xếp nhánh"
+  const mine = (await B.req({ t: 'tourGet', id }, 'tour')).tour;
+  assert.strictEqual(mine.arrange.slots.length, 4);
+  assert.ok(mine.arrange.slots.every((x) => /^#\d$/.test(x.label)));
+  const seen = (await out.req({ t: 'tourGet', id }, 'tour')).tour;
+  assert.deepStrictEqual([seen.arranging, seen.arrange], [1, undefined]);
+  // Không hợp lệ: trùng người; không huỷ được kết quả giai đoạn trước khi đã chốt người đi tiếp
+  const s = t.arrange.slots;
+  assert.strictEqual((await B.req({ t: 'tourArrange', id, slots: [s[0], s[0], s[2], s[3]] }, 'error')).code, 'tour_arrange_bad');
+  assert.strictEqual((await out.req({ t: 'tourArrange', id, slots: s }, 'error')).code, 'tour_managers_only');
+  const anyDone = Object.values(t.st[0].matches).find((x) => x.done && !x.bye);
+  assert.strictEqual((await B.req({ t: 'tourScoreUndo', id, match: anyDone.id }, 'error')).code, 'tour_undo_locked');
+  // Đổi chỗ ô 2 và 3 (lưu ngay), rồi bắt đầu
+  const swapped = [s[0], s[2], s[1], s[3]];
+  B.send({ t: 'tourArrange', id, slots: swapped });
+  await until(() => t.arrange.slots[1] === s[2]);
+  B.send({ t: 'tourArrangeGo', id });
+  await until(() => !t.arrange && t.st.length === 2);
+  const r0 = t.st[1].rounds[0].map((mid) => t.st[1].matches[mid]);
+  assert.deepStrictEqual(r0.map((m) => [m.a, m.b]), [[swapped[0], swapped[1]], [swapped[2], swapped[3]]]);
+  assert.strictEqual(t.stage, 1);
+  assert.ok(t.log.some((x) => x.act === 'arranged'));
+  assert.strictEqual((await B.req({ t: 'tourArrange', id, slots: swapped }, 'error')).code, 'tour_arrange_none');
+  out.close();
+});

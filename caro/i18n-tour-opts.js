@@ -29,7 +29,7 @@
     srv_tour_img_too_big: 'Ảnh quá lớn (tối đa {n} KB sau khi thu nhỏ)', srv_tour_img_bad: 'Ảnh không hợp lệ (chỉ nhận PNG, JPEG, WebP)',
     srv_tour_att_bad_url: 'Link đính kèm phải bắt đầu bằng http:// hoặc https://', srv_tour_att_empty: 'Hãy nhập link, chọn ảnh hoặc ghi chú', srv_tour_att_limit: 'Mỗi trận tối đa {n} đính kèm',
     bo_same_n: 'Giống các vòng khác (Bo{n})', bo_custom: 'Tự nhập…',
-    opt_bo_sf_hint: 'Số ván tối đa riêng cho trận bán kết / chung kết – vd. các vòng Bo1 nhưng chung kết Bo5. Chọn "Tự nhập" để gõ số lẻ bất kỳ tới 15.',
+    opt_bo_sf_hint: 'Số ván tối đa riêng cho trận bán kết / chung kết – vd. các vòng Bo1 nhưng chung kết Bo5. Chọn "Tự nhập" để gõ số lẻ bất kỳ tới 25.',
     opt_places: 'Trận xếp hạng (chọn các cặp hạng muốn đấu)', opt_places_hint: 'Mỗi ô là một trận phân hạng, vd. 5–6. Hạng không chọn thì những người đó đồng hạng.',
     place_rest: 'Mọi cặp hạng từ {a} tới {b}', place_all: 'Chọn tất cả', place_none: 'Bỏ hết',
     opt_pairing: 'Cách xếp cặp', pair_dutch: 'Hà Lan – chuẩn FIDE (nửa trên gặp nửa dưới mỗi nhóm điểm)', pair_adjacent: 'Gặp người liền kề (1–2, 3–4…)',
@@ -67,6 +67,13 @@
     mx_att: 'Đính kèm trận', mx_att_url: 'Link', mx_att_text: 'Ghi chú (tuỳ chọn)', mx_att_img: 'Ảnh', mx_att_add: 'Thêm', mx_att_none: 'Chưa có đính kèm.', mx_att_del: 'Xoá đính kèm',
     log_attach: 'Thêm đính kèm cho trận {key}',
     tb_rank_rule: 'Xếp hạng: {list}.',
+    adv_arrange: 'Dừng lại để xếp nhánh trước giai đoạn loại trực tiếp', adv_arrange_hint: 'Vòng bảng / Thụy Sĩ xong thì chưa bốc thăm ngay: ban tổ chức kéo thả người chơi vào nhánh rồi mới bắt đầu giai đoạn sau.',
+    arr_title: 'Xếp nhánh giai đoạn {n}', arr_hint: 'Kéo một người thả lên ô khác để đổi chỗ (điện thoại: bấm ô thứ nhất rồi bấm ô thứ hai). Mỗi lần đổi được lưu ngay.',
+    arr_match: 'Trận {n}', arr_same_group: 'cùng bảng', arr_reset: 'Về mặc định', arr_go: 'Bắt đầu giai đoạn {n}', arr_go_confirm: 'Bắt đầu giai đoạn {n} với nhánh đã xếp? Sau đó không đổi chỗ được nữa.',
+    arr_wait: 'Ban tổ chức đang xếp nhánh giai đoạn {n} – các trận sẽ bắt đầu ngay sau đó.',
+    srv_tour_arrange_none: 'Giải không ở bước chờ xếp nhánh', srv_tour_arrange_bad: 'Cách xếp nhánh không hợp lệ (thiếu / thừa người, hoặc một cặp trống cả hai ô)',
+    srv_tour_arranging: 'Bạn đã vào giai đoạn {n} của giải {name} – chờ ban tổ chức xếp nhánh', srv_tour_arrange_now: 'Giải {name}: hãy xếp nhánh giai đoạn {n} rồi bấm Bắt đầu',
+    log_arrange_wait: 'Chờ ban tổ chức xếp nhánh giai đoạn {n}', log_arranged: 'Đã xếp nhánh và bắt đầu giai đoạn {n}',
   });
 
   // ================================================================ English
@@ -89,7 +96,7 @@
     srv_tour_img_too_big: 'Image too large (max {n} KB after resizing)', srv_tour_img_bad: 'Invalid image (PNG, JPEG or WebP only)',
     srv_tour_att_bad_url: 'Attachment links must start with http:// or https://', srv_tour_att_empty: 'Enter a link, pick an image or write a note', srv_tour_att_limit: 'At most {n} attachments per match',
     bo_same_n: 'Same as other rounds (Bo{n})', bo_custom: 'Custom…',
-    opt_bo_sf_hint: 'A separate best-of for semifinal / final matches – e.g. Bo1 rounds but a Bo5 final. Pick "Custom" to type any odd number up to 15.',
+    opt_bo_sf_hint: 'A separate best-of for semifinal / final matches – e.g. Bo1 rounds but a Bo5 final. Pick "Custom" to type any odd number up to 25.',
     opt_places: 'Placement matches (pick the places to play for)', opt_places_hint: 'Each box is one placement match, e.g. 5–6. Places you skip are shared.',
     place_rest: 'Every place from {a} to {b}', place_all: 'Select all', place_none: 'Clear',
     opt_pairing: 'Pairing system', pair_dutch: 'Dutch – FIDE standard (top half vs bottom half in each score group)', pair_adjacent: 'Adjacent players (1–2, 3–4…)',
@@ -127,6 +134,13 @@
     mx_att: 'Match attachments', mx_att_url: 'Link', mx_att_text: 'Note (optional)', mx_att_img: 'Image', mx_att_add: 'Add', mx_att_none: 'No attachments yet.', mx_att_del: 'Delete attachment',
     log_attach: 'Attachment added to match {key}',
     tb_rank_rule: 'Ranking: {list}.',
+    adv_arrange: 'Pause to arrange the bracket before the elimination stage', adv_arrange_hint: 'When the group / Swiss stage ends, nothing is drawn yet: organizers drag players into the bracket, then start the next stage.',
+    arr_title: 'Arrange the stage {n} bracket', arr_hint: 'Drag a player onto another slot to swap them (phone: tap the first slot, then the second). Every change is saved right away.',
+    arr_match: 'Match {n}', arr_same_group: 'same group', arr_reset: 'Reset to default', arr_go: 'Start stage {n}', arr_go_confirm: 'Start stage {n} with this bracket? Slots cannot be swapped afterwards.',
+    arr_wait: 'Organizers are arranging the stage {n} bracket – matches start right after.',
+    srv_tour_arrange_none: 'The tournament is not waiting for a bracket arrangement', srv_tour_arrange_bad: 'Invalid bracket arrangement (missing / extra players, or a match with two empty slots)',
+    srv_tour_arranging: 'You reached stage {n} of {name} – waiting for organizers to arrange the bracket', srv_tour_arrange_now: '{name}: arrange the stage {n} bracket, then press Start',
+    log_arrange_wait: 'Waiting for organizers to arrange the stage {n} bracket', log_arranged: 'Bracket arranged, stage {n} started',
   });
 
   // ================================================================ Русский
@@ -149,7 +163,7 @@
     srv_tour_img_too_big: 'Изображение слишком большое (не более {n} КБ после уменьшения)', srv_tour_img_bad: 'Неверное изображение (только PNG, JPEG, WebP)',
     srv_tour_att_bad_url: 'Ссылка вложения должна начинаться с http:// или https://', srv_tour_att_empty: 'Укажите ссылку, выберите фото или напишите заметку', srv_tour_att_limit: 'Не более {n} вложений на матч',
     bo_same_n: 'Как в остальных турах (Bo{n})', bo_custom: 'Своё…',
-    opt_bo_sf_hint: 'Отдельное число партий для полуфиналов / финала – напр. туры Bo1, а финал Bo5. «Своё» – любое нечётное число до 15.',
+    opt_bo_sf_hint: 'Отдельное число партий для полуфиналов / финала – напр. туры Bo1, а финал Bo5. «Своё» – любое нечётное число до 25.',
     opt_places: 'Матчи за места (выберите нужные места)', opt_places_hint: 'Каждая ячейка – отдельный матч, напр. за 5–6 место. Невыбранные места делятся.',
     place_rest: 'Все места с {a} по {b}', place_all: 'Выбрать все', place_none: 'Снять все',
     opt_pairing: 'Жеребьёвка', pair_dutch: 'Голландская – стандарт ФИДЕ (верхняя половина против нижней в группе очков)', pair_adjacent: 'Соседние игроки (1–2, 3–4…)',
@@ -187,6 +201,13 @@
     mx_att: 'Вложения матча', mx_att_url: 'Ссылка', mx_att_text: 'Заметка (необязательно)', mx_att_img: 'Фото', mx_att_add: 'Добавить', mx_att_none: 'Вложений пока нет.', mx_att_del: 'Удалить вложение',
     log_attach: 'Добавлено вложение к матчу {key}',
     tb_rank_rule: 'Места: {list}.',
+    adv_arrange: 'Пауза для расстановки сетки перед этапом на выбывание', adv_arrange_hint: 'После групп / швейцарки жеребьёвка не проводится сразу: организаторы перетаскивают игроков в сетку и запускают следующий этап.',
+    arr_title: 'Расстановка сетки этапа {n}', arr_hint: 'Перетащите игрока на другую ячейку, чтобы поменять местами (телефон: нажмите первую ячейку, затем вторую). Изменения сохраняются сразу.',
+    arr_match: 'Матч {n}', arr_same_group: 'одна группа', arr_reset: 'Как по умолчанию', arr_go: 'Начать этап {n}', arr_go_confirm: 'Начать этап {n} с этой сеткой? Потом поменять местами нельзя.',
+    arr_wait: 'Организаторы расставляют сетку этапа {n} – матчи начнутся сразу после этого.',
+    srv_tour_arrange_none: 'Турнир не ожидает расстановки сетки', srv_tour_arrange_bad: 'Неверная расстановка (не хватает / лишние игроки или матч из двух пустых ячеек)',
+    srv_tour_arranging: 'Вы вышли в этап {n} турнира {name} – ждём, пока организаторы расставят сетку', srv_tour_arrange_now: '{name}: расставьте сетку этапа {n} и нажмите «Начать»',
+    log_arrange_wait: 'Ожидание расстановки сетки этапа {n}', log_arranged: 'Сетка расставлена, этап {n} начат',
   });
 
   // ================================================================ 中文
@@ -209,7 +230,7 @@
     srv_tour_img_too_big: '图片太大（缩小后最多 {n} KB）', srv_tour_img_bad: '图片无效（仅支持 PNG、JPEG、WebP）',
     srv_tour_att_bad_url: '附件链接须以 http:// 或 https:// 开头', srv_tour_att_empty: '请输入链接、选择图片或填写备注', srv_tour_att_limit: '每场对局最多 {n} 个附件',
     bo_same_n: '与其他轮相同（Bo{n}）', bo_custom: '自定义…',
-    opt_bo_sf_hint: '半决赛 / 决赛单独的局数——例如各轮 Bo1、决赛 Bo5。选“自定义”可输入不超过 15 的任意奇数。',
+    opt_bo_sf_hint: '半决赛 / 决赛单独的局数——例如各轮 Bo1、决赛 Bo5。选“自定义”可输入不超过 25 的任意奇数。',
     opt_places: '排位赛（选择要比的名次）', opt_places_hint: '每一格是一场排位赛，如 5–6 名。未选的名次并列。',
     place_rest: '第 {a} 至 {b} 名的所有排位', place_all: '全选', place_none: '全不选',
     opt_pairing: '配对方式', pair_dutch: '荷兰制——FIDE 标准（每个积分组上半区对下半区）', pair_adjacent: '相邻配对（1–2、3–4…）',
@@ -247,5 +268,12 @@
     mx_att: '对局附件', mx_att_url: '链接', mx_att_text: '备注（可选）', mx_att_img: '图片', mx_att_add: '添加', mx_att_none: '暂无附件。', mx_att_del: '删除附件',
     log_attach: '为对局 {key} 添加了附件',
     tb_rank_rule: '排名：{list}。',
+    adv_arrange: '淘汰阶段前暂停以手动排对阵', adv_arrange_hint: '小组赛 / 瑞士制结束后不立即抽签：主办方拖动选手排好对阵表，再开始下一阶段。',
+    arr_title: '排第 {n} 阶段对阵表', arr_hint: '把选手拖到另一个位置即可互换（手机：先点第一个位置，再点第二个）。每次改动立即保存。',
+    arr_match: '第 {n} 场', arr_same_group: '同组', arr_reset: '恢复默认', arr_go: '开始第 {n} 阶段', arr_go_confirm: '用此对阵表开始第 {n} 阶段？开始后不能再调换。',
+    arr_wait: '主办方正在排第 {n} 阶段对阵表——排好后比赛立即开始。',
+    srv_tour_arrange_none: '比赛不在等待排对阵的阶段', srv_tour_arrange_bad: '对阵安排无效（选手缺少 / 多余，或某场两个位置都为空）',
+    srv_tour_arranging: '你已进入 {name} 的第 {n} 阶段——等待主办方排对阵', srv_tour_arrange_now: '{name}：请排好第 {n} 阶段对阵表后点“开始”',
+    log_arrange_wait: '等待主办方排第 {n} 阶段对阵表', log_arranged: '对阵表已排好，第 {n} 阶段开始',
   });
 })();

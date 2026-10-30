@@ -209,6 +209,7 @@
     if (K.isManageTab && K.isManageTab(t)) return html + K.manageHtml(t);
     if (K.regHtml) html += K.regHtml(t); // điều kiện đăng ký, form mã / câu hỏi, hàng chờ, duyệt + Bulk Add (tour-reg.js)
     if (K.scoreHtml) html += K.scoreHtml(t); // nhập tỉ số / xử thắng, in biên bản (tour-score.js)
+    if (K.arrangeHtml) html += K.arrangeHtml(t); // kéo thả xếp nhánh giai đoạn sau (tour-arrange.js)
     html += myCard(t);
     if (K.disputesHtml) html += K.disputesHtml(t); // ván mất kết nối (tour-disputes.js)
     if (t.podium && t.podium.length && t.status === 'finished') {

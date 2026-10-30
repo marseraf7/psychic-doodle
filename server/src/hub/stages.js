@@ -22,13 +22,12 @@
  */
 'use strict';
 const { TYPES, GROUP_TYPES, BYE, MAX_GROUP, MAX_GROUPS, isElim, real } = require('./stages-base.js');
-const { seedOrder, resolveElim, buildSingle, buildDouble } = require('./stages-elim.js');
+const { seedOrder, resolveElim, buildSingle, buildDouble, elimSize, checkSlots, defaultSlots } = require('./stages-elim.js');
 const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds } = require('./stages-groups.js');
 const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB } = require('./stages-tiebreak.js');
 
-const BO = [1, 3, 5];
-const MAX_BO = 15;
-/** Bo riêng của bán kết / chung kết: số lẻ 1…MAX_BO; không hợp lệ = 0 (như các vòng khác). */
+const MAX_BO = 25;
+/** Bo (số ván tối đa của một trận): số lẻ 1…MAX_BO (cần phân thắng thua); không hợp lệ = 0. */
 const oddBo = (v) => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= MAX_BO && n % 2 === 1 ? n : 0; };
 const GF = ['2', '1', 'none']; // chung kết tổng: 1–2 trận (reset) / 1 trận / không có
 /** Số vòng Thụy Sĩ tự động: ⌈log₂ n⌉ (đủ để còn đúng một người toàn thắng). */
@@ -40,9 +39,10 @@ function normalizeStage(c, last) {
   let type = TYPES.includes(c.type) ? c.type : 'single';
   if (!last && !GROUP_TYPES.includes(type)) type = 'roundrobin';
   const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
-  const out = { type, bestOf: BO.includes(Number(c.bestOf)) ? Number(c.bestOf) : (isElim(type) ? 3 : 1) };
+  // Bo của cả giai đoạn: chọn sẵn Bo1 / 3 / 5 / 7 hoặc ban tổ chức tự nhập số lẻ tới MAX_BO
+  const out = { type, bestOf: oddBo(c.bestOf) || (isElim(type) ? 3 : 1) };
   if (isElim(type)) {
-    // Bo riêng bán kết / chung kết (0 = như các vòng khác): Bo1 / 3 / 5 hoặc ban tổ chức tự nhập số lẻ tới MAX_BO
+    // Bo riêng bán kết / chung kết (0 = như các vòng khác): Bo1 / 3 / 5 / 7 hoặc ban tổ chức tự nhập số lẻ tới MAX_BO
     out.boSemi = oddBo(c.boSemi);
     out.boFinal = oddBo(c.boFinal);
   }
@@ -96,9 +96,10 @@ function normalizeStages(list) {
 /** Tạo vòng mới với danh sách hạt giống (thứ tự = hạt giống 1, 2, …). */
 function buildStage(cfg, index, seeds, opts = {}) {
   const st = { type: cfg.type, cfg, index, key: `s${index}`, entrants: [...seeds], matches: {}, done: false };
-  // placeBy 'list': xếp vào nhánh theo thứ tự danh sách (1 gặp 2…) thay cho luật hạt giống (stages-elim.js)
-  if (cfg.type === 'single') buildSingle(st, seeds, opts.groupOf, opts.placeBy);
-  else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf, opts.placeBy);
+  // placeBy 'list': xếp vào nhánh theo thứ tự danh sách (1 gặp 2…) thay cho luật hạt giống; slots: ô vòng 1 ban tổ chức
+  // kéo thả (stages-elim.js)
+  if (cfg.type === 'single') buildSingle(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
+  else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
   else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups);
   else {
     st.rounds = [];
@@ -203,5 +204,5 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  tally, eliminated, isElim, real, tbValue, MAX_BO, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS,
+  tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS,
 };

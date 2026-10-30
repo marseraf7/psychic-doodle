@@ -169,6 +169,7 @@ class Tournaments {
       selfReport: !!t.selfReport, notifyMatch: t.notifyMatch !== false, notifyResults: t.notifyResults !== false,
       showNews: t.showNews !== false, showStandings: t.showStandings !== false,
       ...this.optShared(t), // link riêng, tab Nhánh đấu, nhánh xem trước (tour-opts.js)
+      ...this.arrangeShared(t), // đang chờ ban tổ chức xếp nhánh giai đoạn sau (tour-arrange.js)
       now: Date.now(),
     };
   }
@@ -198,6 +199,7 @@ class Tournaments {
       ...(t.teams || t.teamMatch ? this.battleMine(t, uid) : {}),
       ...this.funMine(t, uid),
       ...this.previewMine(t, manage),
+      ...this.arrangeMine(t, uid),
     };
   }
 

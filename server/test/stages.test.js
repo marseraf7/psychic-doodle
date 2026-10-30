@@ -23,7 +23,7 @@ let seed = 7;
 const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
 test('chuẩn hoá cấu hình: vòng trước chỉ được vòng tròn / Thụy Sĩ, giới hạn giá trị', () => {
-  const st = S.normalizeStages([{ type: 'single' }, { type: 'double', bestOf: 7 }]);
+  const st = S.normalizeStages([{ type: 'single' }, { type: 'double', bestOf: 8 }]);
   assert.strictEqual(st[0].type, 'roundrobin');
   assert.strictEqual(st[1].type, 'double');
   assert.strictEqual(st[1].bestOf, 3);
@@ -467,13 +467,35 @@ test('trận xếp hạng chọn từng cặp hạng (places): chỉ tạo các 
   for (let n = 3; n <= 20; n++) assert.ok(playOut(build([5, 11], n), (m) => (rnd() < 0.5 ? m.a : m.b)).done, 'n=' + n);
 });
 
-test('Bo riêng bán kết / chung kết: tự nhập số lẻ tới 15', () => {
+test('Bo tự nhập (cả giai đoạn, bán kết, chung kết): số lẻ tới 25', () => {
   const cfg = S.normalizeStages([{ type: 'single', bestOf: 3, boSemi: 7, boFinal: 9 }])[0];
   assert.deepStrictEqual([cfg.boSemi, cfg.boFinal], [7, 9]);
-  assert.deepStrictEqual(S.normalizeStages([{ type: 'single', boSemi: 8, boFinal: 17 }]).map((c) => [c.boSemi, c.boFinal])[0], [0, 0]);
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'single', boSemi: 8, boFinal: 27 }]).map((c) => [c.boSemi, c.boFinal])[0], [0, 0]);
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'single', bestOf: 17, boFinal: 25 }]).map((c) => [c.bestOf, c.boFinal])[0], [17, 25]);
+  assert.strictEqual(S.normalizeStages([{ type: 'swiss', bestOf: 4 }])[0].bestOf, 1, 'số chẵn: về mặc định');
   const st = S.buildStage(cfg, 0, players(8));
   const R = st.rounds.length;
   assert.strictEqual(S.boOf(st, st.matches[st.rounds[R - 1][0]]), 9);
   assert.strictEqual(S.boOf(st, st.matches[st.rounds[R - 2][0]]), 7);
   assert.strictEqual(S.boOf(st, st.matches[st.rounds[0][0]]), 3);
+});
+
+test('xếp nhánh tay (slots): kiểm hợp lệ, dựng vòng 1 đúng thứ tự ô, chơi hết', () => {
+  const seeds = players(5);
+  const def = S.defaultSlots('single', seeds, null, null);
+  assert.strictEqual(def.length, 8);
+  assert.deepStrictEqual(S.checkSlots('single', seeds, def), def);
+  assert.strictEqual(S.checkSlots('single', seeds, def.slice(0, 6)), null, 'sai số ô');
+  assert.strictEqual(S.checkSlots('single', seeds, ['p1', 'p1', 'p2', 'p3', 'p4', 'p5', '-', '-']), null, 'trùng người');
+  assert.strictEqual(S.checkSlots('single', seeds, ['p1', 'p2', 'p3', 'p4', 'p5', '-', '-', '-']), null, 'một cặp trống cả hai ô');
+  assert.strictEqual(S.checkSlots('single', seeds, ['p1', 'x9', 'p3', 'p4', 'p5', '-', 'p2', '-']), null, 'người lạ');
+  const slots = ['p5', 'p1', 'p2', '-', 'p3', '-', 'p4', '-'];
+  assert.deepStrictEqual(S.checkSlots('single', seeds, slots), slots);
+  const st = S.buildStage(S.normalizeStages([{ type: 'single', thirdPlace: false }])[0], 0, seeds, { slots });
+  assert.deepStrictEqual(st.rounds[0].map((id) => [st.matches[id].a, st.matches[id].b]), [['p5', 'p1'], ['p2', '-'], ['p3', '-'], ['p4', '-']]);
+  assert.ok(playOut(st).done);
+  // Nhánh thắng – thua: tối thiểu 4 ô
+  const d = S.buildStage(S.normalizeStages([{ type: 'double' }])[0], 0, players(3), { slots: ['p3', 'p1', 'p2', '-'] });
+  assert.deepStrictEqual([d.matches[d.rounds[0][0]].a, d.matches[d.rounds[0][0]].b], ['p3', 'p1']);
+  assert.ok(playOut(d).done);
 });

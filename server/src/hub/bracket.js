@@ -102,10 +102,17 @@ class Bracket {
       const p = this.player(t, u);
       if (p && !going.has(u) && !p.out) p.out = 'not_advanced';
     }
+    this.notifyPlayers(t, 'tour_not_advanced', {}, (p) => p.out === 'not_advanced' && st.entrants.includes(p.uid));
+    // "Dừng lại để xếp nhánh": chờ ban tổ chức kéo thả rồi mới bốc thăm giai đoạn sau (tour-arrange.js)
+    if (this.arrangeHold(t, st, seeds, groupOf)) {
+      this.notifyPlayers(t, 'tour_arranging', { n: t.stage + 2 }, (p) => going.has(p.uid));
+      this.saveTour(t);
+      this.pushTour(t);
+      return;
+    }
     t.stage++;
     t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, { groupOf, seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u) }));
     this.notifyPlayers(t, 'tour_advanced', { n: t.stage + 1 }, (p) => going.has(p.uid));
-    this.notifyPlayers(t, 'tour_not_advanced', {}, (p) => p.out === 'not_advanced' && st.entrants.includes(p.uid));
     this.saveTour(t);
     this.pushTour(t);
   }

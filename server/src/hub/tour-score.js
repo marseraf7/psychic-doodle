@@ -113,7 +113,8 @@ class TourScore {
   /** Huỷ kết quả một trận: chỉ khi các trận nhận người thắng / thua của nó chưa đấu (và giai đoạn chưa chuyển). */
   on_tourScoreUndo(conn, { id, match }) {
     const { t, st, m } = this.scoreTarget(conn, id, match);
-    if (!m.done || m.bye || m.split) throw E('tour_undo_locked');
+    // Đang chờ xếp nhánh giai đoạn sau (người đi tiếp đã chốt): không huỷ kết quả giai đoạn trước nữa
+    if (!m.done || m.bye || m.split || t.arrange) throw E('tour_undo_locked');
     // Trận trực tuyến đã đấu thật (đã tính Elo, có ván phát lại): không huỷ được – chỉ trận ban tổ chức xử / vắng mặt
     if (!t.offline && m.games && m.games.length) throw E('tour_undo_online');
     if (ST.isElim(st.type)) {

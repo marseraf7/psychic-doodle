@@ -12,7 +12,8 @@
   const MAX_GROUP = 16; // như stages-base.js
   const MAX_GROUPS = 64;
   /** Số ván trung bình của một trận BoN (Bo3 thường 2–3 ván, Bo5 thường 3–5 ván). */
-  const GAMES = { 1: 1, 3: 2.5, 5: 4 };
+  // Số ván trung bình của một trận BoN (Bo1 = 1, Bo3 ≈ 2,5, Bo5 ≈ 4…): (3N + 1) / 4
+  const gamesOf = (bo) => (bo ? (3 * bo + 1) / 4 : 0);
   const BREAK_MIN = 1; // nghỉ giữa hai lượt đấu (chờ trận chậm nhất, vào phòng)
   const STAGE_BREAK_MIN = 2; // giữa hai giai đoạn
 
@@ -162,7 +163,7 @@
       const last = i === list.length - 1;
       const s = { ...stage(c, n, last), players: n };
       // Bo riêng chung kết / bán kết (nếu đặt) cho 1–2 lượt cuối của nhánh đấu
-      const waves = s.maxWaves || s.waves, g = (bo) => GAMES[bo] || GAMES[c.bestOf] || 1;
+      const waves = s.maxWaves || s.waves, g = (bo) => gamesOf(bo) || gamesOf(c.bestOf) || 1;
       const extra = (waves >= 1 ? g(c.boFinal) - g(c.bestOf) : 0) + (waves >= 2 ? g(c.boSemi) - g(c.bestOf) : 0);
       s.minutes = waves * (g(c.bestOf) * per + BREAK_MIN) + extra * per;
       out.stages.push(s);

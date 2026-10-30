@@ -8,6 +8,7 @@
  *  - attachments: đính kèm cho trận (link, ảnh, ghi chú) của ban tổ chức và hai người chơi của trận.
  *  - placeBy: xếp người vào nhánh theo luật hạt giống ('seed': 1 gặp 16, 8 gặp 9…) hay theo thứ tự danh sách
  *    ('list': 1 gặp 2, 3 gặp 4…) – stages-elim.js.
+ *  - arrangeNext: dừng giữa hai giai đoạn để ban tổ chức kéo thả xếp nhánh loại trực tiếp (tour-arrange.js).
  *  - shareImages: ảnh chia sẻ kết quả trận (vẽ ở trình duyệt – caro/tour-share-img.js) cho loại trực tiếp, nhánh thắng
  *    – thua, vòng tròn, Thụy Sĩ.
  * Phần tuỳ chọn đổi được cả khi giải đang chạy / đã xong (chỉ ảnh hưởng cách hiện): LIVE_OPTS.
@@ -19,7 +20,7 @@ const ST = require('./stages.js');
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]{2,19}$/;
 const MAX_ATT = 10; // đính kèm mỗi trận
-const LIVE_OPTS = ['slug', 'roundLabels', 'quickAdvance', 'attachments', 'shareImages', 'showNews', 'showStandings', 'notifyMatch', 'notifyResults'];
+const LIVE_OPTS = ['slug', 'roundLabels', 'quickAdvance', 'attachments', 'shareImages', 'arrangeNext', 'showNews', 'showStandings', 'notifyMatch', 'notifyResults'];
 
 class TourOpts {
   /** Các trường tuỳ chọn từ client (tourFields gọi). ko: thi đấu theo giai đoạn; offline: giải offline. */
@@ -34,6 +35,8 @@ class TourOpts {
       attachments: ko && o.attachments === true,
       placeBy: ko && o.placeBy === 'list' ? 'list' : 'seed',
       shareImages: ko && o.shareImages !== false,
+      // Dừng giữa hai giai đoạn để ban tổ chức kéo thả xếp nhánh loại trực tiếp (tour-arrange.js)
+      arrangeNext: ko && o.arrangeNext === true,
     };
   }
 
@@ -56,6 +59,7 @@ class TourOpts {
     return {
       slug: t.slug || null, roundLabels: t.roundLabels !== false, hideBracket: !!t.hideBracket, quickAdvance: !!t.quickAdvance,
       attachments: !!t.attachments, placeBy: t.placeBy || 'seed', shareImages: t.format === 'bracket' && t.shareImages !== false,
+      arrangeNext: !!t.arrangeNext,
       // Nhánh đấu xem trước (trước giờ đấu); tắt "hiện xem trước" thì chỉ ban tổ chức thấy (tourMine – previewMine)
       preview: t.hideBracket ? null : this.previewView(t),
     };
