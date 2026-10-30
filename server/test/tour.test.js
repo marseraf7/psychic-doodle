@@ -683,6 +683,191 @@ test('Thụy Sĩ 4 người 3 vòng (có hoà, không gặp lại) và nhánh th
   ps.forEach((c) => c.close());
 });
 
+test('tuỳ chọn như Challonge: Bo3 chung kết, trận xếp hạng; nhánh thắng – thua split + không chung kết tổng', async () => {
+  const B = await organizer();
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('pl', 1650 - i * 10));
+  const sg = await B.req({ t: 'tourCreate', name: 'Xếp hạng', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, noShowMin: 5,
+    stages: [{ type: 'single', bestOf: 1, boFinal: 3, placement: true }] }, 'tourCreated');
+  for (const p of ps) await p.req({ t: 'tourJoin', id: sg.id }, 'toast');
+  const t = app.hub.tours.get(sg.id);
+  assert.strictEqual(t.noShowMin, 5, 'lưu thời gian chờ vắng mặt');
+  const watcher = await account('plw');
+  await watcher.req({ t: 'tourGet', id: sg.id }, 'tour'); // xem trang giải suốt giải: nhận bản vá
+  B.send({ t: 'tourStart', id: sg.id });
+  await until(() => t.status === 'running');
+  const sd = (c) => t.players.find((p) => p.uid === c.me.uid).seed;
+  const bos = new Set();
+  await autoPlay(t, ps, (a, b) => {
+    const r = [...app.hub.rooms.values()].find((x) => x.tour && x.tour.id === t.id && x.active && x.full);
+    if (r) bos.add(r.tour.match + ':' + r.bestOf);
+    return sd(a) < sd(b) ? a : b;
+  }, 60000);
+  assert.strictEqual(t.status, 'finished');
+  const st = t.st[0];
+  const final = st.rounds[st.rounds.length - 1][0];
+  assert.ok(bos.has(final + ':3'), 'chung kết Bo3 – ' + [...bos].join(' '));
+  assert.ok([...bos].some((x) => x.startsWith(st.third + ':1')), 'tranh hạng ba Bo1');
+  const bySeed = t.players.filter((p) => p.seed).sort((a, b) => a.seed - b.seed).map((p) => p.uid);
+  assert.deepStrictEqual(t.podium.slice(0, 3), bySeed.slice(0, 3));
+  const v = await ps[3].req({ t: 'tourGet', id: sg.id }, 'tour');
+  assert.strictEqual(v.tour.noShowMin, 5);
+  assert.strictEqual(v.tour.stageViews[0].rounds[1][0].bo, 3, 'trang giải ghi Bo3 cho chung kết');
+  // Người xem từ đầu (chỉ nhận bản vá) có đúng trang giải như bản đầy đủ, kể cả trận tranh hạng ba
+  await until(() => watcher.tours[sg.id] && watcher.tours[sg.id].status === 'finished');
+  await sleep(100);
+  assert.deepStrictEqual(watcher.tours[sg.id].stageViews, v.shared.stageViews);
+  watcher.close();
+  // Nhánh thắng – thua 4 người, split, không chung kết tổng: hạt giống 3, 4 bắt đầu ở nhánh thua
+  const de = await B.req({ t: 'tourCreate', name: 'Split', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false,
+    stages: [{ type: 'double', bestOf: 1, gf: 'none', split: true }] }, 'tourCreated');
+  for (const p of ps) await p.req({ t: 'tourJoin', id: de.id }, 'toast');
+  B.send({ t: 'tourStart', id: de.id });
+  const d = app.hub.tours.get(de.id);
+  await until(() => d.status === 'running');
+  const sd2 = (c) => d.players.find((p) => p.uid === c.me.uid).seed;
+  let played = 0;
+  await autoPlay(d, ps, (a, b) => { played++; return sd2(a) < sd2(b) ? a : b; }, 60000);
+  assert.strictEqual(d.status, 'finished');
+  assert.strictEqual(played, 3, 'split + không chung kết tổng: 4 người chỉ 3 trận (CK nhánh thắng, 2 trận nhánh thua)');
+  const seeds2 = d.players.filter((p) => p.seed).sort((a, b) => a.seed - b.seed).map((p) => p.uid);
+  assert.deepStrictEqual(d.podium.slice(0, 3), seeds2.slice(0, 3));
+  const dv = await ps[0].req({ t: 'tourGet', id: de.id }, 'tour');
+  assert.ok(dv.tour.stageViews[0].split && dv.tour.stageViews[0].gf.length === 0);
+  ps.forEach((c) => c.close());
+});
+
+test('đăng ký nâng cao: mã vào, điều kiện Elo, câu hỏi, duyệt tay, danh sách chờ tự lên, hạn chót', async () => {
+  const B = await organizer();
+  const ps = [];
+  for (let i = 0; i < 5; i++) ps.push(await account('rg', 1500 + i * 10));
+  const { id } = await B.req({ t: 'tourCreate', name: 'Đăng ký', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, maxPlayers: 3,
+    stages: [{ type: 'single', bestOf: 1 }],
+    reg: { code: 'CARO1', minRating: 1505, approval: true, waitlist: true, questions: [{ q: 'CLB của bạn?' }, { q: 'Cỡ áo', type: 'choice', opts: ['S', 'M'] }] } }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  const err = async (c, m) => (await c.req(m, 'error')).code;
+  assert.strictEqual(await err(ps[1], { t: 'tourJoin', id, code: 'sai' }), 'tour_bad_code');
+  assert.strictEqual(await err(ps[0], { t: 'tourJoin', id, code: 'CARO1' }), 'tour_rating_low', 'Elo 1500 < 1505');
+  assert.strictEqual(await err(ps[1], { t: 'tourJoin', id, code: 'CARO1', answers: ['Hà Nội', 'XL'] }), 'tour_answers_required', 'đáp án ngoài lựa chọn');
+  for (const c of ps.slice(1)) await c.req({ t: 'tourJoin', id, code: 'CARO1', answers: ['CLB ' + c.me.name, 'M'] }, 'toast');
+  assert.strictEqual(t.players.length, 0, 'duyệt tay: chưa ai vào giải');
+  assert.strictEqual(t.queue.filter((x) => x.state === 'pending').length, 4);
+  // Người xem thường không thấy câu trả lời; ban tổ chức thấy
+  const pub = await ps[1].req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(pub.tour.regAdmin, null);
+  assert.strictEqual(pub.tour.reg.hasCode, true);
+  assert.ok(!JSON.stringify(pub.tour).includes('CARO1'), 'mã vào không lộ cho người chơi');
+  assert.deepStrictEqual(pub.tour.myQueue, { state: 'pending', pos: 1 });
+  const adm = await B.req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(adm.tour.regAdmin.queue.length, 4);
+  assert.deepStrictEqual(adm.tour.regAdmin.queue[0].answers, ['CLB ' + ps[1].me.name, 'M']);
+  // Duyệt 4 người, giải chỉ 3 chỗ: người thứ 4 vào danh sách chờ
+  for (const c of ps.slice(1)) B.send({ t: 'tourRegDecide', id, uid: c.me.uid, accept: true });
+  await until(() => t.players.length === 3 && t.queue.length === 1 && t.queue[0].state === 'wait');
+  assert.deepStrictEqual(t.players.find((p) => p.uid === ps[1].me.uid).answers, ['CLB ' + ps[1].me.name, 'M']);
+  // Một người rút → người đầu danh sách chờ tự vào
+  await ps[1].req({ t: 'tourLeave', id }, 'tour');
+  await until(() => t.players.some((p) => p.uid === ps[4].me.uid) && !t.queue.length);
+  // Từ chối: người bị từ chối không vào giải
+  const c2 = await account('rg', 1600);
+  await c2.req({ t: 'tourJoin', id, code: 'CARO1', answers: ['X', 'S'] }, 'toast');
+  B.send({ t: 'tourRegDecide', id, uid: c2.me.uid, accept: false });
+  await until(() => !t.queue.length);
+  assert.ok(!t.players.some((p) => p.uid === c2.me.uid));
+  // Hạn chót đã qua: không đăng ký được
+  t.reg.closeAt = Date.now() - 1000;
+  assert.strictEqual(await err(c2, { t: 'tourJoin', id, code: 'CARO1', answers: ['X', 'S'] }), 'tour_reg_closed');
+  [...ps, c2].forEach((c) => c.close());
+});
+
+test('Bulk Add: giải trực tuyến thêm theo tên đăng nhập; giải offline thêm theo tên, nhập tỉ số theo set, huỷ kết quả', async () => {
+  const B = await organizer();
+  const a = await account('ba', 1500), b = await account('ba', 1400);
+  const on = await B.req({ t: 'tourCreate', name: 'Mời', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, stages: [{ type: 'single' }] }, 'tourCreated');
+  const r = await B.req({ t: 'tourAddPlayers', id: on.id, names: ['@' + a.me.username, b.me.username.toUpperCase(), 'khongcoai_' + seq, a.me.username] }, 'tourAddResult');
+  assert.deepStrictEqual(r.added.length, 2);
+  assert.deepStrictEqual(r.missing, ['khongcoai_' + seq]);
+  assert.strictEqual(app.hub.tours.get(on.id).players.length, 2);
+  assert.strictEqual((await a.req({ t: 'tourAddPlayers', id: on.id, names: ['x'] }, 'error')).code, 'tour_managers_only');
+  // Giải offline: 4 người theo tên (không tài khoản), loại trực tiếp Bo3 nhập theo set
+  const off = await B.req({ t: 'tourCreate', name: 'Cầu lông', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, rated: true,
+    stages: [{ type: 'single', bestOf: 3, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(off.id);
+  assert.ok(t.offline && !t.rated && !t.checkin && t.seeding === 'list', 'offline: không tính Elo, không điểm danh, hạt giống theo danh sách');
+  const r2 = await B.req({ t: 'tourAddPlayers', id: off.id, names: ['An', 'Bình', 'an', '', 'Chi', 'Dũng'] }, 'tourAddResult');
+  assert.deepStrictEqual(r2.added, ['An', 'Bình', 'Chi', 'Dũng'], 'bỏ dòng trống và tên trùng');
+  assert.strictEqual((await a.req({ t: 'tourJoin', id: off.id }, 'error')).code, 'tour_offline_join');
+  B.send({ t: 'tourStart', id: off.id });
+  await until(() => t.status === 'running');
+  await sleep(100);
+  const st = t.st[0];
+  const [m1, m2] = st.rounds[0].map((x) => st.matches[x]);
+  assert.ok(!m1.room && !m2.room, 'không mở phòng cho trận ngoài đời');
+  const name = (u) => t.players.find((p) => p.uid === u).name;
+  assert.deepStrictEqual([name(m1.a), name(m1.b)], ['An', 'Dũng'], 'hạt giống theo thứ tự thêm: 1 gặp 4');
+  const score = (m, sets, extra) => B.send({ t: 'tourScore', id: off.id, match: m.id, sets, extra });
+  // Hoà số set ở loại trực tiếp: phải có kết quả phụ
+  assert.strictEqual((await B.req({ t: 'tourScore', id: off.id, match: m1.id, sets: [[21, 15], [15, 21]] }, 'error')).code, 'tour_score_tie');
+  await score(m1, [[21, 15], [15, 21]], [5, 3]);
+  await until(() => m1.done);
+  assert.strictEqual(name(m1.winner), 'An', 'kết quả phụ quyết định');
+  await score(m2, [[21, 10], [21, 19]]);
+  await until(() => m2.done);
+  assert.deepStrictEqual(m2.sets, [[21, 10], [21, 19]]);
+  const fin = st.matches[st.rounds[1][0]];
+  assert.ok(fin.a && fin.b, 'chung kết đã có đủ 2 người');
+  // Huỷ kết quả bán kết 2: chung kết mất một người; nhập lại người kia thắng
+  B.send({ t: 'tourScoreUndo', id: off.id, match: m2.id });
+  await until(() => !m2.done);
+  assert.strictEqual(fin.b, null);
+  await score(m2, [[10, 21], [19, 21]]);
+  await until(() => m2.done && name(m2.winner) === 'Chi');
+  await score(fin, [[21, 5], [21, 5]]);
+  await until(() => t.status === 'finished');
+  assert.strictEqual(name(t.podium[0]), 'An');
+  // Đã đấu chung kết: không huỷ được bán kết nữa (giải đã xong)
+  assert.strictEqual((await B.req({ t: 'tourScoreUndo', id: off.id, match: m2.id }, 'error')).code, 'tour_not_running');
+  const v = await B.req({ t: 'tourGet', id: off.id }, 'tour');
+  assert.deepStrictEqual(v.tour.stageViews[0].rounds[0][0].sets, [[21, 15], [15, 21]]);
+  assert.deepStrictEqual(v.tour.stageViews[0].rounds[0][0].extra, [5, 3]);
+  [a, b].forEach((c) => c.close());
+});
+
+test('giải offline vòng tròn: tính theo tổng điểm các set, được hoà; giải trực tuyến: ban tổ chức xử thắng trận chưa đấu', async () => {
+  const B = await organizer();
+  const off = await B.req({ t: 'tourCreate', name: 'Bóng bàn', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, scoreMode: 'points',
+    stages: [{ type: 'roundrobin', groups: 1, bestOf: 3, points: { w: 3, d: 1, l: 0 } }] }, 'tourCreated');
+  await B.req({ t: 'tourAddPlayers', id: off.id, names: ['P1', 'P2', 'P3'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id: off.id });
+  const t = app.hub.tours.get(off.id);
+  await until(() => t.status === 'running');
+  const ms = () => Object.values(t.st[0].matches);
+  const first = ms()[0];
+  // 2 set thua nhưng tổng điểm cao hơn: thắng theo tổng điểm
+  B.send({ t: 'tourScore', id: off.id, match: first.id, sets: [[30, 0], [10, 11], [10, 11]] });
+  await until(() => first.done);
+  assert.strictEqual(first.winner, first.a);
+  for (const m of ms().filter((x) => !x.done)) {
+    B.send({ t: 'tourScore', id: off.id, match: m.id, sets: [[11, 11]] }); // hoà
+    await until(() => m.done || t.status === 'finished');
+  }
+  await until(() => t.status === 'finished');
+  assert.ok(ms().filter((m) => m.winner === null).length >= 1, 'có trận hoà');
+  // Giải trực tuyến: xử thắng trận chưa đấu (ghi đè)
+  const p1 = await account('ov', 1500), p2 = await account('ov', 1400);
+  const on = await B.req({ t: 'tourCreate', name: 'Ghi đè', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');
+  for (const c of [p1, p2]) await c.req({ t: 'tourJoin', id: on.id }, 'toast');
+  const o = app.hub.tours.get(on.id);
+  B.send({ t: 'tourStart', id: on.id });
+  await until(() => o.status === 'running');
+  const m = o.st[0].matches[o.st[0].rounds[0][0]];
+  await until(() => m.room);
+  assert.strictEqual((await B.req({ t: 'tourScore', id: on.id, match: m.id, winner: p2.me.uid }, 'error')).code, 'tour_match_live', 'đang đấu thì không ghi đè');
+  app.hub.leave(app.hub.rooms.get(m.room).players[0].id); // một người rời phòng: thua cả trận
+  await until(() => o.status === 'finished');
+  [p1, p2].forEach((c) => c.close());
+});
+
 test('giải của câu lạc bộ: chỉ quản lý tạo được, chỉ thành viên đăng ký được, danh sách theo quyền', async () => {
   const B = await admin();
   const owner = await account('tco');
@@ -735,4 +920,560 @@ test('giải và câu lạc bộ được lưu: máy chủ khởi động lại 
   d.close();
   await srv.stop();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Đợt 3 – sửa sau review: Bulk Add bỏ qua tên không hợp lệ và thêm tiếp; Arena đang chạy: duyệt tay, danh sách chờ tự lên', async () => {
+  const B = await organizer();
+  const off = await B.req({ t: 'tourCreate', name: 'Tên lạ', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, stages: [{ type: 'single' }] }, 'tourCreated');
+  const r = await B.req({ t: 'tourAddPlayers', id: off.id, names: ['An', 'fuck', 'Bình'] }, 'tourAddResult');
+  assert.deepStrictEqual(r.bad, ['fuck'], 'tên phản cảm: báo riêng, các dòng sau vẫn được thêm');
+  assert.deepStrictEqual(r.added, ['An', 'Bình']);
+  const t = app.hub.tours.get(off.id);
+  assert.strictEqual(t.players.length, 2);
+  // Arena đang chạy, 2 chỗ, có duyệt tay + danh sách chờ
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('ar', 1500));
+  const ar = await B.req({ t: 'tourCreate', name: 'Arena duyệt', format: 'arena', startsAt: soon(), timeLimit: 30, minutes: 30, maxPlayers: 2, reg: { approval: true, waitlist: true } }, 'tourCreated');
+  const a = app.hub.tours.get(ar.id);
+  for (const c of ps.slice(0, 2)) { await c.req({ t: 'tourJoin', id: ar.id }, 'toast'); B.send({ t: 'tourRegDecide', id: ar.id, uid: c.me.uid, accept: true }); }
+  await until(() => a.players.length === 2);
+  B.send({ t: 'tourStart', id: ar.id });
+  await until(() => a.status === 'running');
+  await ps[2].req({ t: 'tourJoin', id: ar.id }, 'toast');
+  assert.strictEqual(a.queue[0].state, 'pending', 'Arena đang chạy: vào muộn vẫn chờ duyệt');
+  B.send({ t: 'tourRegDecide', id: ar.id, uid: ps[2].me.uid, accept: true });
+  await until(() => a.queue.length && a.queue[0].state === 'wait');
+  // Một người rút khỏi Arena đang chạy: người đầu danh sách chờ vào thay
+  ps[0].send({ t: 'tourLeave', id: ar.id });
+  await until(() => a.players.some((p) => p.uid === ps[2].me.uid && !p.withdrawn));
+  ps.forEach((c) => c.close());
+});
+
+test('khu quản trị: nháp → gửi duyệt, sửa cài đặt, thông báo, lịch, hạt giống thủ công, tạm dừng, đặt lại, xoá, nhật ký', async () => {
+  const B = await organizer();
+  const ps = [];
+  for (let i = 0; i < 4; i++) ps.push(await account('mg', 1500 + i * 10));
+  // Nháp: người khác không thấy; gửi duyệt (quản trị viên: mở đăng ký luôn)
+  const { id } = await B.req({ t: 'tourCreate', name: 'Quản trị', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, draft: true,
+    stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.strictEqual(t.status, 'draft');
+  assert.strictEqual((await ps[0].req({ t: 'tourGet', id }, 'error')).code, 'tour_not_found');
+  await B.req({ t: 'tourSubmit', id }, 'tourSubmitted');
+  assert.strictEqual(t.status, 'scheduled');
+  // Sửa cài đặt trước giờ đấu: đổi tên, Bo, số người
+  await B.req({ t: 'tourEdit', id, name: 'Quản trị 2', format: 'bracket', startsAt: soon(), timeLimit: 20, checkin: false, maxPlayers: 8,
+    stages: [{ type: 'single', bestOf: 3, thirdPlace: true }] }, 'tourEdited');
+  assert.strictEqual(t.name, 'Quản trị 2');
+  assert.strictEqual(t.stages[0].bestOf, 3);
+  assert.strictEqual(t.maxPlayers, 8);
+  for (const c of ps) await c.req({ t: 'tourJoin', id }, 'toast');
+  assert.strictEqual((await B.req({ t: 'tourEdit', id, name: 'X', format: 'bracket', startsAt: soon(), maxPlayers: 2, stages: [{ type: 'single' }] }, 'error')).code, 'tour_name_short');
+  assert.strictEqual((await B.req({ t: 'tourEdit', id, name: 'Quản trị 3', format: 'bracket', startsAt: soon(), maxPlayers: 3, stages: [{ type: 'single' }] }, 'error')).code, 'tour_max_low');
+  // Thông báo + lịch
+  await B.req({ t: 'tourGet', id }, 'tour');
+  B.send({ t: 'tourNews', id, text: 'Tập trung lúc 19:45' });
+  await ps[0].wait('toast', (m) => /19:45/.test(JSON.stringify(m)));
+  B.send({ t: 'tourSchedule', id, key: '0:0', at: Date.now() + 3600000, place: 'Phòng 2' });
+  await until(() => t.schedule && t.schedule['0:0'] && t.schedule['0:0'].place === 'Phòng 2');
+  // Hạt giống thủ công: người Elo thấp nhất làm hạt giống 1
+  const order = [...ps].reverse().map((c) => c.me.uid);
+  B.send({ t: 'tourSeeds', id, order });
+  await until(() => t.seedPlan && t.seedPlan.length === 4);
+  const v = await ps[1].req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(v.tour.news[0].text, 'Tập trung lúc 19:45');
+  assert.strictEqual(v.tour.schedule['0:0'].place, 'Phòng 2');
+  assert.strictEqual(v.tour.log, null, 'người chơi không thấy nhật ký');
+  assert.strictEqual(v.tour.seedPlan, null);
+  // Tạm dừng trước khi bắt đầu: bắt đầu xong không mở trận nào
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  assert.strictEqual(t.players.find((p) => p.uid === ps[3].me.uid).seed, 1, 'hạt giống theo thứ tự ban tổ chức xếp');
+  // Đang đấu: sửa chỉ đổi được tên / mô tả
+  await B.req({ t: 'tourEdit', id, name: 'Quản trị đang đấu', desc: 'mới', format: 'arena', stages: null }, 'tourEdited');
+  assert.strictEqual(t.name, 'Quản trị đang đấu');
+  assert.strictEqual(t.format, 'bracket', 'đang đấu không đổi thể thức');
+  B.send({ t: 'tourHold', id, hold: true });
+  await until(() => t.held);
+  // Đặt lại: về trước khi bắt đầu, giữ người chơi
+  B.send({ t: 'tourReset', id });
+  await until(() => t.status === 'scheduled');
+  assert.strictEqual(t.st, null);
+  assert.strictEqual(t.players.length, 4);
+  assert.ok(!t.held);
+  const lg = await B.req({ t: 'tourGet', id }, 'tour');
+  const acts = lg.tour.log.map((x) => x.act);
+  for (const a of ['created', 'submitted', 'edited', 'news', 'schedule', 'seeds', 'start_now', 'held', 'reset']) assert.ok(acts.includes(a), 'nhật ký có ' + a + ': ' + acts.join(','));
+  assert.ok(lg.tour.log.every((x) => !x.by || typeof x.by === 'string'));
+  // Xoá: phải gõ đúng tên giải
+  assert.strictEqual((await B.req({ t: 'tourDelete', id, confirm: 'sai' }, 'error')).code, 'tour_delete_confirm');
+  await B.req({ t: 'tourDelete', id, confirm: 'Quản trị đang đấu' }, 'tourDeleted');
+  assert.ok(!app.hub.tours.has(id));
+  ps.forEach((c) => c.close());
+});
+
+test('Đợt 4 – sửa sau review: người thường đổi tên giải đã duyệt thì chờ duyệt lại; đặt lại thì điểm danh lại từ đầu', async () => {
+  const B = await admin();
+  const org = await account('og', 1500);
+  const { id } = await org.req({ t: 'tourCreate', name: 'Giải thường', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: true, stages: [{ type: 'single' }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.strictEqual(t.status, 'pending');
+  B.send({ t: 'adminReview', kind: 'tour', id, approve: true });
+  await until(() => t.status === 'scheduled');
+  // Đổi giờ / Bo (không đổi tên, giới thiệu): vẫn mở đăng ký
+  await org.req({ t: 'tourEdit', id, name: 'Giải thường', format: 'bracket', startsAt: soon() + 60000, timeLimit: 30, checkin: true, stages: [{ type: 'single', bestOf: 5 }] }, 'tourEdited');
+  assert.strictEqual(t.status, 'scheduled');
+  await org.req({ t: 'tourEdit', id, name: 'Giải đổi tên', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: true, stages: [{ type: 'single' }] }, 'tourEdited');
+  assert.strictEqual(t.status, 'pending', 'đổi tên: chờ quản trị viên duyệt lại');
+  B.send({ t: 'adminReview', kind: 'tour', id, approve: true });
+  await until(() => t.status === 'scheduled');
+  // Đặt lại: cờ đã báo điểm danh / bỏ qua điểm danh được xoá
+  const ps = [await account('og', 1400), await account('og', 1300)];
+  for (const c of ps) await c.req({ t: 'tourJoin', id }, 'toast');
+  org.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  // Đặt lại: không còn "bỏ qua điểm danh"; người chơi được báo mở điểm danh lại (giờ bắt đầu mới đã trong khung điểm danh)
+  const again = ps[0].wait('toast', (m) => JSON.stringify(m).includes('tour_checkin_open'));
+  org.send({ t: 'tourReset', id });
+  await until(() => t.status === 'scheduled');
+  assert.ok(!t.checkinWaived);
+  await again;
+  [org, ...ps].forEach((c) => c.close());
+});
+
+test('Đợt 5: đồng ban tổ chức theo quyền, giải riêng tư chặn cả link, ẩn hạt giống, nhãn vòng tuỳ biến', async () => {
+  const B = await organizer();
+  const staff = await account('st', 1500), outsider = await account('st', 1500), p1 = await account('st', 1600), p2 = await account('st', 1400);
+  const { id } = await B.req({ t: 'tourCreate', name: 'Riêng tư', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, access: 'private', hideSeeds: true,
+    stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  // Riêng tư: người ngoài không thấy trong danh sách, mở bằng link cũng không được
+  const list = await outsider.req({ t: 'tourList' }, 'tourList');
+  assert.ok(!list.items.some((x) => x.id === id));
+  assert.strictEqual((await outsider.req({ t: 'tourGet', id }, 'error')).code, 'tour_not_found');
+  // Đồng ban tổ chức chỉ có quyền "người chơi": thêm người được, đăng thông báo / bắt đầu thì không
+  assert.strictEqual((await staff.req({ t: 'tourAddPlayers', id, names: ['x'] }, 'error')).code, 'tour_not_found', 'chưa là ban tổ chức: không thấy giải');
+  B.send({ t: 'tourStaff', id, username: staff.me.username, perms: ['players', 'bogus'] });
+  await until(() => t.staff && t.staff.length === 1);
+  assert.deepStrictEqual(t.staff[0].perms, ['players']);
+  const r = await staff.req({ t: 'tourAddPlayers', id, names: [p1.me.username, p2.me.username] }, 'tourAddResult');
+  assert.strictEqual(r.added.length, 2);
+  assert.strictEqual((await staff.req({ t: 'tourNews', id, text: 'x' }, 'error')).code, 'tour_managers_only');
+  assert.strictEqual((await staff.req({ t: 'tourStart', id }, 'error')).code, 'tour_managers_only');
+  assert.strictEqual((await staff.req({ t: 'tourStaff', id, username: outsider.me.username, perms: ['all'] }, 'error')).code, 'tour_managers_only', 'chỉ chủ giải phân quyền');
+  const sv = await staff.req({ t: 'tourGet', id }, 'tour');
+  assert.deepStrictEqual(sv.tour.perms, ['players']);
+  // Người chơi (đã được thêm) thấy giải riêng tư; hạt giống ẩn; nhãn vòng hiện thay tên mặc định
+  B.send({ t: 'tourSchedule', id, key: '0:0', label: 'Vòng loại', place: '' });
+  await until(() => t.schedule && t.schedule['0:0'] && t.schedule['0:0'].label === 'Vòng loại');
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const pv = await p1.req({ t: 'tourGet', id }, 'tour');
+  assert.ok(pv.tour.players.every((x) => x.seed === null), 'ẩn hạt giống');
+  assert.ok(pv.tour.stageViews[0].rounds[0].every((m) => !m.a || m.a.seed === null));
+  assert.strictEqual(pv.tour.schedule['0:0'].label, 'Vòng loại');
+  // Gỡ đồng ban tổ chức
+  B.send({ t: 'tourStaffDel', id, uid: staff.me.uid });
+  await until(() => !t.staff.length);
+  assert.strictEqual((await staff.req({ t: 'tourGet', id }, 'error')).code, 'tour_not_found', 'hết quyền: không thấy giải riêng tư nữa');
+  [staff, outsider, p1, p2].forEach((c) => c.close());
+});
+
+test('Đợt 5 – sửa sau review: người ngoài không xem được ván của giải riêng tư; quyền "Thông báo" không thấy mã vào / câu trả lời; xoá tài khoản thì rời ban tổ chức', async () => {
+  const B = await organizer();
+  const a = await account('pv', 1500), b = await account('pv', 1400), outsider = await account('pv', 1300), news = await account('pv', 1300);
+  const { id } = await B.req({ t: 'tourCreate', name: 'Kín có ván', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, access: 'private',
+    reg: { code: 'BI_MAT' }, stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  await B.req({ t: 'tourAddPlayers', id, names: [a.me.username, b.me.username] }, 'tourAddResult');
+  B.send({ t: 'tourStaff', id, username: news.me.username, perms: ['news'] });
+  await until(() => t.staff && t.staff.length === 1);
+  const nv = await news.req({ t: 'tourGet', id }, 'tour');
+  assert.strictEqual(nv.tour.regAdmin, null, 'quyền Thông báo: không thấy mã vào / câu trả lời');
+  assert.ok(!JSON.stringify(nv.tour).includes('BI_MAT'));
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const m = t.st[0].matches[t.st[0].rounds[0][0]];
+  await until(() => m.room);
+  const room = app.hub.rooms.get(m.room);
+  assert.strictEqual(app.hub.canWatch(room, 'u_' + outsider.me.uid), false, 'người ngoài không xem được ván');
+  assert.strictEqual(app.hub.canWatch(room, 'u_' + news.me.uid), true, 'ban tổ chức xem được');
+  // Xoá tài khoản đồng ban tổ chức: tự rời ban tổ chức
+  app.hub.tourUserGone(news.me.uid);
+  assert.strictEqual(t.staff.length, 0);
+  [a, b, outsider, news].forEach((c) => c.close());
+});
+
+test('Đợt 6: JSON công khai của giải (chỉ giải công khai / link, đã duyệt; không lộ khiếu nại, online), dải phong độ, trang nhúng cho phép iframe', async () => {
+  const B = await organizer();
+  const base = url.replace(/^ws/, 'http').replace(/\/ws$/, '');
+  const get = (id) => fetch(`${base}/api/tour/${id}.json`);
+  const { id } = await B.req({ t: 'tourCreate', name: 'Nhúng', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true,
+    stages: [{ type: 'roundrobin', groups: 1, bestOf: 1, points: { w: 3, d: 1, l: 0 } }] }, 'tourCreated');
+  await B.req({ t: 'tourAddPlayers', id, names: ['An', 'Bình', 'Chi'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id });
+  const t = app.hub.tours.get(id);
+  await until(() => t.status === 'running');
+  const first = Object.values(t.st[0].matches).find((m) => m.a && m.b && !m.bye);
+  B.send({ t: 'tourScore', id, match: first.id, sets: [[2, 0]] });
+  await until(() => first.done);
+  const r = await get(id);
+  assert.strictEqual(r.status, 200);
+  assert.match(r.headers.get('cache-control'), /max-age=10/);
+  const j = await r.json();
+  assert.strictEqual(j.name, 'Nhúng');
+  assert.strictEqual(j.url, '/?t=' + id);
+  assert.ok(!('disputes' in j) && !('canManage' in j) && !('log' in j) && !('staff' in j), 'không có phần riêng của ban tổ chức');
+  assert.ok(j.players.length === 3 && j.players.every((p) => !('online' in p) && !('playing' in p)), 'không lộ trạng thái online');
+  // Dải phong độ trong bảng xếp hạng: người thắng "W", người thua "L", người chưa đấu ""
+  const rows = j.stageViews[0].groups[0].table;
+  const name = (u) => t.players.find((p) => p.uid === u).name;
+  assert.strictEqual(rows.find((x) => x.name === name(first.winner)).form, 'W');
+  assert.strictEqual(rows.find((x) => x.name === name(first.winner === first.a ? first.b : first.a)).form, 'L');
+  assert.strictEqual(rows.filter((x) => x.form === '').length, 1);
+  // Giữ 10 giây: kết quả mới chưa hiện ngay (đỡ dựng lại khi nhiều trang nhúng cùng tải)
+  const second = Object.values(t.st[0].matches).find((m) => m.a && m.b && !m.bye && !m.done);
+  B.send({ t: 'tourScore', id, match: second.id, sets: [[0, 2]] });
+  await until(() => second.done);
+  const again = await (await get(id)).json();
+  assert.strictEqual(JSON.stringify(again.stageViews), JSON.stringify(j.stageViews));
+  // Giải riêng tư / nháp / không có: 404; mã sai dạng: 404
+  const priv = await B.req({ t: 'tourCreate', name: 'Kín', format: 'bracket', startsAt: soon(), timeLimit: 30, access: 'private', stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');
+  const draft = await B.req({ t: 'tourCreate', name: 'Nháp', format: 'bracket', startsAt: soon(), timeLimit: 30, draft: true, stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');
+  assert.strictEqual(app.hub.tours.get(draft.id).status, 'draft');
+  for (const x of [priv.id, draft.id, 'abcdef0123', '../etc', 'ZZZ']) assert.strictEqual((await get(x)).status, 404, x);
+  // Trang nhúng: cho phép đặt trong iframe của website khác; các trang khác vẫn chặn
+  const em = await fetch(`${base}/embed.html`);
+  assert.strictEqual(em.status, 200);
+  assert.match(em.headers.get('content-security-policy'), /frame-ancestors \*/);
+  assert.strictEqual(em.headers.get('x-frame-options'), null);
+  const idx = await fetch(`${base}/index.html`);
+  assert.match(idx.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.strictEqual(idx.headers.get('x-frame-options'), 'DENY');
+  B.close();
+});
+
+test('Đợt 7: cài đặt CLB, 8 quyền quản lý, yêu cầu kèm lời nhắn, đã từ chối / chặn, tin gửi toàn CLB (online + khi vào lại), tắt nhận tin', async () => {
+  const B = await admin();
+  const owner = await account('k7o'), a = await account('k7a'), b = await account('k7b'), d = await account('k7d'), e = await account('k7e');
+  const { id } = await owner.req({ t: 'clubCreate', name: 'CLB Đợt Bảy ' + seq, intro: 'Chơi mỗi tối', icon: '🐉', join: 'request' }, 'clubCreated');
+  await B.req({ t: 'adminReview', kind: 'club', id, approve: true }, 'adminQueue');
+  const c = app.hub.clubs.get(id);
+  await owner.req({ t: 'clubGet', id }, 'club');
+  assert.strictEqual(owner.club.icon, '🐉');
+  assert.strictEqual(owner.club.intro, 'Chơi mỗi tối');
+  // Yêu cầu kèm lời nhắn → từ chối → không gửi lại được → duyệt lại
+  await a.req({ t: 'clubJoin', id, msg: 'Em học lớp 10A' }, 'toast', (m) => m.code === 'club_request_sent');
+  await until(() => owner.club.requests.length === 1);
+  assert.strictEqual(owner.club.requests[0].msg, 'Em học lớp 10A');
+  await owner.req({ t: 'clubRequest', id, uid: a.me.uid, accept: false }, 'club', (m) => m.club.declined.length === 1);
+  assert.strictEqual(owner.club.declined[0].msg, 'Em học lớp 10A');
+  assert.strictEqual((await a.req({ t: 'clubJoin', id }, 'error')).code, 'club_request_declined');
+  await owner.req({ t: 'clubReconsider', id, uid: a.me.uid, accept: true }, 'club', (m) => m.club.members.length === 2 && !m.club.declined.length);
+  assert.ok(owner.club.members.find((x) => x.id === a.me.uid).joined > Date.now() - 5000, 'có ngày vào');
+  // Cài đặt: vào tự do, mô tả nhiều dòng, phần chỉ thành viên thấy, ẩn danh sách thành viên
+  await owner.req({ t: 'clubUpdate', id, join: 'open', desc: 'Dòng 1\nDòng 2', privDesc: 'Mật khẩu wifi: caro123', hideMembers: true, icon: 'không hợp lệ', chat: 'officers', forum: 'everyone' }, 'club', (m) => m.club.join === 'open');
+  assert.strictEqual(owner.club.desc, 'Dòng 1\nDòng 2');
+  assert.strictEqual(owner.club.icon, '', 'biểu tượng ngoài danh sách: bỏ');
+  assert.deepStrictEqual([owner.club.chat, owner.club.forum], ['officers', 'everyone']);
+  await b.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+  const out = (await d.req({ t: 'clubGet', id }, 'club')).club;
+  assert.ok(out.membersHidden && out.members.length === 1 && out.members[0].role === 'owner', 'người ngoài chỉ thấy chủ CLB');
+  assert.strictEqual(out.privDesc, '', 'người ngoài không thấy mô tả riêng');
+  assert.strictEqual(out.count, 3);
+  const inn = (await b.req({ t: 'clubGet', id }, 'club')).club;
+  assert.ok(!inn.membersHidden && inn.members.length === 3 && inn.privDesc === 'Mật khẩu wifi: caro123');
+  // Quản lý mới: quyền mặc định; chỉ để quyền "gửi tin" (không công khai) → không sửa cài đặt / duyệt / mời ra được
+  await owner.req({ t: 'clubRole', id, uid: a.me.uid, role: 'officer' }, 'club', (m) => m.club.members.find((x) => x.id === a.me.uid).role === 'officer');
+  assert.deepStrictEqual(c.perms[a.me.uid], ['public', 'settings', 'tours', 'requests', 'kick']);
+  await owner.req({ t: 'clubPerms', id, uid: a.me.uid, perms: ['broadcast', 'bogus'] }, 'club', () => c.perms[a.me.uid].join() === 'broadcast');
+  assert.strictEqual((await a.req({ t: 'clubUpdate', id, intro: 'x' }, 'error')).code, 'club_officers_only');
+  assert.strictEqual((await a.req({ t: 'clubKick', id, uid: b.me.uid }, 'error')).code, 'club_officers_only');
+  assert.strictEqual((await a.req({ t: 'clubPerms', id, uid: a.me.uid, perms: CLUB_ALL }, 'error')).code, 'club_officers_only', 'không tự cấp quyền');
+  assert.strictEqual((await b.req({ t: 'clubGet', id }, 'club')).club.members.find((x) => x.id === a.me.uid).role, 'member', 'quản lý không công khai: thành viên thấy như thành viên');
+  // Tin gửi toàn CLB: thành viên online nhận ngay; 12 giờ mới gửi được tin tiếp
+  await a.req({ t: 'clubGet', id }, 'club');
+  const got = b.wait('clubMsgs', (m) => m.items[0].msg.text === 'Tối nay 20h đấu giải');
+  await a.req({ t: 'clubBroadcast', id, text: 'Tối nay 20h đấu giải' }, 'club');
+  const m1 = await got;
+  assert.strictEqual(m1.items[0].club.id, id);
+  assert.strictEqual((await a.req({ t: 'clubBroadcast', id, text: 'Spam' }, 'error')).code, 'club_msg_wait');
+  // Thành viên offline nhận khi vào lại; thành viên tắt nhận tin thì không
+  await e.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+  await b.req({ t: 'clubMute', id, mute: true }, 'club', (m) => m.club.muted);
+  const eName = e.me.username;
+  e.close(); b.close();
+  await until(() => !app.hub.isOnline('u_' + e.me.uid));
+  await B.req({ t: 'clubGet', id }, 'club');
+  await B.req({ t: 'clubBroadcast', id, text: 'Đổi giờ: 21h' }, 'club'); // quản trị viên: không bị giới hạn 12 giờ
+  const e2 = await reconnect({ me: { username: eName } });
+  await until(() => e2.msgs.some((m) => m.t === 'clubMsgs'));
+  const inbox = e2.msgs.find((m) => m.t === 'clubMsgs').items.map((x) => x.msg.text);
+  assert.deepStrictEqual(inbox, ['Đổi giờ: 21h'], 'chỉ tin sau khi vào CLB');
+  const b2 = await reconnect({ me: { username: b.me.username } });
+  await sleep(150);
+  assert.ok(!b2.msgs.some((m) => m.t === 'clubMsgs'), 'đã tắt nhận tin');
+  // Vào lại lần nữa: không nhận lại tin cũ
+  e2.close();
+  const e3 = await reconnect({ me: { username: eName } });
+  await sleep(150);
+  assert.ok(!e3.msgs.some((m) => m.t === 'clubMsgs'), 'tin đã nhận không gửi lại');
+  // Mời ra kèm chặn → không vào lại được; bỏ chặn → vào được
+  await owner.req({ t: 'clubKick', id, uid: e3.me.uid, ban: true }, 'club', (m) => m.club.banned.length === 1);
+  assert.strictEqual((await e3.req({ t: 'clubJoin', id }, 'error')).code, 'club_banned');
+  await owner.req({ t: 'clubUnban', id, uid: e3.me.uid }, 'club', (m) => !m.club.banned.length);
+  await e3.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+  // Trao quyền chủ: chủ cũ thành quản lý đủ quyền
+  await owner.req({ t: 'clubRole', id, uid: a.me.uid, role: 'owner' }, 'club', (m) => m.club.members.find((x) => x.id === a.me.uid).role === 'owner');
+  assert.strictEqual(c.owner, a.me.uid);
+  assert.strictEqual(c.perms[owner.me.uid].length, 8);
+  assert.strictEqual((await owner.req({ t: 'clubRole', id, uid: b2.me.uid, role: 'owner' }, 'error')).code, 'club_owner_only');
+  [owner, a, b2, d, e3].forEach((x) => x.close()); // B (quản trị viên) dùng chung giữa các bài: không đóng
+});
+const CLUB_ALL = ['public', 'settings', 'tours', 'mod', 'requests', 'broadcast', 'kick', 'admin'];
+
+test('Đợt 8: chat CLB (theo cài đặt, thời gian thực, xoá, cấm nói), diễn đàn (chủ đề, bài, sửa / xoá, ghim, khoá), người ngoài đọc khi để "mọi người"', async () => {
+  const keep = app.hub.T.THROTTLE_SCALE;
+  app.hub.T.THROTTLE_SCALE = 0; // bỏ giãn cách gửi trong bài thử
+  try {
+    const B = await admin();
+    const owner = await account('k8o'), a = await account('k8a'), mod = await account('k8m'), out = await account('k8x');
+    const { id } = await owner.req({ t: 'clubCreate', name: 'CLB Đợt Tám ' + seq, join: 'open' }, 'clubCreated');
+    await B.req({ t: 'adminReview', kind: 'club', id, approve: true }, 'adminQueue');
+    for (const x of [a, mod]) await x.req({ t: 'clubJoin', id }, 'toast', (m) => m.code === 'club_joined');
+    await owner.req({ t: 'clubGet', id }, 'club');
+    await owner.req({ t: 'clubRole', id, uid: mod.me.uid, role: 'officer' }, 'club', (m) => m.club.members.some((x) => x.id === mod.me.uid && x.role === 'officer'));
+    await owner.req({ t: 'clubPerms', id, uid: mod.me.uid, perms: ['mod'] }, 'club', () => app.hub.clubs.get(id).perms[mod.me.uid].join() === 'mod');
+    // Chat: thành viên viết, người đang mở trang nhận ngay; mở trang nhận lịch sử
+    await a.req({ t: 'clubGet', id }, 'club');
+    const got = owner.wait('clubChat', (m) => m.msg.text === 'Chào cả nhà');
+    a.send({ t: 'clubChat', id, text: 'Chào cả nhà' });
+    const m1 = (await got).msg;
+    const log = await mod.req({ t: 'clubGet', id }, 'clubChatLog');
+    assert.ok(log.msgs.some((x) => x.id === m1.id), 'mở trang: có lịch sử chat');
+    const outView = await out.req({ t: 'clubGet', id }, 'club');
+    assert.ok(!outView.club.talk.chat, 'người ngoài không đọc được chat');
+    await sleep(100);
+    assert.ok(!out.msgs.some((m) => m.t === 'clubChatLog'), 'người ngoài không nhận lịch sử chat');
+    assert.strictEqual((await out.req({ t: 'clubChat', id, text: 'x' }, 'error')).code, 'club_talk_denied');
+    // Kiểm duyệt: xoá tin, cấm nói
+    const del = a.wait('clubChatDel', (m) => m.msg === m1.id);
+    mod.send({ t: 'clubChatDel', id, msg: m1.id });
+    await del;
+    await mod.req({ t: 'clubTalkMute', id, uid: a.me.uid, mute: true }, 'club', (m) => m.club.talkMuted.includes(a.me.uid));
+    assert.strictEqual((await a.req({ t: 'clubChat', id, text: 'Spam' }, 'error')).code, 'club_talk_denied', 'bị cấm nói');
+    assert.strictEqual((await mod.req({ t: 'clubTalkMute', id, uid: owner.me.uid, mute: true }, 'error')).code, 'club_cannot_kick', 'không cấm nói chủ CLB');
+    await mod.req({ t: 'clubTalkMute', id, uid: a.me.uid, mute: false }, 'club', (m) => !m.club.talkMuted.length);
+    // Chat chỉ ban quản lý
+    await owner.req({ t: 'clubUpdate', id, chat: 'officers' }, 'club', (m) => m.club.chat === 'officers');
+    assert.strictEqual((await a.req({ t: 'clubChat', id, text: 'x' }, 'error')).code, 'club_talk_denied');
+    await mod.req({ t: 'clubChat', id, text: 'Thông báo từ ban quản lý' }, 'clubChat');
+    // Diễn đàn: chủ đề + bài, sửa / xoá bài của mình, người khác không sửa được
+    const { topic } = await a.req({ t: 'clubTopicNew', id, title: 'Lịch thi đấu tháng 11', text: 'Mọi người góp ý nhé' }, 'clubTopicCreated');
+    assert.strictEqual((await a.req({ t: 'clubTopicNew', id, title: 'x', text: 'y' }, 'error')).code, 'club_topic_short');
+    const list = await owner.req({ t: 'clubTopics', id }, 'clubTopics');
+    assert.strictEqual(list.total, 1);
+    assert.strictEqual(list.topics[0].title, 'Lịch thi đấu tháng 11');
+    const view = await owner.req({ t: 'clubTopic', id, topic }, 'clubTopic');
+    assert.ok(view.canPost && view.posts.length === 1 && view.posts[0].text === 'Mọi người góp ý nhé');
+    const dirty = a.wait('clubTopicDirty', (m) => m.topic === topic);
+    await a.req({ t: 'clubTopic', id, topic }, 'clubTopic');
+    owner.send({ t: 'clubPost', id, topic, text: 'Tối thứ 7 được không?' });
+    await dirty;
+    let v = await a.req({ t: 'clubTopic', id, topic, page: -1 }, 'clubTopic');
+    assert.strictEqual(v.posts.length, 2);
+    const ownerPost = v.posts[1].id;
+    assert.strictEqual((await a.req({ t: 'clubPostEdit', id, post: ownerPost, text: 'sửa trộm' }, 'error')).code, 'club_officers_only');
+    a.send({ t: 'clubPostEdit', id, post: v.posts[0].id, text: 'Mọi người góp ý giúp' });
+    await until(() => app.hub.store.clubPost(id, v.posts[0].id).edited);
+    // Ghim, khoá: thành viên không viết được nữa, kiểm duyệt vẫn viết được
+    await mod.req({ t: 'clubTopicMod', id, topic, pinned: true, locked: true }, 'clubTopicModDone');
+    v = await a.req({ t: 'clubTopic', id, topic }, 'clubTopic');
+    assert.ok(v.topic.pinned && v.topic.locked && !v.canPost);
+    assert.strictEqual((await a.req({ t: 'clubPost', id, topic, text: 'x' }, 'error')).code, 'club_topic_locked');
+    mod.send({ t: 'clubPost', id, topic, text: 'Đã chốt: thứ 7' });
+    await until(() => app.hub.store.clubTopic(id, topic).posts === 3);
+    // Diễn đàn "mọi người": người ngoài đọc được, không viết được; "tắt": không đọc được
+    assert.strictEqual((await out.req({ t: 'clubTopics', id }, 'error')).code, 'club_not_found');
+    await owner.req({ t: 'clubUpdate', id, forum: 'everyone' }, 'club', (m) => m.club.forum === 'everyone');
+    assert.strictEqual((await out.req({ t: 'clubTopics', id }, 'clubTopics')).total, 1);
+    assert.strictEqual((await out.req({ t: 'clubTopicNew', id, title: 'Quảng cáo', text: 'x' }, 'error')).code, 'club_talk_denied');
+    // Xoá bài của mình; kiểm duyệt xoá chủ đề
+    a.send({ t: 'clubPostDel', id, post: v.posts[0].id });
+    await until(() => app.hub.store.clubTopic(id, topic).posts === 2);
+    await mod.req({ t: 'clubTopicMod', id, topic, del: true }, 'clubTopicModDone');
+    assert.strictEqual(app.hub.store.clubTopicCount(id), 0);
+    // Giải tán CLB: xoá chat + diễn đàn
+    owner.send({ t: 'clubDisband', id });
+    await until(() => !app.hub.clubs.get(id));
+    assert.strictEqual(app.hub.store.clubChatList(id).length, 0);
+    [owner, a, mod, out].forEach((x) => x.close());
+  } finally {
+    app.hub.T.THROTTLE_SCALE = keep;
+  }
+});
+
+test('Đợt 9: Team Battle (chỉ thành viên các CLB, không ghép cùng CLB, điểm N người đầu), giao hữu CLB đấu CLB (mời, đội hình, bàn 1 gặp bàn 1), tủ cúp + xếp hạng CLB', async () => {
+  // Chủ CLB là người thường (quản trị viên có mọi quyền ở mọi CLB nên không dùng để thử quyền)
+  const B = await admin();
+  const oa = await account('tbo'), ob = await account('tbo');
+  const A = (await oa.req({ t: 'clubCreate', name: 'Đội A ' + seq, join: 'open' }, 'clubCreated')).id;
+  const Bc = (await ob.req({ t: 'clubCreate', name: 'Đội B ' + seq, join: 'open' }, 'clubCreated')).id;
+  for (const c of [A, Bc]) await B.req({ t: 'adminReview', kind: 'club', id: c, approve: true }, 'adminQueue');
+  const approve = (tid) => B.req({ t: 'adminReview', kind: 'tour', id: tid, approve: true }, 'adminQueue');
+  const a1 = await account('tba', 1500), a2 = await account('tba', 1450), b1 = await account('tbb', 1480), x = await account('tbx', 1400);
+  for (const c of [a1, a2]) await c.req({ t: 'clubJoin', id: A }, 'toast', (m) => m.code === 'club_joined');
+  await b1.req({ t: 'clubJoin', id: Bc }, 'toast', (m) => m.code === 'club_joined');
+  // ---------------------------------------------------------------- Team Battle
+  assert.strictEqual((await oa.req({ t: 'tourCreate', name: 'TB lỗi', format: 'arena', startsAt: soon(), timeLimit: 30, teams: { clubs: [A] } }, 'error')).code, 'team_battle_few');
+  const { id } = await oa.req({ t: 'tourCreate', name: 'Team Battle', format: 'arena', startsAt: soon(), timeLimit: 30, minutes: 30, rated: false,
+    teams: { clubs: [A, Bc], top: 1 } }, 'tourCreated');
+  await approve(id);
+  const t = app.hub.tours.get(id);
+  assert.deepStrictEqual(t.teams, { clubs: [A, Bc], top: 1 });
+  assert.strictEqual((await x.req({ t: 'tourJoin', id }, 'error')).code, 'tour_team_only', 'người ngoài các CLB không vào được');
+  for (const c of [a1, a2, b1]) await c.req({ t: 'tourJoin', id }, 'toast');
+  assert.deepStrictEqual(t.players.map((p) => p.team), [A, A, Bc]);
+  const mine = (await a1.req({ t: 'tourGet', id }, 'tour')).tour;
+  assert.deepStrictEqual(mine.myTeams.map((y) => y.id), [A]);
+  oa.send({ t: 'tourStart', id });
+  await until(() => [...app.hub.rooms.values()].some((r) => r.tour && r.tour.id === id && r.active));
+  const rooms = [...app.hub.rooms.values()].filter((r) => r.tour && r.tour.id === id && r.active);
+  assert.strictEqual(rooms.length, 1, '3 người, 2 cùng CLB: chỉ một ván');
+  const inRoom = rooms[0].players.map((p) => p.id.slice(2));
+  assert.ok(inRoom.includes(b1.me.uid), 'không ghép hai người cùng CLB A');
+  const rival = inRoom.includes(a1.me.uid) ? a1 : a2;
+  await waitRoom(rival, (r) => r.tour && !r.winner);
+  await waitRoom(b1, (r) => r.tour && !r.winner);
+  t.endsAt = Date.now() + 60000;
+  await playOut(rival, b1);
+  t.endsAt = Date.now(); // hết giờ: không ghép thêm
+  await until(() => t.status === 'finished', 5000);
+  const table = (await a2.req({ t: 'tourGet', id }, 'tour')).tour.teams;
+  assert.strictEqual(table[0].id, A);
+  assert.strictEqual(table[0].score, 2);
+  assert.strictEqual(table[1].score, 0);
+  const cA = app.hub.clubs.get(A);
+  assert.strictEqual(cA.trophies[0].kind, 'battle');
+  assert.strictEqual(cA.trophies[0].place, 1);
+  assert.strictEqual(cA.points, 10);
+  assert.strictEqual(app.hub.clubs.get(Bc).points, 0, 'CLB 0 điểm không được xếp hạng');
+  // ---------------------------------------------------------------- Giao hữu: không chấp nhận thì huỷ
+  const inv = ob.wait('toast', (m) => m.code === 'club_match_invite');
+  const m1 = await oa.req({ t: 'clubMatchCreate', id: A, opp: Bc, boards: 2, startsAt: soon(), timeLimit: 30, bestOf: 1 }, 'tourCreated');
+  await inv;
+  await approve(m1.id);
+  oa.send({ t: 'tourStart', id: m1.id });
+  await until(() => app.hub.tours.get(m1.id).status === 'cancelled');
+  assert.strictEqual(app.hub.tours.get(m1.id).cancelReason, 'match_not_accepted');
+  // ---------------------------------------------------------------- Giao hữu: chấp nhận, đội hình, bàn 1 gặp bàn 1
+  const m2 = (await oa.req({ t: 'clubMatchCreate', id: A, opp: Bc, boards: 2, startsAt: soon(), timeLimit: 30, bestOf: 1 }, 'tourCreated')).id;
+  await approve(m2);
+  const tm = app.hub.tours.get(m2);
+  assert.strictEqual((await a1.req({ t: 'clubMatchAccept', tour: m2, accept: true }, 'error')).code, 'club_officers_only');
+  assert.strictEqual((await oa.req({ t: 'clubMatchAccept', tour: m2, accept: true }, 'error')).code, 'club_officers_only', 'bên mời không tự chấp nhận');
+  await ob.req({ t: 'clubMatchAccept', tour: m2, accept: true }, 'toast').catch(() => {});
+  await until(() => tm.teamMatch.accepted);
+  assert.strictEqual((await a1.req({ t: 'tourJoin', id: m2 }, 'error')).code, 'tour_team_match');
+  oa.send({ t: 'clubMatchLineup', tour: m2, side: 'a', uids: [a1.me.uid, a2.me.uid, x.me.uid] });
+  ob.send({ t: 'clubMatchLineup', tour: m2, side: 'b', uids: [b1.me.uid, ob.me.uid, a1.me.uid] });
+  await until(() => tm.teamMatch.lineup.a.length === 2 && tm.teamMatch.lineup.b.length === 2);
+  assert.deepStrictEqual(tm.teamMatch.lineup.b, [b1.me.uid, ob.me.uid], 'chỉ thành viên CLB, không ai ở cả hai đội');
+  assert.strictEqual((await ob.req({ t: 'clubMatchLineup', tour: m2, side: 'a', uids: [] }, 'error')).code, 'club_officers_only', 'không xếp đội hình đội kia');
+  oa.send({ t: 'tourStart', id: m2 });
+  await until(() => tm.status === 'running');
+  assert.deepStrictEqual(tm.teamMatch.pairs, [[a1.me.uid, b1.me.uid], [a2.me.uid, ob.me.uid]]);
+  const ms = Object.values(tm.st[0].matches);
+  assert.ok(ms.some((m) => m.a === a1.me.uid && m.b === b1.me.uid) && ms.some((m) => m.a === a2.me.uid && m.b === ob.me.uid), 'bàn 1 gặp bàn 1, bàn 2 gặp bàn 2');
+  for (const [w, l] of [[a1, b1], [a2, ob]]) {
+    await waitRoom(w, (r) => r.tour && r.tour.id === m2 && !r.winner);
+    await waitRoom(l, (r) => r.tour && r.tour.id === m2 && !r.winner);
+    await playOut(w, l);
+  }
+  await until(() => tm.status === 'finished', 5000);
+  const v = (await x.req({ t: 'tourGet', id: m2 }, 'tour')).tour.teamMatch;
+  assert.deepStrictEqual([v.a.score, v.b.score], [2, 0]);
+  assert.deepStrictEqual(v.played.map((b) => b.res), ['a', 'a']);
+  assert.strictEqual(cA.trophies[0].kind, 'match');
+  assert.strictEqual(cA.points, 13);
+  // ---------------------------------------------------------------- Bảng xếp hạng CLB + tủ cúp trên trang CLB
+  const rank = await x.req({ t: 'clubRanking' }, 'clubRanking');
+  const row = rank.list.find((r) => r.id === A);
+  assert.ok(row && row.points === 13 && row.gold === 2);
+  assert.ok(!rank.list.some((r) => r.id === Bc));
+  const page = (await x.req({ t: 'clubGet', id: A }, 'club')).club;
+  assert.strictEqual(page.trophies.length, 2);
+  assert.ok(page.tours.some((y) => y.id === id) && page.tours.some((y) => y.id === m2), 'trang CLB có Team Battle và giao hữu');
+  [oa, ob, a1, a2, b1, x].forEach((c) => c.close());
+});
+
+test('Đợt 10: bình chọn trận, dự đoán bục vinh quang + bảng người đoán, bình chọn hạng mục, mẫu giải, giải định kỳ', async () => {
+  const B = await organizer();
+  const p1 = await account('fn', 1600), p2 = await account('fn', 1500), fan = await account('fan');
+  const { id } = await B.req({ t: 'tourCreate', name: 'Giải Vui', format: 'bracket', startsAt: soon(), timeLimit: 30, checkin: false, recur: 'weekly',
+    stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  assert.strictEqual(t.recur, 'weekly');
+  for (const c of [p1, p2]) await c.req({ t: 'tourJoin', id }, 'toast');
+  // Dự đoán trước giờ đấu: chỉ chọn người trong giải
+  fan.send({ t: 'tourPredict', id, picks: [p1.me.uid, 'khongco', p2.me.uid] });
+  p2.send({ t: 'tourPredict', id, picks: [p2.me.uid, p1.me.uid] });
+  await until(() => t.preds && Object.keys(t.preds).length === 2);
+  assert.deepStrictEqual(t.preds[fan.me.uid], [p1.me.uid, p2.me.uid]);
+  assert.strictEqual((await fan.req({ t: 'tourGet', id }, 'tour')).tour.predCount, 2);
+  // Bắt đầu: trận chưa mở phòng thì bình chọn được; đã đấu thì không
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const m = Object.values(t.st[0].matches).find((x) => x.a && x.b && !x.bye);
+  await until(() => m.room);
+  assert.strictEqual((await fan.req({ t: 'tourVote', id, match: m.id, pick: 'a' }, 'error')).code, 'tour_vote_closed', 'trận đang đấu: hết bình chọn');
+  assert.strictEqual((await fan.req({ t: 'tourPredict', id, picks: [p1.me.uid] }, 'error')).code, 'tour_predict_closed');
+  // Bình chọn khi trận chưa mở phòng (giả lập trận chờ)
+  const room = m.room;
+  m.room = null;
+  fan.send({ t: 'tourVote', id, match: m.id, pick: 'a' });
+  p2.send({ t: 'tourVote', id, match: m.id, pick: 'b' });
+  await until(() => t.votes && Object.keys(t.votes[m.id]).length === 2);
+  const view = (await fan.req({ t: 'tourGet', id }, 'tour')).tour;
+  assert.deepStrictEqual(view.stageViews[0].rounds[0].find((x) => x.id === m.id).votes, [1, 1]);
+  assert.strictEqual(view.myVotes[m.id], 'a');
+  m.room = room;
+  // p1 thắng: p1 vô địch, p2 á quân
+  const W = m.a === p1.me.uid ? p1 : p2, L = W === p1 ? p2 : p1;
+  await waitRoom(W, (r) => r.tour && !r.winner);
+  await waitRoom(L, (r) => r.tour && !r.winner);
+  await playOut(p1, p2);
+  await until(() => t.status === 'finished', 5000);
+  const done = (await fan.req({ t: 'tourGet', id }, 'tour')).tour;
+  // fan đoán đúng cả 2 vị trí: 6 điểm; p2 đoán ngược: 1 + 1 = 2
+  assert.deepStrictEqual(done.predTop.map((x) => x.score), [6, 2]);
+  assert.strictEqual(done.myPredScore, 6);
+  // Bình chọn hạng mục
+  assert.ok(done.awardOpen && done.awardGames.length >= 1);
+  fan.send({ t: 'tourAward', id, kind: 'mvp', pick: p1.me.uid });
+  fan.send({ t: 'tourAward', id, kind: 'game', pick: done.awardGames[0].share });
+  await until(() => t.awards && t.awards.game[fan.me.uid]);
+  assert.strictEqual((await fan.req({ t: 'tourAward', id, kind: 'mvp', pick: 'khongco' }, 'error')).code, 'bad_message');
+  const aw = (await p2.req({ t: 'tourGet', id }, 'tour')).tour.awards;
+  assert.strictEqual(aw.mvp[0].votes, 1);
+  assert.strictEqual(aw.mvp[0].label, p1.me.name);
+  // Giải định kỳ: tự tạo kỳ sau, lùi 1 tuần, không có người chơi
+  assert.ok(t.recurNext);
+  const next = app.hub.tours.get(t.recurNext);
+  assert.strictEqual(next.startsAt - t.startsAt >= 7 * 86400000 - 3600000, true);
+  assert.deepStrictEqual([next.players.length, next.recur, next.recurN, next.name], [0, 'weekly', 2, 'Giải Vui']);
+  // Mẫu giải: lưu, ghi đè trùng tên, tối đa 10, xoá
+  const saved = await fan.req({ t: 'tourTplSave', name: 'Giải tối thứ 7', data: { preset: 'single', d: { name: 'X' } } }, 'tourTpls');
+  assert.strictEqual(saved.list.length, 1);
+  await fan.req({ t: 'tourTplSave', name: 'Giải tối thứ 7', data: { preset: 'swiss' } }, 'tourTpls');
+  let list = (await fan.req({ t: 'tourTpls' }, 'tourTpls')).list;
+  assert.deepStrictEqual([list.length, list[0].data.preset], [1, 'swiss']);
+  for (let i = 0; i < 9; i++) await fan.req({ t: 'tourTplSave', name: 'Mẫu ' + i, data: {} }, 'tourTpls');
+  assert.strictEqual((await fan.req({ t: 'tourTplSave', name: 'Mẫu 10', data: {} }, 'error')).code, 'tour_tpl_limit');
+  list = (await fan.req({ t: 'tourTplDel', id: list[0].id }, 'tourTpls')).list;
+  fan.send({ t: 'tourTplSave', name: 'Quá lớn', data: { x: 'a'.repeat(20000) } }); // quá 16 KB: không lưu (bị chặn ở máy chủ)
+  await sleep(200);
+  assert.ok(!app.hub.store.users.get(fan.me.uid).tourTpls.some((x) => x.name === 'Quá lớn'), 'mẫu quá lớn không được lưu');
+  assert.strictEqual(list.length, 9);
+  [p1, p2, fan].forEach((c) => c.close());
 });

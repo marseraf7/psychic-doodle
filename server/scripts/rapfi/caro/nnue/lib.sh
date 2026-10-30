@@ -20,7 +20,7 @@ selfplay_batch() {
   [ -n "${5:-}" ] && op="--opening $5"
   # shellcheck disable=SC2086
   if (cd "$eng" && ./pbrain-rapfi selfplay --rule caro -n "${GAMES:-200}" --boardsize 20 $op \
-    --budget-unit nodes --budget-distribution fixed --budget-value "${NODES:-20000}" \
+    --budget-unit nodes --budget-distribution fixed --budget-value "${NODES:-40000}" \
     --seed "$seed" -o "$out.tmp" --report-interval 3600000 > "$lg" 2>&1) && [ -s "$out.tmp" ] &&
     ! grep -qE 'Failed to load|Evaluator .* disabled' "$lg"; then
     mv "$out.tmp" "$out"

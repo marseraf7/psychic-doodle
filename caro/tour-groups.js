@@ -37,7 +37,7 @@
   }
 
   function groupsHtml(t) {
-    if (!t.canManage || !t.groupDraft) return '';
+    if (!K.can(t, 'players') || !t.groupDraft) return '';
     const groups = draft(t);
     const max = t.groupDraft.max;
     const warn = [];

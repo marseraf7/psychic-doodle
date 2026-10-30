@@ -10,31 +10,35 @@ const { userPid, uidOf } = require('./shared.js');
 
 class TourRun {
   // ------------------------------------------------------------ Ban tổ chức
-  requireManager(conn, id) {
+  /** perm: quyền cần có (tournaments.js canManageTour) – đồng ban tổ chức chỉ làm được việc mình được giao. */
+  requireManager(conn, id, perm) {
     const me = this.requireUser(conn);
     const t = this.findTour(id, me.id);
-    if (!this.canManageTour(t, me.id)) throw E('tour_managers_only');
+    if (!this.canManageTour(t, me.id, perm)) throw E('tour_managers_only');
     return t;
   }
 
   /** Bắt đầu ngay (không chờ tới giờ). */
   on_tourStart(conn, { id }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'owner');
     if (t.status !== 'scheduled') throw E('tour_cannot_start');
     // Bắt đầu sớm trước giờ điểm danh: coi như mọi người đã đăng ký đều điểm danh
     if (t.checkin && !this.inCheckin(t)) t.checkinWaived = true;
+    this.tourLog(t, this.requireUser(conn).id, 'start_now');
     this.startTour(t);
   }
 
   on_tourCancel(conn, { id }) {
-    const t = this.requireManager(conn, id);
-    if (!['pending', 'scheduled', 'running'].includes(t.status)) throw E('tour_cannot_cancel');
+    const t = this.requireManager(conn, id, 'owner');
+    if (!['draft', 'pending', 'scheduled', 'running'].includes(t.status)) throw E('tour_cannot_cancel');
+    this.tourLog(t, this.requireUser(conn).id, 'cancelled');
     this.cancelTour(t, 'organizer');
   }
 
   on_tourKick(conn, { id, uid }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'players');
     if (!this.player(t, uid)) throw E('player_not_found');
+    this.tourLog(t, this.requireUser(conn).id, 'kicked', { name: this.player(t, uid).name });
     this.withdraw(t, uid, true);
     this.send(userPid(uid), note('tour_kicked', { name: t.name }));
   }
@@ -50,6 +54,7 @@ class TourRun {
     this.pushTour(t);
     this.notifyPlayers(t, 'tour_cancelled');
     if (wasPending) this.notifyAdmins();
+    if (reason === 'too_few') this.tourRecur(t); // định kỳ: kỳ này thiếu người vẫn tạo kỳ sau (ban tổ chức tự huỷ thì dừng chuỗi)
   }
 
   // ------------------------------------------------------------ Vận hành
@@ -128,6 +133,7 @@ class TourRun {
     t.finishedAt = Date.now();
     this.tickDisputes(t, t.finishedAt); // giải xong: ván mất kết nối chưa xử lý được giữ nguyên kết quả
     t.podium = t.format === 'arena' ? this.arenaPodium(t) : this.bracketPodium(t);
+    this.clubAwards(t); // Team Battle / giao hữu CLB: điểm xếp hạng CLB + tủ cúp (club-battle.js)
     this.saveTour(t);
     this.pushTour(t);
     // Thành tích giải trên trang hồ sơ
@@ -141,6 +147,7 @@ class TourRun {
     }
     const champ = t.podium[0] && this.player(t, t.podium[0]);
     this.notifyPlayers(t, 'tour_finished', { winner: champ ? champ.name : '—' });
+    this.tourRecur(t); // giải định kỳ: tạo giải kế tiếp (tour-tpl.js)
   }
 
   /**
@@ -172,6 +179,7 @@ class TourRun {
   /** Tài khoản bị xoá: rút khỏi mọi giải chưa xong. */
   tourUserGone(uid) {
     for (const t of this.tours.values()) {
+      if ((t.staff || []).some((s) => s.uid === uid)) { t.staff = t.staff.filter((s) => s.uid !== uid); this.saveTour(t); } // bỏ khỏi ban tổ chức
       if (['pending', 'scheduled'].includes(t.status) && t.creator === uid) this.cancelTour(t, 'organizer');
       if (this.player(t, uid)) this.withdraw(t, uid);
     }

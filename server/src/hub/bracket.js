@@ -15,6 +15,7 @@ const ST = require('./stages.js');
 
 class Bracket {
   startBracket(t, now) {
+    if (t.teamMatch && !this.prepareTeamMatch(t)) return; // giao hữu CLB: đội hình → người chơi + cặp theo bàn (club-battle.js)
     // Thi đấu theo vòng: chỉ người đã điểm danh (nếu bật điểm danh)
     for (const p of t.players) if (!p.withdrawn && t.checkin && !t.checkinWaived && !p.checkedIn) p.out = 'no_checkin';
     const entrants = this.activePlayers(t);
@@ -23,16 +24,20 @@ class Bracket {
       return;
     }
     for (const p of entrants) p.rating = this.store.users.get(p.uid)?.rating || p.rating;
+    t.queue = []; // hàng chờ duyệt / danh sách chờ hết hiệu lực khi giải bắt đầu
     if (t.seeding === 'random') {
       for (let i = entrants.length - 1; i > 0; i--) {
         const j = crypto.randomInt(i + 1);
         [entrants[i], entrants[j]] = [entrants[j], entrants[i]];
       }
-    } else entrants.sort((a, b) => b.rating - a.rating);
+    } else if (t.seeding !== 'list') entrants.sort((a, b) => b.rating - a.rating); // 'list': thứ tự đăng ký / thêm
+    const seeded = this.applySeedPlan(t, entrants); // hạt giống thủ công của ban tổ chức (tour-manage.js)
+    entrants.splice(0, entrants.length, ...seeded);
     entrants.forEach((p, i) => { p.seed = i + 1; });
     t.status = 'running';
+    this.tourLog(t, null, 'started', { n: entrants.length });
     t.stage = 0;
-    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan })];
+    t.st = [ST.buildStage(t.stages[0], 0, entrants.map((p) => p.uid), { seedOf: this.seedOf(t), isActive: (u) => this.isActiveIn(t, u), groups: t.groupPlan, pairs: t.teamMatch && t.teamMatch.pairs })];
     this.saveTour(t);
     this.notifyPlayers(t, 'tour_started', {}, (p) => !p.out);
     this.notifyPlayers(t, 'tour_no_checkin', {}, (p) => p.out === 'no_checkin');
@@ -104,6 +109,8 @@ class Bracket {
 
   /** Mở các trận đã sẵn sàng của vòng hiện tại; xử thua người vắng mặt / đã rút. */
   runBracket(t, now) {
+    if (t.held) return; // ban tổ chức tạm dừng: không mở trận mới
+    if (t.offline) return this.runOffline(t); // trận ngoài đời: chờ ban tổ chức nhập tỉ số (tour-score.js)
     for (let guard = 0; guard < 500 && t.status === 'running'; guard++) {
       const st = this.curStage(t);
       let changed = false;
@@ -123,7 +130,8 @@ class Bracket {
         }
         const okA = this.available(m.a), okB = this.available(m.b);
         if (okA && okB) { this.startTourMatch(t, st, m); continue; }
-        if (now - m.readyAt < this.T.TOUR_NOSHOW_MS) continue;
+        // Thời gian chờ vắng mặt: ban tổ chức chọn khi tạo giải (phút), mặc định của máy chủ
+        if (now - m.readyAt < (t.noShowMin ? t.noShowMin * 60000 : this.T.TOUR_NOSHOW_MS)) continue;
         // Quá giờ mà một bên không có mặt: xử thua bên vắng; vắng cả hai thì (loại trực tiếp) hạt giống cao hơn
         // đi tiếp, (vòng tròn / Thụy Sĩ) cả hai cùng thua
         if (okA !== okB) {
@@ -149,7 +157,7 @@ class Bracket {
       for (const u of [m.a, m.b]) room.score[userPid(u)] = carry.wins[u] || 0;
       room.gameNo = carry.games + 1;
     });
-    const room = this.openTourRoom(t, 'series', st.cfg.bestOf, m.a, m.b, aFirst, { match: m.id }, prep);
+    const room = this.openTourRoom(t, 'series', ST.boOf(st, m), m.a, m.b, aFirst, { match: m.id }, prep);
     m.room = room.code;
     m.wins = carry ? { ...carry.wins } : {};
     m.carry = null;
@@ -175,8 +183,9 @@ class Bracket {
 
   /** Người sẽ vào giải nếu bắt đầu lúc này, theo thứ tự hạt giống (Elo). */
   draftSeeds(t) {
-    return this.activePlayers(t).map((p) => ({ uid: p.uid, r: this.store.users.get(p.uid)?.rating || p.rating }))
-      .sort((a, b) => b.r - a.r).map((x) => x.uid);
+    const list = this.activePlayers(t).map((p) => ({ uid: p.uid, r: this.store.users.get(p.uid)?.rating || p.rating }));
+    if (t.seeding !== 'list') list.sort((a, b) => b.r - a.r); // 'list': thứ tự đăng ký / thêm (như khi bốc thăm)
+    return this.applySeedPlan(t, list).map((x) => x.uid); // hạt giống xếp tay (như startBracket)
   }
 
   /** Các bảng dự kiến (ban tổ chức xem / sửa trước khi bắt đầu). */
@@ -191,7 +200,7 @@ class Bracket {
    * Người đăng ký sau / chưa được xếp sẽ tự vào bảng ít người nhất khi bốc thăm.
    */
   on_tourGroups(conn, { id, groups }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'players');
     if (!this.hasGroups(t)) throw E('tour_no_groups');
     if (!['pending', 'scheduled'].includes(t.status)) throw E('tour_groups_closed');
     if (groups == null) t.groupPlan = null;
@@ -245,7 +254,7 @@ class Bracket {
       this.pushTour(t);
       return true;
     }
-    m.games.push({ share: room.lastShare || null, w: winUid });
+    m.games.push({ share: room.lastShare || null, w: winUid, ...(winUid === null ? { draw: true } : {}) });
     m.wins = wins;
     // Bỏ trận giữa chừng (bấm rời phòng) = thua cả trận
     const decided = room.reason === 'leave' && winUid ? winUid : this.decideMatch(t, st, m, room.gameNo);
@@ -262,13 +271,30 @@ class Bracket {
     return ST.podium(this.curStage(t), this.seedOf(t)).slice(0, 4);
   }
 
-  /** Một trận gửi cho client. */
-  matchView(t, m) {
+  /** Dải phong độ (như MyLeague): 5 kết quả gần nhất của từng người trong giai đoạn – W thắng, D hoà, L thua (vắng cả hai: thua). */
+  formStrip(st) {
+    const by = new Map();
+    const list = Object.values(st.matches).filter((m) => m.done && !m.bye && ST.real(m.a) && ST.real(m.b)).sort((a, b) => a.round - b.round);
+    for (const m of list) {
+      for (const u of [m.a, m.b]) {
+        const r = m.double ? 'L' : m.winner === null ? 'D' : m.winner === u ? 'W' : 'L';
+        by.set(u, ((by.get(u) || '') + r).slice(-5));
+      }
+    }
+    return by;
+  }
+
+  /** Một trận gửi cho client (st: giai đoạn của trận – để biết Bo riêng của bán kết / chung kết). */
+  matchView(t, m, st) {
+    const bo = st && m ? ST.boOf(st, m) : 0;
     const sd = (u) => (ST.real(u) ? this.tourSide(t, u) : u === ST.BYE ? { bye: true } : null);
     return m && {
       id: m.id, round: m.round, a: sd(m.a), b: sd(m.b), wa: (ST.real(m.a) && m.wins[m.a]) || 0, wb: (ST.real(m.b) && m.wins[m.b]) || 0,
       done: !!m.done, winner: ST.real(m.winner) ? m.winner : null, draw: !!(m.done && m.winner === null && !m.double),
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
+      bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
+      sets: m.sets || null, extra: m.extra || null, override: !!m.override, // tỉ số từng set (giải offline), ghi đè
+      votes: this.voteCount(t, m), // "Ai sẽ thắng?" – số phiếu hai bên (tour-fun.js)
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
     };
   }
@@ -276,25 +302,30 @@ class Bracket {
   /** Các giai đoạn đã bốc thăm, gửi cho client: nhánh đấu / bảng xếp hạng / các vòng. */
   stageViews(t) {
     const seedOf = this.seedOf(t);
-    const table = (rk, adv) => rk.list.map((u, i) => {
+    // form: dải phong độ của giai đoạn (formStrip) – uid → 'WLD' (5 trận gần nhất, cũ → mới)
+    const table = (rk, adv, form) => rk.list.map((u, i) => {
       const x = rk.stats[u];
-      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, sb: x.sb, adv: i < adv };
+      return { ...this.tourSide(t, u), rank: i + 1, mp: x.mp, w: x.w, d: x.d, l: x.l, gw: x.gw, gl: x.gl, pts: x.pts, bh: x.bh, mbh: x.mbh, sb: x.sb, adv: i < adv, form: form.get(u) || '' };
     });
     return (t.st || []).map((st, i) => {
-      const M = (id) => this.matchView(t, st.matches[id]);
+      const M = (id) => this.matchView(t, st.matches[id], st);
       const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
       const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
       if (st.type === 'single' || st.type === 'double') {
-        v.rounds = st.rounds.map((r) => r.map(M));
+        // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện
+        v.rounds = (st.cfg.split ? st.rounds.slice(1) : st.rounds).map((r) => r.map(M));
+        if (st.cfg.split) v.split = true;
         if (st.third) v.third = M(st.third);
+        // Trận xếp hạng: các nhánh phân hạng 5–8, 9–16… (base = hạng cao nhất của nhánh)
+        if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
         if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
         if (st.gf) v.gf = st.gf.map(M);
       } else if (st.type === 'roundrobin') {
-        const tabs = ST.standings(st, seedOf);
-        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv) }));
+        const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
+        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form) }));
       } else {
         v.rounds = st.rounds.map((r) => r.map(M));
-        v.table = table(ST.standings(st, seedOf)[0], adv);
+        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st));
         v.totalRounds = st.cfg.rounds;
       }
       return v;

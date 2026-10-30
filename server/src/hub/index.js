@@ -14,6 +14,9 @@
  *   tour-run.js    – giải đấu: ban tổ chức, nhịp chạy, phòng cho ván của giải, kết thúc giải
  *   arena.js       – giải Arena
  *   bracket.js     – giải theo giai đoạn (dùng logic thể thức trong stages.js)
+ *   tour-reg.js    – đăng ký nâng cao: điều kiện, câu hỏi, duyệt tay, danh sách chờ, Bulk Add (cả giải offline)
+ *   tour-score.js  – giải offline: ban tổ chức nhập tỉ số theo set, huỷ kết quả; ghi đè kết quả trận trực tuyến
+ *   tour-manage.js – khu quản trị: nhật ký, thông báo, hạt giống thủ công, lịch, sửa cài đặt, tạm dừng, đặt lại, xoá, nháp
  *   tourpush.js    – gửi cập nhật trang giải cho người đang xem (gom, chỉ gửi phần đổi)
  *   admin.js       – quản trị viên duyệt câu lạc bộ / giải đấu
  *   watch.js       – xem trực tiếp ván đang đấu, danh sách ván hay
@@ -37,10 +40,18 @@ const { Rooms } = require('./rooms.js');
 const { Challenges } = require('./challenges.js');
 const { Matchmaking } = require('./matchmaking.js');
 const { Clubs } = require('./clubs.js');
+const { ClubManage } = require('./club-manage.js');
+const { ClubTalk } = require('./club-talk.js');
+const { ClubBattle } = require('./club-battle.js');
+const { TourFun } = require('./tour-fun.js');
+const { TourTpl } = require('./tour-tpl.js');
 const { Tournaments } = require('./tournaments.js');
 const { TourRun } = require('./tour-run.js');
 const { Arena } = require('./arena.js');
 const { Bracket } = require('./bracket.js');
+const { TourReg } = require('./tour-reg.js');
+const { TourScore } = require('./tour-score.js');
+const { TourManage } = require('./tour-manage.js');
 const { TourPush } = require('./tourpush.js');
 const { Admin } = require('./admin.js');
 const { Watch } = require('./watch.js');
@@ -53,7 +64,7 @@ const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, Tournaments, TourRun, Arena, Bracket, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, TourReg, TourScore, TourManage, TourFun, TourTpl, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

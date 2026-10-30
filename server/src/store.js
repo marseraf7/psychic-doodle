@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const { openDb, prepareQueries } = require('./store-schema.js'); // bảng, cột, câu lệnh SQL dựng sẵn
 const { upgradePools } = require('./rating.js');
 const { Sessions, SESSION_TTL } = require('./store-sessions.js');
+const { ClubStore } = require('./store-club.js');
 const { EvalCache } = require('./evalcache.js');
 
 const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
@@ -155,6 +156,7 @@ class Store {
       run('DELETE FROM rated_pairs WHERE a = ? OR b = ?', id, id);
       run('DELETE FROM rating_hist WHERE uid = ?', id);
       run('DELETE FROM reports WHERE reporter = ?', id);
+      this.clubTalkUserGone(id); // tin chat + bài diễn đàn câu lạc bộ (store-club.js)
       this.db.exec('COMMIT');
     } catch (e) {
       this.db.exec('ROLLBACK');
@@ -332,18 +334,25 @@ class Store {
   dropClub(id) {
     this.dirtyDocs.delete('club:' + id);
     this.q.dropClub.run(id);
+    this.clubTalkDrop(id); // chat + diễn đàn (store-club.js)
   }
 
   /** Giải chưa kết thúc + các giải đã xong gần đây nhất. */
   loadTours(recentDone = 100) {
-    const active = this.db.prepare("SELECT data FROM tours WHERE status IN ('pending', 'scheduled', 'running')").all();
-    const done = this.db.prepare("SELECT data FROM tours WHERE status NOT IN ('pending', 'scheduled', 'running') ORDER BY created DESC LIMIT ?").all(recentDone);
+    const active = this.db.prepare("SELECT data FROM tours WHERE status IN ('draft', 'pending', 'scheduled', 'running')").all();
+    const done = this.db.prepare("SELECT data FROM tours WHERE status NOT IN ('draft', 'pending', 'scheduled', 'running') ORDER BY created DESC LIMIT ?").all(recentDone);
     return [...active, ...done].map((r) => JSON.parse(r.data));
   }
 
   saveTour(t) {
     this.dirtyDocs.set('tour:' + t.id, t);
     this.schedule();
+  }
+
+  /** Xoá hẳn một giải (ban tổ chức bấm Xoá): bỏ khỏi hàng chờ ghi rồi xoá trong CSDL. */
+  deleteTour(id) {
+    this.dirtyDocs.delete('tour:' + id);
+    this.db.prepare('DELETE FROM tours WHERE id = ?').run(id);
   }
 
   // ------------------------------------------------------------ Đặt lại mật khẩu
@@ -380,8 +389,9 @@ async function checkPassword(password, pass) {
 }
 
 // Phiên đăng nhập / thiết bị (store-sessions.js)
-for (const name of Object.getOwnPropertyNames(Sessions.prototype)) {
-  if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(Sessions.prototype, name));
+// + chat / diễn đàn câu lạc bộ (store-club.js)
+for (const part of [Sessions, ClubStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
+  if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 
 module.exports = { Store, hashPassword, checkPassword };

@@ -23,7 +23,8 @@ class Hub {
     // SECOND_MS: độ dài 1 "giây" của đồng hồ mỗi nước (test đặt nhỏ để chạy nhanh).
     this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250,
       TOUR_TICK_MS: 1000, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 2 * 60 * 1000, TOUR_MIN_LEAD_MS: 5 * 60 * 1000, TOUR_PUSH_MS: 300,
-      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, FIRST_MOVE_MS: 30 * 1000, TOUR_DISPUTE_MS: 5 * 60 * 1000, ...timers };
+      ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, FIRST_MOVE_MS: 30 * 1000, TOUR_DISPUTE_MS: 5 * 60 * 1000,
+      CLUB_MSG_MS: 12 * 3600 * 1000, ...timers };
     // Quản trị viên: duyệt câu lạc bộ và giải đấu. Cấu hình theo tên đăng nhập, nhưng quyền
     // gắn theo ID tài khoản (H-S4): adminIds/adminBinds được bindAdmins() tra cứu lúc khởi động.
     this.admins = new Set(admins.map((a) => String(a).trim().toLowerCase()).filter(Boolean));
@@ -249,6 +250,7 @@ class Hub {
       conn.send(this.friendsMsg(uidOf(pid)));
       for (const inv of this.invites.values()) if (inv.to === pid) conn.send(this.inviteMsg(inv));
       if (this.isAdmin(uidOf(pid))) conn.send({ t: 'adminCount', n: this.pendingCount() });
+      this.clubInbox(conn, uidOf(pid)); // tin gửi toàn CLB chưa nhận (club-manage.js)
     }
   }
 

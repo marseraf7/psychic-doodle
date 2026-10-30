@@ -23,15 +23,17 @@ class Disputes {
     const rec = { id: crypto.randomBytes(5).toString('hex'), at: Date.now(), status: 'open', ...d };
     t.disputes = [...(t.disputes || []), rec].slice(-KEEP);
     const args = { name: t.name, loser: this.player(t, d.l)?.name || '?', winner: this.player(t, d.w)?.name || '?' };
-    for (const uid of this.tourManagers(t)) this.send(userPid(uid), note('tour_dispute_new', args));
+    for (const uid of this.tourManagers(t, 'disputes')) this.send(userPid(uid), note('tour_dispute_new', args));
     return rec;
   }
 
   /** Ban tổ chức đang có tài khoản: người tạo giải và quản lý CLB (quản trị viên xem trên trang giải). */
-  tourManagers(t) {
+  /** perm: chỉ đồng ban tổ chức có quyền này (chủ giải luôn nhận). */
+  tourManagers(t, perm) {
     const out = new Set([t.creator]);
     const c = t.club && this.clubs.get(t.club);
-    if (c) for (const uid of Object.keys(c.members)) if (this.isOfficer(c, uid)) out.add(uid);
+    if (c) for (const uid of Object.keys(c.members)) if (this.clubCan(c, uid, 'tours')) out.add(uid);
+    for (const s of t.staff || []) if (!perm || s.perms.includes('all') || s.perms.includes(perm)) out.add(s.uid); // đồng ban tổ chức
     return out;
   }
 
@@ -46,7 +48,7 @@ class Disputes {
 
   /** Ban tổ chức xử lý: action = 'confirm' | 'annul' | 'replay'. */
   on_tourDispute(conn, { id, dispute, action }) {
-    const t = this.requireManager(conn, id);
+    const t = this.requireManager(conn, id, 'disputes');
     if (!ACTIONS.includes(action)) throw E('bad_message');
     const d = (t.disputes || []).find((x) => x.id === dispute);
     if (!d || d.status !== 'open') throw E('dispute_gone');
@@ -132,7 +134,7 @@ class Disputes {
 
   /** Trận nhánh đấu đủ điều kiện kết thúc chưa (theo tỉ số m.wins sau gameNo ván). undefined = chưa. */
   decideMatch(t, st, m, gameNo) {
-    const bo = st.cfg.bestOf, need = Math.floor(bo / 2) + 1;
+    const bo = ST.boOf(st, m), need = Math.floor(bo / 2) + 1;
     const wa = m.wins[m.a] || 0, wb = m.wins[m.b] || 0;
     if (wa >= need) return m.a;
     if (wb >= need) return m.b;

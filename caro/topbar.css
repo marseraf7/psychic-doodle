@@ -224,3 +224,6 @@ body.bg-img .tabbar { background: color-mix(in srgb, var(--bg) 88%, transparent)
 /* Hàng có thanh trượt trong trang Cài đặt (âm lượng, bo tròn) */
 .li.li-range input[type="range"] { width: min(48%, 220px); flex: none; accent-color: var(--accent); }
 .qs-cap { padding: 8px 10px 2px; font-size: var(--fs-2xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+/* Tin gửi toàn câu lạc bộ trong chuông thông báo (topbar-inbox.js) */
+.tb-club { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--accent) 12%, transparent); font-size: 1.1em; }
+.tb-nt-text { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-sm); white-space: pre-wrap; }

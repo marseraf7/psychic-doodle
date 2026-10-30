@@ -25,7 +25,7 @@ function stageParts(v) {
     if (Array.isArray(x)) x.forEach(walk);
     else if (isMatch(x)) matches.set(x.id, x);
   };
-  walk([v.rounds, v.lrounds, v.gf, v.third, (v.groups || []).map((g) => g.rounds)]);
+  walk([v.rounds, v.lrounds, v.gf, v.third, (v.groups || []).map((g) => g.rounds), (v.places || []).map((p) => p.rounds)]);
   const tables = v.table ? [{ key: 't', rows: v.table }] : (v.groups || []).map((g, i) => ({ key: 'g' + i, rows: g.table }));
   return {
     skel: JSON.stringify(v, (k, x) => (isMatch(x) ? x.id : k === 'table' || k === 'done' ? null : x)),

@@ -22,7 +22,7 @@
       if (d.status === 'open') {
         const wait = d.deadline ? ` · ${esc(T('dispute_auto_in', { n: Math.max(0, Math.ceil((d.deadline - now) / 60000)) }))}` : '';
         tail = `<small class="loss">${esc(T('dispute_open'))}${wait}</small>`;
-        if (t.canManage && t.status === 'running') {
+        if (K.can(t, 'disputes') && t.status === 'running') {
           const b = (a, cls) => `<button type="button" class="${esc(cls)} sm" data-act="dispute" data-did="${esc(d.id)}" data-v="${a}">${esc(T('dispute_' + a))}</button>`;
           tail += `<div class="row">${b('confirm', 'ghost')}${b('annul', 'ghost')}${b('replay', 'primary')}</div>`;
         }

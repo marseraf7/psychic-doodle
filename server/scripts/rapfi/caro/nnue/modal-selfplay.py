@@ -44,7 +44,7 @@ def selfplay(name: str, hours: float, branch: str, env: dict):
 def main():
     cost = CONTAINERS * (HOURS + 0.3) * (CPU * PRICE_CPU_H + MEM_GB * PRICE_GB_H)
     print(f"{CONTAINERS} container × {CPU:g} nhân × {HOURS:g} giờ → ước tính ~{cost:.1f} USD credit "
-          f"(~{int(CONTAINERS * CPU * HOURS * 600):,} ván nếu ~600 ván / nhân-giờ – số thật ghi trong log từng container)")
+          f"(~{int(CONTAINERS * CPU * HOURS * 300):,} ván nếu ~300 ván / nhân-giờ với NODES 40000 – số thật ghi trong log từng container)")
     # nproc trong container thấy cả CPU của máy chủ (không phải phần được cấp) – đặt rõ số tiến trình. Lô 100 ván (thay vì
     # 200) cho hết giờ ít ván dở bị bỏ
     env = {"SP_PROCS": str(int(CPU)), "GAMES": "100"}

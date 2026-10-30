@@ -7,7 +7,7 @@
 # Biến môi trường:
 #   WORKER      tên trợ lý (bắt buộc, chữ thường / số / gạch ngang) – ván nằm ở data/<WORKER>/ trong repo dữ liệu
 #   DATA_REPO   repo dữ liệu (mặc định https://github.com/marseraf7/caro-nnue-data.git)
-#   SP_PROCS    số tiến trình tự đấu song song (mặc định = số lõi) · GAMES ván mỗi lô (200) · NODES nút mỗi nước (20000)
+#   SP_PROCS    số tiến trình tự đấu song song (mặc định = số lõi) · GAMES ván mỗi lô (200) · NODES nút mỗi nước (40000 – gấp đôi để ván chất lượng hơn, đổi lại ít ván hơn)
 # Dừng: Ctrl-C, hoặc tạo file $WORK/STOP (dừng sau lô đang chạy).
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -16,7 +16,7 @@ WORKER="${WORKER:-}"
 DATA_REPO="${DATA_REPO:-https://github.com/marseraf7/caro-nnue-data.git}"
 SP_PROCS=${SP_PROCS:-$(nproc)}
 GAMES=${GAMES:-200}
-NODES=${NODES:-20000}
+NODES=${NODES:-40000}
 REPO="$WORK/shared"
 LOG="$WORK/logs/worker.log"
 if ! [[ "$WORKER" =~ ^[a-z0-9][a-z0-9-]{0,30}$ ]]; then

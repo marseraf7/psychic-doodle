@@ -35,6 +35,7 @@
         if (v.gf) v.gf = fix(v.gf);
         if (v.third && upd.has(v.third.id)) v.third = upd.get(v.third.id);
         if (v.groups) for (const g of v.groups) g.rounds = fixRounds(g.rounds);
+        if (v.places) for (const p of v.places) p.rounds = fixRounds(p.rounds); // trận xếp hạng
       }
       for (const tb of s.tables || []) {
         const holder = tb.key === 't' ? v : v.groups && v.groups[Number(tb.key.slice(1))];

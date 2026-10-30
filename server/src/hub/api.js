@@ -71,6 +71,19 @@ class Api {
     };
   }
 
+  /**
+   * Trang giải công khai (như Challonge "/<slug>.json"): chỉ giải mọi người xem được hoặc mở bằng link, đã duyệt.
+   * Không có khiếu nại / phần riêng của ban tổ chức. Dùng cho trang nhúng (caro/embed.html) và website ngoài.
+   */
+  publicTour(id) {
+    const t = this.tours.get(String(id || '').slice(0, 20));
+    if (!t || !this.canSeeTour(t, null)) return null; // đúng như người chưa đăng nhập: không riêng tư / CLB / nháp / chờ duyệt
+    const { disputes, ...rest } = this.tourShared(t);
+    // Bỏ trạng thái online / đang chơi của từng người (trang công khai không cần, đỡ lộ thói quen online)
+    const players = rest.players.map(({ online, playing, ...p }) => p);
+    return { ...rest, players, url: '/?t=' + t.id };
+  }
+
   /** Bảng xếp hạng công khai: 50 người đầu. */
   publicLeaderboard(pool) {
     pool = R.POOLS.includes(pool) ? pool : null;

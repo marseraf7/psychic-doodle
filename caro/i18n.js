@@ -337,6 +337,7 @@
   let lang;
   try { lang = localStorage.getItem(KEY); } catch (e) { /* riêng tư */ }
   if (!DICT[lang]) lang = detect();
+  if (DICT[window.CARO_LANG]) lang = window.CARO_LANG; // trang nhúng (embed-boot.js): ?lang= – không lưu lại
 
   function t(key, args) {
     const s = DICT[lang][key] ?? DICT.vi[key] ?? key;

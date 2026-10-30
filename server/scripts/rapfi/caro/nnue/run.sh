@@ -37,7 +37,7 @@ else
   TRAIN_THREADS=${TRAIN_THREADS:-$([ $GPU = 1 ] && echo 2 || echo $(( CORES > 3 ? CORES / 2 : 1 )))}
   SP_PROCS=${SP_PROCS:-$(( CORES - TRAIN_THREADS > 0 ? CORES - TRAIN_THREADS : 1 ))}
 fi
-NODES=${NODES:-20000}
+NODES=${NODES:-40000}
 GAMES=${GAMES:-200}
 ROUND_GAMES=${ROUND_GAMES:-$([ $GPU = 1 ] && echo 20000 || echo 5000)}
 WINDOW=${WINDOW:-1000}                     # số file dữ liệu mới nhất dùng để huấn luyện (mỗi file GAMES ván)
@@ -145,11 +145,14 @@ print(f'≈ {f(d.get(\"elo\"))} Elo (95%: {f(d.get(\"lo\"))}…{f(d.get(\"hi\"))
     cp "$net" "$WORK/engines/best/caro-nnue.bin.lz4.new" && mv "$WORK/engines/best/caro-nnue.bin.lz4.new" "$WORK/engines/best/caro-nnue.bin.lz4"
     node "$HERE/make-config.js" "$WORK/engines/best" caro-nnue.bin.lz4
     cp "$net" "$WORK/nets/best.bin.lz4"; echo "$label" > "$WORK/nets/best.label"
+    # Ghi log + đẩy lên repo ngay khi nhận mạng, trước bước đo với engine (vài chục phút): khởi động lại giữa lúc đo không
+    # còn làm mất dấu lần thay mạng (27/10: r8 được nhận nhưng log không có dòng THAY), các trợ lý cũng đổi mạng sớm hơn
+    log "$label: loss giá trị $loss · đấu mạng cũ $res → THAY mạng tốt nhất"
+    publish_best "đấu mạng cũ $res"
     # Đo với engine của game (như bảng trong README): Rapfi-CARO + mạng 1 giây vs engine 3 giây
     bg bash -c 'cd "$1" && CHECK=0 RAPFI=native RAPFI_DIR="$2/engines/best" exec node server/scripts/rapfi/boat-match.js vn "$3" 1000 3000 > "$4/vs-engine.out" 2> /dev/null' _ "$ROOT" "$WORK" "$VS_OPENINGS" "$R"
     vs=$(node -e 'let w=0,t=0;for(const l of require("fs").readFileSync(0,"utf8").trim().split("\n")){const g=JSON.parse(l);t++;if(g.winner===g.boatSide)w++}console.log(w+"/"+t)' < "$R/vs-engine.out")
-    log "$label: loss giá trị $loss · đấu mạng cũ $res → THAY mạng tốt nhất · vs engine của game: $vs"
-    publish_best "đấu mạng cũ $res · vs engine của game $vs"
+    log "$label: vs engine của game: $vs"
   else
     log "$label: loss giá trị $loss · đấu mạng cũ $res → giữ mạng cũ"
   fi
