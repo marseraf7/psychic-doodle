@@ -120,18 +120,18 @@
   K.acts.clubAdmin = () => { open('clubAdmin', D.club.id); };
   K.acts.clubMute = (b) => { O.send({ t: 'clubMute', id: D.club.id, mute: !b.checked }); };
   K.acts.clubFilter = (b) => { D.clubFilter = b.value; render(true); };
-  K.acts.clubLeave = (b) => { if (confirm(T('confirm_club_leave', { name: D.club.name }))) O.send({ t: 'clubLeave', id: D.club.id }); };
+  K.acts.clubLeave = async (b) => { if (await window.CaroConfirm.ask(T('confirm_club_leave', { name: D.club.name }))) O.send({ t: 'clubLeave', id: D.club.id }); };
   K.acts.clubReq = (b) => { O.send({ t: 'clubRequest', id: D.club.id, uid: b.dataset.uid, accept: b.dataset.v === '1' }); };
 
   K.binders.push((body) => {
     body.querySelectorAll('select.mops').forEach((s) => {
-      s.onchange = () => {
+      s.onchange = async () => {
         const v = s.value, uid = s.dataset.uid, name = s.dataset.name;
         s.value = '';
         if (!v) return;
-        if (v === 'kick' || v === 'ban') { if (confirm(T(v === 'ban' ? 'confirm_club_ban' : 'confirm_club_kick', { name }))) O.send({ t: 'clubKick', id: D.club.id, uid, ban: v === 'ban' }); }
+        if (v === 'kick' || v === 'ban') { if (await window.CaroConfirm.ask(T(v === 'ban' ? 'confirm_club_ban' : 'confirm_club_kick', { name }))) O.send({ t: 'clubKick', id: D.club.id, uid, ban: v === 'ban' }); }
         else if (v === 'talkoff' || v === 'talkon') O.send({ t: 'clubTalkMute', id: D.club.id, uid, mute: v === 'talkoff' });
-        else if (v === 'owner') { if (confirm(T('confirm_club_owner', { name }))) O.send({ t: 'clubRole', id: D.club.id, uid, role: 'owner' }); }
+        else if (v === 'owner') { if (await window.CaroConfirm.ask(T('confirm_club_owner', { name }))) O.send({ t: 'clubRole', id: D.club.id, uid, role: 'owner' }); }
         else O.send({ t: 'clubRole', id: D.club.id, uid, role: v });
       };
     });

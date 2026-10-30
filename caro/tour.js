@@ -266,7 +266,7 @@
     try { await navigator.clipboard.writeText(url); O.toast(T('copied')); } catch (e) { prompt(T('share'), url); }
   }
   function bind(body) {
-    body.onclick = (e) => {
+    body.onclick = async (e) => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
       e.preventDefault();
@@ -277,10 +277,10 @@
       else if (a === 'join') O.send({ t: 'tourJoin', id: t.id, ...(K.joinExtra ? K.joinExtra() : {}) });
       else if (a === 'checkin') O.send({ t: 'tourCheckin', id: t.id });
       else if (a === 'pause') O.send({ t: 'tourPause', id: t.id, paused: b.dataset.v === '1' });
-      else if (a === 'leave') { if (confirm(T(t.status === 'running' ? 'confirm_tour_withdraw_running' : 'confirm_tour_withdraw'))) O.send({ t: 'tourLeave', id: t.id }); }
-      else if (a === 'start') { if (confirm(T('confirm_tour_start'))) O.send({ t: 'tourStart', id: t.id }); }
-      else if (a === 'cancel') { if (confirm(T('confirm_tour_cancel'))) O.send({ t: 'tourCancel', id: t.id }); }
-      else if (a === 'kick') { if (confirm(T('confirm_tour_kick', { name: b.dataset.name }))) O.send({ t: 'tourKick', id: t.id, uid: b.dataset.uid }); }
+      else if (a === 'leave') { if (await window.CaroConfirm.ask(T(t.status === 'running' ? 'confirm_tour_withdraw_running' : 'confirm_tour_withdraw'))) O.send({ t: 'tourLeave', id: t.id }); }
+      else if (a === 'start') { if (await window.CaroConfirm.ask(T('confirm_tour_start'))) O.send({ t: 'tourStart', id: t.id }); }
+      else if (a === 'cancel') { if (await window.CaroConfirm.ask(T('confirm_tour_cancel'))) O.send({ t: 'tourCancel', id: t.id }); }
+      else if (a === 'kick') { if (await window.CaroConfirm.ask(T('confirm_tour_kick', { name: b.dataset.name }))) O.send({ t: 'tourKick', id: t.id, uid: b.dataset.uid }); }
       else if (a === 'share') share(shareLink('t', t.slug || t.id), t.name); // link riêng nếu có
       else if (a === 'toGame') O.closeDlg('tour-dlg');
       else if (a === 'replay') { O.closeDlg('tour-dlg'); O.openReplay(b.dataset.share); }

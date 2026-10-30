@@ -111,8 +111,8 @@
     box.value = '';
     O.toast(T('club_bc_sent'));
   };
-  K.acts.clubDisband = () => {
-    if (!confirm(T('confirm_club_disband', { name: club().name }))) return;
+  K.acts.clubDisband = async () => {
+    if (!await window.CaroConfirm.ask(T('confirm_club_disband', { name: club().name }))) return;
     O.send({ t: 'clubDisband', id: club().id });
     K.V.stack = [];
     top('clubs');
