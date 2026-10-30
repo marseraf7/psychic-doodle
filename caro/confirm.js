@@ -32,10 +32,13 @@
         input.maxLength = opts.max || 200;
       }
       let settled = false;
-      const done = (v) => { if (!settled) { settled = true; resolve(v); } };
       const yes = () => (mode === 'prompt' ? (input ? input.value : '') : true);
       const no = () => (mode === 'prompt' ? null : false);
-      d.addEventListener('close', () => done(no()), { once: true }); // Esc / đóng = Huỷ
+      // Esc / đóng = Huỷ. Sự kiện 'close' của hộp trước có thể tới muộn, lúc hộp này đã mở lại (hai hộp hỏi liền
+      // nhau) – hộp còn đang mở thì không phải lần đóng của hộp này, bỏ qua.
+      const onClose = () => { if (!d.open) done(no()); };
+      const done = (v) => { if (!settled) { settled = true; d.removeEventListener('close', onClose); resolve(v); } };
+      d.addEventListener('close', onClose);
       $('confirm-ok').onclick = () => { const v = yes(); d.close(); done(v); };
       $('confirm-no').onclick = () => { d.close(); done(no()); };
       if (input) input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); $('confirm-ok').click(); } };

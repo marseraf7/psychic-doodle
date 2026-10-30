@@ -124,6 +124,10 @@ const { setup } = require('./helpers');
   ok(await info === 'ok', 'thông báo: bấm Đóng là xong');
   ok(await c.evaluate(() => { const p = window.CaroConfirm.ask('Hỏi lại?'); setTimeout(() => document.getElementById('confirm-ok').click(), 100); return p.then((v) => v && !document.getElementById('confirm-no').hidden && document.getElementById('confirm-in').hidden); }),
     'hộp Đồng ý / Huỷ sau đó: hiện lại nút Huỷ, ẩn ô nhập');
+  // Sự kiện 'close' của hộp trước tới muộn khi hộp mới đã mở (lỗi CI 30/10): không được coi là Huỷ hộp mới
+  ok(await c.evaluate(() => { const d = document.getElementById('confirm-dlg'); const p = window.CaroConfirm.ask('Hộp mới?');
+    setTimeout(() => d.dispatchEvent(new Event('close')), 30); setTimeout(() => document.getElementById('confirm-ok').click(), 150); return p; }) === true,
+  'sự kiện đóng tới muộn của hộp trước không làm hộp mới thành Huỷ');
 
   await finish();
 })();
