@@ -313,8 +313,12 @@ class Bracket {
     };
   }
 
-  /** Các giai đoạn đã bốc thăm, gửi cho client: nhánh đấu / bảng xếp hạng / các vòng. */
-  stageViews(t) {
+  /**
+   * Các giai đoạn đã bốc thăm, gửi cho client: nhánh đấu / bảng xếp hạng / các vòng.
+   * memo (giải offline – otour.js): giai đoạn đã xong dựng một lần, giữ theo số phiên bản st.v (otour-run.js tăng mỗi
+   * lần ghi / huỷ kết quả) – giải nhiều bảng không phải tính lại bảng xếp hạng đã chốt ở mỗi kết quả mới.
+   */
+  stageViews(t, memo = null) {
     const seedOf = this.seedOf(t);
     // form: dải phong độ của giai đoạn (formStrip) – uid → 'WLD' (5 trận gần nhất, cũ → mới)
     // tb: giá trị các tie-break đã chọn của giai đoạn (cùng thứ tự cfg.tiebreaks; đối đầu: null)
@@ -324,6 +328,17 @@ class Bracket {
         tb: tbs.map((k) => ST.tbValue(k, x)), adv: i < adv, form: form.get(u) || '' };
     });
     return (t.st || []).map((st, i) => {
+      const key = i + ':' + (st.v || 0);
+      if (memo && st.done && memo.has(key)) return memo.get(key);
+      const v = this.stageView(t, st, i, seedOf, table);
+      if (memo && st.done) memo.set(key, v);
+      return v;
+    });
+  }
+
+  /** Một giai đoạn gửi cho client (stageViews). */
+  stageView(t, st, i, seedOf, table) {
+    {
       const M = (id) => this.matchView(t, st.matches[id], st);
       const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
       const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
@@ -345,7 +360,7 @@ class Bracket {
         v.totalRounds = st.cfg.rounds;
       }
       return v;
-    });
+    }
   }
 }
 

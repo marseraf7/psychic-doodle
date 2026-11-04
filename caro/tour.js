@@ -91,6 +91,7 @@
   function open(page, id, push) {
     if (push !== false && (V.page !== page || V.id !== id)) V.stack.push({ page: V.page, id: V.id });
     if (V.page === 'tour' && page !== 'tour') O.send({ t: 'tourUnwatch' });
+    if (V.page === 'ot' && page !== 'ot') O.send({ t: 'otUnwatch' }); // giải offline (otour.js)
     if (/^club(Admin|Topic|TopicNew)?$/.test(V.page) && !/^club(Admin|Topic|TopicNew)?$/.test(page)) O.send({ t: 'clubUnwatch' });
     V.page = page;
     V.id = id || null;
@@ -164,7 +165,9 @@
   function pageTours() {
     setTitle('tours_title');
     const list = D.tours;
-    let html = `<div class="row"><button type="button" class="primary" data-act="tourNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('tour_create'))}</button></div>`;
+    // Lối vào riêng: giải đấu Offline cho mọi bộ môn (otour.js)
+    let html = `<div class="row"><button type="button" class="primary" data-act="tourNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('tour_create'))}</button>
+      <button type="button" class="ghost" data-act="otours">${icon('trophy')}${esc(T('ot_entry'))}</button></div>`;
     if (!me()) html += needLogin();
     if (!list) return html + `<p class="hint">…</p>`;
     const groups = [['running', 'tg_running'], ['scheduled', 'tg_scheduled'], ['pending', 'tg_pending'], ['draft', 'tg_draft'], ['done', 'tg_done']];
@@ -355,7 +358,8 @@
 
   // Link ?t=<mã> / ?club=<mã>
   const params = new URLSearchParams(location.search);
-  let pending = params.get('t') ? ['tour', params.get('t')] : params.get('club') ? ['club', params.get('club')] : null;
+  // ?o=<mã>: giải đấu offline (otour.js)
+  let pending = params.get('t') ? ['tour', params.get('t')] : params.get('club') ? ['club', params.get('club')] : params.get('o') ? ['ot', params.get('o')] : null;
   function checkLink() {
     if (!pending) return;
     const [page, id] = pending;
@@ -363,9 +367,11 @@
     const url = new URL(location.href);
     url.searchParams.delete('t');
     url.searchParams.delete('club');
+    url.searchParams.delete('o');
     history.replaceState(null, '', url);
-    V.stack = [{ page: page === 'tour' ? 'tours' : 'clubs', id: null }];
-    V.page = page === 'tour' ? 'tours' : 'clubs';
+    const home = { tour: 'tours', ot: 'otours' }[page] || 'clubs';
+    V.stack = [{ page: home, id: null }];
+    V.page = home;
     open(page, String(id).replace(/[^\w-]/g, '').slice(0, 20), false);
   }
   K.pages.tours = pageTours;
