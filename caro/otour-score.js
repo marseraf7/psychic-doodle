@@ -1,8 +1,9 @@
 /*
  * Giải đấu Offline – nhập kết quả trên trang giải (máy chủ: server/src/hub/otour-run.js). Ban tổ chức bấm một trận đang
  * chờ (nhánh đấu hoặc danh sách) → khung nhập theo kiểu kết quả của giải:
- *   'score'  – hai ô tỉ số; hoà ở loại trực tiếp hiện thêm ô luân lưu.
- *   'sets'   – điểm từng set (thêm / bớt set), nhắc luật set của bộ môn.
+ *   'score'  – hai ô tỉ số + ô "có hiệp phụ"; ô luân lưu ở loại trực tiếp (và vòng tròn có điểm thắng / thua sát – khúc côn cầu).
+ *   'sets'   – điểm từng set (thêm / bớt set, tối đa Bo của trận), nhắc luật set của giải; kiểm luật trước khi gửi
+ *              (otour-rules.js – máy chủ kiểm lại).
  *   'winner' – nút chọn người thắng (+ Hoà ở vòng tròn / Thụy Sĩ).
  * Trận đã có kết quả: hiện kết quả + nút Huỷ kết quả (nhập lại). K.otScoreHtml(t) – gọi từ otour.js.
  */
@@ -10,7 +11,8 @@
   'use strict';
   const K = window.CaroTourKit;
   const SP = window.CaroOTourSports;
-  if (!K || !SP) return;
+  const RU = window.CaroOTourRules;
+  if (!K || !SP || !RU) return;
   const { O, T, esc, $, D, icon, render } = K;
   const S = { tour: null, match: null, sets: [['', '']] };
 
@@ -26,6 +28,15 @@
   }
   const canScore = (t) => t && t.canManage && t.status === 'running';
   const elimType = (v) => v.type === 'single' || v.type === 'double';
+  const boOf = (m, v) => m.bo || (v.cfg && v.cfg.bestOf) || 1;
+  // Ô luân lưu: loại trực tiếp (hoà phải có) hoặc vòng tròn có điểm thắng / thua sát (khúc côn cầu: hoà → luân lưu)
+  const penOn = (v) => elimType(v) || !!(v.cfg && v.cfg.points && v.cfg.points.wx != null);
+  /** Câu nhắc luật set: "Bo3 · mỗi set tới 21 điểm, cách 2 · chạm 30 là thắng" (+ " · set quyết định tới 15"). */
+  function ruleText(r, bo) {
+    if (!r) return T('ot_set_free', { bo });
+    return T('ot_set_rule', { to: r.to, by: r.by, bo }) + (r.cap ? T('ot_set_cap', { cap: r.cap }) : '') + (r.last ? T('ot_set_last', { last: r.last }) : '');
+  }
+  K.otRuleText = ruleText;
 
   K.otScoreHtml = (t) => {
     if (S.tour !== t.id) { S.tour = t.id; S.match = null; }
@@ -37,7 +48,8 @@
       <button type="button" class="ghost sm icon" data-act="otScoreClose" aria-label="${esc(T('close'))}">${icon('close')}</button></div>`;
     if (m.done) {
       const res = m.sets ? m.sets.map((s) => s.join('-')).join(' · ') : `${m.wa}–${m.wb}`;
-      return `<div class="score-panel">${head}<p class="hint">${esc(T('score_current', { s: res + (m.extra ? ` (${m.extra.join('-')})` : '') }))}</p>
+      const more = [m.aet ? T('ot_aet_tag') : '', m.extra ? T('ot_pen_tag', { s: m.extra.join('-') }) : ''].filter(Boolean).join(', ');
+      return `<div class="score-panel">${head}<p class="hint">${esc(T('score_current', { s: res + (more ? ` (${more})` : '') }))}</p>
         <div class="row"><button type="button" class="ghost sm danger" data-act="otUndo">${esc(T('score_undo'))}</button></div></div>`;
     }
     const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
@@ -48,20 +60,25 @@
       return `<div class="score-panel">${head}${body}</div>`;
     }
     if (t.result === 'sets') {
-      const rule = sp.set ? `<p class="hint">${esc(T('ot_set_rule', { to: sp.set.to, by: sp.set.by, bo: m.bo || (t.stages[v.index] || {}).bestOf || sp.bestOf }))}</p>` : '';
+      const bo = boOf(m, v);
+      const rule = `<p class="hint">${esc(ruleText(t.set, bo))}</p>`;
+      const del = (i) => (S.sets.length > 1 ? `<button type="button" class="ghost sm icon" data-act="otSetDel" data-i="${i}" aria-label="${esc(T('score_set_del'))}">${icon('close')}</button>` : '');
       body = `${rule}<div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T('score_set_n', { n: i + 1 }))}</span>
-        <input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="0" value="${s[0]}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="1" value="${s[1]}"></div>`).join('')}</div>
-        <button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T('score_set_add'))}</button>`;
+        <input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="0" value="${esc(s[0])}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="1" value="${esc(s[1])}">${del(i)}</div>`).join('')}</div>
+        ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T('score_set_add'))}</button>` : ''}`;
     } else {
+      const ex = sp.extra === 'ot' ? 'ot' : 'aet';
       body = `<div class="set-row"><span class="muted">${esc(T('ot_score'))}</span><input type="number" min="0" max="999" inputmode="numeric" id="ots-a"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" id="ots-b"></div>
-        ${elimType(v) ? `<div class="set-row"><span class="muted">${esc(T('ot_pen'))}</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pa"><span>–</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pb"></div><p class="hint">${esc(T('ot_pen_hint'))}</p>` : ''}`;
+        <label class="check"><input type="checkbox" id="ots-aet"> <span>${esc(T('ot_aet_' + ex))}</span></label>
+        ${penOn(v) ? `<div class="set-row"><span class="muted">${esc(T('ot_pen'))}</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pa"><span>–</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pb"></div><p class="hint">${esc(T(elimType(v) ? 'ot_pen_hint' : 'ot_pen_hint_rr'))}</p>` : ''}`;
     }
     return `<form class="score-panel" id="ots">${head}${body}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>`;
   };
 
   const readSets = () => { document.querySelectorAll('#ots-sets [data-set]').forEach((el) => { S.sets[el.dataset.set][el.dataset.side] = el.value; }); };
   K.acts.otScoreClose = () => { S.match = null; render(true); };
-  K.acts.otSetAdd = () => { readSets(); if (S.sets.length < 9) S.sets.push(['', '']); render(true); };
+  K.acts.otSetAdd = () => { readSets(); if (S.sets.length < 25) S.sets.push(['', '']); render(true); };
+  K.acts.otSetDel = (b) => { readSets(); if (S.sets.length > 1) S.sets.splice(Number(b.dataset.i), 1); render(true); };
   K.acts.otWin = (b) => O.send({ t: 'otScore', id: D.ot.id, match: S.match, ...(b.dataset.uid ? { winner: b.dataset.uid } : { draw: true }) });
   K.acts.otUndo = () => window.CaroConfirm.ask(T('score_undo_confirm')).then((ok) => { if (ok) O.send({ t: 'otUndo', id: D.ot.id, match: S.match }); });
 
@@ -92,13 +109,19 @@
         readSets();
         const sets = S.sets.filter((s) => s[0] !== '' || s[1] !== '');
         if (!sets.length || sets.some((s) => s[0] === '' || s[1] === '')) return err('score_need_sets');
-        O.send({ t: 'otScore', id: t.id, match: S.match, sets: sets.map((s) => s.map(Number)) });
+        const list = sets.map((s) => s.map(Number));
+        // Kiểm luật set ngay (máy chủ kiểm lại): báo đúng set sai
+        const x = find(t, S.match);
+        const bad = x && RU.setsError(t.set || null, list, boOf(x.m, x.v));
+        if (bad) { $('ots-err').textContent = T('srv_' + bad.code, bad.args); return; }
+        O.send({ t: 'otScore', id: t.id, match: S.match, sets: list });
         return;
       }
       const a = $('ots-a').value, b = $('ots-b').value;
       if (a === '' || b === '') return err('ot_need_score');
       const pa = $('ots-pa') ? $('ots-pa').value : '', pb = $('ots-pb') ? $('ots-pb').value : '';
-      O.send({ t: 'otScore', id: t.id, match: S.match, score: [Number(a), Number(b)], ...(pa !== '' && pb !== '' ? { pen: [Number(pa), Number(pb)] } : {}) });
+      const aet = !!($('ots-aet') && $('ots-aet').checked);
+      O.send({ t: 'otScore', id: t.id, match: S.match, score: [Number(a), Number(b)], aet, ...(pa !== '' && pb !== '' ? { pen: [Number(pa), Number(pb)] } : {}) });
     };
   });
   // Lưu xong (trận đã có kết quả trong bản cập nhật): đóng khung; lỗi: hiện trong khung

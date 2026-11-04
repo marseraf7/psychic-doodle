@@ -6,7 +6,8 @@
  * 3 lượt, xếp hạng theo (rankBy), điểm ván thắng / hoà / miễn đấu, tie-break 5 cấp (theo quy chế FIDE – kèm giải thích),
  * Thụy Sĩ: 0 vòng = tự động, cách xếp cặp (Hà Lan / liền kề), cách tính trận không đấu (FIDE / như bản cũ).
  *   K.stageEdit = { DEFAULT, MAX, html(stages, adv, ctx), change(stages, el), click(stages, btn) } – change / click sửa
- *   mảng stages tại chỗ, trả true nếu có đổi; ctx.max: số người tối đa (số cặp hạng chọn được).
+ *   mảng stages tại chỗ, trả true nếu có đổi; ctx.max: số người tối đa (số cặp hạng chọn được); ctx.ext: hiện ô điểm
+ *   thắng / thua "sát" (giải offline – set quyết định, hiệp phụ).
  *   Nạp sau tour.js, tour-stages.js; trước tour-form.js.
  */
 (function () {
@@ -27,7 +28,7 @@
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
-    'gdiff', 'gwins', 'gpct'];
+    'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct'];
   const MAX_TB = 5;
   const BO_OPTS = [1, 3, 5, 7];
   const MAX_BO = 25; // như máy chủ (stages.js)
@@ -107,6 +108,8 @@
         f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
         if (adv) {
           more.push(`<div class="field inline"><span>${esc(T('opt_pts_game'))}</span><span class="pts3">${num(i, 'pgw', c.points.gw || 0, 0, 10)}${num(i, 'pgt', c.points.gt || 0, 0, 10)}</span></div>`);
+          // Giải offline: điểm thắng / thua ở set quyết định / sau hiệp phụ – luân lưu (bóng chuyền 3–2, khúc côn cầu)
+          if (ctx.ext) more.push(`<div class="field inline"><span>${esc(T('opt_pts_ext'))}</span><span class="pts3">${num(i, 'pwx', c.points.wx != null ? c.points.wx : c.points.w, 0, 10)}${num(i, 'plx', c.points.lx != null ? c.points.lx : c.points.l, 0, 10)}</span></div>`);
           if (c.type === 'swiss') more.push(field(T('opt_pts_bye'), num(i, 'pbye', c.points.bye != null ? c.points.bye : c.points.w, 0, 10)));
           const tbs = tbsOf(c);
           const opts = [['', T('tb_none')], ...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin').map((x) => [x, T('tb_' + x)])];
@@ -162,7 +165,7 @@
       const tbs = [...tbsOf(c)];
       tbs[Number(k[2])] = v;
       c.tiebreaks = tbs.filter((x, j) => x && tbs.indexOf(x) === j).slice(0, MAX_TB); // bỏ ô trống và trùng
-    } else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye'].includes(k)) c.points[k.slice(1)] = clamp(v);
+    } else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye', 'pwx', 'plx'].includes(k)) c.points[k.slice(1)] = clamp(v);
     else if (el.tagName === 'SELECT') c[k] = v;
     else if (Number.isFinite(v)) c[k] = clamp(v);
     return true;

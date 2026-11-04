@@ -3,7 +3,7 @@
  * tie-break, các giai đoạn. Mẫu giải nổi tiếng và (sau này) chatbot AI đều chỉ viết ra bản cấu hình này; máy chủ kiểm
  * bằng normalizeSpec – sai thì báo lỗi rõ ràng, không bao giờ tự đoán. Không phụ thuộc mạng (kiểm thử riêng được).
  *
- * Kiểu kết quả (result) của đợt O1: 'score' (tỉ số – bóng đá, bóng rổ…; hoà ở loại trực tiếp phải có luân lưu),
+ * Kiểu kết quả (result): 'score' (tỉ số – bóng đá, bóng rổ…; hoà ở loại trực tiếp phải có luân lưu),
  * 'sets' (điểm từng set – cầu lông, bóng bàn, bóng chuyền, tennis, thể thao điện tử), 'winner' (chỉ người thắng / hoà).
  */
 'use strict';
@@ -11,6 +11,7 @@ const ST = require('./stages.js');
 
 // Bộ môn có sẵn và kiểu kết quả: dùng chung với trình duyệt (caro/otour-sports.js)
 const { SPORTS, RESULTS } = require('../../../caro/otour-sports.js');
+const Rules = require('../../../caro/otour-rules.js');
 const MAX_TEAMS = 512;
 const MAX_MATCHES = 10000;
 
@@ -19,7 +20,8 @@ class SpecError extends Error {
 }
 
 /**
- * Chuẩn hoá bản cấu hình từ client / mẫu / chatbot. Trả { sport, result, stages }.
+ * Chuẩn hoá bản cấu hình từ client / mẫu / chatbot. Trả { sport, result, set, stages }.
+ * set: luật set (otour-rules.js – chỉ kiểu 'sets'); không ghi thì lấy theo bộ môn, null / false = không kiểm điểm từng set.
  * stages dùng đúng định dạng giai đoạn của giải Caro (stages.js – normalizeStages): loại trực tiếp, nhánh thắng –
  * thua, vòng tròn, Thụy Sĩ… Điểm / tie-break của vòng tròn / Thụy Sĩ lấy từ bộ môn nếu không ghi rõ.
  */
@@ -39,7 +41,8 @@ function normalizeSpec(o) {
     }
     return x;
   });
-  return { sport, result, stages: ST.normalizeStages(raw) };
+  const set = result === 'sets' ? Rules.cleanSet(o.set === undefined ? preset.set : o.set) : null;
+  return { sport, result, set, stages: ST.normalizeStages(raw) };
 }
 
 /** Kiểm cỡ giải sau khi đã có số đội: đủ người, tối đa MAX_TEAMS, ước tính số trận không vượt MAX_MATCHES. */

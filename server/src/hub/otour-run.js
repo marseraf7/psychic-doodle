@@ -2,9 +2,11 @@
  * Giải đấu Offline – diễn biến giải (otour.js là phần khung): đội / người tham gia, bắt đầu (bốc thăm giai đoạn đầu),
  * nhập kết quả theo kiểu của giải, huỷ kết quả, chuyển giai đoạn, kết thúc. Thể thức dùng chung lõi của giải Caro
  * (stages.js); kết quả:
- *   'score'  – tỉ số [a, b] (bàn thắng / điểm); hoà ở loại trực tiếp phải có luân lưu pen [a, b]. Số bàn ghi vào m.wins nên
- *              hiệu số / số bàn thắng là tie-break 'gdiff' / 'gwins' có sẵn.
- *   'sets'   – điểm từng set [[a, b], …]; thắng set nhiều hơn thắng trận (như giải Caro offline – tour-score.js).
+ *   'score'  – tỉ số [a, b] (bàn thắng / điểm); hoà ở loại trực tiếp phải có luân lưu pen [a, b] (vòng tròn: luân lưu tuỳ
+ *              chọn – khúc côn cầu); aet: có đá hiệp phụ. Số bàn ghi vào m.wins nên hiệu số / số bàn thắng là tie-break
+ *              'gdiff' / 'gwins' có sẵn.
+ *   'sets'   – điểm từng set [[a, b], …], kiểm theo luật set của giải và Bo của trận (otour-rules.js).
+ *   m.ext    – trận phân thắng thua ở hiệp phụ / luân lưu / set quyết định: điểm thắng / thua "sát" (points.wx / lx) nếu có.
  *   'winner' – chỉ người thắng (hoặc hoà ở vòng tròn / Thụy Sĩ).
  */
 'use strict';
@@ -15,8 +17,8 @@ const { matchScore } = require('./tour-score.js');
 const { cleanPublicText } = require('./shared.js');
 const Spec = require('./otour-spec.js');
 const { specGuard } = require('./otour.js');
+const Rules = require('../../../caro/otour-rules.js');
 
-const MAX_SETS = 9;
 const MAX_POINT = 999;
 const pair = (x) => {
   if (!Array.isArray(x) || x.length !== 2) return null;
@@ -133,7 +135,7 @@ class OTourRun {
    * Nhập kết quả: score [a, b] (+ pen [a, b] khi hoà ở loại trực tiếp) | sets [[a, b], …] | winner (mã đội) / draw.
    * Trận đã có kết quả thì phải huỷ trước (on_otUndo) – tránh nhập đè nhầm.
    */
-  on_otScore(conn, { id, match, score, pen, sets, winner, draw }) {
+  on_otScore(conn, { id, match, score, pen, aet, sets, winner, draw }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, m } = this.otMatch(t, match);
     if (m.done) throw E('tour_match_done');
@@ -147,19 +149,23 @@ class OTourRun {
       w = s[0] > s[1] ? m.a : s[1] > s[0] ? m.b : null;
       if (w === null && p && p[0] !== p[1]) w = p[0] > p[1] ? m.a : m.b;
       if (w === null && elim) throw E('ot_need_pen');
-      Object.assign(m, { score: s, extra: w !== null && s[0] === s[1] ? p : null, sets: null, wins: { [m.a]: s[0], [m.b]: s[1] } });
+      const shootout = w !== null && s[0] === s[1];
+      Object.assign(m, { score: s, extra: shootout ? p : null, sets: null, aet: aet === true, ext: aet === true || shootout, wins: { [m.a]: s[0], [m.b]: s[1] } });
     } else if (t.result === 'sets') {
-      const list = Array.isArray(sets) ? sets.slice(0, MAX_SETS).map(pair) : [];
+      const list = Array.isArray(sets) && sets.length <= ST.MAX_BO ? sets.map(pair) : [];
       if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
+      const bo = ST.boOf(st, m);
+      const bad = Rules.setsError(t.set || null, list, bo);
+      if (bad) throw E(bad.code, bad.args);
       const { ka, kb } = matchScore(list, 'sets');
       w = ka > kb ? m.a : kb > ka ? m.b : null;
       if (w === null && elim) throw E('tour_score_tie');
-      Object.assign(m, { sets: list, extra: null, wins: { [m.a]: ka, [m.b]: kb } });
+      Object.assign(m, { sets: list, extra: null, ext: Rules.decidingPlayed(list, bo), wins: { [m.a]: ka, [m.b]: kb } });
     } else {
       const tie = draw === true && !elim;
       if (!tie && winner !== m.a && winner !== m.b) throw E('tour_score_bad');
       w = tie ? null : winner;
-      Object.assign(m, { quick: true, sets: null, extra: null, wins: tie ? { [m.a]: 0, [m.b]: 0 } : { [w]: 1, [w === m.a ? m.b : m.a]: 0 } });
+      Object.assign(m, { quick: true, sets: null, extra: null, ext: false, wins: tie ? { [m.a]: 0, [m.b]: 0 } : { [w]: 1, [w === m.a ? m.b : m.a]: 0 } });
     }
     ST.recordResult(st, m, w, { seedOf: this.otSeedOf(t), isActive: () => true });
     st.v = (st.v || 0) + 1;
@@ -182,7 +188,7 @@ class OTourRun {
       for (const { r, x } of targets) x[r.slot] = null;
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, extra: null, quick: false, double: false });
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, extra: null, aet: false, ext: false, quick: false, double: false });
     st.done = false;
     st.v = (st.v || 0) + 1;
     this.otLog(t, me.id, 'undo', { match: m.id });
