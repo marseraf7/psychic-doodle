@@ -313,8 +313,12 @@ class Bracket {
     };
   }
 
-  /** Các giai đoạn đã bốc thăm, gửi cho client: nhánh đấu / bảng xếp hạng / các vòng. */
-  stageViews(t) {
+  /**
+   * Các giai đoạn đã bốc thăm, gửi cho client: nhánh đấu / bảng xếp hạng / các vòng.
+   * memo (giải offline – otour.js): giai đoạn đã xong dựng một lần, giữ theo số phiên bản st.v (otour-run.js tăng mỗi
+   * lần ghi / huỷ kết quả) – giải nhiều bảng không phải tính lại bảng xếp hạng đã chốt ở mỗi kết quả mới.
+   */
+  stageViews(t, memo = null) {
     const seedOf = this.seedOf(t);
     // form: dải phong độ của giai đoạn (formStrip) – uid → 'WLD' (5 trận gần nhất, cũ → mới)
     // tb: giá trị các tie-break đã chọn của giai đoạn (cùng thứ tự cfg.tiebreaks; đối đầu: null)
@@ -324,28 +328,37 @@ class Bracket {
         tb: tbs.map((k) => ST.tbValue(k, x)), adv: i < adv, form: form.get(u) || '' };
     });
     return (t.st || []).map((st, i) => {
-      const M = (id) => this.matchView(t, st.matches[id], st);
-      const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
-      const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
-      if (st.type === 'single' || st.type === 'double') {
-        // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện
-        v.rounds = (st.cfg.split ? st.rounds.slice(1) : st.rounds).map((r) => r.map(M));
-        if (st.cfg.split) v.split = true;
-        if (st.third) v.third = M(st.third);
-        // Trận xếp hạng: các nhánh phân hạng 5–8, 9–16… (base = hạng cao nhất của nhánh)
-        if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: p.n || 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
-        if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
-        if (st.gf) v.gf = st.gf.map(M);
-      } else if (st.type === 'roundrobin') {
-        const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
-        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)) }));
-      } else {
-        v.rounds = st.rounds.map((r) => r.map(M));
-        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
-        v.totalRounds = st.cfg.rounds;
-      }
+      const key = i + ':' + (st.v || 0);
+      if (memo && st.done && memo.has(key)) return memo.get(key);
+      const v = this.stageView(t, st, i, seedOf, table);
+      if (memo && st.done) memo.set(key, v);
       return v;
     });
+  }
+
+  /** Một giai đoạn gửi cho client (stageViews). */
+  stageView(t, st, i, seedOf, table) {
+    const M = (id) => this.matchView(t, st.matches[id], st);
+    const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
+    const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
+    if (st.type === 'single' || st.type === 'double') {
+      // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện
+      v.rounds = (st.cfg.split ? st.rounds.slice(1) : st.rounds).map((r) => r.map(M));
+      if (st.cfg.split) v.split = true;
+      if (st.third) v.third = M(st.third);
+      // Trận xếp hạng: các nhánh phân hạng 5–8, 9–16… (base = hạng cao nhất của nhánh)
+      if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: p.n || 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
+      if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
+      if (st.gf) v.gf = st.gf.map(M);
+    } else if (st.type === 'roundrobin') {
+      const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
+      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)) }));
+    } else {
+      v.rounds = st.rounds.map((r) => r.map(M));
+      v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
+      v.totalRounds = st.cfg.rounds;
+    }
+    return v;
   }
 }
 

@@ -47,6 +47,11 @@ const SCHEMA = `
     mate INTEGER, at INTEGER NOT NULL, used INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS eval_cache_used ON eval_cache (used);
   CREATE TABLE IF NOT EXISTS avatars (uid TEXT PRIMARY KEY, type TEXT NOT NULL, data BLOB NOT NULL);
+  CREATE TABLE IF NOT EXISTS offline_tours (id TEXT PRIMARY KEY, slug TEXT, owner TEXT NOT NULL, status TEXT NOT NULL, access TEXT NOT NULL,
+    name TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, data TEXT NOT NULL);
+  CREATE UNIQUE INDEX IF NOT EXISTS offline_tours_slug ON offline_tours (slug);
+  CREATE INDEX IF NOT EXISTS offline_tours_owner ON offline_tours (owner, updated);
+  CREATE INDEX IF NOT EXISTS offline_tours_public ON offline_tours (access, updated);
   CREATE TABLE IF NOT EXISTS tour_imgs (id TEXT PRIMARY KEY, uid TEXT NOT NULL, type TEXT NOT NULL, data BLOB NOT NULL, at INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS tour_imgs_uid ON tour_imgs (uid, at);
   CREATE TABLE IF NOT EXISTS club_chat (id INTEGER PRIMARY KEY AUTOINCREMENT, club TEXT NOT NULL, uid TEXT, name TEXT, at INTEGER NOT NULL,

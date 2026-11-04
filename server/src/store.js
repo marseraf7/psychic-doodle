@@ -14,6 +14,7 @@ const { openDb, prepareQueries } = require('./store-schema.js'); // bảng, cộ
 const { upgradePools } = require('./rating.js');
 const { Sessions, SESSION_TTL } = require('./store-sessions.js');
 const { ClubStore } = require('./store-club.js');
+const { OTourStore } = require('./store-otour.js');
 const { EvalCache } = require('./evalcache.js');
 
 const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
@@ -114,6 +115,7 @@ class Store {
       for (const u of list) this.q.upsertUser.run(u.id, u.username, JSON.stringify(u));
       for (const [key, d] of docs) {
         if (key.startsWith('club:')) this.q.upsertClub.run(d.id, JSON.stringify(d));
+        else if (key.startsWith('ot:')) this.writeOTour(d); // giải offline (store-otour.js)
         else this.q.upsertTour.run(d.id, d.status, d.created, JSON.stringify(d));
       }
       this.db.exec('COMMIT');
@@ -153,6 +155,8 @@ class Store {
       run('DELETE FROM resets WHERE uid = ?', id);
       run('DELETE FROM avatars WHERE uid = ?', id); // ảnh đại diện (avatar.js)
       run('DELETE FROM tour_imgs WHERE uid = ?', id); // ảnh trong mô tả / đính kèm (hub/tour-img.js)
+      run('DELETE FROM offline_tours WHERE owner = ?', id); // giải offline do người này tạo (store-otour.js)
+      for (const key of [...this.dirtyDocs.keys()]) if (key.startsWith('ot:') && this.dirtyDocs.get(key).owner === id) this.dirtyDocs.delete(key);
       run('DELETE FROM eval_sub WHERE who = ?', EvalCache.who(id)); // các lần gửi điểm phân tích (evalcache.js)
       run('DELETE FROM rated_pairs WHERE a = ? OR b = ?', id, id);
       run('DELETE FROM rating_hist WHERE uid = ?', id);
@@ -390,8 +394,8 @@ async function checkPassword(password, pass) {
 }
 
 // Phiên đăng nhập / thiết bị (store-sessions.js)
-// + chat / diễn đàn câu lạc bộ (store-club.js)
-for (const part of [Sessions, ClubStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
+// + chat / diễn đàn câu lạc bộ (store-club.js) + giải đấu offline (store-otour.js)
+for (const part of [Sessions, ClubStore, OTourStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
   if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 

@@ -1,0 +1,185 @@
+/*
+ * Giải đấu Offline – giải của mọi bộ môn (docs/de-xuat-giai-offline.md), tách khỏi giải Caro nhưng dùng chung khung trang
+ * giải (CaroTourKit – tour.js) và cách vẽ nhánh / bảng (tour-stages.js). Máy chủ: server/src/hub/otour*.js.
+ *   Trang 'otours'  – danh sách: giải của tôi + giải công khai gần đây (khách xem được).
+ *   Trang 'otNew'   – tạo giải: tên, link riêng, mô tả có định dạng, ai xem được, bộ môn (điểm / tie-break / kiểu kết quả
+ *                     tự điền theo môn – otour-sports.js), thể thức (trình sửa giai đoạn của giải Caro), danh sách đội.
+ *   Trang 'ot'      – trang giải: đội (thêm / xoá trước khi bắt đầu), bắt đầu, nhánh / bảng, nhập kết quả (otour-score.js).
+ * Link mở thẳng: …/?o=<mã hoặc link riêng>.
+ */
+(function () {
+  'use strict';
+  const K = window.CaroTourKit;
+  const SP = window.CaroOTourSports;
+  if (!K || !SP) return;
+  const { O, T, esc, $, D, V, me, setTitle, open, icon, render, when } = K;
+  const R = window.CaroRich;
+  const SE = K.stageEdit;
+  const F = { d: null, stages: null };
+
+  // ------------------------------------------------------------ Danh sách
+  const item = (x) => `<li><button type="button" class="titem" data-act="ot" data-id="${esc(x.id)}">
+    <span class="ticon">${icon('trophy')}</span>
+    <span class="pn"><b>${esc(x.name)}</b><small>${esc(T('ot_by', { name: x.owner }))} · ${esc(when(x.updated))}</small></span>
+    <span class="tags"><span class="pill ${esc(x.status)}">${esc(T('ot_st_' + x.status))}</span>${x.access !== 'public' ? `<span class="pill">${esc(T('ot_acc_' + x.access))}</span>` : ''}</span></button></li>`;
+  function pageList() {
+    setTitle('ot_title', null, 'trophy');
+    const L = D.otList;
+    let html = `<p class="hint">${esc(T('ot_intro'))}</p><div class="row"><button type="button" class="primary" data-act="otNew" ${me() ? '' : 'disabled'}>${icon('plus')}${esc(T('ot_create'))}</button></div>`;
+    if (!me()) html += `<p class="hint">${esc(T('ot_login_hint'))}</p>`;
+    if (!L) return html + '<p class="hint">…</p>';
+    if (L.mine.length) html += `<h4>${esc(T('ot_mine'))}</h4><ul class="tlist">${L.mine.map(item).join('')}</ul>`;
+    html += `<h4>${esc(T('ot_recent'))}</h4>` + (L.recent.length ? `<ul class="tlist">${L.recent.map(item).join('')}</ul>` : `<p class="hint">${esc(T('ot_none'))}</p>`);
+    return html;
+  }
+
+  // ------------------------------------------------------------ Tạo giải
+  const PRESETS = {
+    single: () => [SE.DEFAULT.single()], double: () => [SE.DEFAULT.double()], roundrobin: () => [SE.DEFAULT.roundrobin()],
+    swiss: () => [SE.DEFAULT.swiss()], groups_single: () => [{ ...SE.DEFAULT.roundrobin(), groups: 4 }, SE.DEFAULT.single()],
+    swiss_single: () => [{ ...SE.DEFAULT.swiss(), advance: 8 }, { ...SE.DEFAULT.single(), thirdPlace: false }],
+  };
+  /** Điểm / tie-break / Bo theo bộ môn cho mọi giai đoạn (đổi môn hoặc đổi thể thức). */
+  function applySport(stages, sport) {
+    const s = SP.SPORTS[sport] || SP.SPORTS.other;
+    for (const c of stages) {
+      c.bestOf = s.bestOf;
+      if (c.points) { c.points = { ...c.points, ...s.points }; c.tiebreaks = [...s.tiebreaks]; }
+    }
+    return stages;
+  }
+  function begin() {
+    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, preset: 'groups_single', teams: '' };
+    F.stages = applySport(PRESETS.groups_single(), 'football');
+  }
+  function pageNew() {
+    setTitle('ot_create', null, 'plus');
+    if (!me()) return K.needLogin();
+    if (!F.d) begin();
+    const d = F.d;
+    const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
+    const n = d.teams.split('\n').filter((x) => x.trim()).length;
+    return `<form id="otf" class="tform">
+      <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
+      <label class="field"><span>${esc(T('adv_url'))}</span><input name="slug" maxlength="20" autocomplete="off" value="${esc(d.slug)}" placeholder="cup-lang-2026"><small class="hint">${esc(T('ot_slug_hint'))}</small></label>
+      <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
+      <label class="field"><span>${esc(T('ot_sport'))}</span><select name="sport">${Object.keys(SP.SPORTS).map((k) => opt(k, d.sport, SP.SPORTS[k].icon + ' ' + T('sport_' + k))).join('')}</select></label>
+      <label class="field"><span>${esc(T('ot_result'))}</span><select name="result">${SP.RESULTS.map((k) => opt(k, d.result, T('otres_' + k))).join('')}</select></label>
+      <label class="field"><span>${esc(T('format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>
+      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4) })}</div>
+      <p class="est" id="otf-est"></p>
+      <label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>
+      <fieldset><legend>${esc(T('ot_access'))}</legend><div class="seg">${['public', 'link', 'private'].map((k) => `<label><input type="radio" name="access" value="${k}" ${d.access === k ? 'checked' : ''}> <span>${esc(T('ot_acc_' + k))}</span></label>`).join('')}</div></fieldset>
+      <p class="hint">${esc(T('ot_quota_hint'))}</p>
+      <p class="err" id="otf-err"></p>
+      <button class="primary wide">${esc(T('ot_create'))}</button></form>`;
+  }
+  /** Đọc form vào bản nháp. */
+  function collect(f) {
+    for (const k of ['name', 'slug', 'desc', 'sport', 'result', 'preset', 'teams']) if (f.elements[k]) F.d[k] = f.elements[k].value;
+    F.d.access = (f.querySelector('input[name=access]:checked') || {}).value || 'public';
+  }
+  function showEst(f) {
+    const n = F.d.teams.split('\n').filter((x) => x.trim()).length;
+    $('otf-n').textContent = n;
+    const el = $('otf-est');
+    if (!el || n < 2 || !window.CaroTourEstimate) { if (el) el.textContent = ''; return; }
+    const e = window.CaroTourEstimate.estimate({ stages: F.stages, players: n, timeLimit: 20 });
+    el.textContent = T('ot_est', { m: e.maxMatches > e.matches ? `${e.matches}–${e.maxMatches}` : e.matches, w: e.waves, n });
+  }
+  function bindNew() {
+    const f = $('otf');
+    if (!f) return;
+    const box = $('otf-stages');
+    const draw = () => { box.innerHTML = SE.html(F.stages, true, { max: Math.max(4, F.d.teams.split('\n').filter((x) => x.trim()).length) }); showEst(f); };
+    f.addEventListener('input', () => { collect(f); showEst(f); });
+    f.addEventListener('change', (e) => {
+      if (e.target.closest('#otf-stages')) return;
+      collect(f);
+      if (e.target.name === 'sport') { F.d.result = (SP.SPORTS[F.d.sport] || SP.SPORTS.other).result; f.elements.result.value = F.d.result; applySport(F.stages, F.d.sport); draw(); }
+      if (e.target.name === 'preset' && PRESETS[F.d.preset]) { F.stages = applySport(PRESETS[F.d.preset](), F.d.sport); draw(); }
+      if (e.target.name === 'teams') draw();
+    });
+    box.addEventListener('change', (e) => { if (SE.change(F.stages, e.target)) { F.d.preset = 'custom'; f.elements.preset.value = 'custom'; draw(); } });
+    box.addEventListener('click', (e) => { const b = e.target.closest('[data-sact]'); if (b && SE.click(F.stages, b)) { F.d.preset = 'custom'; f.elements.preset.value = 'custom'; draw(); } });
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      collect(f);
+      const teams = F.d.teams.split('\n').map((x) => x.trim()).filter(Boolean);
+      if (F.d.name.trim().length < 3) { $('otf-err').textContent = T('srv_tour_name_short'); return; }
+      O.send({ t: 'otCreate', name: F.d.name.trim(), slug: F.d.slug.trim().toLowerCase(), desc: F.d.desc, access: F.d.access,
+        spec: { sport: F.d.sport, result: F.d.result, stages: F.stages }, teams });
+    };
+    showEst(f);
+  }
+
+  // ------------------------------------------------------------ Trang giải
+  function pageView() {
+    const t = D.ot;
+    if (!t || t.id !== V.id) { setTitle('ot_title'); return '<p class="hint">…</p>'; }
+    setTitle(null, t.name, 'trophy');
+    const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
+    let html = `<div class="thead"><span class="pill ${esc(t.status)}">${esc(T('ot_st_' + t.status))}</span> <span class="muted">${esc(sp.icon + ' ' + T('sport_' + t.sport))} · ${esc(T('ot_n_teams', { n: t.players.length }))} · ${esc(T('ot_by', { name: t.owner }))}</span></div>`;
+    if (t.desc) html += `<div class="tdesc rich">${R ? R.render(t.desc) : esc(t.desc)}</div>`;
+    const acts = [`<button type="button" class="ghost" data-act="otShare">${icon('link')}${esc(T('share'))}</button>`];
+    if (t.canManage && t.status === 'draft') acts.push(`<button type="button" class="primary" data-act="otStart" ${t.players.length < 2 ? 'disabled' : ''}>${icon('play')}${esc(T('ot_start'))}</button>`);
+    if (t.canManage) acts.push(`<button type="button" class="ghost danger" data-act="otDelete">${icon('trash')}${esc(T('ot_delete'))}</button>`);
+    html += `<div class="row tactions">${acts.join('')}</div>`;
+    if (t.canManage && t.status === 'draft') {
+      html += `<section class="mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
+        <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
+    }
+    if (K.otScoreHtml) html += K.otScoreHtml(t); // khung nhập kết quả (otour-score.js)
+    if (t.podium && t.podium.length && t.status === 'finished') {
+      html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
+    }
+    html += K.stagesHtml(t); // trước khi bắt đầu: chỉ ghi cấu hình từng giai đoạn
+    if (t.log && t.log.length) html += K.fold('ot:' + t.id + ':log', esc(T('mg_log')), () => `<ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul>`, false);
+    return html;
+  }
+
+  // ------------------------------------------------------------ Thao tác
+  K.pages.otours = pageList;
+  K.pages.otNew = pageNew;
+  K.pages.ot = pageView;
+  K.enter.otours = () => O.send({ t: 'otList' });
+  K.enter.otNew = () => { if (!F.d) begin(); };
+  K.enter.ot = () => { if (!D.ot || D.ot.id !== V.id) D.ot = null; O.send({ t: 'otGet', id: V.id }); };
+  K.acts.otours = () => open('otours', null);
+  K.acts.otNew = () => { F.d = null; open('otNew', null); };
+  K.acts.ot = (b) => open('ot', b.dataset.id);
+  K.acts.otShare = () => K.share(K.shareLink('o', D.ot.slug || D.ot.id), D.ot.name);
+  K.acts.otStart = () => window.CaroConfirm.ask(T('ot_start_confirm', { n: D.ot.players.length })).then((ok) => { if (ok) O.send({ t: 'otStart', id: D.ot.id }); });
+  K.acts.otDelete = () => window.CaroConfirm.ask(T('ot_delete_confirm', { name: D.ot.name })).then((ok) => { if (ok) O.send({ t: 'otDelete', id: D.ot.id }); });
+  K.acts.otTeamDel = (b) => O.send({ t: 'otTeamDel', id: D.ot.id, team: b.dataset.uid });
+  K.acts.otTeamsAdd = () => {
+    const box = $('ot-add');
+    const names = box.value.split('\n').map((x) => x.trim()).filter(Boolean);
+    if (names.length) O.send({ t: 'otTeamsAdd', id: D.ot.id, names });
+    box.value = '';
+  };
+  K.binders.push(() => { if (V.page === 'otNew') bindNew(); });
+
+  // ------------------------------------------------------------ Tin từ máy chủ
+  O.on('otList', (m) => { D.otList = m; if (K.isOpen() && V.page === 'otours') render(); });
+  O.on('otCreated', (m) => { F.d = null; K.V.stack = [{ page: 'otours', id: null }]; open('ot', m.id, false); });
+  O.on('otDeleted', () => { D.ot = null; K.V.stack = []; open('otours', null, false); });
+  O.on('ot', (m) => {
+    // Mở bằng link riêng: từ giờ dùng mã giải
+    if (V.page === 'ot' && m.id !== V.id && m.tour && m.tour.slug && m.tour.slug === String(V.id || '').toLowerCase()) V.id = m.id;
+    if (m.id !== V.id) return;
+    if (!m.tour) { O.toast(T('srv_ot_not_found')); D.ot = null; K.back() || K.top('otours'); return; }
+    D.ot = { ...m.tour, ...m.mine };
+    if (K.isOpen() && V.page === 'ot') render();
+  });
+  O.on('otPatch', (m) => {
+    if (m.id !== V.id || !D.ot || D.ot.id !== m.id) return;
+    if (!window.CaroTourPatch.apply(D.ot, m.patch)) { O.send({ t: 'otGet', id: m.id }); return; }
+    Object.assign(D.ot, m.mine);
+    if (K.isOpen() && V.page === 'ot') render();
+  });
+  // Lỗi khi tạo giải: hiện ngay trong form
+  O.on('error', (m) => { if (m.ctx === 'otCreate' && $('otf-err')) $('otf-err').textContent = T('srv_' + m.code, m.args || {}); });
+
+  window.CaroOTour = { open: (id) => { K.V.stack = [{ page: 'otours', id: null }]; open('ot', id, false); }, list: () => K.top('otours') };
+})();

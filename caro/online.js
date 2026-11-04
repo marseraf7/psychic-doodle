@@ -384,9 +384,9 @@
   // Kết nối sẵn khi có tài khoản (để bạn bè thấy mình online), đang ở trong phòng, hoặc mở bằng link mời.
   function start() {
     serverChecked = true;
-    // (?t= / ?club=: link giải đấu / câu lạc bộ; đang ở Trang chủ / Xem: cần danh sách trận, sảnh)
+    // (?t= / ?club= / ?o=: link giải đấu / câu lạc bộ / giải offline; đang ở Trang chủ / Xem: cần danh sách trận, sảnh)
     const page = window.CaroShell && window.CaroShell.current;
-    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club)=/.test(location.search) || page === 'home' || page === 'watch')) connect();
+    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club|o)=/.test(location.search) || page === 'home' || page === 'watch')) connect();
     render();
     checkReplayLink();
   }
