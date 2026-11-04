@@ -71,6 +71,7 @@ class OTourRun {
     if (!p || !n) throw E('bad_message');
     if (t.players.some((x) => x !== p && x.name.toLowerCase() === n.toLowerCase())) throw E('ot_team_dup');
     p.name = n;
+    this.otMemo?.delete(t); // giai đoạn đã xong được dựng sẵn (otShared) – dựng lại cho đúng tên mới
     this.otSave(t);
   }
 

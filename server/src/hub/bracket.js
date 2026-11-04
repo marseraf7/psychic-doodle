@@ -338,29 +338,27 @@ class Bracket {
 
   /** Một giai đoạn gửi cho client (stageViews). */
   stageView(t, st, i, seedOf, table) {
-    {
-      const M = (id) => this.matchView(t, st.matches[id], st);
-      const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
-      const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
-      if (st.type === 'single' || st.type === 'double') {
-        // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện
-        v.rounds = (st.cfg.split ? st.rounds.slice(1) : st.rounds).map((r) => r.map(M));
-        if (st.cfg.split) v.split = true;
-        if (st.third) v.third = M(st.third);
-        // Trận xếp hạng: các nhánh phân hạng 5–8, 9–16… (base = hạng cao nhất của nhánh)
-        if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: p.n || 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
-        if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
-        if (st.gf) v.gf = st.gf.map(M);
-      } else if (st.type === 'roundrobin') {
-        const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
-        v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)) }));
-      } else {
-        v.rounds = st.rounds.map((r) => r.map(M));
-        v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
-        v.totalRounds = st.cfg.rounds;
-      }
-      return v;
+    const M = (id) => this.matchView(t, st.matches[id], st);
+    const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
+    const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
+    if (st.type === 'single' || st.type === 'double') {
+      // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện
+      v.rounds = (st.cfg.split ? st.rounds.slice(1) : st.rounds).map((r) => r.map(M));
+      if (st.cfg.split) v.split = true;
+      if (st.third) v.third = M(st.third);
+      // Trận xếp hạng: các nhánh phân hạng 5–8, 9–16… (base = hạng cao nhất của nhánh)
+      if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: p.n || 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
+      if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
+      if (st.gf) v.gf = st.gf.map(M);
+    } else if (st.type === 'roundrobin') {
+      const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
+      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)) }));
+    } else {
+      v.rounds = st.rounds.map((r) => r.map(M));
+      v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
+      v.totalRounds = st.cfg.rounds;
     }
+    return v;
   }
 }
 

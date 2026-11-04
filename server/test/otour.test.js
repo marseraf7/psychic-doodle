@@ -80,6 +80,10 @@ test('Giải offline bóng đá: khách xem được (cả link riêng), riêng 
   await until(() => !g[0].done);
   for (const m of g) { org.send({ t: 'otScore', id, match: m.id, score: [3, 1] }); await until(() => m.done); }
   await until(() => t.stage === 1);
+  // Đổi tên đội khi đang chạy: cả giai đoạn đã xong (dựng sẵn một lần – otMemo) cũng hiện tên mới
+  await until(() => guest.ot[id].stageViews.length === 2);
+  org.send({ t: 'otTeamRename', id, team: t.players[0].uid, name: 'Đội Đổi Tên' });
+  await until(() => JSON.stringify(guest.ot[id].stageViews[0]).includes('Đội Đổi Tên'));
   // Loại trực tiếp: hoà phải có luân lưu
   const ko = () => Object.values(t.st[1].matches).find((m) => !m.done && real(m.a) && real(m.b));
   const m1 = ko();
