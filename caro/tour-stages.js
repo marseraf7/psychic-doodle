@@ -15,6 +15,7 @@
   function stageName(c) {
     const x = [];
     if (c.type === 'roundrobin' && c.league) return T('fmt_league', { n: c.league.games }); // giải offline: league phase
+    if (c.type === 'roundrobin' && c.season) return T(c.season.divs > 1 ? 'fmt_season_div' : 'fmt_season', { c: c.season.confs, d: c.season.divs }); // mùa giải kiểu Mỹ
     if (c.type === 'race') return T(c.score === 'time' ? 'race_name_tt' : c.events > 1 ? 'race_name_gp' : 'race_name_single', { n: c.events }); // hệ Race
     if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));
     else if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
@@ -30,9 +31,20 @@
   const advText = (c) => {
     if (c.type === 'swiss' && c.record) return T('adv_record', { n: c.record.win }); // giải offline: đủ số thắng
     if (!c.advance) return '';
-    const s = T(c.type === 'roundrobin' && !c.league ? 'adv_group_n' : 'adv_n', { n: c.advance });
+    const s = T(c.season ? 'adv_conf_n' : c.type === 'roundrobin' && !c.league ? 'adv_group_n' : 'adv_n', { n: c.advance });
     return c.bestNext ? s + ' ' + T('adv_best_next', { n: c.bestNext }) : s;
   };
+
+  /** Mùa giải kiểu Mỹ: bảng xếp hạng từng bảng con (thứ hạng trong bảng con, theo thứ tự của bảng xếp hạng miền). */
+  function divTables(key, g, cfg, table) {
+    if (!g.divs || !g.divs.length) return '';
+    const pos = new Map(g.table.map((x, i) => [x.uid, i]));
+    const body = () => g.divs.map((d, j) => {
+      const rows = d.filter((u) => pos.has(u)).sort((a, b) => pos.get(a) - pos.get(b)).map((u, i) => ({ ...g.table[pos.get(u)], rank: i + 1, adv: false }));
+      return `<h6>${esc(T('div_name', { name: g.name + (j + 1) }))}</h6>` + table(rows, cfg);
+    }).join('');
+    return fold(key, `<b>${esc(T('div_tables'))}</b>`, body, false);
+  }
 
   // ---- Các giai đoạn: nhánh đấu, nhánh thắng-thua, bảng vòng tròn, Thụy Sĩ
   /** Tên vòng của nhánh loại trực tiếp (đếm từ cuối): Chung kết, Bán kết, Tứ kết, Vòng n. */
@@ -180,10 +192,10 @@
         // Giải offline nhiều bảng: các trận tải khi mở bảng (otour.js – K.otGroupRounds); chưa có thì báo đang tải
         const rounds = roundsOfGroup(t, v, gi);
         const cur = rounds ? rounds.findIndex((r) => r.some((m) => !m.done)) : -1;
-        const inner = () => table(g.table, v.cfg) + (rounds ? roundsList(key + ':g' + gi, rounds, (i) => [label(t, v.index, i, T('r_round', { n: i + 1 })), slot(t, v.index, i)].filter(Boolean).join(' · '), !v.done && cur >= 0 && !many)
+        const inner = () => table(g.table, v.cfg) + divTables(key + ':d' + gi, g, v.cfg, table) + (rounds ? roundsList(key + ':g' + gi, rounds, (i) => [label(t, v.index, i, T('r_round', { n: i + 1 })), slot(t, v.index, i)].filter(Boolean).join(' · '), !v.done && cur >= 0 && !many)
           : K.embed ? `<p class="hint">${esc(T('ot_group_embed'))}</p>` // trang nhúng: không tải được các trận của bảng (giải rất nhiều bảng)
             : `<p class="hint">${esc(T('ot_group_loading'))}</p>${K.otGroupNeed ? (K.otGroupNeed(t, v.index, gi), '') : ''}`);
-        const name = esc(T('group_name', { name: g.name }));
+        const name = esc(T(v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }));
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
         return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? icon('star', 'star') : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);

@@ -57,7 +57,7 @@ function checkSize(spec, n) {
   // League phase: số đội (theo ước tính từng giai đoạn) phải chia đều cho các nhóm hạt giống, số trận chia đều cho các nhóm
   spec.stages.forEach((c, i) => {
     const k = e.stages[i] ? e.stages[i].players : n;
-    const bad = ST.leagueError(c, k) || Race.raceError(c, k);
+    const bad = ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k);
     if (bad) throw new SpecError(bad.code, bad.args);
   });
   return e;

@@ -103,3 +103,10 @@
 .pf-bio-h h3 { margin: 0; }
 .pf-bio .rich { overflow-wrap: anywhere; }
 .note.priv .rich { flex: 1; min-width: 0; }
+
+/* ---- Mùa giải kiểu Mỹ: bảng số lần gặp theo quan hệ (otour-season-edit.js) */
+.sn-table { border-collapse: collapse; font-size: var(--fs-sm); }
+.sn-table th, .sn-table td { padding: 3px 6px; text-align: left; }
+.sn-table th[scope="row"] { font-weight: 500; }
+.sn-table input { width: 5em; }
+.sn-sum { font-weight: 600; color: var(--text); }

@@ -49,10 +49,18 @@ const { setup, sleep } = require('./helpers.js');
   ok(/Kiểu NBA/.test(await boss.textContent('.tpl-card.on')) && /Bo7/.test(await boss.textContent('.tpl-desc')), 'Mẫu NBA: thẻ đang chọn + mô tả có Bo7');
   await boss.fill('#otf input[name=name]', 'Bóng rổ kiểu NBA');
   await boss.click('[data-act="otTplTeams"]'); await sleep(300);
+  // Mùa giải đúng như NBA: 2 miền × 3 bảng con, 82 trận mỗi đội, 1 230 trận cả mùa
+  ok(await boss.isChecked('#otf-stages [data-k="season"]') && /Mỗi đội 82 trận · cả mùa 1230 trận/.test(await boss.textContent('#otf-stages .sn-sum').catch(() => '')), 'Mẫu NBA: mùa giải 82 trận mỗi đội, 1230 trận');
+  // Đổi số lần gặp đội khác miền 2 → 1: còn 67 trận mỗi đội
+  await boss.fill('#otf-stages [data-k="sn_inter_m"]', '1'); await boss.$eval('#otf-stages [data-k="sn_inter_m"]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(300);
+  ok(/Mỗi đội 67 trận/.test(await boss.textContent('#otf-stages .sn-sum').catch(() => '')), 'Sửa số lần gặp: số trận cập nhật ngay');
+  await boss.fill('#otf-stages [data-k="sn_inter_m"]', '2'); await boss.$eval('#otf-stages [data-k="sn_inter_m"]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(300);
+  await shot(boss, 'ot-season-form.png');
   await boss.click('#otf button.primary.wide'); await sleep(900);
   const tn = app.hub.otGet(await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id));
   ok(tn && tn.sport === 'basketball' && tn.result === 'sets' && tn.set == null && tn.players.length === 30 && tn.stages[1].bestOf === 7, 'Tạo giải NBA: 30 đội, không luật set, playoff Bo7');
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(1500);
+  ok(tn.st && Object.keys(tn.st[0].matches).length === 1230 && tn.st[0].groups.length === 2, 'Bắt đầu: 1230 trận, 2 miền');
   await boss.click('[data-act="otTab"][data-tab="stages"]').catch(() => {}); await sleep(300);
   await boss.$$eval('details.fold', (ds) => ds.forEach((d) => { d.open = true; })); await sleep(1200);
   const sc = await boss.$('.scorable');

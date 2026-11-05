@@ -217,6 +217,6 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  twoLeg: League.twoLeg, leagueError: League.leagueError, records: League.records,
+  twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
   tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS,
 };

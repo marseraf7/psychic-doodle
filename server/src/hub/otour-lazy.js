@@ -1,7 +1,7 @@
 /*
  * Giải đấu Offline – tải lười các trận của giai đoạn vòng tròn nhiều bảng (docs/de-xuat-giai-offline.md mục 7.3):
  * giải 512 đội chia 32 bảng có ~3 800 trận – trang đầy đủ ~1,6 MB, phần lớn là các trận. Giai đoạn vòng tròn có hơn
- * LAZY_GROUPS bảng: trang chung (gửi mọi người xem, tính bản vá) chỉ còn bảng xếp hạng của mỗi bảng, các trận của bảng
+ * LAZY_GROUPS bảng hoặc hơn LAZY_MATCHES trận (mùa giải kiểu Mỹ): trang chung (gửi mọi người xem, tính bản vá) chỉ còn bảng xếp hạng của mỗi bảng, các trận của bảng
  * thay bằng rounds: null (v.lazy = true). Người xem mở bảng nào thì gửi otGroup và nhận các trận của bảng đó; bảng đang
  * mở được đẩy lại (chỉ bảng đó) mỗi khi đổi. Client: caro/otour.js (D.otGroups), tour-stages.js (K.roundsOfGroup).
  *   otLite(views)        – bản trang chung (otShared gọi), giữ bản đầy đủ để trả otGroup.
@@ -13,6 +13,8 @@ const { E } = require('../msg.js');
 const { uidOf } = require('./shared.js');
 
 const LAZY_GROUPS = 8; // giai đoạn vòng tròn có nhiều hơn số bảng này thì tải lười
+const LAZY_MATCHES = 400; // … hoặc nhiều hơn số trận này (mùa giải kiểu Mỹ: NBA 1 230 trận, MLB 2 430 trận chỉ 2 miền)
+const matchCount = (v) => v.groups.reduce((t, g) => t + (g.rounds || []).reduce((k, r) => k + r.length, 0), 0);
 const MAX_OPEN = 64; // mỗi kết nối theo dõi tối đa 64 bảng
 
 class OTourLazy {
@@ -20,7 +22,7 @@ class OTourLazy {
   otLite(t, views) {
     if (!this.otFullViews) this.otFullViews = new Map();
     this.otFullViews.set(t.id, { views, at: t.updated });
-    return views.map((v) => (v.type === 'roundrobin' && v.groups && v.groups.length > LAZY_GROUPS
+    return views.map((v) => (v.type === 'roundrobin' && v.groups && (v.groups.length > LAZY_GROUPS || matchCount(v) > LAZY_MATCHES)
       ? { ...v, lazy: true, groups: v.groups.map((g) => ({ ...g, rounds: null })) } : v));
   }
 
@@ -71,4 +73,4 @@ class OTourLazy {
   }
 }
 
-module.exports = { OTourLazy, LAZY_GROUPS };
+module.exports = { OTourLazy, LAZY_GROUPS, LAZY_MATCHES };

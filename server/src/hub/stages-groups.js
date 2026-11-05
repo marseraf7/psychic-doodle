@@ -8,6 +8,7 @@ const { BYE, MAX_GROUP, MAX_GROUPS, real, newMatch } = require('./stages-base.js
 const { tally, rankList, crossCompare } = require('./stages-tiebreak.js');
 const { MAX_BIG, buildLeague, records, recordActive, recordBo, bestNextTier } = require('./stages-league.js');
 const { raceTable } = require('./stages-race.js');
+const { buildSeason } = require('./stages-season.js');
 
 // ------------------------------------------------------------ Vòng tròn
 /** Tên bảng: A..Z, rồi AA, AB… */
@@ -15,6 +16,7 @@ const groupName = (g) => (g < 26 ? '' : String.fromCharCode(64 + Math.floor(g / 
 
 /** Số bảng cho n người: theo cấu hình, nhưng không bảng nào quá MAX_GROUP người và mỗi bảng ít nhất 2 người. */
 function groupCount(cfg, n) {
+  if (cfg.season) return cfg.season.confs; // mùa giải: mỗi miền một bảng
   let G = cfg.groupSize ? Math.ceil(n / cfg.groupSize) : cfg.groups || 1;
   G = Math.max(G, Math.ceil(n / (cfg.big ? MAX_BIG : MAX_GROUP))); // bảng lớn (giải offline – stages-league.js)
   return Math.max(1, Math.min(G, Math.floor(n / 2), MAX_GROUPS));
@@ -54,6 +56,7 @@ function drawGroups(cfg, seeds, plan) {
 
 function buildRoundRobin(st, seeds, plan, opts = {}) {
   if (st.cfg.league) return buildLeague(st, seeds, opts.countryOf, opts.rnd); // league phase kiểu Champions League
+  if (st.cfg.season) return buildSeason(st, seeds, opts.rnd); // mùa giải kiểu nhà nghề Mỹ (stages-season.js)
   st.groups = drawGroups(st.cfg, seeds, plan).map((players, g) => ({ name: groupName(g), players, rounds: [] }));
   st.groups.forEach((grp, g) => {
     const arr = [...grp.players];

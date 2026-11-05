@@ -361,7 +361,9 @@ class Bracket {
       if (st.gf) v.gf = st.gf.map(M);
     } else if (st.type === 'roundrobin') {
       const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
-      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)) }));
+      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)),
+        ...(g.divs ? { divs: g.divs } : {}) })); // mùa giải: bảng con (mã người chơi) để vẽ bảng xếp hạng theo bảng con
+      if (st.season) v.season = st.season;
     } else {
       v.rounds = st.rounds.map((r) => r.map(M));
       v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định

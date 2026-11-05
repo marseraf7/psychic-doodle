@@ -55,7 +55,7 @@
       const st = T('stage_n', { n: v.index + 1 });
       if (v.type === 'race') out.push({ key: `${v.index}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + K.stageName(v.cfg), rows: v.table, race: true, time: v.cfg.score === 'time' });
       else if (v.table) out.push({ key: `${v.index}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + K.stageName(v.cfg), rows: v.table });
-      else if (v.groups) v.groups.forEach((g, gi) => out.push({ key: `${v.index}:${gi}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + (v.groups.length > 1 ? T('group_name', { name: g.name }) : K.stageName(v.cfg)), rows: g.table }));
+      else if (v.groups) v.groups.forEach((g, gi) => out.push({ key: `${v.index}:${gi}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + (v.groups.length > 1 ? T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }) : K.stageName(v.cfg)), rows: g.table }));
     }
     return out.filter((x) => x.rows && x.rows.length);
   }
