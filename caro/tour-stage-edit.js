@@ -85,6 +85,7 @@
       if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf)));
       // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
       if (c.type === 'race') {
+        f.push(field(T('opt_race_heat'), num(i, 'heat', c.heat || 0, 0, 64))); // chia lượt cho đoàn đông (0 = không chia)
         f.push(field(T('opt_race_events'), num(i, 'events', c.events, 1, 30)),
           field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')]], c.score || 'points')));
         if ((c.score || 'points') === 'points') {

@@ -435,3 +435,6 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* giáº
 .ot-susp-m { margin: 0 0 6px; }
 .ot-disc { flex-wrap: wrap; gap: 8px; align-items: center; }
 .ot-path { columns: 2; column-gap: 24px; margin: 4px 0 8px; padding-left: 26px; font-size: var(--fs-sm); }
+.race-heat { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 6px; }
+.race-heat h6 { margin: 0 0 4px; }
+.race-who { font-size: var(--fs-sm); }

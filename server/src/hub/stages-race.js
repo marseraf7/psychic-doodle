@@ -8,6 +8,10 @@
  *   'time'   – nhập thời gian (Time Trial): xếp theo tổng thời gian của người hoàn thành mọi chặng đã đua; tự tính chênh
  *              lệch với người dẫn đầu và với người ngay trên. Bỏ cuộc (DNF) ở một chặng thì xếp sau.
  * Bảng đội (teams): cộng điểm các thành viên cùng đội (như bảng đội đua của F1) – đội ghi ở danh sách "Tên | Quốc gia | Đội".
+ * Chia lượt (heat – đoàn rất đông, như các lượt bơi / chạy): cfg.heat = số người tối đa mỗi lượt. Mỗi chặng chia người
+ * thành các lượt đều nhau (kiểu rắn theo hạt giống – sức các lượt cân bằng; từ chặng 2 xoay các hàng để gặp đối thủ
+ * khác), nhập kết quả từng lượt; đủ các lượt thì chặng xong. 'time': gộp mọi lượt, xếp theo thời gian; 'points': điểm
+ * theo hạng trong lượt (countback theo số lần nhất lượt…).
  * Trạng thái chặt chẽ: mỗi chặng chỉ có chưa nhập / đã nhập (huỷ được); không có bước điểm danh làm kẹt giải.
  * Hàm thuần, không phụ thuộc mạng; hub gọi từ stages.js (dựng, bảng xếp hạng, người đi tiếp) và otour-run.js (nhập kết quả).
  */
@@ -16,7 +20,9 @@
 const SCORES = ['points', 'time'];
 const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const MAX_EVENTS = 30;
-const MAX_RACE = 200; // tối đa người / đội trong một giai đoạn race
+const MAX_RACE = 200; // tối đa người / đội trong một giai đoạn race (không chia lượt)
+const MAX_RACE_HEATS = 512; // có chia lượt (bằng số đội tối đa của giải – otour-spec.js)
+const MAX_HEAT = 64; // tối đa người mỗi lượt
 const MAX_TABLE = 64;
 
 const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
@@ -35,22 +41,40 @@ function normalizeRace(c, last) {
   const out = { type: 'race', bestOf: 1, events: int(c.events, 1, MAX_EVENTS, 1), score };
   if (score === 'points') out.table = cleanTable(c.table) || [...F1];
   if (c.teams === true) out.teams = true;
-  if (!last) out.advance = int(c.advance, 1, MAX_RACE, 8);
+  const heat = int(c.heat, 0, MAX_HEAT, 0);
+  if (heat >= 2) out.heat = heat;
+  if (!last) out.advance = int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
 
-/** Dựng giai đoạn: các chặng trống (st.matches rỗng – race không có trận đối đầu). */
+/**
+ * Chia list (theo hạt giống) thành các lượt tối đa `size` người, đều nhau (chênh nhau tối đa 1 người). Mỗi "hàng" k người
+ * liên tiếp chia cho k lượt: chặng đầu kiểu rắn (1→k, k→1…) cho sức các lượt cân bằng; chặng sau xoay hàng thứ r đi r × i
+ * lượt để người thi gặp đối thủ khác.
+ */
+function heatsFor(list, size, i) {
+  const k = Math.ceil(list.length / size);
+  const hs = Array.from({ length: k }, () => []);
+  list.forEach((u, j) => {
+    const r = Math.floor(j / k), c = j % k;
+    hs[i === 0 ? (r % 2 ? k - 1 - c : c) : (c + r * i) % k].push(u);
+  });
+  return hs.map((uids) => ({ uids, done: false, rows: null }));
+}
+
+/** Dựng giai đoạn: các chặng trống (st.matches rỗng – race không có trận đối đầu); đoàn đông hơn cfg.heat thì chia lượt. */
 function buildRace(st) {
-  st.events = Array.from({ length: st.cfg.events }, (_, i) => ({ i, done: false, rows: null }));
+  const heat = st.cfg.heat && st.entrants.length > st.cfg.heat ? st.cfg.heat : 0;
+  st.events = Array.from({ length: st.cfg.events }, (_, i) => ({ i, done: false, rows: null, ...(heat ? { heats: heatsFor(st.entrants, heat, i) } : {}) }));
 }
 
 /**
  * Kiểm và chuẩn hoá kết quả một chặng. rows: [{ uid, rank? (points) | time? ms (time), dnf?, pts? }]. Người không có
  * trong rows = không xuất phát (DNS – không điểm). Trả { rows } hoặc { code } (mã lỗi).
  */
-function cleanEvent(st, rows) {
-  if (!Array.isArray(rows) || rows.length > st.entrants.length) return { code: 'tour_score_bad' };
-  const inStage = new Set(st.entrants), seen = new Set(), out = [];
+function cleanEvent(st, rows, members = st.entrants) {
+  if (!Array.isArray(rows) || rows.length > members.length) return { code: 'tour_score_bad' };
+  const inStage = new Set(members), seen = new Set(), out = [];
   const pts = st.cfg.score === 'points';
   for (const r of rows) {
     const uid = r && String(r.uid);
@@ -60,7 +84,7 @@ function cleanEvent(st, rows) {
     if (!x.dnf) {
       if (pts) {
         x.rank = Math.floor(Number(r.rank));
-        if (!Number.isInteger(x.rank) || x.rank < 1 || x.rank > st.entrants.length) return { code: 'ot_race_rank' };
+        if (!Number.isInteger(x.rank) || x.rank < 1 || x.rank > members.length) return { code: 'ot_race_rank' };
       } else {
         x.time = Math.round(Number(r.time));
         if (!Number.isFinite(x.time) || x.time <= 0 || x.time > 360000000) return { code: 'ot_race_time' };
@@ -95,8 +119,24 @@ function recordEvent(st, i, rows) {
   return st.done;
 }
 
+/** Ghi kết quả lượt h của chặng i; đủ các lượt thì chặng xong (rows = gộp mọi lượt). Trả true nếu cả giai đoạn đã xong. */
+function recordHeat(st, i, h, rows) {
+  const ev = st.events[i];
+  Object.assign(ev.heats[h], { rows, done: true });
+  if (ev.heats.every((x) => x.done)) return recordEvent(st, i, ev.heats.flatMap((x) => x.rows));
+  return false;
+}
+
 function undoEvent(st, i) {
   Object.assign(st.events[i], { done: false, rows: null });
+  for (const x of st.events[i].heats || []) Object.assign(x, { done: false, rows: null });
+  st.done = false;
+}
+
+/** Huỷ một lượt (chặng thành chưa xong). */
+function undoHeat(st, i, h) {
+  Object.assign(st.events[i], { done: false, rows: null });
+  Object.assign(st.events[i].heats[h], { done: false, rows: null });
   st.done = false;
 }
 
@@ -145,21 +185,23 @@ function raceTable(st, seedOf) {
  */
 function raceView(st, i, adv, side, seedOf, teamOf = () => '') {
   const cfg = st.cfg, pts = cfg.score === 'points';
-  const events = st.events.map((ev) => {
-    if (!ev.done) return { i: ev.i, done: false };
+  // Chia lượt: từng lượt (mã người trong lượt – tên tra ở entrants; đã nhập thì các dòng theo thứ tự về đích của lượt)
+  const heatsOf = (ev) => (ev.heats ? { heats: ev.heats.map((x, h) => ({ h, done: x.done, uids: x.uids, ...(x.done ? { rows: rowsOf(x) } : {}) })) } : {});
+  const rowsOf = (ev) => {
     const order = eventOrder(st, ev);
     const lead = order[0] && !order[0].dnf ? order[0].time : null;
     let prev = null;
-    return {
-      i: ev.i, done: true,
-      rows: order.map((x) => {
-        const r = { ...side(x.uid), dnf: x.dnf };
-        if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; } else if (!x.dnf) {
-          r.time = x.time; r.gap = lead != null ? x.time - lead : null; r.gapPrev = prev != null ? x.time - prev : null; prev = x.time;
-        }
-        return r;
-      }),
-    };
+    return order.map((x) => {
+      const r = { ...side(x.uid), dnf: x.dnf };
+      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; } else if (!x.dnf) {
+        r.time = x.time; r.gap = lead != null ? x.time - lead : null; r.gapPrev = prev != null ? x.time - prev : null; prev = x.time;
+      }
+      return r;
+    });
+  };
+  const events = st.events.map((ev) => {
+    if (!ev.done) return { i: ev.i, done: false, ...heatsOf(ev) };
+    return { i: ev.i, done: true, rows: rowsOf(ev), ...heatsOf(ev) };
   });
   const { list, stats } = raceTable(st, seedOf);
   const all = st.events.filter((e) => e.done).length;
@@ -186,6 +228,9 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '') {
 }
 
 /** Lỗi cỡ giai đoạn race (null nếu được). */
-const raceError = (cfg, n) => (cfg.type === 'race' && n > MAX_RACE ? { code: 'ot_race_many', args: { n: MAX_RACE } } : null);
+const raceError = (cfg, n) => {
+  const max = cfg.heat ? MAX_RACE_HEATS : MAX_RACE; // đoàn quá MAX_RACE người: phải chia lượt
+  return cfg.type === 'race' && n > max ? { code: 'ot_race_many', args: { n: max } } : null;
+};
 
-module.exports = { SCORES, F1, MAX_EVENTS, MAX_RACE, cleanTable, normalizeRace, buildRace, cleanEvent, recordEvent, undoEvent, raceTable, raceView, raceError, eventOrder, rowPts };
+module.exports = { SCORES, F1, MAX_EVENTS, MAX_RACE, MAX_RACE_HEATS, MAX_HEAT, cleanTable, normalizeRace, buildRace, heatsFor, cleanEvent, recordEvent, recordHeat, undoEvent, undoHeat, raceTable, raceView, raceError, eventOrder, rowPts };

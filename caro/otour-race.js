@@ -5,6 +5,8 @@
  *     với người ngay trên; đánh dấu suất đi tiếp. Bảng đội (như bảng đội đua F1) nếu bật.
  *   - Từng chặng: kết quả (hạng, điểm – điểm sửa tay có dấu *, hoặc thời gian + chênh lệch); ban tổ chức nhập chặng
  *     chưa có kết quả (thứ hạng / thời gian "1:23.456", bỏ cuộc, điểm sửa tay) và huỷ chặng đã nhập.
+ * Chặng chia lượt (heat – đoàn rất đông): mỗi lượt một khung nhập / kết quả riêng (huỷ được từng lượt); đủ các lượt thì
+ * hiện kết quả gộp của chặng.
  * Ô đang nhập được giữ lại khi trang vẽ lại (bản vá từ máy chủ).
  */
 (function () {
@@ -42,21 +44,35 @@
       : x.dnf ? '' : `<b>${esc(RU.fmtTime(x.time))}</b> <small class="muted">${esc(gap(x.gap))}${x.gapPrev ? ' · ' + esc(gap(x.gapPrev)) : ''}</small>`}</li>`).join('')}</ol>`;
   }
 
-  /** Khung nhập một chặng: mỗi người một dòng (thứ hạng hoặc thời gian, bỏ cuộc, điểm sửa tay). Trống = không xuất phát. */
-  function eventForm(t, v, i) {
-    const pts = v.cfg.score !== 'time', key = dkey(t, v, i), d = S.draft[key] || {};
-    const rows = v.entrants.map((p) => {
+  /**
+   * Khung nhập một chặng (hoặc lượt h của chặng chia lượt): mỗi người một dòng (thứ hạng hoặc thời gian, bỏ cuộc, điểm
+   * sửa tay). Trống = không xuất phát.
+   */
+  function eventForm(t, v, i, h) {
+    const pts = v.cfg.score !== 'time', key = dkey(t, v, i) + (h != null ? ':h' + h : ''), d = S.draft[key] || {};
+    const names = new Map(v.entrants.map((p) => [p.uid, p]));
+    const members = h != null ? v.events[i].heats[h].uids.map((u) => names.get(u) || { uid: u, name: '?' }) : v.entrants;
+    const rows = members.map((p) => {
       const x = d[p.uid] || {};
       return `<tr data-uid="${esc(p.uid)}"><td class="nm">${esc(p.name)}</td>
-        <td><input class="r-v" ${pts ? `type="number" min="1" max="${v.entrants.length}" inputmode="numeric" placeholder="${esc(T('race_rank'))}"` : `inputmode="decimal" placeholder="1:23.456"`} value="${esc(x.v || '')}"></td>
+        <td><input class="r-v" ${pts ? `type="number" min="1" max="${members.length}" inputmode="numeric" placeholder="${esc(T('race_rank'))}"` : `inputmode="decimal" placeholder="1:23.456"`} value="${esc(x.v || '')}"></td>
         <td><label class="check"><input type="checkbox" class="r-dnf" ${x.dnf ? 'checked' : ''}> <span>${esc(T('race_dnf'))}</span></label></td>
         ${pts ? `<td><input class="r-pts" type="number" min="-1000" max="1000" placeholder="${esc(T('race_pts_auto'))}" value="${esc(x.pts || '')}"></td>` : ''}</tr>`;
     }).join('');
-    return `<form class="race-form" data-key="${esc(key)}" data-ev="${i}">
+    return `<form class="race-form" data-key="${esc(key)}" data-ev="${i}"${h != null ? ` data-heat="${h}"` : ''}>
       <p class="hint">${esc(T(pts ? 'race_form_hint' : 'race_form_hint_time'))}</p>
       ${pts ? `<button type="button" class="ghost sm" data-act="otRaceFill" data-key="${esc(key)}">${esc(T('race_fill'))}</button>` : ''}
       <div class="tscroll"><table class="stand race-in"><tbody>${rows}</tbody></table></div>
       <p class="err">${esc(S.err[key] || '')}</p><div class="row"><button class="primary">${esc(T('race_save'))}</button></div></form>`;
+  }
+
+  /** Chặng chia lượt: kết quả gộp (khi đủ các lượt) + từng lượt (người trong lượt, khung nhập hoặc kết quả). */
+  function heatsHtml(t, v, ev, can, undo) {
+    const names = new Map(v.entrants.map((p) => [p.uid, p.name]));
+    const all = ev.done ? `<h6>${esc(T('race_heats_all'))}</h6>${eventResult(v, ev)}` : '';
+    return all + ev.heats.map((x) => `<div class="race-heat"><h6>${esc(T('race_heat_n', { n: x.h + 1 }))} ${x.done ? icon('check', 'ok') : `<small class="muted">${esc(T('race_heat_size', { n: x.uids.length }))}</small>`}</h6>${
+      x.done ? eventResult(v, x) + undo(x.h) : can ? eventForm(t, v, ev.i, x.h)
+        : `<p class="hint">${esc(T('race_wait'))}</p><p class="muted race-who">${x.uids.map((u) => esc(names.get(u) || '?')).join(', ')}</p>`}</div>`).join('');
   }
 
   K.raceHtml = (t, v) => {
@@ -65,8 +81,9 @@
     const lastDone = v.events.map((e) => e.done).lastIndexOf(true);
     const evs = v.events.map((ev) => {
       const title = `<b>${esc(T('race_event_n', { n: ev.i + 1 }))}</b> ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
-      const body = () => (ev.done ? eventResult(v, ev) + (can ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}">${esc(T('race_undo'))}</button></div>` : '')
-        : can ? eventForm(t, v, ev.i) : `<p class="hint">${esc(T('race_wait'))}</p>`);
+      const undo = (h) => (can ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}"${h != null ? ` data-heat="${h}"` : ''}>${esc(T(h != null ? 'race_undo_heat' : 'race_undo'))}</button></div>` : '');
+      const body = () => (ev.heats ? heatsHtml(t, v, ev, can, undo)
+        : ev.done ? eventResult(v, ev) + undo(null) : can ? eventForm(t, v, ev.i) : `<p class="hint">${esc(T('race_wait'))}</p>`);
       // Mở sẵn: ban tổ chức – chặng cần nhập tiếp; người xem – chặng vừa có kết quả
       return K.fold(`${t.id}:r${v.index}:${ev.i}`, title, body, can ? ev.i === next : ev.i === lastDone);
     }).join('');
@@ -85,7 +102,7 @@
     return d;
   }
   K.acts.otRaceUndo = (b) => window.CaroConfirm.ask(T('race_undo_confirm', { n: Number(b.dataset.ev) + 1 }))
-    .then((ok) => { if (ok) O.send({ t: 'otRaceUndo', id: D.ot.id, event: Number(b.dataset.ev) }); });
+    .then((ok) => { if (ok) O.send({ t: 'otRaceUndo', id: D.ot.id, event: Number(b.dataset.ev), ...(b.dataset.heat != null ? { heat: Number(b.dataset.heat) } : {}) }); });
   // Điền thứ hạng theo thứ tự danh sách (rồi sửa vài dòng) – nhanh cho chặng nhiều người
   K.acts.otRaceFill = (b) => {
     const form = b.closest('form');
@@ -115,7 +132,7 @@
         if (!rows.some((r) => !r.dnf)) return fail('srv_ot_race_empty');
         S.err[key] = '';
         S.last = key;
-        O.send({ t: 'otRace', id: D.ot.id, event: Number(form.dataset.ev), rows });
+        O.send({ t: 'otRace', id: D.ot.id, event: Number(form.dataset.ev), ...(form.dataset.heat != null ? { heat: Number(form.dataset.heat) } : {}), rows });
       };
     });
   });

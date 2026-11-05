@@ -9,7 +9,7 @@
   X('vi', {
     ds_sport: '{icon} {sport} · ghi kết quả: {result}', ds_set: 'Luật set: mỗi set tới {to} điểm, cách {by}', ds_set_cap: '(chạm {cap} là thắng)', ds_set_last: '(set quyết định tới {last})',
     ds_stage: 'Giai đoạn {n}: {text}.', ds_single: 'loại trực tiếp Bo{bo}', ds_double: 'nhánh thắng – nhánh thua Bo{bo}', ds_third: 'có tranh hạng ba', ds_bo_final: 'chung kết Bo{bo}',
-    ds_legs: 'đá 2 lượt (chung kết 1 trận)', ds_legs_all: 'đá 2 lượt (cả chung kết)', ds_path: 'nhánh cố định theo vị trí trong bảng', ds_league: 'league phase: mỗi đội {games} trận, {pots} nhóm hạt giống',
+    ds_legs: 'đá 2 lượt (chung kết 1 trận)', ds_legs_all: 'đá 2 lượt (cả chung kết)', ds_path: 'nhánh cố định theo vị trí trong bảng', ds_heat: 'đoàn đông thì chia lượt, tối đa {n} người mỗi lượt', ds_league: 'league phase: mỗi đội {games} trận, {pots} nhóm hạt giống',
     ds_rr: 'vòng tròn một bảng', ds_groups: 'vòng tròn {n} bảng', ds_group_size: 'vòng tròn, mỗi bảng {n} đội', ds_home_away: 'lượt đi – về', ds_meet3: 'gặp nhau 3 lượt',
     ds_swiss: 'Thụy Sĩ {n} vòng', ds_swiss_auto: 'Thụy Sĩ (số vòng tự động)', ds_swiss_rec: 'Thụy Sĩ theo số thắng / thua: thắng {w} đi tiếp, thua {l} bị loại', ds_rec_bo: 'trận quyết định Bo{bo}',
     ds_race: 'đua {n} chặng, điểm theo hạng {top}…', ds_time: 'Time Trial {n} chặng (tính tổng thời gian)', ds_teams: 'có bảng xếp hạng đội',
@@ -44,7 +44,7 @@
   X('en', {
     ds_sport: '{icon} {sport} · results: {result}', ds_set: 'Set rules: sets to {to}, win by {by}', ds_set_cap: '({cap} wins outright)', ds_set_last: '(deciding set to {last})',
     ds_stage: 'Stage {n}: {text}.', ds_single: 'single elimination Bo{bo}', ds_double: 'double elimination Bo{bo}', ds_third: 'with a third-place match', ds_bo_final: 'final Bo{bo}',
-    ds_legs: 'two legs (one-match final)', ds_legs_all: 'two legs (final included)', ds_path: 'fixed bracket by group position', ds_league: 'league phase: {games} games per team, {pots} pots',
+    ds_legs: 'two legs (one-match final)', ds_legs_all: 'two legs (final included)', ds_path: 'fixed bracket by group position', ds_heat: 'large fields split into heats of up to {n}', ds_league: 'league phase: {games} games per team, {pots} pots',
     ds_rr: 'single-group round robin', ds_groups: 'round robin in {n} groups', ds_group_size: 'round robin, {n} teams per group', ds_home_away: 'home and away', ds_meet3: 'three meetings',
     ds_swiss: 'Swiss, {n} rounds', ds_swiss_auto: 'Swiss (automatic rounds)', ds_swiss_rec: 'Swiss by wins / losses: {w} wins advance, {l} losses are out', ds_rec_bo: 'deciding matches Bo{bo}',
     ds_race: '{n} races, points by position {top}…', ds_time: 'Time Trial over {n} legs (total time)', ds_teams: 'with team standings',
@@ -79,7 +79,7 @@
   X('ru', {
     ds_sport: '{icon} {sport} · результат: {result}', ds_set: 'Правила сетов: до {to} очков, разница {by}', ds_set_cap: '(при {cap} — победа)', ds_set_last: '(решающий сет до {last})',
     ds_stage: 'Этап {n}: {text}.', ds_single: 'на выбывание Bo{bo}', ds_double: 'двойное выбывание Bo{bo}', ds_third: 'есть матч за третье место', ds_bo_final: 'финал Bo{bo}',
-    ds_legs: 'два матча (финал — один)', ds_legs_all: 'два матча (включая финал)', ds_path: 'сетка по местам в группах', ds_league: 'общий этап: у каждой {games} матчей, {pots} корзин',
+    ds_legs: 'два матча (финал — один)', ds_legs_all: 'два матча (включая финал)', ds_path: 'сетка по местам в группах', ds_heat: 'большие составы делятся на заезды до {n} участников', ds_league: 'общий этап: у каждой {games} матчей, {pots} корзин',
     ds_rr: 'круговой турнир в одной группе', ds_groups: 'круговой турнир в {n} группах', ds_group_size: 'круговой турнир, по {n} команд в группе', ds_home_away: 'дома и в гостях', ds_meet3: 'три встречи',
     ds_swiss: 'швейцарская система, {n} туров', ds_swiss_auto: 'швейцарская система (туры автоматически)', ds_swiss_rec: 'швейцарка по победам / поражениям: {w} побед — выход, {l} поражений — вылет', ds_rec_bo: 'решающие матчи Bo{bo}',
     ds_race: '{n} гонок, очки за место {top}…', ds_time: 'гонка на время, {n} этапов (общее время)', ds_teams: 'есть командный зачёт',
@@ -114,7 +114,7 @@
   X('zh', {
     ds_sport: '{icon} {sport} · 记分：{result}', ds_set: '每局规则：{to} 分、领先 {by} 分', ds_set_cap: '（先到 {cap} 分即胜）', ds_set_last: '（决胜局 {last} 分）',
     ds_stage: '阶段 {n}：{text}。', ds_single: '单败淘汰 Bo{bo}', ds_double: '双败淘汰 Bo{bo}', ds_third: '设三四名决赛', ds_bo_final: '决赛 Bo{bo}',
-    ds_legs: '两回合（决赛一场）', ds_legs_all: '两回合（含决赛）', ds_path: '按小组名次固定对阵', ds_league: '联赛阶段：每队 {games} 场，{pots} 档种子',
+    ds_legs: '两回合（决赛一场）', ds_legs_all: '两回合（含决赛）', ds_path: '按小组名次固定对阵', ds_heat: '人数多时分组进行，每组最多 {n} 人', ds_league: '联赛阶段：每队 {games} 场，{pots} 档种子',
     ds_rr: '单组循环赛', ds_groups: '{n} 组循环赛', ds_group_size: '循环赛，每组 {n} 队', ds_home_away: '主客场', ds_meet3: '三循环',
     ds_swiss: '瑞士轮 {n} 轮', ds_swiss_auto: '瑞士轮（自动轮数）', ds_swiss_rec: '按胜负场数的瑞士轮：{w} 胜晋级，{l} 负淘汰', ds_rec_bo: '决定场 Bo{bo}',
     ds_race: '{n} 站，按名次积分 {top}…', ds_time: '计时赛 {n} 站（总用时）', ds_teams: '设团队积分榜',

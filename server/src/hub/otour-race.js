@@ -2,6 +2,7 @@
  * Giải đấu Offline – nhập kết quả các chặng của giai đoạn hệ Race (lõi: stages-race.js). Ban tổ chức gửi cả bảng kết
  * quả một chặng: thứ hạng (cách tính điểm theo hạng) hoặc thời gian (Time Trial), bỏ cuộc, điểm sửa tay. Huỷ được một
  * chặng khi giai đoạn còn đang diễn ra. Chặng cuối xong thì sang giai đoạn sau / kết thúc giải (otour-run.js – otNextStage).
+ * Chặng chia lượt (heat): gửi kèm `heat` – kết quả từng lượt; đủ các lượt thì chặng xong; huỷ được từng lượt.
  */
 'use strict';
 const { E } = require('../msg.js');
@@ -17,24 +18,44 @@ class OTourRace {
     return { st, i };
   }
 
-  on_otRace(conn, { id, event, rows }) {
+  /** Lượt h của chặng (chặng chia lượt); chặng không chia lượt thì null. */
+  otRaceHeat(st, i, heat) {
+    const hs = st.events[i].heats;
+    if (!hs) { if (heat != null) throw E('bad_message'); return null; }
+    const h = Math.floor(Number(heat));
+    if (!Number.isInteger(h) || !hs[h]) throw E('bad_message');
+    return h;
+  }
+
+  on_otRace(conn, { id, event, heat, rows }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, i } = this.otRaceEvent(t, event);
     if (st.events[i].done) throw E('tour_match_done');
-    const r = Race.cleanEvent(st, rows);
+    const h = this.otRaceHeat(st, i, heat);
+    if (h != null && st.events[i].heats[h].done) throw E('tour_match_done');
+    const r = Race.cleanEvent(st, rows, h != null ? st.events[i].heats[h].uids : undefined);
     if (r.code) throw E(r.code, r.args || {});
-    Race.recordEvent(st, i, r.rows);
+    if (h != null) Race.recordHeat(st, i, h, r.rows);
+    else Race.recordEvent(st, i, r.rows);
     st.v = (st.v || 0) + 1;
     this.otLog(t, me.id, 'race', { n: i + 1, k: r.rows.filter((x) => !x.dnf).length });
     if (st.done) this.otNextStage(t);
     this.otSave(t);
   }
 
-  on_otRaceUndo(conn, { id, event }) {
+  /** Huỷ kết quả một chặng; chặng chia lượt: gửi kèm heat để huỷ riêng lượt đó. */
+  on_otRaceUndo(conn, { id, event, heat }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, i } = this.otRaceEvent(t, event);
-    if (!st.events[i].done) throw E('tour_undo_locked');
-    Race.undoEvent(st, i);
+    const h = heat == null ? null : this.otRaceHeat(st, i, heat);
+    const ev = st.events[i];
+    if (h != null) {
+      if (!ev.heats[h].done) throw E('tour_undo_locked');
+      Race.undoHeat(st, i, h);
+    } else {
+      if (!ev.done && !(ev.heats && ev.heats.some((x) => x.done))) throw E('tour_undo_locked');
+      Race.undoEvent(st, i);
+    }
     st.v = (st.v || 0) + 1;
     this.otLog(t, me.id, 'race_undo', { n: i + 1 });
     this.otSave(t);
