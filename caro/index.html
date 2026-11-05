@@ -380,6 +380,16 @@
     </section>
 
     <section class="page" id="page-settings" data-page="settings" data-parent="more" hidden></section>
+
+    <!-- Giải đấu Offline: trang riêng (kiểu Challonge / MyLeague) – otour.js vẽ vào #otp-body (tour.js – K.fullPages) -->
+    <section class="page otp" id="page-otour" data-page="otour" data-parent="home" hidden>
+      <header class="pg-head">
+        <button type="button" class="pg-back" id="otp-back" data-pg-back data-i18n-aria="back"><svg class="ico" aria-hidden="true"><use href="#i-chevl"/></svg></button>
+        <h1 class="pg-title" id="otp-title"></h1>
+        <span class="pg-right"><button type="button" class="ghost sm" id="otp-tours" data-i18n="tours_title"></button></span>
+      </header>
+      <div class="pg-body otp-body tour-body" id="otp-body"></div>
+    </section>
   </div>
 
   <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -1182,6 +1192,7 @@
   <script src="otour-tpl.js"></script>
   <script src="otour-league.js"></script>
   <script src="otour-export.js"></script>
+  <script src="otour-share.js"></script>
   <script src="tour-manage.js"></script>
   <script src="tour-embed.js"></script>
   <script src="club.js"></script>

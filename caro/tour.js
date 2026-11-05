@@ -88,7 +88,11 @@
   }
 
   // ------------------------------------------------------------ Điều hướng
+  /** Trang hiện ở trang riêng (shell.js – #page-otour) thay vì hộp thoại: giải đấu Offline (otour.js – K.fullPages). */
+  const isFull = (page) => !!(K.fullPages && K.fullPages.has(page));
+  const Shell = () => window.CaroShell;
   function open(page, id, push) {
+    const prev = V.page;
     if (push !== false && (V.page !== page || V.id !== id)) V.stack.push({ page: V.page, id: V.id });
     if (V.page === 'tour' && page !== 'tour') O.send({ t: 'tourUnwatch' });
     if (V.page === 'ot' && page !== 'ot') O.send({ t: 'otUnwatch' }); // giải offline (otour.js)
@@ -96,7 +100,16 @@
     V.page = page;
     V.id = id || null;
     if (K.enter[page]) K.enter[page]();
-    if (!$('tour-dlg').open) O.openDlg('tour-dlg');
+    if (isFull(page)) {
+      // Trang riêng: đóng hộp thoại (nếu đang mở), hiện trang, ghi địa chỉ (?o= / ?ot=) để chia sẻ / tải lại / nút Back
+      if ($('tour-dlg').open) O.closeDlg('tour-dlg');
+      if (Shell() && Shell().current !== 'otour') Shell().go('otour');
+      if (K.fullUrl) K.fullUrl(page, V.id, push !== false);
+    } else {
+      if (isFull(prev) && K.leaveFull) K.leaveFull(prev); // rời trang riêng: bỏ ?o= / ?ot= khỏi địa chỉ
+      if (Shell() && Shell().current === 'otour') Shell().open('home');
+      if (!$('tour-dlg').open) O.openDlg('tour-dlg');
+    }
     load();
     render(true);
   }
@@ -146,7 +159,8 @@
     adminTab.hidden = !(me() && me().admin);
     adminTab.innerHTML = esc(T('review_tab')) + (D.adminCount ? ` <i class="count">${D.adminCount}</i>` : '');
     $('tour-tabs').hidden = !top3.includes(V.page);
-    const body = $('tour-body');
+    const full = isFull(V.page);
+    const body = $(full ? 'otp-body' : 'tour-body');
     if (!O.connected) { body.innerHTML = `<p class="hint">${esc(T('lobby_offline'))}</p>`; setTitle('tours_title'); return; }
     body.innerHTML = K.pages[V.page]();
     bind(body);
@@ -154,7 +168,7 @@
   }
   /** Tiêu đề hộp thoại; iconName: biểu tượng đặt trước (tuỳ chọn). */
   function setTitle(key, text, iconName) {
-    $('tour-title').innerHTML = (iconName ? icon(iconName) : '') + esc(text != null ? text : T(key));
+    $(isFull(V.page) ? 'otp-title' : 'tour-title').innerHTML = (iconName ? icon(iconName) : '') + esc(text != null ? text : T(key));
   }
   function tick() {
     document.querySelectorAll('#tour-body .cd').forEach((el) => {
@@ -307,7 +321,16 @@
   }
 
   // ------------------------------------------------------------ Tin từ máy chủ
-  const isOpen = () => dlg.open;
+  const isOpen = () => dlg.open || (isFull(V.page) && !!Shell() && Shell().visible && Shell().current === 'otour');
+  // Trang riêng: nút ‹ / Back (Android) lùi trong các trang giải trước, hết thì về Trang chủ; nút "Giải đấu" mở danh sách
+  window.addEventListener('caro:back', (e) => { if (e.detail.id === 'otour' && back()) e.preventDefault(); });
+  $('otp-tours').onclick = () => top('tours');
+  // Rời trang riêng (sang tab khác, vào bàn cờ): thôi theo dõi giải, bỏ ?o= khỏi địa chỉ
+  window.addEventListener('caro:page', (e) => {
+    if (e.detail.id === 'otour' || !isFull(V.page)) return;
+    if (O.connected && K.leaveFull) K.leaveFull(V.page);
+    V.page = 'tours'; V.id = null; V.stack = [];
+  });
   O.on('tourList', (m) => { D.tours = m.items; D.skew = m.now - Date.now(); if (isOpen() && V.page === 'tours') render(); });
   O.on('tour', (m) => {
     // Mở bằng link riêng (?t=<url>): từ giờ dùng mã giải
@@ -361,20 +384,27 @@
   // Link ?t=<mã> / ?club=<mã>
   const params = new URLSearchParams(location.search);
   // ?o=<mã>: giải đấu offline (otour.js)
-  let pending = params.get('t') ? ['tour', params.get('t')] : params.get('club') ? ['club', params.get('club')] : params.get('o') ? ['ot', params.get('o')] : null;
+  // ?ot=list / ?ot=new: trang riêng danh sách / tạo giải offline
+  const OT_PAGES = { list: 'otours', new: 'otNew' };
+  let pending = params.get('t') ? ['tour', params.get('t')] : params.get('club') ? ['club', params.get('club')] : params.get('o') ? ['ot', params.get('o')]
+    : OT_PAGES[params.get('ot')] ? [OT_PAGES[params.get('ot')], null] : null;
   function checkLink() {
     if (!pending) return;
+    // Các script nạp lần lượt qua mạng: kết nối có thể xong trước khi otour.js (trang riêng – K.fullPages) và home.js
+    // (mở Trang chủ lúc khởi động) chạy – mở link khi đã nạp đủ, không thì trang giải bị mở thành hộp thoại / bị đè
+    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', checkLink, { once: true }); return; }
     const [page, id] = pending;
     pending = null;
     const url = new URL(location.href);
     url.searchParams.delete('t');
     url.searchParams.delete('club');
     url.searchParams.delete('o');
+    url.searchParams.delete('ot');
     history.replaceState(null, '', url);
-    const home = { tour: 'tours', ot: 'otours' }[page] || 'clubs';
+    const home = { tour: 'tours', ot: 'otours', otours: 'tours', otNew: 'otours' }[page] || 'clubs';
     V.stack = [{ page: home, id: null }];
     V.page = home;
-    open(page, String(id).replace(/[^\w-]/g, '').slice(0, 20), false);
+    open(page, id == null ? null : String(id).replace(/[^\w-]/g, '').slice(0, 20), false);
   }
   // Máy chậm: kết nối (online.js tự kết nối khi URL có ?t / ?club / ?o) có thể xong trước khi file này chạy – khi đó
   // hook 'welcome' ở trên chưa kịp đăng ký, link không được mở. Mở bù ngay lúc nạp.

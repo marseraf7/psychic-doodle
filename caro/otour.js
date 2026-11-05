@@ -156,31 +156,89 @@
   K.otForm = { F, collect: () => { const f = $('otf'); if (f) collect(f); }, applySport, sportSet };
 
   // ------------------------------------------------------------ Trang giải
+  // ------------------------------------------------------------ Trang giải: các tab (kiểu Challonge / MyLeague)
+  const TABS = ['overview', 'stages', 'sched', 'stats', 'teams', 'more'];
+  const TAB = { id: null, tab: null, auto: true };
+  /**
+   * Tab đang xem: mặc định giải chưa bắt đầu / đã kết thúc → Tổng quan, đang diễn ra → Nhánh đấu & bảng. Tab tự chọn
+   * (chưa bấm) thì đổi theo trạng thái giải; người xem đã bấm tab thì giữ.
+   */
+  const tabOf = (t) => {
+    if (TAB.id !== t.id || !TABS.includes(TAB.tab)) Object.assign(TAB, { id: t.id, auto: true });
+    if (TAB.auto) TAB.tab = t.status === 'running' ? 'stages' : 'overview'; // kết thúc: Tổng quan (bục trao giải)
+    return TAB.tab;
+  };
+  const hint = (k) => `<p class="hint">${esc(T(k))}</p>`;
+  const L = () => K.otLeague || {};
+  function teamsTab(t) {
+    let html = '';
+    if (t.canManage && t.status === 'draft') {
+      html += `<section class="ot-sec mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
+        <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
+    } else {
+      html += `<section class="ot-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)}${p.country ? ` <small class="muted">${esc(p.country)}</small>` : ''}${p.team ? ` <small class="muted">· ${esc(p.team)}</small>` : ''}</li>`).join('')}</ol></section>`;
+    }
+    return html + (L().rosters ? L().rosters(t) : '');
+  }
+  const TAB_BODY = {
+    overview: (t) => {
+      const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
+      let html = `<div class="thead"><span class="pill ${esc(t.status)}">${esc(T('ot_st_' + t.status))}</span> <span class="muted">${esc(sp.icon + ' ' + T('sport_' + t.sport))} · ${esc(T('ot_n_teams', { n: t.players.length }))} · ${esc(T('ot_by', { name: t.owner }))}</span></div>`;
+      if (t.podium && t.podium.length && t.status === 'finished') {
+        html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
+      }
+      if (t.desc) html += `<div class="tdesc rich">${R ? R.render(t.desc) : esc(t.desc)}</div>`;
+      const acts = [`<button type="button" class="ghost" data-act="otShare">${icon('link')}${esc(T('share'))}</button>`];
+      if (t.canManage && t.status === 'draft') acts.push(`<button type="button" class="primary" data-act="otStart" ${t.players.length < 2 ? 'disabled' : ''}>${icon('play')}${esc(T('ot_start'))}</button>`);
+      if (t.canManage) acts.push(`<button type="button" class="ghost danger" data-act="otDelete">${icon('trash')}${esc(T('ot_delete'))}</button>`);
+      html += `<div class="row tactions">${acts.join('')}</div>`;
+      if (K.otShareHtml) html += K.otShareHtml(t); // ảnh chia sẻ (otour-share.js)
+      if (L().reg) html += L().reg(t);
+      // Cấu hình thể thức (trước khi bắt đầu) – bằng lời
+      if (window.CaroOTourSpecIO) html += `<section class="ot-sec ot-desc"><h4>${esc(T('ot_desc_title'))}</h4><ul>${window.CaroOTourSpecIO.describeSpec(t, T).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`;
+      return html;
+    },
+    stages: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + K.stagesHtml(t), // khung nhập kết quả (otour-score.js) + nhánh / bảng
+    sched: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + ((L().sched && L().sched(t)) || hint(t.canManage ? 'ot_sched_none_m' : 'ot_sched_none')),
+    stats: (t) => (L().stats && L().stats(t)) || hint('ot_stats_none'),
+    teams: teamsTab,
+    more: (t) => (K.otExportHtml ? K.otExportHtml(t) : '')
+      + (t.log && t.log.length ? `<section class="ot-sec"><h4>${esc(T('mg_log'))}</h4><ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul></section>` : ''),
+  };
   function pageView() {
     const t = D.ot;
     if (!t || t.id !== V.id) { setTitle('ot_title'); return '<p class="hint">…</p>'; }
     setTitle(null, t.name, 'trophy');
-    const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
-    let html = `<div class="thead"><span class="pill ${esc(t.status)}">${esc(T('ot_st_' + t.status))}</span> <span class="muted">${esc(sp.icon + ' ' + T('sport_' + t.sport))} · ${esc(T('ot_n_teams', { n: t.players.length }))} · ${esc(T('ot_by', { name: t.owner }))}</span></div>`;
-    if (t.desc) html += `<div class="tdesc rich">${R ? R.render(t.desc) : esc(t.desc)}</div>`;
-    const acts = [`<button type="button" class="ghost" data-act="otShare">${icon('link')}${esc(T('share'))}</button>`];
-    if (t.canManage && t.status === 'draft') acts.push(`<button type="button" class="primary" data-act="otStart" ${t.players.length < 2 ? 'disabled' : ''}>${icon('play')}${esc(T('ot_start'))}</button>`);
-    if (t.canManage) acts.push(`<button type="button" class="ghost danger" data-act="otDelete">${icon('trash')}${esc(T('ot_delete'))}</button>`);
-    html += `<div class="row tactions">${acts.join('')}</div>`;
-    if (t.canManage && t.status === 'draft') {
-      html += `<section class="mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
-        <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
-    }
-    if (K.otLeagueHtml) html += K.otLeagueHtml(t); // đăng ký đội, lịch, thống kê, đội hình (otour-league.js)
-    if (K.otScoreHtml) html += K.otScoreHtml(t); // khung nhập kết quả (otour-score.js)
-    if (t.podium && t.podium.length && t.status === 'finished') {
-      html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
-    }
-    html += K.stagesHtml(t); // trước khi bắt đầu: chỉ ghi cấu hình từng giai đoạn
-    if (K.otExportHtml) html += K.otExportHtml(t); // xuất CSV / JSON (otour-export.js)
-    if (t.log && t.log.length) html += K.fold('ot:' + t.id + ':log', esc(T('mg_log')), () => `<ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul>`, false);
-    return html;
+    const tab = tabOf(t);
+    const bar = `<nav class="ot-tabs" role="tablist">${TABS.map((k) => `<button type="button" role="tab" class="${k === tab ? 'on' : ''}" aria-selected="${k === tab}" data-act="otTab" data-tab="${k}">${esc(T('ot_tab_' + k))}</button>`).join('')}</nav>`;
+    return `${bar}<div class="ot-tab" data-tab="${tab}">${TAB_BODY[tab](t)}</div>`;
   }
+  K.acts.otTab = (b) => { Object.assign(TAB, { tab: b.dataset.tab, auto: false }); render(true); };
+
+  // ------------------------------------------------------------ Trang riêng (shell.js – #page-otour; tour.js – K.fullPages)
+  K.fullPages = new Set(['otours', 'otNew', 'ot']);
+  /** Địa chỉ của trang riêng: ?o=<link riêng | mã> / ?ot=list / ?ot=new (chia sẻ, tải lại, nút Back của trình duyệt). */
+  const urlOf = (page, id) => {
+    const u = new URL(location.href);
+    ['o', 'ot', 't', 'club'].forEach((k) => u.searchParams.delete(k));
+    if (page === 'ot') u.searchParams.set('o', (D.ot && D.ot.id === id && D.ot.slug) || id);
+    else u.searchParams.set('ot', page === 'otNew' ? 'new' : 'list');
+    return u;
+  };
+  K.fullUrl = (page, id, push) => {
+    try { history[push ? 'pushState' : 'replaceState']({ ot: { page, id } }, '', urlOf(page, id)); } catch (e) { /* trang nhúng / file://: bỏ qua */ }
+  };
+  /** Rời trang riêng: thôi theo dõi giải, bỏ ?o= / ?ot= khỏi địa chỉ. */
+  K.leaveFull = (page) => {
+    if (page === 'ot') O.send({ t: 'otUnwatch' });
+    try { const u = new URL(location.href); u.searchParams.delete('o'); u.searchParams.delete('ot'); history.replaceState(null, '', u); } catch (e) { /* bỏ qua */ }
+  };
+  // Nút Back / Forward của trình duyệt: mở lại đúng trang trong lịch sử (không ghi thêm)
+  window.addEventListener('popstate', (e) => {
+    const st = e.state && e.state.ot;
+    if (st && K.fullPages.has(st.page)) { open(st.page, st.id, false); return; }
+    if (K.fullPages.has(V.page) && window.CaroShell && window.CaroShell.current === 'otour') window.CaroShell.open('home');
+  });
 
   // ------------------------------------------------------------ Thao tác
   K.pages.otours = pageList;
@@ -213,6 +271,7 @@
   O.on('ot', (m) => {
     // Mở bằng link riêng: từ giờ dùng mã giải
     if (V.page === 'ot' && m.id !== V.id && m.tour && m.tour.slug && m.tour.slug === String(V.id || '').toLowerCase()) V.id = m.id;
+    if (V.page === 'ot' && m.id === V.id && m.tour && m.tour.slug) K.fullUrl('ot', m.id, false); // địa chỉ dùng link riêng
     if (m.id !== V.id) return;
     if (!m.tour) { O.toast(T('srv_ot_not_found')); D.ot = null; K.back() || K.top('otours'); return; }
     D.ot = { ...m.tour, ...m.mine };

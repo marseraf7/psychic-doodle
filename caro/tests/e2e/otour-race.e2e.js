@@ -59,7 +59,8 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click(`${form} button.primary`); await sleep(1000);
   ok(t.status === 'finished', 'Chặng cuối xong: kết thúc giải');
   ok(await boss.isVisible('.podium'), 'Bục trao giải');
-  ok(/Đỏ/.test(await boss.textContent('.stage-race-teams, h5 + .tscroll').catch(() => '')) || /Đỏ/.test(await boss.textContent('main, body')), 'Bảng đội');
+  await boss.click('[data-act="otTab"][data-tab="stages"]'); await sleep(300); // bảng chung + bảng đội ở tab Nhánh đấu & bảng
+  ok(/Bảng xếp hạng đội/.test(await boss.textContent('#otp-body')) && /Đỏ/.test(await boss.textContent('#otp-body')), 'Bảng đội');
   await shot(boss, 'ot-race.png');
 
   // Time Trial: thời gian sai báo ngay trong khung
@@ -79,6 +80,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click(`${form} button.primary`); await sleep(1000);
   const t2 = app.hub.otGet(id2);
   ok(t2.status === 'finished', 'Time Trial một chặng: xong');
+  await boss.click('[data-act="otTab"][data-tab="stages"]'); await sleep(300); // giải xong → Tổng quan; bảng thời gian ở tab Nhánh đấu
   ok(/\+50\.500/.test(await boss.textContent('.stand')), 'Chênh lệch với người dẫn đầu +50.500');
   await shot(boss, 'ot-tt.png');
   await finish();

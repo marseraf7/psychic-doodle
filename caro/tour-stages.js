@@ -126,12 +126,13 @@
   const formHtml = (f) => [...(f || '')].map((c) => `<i class="fm ${esc(c)}" title="${esc(T('form_' + c))}">${esc(T('form_' + c + '1'))}</i>`).join('');
   /**
    * Bảng xếp hạng của vòng tròn / Thụy Sĩ: thêm một cột cho mỗi tie-break đang dùng (giá trị x.tb do máy chủ tính,
-   * cùng thứ tự cfg.tiebreaks; máy chủ cũ chỉ có Buchholz / Median-Buchholz / SB). Đối đầu không có cột riêng.
+   * cùng thứ tự cfg.tiebreaks; máy chủ cũ chỉ có Buchholz / Median-Buchholz / SB). Đối đầu, hiệu số không có cột riêng.
    */
   function standTable(rows, cfg) {
     const list = tbsOf(cfg);
     const hasTb = rows.some((x) => Array.isArray(x.tb));
-    const cols = hasTb ? list.map((k, i) => ({ k, i })).filter((c) => c.k !== 'h2h') : ['bh', 'mbh', 'sb'].filter((k) => list.includes(k)).map((k) => ({ k }));
+    // Đối đầu không có cột; hiệu số (gdiff = gw − gl) đã có cột +/- cố định – không lặp lại
+    const cols = hasTb ? list.map((k, i) => ({ k, i })).filter((c) => c.k !== 'h2h' && c.k !== 'gdiff') : ['bh', 'mbh', 'sb'].filter((k) => list.includes(k)).map((k) => ({ k }));
     const val = (x, c) => (hasTb ? x.tb[c.i] : x[c.k]);
     const fmt = (v) => (v == null ? '' : Number.isInteger(v) ? v : v.toFixed(Math.abs(v) < 10 ? 2 : 1));
     const form = rows.some((x) => x.form); // dải phong độ (máy chủ cũ không gửi: ẩn cột)

@@ -1,6 +1,7 @@
 /*
  * Giải đấu Offline – phần kiểu MyLeague trên trang giải (máy chủ: server/src/hub/otour-league.js):
- *   K.otLeagueHtml(t)    – đăng ký đội (mở / duyệt; người có tài khoản gửi đơn), lịch thi đấu, thống kê cầu thủ
+ *   K.otLeague.{reg, sched, stats, rosters}(t) – từng mục cho các tab của trang giải (K.otLeagueHtml(t): tất cả) –
+ *                          đăng ký đội (mở / duyệt; người có tài khoản gửi đơn), lịch thi đấu, thống kê cầu thủ
  *                          (vua phá lưới, thẻ phạt), đội hình (ban tổ chức sửa: "số áo tên | vị trí").
  *   K.otMatchExtra(t, m) – trong khung trận (otour-score.js): giờ đấu + sân, sự kiện (bàn thắng / phản lưới / thẻ),
  *                          in biên bản trận. K.otMatchView(t, m): bản chỉ xem cho người xem (in biên bản được).
@@ -92,20 +93,22 @@
   };
 
   // ------------------------------------------------------------ Trang giải: đăng ký, lịch, thống kê, đội hình
+  // Mỗi phần là một mục có tiêu đề, đặt vào tab tương ứng của trang giải (otour.js – trang riêng kiểu Challonge)
+  const sec = (key, title, body) => `<section class="ot-sec" data-k="${esc(key)}"><h4>${title}</h4>${typeof body === 'function' ? body() : body}</section>`;
   function regHtml(t) {
     if (t.status !== 'draft') return '';
     if (t.canManage) {
       const list = (t.regs || []).map((r) => `<li><b>${esc(r.name)}</b> <small class="muted">${esc(r.byName)}${r.n ? ' · ' + esc(T('ot_reg_roster_n', { n: r.n })) : ''}</small>
         <button type="button" class="ghost sm" data-act="otRegOk" data-id="${esc(r.id)}">${icon('check')}${esc(T('ot_reg_ok'))}</button>
         <button type="button" class="ghost sm danger" data-act="otRegNo" data-id="${esc(r.id)}">${esc(T('ot_reg_no'))}</button></li>`).join('');
-      return K.fold('ot:' + t.id + ':reg', esc(T('ot_reg')) + (t.regs && t.regs.length ? ` <span class="pill">${t.regs.length}</span>` : ''), () => `
+      return sec('ot:' + t.id + ':reg', esc(T('ot_reg')) + (t.regs && t.regs.length ? ` <span class="pill">${t.regs.length}</span>` : ''), () => `
         <label class="check"><input type="checkbox" id="ot-reg-open" ${t.reg ? 'checked' : ''}> <span>${esc(T('ot_reg_open'))}</span></label>
         <p class="hint">${esc(T('ot_reg_hint'))}</p>${list ? `<ul class="ot-regs">${list}</ul>` : ''}`, !!(t.regs && t.regs.length));
     }
     if (!t.reg) return '';
     if (t.myReg) return `<p class="hint">${esc(T('ot_reg_sent', { name: t.myReg.name }))}</p>`;
     if (!me()) return `<p class="hint">${esc(T('ot_reg_login'))}</p>`;
-    return K.fold('ot:' + t.id + ':regf', esc(T('ot_reg_join')), () => `<form id="otreg" class="tform">
+    return sec('ot:' + t.id + ':regf', esc(T('ot_reg_join')), () => `<form id="otreg" class="tform">
       <label class="field"><span>${esc(T('ot_reg_name'))}</span><input name="name" maxlength="40" required></label>
       <label class="field"><span>${esc(T('ot_roster'))}</span><textarea name="roster" rows="4" placeholder="${esc(T('ot_roster_ph'))}"></textarea></label>
       <p class="err" id="otreg-err"></p><button class="primary">${esc(T('ot_reg_send'))}</button></form>`, true);
@@ -114,7 +117,7 @@
   function scheduleHtml(t) {
     const ms = allMatches(t).filter((m) => m.when).sort((a, b) => a.when - b.when);
     if (!ms.length) return '';
-    return K.fold('ot:' + t.id + ':sched', esc(T('ot_schedule')), () => `<ul class="mlist ot-sched">${ms.map((m) => `<li class="mrow" data-mid="${esc(m.id)}">
+    return sec('ot:' + t.id + ':sched', esc(T('ot_schedule')), () => `<ul class="mlist ot-sched">${ms.map((m) => `<li class="mrow" data-mid="${esc(m.id)}">
       <small class="muted">${esc(fmtWhen(m.when))}${m.venue ? ' · ' + esc(m.venue) : ''}</small>
       <span>${esc(m.a ? m.a.name : '?')} <b>${m.done ? `${m.wa}–${m.wb}` : 'vs'}</b> ${esc(m.b ? m.b.name : '?')}</span></li>`).join('')}</ul>`, false);
   }
@@ -123,7 +126,7 @@
     const s = t.stats;
     if (!s) return '';
     const tb = (rows, head, cell) => `<div class="tscroll"><table class="stand"><thead><tr>${head}</tr></thead><tbody>${rows.map(cell).join('')}</tbody></table></div>`;
-    return K.fold('ot:' + t.id + ':stats', esc(T('ot_stats')), () => (s.scorers.length ? `<h5>${esc(T('ot_scorers'))}</h5>` + tb(s.scorers, `<th>#</th><th></th><th></th><th>⚽</th>`,
+    return sec('ot:' + t.id + ':stats', esc(T('ot_stats')), () => (s.scorers.length ? `<h5>${esc(T('ot_scorers'))}</h5>` + tb(s.scorers, `<th>#</th><th></th><th></th><th>⚽</th>`,
       (x, i) => `<tr><td>${i + 1}</td><td class="nm">${esc(x.who)}</td><td class="muted">${esc(x.team)}</td><td><b>${x.n}</b></td></tr>`) : '')
       + (s.cards.length ? `<h5>${esc(T('ot_cards'))}</h5>` + tb(s.cards, `<th></th><th></th><th>🟨</th><th>🟥</th>`,
         (x) => `<tr><td class="nm">${esc(x.who)}</td><td class="muted">${esc(x.team)}</td><td>${x.y}</td><td>${x.r}</td></tr>`) : ''), false);
@@ -132,7 +135,7 @@
   function rosterHtml(t) {
     const withR = (t.players || []).filter((p) => p.roster && p.roster.length);
     if (!t.canManage && !withR.length) return '';
-    return K.fold('ot:' + t.id + ':rosters', esc(T('ot_rosters')), () => (t.players || []).filter((p) => t.canManage || (p.roster && p.roster.length)).map((p) => {
+    return sec('ot:' + t.id + ':rosters', esc(T('ot_rosters')), () => (t.players || []).filter((p) => t.canManage || (p.roster && p.roster.length)).map((p) => {
       const list = (p.roster || []).map((r) => `<li>${r.no != null ? `<b>${r.no}</b> ` : ''}${esc(r.name)}${r.pos ? ` <small class="muted">${esc(r.pos)}</small>` : ''}</li>`).join('');
       const edit = t.canManage && S.roster === p.uid
         ? `<textarea id="ot-roster-in" rows="6" placeholder="${esc(T('ot_roster_ph'))}">${esc((p.roster || []).map((r) => (r.no != null ? r.no + ' ' : '') + r.name + (r.pos ? ' | ' + r.pos : '')).join('\n'))}</textarea>
@@ -143,6 +146,7 @@
   }
 
   K.otLeagueHtml = (t) => regHtml(t) + scheduleHtml(t) + statsHtml(t) + rosterHtml(t);
+  K.otLeague = { reg: regHtml, sched: scheduleHtml, stats: statsHtml, rosters: rosterHtml }; // từng phần cho các tab
 
   K.acts.otRegOk = (b) => O.send({ t: 'otRegDecide', id: D.ot.id, reg: b.dataset.id, ok: true });
   K.acts.otRegNo = (b) => window.CaroConfirm.ask(T('ot_reg_no_confirm')).then((ok) => { if (ok) O.send({ t: 'otRegDecide', id: D.ot.id, reg: b.dataset.id, ok: false }); });
