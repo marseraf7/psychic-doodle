@@ -14,7 +14,15 @@
   if (!K) return;
   const { T, esc, D } = K;
 
-  const cell = (v) => { const s = v == null ? '' : String(v); return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  // Chữ do người dùng đặt (tên đội…) mở đầu bằng = + - @ (hay tab / xuống dòng): Excel / Sheets hiểu là công thức
+  // (CSV injection) – thêm dấu ' phía trước. Số (kể cả số âm) giữ nguyên.
+  const cell = (v) => {
+    let s = v == null ? '' : String(v);
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s;
+    return /[",\n;\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  /** Giờ địa phương "2026-11-20 19:30" (không theo UTC). */
+  const localTime = (ms) => { const d = new Date(ms), p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
   const csv = (rows) => '﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n');
   const slug = (t) => String(t.slug || t.id).replace(/[^\w-]/g, '');
 
@@ -38,7 +46,7 @@
         ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g) => g.rounds.flat())].filter((m) => m && m.a && m.b && !m.a.bye && !m.b.bye);
       for (const m of all) {
         out.push([v.index + 1, m.round + 1, m.a.name, m.b.name, m.done ? `${m.wa}-${m.wb}` : '', m.sets ? m.sets.map((s) => s.join('-')).join(' ') : '',
-          m.extra ? m.extra.join('-') : '', m.when ? new Date(m.when).toISOString().slice(0, 16).replace('T', ' ') : '', m.venue || '']);
+          m.extra ? m.extra.join('-') : '', m.when ? localTime(m.when) : '', m.venue || '']);
       }
     }
     return out;
@@ -46,6 +54,11 @@
 
   /** Cấu hình giải (bản dùng lại được). */
   const specOf = (t) => ({ sport: t.sport, result: t.result, ...(t.set !== undefined ? { set: t.set } : {}), stages: t.stages });
+
+  /** Chép nội dung (trình duyệt trong app – Zalo, Messenger… – có thể chặn tải file mà không báo lỗi). */
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); window.CaroConfirm.info(T('ot_x_copied_ok')); } catch (e) { window.CaroConfirm.info(T('ot_x_failed')); }
+  }
 
   /** Tải file; trình duyệt chặn tải thì chép vào bộ nhớ tạm. */
   async function save(name, text, type) {
@@ -61,15 +74,20 @@
     }
   }
 
-  K.otExportHtml = (t) => (t.status === 'draft' && !t.canManage ? '' : K.fold('ot:' + t.id + ':export', esc(T('ot_export')), () => `<div class="row">
-      ${t.stageViews && t.stageViews.length ? `<button type="button" class="ghost sm" data-act="otCsvTable">${esc(T('ot_x_tables'))}</button>
-      <button type="button" class="ghost sm" data-act="otCsvMatches">${esc(T('ot_x_matches'))}</button>` : ''}
-      <button type="button" class="ghost sm" data-act="otJsonSpec">${esc(T('ot_x_spec'))}</button></div>
-      <p class="hint">${esc(T('ot_x_hint'))}</p>`, false));
+  // Mỗi loại: tải file + chép nội dung
+  const KINDS = {
+    table: { label: 'ot_x_tables', file: (t) => `${slug(t)}-bang-xep-hang.csv`, text: (t) => csv(tableRows(t)), type: 'text/csv;charset=utf-8', views: true },
+    matches: { label: 'ot_x_matches', file: (t) => `${slug(t)}-ket-qua.csv`, text: (t) => csv(matchRows(t)), type: 'text/csv;charset=utf-8', views: true },
+    spec: { label: 'ot_x_spec', file: (t) => `${slug(t)}-cau-hinh.json`, text: (t) => JSON.stringify(specOf(t), null, 2), type: 'application/json' },
+  };
+  K.otExportHtml = (t) => (t.status === 'draft' && !t.canManage ? '' : K.fold('ot:' + t.id + ':export', esc(T('ot_export')), () => `<div class="ot-x">
+      ${Object.entries(KINDS).filter(([, k]) => !k.views || (t.stageViews && t.stageViews.length)).map(([id, k]) => `<div class="row">
+        <button type="button" class="ghost sm" data-act="otExport" data-kind="${id}">${esc(T(k.label))}</button>
+        <button type="button" class="ghost sm" data-act="otExportCopy" data-kind="${id}">${esc(T('ot_x_copy'))}</button></div>`).join('')}
+      <p class="hint">${esc(T('ot_x_hint'))}</p></div>`, false));
 
-  K.acts.otCsvTable = () => save(`${slug(D.ot)}-bang-xep-hang.csv`, csv(tableRows(D.ot)), 'text/csv;charset=utf-8');
-  K.acts.otCsvMatches = () => save(`${slug(D.ot)}-ket-qua.csv`, csv(matchRows(D.ot)), 'text/csv;charset=utf-8');
-  K.acts.otJsonSpec = () => save(`${slug(D.ot)}-cau-hinh.json`, JSON.stringify(specOf(D.ot), null, 2), 'application/json');
+  K.acts.otExport = (b) => { const k = KINDS[b.dataset.kind]; if (k) save(k.file(D.ot), k.text(D.ot), k.type); };
+  K.acts.otExportCopy = (b) => { const k = KINDS[b.dataset.kind]; if (k) copy(k.text(D.ot).replace(/^\uFEFF/, '')); };
 
   window.CaroOTourExport = { tableRows, matchRows, specOf, csv };
 })();

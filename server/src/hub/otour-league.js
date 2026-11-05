@@ -15,6 +15,7 @@ const ST = require('./stages.js');
 
 const EVENT_TYPES = ['goal', 'own', 'yellow', 'red'];
 const MAX_EVENTS = 60; // mỗi trận
+const MAX_TOUR_EVENTS = 5000; // cả giải (giải 10 000 trận × 60 sự kiện sẽ làm bản ghi phình hàng chục MB)
 const MAX_ROSTER = 40;
 const MAX_REGS = 100;
 const clean = (s, n) => cleanPublicText(String(s == null ? '' : s), n).replace(/[<>|]/g, '').trim();
@@ -70,6 +71,7 @@ class OTourLeague {
     if (!ST.real(m.a) || !ST.real(m.b) || !EVENT_TYPES.includes(type) || (side !== 'a' && side !== 'b')) throw E('bad_message');
     m.events = m.events || [];
     if (m.events.length >= MAX_EVENTS) throw E('ot_events_many', { n: MAX_EVENTS });
+    if (this.otEventCount(t) >= MAX_TOUR_EVENTS) throw E('ot_events_tour', { n: MAX_TOUR_EVENTS });
     const mm = min == null || min === '' ? null : Math.floor(Number(min));
     m.events.push({ type, side, who: clean(who, 40), min: Number.isInteger(mm) && mm >= 0 && mm <= 300 ? mm : null });
     m.events.sort((x, y) => (x.min == null ? 999 : x.min) - (y.min == null ? 999 : y.min));
@@ -77,11 +79,24 @@ class OTourLeague {
     this.otSave(t);
   }
 
-  on_otEventDel(conn, { id, match, i }) {
+  /** Tổng số sự kiện của cả giải. */
+  otEventCount(t) {
+    let n = 0;
+    for (const st of t.st || []) for (const m of Object.values(st.matches)) n += m.events ? m.events.length : 0;
+    return n;
+  }
+
+  /**
+   * Bỏ một sự kiện. ev (sự kiện client thấy ở vị trí i): hai người quản lý cùng bỏ một lúc thì vị trí có thể đã lệch –
+   * khớp đúng sự kiện đó (ở i, hoặc tìm lại), không bỏ nhầm sự kiện khác; không còn thì thôi.
+   */
+  on_otEventDel(conn, { id, match, i, ev }) {
     const { t } = this.otManaged(conn, id);
     const { st, m } = this.otAnyMatch(t, match);
-    const k = Math.floor(Number(i));
-    if (!m.events || !m.events[k]) throw E('bad_message');
+    const same = (e) => !ev || (e.type === ev.type && e.side === ev.side && (e.who || '') === (ev.who || '') && (e.min == null ? null : e.min) === (ev.min == null ? null : ev.min));
+    let k = Math.floor(Number(i));
+    if (!m.events || !m.events[k] || !same(m.events[k])) k = ev && m.events ? m.events.findIndex(same) : -1;
+    if (k < 0) return; // đã bị bỏ (người quản lý khác) – không có gì để làm
     m.events.splice(k, 1);
     st.v = (st.v || 0) + 1;
     this.otSave(t);
@@ -137,9 +152,9 @@ class OTourLeague {
     const { t, me } = this.otManaged(conn, id);
     const r = (t.regs || []).find((x) => x.id === reg);
     if (!r) throw E('bad_message');
+    if (ok === true && t.status !== 'draft') throw E('tour_closed'); // kiểm trước khi bỏ đơn khỏi danh sách (không mất đơn)
     t.regs = t.regs.filter((x) => x !== r);
     if (ok === true) {
-      if (t.status !== 'draft') throw E('tour_closed');
       if (this.otAddTeams(t, [r.name])) {
         const p = t.players[t.players.length - 1];
         if (r.roster.length) p.roster = r.roster;

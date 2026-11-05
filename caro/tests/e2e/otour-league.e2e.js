@@ -66,6 +66,13 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click(`.scorable[data-mid="${m.id}"]`).catch(() => {}); await sleep(300);
   await boss.click('[data-act="otPrint"]'); await sleep(300);
   ok(await boss.evaluate(() => window.__printed) === 1 && /Biên bản trận đấu/.test(await boss.textContent('#ot-print')) && /Số Mười/.test(await boss.textContent('#ot-print')), 'In biên bản trận (đội hình + sự kiện)');
+  // Người xem: bấm trận xem chi tiết (giờ, sân, diễn biến) và in biên bản; không có ô sửa
+  await fan.evaluate((x) => window.CaroOTour.open(x), id); await sleep(900);
+  await fan.click(`.viewable[data-mid="${m.id}"]`); await sleep(300);
+  ok(/Sân Bờ Sông/.test(await fan.textContent('.score-panel')) && /Số Mười/.test(await fan.textContent('.score-panel')) && !(await fan.$('#otm-venue, [data-act="otEvDel"]')), 'Người xem: xem chi tiết trận, không sửa được');
+  await fan.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed++; }; });
+  await fan.click('[data-act="otPrint"]'); await sleep(300);
+  ok(await fan.evaluate(() => window.__printed) === 1, 'Người xem in được biên bản');
   await shot(boss, 'ot-league.png');
   await finish();
 })();

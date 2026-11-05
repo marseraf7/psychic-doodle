@@ -136,7 +136,7 @@
     const fmt = (v) => (v == null ? '' : Number.isInteger(v) ? v : v.toFixed(Math.abs(v) < 10 ? 2 : 1));
     const form = rows.some((x) => x.form); // dải phong độ (máy chủ cũ không gửi: ẩn cột)
     const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th><th>${esc(T('col_pts'))}</th>${cols.map((c) => `<th title="${esc(T('tb_' + c.k))}">${esc(T('tbc_' + c.k))}</th>`).join('')}${form ? `<th title="${esc(T('col_form_t'))}">${esc(T('col_form'))}</th>` : ''}</tr>`;
-    const body = rows.map((x) => `<tr class="${x.adv ? 'adv' : ''} ${x.uid === uidMe() ? 'me' : ''}"><td>${x.rank}</td><td class="l">${esc(x.name)}</td><td>${x.mp}</td><td>${x.w}-${x.d}-${x.l}</td>
+    const body = rows.map((x) => `<tr class="${x.adv ? 'adv' : ''} ${x.bye ? 'bye' : ''} ${x.uid === uidMe() ? 'me' : ''}"><td>${x.rank}</td><td class="l">${esc(x.name)}</td><td>${x.mp}</td><td>${x.w}-${x.d}-${x.l}</td>
       <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td><td><b>${x.pts}</b></td>${cols.map((c) => `<td>${fmt(val(x, c))}</td>`).join('')}${form ? `<td class="form">${formHtml(x.form)}</td>` : ''}</tr>`).join('');
     return `<div class="tscroll"><table class="stand"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   }
@@ -145,7 +145,8 @@
     const by = T('rank_' + ((rr && cfg.rankBy) || 'points'));
     const list = [by, ...tbsOf(cfg).map((k) => T('tb_' + k)), T('tb_seed')].join(' → ');
     // tb_rank_rule (không dùng tb_rule – trùng khoá với Team Battle ở i18n-club-battle.js)
-    return `<p class="hint">${esc(T('tb_rank_rule', { list }))}${rr ? ' ' + esc(T('tb_adv_mark')) : ''}</p>`;
+    // Giải offline: dải được miễn vòng đầu loại trực tiếp (league phase hạng 1–8…) – vạch đậm hơn
+    return `<p class="hint">${esc(T('tb_rank_rule', { list }))}${rr ? ' ' + esc(T('tb_adv_mark')) : ''}${cfg.byes ? ' ' + esc(T('ot_bye_mark', { n: cfg.byes })) : ''}</p>`;
   }
   function stageBody(t, v) {
     cur = t;
@@ -181,7 +182,7 @@
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
         return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? icon('star', 'star') : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);
-      }).join('') + rulesNote(v.cfg, true);
+      }).join('') + rulesNote({ ...v.cfg, byes: v.byes }, true);
     }
     // Thụy Sĩ: vòng mới nhất lên đầu
     const rounds = v.rounds.map((r, i) => ({ r, i })).reverse();
@@ -193,7 +194,7 @@
     return capped + table(v.table, v.cfg)
       + fold(key + ':r', esc(T('matches')), () => roundsHtml(rounds.slice(0, 1), rlabel)
         + (older.length ? fold(key + ':ro', esc(T('earlier_rounds', { n: older.length })), () => roundsHtml(older, rlabel), false) : ''), !v.done)
-      + rulesNote(v.cfg, false);
+      + rulesNote({ ...v.cfg, byes: v.byes }, false);
   }
   /**
    * Nhánh xem trước (trước giờ đấu – như bracket preview của Challonge): vòng đầu theo danh sách hiện tại; vòng tròn: các

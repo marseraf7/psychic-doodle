@@ -7,7 +7,8 @@
  * Thụy Sĩ: 0 vòng = tự động, cách xếp cặp (Hà Lan / liền kề), cách tính trận không đấu (FIDE / như bản cũ).
  *   K.stageEdit = { DEFAULT, MAX, html(stages, adv, ctx), change(stages, el), click(stages, btn) } – change / click sửa
  *   mảng stages tại chỗ, trả true nếu có đổi; ctx.max: số người tối đa (số cặp hạng chọn được); ctx.ext: hiện ô điểm
- *   thắng / thua "sát" (giải offline – set quyết định, hiệp phụ) và các thể thức thêm của giải offline (stages-league.js ở
+ *   thắng / thua "sát" (giải offline – set quyết định, hiệp phụ); ctx.result: kiểu kết quả giải offline (2 lượt chỉ với
+ *   'score') và các thể thức thêm của giải offline (stages-league.js ở
  *   máy chủ): league phase, đội xếp sau tốt nhất, Thụy Sĩ theo số thắng / thua, knock-out 2 lượt, bảng tới 64 đội.
  *   Nạp sau tour.js, tour-stages.js; trước tour-form.js.
  */
@@ -108,7 +109,8 @@
       // Giải offline (ctx.ext): league phase kiểu Champions League – mỗi đội gặp N đối thủ chia theo nhóm hạt giống
       if (ctx.ext && c.type === 'roundrobin') {
         f.push(chk(i, 'league', !!c.league, T('opt_league')));
-        if (c.league) f.push(field(T('opt_league_games'), num(i, 'lgGames', c.league.games, 1, 20)), field(T('opt_league_pots'), num(i, 'lgPots', c.league.pots, 1, 8)), `<small class="hint">${esc(T('opt_league_hint'))}</small>`);
+        // Cấu hình nhập từ JSON có thể thiếu trường: hiện giá trị mặc định như máy chủ (stages-league.js)
+        if (c.league) f.push(field(T('opt_league_games'), num(i, 'lgGames', c.league.games || 8, 1, 20)), field(T('opt_league_pots'), num(i, 'lgPots', c.league.pots || 4, 1, 8)), `<small class="hint">${esc(T('opt_league_hint'))}</small>`);
       }
       if (c.type === 'roundrobin' && !c.league) {
         // Chia theo số bảng, hoặc theo số người mỗi bảng (như Challonge); giải offline: bảng tới 64 đội
@@ -123,13 +125,14 @@
       // Giải offline: Thụy Sĩ theo số thắng / thua kiểu LoL (đủ số thắng thì đi tiếp, đủ số thua thì bị loại)
       if (ctx.ext && c.type === 'swiss') {
         f.push(chk(i, 'record', !!c.record, T('opt_record')));
-        if (c.record) f.push(field(T('opt_rec_win'), num(i, 'recWin', c.record.win, 1, 5)), field(T('opt_rec_lose'), num(i, 'recLose', c.record.lose, 1, 5)),
+        if (c.record) f.push(field(T('opt_rec_win'), num(i, 'recWin', c.record.win || 3, 1, 5)), field(T('opt_rec_lose'), num(i, 'recLose', c.record.lose || 3, 1, 5)),
           field(T('opt_rec_bo'), sel(i, 'recBo', [[0, T('bo_same_n', { n: c.bestOf })], ...BO_OPTS.map((n) => [n, 'Bo' + n])], c.record.bo || 0)));
       }
       // 0 = tự động (⌈log₂ n⌉) – cả hai form cùng một ô để không hiện số khác với số sẽ gửi
       if (c.type === 'swiss' && !c.record) f.push(field(T('opt_rounds_auto'), num(i, 'rounds', c.rounds, 0, 15)));
       // Giải offline: knock-out 2 lượt (tổng tỉ số, hoà thì luân lưu)
-      if (ctx.ext && (c.type === 'single' || c.type === 'double')) {
+      // (chỉ kiểu tỉ số: set / chỉ người thắng không có tổng tỉ số hai lượt)
+      if (ctx.ext && (ctx.result || 'score') === 'score' && (c.type === 'single' || c.type === 'double')) {
         f.push(chk(i, 'legs', !!c.legs, T('opt_legs')));
         if (c.legs && c.type === 'single') f.push(chk(i, 'legsFinal', !!c.legsFinal, T('opt_legs_final')));
       }
@@ -194,9 +197,9 @@
     }
     else if (k === 'league') {
       if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
-    } else if (k === 'lgGames' || k === 'lgPots') c.league[k === 'lgGames' ? 'games' : 'pots'] = clamp(v);
+    } else if (k === 'lgGames' || k === 'lgPots') c.league = { games: 8, pots: 4, ...c.league, [k === 'lgGames' ? 'games' : 'pots']: clamp(v) };
     else if (k === 'record') { if (el.checked) c.record = { win: 3, lose: 3, bo: 3 }; else delete c.record; }
-    else if (k === 'recWin' || k === 'recLose') c.record[k === 'recWin' ? 'win' : 'lose'] = clamp(v);
+    else if (k === 'recWin' || k === 'recLose') c.record = { win: 3, lose: 3, ...c.record, [k === 'recWin' ? 'win' : 'lose']: clamp(v) };
     else if (k === 'recBo') c.record.bo = Number(el.value) || 0;
     else if (k === 'table') c.table = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64);
     else if (el.type === 'checkbox') c[k] = el.checked;

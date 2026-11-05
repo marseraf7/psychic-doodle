@@ -84,7 +84,7 @@
       <label class="field"><span>${esc(T('ot_result'))}</span><select name="result">${SP.RESULTS.map((k) => opt(k, d.result, T('otres_' + k))).join('')}</select></label>
       <div id="otf-set">${setHtml()}</div>
       <label class="field"><span>${esc(T('format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>
-      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), ext: true })}</div>
+      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), ext: true, result: F.d.result })}</div>
       <p class="est" id="otf-est"></p>
       <div class="ot-desc" id="otf-desc"></div>
       <label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>
@@ -116,7 +116,7 @@
     const f = $('otf');
     if (!f) return;
     const box = $('otf-stages');
-    const draw = () => { box.innerHTML = SE.html(F.stages, true, { max: Math.max(4, F.d.teams.split('\n').filter((x) => x.trim()).length), ext: true }); showEst(f); };
+    const draw = () => { box.innerHTML = SE.html(F.stages, true, { max: Math.max(4, F.d.teams.split('\n').filter((x) => x.trim()).length), ext: true, result: F.d.result }); showEst(f); };
     const drawSet = () => { $('otf-set').innerHTML = setHtml(); };
     f.addEventListener('input', () => { collect(f); showEst(f); });
     f.addEventListener('change', (e) => {
@@ -133,7 +133,7 @@
         if (sp.preset || racing) { F.d.preset = sp.preset || 'groups_single'; f.elements.preset.value = F.d.preset; F.stages = PRESETS[F.d.preset](); }
         applySport(F.stages, F.d.sport); draw(); drawSet();
       }
-      if (e.target.name === 'result') { if (F.d.result === 'sets' && !F.d.set) F.d.set = sportSet(F.d.sport); drawSet(); }
+      if (e.target.name === 'result') { if (F.d.result === 'sets' && !F.d.set) F.d.set = sportSet(F.d.sport); drawSet(); draw(); }
       if (e.target.name === 'setOn') { F.d.set = e.target.checked ? sportSet(F.d.sport) || { to: 21, by: 2, cap: 0, last: 0 } : null; drawSet(); }
       if (e.target.name === 'preset' && PRESETS[F.d.preset]) { F.stages = applySport(PRESETS[F.d.preset](), F.d.sport); draw(); }
       // Đổi danh sách đội (bắn khi ô mất focus): người dùng đang bấm sang một ô của giai đoạn thì không vẽ lại khung

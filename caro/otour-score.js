@@ -28,6 +28,9 @@
     return null;
   }
   const canScore = (t) => t && t.canManage && t.status === 'running';
+  // Mở xem chi tiết trận (giờ, sân, diễn biến, in biên bản): mọi người xem, khi giải đã bốc thăm; ban tổ chức vẫn sửa
+  // giờ / sân / sự kiện sau khi giải kết thúc (otour-league.js)
+  const canOpen = (t) => t && t.status !== 'draft';
   // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua (kiểu LoL)
   const elimType = (v) => v.type === 'single' || v.type === 'double' || !!(v.cfg && v.cfg.record);
   const boOf = (m, v) => m.bo || (v.cfg && v.cfg.bestOf) || 1;
@@ -44,16 +47,24 @@
 
   K.otScoreHtml = (t) => {
     if (S.tour !== t.id) { S.tour = t.id; S.match = null; }
-    if (!canScore(t)) return '';
+    if (!canOpen(t)) return '';
     const x = S.match && find(t, S.match);
-    if (!x) return `<p class="hint score-tools">${esc(T('score_tap_hint'))}</p>`;
+    if (!x) return canScore(t) ? `<p class="hint score-tools">${esc(T('score_tap_hint'))}</p>` : '';
     const { m, v } = x;
     const head = `<div class="sp-head"><b>${esc(m.a.name)}</b> <span class="muted">vs</span> <b>${esc(m.b.name)}</b>
       <button type="button" class="ghost sm icon" data-act="otScoreClose" aria-label="${esc(T('close'))}">${icon('close')}</button></div>`;
-    if (m.done) {
-      const res = m.sets ? m.sets.map((s) => s.join('-')).join(' · ') : `${m.wa}–${m.wb}`;
+    const res = () => {
+      const r = m.sets ? m.sets.map((s) => s.join('-')).join(' · ') : `${m.wa}–${m.wb}`;
       const more = [m.aet ? T('ot_aet_tag') : '', m.extra ? T('ot_pen_tag', { s: m.extra.join('-') }) : ''].filter(Boolean).join(', ');
-      return `<div class="score-panel">${head}<p class="hint">${esc(T('score_current', { s: res + (more ? ` (${more})` : '') }))}</p>
+      return `<p class="hint">${esc(T('score_current', { s: r + (more ? ` (${more})` : '') }))}</p>`;
+    };
+    // Không nhập kết quả được (người xem, hoặc giải đã kết thúc): chỉ xem – ban tổ chức vẫn sửa giờ / sân / sự kiện
+    if (!canScore(t)) {
+      const info = t.canManage ? extra(t, m) : K.otMatchView ? K.otMatchView(t, m) : '';
+      return `<div class="score-panel">${head}${m.done ? res() : ''}${info}</div>`;
+    }
+    if (m.done) {
+      return `<div class="score-panel">${head}${res()}
         <div class="row"><button type="button" class="ghost sm danger" data-act="otUndo">${esc(T('score_undo'))}</button></div>${extra(t, m)}</div>`;
     }
     const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
@@ -92,12 +103,12 @@
 
   K.binders.push((body) => {
     const t = D.ot;
-    if (K.V.page !== 'ot' || !canScore(t)) return;
-    // Bấm một trận đủ hai đội để mở khung nhập
+    if (K.V.page !== 'ot' || !canOpen(t)) return;
+    // Bấm một trận đủ hai đội: ban tổ chức (giải đang chạy) mở khung nhập; còn lại mở khung xem chi tiết
     body.querySelectorAll('.b-match[data-mid], .mrow[data-mid]').forEach((el) => {
       const x = find(t, el.dataset.mid);
       if (!x || !x.m.a || !x.m.a.uid || !x.m.b || !x.m.b.uid || x.m.bye) return;
-      el.classList.add('scorable');
+      el.classList.add(canScore(t) ? 'scorable' : 'viewable');
       el.onclick = (e) => {
         if (e.target.closest('a, button')) return;
         S.match = el.dataset.mid;

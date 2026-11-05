@@ -231,7 +231,7 @@ button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.
 .set-row input { text-align: center; height: 40px; }
 .set-row[hidden] { display: none; }
 .score-tools { flex-wrap: wrap; gap: 6px; align-items: center; }
-.b-match.scorable, .mrow.scorable { cursor: pointer; }
+.b-match.scorable, .mrow.scorable, .b-match.viewable, .mrow.viewable { cursor: pointer; }
 .b-match.scorable:hover, .mrow.scorable:hover { border-color: var(--accent); }
 .b-match small .sets, .mrow small .sets { font-variant-numeric: tabular-nums; }
 
@@ -409,3 +409,4 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .ot-desc { font-size: .92em; }
 .ot-desc ul { margin: 4px 0; padding-left: 1.3em; }
 #otf-json { width: 100%; font-family: ui-monospace, monospace; font-size: .85em; }
+table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* giải offline: miễn vòng đầu loại trực tiếp */

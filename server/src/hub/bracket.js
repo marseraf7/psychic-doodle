@@ -367,7 +367,26 @@ class Bracket {
       v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
       v.totalRounds = st.cfg.rounds;
     }
+    if (t.kind === 'otour' && adv) this.markAdvance(t, st, i, v, seedOf);
     return v;
+  }
+
+  /**
+   * Giải offline: đánh dấu đúng những người đi tiếp theo ST.advancers (gồm cả "đội xếp sau tốt nhất" – World Cup 2026),
+   * và dải được miễn vòng đầu khi giai đoạn sau là loại trực tiếp không tròn lũy thừa 2 (league phase 36 đội → 24 đội:
+   * hạng 1–8 vào thẳng vòng 1/8). Giải Caro giữ cách đánh dấu cũ (top N mỗi bảng).
+   */
+  markAdvance(t, st, i, v, seedOf) {
+    const { seeds } = ST.advancers(st, seedOf);
+    const going = new Set(seeds);
+    const next = t.stages[i + 1];
+    let byes = 0;
+    if (next && next.type === 'single' && seeds.length > 2) { let p = 2; while (p < seeds.length) p *= 2; byes = p - seeds.length; }
+    const bye = new Set(seeds.slice(0, byes));
+    const mark = (rows) => { for (const r of rows || []) { r.adv = going.has(r.uid); if (bye.has(r.uid)) r.bye = true; } };
+    if (v.groups) for (const g of v.groups) mark(g.table);
+    mark(v.table);
+    if (byes) v.byes = byes;
   }
 }
 
