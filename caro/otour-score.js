@@ -5,7 +5,8 @@
  *   'sets'   – điểm từng set (thêm / bớt set, tối đa Bo của trận), nhắc luật set của giải; kiểm luật trước khi gửi
  *              (otour-rules.js – máy chủ kiểm lại).
  *   'winner' – nút chọn người thắng (+ Hoà ở vòng tròn / Thụy Sĩ).
- * Trận đã có kết quả: hiện kết quả + nút Huỷ kết quả (nhập lại). K.otScoreHtml(t) – gọi từ otour.js.
+ * Trận đã có kết quả: hiện kết quả + nút Huỷ kết quả (nhập lại). Dưới cùng: giờ / sân / sự kiện / biên bản
+ * (otour-league.js – K.otMatchExtra). K.otScoreHtml(t) – gọi từ otour.js.
  */
 (function () {
   'use strict';
@@ -38,6 +39,8 @@
     return T('ot_set_rule', { to: r.to, by: r.by, bo }) + (r.cap ? T('ot_set_cap', { cap: r.cap }) : '') + (r.last ? T('ot_set_last', { last: r.last }) : '');
   }
   K.otRuleText = ruleText;
+  K.otCurMatch = () => S.match; // trận đang mở (otour-league.js – giờ, sân, sự kiện)
+  const extra = (t, m) => (K.otMatchExtra ? K.otMatchExtra(t, m) : '');
 
   K.otScoreHtml = (t) => {
     if (S.tour !== t.id) { S.tour = t.id; S.match = null; }
@@ -51,14 +54,14 @@
       const res = m.sets ? m.sets.map((s) => s.join('-')).join(' · ') : `${m.wa}–${m.wb}`;
       const more = [m.aet ? T('ot_aet_tag') : '', m.extra ? T('ot_pen_tag', { s: m.extra.join('-') }) : ''].filter(Boolean).join(', ');
       return `<div class="score-panel">${head}<p class="hint">${esc(T('score_current', { s: res + (more ? ` (${more})` : '') }))}</p>
-        <div class="row"><button type="button" class="ghost sm danger" data-act="otUndo">${esc(T('score_undo'))}</button></div></div>`;
+        <div class="row"><button type="button" class="ghost sm danger" data-act="otUndo">${esc(T('score_undo'))}</button></div>${extra(t, m)}</div>`;
     }
     const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
     let body;
     if (t.result === 'winner') {
       body = `<div class="row">${[m.a, m.b].map((p) => `<button type="button" class="ghost" data-act="otWin" data-uid="${esc(p.uid)}">${esc(T('score_win_for', { name: p.name }))}</button>`).join('')}
         ${elimType(v) ? '' : `<button type="button" class="ghost" data-act="otWin" data-uid="">${esc(T('draw'))}</button>`}</div>`;
-      return `<div class="score-panel">${head}${body}</div>`;
+      return `<div class="score-panel">${head}${body}${extra(t, m)}</div>`;
     }
     if (t.result === 'sets') {
       const bo = boOf(m, v);
@@ -76,7 +79,8 @@
         <label class="check"><input type="checkbox" id="ots-aet"> <span>${esc(T('ot_aet_' + ex))}</span></label>
         ${penOn(v) ? `<div class="set-row"><span class="muted">${esc(T('ot_pen'))}</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pa"><span>–</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pb"></div><p class="hint">${esc(T(elimType(v) ? 'ot_pen_hint' : 'ot_pen_hint_rr'))}</p>` : ''}`;
     }
-    return `<form class="score-panel" id="ots">${head}${body}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>`;
+    // Giờ / sân / sự kiện nằm ngoài form tỉ số (Enter trong các ô đó không lưu tỉ số)
+    return `<div class="score-panel"><form id="ots" class="score-form">${head}${body}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>${extra(t, m)}</div>`;
   };
 
   const readSets = () => { document.querySelectorAll('#ots-sets [data-set]').forEach((el) => { S.sets[el.dataset.set][el.dataset.side] = el.value; }); };

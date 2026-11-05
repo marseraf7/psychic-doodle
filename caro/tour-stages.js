@@ -47,7 +47,8 @@
   /** Giải đang vẽ (cho nút ảnh chia sẻ / đính kèm của từng trận). */
   let cur = null;
   /** Giải đấu Offline kiểu tỉ số: sau hiệp phụ, tỉ số luân lưu (kiểu set đã ghi luân lưu trong setsText). */
-  const otTags = (m) => (m.sets ? [] : [m.aet ? esc(T('ot_aet_tag')) : '', m.extra ? esc(T('ot_pen_tag', { s: m.extra.join('-') })) : ''].filter(Boolean));
+  const otTags = (m) => [...(m.sets ? [] : [m.aet ? esc(T('ot_aet_tag')) : '', m.extra ? esc(T('ot_pen_tag', { s: m.extra.join('-') })) : ''].filter(Boolean)),
+    ...(K.otMatchTags ? K.otMatchTags(m) : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js)
   /** Nút của trận: ảnh chia sẻ kết quả (trận đã xong, có hai người thật), đính kèm (tour-match-extra.js). */
   function matchTools(m) {
     const out = [];

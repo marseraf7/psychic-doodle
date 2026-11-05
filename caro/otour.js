@@ -169,6 +169,7 @@
       html += `<section class="mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
         <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
     }
+    if (K.otLeagueHtml) html += K.otLeagueHtml(t); // đăng ký đội, lịch, thống kê, đội hình (otour-league.js)
     if (K.otScoreHtml) html += K.otScoreHtml(t); // khung nhập kết quả (otour-score.js)
     if (t.podium && t.podium.length && t.status === 'finished') {
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
