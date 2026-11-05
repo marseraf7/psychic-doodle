@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { E, note } = require('../msg.js');
 const { userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
+const Race = require('./stages-race.js');
 const { normalizeTiebreaks } = require('./stages-tiebreak.js');
 
 class Bracket {
@@ -309,6 +310,8 @@ class Bracket {
       sets: m.sets || null, extra: m.extra || null, override: !!m.override, quick: !!m.quick, // tỉ số từng set (giải offline), ghi đè, chỉ báo người thắng
       ...(m.aet ? { aet: true } : {}), // giải offline: có đá hiệp phụ
       ...(ST.twoLeg(st, m) ? { legs: true } : {}), // giải offline: knock-out 2 lượt (sets = tỉ số từng lượt)
+      // Giải offline (otour-league.js): giờ đấu, sân, sự kiện trong trận
+      ...(m.when ? { when: m.when } : {}), ...(m.venue ? { venue: m.venue } : {}), ...(m.events && m.events.length ? { events: m.events } : {}),
       votes: this.voteCount(t, m), // "Ai sẽ thắng?" – số phiếu hai bên (tour-fun.js)
       att: m.att && m.att.length ? this.attView(m) : null, // đính kèm của trận (tour-opts.js)
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),
@@ -342,6 +345,10 @@ class Bracket {
   stageView(t, st, i, seedOf, table) {
     const M = (id) => this.matchView(t, st.matches[id], st);
     const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
+    if (st.type === 'race') { // giải offline: hệ Race – các chặng + bảng chung + bảng đội (stages-race.js)
+      const team = new Map((t.players || []).map((p) => [p.uid, p.team || '']));
+      return Race.raceView(st, i, adv, (u) => this.tourSide(t, u), seedOf, (u) => team.get(u) || '');
+    }
     const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
     if (st.type === 'single' || st.type === 'double') {
       // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện

@@ -2,7 +2,7 @@
  * Giải đấu Offline – giải của mọi bộ môn (docs/de-xuat-giai-offline.md), tách khỏi giải Caro nhưng dùng chung khung trang
  * giải (CaroTourKit – tour.js) và cách vẽ nhánh / bảng (tour-stages.js). Máy chủ: server/src/hub/otour*.js.
  *   Trang 'otours'  – danh sách: giải của tôi + giải công khai gần đây (khách xem được).
- *   Trang 'otNew'   – tạo giải: tên, link riêng, mô tả có định dạng, ai xem được, bộ môn (điểm / tie-break / kiểu kết quả
+ *   Trang 'otNew'   – tạo giải: mẫu giải nổi tiếng (otour-tpl.js), tên, link riêng, mô tả có định dạng, ai xem được, bộ môn (điểm / tie-break / kiểu kết quả
  *                     tự điền theo môn – otour-sports.js), luật set (kiểu điểm từng set), thể thức (trình sửa giai đoạn
  *                     của giải Caro), danh sách đội.
  *   Trang 'ot'      – trang giải: đội (thêm / xoá trước khi bắt đầu), bắt đầu, nhánh / bảng, nhập kết quả (otour-score.js).
@@ -39,6 +39,9 @@
     single: () => [SE.DEFAULT.single()], double: () => [SE.DEFAULT.double()], roundrobin: () => [SE.DEFAULT.roundrobin()],
     swiss: () => [SE.DEFAULT.swiss()], groups_single: () => [{ ...SE.DEFAULT.roundrobin(), groups: 4 }, SE.DEFAULT.single()],
     swiss_single: () => [{ ...SE.DEFAULT.swiss(), advance: 8 }, { ...SE.DEFAULT.single(), thirdPlace: false }],
+    // Hệ Race: một chặng (thứ hạng → điểm), Grand Prix nhiều chặng có bảng đội, Time Trial (thời gian)
+    race_single: () => [SE.DEFAULT.race()], grand_prix: () => [{ ...SE.DEFAULT.race(), events: 10, teams: true }],
+    time_trial: () => [{ ...SE.DEFAULT.race(), score: 'time' }],
   };
   /** Điểm / tie-break / Bo theo bộ môn cho mọi giai đoạn (đổi môn hoặc đổi thể thức). */
   function applySport(stages, sport) {
@@ -62,7 +65,7 @@
       ${r ? `${num('to', r.to, 1, 99)}${num('by', r.by, 1, 10)}${num('cap', r.cap || 0, 0, 199)}${num('last', r.last || 0, 0, 99)}<small class="hint">${esc(T('ot_set_hint'))}</small>` : `<small class="hint">${esc(T('ot_set_off_hint'))}</small>`}</fieldset>`;
   }
   function begin() {
-    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, set: null, preset: 'groups_single', teams: '' };
+    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, set: null, preset: 'groups_single', teams: '', tpl: null };
     F.stages = applySport(PRESETS.groups_single(), 'football');
   }
   function pageNew() {
@@ -73,6 +76,7 @@
     const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
     const n = d.teams.split('\n').filter((x) => x.trim()).length;
     return `<form id="otf" class="tform">
+      ${K.otTplHtml ? K.otTplHtml(d) : ''}
       <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
       <label class="field"><span>${esc(T('adv_url'))}</span><input name="slug" maxlength="20" autocomplete="off" value="${esc(d.slug)}" placeholder="cup-lang-2026"><small class="hint">${esc(T('ot_slug_hint'))}</small></label>
       <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
@@ -82,6 +86,7 @@
       <label class="field"><span>${esc(T('format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>
       <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), ext: true })}</div>
       <p class="est" id="otf-est"></p>
+      <div class="ot-desc" id="otf-desc"></div>
       <label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>
       <fieldset><legend>${esc(T('ot_access'))}</legend><div class="seg">${['public', 'link', 'private'].map((k) => `<label><input type="radio" name="access" value="${k}" ${d.access === k ? 'checked' : ''}> <span>${esc(T('ot_acc_' + k))}</span></label>`).join('')}</div></fieldset>
       <p class="hint">${esc(T('ot_quota_hint'))}</p>
@@ -99,6 +104,7 @@
     }
   }
   function showEst(f) {
+    if (K.otDescribe) K.otDescribe(F); // xem trước bằng lời (otour-tpl.js)
     const n = F.d.teams.split('\n').filter((x) => x.trim()).length;
     $('otf-n').textContent = n;
     const el = $('otf-est');
@@ -116,15 +122,23 @@
     f.addEventListener('change', (e) => {
       if (e.target.closest('#otf-stages')) return;
       collect(f);
+      // Đổi môn / mẫu thể thức: không còn theo mẫu giải nổi tiếng đã chọn (otour-tpl.js) – bỏ đánh dấu mẫu
+      if (F.d.tpl && (e.target.name === 'sport' || e.target.name === 'preset')) { F.d.tpl = null; setTimeout(() => render(true), 0); }
       if (e.target.name === 'sport') {
         F.d.result = (SP.SPORTS[F.d.sport] || SP.SPORTS.other).result; f.elements.result.value = F.d.result;
         F.d.set = sportSet(F.d.sport);
+        // Môn có mẫu thể thức riêng (đua xe → Grand Prix, chạy / bơi → Time Trial); rời môn đua thì về mẫu mặc định
+        const sp = SP.SPORTS[F.d.sport] || SP.SPORTS.other;
+        const racing = (F.stages || []).some((c) => c.type === 'race');
+        if (sp.preset || racing) { F.d.preset = sp.preset || 'groups_single'; f.elements.preset.value = F.d.preset; F.stages = PRESETS[F.d.preset](); }
         applySport(F.stages, F.d.sport); draw(); drawSet();
       }
       if (e.target.name === 'result') { if (F.d.result === 'sets' && !F.d.set) F.d.set = sportSet(F.d.sport); drawSet(); }
       if (e.target.name === 'setOn') { F.d.set = e.target.checked ? sportSet(F.d.sport) || { to: 21, by: 2, cap: 0, last: 0 } : null; drawSet(); }
       if (e.target.name === 'preset' && PRESETS[F.d.preset]) { F.stages = applySport(PRESETS[F.d.preset](), F.d.sport); draw(); }
-      if (e.target.name === 'teams') draw();
+      // Đổi danh sách đội (bắn khi ô mất focus): người dùng đang bấm sang một ô của giai đoạn thì không vẽ lại khung
+      // giai đoạn (ô vừa bấm sẽ bị thay mới, mất chữ đang gõ) – chỉ cập nhật ước tính
+      if (e.target.name === 'teams') setTimeout(() => { if (box.contains(document.activeElement)) showEst(f); else draw(); }, 0);
     });
     box.addEventListener('change', (e) => { if (SE.change(F.stages, e.target)) { F.d.preset = 'custom'; f.elements.preset.value = 'custom'; draw(); } });
     box.addEventListener('click', (e) => { const b = e.target.closest('[data-sact]'); if (b && SE.click(F.stages, b)) { F.d.preset = 'custom'; f.elements.preset.value = 'custom'; draw(); } });
@@ -138,6 +152,8 @@
     };
     showEst(f);
   }
+  // Cho thư viện mẫu giải (otour-tpl.js): đọc / sửa bản nháp form
+  K.otForm = { F, collect: () => { const f = $('otf'); if (f) collect(f); }, applySport, sportSet };
 
   // ------------------------------------------------------------ Trang giải
   function pageView() {
@@ -155,11 +171,13 @@
       html += `<section class="mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
         <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
     }
+    if (K.otLeagueHtml) html += K.otLeagueHtml(t); // đăng ký đội, lịch, thống kê, đội hình (otour-league.js)
     if (K.otScoreHtml) html += K.otScoreHtml(t); // khung nhập kết quả (otour-score.js)
     if (t.podium && t.podium.length && t.status === 'finished') {
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
     html += K.stagesHtml(t); // trước khi bắt đầu: chỉ ghi cấu hình từng giai đoạn
+    if (K.otExportHtml) html += K.otExportHtml(t); // xuất CSV / JSON (otour-export.js)
     if (t.log && t.log.length) html += K.fold('ot:' + t.id + ':log', esc(T('mg_log')), () => `<ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul>`, false);
     return html;
   }
@@ -171,6 +189,8 @@
   K.enter.otours = () => O.send({ t: 'otList' });
   K.enter.otNew = () => { if (!F.d) begin(); };
   K.enter.ot = () => { if (!D.ot || D.ot.id !== V.id) D.ot = null; O.send({ t: 'otGet', id: V.id }); };
+  // Kết nối lại (tour.js – load): tải lại trang đang mở
+  K.reload = Object.assign(K.reload || {}, { ot: K.enter.ot, otours: K.enter.otours });
   K.acts.otours = () => open('otours', null);
   K.acts.otNew = () => { F.d = null; open('otNew', null); };
   K.acts.ot = (b) => open('ot', b.dataset.id);
@@ -206,6 +226,10 @@
   });
   // Lỗi khi tạo giải: hiện ngay trong form
   O.on('error', (m) => { if (m.ctx === 'otCreate' && $('otf-err')) $('otf-err').textContent = T('srv_' + m.code, m.args || {}); });
+
+  // Mở bằng link ?o= trên máy chậm: kết nối có thể xong (tour.js đã mở trang 'ot') trước khi file này chạy – khi đó
+  // chưa ai gửi otGet. Gửi bù ngay lúc nạp.
+  if (K.isOpen() && (V.page === 'ot' || V.page === 'otours') && O.connected) { K.enter[V.page](); render(); }
 
   window.CaroOTour = { open: (id) => { K.V.stack = [{ page: 'otours', id: null }]; open('ot', id, false); }, list: () => K.top('otours') };
 })();

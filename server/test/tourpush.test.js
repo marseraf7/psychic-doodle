@@ -71,3 +71,30 @@ for (const [name, stages, n] of [
     assert.ok(r.small > r.steps / 2, `phần lớn bản vá phải nhỏ hơn nhiều so với bản đầy đủ (${r.small}/${r.steps})`);
   });
 }
+
+test('Thụy Sĩ sang vòng mới: bản vá chỉ gửi các vòng mới (roundsFrom + newRounds), không gửi lại cả giai đoạn', () => {
+  const t = fakeTour('sw64', [{ type: 'swiss', rounds: 5 }], 64);
+  let view = net(app.hub.tourShared(t));
+  let parts = viewParts(app.hub.tourShared(t));
+  let sawNew = 0, maxNew = 0;
+  while (t.status === 'running') {
+    const st = app.hub.curStage(t);
+    for (const m of ST.playable(st)) { m.wins = { [m.a]: 1, [m.b]: 0 }; app.hub.finishMatch(t, st, m, m.a); }
+    const shared = app.hub.tourShared(t);
+    const next = viewParts(shared);
+    const patch = net(diffParts(parts, next, shared));
+    for (const s of patch.stages || []) {
+      assert.ok(!s.full, 'không gửi lại cả giai đoạn Thụy Sĩ');
+      if (s.newRounds) { sawNew++; maxNew = Math.max(maxNew, JSON.stringify(patch).length); }
+    }
+    assert.ok(TourPatch.apply(view, patch));
+    // Áp lại lần nữa vẫn đúng (mọi thao tác là đặt giá trị)
+    assert.ok(TourPatch.apply(view, patch));
+    const want = net(shared);
+    view.now = want.now;
+    assert.deepStrictEqual(view, want);
+    parts = next;
+  }
+  assert.strictEqual(sawNew, 4, '4 lần sang vòng mới');
+  assert.ok(maxNew < JSON.stringify(net(app.hub.tourShared(t))).length / 2, 'bản vá vòng mới nhỏ hơn nhiều so với cả trang');
+});

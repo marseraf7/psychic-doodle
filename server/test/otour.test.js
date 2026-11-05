@@ -2,56 +2,8 @@
 // Giải đấu Offline (hub/otour.js, otour-run.js, otour-spec.js, store-otour.js)
 const test = require('node:test');
 const assert = require('node:assert');
-const WebSocket = require('ws');
-const crypto = require('crypto');
-const { start } = require('../server.js');
-const TourPatch = require('../../caro/tour-patch.js');
+const { ctx, Client, account, until, teams, real } = require('./otour-client.js');
 
-let app, url;
-test.before(async () => {
-  app = start({ port: 0, dataFile: null, msgRate: 2000, admins: ['boss'], timers: { TOUR_PUSH_MS: 20 } });
-  await new Promise((r) => app.server.on('listening', r));
-  url = `ws://127.0.0.1:${app.server.address().port}/ws`;
-});
-test.after(() => app.stop());
-
-class Client {
-  constructor() { this.msgs = []; this.waiters = []; this.ot = {}; this.patches = 0; }
-  static async open() {
-    const c = new Client();
-    c.ws = new WebSocket(url);
-    c.ws.on('message', (d) => {
-      const m = JSON.parse(d);
-      if (m.t === 'ot' && m.tour) c.ot[m.id] = structuredClone(m.tour);
-      if (m.t === 'otPatch') { assert.ok(TourPatch.apply(c.ot[m.id], structuredClone(m.patch)), 'áp bản vá được'); c.patches++; }
-      c.msgs.push(m);
-      c.waiters = c.waiters.filter((w) => !w(m));
-    });
-    await new Promise((r) => c.ws.on('open', r));
-    c.send({ t: 'hello', guestKey: crypto.randomBytes(16).toString('hex') });
-    await c.wait('welcome', undefined, 15000);
-    return c;
-  }
-  send(m) { this.ws.send(JSON.stringify(m)); }
-  wait(t, pred = () => true, ms = 3000) {
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Hết giờ chờ ' + t + ' | ' + JSON.stringify(this.msgs.filter((m) => m.t === 'error').slice(-2)))), ms);
-      this.waiters.push((m) => { if (m.t === t && pred(m)) { clearTimeout(timer); resolve(m); return true; } return false; });
-    });
-  }
-  req(m, t, pred, ms) { const p = this.wait(t, pred, ms); this.send(m); return p; }
-  close() { this.ws.close(); }
-}
-let seq = 0;
-async function account() {
-  for (const k of [...app.hub.fails.keys()]) if (k.startsWith('reg:')) app.hub.fails.delete(k);
-  const c = await Client.open();
-  await c.req({ t: 'register', username: 'ot_' + (++seq), password: 'caro-pass1' }, 'welcome', undefined, 15000);
-  return c;
-}
-const until = async (fn, ms = 3000) => { const t0 = Date.now(); while (!fn()) { if (Date.now() - t0 > ms) throw new Error('Hết giờ: ' + fn); await new Promise((r) => setTimeout(r, 10)); } };
-const teams = (n, p = 'Đội') => Array.from({ length: n }, (_, i) => `${p} ${i + 1}`);
-const real = (u) => typeof u === 'string' && u !== '-';
 
 test('Giải offline bóng đá: khách xem được (cả link riêng), riêng tư bị chặn, vòng bảng có hoà, loại trực tiếp cần luân lưu, bản vá cho người xem', async () => {
   const org = await account();
@@ -60,7 +12,7 @@ test('Giải offline bóng đá: khách xem được (cả link riêng), riêng 
   assert.strictEqual((await org.req({ t: 'otCreate', name: 'Cúp Làng', spec: { stages: [] } }, 'error')).code, 'ot_spec_stages');
   const spec = { sport: 'football', stages: [{ type: 'roundrobin', groups: 2, advance: 2 }, { type: 'single', thirdPlace: false }] };
   const { id } = await org.req({ t: 'otCreate', name: 'Cúp Làng 2026', slug: 'cup-lang', desc: '**Sân** xã', spec, teams: [...teams(8), 'Đội 1', ''] }, 'otCreated');
-  const t = app.hub.otGet(id);
+  const t = ctx.app.hub.otGet(id);
   assert.deepStrictEqual([t.players.length, t.sport, t.result, t.stages[0].points.w, t.stages[0].tiebreaks[0], t.status], [8, 'football', 'score', 3, 'gdiff', 'draft'], 'bỏ trùng tên, điểm / tie-break theo bóng đá');
   // Khách mở bằng link riêng; người xem nhận bản đầy đủ rồi bản vá
   const v = await guest.req({ t: 'otGet', id: 'cup-lang' }, 'ot');
@@ -105,7 +57,7 @@ test('Giải offline bóng đá: khách xem được (cả link riêng), riêng 
 test('Giải offline set (cầu lông) và chỉ người thắng (cờ, Thụy Sĩ); hạn mức; giới hạn số trận', async () => {
   const org = await account();
   const { id } = await org.req({ t: 'otCreate', name: 'Cầu lông phường', spec: { sport: 'badminton', stages: [{ type: 'single', thirdPlace: false }] }, teams: teams(4, 'VĐV') }, 'otCreated');
-  const t = app.hub.otGet(id);
+  const t = ctx.app.hub.otGet(id);
   assert.deepStrictEqual([t.result, t.stages[0].bestOf], ['sets', 3]);
   org.send({ t: 'otStart', id });
   await until(() => t.status === 'running');
@@ -119,7 +71,7 @@ test('Giải offline set (cầu lông) và chỉ người thắng (cờ, Thụy 
   assert.deepStrictEqual([m.winner, m.wins[m.a], m.wins[m.b]], [m.a, 2, 1]);
   // Cờ: chỉ người thắng / hoà
   const c = await org.req({ t: 'otCreate', name: 'Cờ vua CLB', spec: { sport: 'chess', stages: [{ type: 'swiss', rounds: 3 }] }, teams: teams(6, 'Kỳ thủ') }, 'otCreated');
-  const tc = app.hub.otGet(c.id);
+  const tc = ctx.app.hub.otGet(c.id);
   org.send({ t: 'otStart', id: c.id });
   await until(() => tc.status === 'running');
   const r0 = tc.st[0].rounds[0].map((x) => tc.st[0].matches[x]).filter((x) => !x.bye);
@@ -133,10 +85,10 @@ test('Giải offline set (cầu lông) và chỉ người thắng (cờ, Thụy 
   // Hạn mức: tối đa 10 giải chưa kết thúc, 20 lần tạo mỗi ngày
   for (let i = 0; i < 7; i++) await org.req({ t: 'otCreate', name: 'Giải ' + i, spec: { stages: [{ type: 'single' }] } }, 'otCreated');
   assert.strictEqual((await org.req({ t: 'otCreate', name: 'Giải 11', spec: { stages: [{ type: 'single' }] } }, 'error')).code, 'ot_active_limit');
-  const me = app.hub.store.users.get(app.hub.otGet(id).owner);
+  const me = ctx.app.hub.store.users.get(ctx.app.hub.otGet(id).owner);
   me.otDay = { d: new Date().toISOString().slice(0, 10), n: 20 };
-  app.hub.store.flush();
-  app.hub.store.db.prepare("UPDATE offline_tours SET status = 'finished' WHERE owner = ?").run(me.id);
+  ctx.app.hub.store.flush();
+  ctx.app.hub.store.db.prepare("UPDATE offline_tours SET status = 'finished' WHERE owner = ?").run(me.id);
   assert.strictEqual((await org.req({ t: 'otCreate', name: 'Giải mới', spec: { stages: [{ type: 'single' }] } }, 'error')).code, 'ot_daily_limit');
   const list = await org.req({ t: 'otList' }, 'otList');
   assert.strictEqual(list.mine.length, 10);
@@ -146,23 +98,23 @@ test('Giải offline set (cầu lông) và chỉ người thắng (cờ, Thụy 
 test('Giải offline: bỏ khỏi RAM khi lâu không ai đụng rồi nạp lại từ CSDL; xoá tài khoản thì xoá giải', async () => {
   const org = await account();
   const { id } = await org.req({ t: 'otCreate', name: 'Giải ngủ đông', slug: 'ngu-dong', spec: { stages: [{ type: 'single' }] }, teams: teams(5) }, 'otCreated');
-  app.hub.store.flush();
-  app.hub.otUsed.set(id, Date.now() - 31 * 60 * 1000);
-  app.hub.otEvict();
-  assert.ok(!app.hub.otours.has(id), 'đã bỏ khỏi RAM');
-  const t = app.hub.otGet('ngu-dong');
-  assert.ok(t && t.players.length === 5 && app.hub.otours.has(id), 'nạp lại theo link riêng');
+  ctx.app.hub.store.flush();
+  ctx.app.hub.otUsed.set(id, Date.now() - 31 * 60 * 1000);
+  ctx.app.hub.otEvict();
+  assert.ok(!ctx.app.hub.otours.has(id), 'đã bỏ khỏi RAM');
+  const t = ctx.app.hub.otGet('ngu-dong');
+  assert.ok(t && t.players.length === 5 && ctx.app.hub.otours.has(id), 'nạp lại theo link riêng');
   // Đang có người xem thì không bỏ
   const g = await Client.open();
   await g.req({ t: 'otGet', id }, 'ot');
-  app.hub.otUsed.set(id, 0);
-  app.hub.otEvict();
-  assert.ok(app.hub.otours.has(id));
+  ctx.app.hub.otUsed.set(id, 0);
+  ctx.app.hub.otEvict();
+  assert.ok(ctx.app.hub.otours.has(id));
   const uid = t.owner;
   await org.req({ t: 'deleteAccount', password: 'caro-pass1' }, 'accountDeleted');
-  assert.strictEqual(app.hub.store.loadOTour(id), null);
-  assert.ok(!app.hub.otours.has(id));
-  assert.strictEqual(app.hub.store.countActiveOTours(uid), 0);
+  assert.strictEqual(ctx.app.hub.store.loadOTour(id), null);
+  assert.ok(!ctx.app.hub.otours.has(id));
+  assert.strictEqual(ctx.app.hub.store.countActiveOTours(uid), 0);
   g.close();
 });
 
@@ -170,7 +122,7 @@ test('Giải offline theo môn: bóng chuyền 3–2 (điểm thắng / thua sá
   const org = await account();
   // Bóng chuyền: Bo5, set 25 / set quyết định 15; thắng 3–2 được 2 điểm, thua 2–3 được 1
   const { id } = await org.req({ t: 'otCreate', name: 'Bóng chuyền hè', spec: { sport: 'volleyball', stages: [{ type: 'roundrobin' }] }, teams: teams(3) }, 'otCreated');
-  const t = app.hub.otGet(id);
+  const t = ctx.app.hub.otGet(id);
   assert.deepStrictEqual([t.set, t.stages[0].points.wx, t.stages[0].points.lx, t.stages[0].tiebreaks], [{ to: 25, by: 2, cap: 0, last: 15 }, 2, 1, ['wins', 'gpct', 'ppct']]);
   org.send({ t: 'otStart', id });
   await until(() => t.status === 'running');
@@ -196,7 +148,7 @@ test('Giải offline theo môn: bóng chuyền 3–2 (điểm thắng / thua sá
   }
   // Khúc côn cầu: hoà ở vòng tròn → luân lưu, thắng / thua sát 2 – 1; hiệp phụ ghi cờ aet
   const h = await org.req({ t: 'otCreate', name: 'Khúc côn cầu', spec: { sport: 'hockey', stages: [{ type: 'roundrobin' }] }, teams: teams(2) }, 'otCreated');
-  const th = app.hub.otGet(h.id);
+  const th = ctx.app.hub.otGet(h.id);
   org.send({ t: 'otStart', id: h.id });
   await until(() => th.status === 'running');
   const hm = Object.values(th.st[0].matches).find((x) => real(x.a) && real(x.b));
@@ -210,7 +162,7 @@ test('Giải offline theo môn: bóng chuyền 3–2 (điểm thắng / thua sá
   await until(() => { const v = viewer.ot[h.id]; return v && v.stageViews[0] && JSON.stringify(v.stageViews[0]).includes('"aet":true'); });
   // Tắt luật set (set: null): chỉ kiểm số set
   const f = await org.req({ t: 'otCreate', name: 'Cầu lông vui', spec: { sport: 'badminton', set: null, stages: [{ type: 'single', thirdPlace: false }] }, teams: teams(2) }, 'otCreated');
-  const tf = app.hub.otGet(f.id);
+  const tf = ctx.app.hub.otGet(f.id);
   assert.strictEqual(tf.set, null);
   org.send({ t: 'otStart', id: f.id });
   await until(() => tf.status === 'running');
@@ -228,7 +180,7 @@ test('Giải offline thể thức mới: league phase (quốc gia) → knock-out
   const bad = await org.req({ t: 'otCreate', name: 'Cúp lệch', spec, teams: names.slice(0, 15) }, 'otCreated');
   assert.strictEqual((await org.req({ t: 'otStart', id: bad.id }, 'error')).code, 'ot_league_pots', '15 đội không chia đều 4 nhóm');
   const { id } = await org.req({ t: 'otCreate', name: 'Cúp châu lục', spec, teams: names }, 'otCreated');
-  const t = app.hub.otGet(id);
+  const t = ctx.app.hub.otGet(id);
   assert.deepStrictEqual([t.players[1].name, t.players[1].country], ['Đội 2', 'ESP'], 'tách tên đội và quốc gia');
   org.send({ t: 'otStart', id });
   await until(() => t.status === 'running');
@@ -241,7 +193,7 @@ test('Giải offline thể thức mới: league phase (quốc gia) → knock-out
   const st = t.st[1];
   const ko = () => Object.values(st.matches).find((m) => !m.done && real(m.a) && real(m.b));
   const m1 = ko();
-  assert.ok(app.hub.matchView(t, m1, st).legs, 'trận 2 lượt');
+  assert.ok(ctx.app.hub.matchView(t, m1, st).legs, 'trận 2 lượt');
   assert.strictEqual((await org.req({ t: 'otScore', id, match: m1.id, score: [1, 0] }, 'error')).code, 'tour_score_bad', 'phải nhập đủ 2 lượt');
   assert.strictEqual((await org.req({ t: 'otScore', id, match: m1.id, legs: [[1, 0], [0, 1]] }, 'error')).code, 'ot_need_pen', 'hoà tổng tỉ số cần luân lưu');
   org.send({ t: 'otScore', id, match: m1.id, legs: [[1, 0], [1, 2]], pen: [5, 4] });
@@ -249,14 +201,14 @@ test('Giải offline thể thức mới: league phase (quốc gia) → knock-out
   assert.deepStrictEqual([m1.score, m1.winner, m1.legs, m1.sets], [[2, 2], m1.a, true, [[1, 0], [1, 2]]]);
   for (let m = ko(); m; m = ko()) {
     const final = m.round === st.rounds.length - 1;
-    assert.strictEqual(!!app.hub.matchView(t, m, st).legs, !final, 'chung kết 1 trận');
+    assert.strictEqual(!!ctx.app.hub.matchView(t, m, st).legs, !final, 'chung kết 1 trận');
     org.send({ t: 'otScore', id, match: m.id, ...(final ? { score: [3, 0] } : { legs: [[2, 0], [0, 0]] }) });
     await until(() => m.done);
   }
   await until(() => t.status === 'finished');
   // Thụy Sĩ theo số thắng / thua: 8 người, 2 thắng đi tiếp / 2 thua bị loại; chỉ người thắng – không có hoà
   const c = await org.req({ t: 'otCreate', name: 'LoL mini', spec: { sport: 'esports', result: 'winner', stages: [{ type: 'swiss', record: { win: 2, lose: 2, bo: 3 }, advance: 4 }, { type: 'single' }] }, teams: teams(8, 'Team') }, 'otCreated');
-  const tc = app.hub.otGet(c.id);
+  const tc = ctx.app.hub.otGet(c.id);
   org.send({ t: 'otStart', id: c.id });
   await until(() => tc.status === 'running');
   const first = tc.st[0].matches[tc.st[0].rounds[0][0]];
@@ -272,4 +224,45 @@ test('Giải offline thể thức mới: league phase (quốc gia) → knock-out
   assert.ok(tc.st[1].entrants.every((u) => rec[u].w === 2), 'chỉ đội đủ 2 thắng vào vòng sau');
   assert.strictEqual(tc.st[1].entrants.length, 4);
   org.close();
+});
+
+test('Giải offline hệ Race: Grand Prix 2 chặng (hạng → điểm, bảng đội), huỷ chặng, kết thúc; Time Trial cho người xem', async () => {
+  const org = await account();
+  const spec = { sport: 'racing', stages: [{ type: 'race', events: 2, teams: true }] };
+  const drivers = ['Max | NED | Đỏ', 'Lando | GBR | Cam', 'Charles | MON | Đỏ', 'Oscar | AUS | Cam'];
+  const { id } = await org.req({ t: 'otCreate', name: 'Đua vui 2026', spec, teams: drivers }, 'otCreated');
+  const t = ctx.app.hub.otGet(id);
+  assert.deepStrictEqual([t.stages[0].type, t.players[0].team, t.players[0].country], ['race', 'Đỏ', 'NED']);
+  const viewer = await Client.open();
+  await viewer.req({ t: 'otGet', id }, 'ot');
+  org.send({ t: 'otStart', id });
+  await until(() => t.status === 'running');
+  const u = t.players.map((p) => p.uid);
+  assert.strictEqual((await org.req({ t: 'otRace', id, event: 0, rows: [{ uid: u[0], rank: 1 }, { uid: u[1], rank: 1 }] }, 'error')).code, 'ot_race_rank_dup');
+  assert.strictEqual((await org.req({ t: 'otRace', id, event: 5, rows: [] }, 'error')).code, 'tour_match_not_found');
+  org.send({ t: 'otRace', id, event: 0, rows: u.map((x, k) => ({ uid: x, rank: k + 1 })) });
+  await until(() => t.st[0].events[0].done);
+  assert.strictEqual((await org.req({ t: 'otRace', id, event: 0, rows: [{ uid: u[0], rank: 1 }] }, 'error')).code, 'tour_match_done');
+  org.send({ t: 'otRaceUndo', id, event: 0 });
+  await until(() => !t.st[0].events[0].done);
+  org.send({ t: 'otRace', id, event: 0, rows: u.map((x, k) => ({ uid: x, rank: k + 1 })) });
+  org.send({ t: 'otRace', id, event: 1, rows: [{ uid: u[1], rank: 1 }, { uid: u[0], rank: 2 }, { uid: u[2], rank: 3 }, { uid: u[3], dnf: true }] });
+  await until(() => t.status === 'finished');
+  assert.deepStrictEqual(t.podium, [u[0], u[1], u[2]], 'Max 43, Lando 43 (countback: 1 lần nhất mỗi người → hạt giống), Charles 30');
+  await until(() => { const v = viewer.ot[id]; return v && v.status === 'finished'; });
+  const v = viewer.ot[id].stageViews[0];
+  assert.deepStrictEqual([v.type, v.events.length, v.table[0].pts, v.teams[0].name, v.teams[0].pts], ['race', 2, 43, 'Đỏ', 43 + 30]);
+  // Time Trial: nhập thời gian (ms), người xem thấy chênh lệch
+  const tt = await org.req({ t: 'otCreate', name: 'Chạy 5 km', spec: { sport: 'running', stages: [{ type: 'race', score: 'time' }] }, teams: ['An', 'Bình', 'Chi'] }, 'otCreated');
+  const t2 = ctx.app.hub.otGet(tt.id);
+  org.send({ t: 'otStart', id: tt.id });
+  await until(() => t2.status === 'running');
+  const w = t2.players.map((p) => p.uid);
+  await viewer.req({ t: 'otGet', id: tt.id }, 'ot');
+  org.send({ t: 'otRace', id: tt.id, event: 0, rows: [{ uid: w[0], time: 1250000 }, { uid: w[1], time: 1199500 }, { uid: w[2], dnf: true }] });
+  await until(() => t2.status === 'finished');
+  await until(() => viewer.ot[tt.id] && viewer.ot[tt.id].status === 'finished');
+  const tab = viewer.ot[tt.id].stageViews[0].table;
+  assert.deepStrictEqual(tab.map((x) => [x.name, x.time, x.gap]), [['Bình', 1199500, 0], ['An', 1250000, 50500], ['Chi', null, null]]);
+  [org, viewer].forEach((c) => c.close());
 });

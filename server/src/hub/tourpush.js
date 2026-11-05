@@ -27,8 +27,12 @@ function stageParts(v) {
   };
   walk([v.rounds, v.lrounds, v.gf, v.third, (v.groups || []).map((g) => g.rounds), (v.places || []).map((p) => p.rounds)]);
   const tables = v.table ? [{ key: 't', rows: v.table }] : (v.groups || []).map((g, i) => ({ key: 'g' + i, rows: g.table }));
+  // Thụy Sĩ: khung không tính các vòng (base) + mã trận từng vòng – vòng mới chỉ gửi thêm các vòng đó (diffParts)
+  const swiss = v.type === 'swiss' && Array.isArray(v.rounds);
   return {
     skel: JSON.stringify(v, (k, x) => (isMatch(x) ? x.id : k === 'table' || k === 'done' ? null : x)),
+    base: swiss ? JSON.stringify(v, function (k, x) { return this === v && k === 'rounds' ? undefined : isMatch(x) ? x.id : k === 'table' || k === 'done' ? null : x; }) : null,
+    roundIds: swiss ? v.rounds.map((r) => r.map((m) => (m ? m.id : '')).join(',')) : null,
     done: v.done,
     matches: new Map([...matches].map(([id, m]) => [id, { obj: m, json: JSON.stringify(m) }])),
     tables: tables.map((tb) => ({ key: tb.key, order: tb.rows.map((r) => r.uid).join(','), rows: tb.rows, json: new Map(tb.rows.map((r) => [r.uid, rowJson(r)])) })),
@@ -57,11 +61,20 @@ function diffParts(prev, next, shared) {
   const stages = [];
   next.stages.forEach((st, i) => {
     const old = prev.stages[i];
-    if (!old || old.skel !== st.skel) { stages.push({ index: i, full: shared.stageViews[i] }); return; }
     const s = { index: i };
+    let fresh = null; // mã các trận thuộc vòng mới (đã gửi trong newRounds)
+    if (!old || old.skel !== st.skel) {
+      // Thụy Sĩ sang vòng mới: khung khác chỉ ở chỗ có thêm vòng phía sau → gửi các vòng từ chỉ số k (đặt lại, áp
+      // nhiều lần vẫn đúng), không gửi lại cả giai đoạn
+      const k = old && old.base && old.base === st.base && st.roundIds.length > old.roundIds.length && old.roundIds.every((r, j) => r === st.roundIds[j]) ? old.roundIds.length : -1;
+      if (k < 0) { stages.push({ index: i, full: shared.stageViews[i] }); return; }
+      s.roundsFrom = k;
+      s.newRounds = shared.stageViews[i].rounds.slice(k);
+      fresh = new Set(s.newRounds.flat().filter(Boolean).map((m) => m.id));
+    }
     if (old.done !== st.done) s.done = st.done;
     const matches = [];
-    for (const [id, m] of st.matches) if (old.matches.get(id)?.json !== m.json) matches.push(m.obj);
+    for (const [id, m] of st.matches) if (!(fresh && fresh.has(id)) && old.matches.get(id)?.json !== m.json) matches.push(m.obj);
     if (matches.length) s.matches = matches;
     const tables = [];
     st.tables.forEach((tb, j) => {

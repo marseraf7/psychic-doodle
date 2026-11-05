@@ -179,15 +179,18 @@ class OTour {
       id: t.id, kind: 'otour', name: t.name, desc: t.desc, slug: t.slug, access: t.access, status: t.status, sport: t.sport, result: t.result, set: t.set || null,
       owner: this.store.users.get(t.owner)?.name || '?', created: t.created, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
       stages: t.stages, stage: t.stage || 0, format: 'bracket', offline: true, hideSeeds: false, showStandings: true, roundLabels: true,
-      players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null, ...(p.country ? { country: p.country } : {}) })),
+      players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null, ...(p.country ? { country: p.country } : {}), ...(p.team ? { team: p.team } : {}),
+        ...(p.roster && p.roster.length ? { roster: p.roster } : {}) })), // đội hình (otour-league.js)
       // Giai đoạn đã xong không đổi nữa: dựng một lần (otMemo) – giải nhiều bảng không phải dựng lại mỗi kết quả
       stageViews: this.stageViews(t, this.otMemo.get(t)),
       podium: (t.podium || []).map(side), now: Date.now(),
+      // Đăng ký đội đang mở; thống kê cầu thủ (vua phá lưới, thẻ phạt) – otour-league.js
+      reg: t.reg && t.reg.open && t.status === 'draft' ? { open: true } : null, stats: this.otStats(t),
     };
   }
 
   otMine(t, uid) {
-    return { canManage: this.otCanManage(t, uid), log: this.otCanManage(t, uid) ? (t.log || []).slice(-50).reverse() : null, now: Date.now() };
+    return { canManage: this.otCanManage(t, uid), log: this.otCanManage(t, uid) ? (t.log || []).slice(-50).reverse() : null, now: Date.now(), ...this.otRegMine(t, uid) };
   }
 
   /** Gom cập nhật rồi gửi: người mới mở trang nhận bản đầy đủ, còn lại nhận bản vá (như giải Caro). */

@@ -3,7 +3,8 @@
  * mỗi lần có trận xong: máy chủ chỉ gửi phần đổi so với lần trước (server/src/hub/tournaments.js – tourPatch):
  *   - các trường thường (trạng thái, bục trao giải…): gửi lại cả trường;
  *   - người chơi: những người đổi (playerUpd) + thứ tự mới nếu đổi (playerOrder);
- *   - mỗi giai đoạn: cả giai đoạn nếu cấu trúc đổi (giai đoạn mới, vòng Thụy Sĩ mới…), còn lại chỉ các trận đổi
+ *   - mỗi giai đoạn: cả giai đoạn nếu cấu trúc đổi (giai đoạn mới…); Thụy Sĩ sang vòng mới chỉ gửi các vòng mới
+ *     (roundsFrom + newRounds); còn lại chỉ các trận đổi
  *     và các dòng bảng xếp hạng đổi (thứ tự bảng gửi lại nếu đổi; hạng = vị trí trong bảng).
  * Mọi thao tác đều là "đặt giá trị mới" nên áp lại nhiều lần vẫn đúng.
  * Dùng chung cho trình duyệt (window.CaroTourPatch) và kiểm thử máy chủ (require).
@@ -26,6 +27,11 @@
       const v = t.stageViews[s.index];
       if (!v) return false;
       if ('done' in s) v.done = s.done;
+      // Thụy Sĩ sang vòng mới: các vòng từ chỉ số roundsFrom (đặt lại – áp nhiều lần vẫn đúng)
+      if (s.newRounds) {
+        if (!v.rounds || v.rounds.length < s.roundsFrom) return false;
+        v.rounds = v.rounds.slice(0, s.roundsFrom).concat(s.newRounds);
+      }
       if (s.matches && s.matches.length) {
         const upd = new Map(s.matches.map((m) => [m.id, m]));
         const fix = (list) => list.map((m) => (m && upd.has(m.id) ? upd.get(m.id) : m));

@@ -364,3 +364,48 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .fun-cat { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .fun-awards { margin: 0; padding-inline-start: 1.4em; font-size: var(--fs-sm); }
 .tpl-row { flex-wrap: wrap; align-items: flex-end; gap: 6px; }
+
+/* Giải đấu Offline – hệ Race (otour-race.js) */
+.race-in input.r-v { width: 7.5em; }
+.race-in input.r-pts { width: 5.5em; }
+.race-in td { padding: 2px 4px; }
+.race-rows { padding-left: 1.6em; margin: 6px 0; }
+.race-rows li { display: flex; gap: 8px; align-items: baseline; }
+.race-rows li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.race-rows li.dnf { opacity: .6; }
+.race-form { display: flex; flex-direction: column; gap: 6px; }
+
+/* Giải đấu Offline – thư viện mẫu giải (otour-tpl.js) */
+.tpl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.tpl-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 8px; border: 1px solid var(--line, #8884); border-radius: 10px; background: transparent; color: inherit; cursor: pointer; }
+.tpl-card .ti { font-size: 1.3em; }
+.tpl-card small { opacity: .7; }
+.tpl-card.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.tpl-desc { border-left: 3px solid var(--accent); padding: 4px 10px; margin-top: 6px; }
+.tpl-desc p { margin: 0 0 6px; }
+
+/* Giải đấu Offline – kiểu MyLeague (otour-league.js): khung trận, đăng ký, đội hình, biên bản in */
+.score-form { display: flex; flex-direction: column; gap: 8px; }
+.score-form .row { justify-content: flex-end; flex-wrap: wrap; }
+.ot-mx { border-top: 1px dashed var(--line, #8885); padding-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.ot-mx .row { flex-wrap: wrap; gap: 6px; align-items: center; }
+.ot-mx input#otm-who { width: 10em; }
+.ot-mx input#otm-min { width: 5em; }
+.ot-evs { list-style: none; padding: 0; margin: 0; }
+.ot-evs li { display: flex; gap: 6px; align-items: center; }
+.ot-regs li, .ot-roster { margin: 4px 0; }
+.ot-roster ol { margin: 4px 0 6px; padding-left: 1.6em; }
+#ot-print { display: none; }
+@media print {
+  body.printing-ot > *:not(#ot-print) { display: none !important; }
+  body.printing-ot #ot-print { display: block; color: #000; background: #fff; font: 12pt/1.4 serif; }
+  #ot-print .ps-teams { display: flex; gap: 24px; }
+  #ot-print .ps-team { flex: 1; }
+  #ot-print table { width: 100%; border-collapse: collapse; }
+  #ot-print td { border: 1px solid #000; padding: 2px 6px; }
+  #ot-print .ps-sign { display: flex; justify-content: space-between; margin-top: 48px; }
+  #ot-print .ps-sign div { width: 30%; border-top: 1px solid #000; text-align: center; padding-top: 4px; }
+}
+.ot-desc { font-size: .92em; }
+.ot-desc ul { margin: 4px 0; padding-left: 1.3em; }
+#otf-json { width: 100%; font-family: ui-monospace, monospace; font-size: .85em; }
