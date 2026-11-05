@@ -47,7 +47,9 @@ test('Time Trial chia lượt: nhập từng lượt, gộp xếp theo thời gi
   assert.deepStrictEqual(v.table.slice(0, 2).map((x) => x.uid), [h1[0], h0[0]], 'gộp hai lượt: xếp theo thời gian');
   assert.strictEqual(v.events[0].heats.length, 2);
   assert.strictEqual(v.events[0].heats[1].rows[0].uid, h1[0]);
-  assert.deepStrictEqual(v.events[0].heats[0].uids, h0, 'lượt gửi mã người (tên tra ở entrants)');
+  assert.ok(!('uids' in v.events[0].heats[0]), 'không gửi người trong lượt (trình duyệt tự tính)');
+  const RU = require('../../caro/otour-rules.js');
+  assert.deepStrictEqual(RU.heatsOf(v.entrants.map((p) => p.uid), cfg.heat, 0), [h0, h1], 'trình duyệt tính lại đúng như máy chủ');
   R.undoHeat(st, 0, 1);
   assert.ok(!ev.done && !st.done && ev.heats[0].done && !ev.heats[1].done, 'huỷ lượt 2: lượt 1 giữ nguyên');
   // Điểm: hạng tối đa = số người trong lượt

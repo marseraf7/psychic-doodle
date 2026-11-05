@@ -17,6 +17,8 @@
  */
 'use strict';
 
+const RU = require('../../../caro/otour-rules.js');
+
 const SCORES = ['points', 'time'];
 const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const MAX_EVENTS = 30;
@@ -47,20 +49,8 @@ function normalizeRace(c, last) {
   return out;
 }
 
-/**
- * Chia list (theo hạt giống) thành các lượt tối đa `size` người, đều nhau (chênh nhau tối đa 1 người). Mỗi "hàng" k người
- * liên tiếp chia cho k lượt: chặng đầu kiểu rắn (1→k, k→1…) cho sức các lượt cân bằng; chặng sau xoay hàng thứ r đi r × i
- * lượt để người thi gặp đối thủ khác.
- */
-function heatsFor(list, size, i) {
-  const k = Math.ceil(list.length / size);
-  const hs = Array.from({ length: k }, () => []);
-  list.forEach((u, j) => {
-    const r = Math.floor(j / k), c = j % k;
-    hs[i === 0 ? (r % 2 ? k - 1 - c : c) : (c + r * i) % k].push(u);
-  });
-  return hs.map((uids) => ({ uids, done: false, rows: null }));
-}
+/** Các lượt của chặng i (hàm chia dùng chung với trình duyệt: caro/otour-rules.js – heatsOf). */
+const heatsFor = (list, size, i) => RU.heatsOf(list, size, i).map((uids) => ({ uids, done: false, rows: null }));
 
 /** Dựng giai đoạn: các chặng trống (st.matches rỗng – race không có trận đối đầu); đoàn đông hơn cfg.heat thì chia lượt. */
 function buildRace(st) {
@@ -185,8 +175,9 @@ function raceTable(st, seedOf) {
  */
 function raceView(st, i, adv, side, seedOf, teamOf = () => '') {
   const cfg = st.cfg, pts = cfg.score === 'points';
-  // Chia lượt: từng lượt (mã người trong lượt – tên tra ở entrants; đã nhập thì các dòng theo thứ tự về đích của lượt)
-  const heatsOf = (ev) => (ev.heats ? { heats: ev.heats.map((x, h) => ({ h, done: x.done, uids: x.uids, ...(x.done ? { rows: rowsOf(x) } : {}) })) } : {});
+  // Chia lượt: từng lượt – chỉ trạng thái + kết quả; người trong lượt trình duyệt tự tính (RU.heatsOf, cùng thứ tự entrants)
+  // – không gửi lại danh sách mọi lượt của mọi chặng mỗi lần cập nhật (đoàn 512 người × 30 chặng ≈ 200 KB)
+  const heatsOf = (ev) => (ev.heats ? { heats: ev.heats.map((x, h) => ({ h, done: x.done, ...(x.done ? { rows: rowsOf(x) } : {}) })) } : {});
   const rowsOf = (ev) => {
     const order = eventOrder(st, ev);
     const lead = order[0] && !order[0].dnf ? order[0].time : null;

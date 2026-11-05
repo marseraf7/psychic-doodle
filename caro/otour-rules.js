@@ -104,7 +104,23 @@
   /** Chênh lệch "+0.512", "+1:02.300". */
   const fmtGap = (ms) => (Number.isFinite(ms) && ms > 0 ? '+' + fmtTime(ms) : '');
 
-  const api = { cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, MAX_TIME };
+  /**
+   * Hệ Race chia lượt (heat): chia list (mã người theo hạt giống) thành các lượt tối đa `size` người, đều nhau (chênh nhau
+   * tối đa 1 người). Mỗi "hàng" k người liên tiếp chia cho k lượt: chặng đầu (i = 0) kiểu rắn (1→k, k→1…) cho sức các lượt
+   * cân bằng; chặng sau xoay hàng thứ r đi r × i lượt để người thi gặp đối thủ khác. Hàm thuần – máy chủ dựng lượt
+   * (stages-race.js), trình duyệt tự tính lại người trong từng lượt (otour-race.js) thay vì nhận cả danh sách mỗi lần cập nhật.
+   */
+  function heatsOf(list, size, i) {
+    const k = Math.ceil(list.length / size);
+    const hs = Array.from({ length: k }, () => []);
+    list.forEach((u, j) => {
+      const r = Math.floor(j / k), c = j % k;
+      hs[i === 0 ? (r % 2 ? k - 1 - c : c) : (c + r * i) % k].push(u);
+    });
+    return hs;
+  }
+
+  const api = { cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, MAX_TIME, heatsOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourRules = api;
 })(typeof window !== 'undefined' ? window : globalThis);

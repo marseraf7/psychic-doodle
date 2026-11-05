@@ -181,6 +181,11 @@ test('otour-ai-call: Muse / OpenAI kiểu Chat Completions (đúng địa chỉ,
   const make = () => ({ beta: { messages: { create: async (p) => { reqs.push(p); return { stop_reason: 'end_turn', content: [{ type: 'text', text: 'T' }] }; } } } });
   assert.strictEqual((await callAi({ ...base, provider: 'anthropic', key: 'sk-ant', model: 'claude-opus-5-5' }, { anthropic: make })).text, 'T');
   assert.deepStrictEqual([reqs[0].fallbacks, reqs[0].betas[0], reqs[0].output_config.format.type, reqs[0].system[0].cache_control.type], ['default', 'server-side-fallback-2026-07-01', 'json_schema', 'ephemeral']);
+  // Model đời cũ người dùng tự chọn: không gửi fallbacks / effort (API sẽ trả 400)
+  await callAi({ ...base, provider: 'anthropic', key: 'sk-ant', model: 'claude-haiku-4-5' }, { anthropic: make });
+  assert.ok(!('fallbacks' in reqs[1]) && !('betas' in reqs[1]) && !('effort' in reqs[1].output_config) && reqs[1].output_config.format, 'model cũ: chỉ structured outputs');
+  await callAi({ ...base, provider: 'anthropic', key: 'sk-ant', model: 'claude-sonnet-4-6' }, { anthropic: make });
+  assert.ok(!('fallbacks' in reqs[2]) && reqs[2].output_config.effort === 'medium', 'Sonnet 4.6: có effort, không fallbacks');
   const refuse = () => ({ beta: { messages: { create: async () => ({ stop_reason: 'refusal', content: [] }) } } });
   assert.strictEqual((await callAi({ ...base, provider: 'anthropic', key: 'k', model: 'm' }, { anthropic: refuse })).refused, true);
   const boom = () => ({ beta: { messages: { create: async () => { const e = new Error('x'); e.status = 403; throw e; } } } });

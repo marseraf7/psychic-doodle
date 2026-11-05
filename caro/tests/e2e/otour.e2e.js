@@ -27,7 +27,7 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   await boss.$eval('#otf textarea[name=teams]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(150);
   ok(/4 trận/.test(await boss.textContent('#otf-est')), 'Ước tính: 4 người loại trực tiếp + tranh hạng ba = 4 trận');
   await shot(boss, 'ot-new.png');
-  await boss.click('#otf button.primary'); await sleep(800);
+  await boss.click('#otf button.primary.wide'); await sleep(800);
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   const t = app.hub.otGet(id);
   ok(t && t.sport === 'badminton' && t.players.length === 4 && t.slug === 'cau-long-phuong', 'Tạo giải: 4 người, link riêng');

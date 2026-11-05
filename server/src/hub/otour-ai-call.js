@@ -14,6 +14,9 @@
 const { PROVIDERS } = require('../../../caro/otour-ai-providers.js');
 
 const TIMEOUT = 90000;
+// Model Claude nhận fallbacks: "default" (Fable 5.x, Opus 5.x, Sonnet 5.5) / nhận output_config.effort (đời 4.5 trở lên)
+const FALLBACK_MODELS = /^claude-(fable-5|opus-5|sonnet-5-5)/;
+const EFFORT_MODELS = /^claude-(fable-|mythos-|opus-5|opus-4-[5-9]|sonnet-5|sonnet-4-6|haiku-5)/;
 const MAX_OUT = 8000;
 
 class AiError extends Error {
@@ -63,13 +66,14 @@ async function callAnthropic({ key, model, system, messages, schema, own }, make
   const client = make ? make(key) : anthropicClient(key, own);
   let res;
   try {
+    // Người dùng có thể chọn model Claude đời cũ: chỉ gửi fallbacks / effort cho model nhận chúng (không thì API trả 400)
+    const fb = FALLBACK_MODELS.test(model), eff = EFFORT_MODELS.test(model);
     res = await client.beta.messages.create({
       model,
       max_tokens: MAX_OUT,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default', // bộ lọc an toàn từ chối thì chạy lại trên model dự phòng Anthropic khuyên dùng
+      ...(fb ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' } : {}), // bị bộ lọc an toàn từ chối: chạy lại trên model dự phòng
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      output_config: { effort: process.env.OTOUR_AI_EFFORT || 'medium', format: { type: 'json_schema', schema } },
+      output_config: { ...(eff ? { effort: process.env.OTOUR_AI_EFFORT || 'medium' } : {}), format: { type: 'json_schema', schema } },
       messages,
     });
   } catch (e) { throw new AiError((e && e.status) || 0); }

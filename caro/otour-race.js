@@ -51,7 +51,7 @@
   function eventForm(t, v, i, h) {
     const pts = v.cfg.score !== 'time', key = dkey(t, v, i) + (h != null ? ':h' + h : ''), d = S.draft[key] || {};
     const names = new Map(v.entrants.map((p) => [p.uid, p]));
-    const members = h != null ? v.events[i].heats[h].uids.map((u) => names.get(u) || { uid: u, name: '?' }) : v.entrants;
+    const members = h != null ? heatUids(v, i)[h].map((u) => names.get(u) || { uid: u, name: '?' }) : v.entrants;
     const rows = members.map((p) => {
       const x = d[p.uid] || {};
       return `<tr data-uid="${esc(p.uid)}"><td class="nm">${esc(p.name)}</td>
@@ -67,12 +67,15 @@
   }
 
   /** Chặng chia lượt: kết quả gộp (khi đủ các lượt) + từng lượt (người trong lượt, khung nhập hoặc kết quả). */
+  /** Người trong từng lượt của chặng i – tự tính như máy chủ (RU.heatsOf, cùng thứ tự entrants); máy chủ không gửi danh sách. */
+  const heatUids = (v, i) => RU.heatsOf(v.entrants.map((p) => p.uid), v.cfg.heat, i);
   function heatsHtml(t, v, ev, can, undo) {
     const names = new Map(v.entrants.map((p) => [p.uid, p.name]));
+    const hs = heatUids(v, ev.i);
     const all = ev.done ? `<h6>${esc(T('race_heats_all'))}</h6>${eventResult(v, ev)}` : '';
-    return all + ev.heats.map((x) => `<div class="race-heat"><h6>${esc(T('race_heat_n', { n: x.h + 1 }))} ${x.done ? icon('check', 'ok') : `<small class="muted">${esc(T('race_heat_size', { n: x.uids.length }))}</small>`}</h6>${
+    return all + ev.heats.map((x) => `<div class="race-heat"><h6>${esc(T('race_heat_n', { n: x.h + 1 }))} ${x.done ? icon('check', 'ok') : `<small class="muted">${esc(T('race_heat_size', { n: (hs[x.h] || []).length }))}</small>`}</h6>${
       x.done ? eventResult(v, x) + undo(x.h) : can ? eventForm(t, v, ev.i, x.h)
-        : `<p class="hint">${esc(T('race_wait'))}</p><p class="muted race-who">${x.uids.map((u) => esc(names.get(u) || '?')).join(', ')}</p>`}</div>`).join('');
+        : `<p class="hint">${esc(T('race_wait'))}</p><p class="muted race-who">${(hs[x.h] || []).map((u) => esc(names.get(u) || '?')).join(', ')}</p>`}</div>`).join('');
   }
 
   K.raceHtml = (t, v) => {
