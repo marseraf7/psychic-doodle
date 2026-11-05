@@ -35,7 +35,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('[data-act="bulkAdd"]'); await sleep(500);
   t = await tour(boss);
   ok(t.players.length === 4, 'Dán 6 dòng (1 dòng trống, 1 tên trùng): thêm đúng 4 người – ' + t.players.map((p) => p.name).join(', '));
-  ok(/Đã thêm 4/.test(await boss.textContent('.bulk-res')) && /Đã có trong giải 1/.test(await boss.textContent('.bulk-res')), 'Báo kết quả: đã thêm 4, trùng 1');
+  ok(/Đã thêm \(4\)/.test(await boss.textContent('.bulk-res')) && /Đã có trong giải \(1\)/.test(await boss.textContent('.bulk-res')), 'Báo kết quả: đã thêm 4, trùng 1');
   ok(await boss.$eval('#bulk-names', (e) => e.value) === '', 'Thêm xong: ô dán được xoá');
   // Tệp CSV: đọc cột đầu, bỏ dòng tiêu đề
   const names = await boss.evaluate(() => window.CaroTourKit.regCsvNames('Tên người chơi,Lớp\r\n"Võ Em",10A\nĐỗ Phương;11B\n'));
@@ -109,7 +109,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.fill('#ta input[name=minRating]', '1300');
   await boss.fill('#ta input[name=maxRating]', '1100');
   await boss.click('.ta-foot button.primary'); await sleep(300);
-  ok(/Elo tối đa phải/.test(await boss.textContent('#ta-err')), 'Elo tối đa < tối thiểu: báo lỗi ngay');
+  ok(/Elo tối đa không được nhỏ hơn/.test(await boss.textContent('#ta-err')), 'Elo tối đa < tối thiểu: báo lỗi ngay');
   await boss.fill('#ta input[name=minRating]', '');
   await boss.fill('#ta input[name=maxRating]', '');
   await boss.click('.ta-foot button.primary'); await sleep(800);

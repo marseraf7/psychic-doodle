@@ -10,19 +10,19 @@
   // ================================================================ Tiếng Việt
   X('vi', {
     st_progress: 'Tiến độ giải', st_matches: 'Trận đã xong', st_sets: 'Set đã đấu', st_games: 'Ván đã đấu',
-    st_live: 'Đang đấu', st_draws: 'Trận hoà', st_walkovers: 'Xử thắng',
+    st_live: 'Đang đấu', st_draws: 'Trận hoà', st_walkovers: 'Trận xử thắng',
     bv_zoom_out: 'Thu nhỏ', bv_zoom_reset: 'Về cỡ gốc', bv_zoom_in: 'Phóng to', bv_full: 'Toàn màn hình', bv_png: 'Tải ảnh PNG',
-    col_form: 'Phong độ', col_form_t: '5 trận gần nhất (cũ → mới)',
+    col_form: 'Phong độ', col_form_t: '5 trận gần nhất (cũ đến mới)',
     form_W: 'Thắng', form_D: 'Hoà', form_L: 'Thua', form_W1: 'T', form_D1: 'H', form_L1: 'B',
     embed_open: 'Xem trên Caro x Gomoku', embed_loading: 'Đang tải…', embed_not_found: 'Không tìm thấy giải, hoặc giải không công khai.',
     embed_retry: 'Mất kết nối, đang thử lại…', embed_updated: 'Cập nhật {t}',
     mg_embed: 'Nhúng vào website',
-    mg_embed_hint: 'Dán mã này vào trang web (WordPress, Blogger, Google Sites…) để hiện giải; trang nhúng tự cập nhật khi có kết quả mới.',
-    mg_embed_view: 'Hiện', mg_embed_bracket: 'Nhánh đấu / bảng đấu', mg_embed_standings: 'Bảng xếp hạng', mg_embed_players: 'Người chơi',
+    mg_embed_hint: 'Dán mã này vào trang web (WordPress, Blogger, Google Sites…) để hiện giải. Phần nhúng tự cập nhật khi có kết quả mới.',
+    mg_embed_view: 'Hiện', mg_embed_bracket: 'Nhánh đấu và bảng đấu', mg_embed_standings: 'Bảng xếp hạng', mg_embed_players: 'Người chơi',
     mg_embed_theme: 'Giao diện', mg_embed_auto: 'Theo máy người xem', mg_embed_light: 'Sáng', mg_embed_dark: 'Tối',
-    mg_embed_code: 'Mã nhúng', mg_embed_json: 'Dữ liệu JSON (cho lập trình viên)', mg_embed_copy: 'Chép', mg_embed_copied: 'Đã chép',
-    mg_embed_private: 'Giải riêng tư / chỉ thành viên CLB thì không nhúng được (đổi ở Cài đặt → Hiển thị & quyền xem).',
-    mg_embed_wait: 'Nhúng được sau khi giải được duyệt.',
+    mg_embed_code: 'Mã nhúng', mg_embed_json: 'Dữ liệu JSON (cho lập trình viên)', mg_embed_copy: 'Sao chép', mg_embed_copied: 'Đã sao chép',
+    mg_embed_private: 'Giải riêng tư hoặc chỉ dành cho thành viên CLB thì không nhúng được (đổi ở Cài đặt, mục Hiển thị và quyền xem).',
+    mg_embed_wait: 'Giải được duyệt rồi mới nhúng được.',
   });
 
   // ================================================================ English

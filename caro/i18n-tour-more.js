@@ -9,17 +9,17 @@
 
   // ================================================================ Tiếng Việt
   X('vi', {
-    tadv_tab_access: 'Quyền & hiển thị', tadv_tab_notify: 'Thông báo', tadv_tab_misc: 'Khác',
-    tadv_help_notify: 'Khi nào báo cho người chơi (chuông thông báo trong app).', tadv_help_misc: 'Những mục người xem thấy trên trang giải. Ban tổ chức luôn thấy đủ.',
+    tadv_tab_access: 'Hiển thị và quyền xem', tadv_tab_notify: 'Thông báo', tadv_tab_misc: 'Khác',
+    tadv_help_notify: 'Khi nào thì báo cho người chơi (qua chuông thông báo trong ứng dụng).', tadv_help_misc: 'Những mục người xem thấy trên trang giải. Ban tổ chức luôn thấy đầy đủ.',
     adv_self_report: 'Cho người chơi có tài khoản tự báo tỉ số trận của mình',
-    adv_self_report_hint: 'Giải offline: thêm người chơi bằng dòng "@tên_đăng_nhập" ở Thêm người chơi. Ban tổ chức vẫn sửa / huỷ được kết quả.',
-    adv_admins: 'Chia sẻ quyền quản trị giải', adv_admins_hint: 'Tên đăng nhập, cách nhau dấu phẩy (tối đa 10). Họ thành đồng ban tổ chức đủ quyền.',
-    adv_admins_edit: 'Thêm / bớt đồng ban tổ chức ở tab Quản lý → Ban tổ chức.',
-    adv_notify_match: 'Báo người chơi khi tới trận của họ', adv_notify_match_hint: 'Giải offline: báo người chơi có tài khoản khi trận đã đủ hai người.',
-    adv_notify_results: 'Gửi kết quả khi giải kết thúc', adv_notify_results_hint: 'Vào chuông thông báo của người chơi; ai đang offline nhận khi vào lại.',
+    adv_self_report_hint: 'Với giải ngoài đời: thêm người chơi bằng dòng "@tên_đăng_nhập" ở mục Thêm người chơi. Ban tổ chức vẫn sửa hoặc huỷ được kết quả.',
+    adv_admins: 'Chia sẻ quyền quản trị giải', adv_admins_hint: 'Các tên đăng nhập, cách nhau bằng dấu phẩy (tối đa 10). Những người này cùng tổ chức giải với đủ quyền.',
+    adv_admins_edit: 'Thêm hoặc bớt người cùng tổ chức ở tab Quản lý, mục Ban tổ chức.',
+    adv_notify_match: 'Báo cho người chơi khi đến trận của họ', adv_notify_match_hint: 'Với giải ngoài đời: báo cho người chơi có tài khoản khi trận đã có đủ hai người.',
+    adv_notify_results: 'Gửi kết quả khi giải kết thúc', adv_notify_results_hint: 'Gửi vào chuông thông báo của người chơi; ai đang không trực tuyến sẽ nhận khi vào lại.',
     adv_show_news: 'Hiện mục Thông báo với người xem', adv_show_standings: 'Hiện bảng xếp hạng với người xem',
-    score_self_hint: 'Bạn đang tự báo tỉ số trận của mình – hãy nhập đúng; ban tổ chức xem được và sửa nếu cần.',
-    nt_tour_match: '{name}: tới trận của bạn – gặp {opp}', nt_tour_place: '{name} đã kết thúc – bạn xếp hạng {n}', nt_tour_done: '{name} đã kết thúc – vô địch: {winner}',
+    score_self_hint: 'Bạn đang tự báo tỉ số trận của mình, hãy nhập đúng. Ban tổ chức xem được và sẽ sửa nếu cần.',
+    nt_tour_match: '{name}: đến trận của bạn, gặp {opp}', nt_tour_place: '{name} đã kết thúc. Bạn xếp hạng {n}', nt_tour_done: '{name} đã kết thúc. Vô địch: {winner}',
     log_self_score: 'Người chơi tự báo tỉ số {a} – {b}: {s}',
   });
 

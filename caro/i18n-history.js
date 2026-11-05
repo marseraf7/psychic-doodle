@@ -25,7 +25,7 @@
     hist_vis_saved: 'Game history: {v}',
     hist_hidden: "{name}'s game history is not public.",
     hist_more: 'Load more',
-    hist_analyze: 'Analyse',
+    hist_analyze: 'Analyze',
     hist_open: 'Game history',
   });
   I.extend('ru', {

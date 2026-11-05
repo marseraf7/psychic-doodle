@@ -136,7 +136,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('.ta-foot button.primary'); await sleep(800);
   const t2 = await boss.evaluate(() => window.CaroTourKit.D.tour);
   ok(t2 && String(t2.stages[0].places) === '3,5,7' && t2.stages[0].boFinal === 5 && t2.noShowMin === 5, 'Máy chủ nhận: trận xếp hạng (3–4, 5–6, 7–8), chung kết Bo5, chờ vắng mặt 5 phút');
-  ok(/xếp hạng đủ/.test(await boss.textContent('#tour-body')), 'Trang giải ghi "xếp hạng đủ" ở thể thức');
+  ok(/đấu đủ các hạng/.test(await boss.textContent('#tour-body')), 'Trang giải ghi "xếp hạng đủ" ở thể thức');
   // Nhánh thắng – thua: chung kết tổng 3 kiểu + split; vòng tròn: xếp theo + tie-break
   await openNew(boss);
   await boss.fill('#tf input[name=name]', 'Cúp Hai Nhánh');
@@ -157,7 +157,7 @@ const { setup, sleep } = require('./helpers.js');
   const tbs = await boss.$$eval('#ta-stages .tb-list .tb-crit', (x) => x.map((e) => e.textContent));
   const left = await boss.$$eval('#ta-stages [data-i="0"][data-k="tbAdd"] option', (x) => x.map((e) => e.value));
   ok(tbs.filter((x) => x === 'Median-Buchholz').length === 1 && !left.includes('mbh'), 'Chỉ số phụ không trùng nhau – ' + tbs.join(','));
-  ok(/không chung kết tổng/.test(await boss.textContent('#ta-stages .flow')) && /split/.test(await boss.textContent('#ta-stages .flow')), 'Chuỗi giai đoạn ghi "không chung kết tổng", "split"');
+  ok(/không chung kết tổng/.test(await boss.textContent('#ta-stages .flow')) && /chia đôi/.test(await boss.textContent('#ta-stages .flow')), 'Chuỗi giai đoạn ghi "không chung kết tổng", "split"');
   await shot(boss, 'tadv-stage-more.png');
   await boss.click('.ta-tab[data-tab="reg"]'); await sleep(80);
   await boss.uncheck('#ta input[name=checkin]');

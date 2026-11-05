@@ -148,7 +148,7 @@
       you_timeout: 'You ran out of time',
       you: 'You',
       board_style: 'Board',
-      board_color: 'Board colour',
+      board_color: 'Board color',
       board_paper: 'Paper (follows theme)',
       board_wood: 'Wood',
       board_green: 'Green',

@@ -81,7 +81,7 @@ const { setup, sleep } = require('./helpers.js');
   ok(/Phòng 204/.test(await boss.textContent('.bracket')), 'Nhánh đấu hiện giờ / địa điểm vòng 1');
   // Tạm dừng / chơi tiếp / đặt lại
   await manageTab();
-  ok(/chỉ còn sửa được tên/.test(await boss.textContent('#tour-body')), 'Đang đấu: cài đặt chỉ còn tên và giới thiệu');
+  ok(/chỉ sửa được tên và giới thiệu/.test(await boss.textContent('#tour-body')), 'Đang đấu: cài đặt chỉ còn tên và giới thiệu');
   await boss.click('[data-act="mgHold"][data-v="1"]'); await sleep(400);
   ok((await tour()).held, 'Tạm dừng giải');
   await viewTab();
@@ -92,7 +92,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('[data-act="mgReset"]'); await sleep(600);
   ok((await tour()).status === 'scheduled', 'Đặt lại: giải về trước khi bắt đầu');
   const log = await boss.textContent('.mg-log');
-  ok(/Tạo giải/.test(log) && /Thêm 4 người chơi/.test(log) && /Xếp hạt giống thủ công/.test(log) && /Đặt lại giải/.test(log), 'Nhật ký ghi đủ: tạo, thêm người, hạt giống, đặt lại');
+  ok(/Tạo giải/.test(log) && /Thêm 4 người chơi/.test(log) && /Tự xếp hạt giống/.test(log) && /Đặt lại giải/.test(log), 'Nhật ký ghi đủ: tạo, thêm người, hạt giống, đặt lại');
   await shot(boss, 'manage-log.png');
   // Xoá (gõ đúng tên)
   const id = (await tour()).id;

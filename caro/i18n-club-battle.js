@@ -9,7 +9,7 @@
 
   // ================================================================ Tiếng Việt
   X('vi', {
-    tb_title: 'Đấu đồng đội giữa các CLB (Team Battle)', tb_rule: 'Điểm mỗi CLB = tổng điểm {n} người cao điểm nhất. Không gặp người cùng CLB.',
+    tb_title: 'Đấu đồng đội giữa các CLB (Team Battle)', tbt_rule: 'Điểm mỗi CLB là tổng điểm của {n} thành viên cao điểm nhất. Không phải gặp người cùng CLB.',
     tb_players_n: '{n} người', tb_pick: 'Thi đấu cho CLB', tb_on: 'Bật Team Battle', tb_top: 'Số người tính điểm mỗi CLB',
     tb_on_hint: 'Chọn ít nhất 2 CLB. Chỉ thành viên các CLB này được tham gia; bạn cần quyền Giải đấu ở ít nhất một CLB.',
     tm_board_n: 'Bàn {n}', tm_boards_n: '{n} bàn', tm_accepted: 'Hai CLB đã đồng ý – ban quản lý mỗi bên xếp đội hình trước giờ đấu',
@@ -30,7 +30,7 @@
 
   // ================================================================ English
   X('en', {
-    tb_title: 'Team Battle between clubs', tb_rule: 'Each club scores the sum of its top {n} players. You never meet a clubmate.',
+    tb_title: 'Team Battle between clubs', tbt_rule: 'Each club scores the sum of its top {n} players. You never meet a clubmate.',
     tb_players_n: '{n} players', tb_pick: 'Play for club', tb_on: 'Enable Team Battle', tb_top: 'Scoring players per club',
     tb_on_hint: 'Pick at least 2 clubs. Only members of these clubs can join; you need the Tournaments permission in at least one of them.',
     tm_board_n: 'Board {n}', tm_boards_n: '{n} boards', tm_accepted: 'Both clubs agreed – officers on each side set their lineup before the start',
@@ -51,7 +51,7 @@
 
   // ================================================================ Русский
   X('ru', {
-    tb_title: 'Командная битва клубов', tb_rule: 'Очки клуба – сумма {n} лучших игроков. Одноклубники друг с другом не играют.',
+    tb_title: 'Командная битва клубов', tbt_rule: 'Очки клуба – сумма {n} лучших игроков. Одноклубники друг с другом не играют.',
     tb_players_n: 'игроков: {n}', tb_pick: 'Играть за клуб', tb_on: 'Включить командную битву', tb_top: 'Зачётных игроков в клубе',
     tb_on_hint: 'Выберите не менее 2 клубов. Участвовать могут только их члены; нужно право «Турниры» хотя бы в одном из них.',
     tm_board_n: 'Доска {n}', tm_boards_n: 'досок: {n}', tm_accepted: 'Оба клуба согласны – руководители расставляют составы до начала',
@@ -72,7 +72,7 @@
 
   // ================================================================ 中文
   X('zh', {
-    tb_title: '俱乐部团体战', tb_rule: '每个俱乐部得分 = 前 {n} 名成员得分之和。不会与同俱乐部成员对局。',
+    tb_title: '俱乐部团体战', tbt_rule: '每个俱乐部得分 = 前 {n} 名成员得分之和。不会与同俱乐部成员对局。',
     tb_players_n: '{n} 人', tb_pick: '代表俱乐部', tb_on: '开启团体战', tb_top: '每个俱乐部计分人数',
     tb_on_hint: '至少选择 2 个俱乐部。仅这些俱乐部的成员可以参加；你需要在其中至少一个俱乐部拥有“赛事”权限。',
     tm_board_n: '第 {n} 台', tm_boards_n: '{n} 台', tm_accepted: '双方俱乐部已同意——各方管理员在开赛前排定阵容',

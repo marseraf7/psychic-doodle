@@ -39,7 +39,7 @@ test('describeSpec: mọi mẫu giải mô tả được bằng lời (đủ chu
   }
   assert.deepStrictEqual([...missing], [], 'đủ chuỗi dịch');
   const cl = IO.describeSpec(Spec.normalizeSpec(TP.specOf(TP.byId('champions_league'), SPORTS)), T('vi'));
-  assert.match(cl.join(' | '), /league phase: mỗi đội 8 trận, 4 nhóm hạt giống/);
+  assert.match(cl.join(' | '), /vòng phân hạng: mỗi đội 8 trận, 4 nhóm hạt giống/);
   assert.match(cl.join(' | '), /24 đội đi tiếp/);
   assert.match(cl.join(' | '), /2 lượt/);
   // Đọc cấu hình: đúng / sai JSON / sai hình dạng / thể thức lạ; nhận cả { spec }

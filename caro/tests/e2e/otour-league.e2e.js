@@ -66,7 +66,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.selectOption('#ot-disc select[name=red]', '2');
   await boss.click('#ot-disc button'); await sleep(600);
   ok(t.disc && t.disc.red === 2 && await boss.$$eval('.ot-susp-list li', (x) => x.length) === 2, 'Đổi luật: thẻ đỏ nghỉ 2 trận → 2 án');
-  ok(/chưa bốc thăm/.test(await boss.textContent('.ot-susp-list')), 'Loại trực tiếp: trận kế tiếp chưa có → "trận tới"');
+  ok(/chưa có đối thủ/.test(await boss.textContent('.ot-susp-list')), 'Loại trực tiếp: trận kế tiếp chưa có → "trận tới"');
   // Đội thắng trận này → trận kế tiếp có rồi: án rơi vào trận đó
   await boss.evaluate(([tid, mid, s2]) => window.CaroTourKit.O.send({ t: 'otScore', id: tid, match: mid, score: s2 }), [id, m.id, m.a === team0 ? [2, 0] : [0, 2]]); await sleep(700);
   // Trận còn lại cùng vòng có kết quả → trận kế tiếp đủ hai đội (bấm xem được)

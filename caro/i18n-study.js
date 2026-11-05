@@ -63,16 +63,16 @@
 
   // ================================================================ English
   X('en', {
-    an_btn: 'Analyse',
+    an_btn: 'Analyze',
     an_title: 'Game analysis',
-    an_running: 'Analysing… {p}%',
+    an_running: 'Analyzing… {p}%',
     an_acc: 'Accuracy',
     an_key: 'Key moments',
     an_none: 'No significant mistakes – a very tight game!',
     an_view: 'View',
     an_retry: 'Retry',
     an_move: 'Move {n}',
-    an_start: 'Pick a move on the colour strip to see the comment.',
+    an_start: 'Pick a move on the color strip to see the comment.',
     cls_great: 'Great',
     cls_only: 'Only move',
     cls_best: 'Best',

@@ -7,7 +7,8 @@
 - **Luôn chia file và gom qua hub** khi viết hoặc sửa code: làm theo skill `.claude/skills/chia-file-hub/SKILL.md`
   (một file một việc, ~400 dòng; máy chủ gom ở `server/src/hub/index.js`; trình duyệt mỗi tính năng một module
   `window.CaroXxx`, không dồn vào `app.js`; chuỗi dịch theo chủ đề `caro/i18n-<chủ đề>.js`).
-- Chuỗi giao diện luôn đủ 4 ngôn ngữ: vi, en, ru, zh.
+- Chuỗi giao diện luôn đủ 4 ngôn ngữ: vi, en, ru, zh. Viết theo `docs/van-phong-4-ngon-ngu.md` (văn phong + bảng thuật
+  ngữ); bài thử `server/test/i18n-quality.test.js` báo đỏ nếu lệch. Soát en/ru/zh: `node server/scripts/i18n-lt.js`.
 - **Không dùng `confirm()` / `prompt()` / `alert()` gốc** của trình duyệt trong `caro/` (bị chặn / tự đóng trong Zalo,
   Messenger…). Luôn dùng hộp trong app: `await window.CaroConfirm.ask(…)` (Đồng ý / Huỷ), `CaroConfirm.prompt(…, giá trị)`
   (hỏi chữ, Huỷ = null), `CaroConfirm.info(…)` (thông báo). Unit test `server/test/no-native-dialogs.test.js` báo đỏ nếu lỡ dùng.

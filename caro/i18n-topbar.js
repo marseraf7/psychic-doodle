@@ -105,7 +105,7 @@
     sound_click: 'Key click',
     sound_volume: 'Volume',
     qs_corner: 'Corner rounding',
-    qs_look_mode: 'Colour scheme',
+    qs_look_mode: 'Color scheme',
     qs_off: 'Muted',
     tb_register: 'Sign up', // nút ngắn trên thanh trên (bảng đăng nhập vẫn dùng 'register')
     ps_placeholder: 'Search players…',

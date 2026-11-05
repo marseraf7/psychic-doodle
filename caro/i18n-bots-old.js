@@ -64,7 +64,7 @@
     bot_bin_win: 'Good game, thank you!',
     bot_bin_lose: 'Wow, you\'re improving fast!',
     bot_mai: "Người Tày",
-    bot_mai_desc: "Patient: careful defence and clever double threats.",
+    bot_mai_desc: 'Patient: careful defense and clever double threats.',
     bot_mai_hi: "Hello! Let's play a beautiful game together.",
     bot_mai_win: 'Remember to watch out for open threes!',
     bot_mai_lose: "Well done! That made my day.",
