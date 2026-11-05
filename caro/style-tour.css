@@ -427,3 +427,10 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* gi·∫
   .otp-body .ot-tab[data-tab="overview"] { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
   .otp-body .ot-tab[data-tab="overview"] > .thead, .otp-body .ot-tab[data-tab="overview"] > .podium, .otp-body .ot-tab[data-tab="overview"] > .tactions { grid-column: 1 / -1; }
 }
+/* Treo gi√≤ (otour-disc.js) */
+.ot-susp-list { margin: 4px 0 8px; padding-left: 18px; }
+.ot-susp-list li { margin: 2px 0; }
+.ot-warn { border: 1px solid var(--danger, #d33); border-radius: 8px; padding: 6px 10px; color: var(--danger, #d33); }
+.ot-warn ul { margin: 4px 0 0; padding-left: 18px; color: var(--text); }
+.ot-susp-m { margin: 0 0 6px; }
+.ot-disc { flex-wrap: wrap; gap: 8px; align-items: center; }
