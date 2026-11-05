@@ -216,6 +216,8 @@
     if (m.id !== V.id) return;
     if (!m.tour) { O.toast(T('srv_ot_not_found')); D.ot = null; K.back() || K.top('otours'); return; }
     D.ot = { ...m.tour, ...m.mine };
+    // Bản đầy đủ (mở trang / kết nối lại): máy chủ có thể đã quên các bảng đang mở – hỏi lại để tiếp tục nhận cập nhật
+    if (G.id === m.id) for (const k of G.asked) { const [i, g] = k.split(':').map(Number); O.send({ t: 'otGroup', id: m.id, stage: i, g }); }
     if (K.isOpen() && V.page === 'ot') render();
   });
   O.on('otPatch', (m) => {
@@ -224,6 +226,43 @@
     Object.assign(D.ot, m.mine);
     if (K.isOpen() && V.page === 'ot') render();
   });
+  // ------------------------------------------------------------ Tải lười các trận của vòng tròn nhiều bảng
+  // (máy chủ: otour-lazy.js) – trang chung chỉ có bảng xếp hạng; mở bảng nào (tour-stages.js) thì tải các trận bảng đó
+  const G = { id: null, rounds: new Map(), asked: new Set(), waits: [] };
+  const gkey = (i, g) => i + ':' + g;
+  const gReset = (id) => { if (G.id !== id) { G.id = id; G.rounds.clear(); G.asked.clear(); } };
+  K.otGroupRounds = (t, i, g) => (t.kind === 'otour' && G.id === t.id ? G.rounds.get(gkey(i, g)) || null : null);
+  K.otGroupNeed = (t, i, g) => {
+    if (t.kind !== 'otour') return;
+    gReset(t.id);
+    if (G.asked.has(gkey(i, g))) return;
+    G.asked.add(gkey(i, g));
+    O.send({ t: 'otGroup', id: t.id, stage: i, g });
+  };
+  /** Tải đủ mọi bảng của các giai đoạn tải lười (xuất CSV kết quả); tối đa 8 giây. */
+  K.otGroupsAll = (t) => {
+    const lazy = (t.stageViews || []).filter((v) => v.lazy);
+    if (!lazy.length) return Promise.resolve();
+    gReset(t.id);
+    const left = new Map(lazy.map((v) => [v.index, v.groups.length])); // giai đoạn → số bảng phải nhận đủ
+    return Promise.race([new Promise((resolve) => {
+      G.waits.push((m) => {
+        if (left.get(m.stage) === m.groups.length) left.delete(m.stage);
+        if (left.size) return false;
+        resolve();
+        return true;
+      });
+      for (const v of lazy) O.send({ t: 'otGroup', id: t.id, stage: v.index, g: 'all' });
+    }), new Promise((resolve) => setTimeout(resolve, 8000))]);
+  };
+  O.on('otGroup', (m) => {
+    if (!D.ot || m.id !== D.ot.id) return;
+    gReset(m.id);
+    for (const x of m.groups) G.rounds.set(gkey(m.stage, x.g), x.rounds);
+    G.waits = G.waits.filter((w) => !w(m));
+    if (K.isOpen() && V.page === 'ot') render();
+  });
+
   // Lỗi khi tạo giải: hiện ngay trong form
   O.on('error', (m) => { if (m.ctx === 'otCreate' && $('otf-err')) $('otf-err').textContent = T('srv_' + m.code, m.args || {}); });
 

@@ -176,8 +176,11 @@
       // Nhiều bảng (> 4): mỗi bảng thu gọn được, mặc định chỉ mở bảng của mình
       const many = v.groups.length > 4;
       return v.groups.map((g, gi) => {
-        const cur = g.rounds.findIndex((r) => r.some((m) => !m.done));
-        const inner = () => table(g.table, v.cfg) + roundsList(key + ':g' + gi, g.rounds, (i) => [label(t, v.index, i, T('r_round', { n: i + 1 })), slot(t, v.index, i)].filter(Boolean).join(' · '), !v.done && cur >= 0 && !many);
+        // Giải offline nhiều bảng: các trận tải khi mở bảng (otour.js – K.otGroupRounds); chưa có thì báo đang tải
+        const rounds = roundsOfGroup(t, v, gi);
+        const cur = rounds ? rounds.findIndex((r) => r.some((m) => !m.done)) : -1;
+        const inner = () => table(g.table, v.cfg) + (rounds ? roundsList(key + ':g' + gi, rounds, (i) => [label(t, v.index, i, T('r_round', { n: i + 1 })), slot(t, v.index, i)].filter(Boolean).join(' · '), !v.done && cur >= 0 && !many)
+          : `<p class="hint">${esc(T('ot_group_loading'))}</p>${K.otGroupNeed ? (K.otGroupNeed(t, v.index, gi), '') : ''}`);
         const name = esc(T('group_name', { name: g.name }));
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
@@ -213,6 +216,13 @@
     return `<p class="hint">${esc(T(t.hideBracket ? 'pv_hidden_note' : 'pv_note'))}</p>${body}`;
   }
 
+  /** Các trận của bảng gi (giải offline tải lười: lấy bản đã tải – otour.js; chưa tải: null). */
+  function roundsOfGroup(t, v, gi) {
+    const g = v.groups[gi];
+    if (g.rounds) return g.rounds;
+    return K.otGroupRounds ? K.otGroupRounds(t, v.index, gi) : null;
+  }
+
   /** Tất cả giai đoạn của giải (giai đoạn chưa tới thì chỉ ghi cấu hình; giai đoạn đầu trước giờ đấu: nhánh xem trước). */
   function stagesHtml(t) {
     cur = t;
@@ -232,5 +242,5 @@
     }).join('');
   }
 
-  Object.assign(K, { stageName, advText, stagesHtml, fold, roundName });
+  Object.assign(K, { stageName, advText, stagesHtml, fold, roundName, roundsOfGroup });
 })();

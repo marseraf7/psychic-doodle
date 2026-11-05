@@ -159,13 +159,14 @@ class OTour {
     const uid = uidOf(conn.pid);
     const t = this.otGet(id);
     if (!t || !this.otCanSee(t, uid)) throw E('ot_not_found');
+    if (conn.watchOt !== t.id) conn.otGroups = null; // bảng đang mở (otour-lazy.js) là của giải trước
     conn.watchOt = t.id;
     if (!this.fullViewAllowed(conn, t)) { conn.otFull = true; this.otPush(t); return; } // hết lượt tải đầy đủ: tới ở nhịp sau
     conn.otFull = true; // nhịp cập nhật kế tiếp gửi thêm một bản đầy đủ (khớp bản mọi người đang có)
     conn.send({ t: 'ot', id: t.id, tour: this.otShared(t), mine: this.otMine(t, uid) });
   }
 
-  on_otUnwatch(conn) { conn.watchOt = null; }
+  on_otUnwatch(conn) { conn.watchOt = null; conn.otGroups = null; }
 
   /** Phần chung (giống mọi người xem) – cùng hình dạng trang giải Caro để dùng chung bản vá và cách vẽ nhánh / bảng. */
   otShared(t) {
@@ -179,7 +180,8 @@ class OTour {
       players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null, ...(p.country ? { country: p.country } : {}), ...(p.team ? { team: p.team } : {}),
         ...(p.roster && p.roster.length ? { roster: p.roster } : {}) })), // đội hình (otour-league.js)
       // Giai đoạn đã xong không đổi nữa: dựng một lần (otMemo) – giải nhiều bảng không phải dựng lại mỗi kết quả
-      stageViews: this.stageViews(t, this.otMemo.get(t)),
+      // Vòng tròn nhiều bảng: chỉ bảng xếp hạng, các trận tải khi người xem mở bảng (otour-lazy.js)
+      stageViews: this.otLite(t, this.stageViews(t, this.otMemo.get(t))),
       podium: (t.podium || []).map(side), now: Date.now(),
       // Đăng ký đội đang mở; thống kê cầu thủ (vua phá lưới, thẻ phạt) – otour-league.js
       reg: t.reg && t.reg.open && t.status === 'draft' ? { open: true } : null, stats: this.otStats(t),
@@ -223,6 +225,7 @@ class OTour {
         this.sendRaw(c, patch + mine + '}');
       }
     }
+    this.otPushGroups(t, watchers); // các bảng đang mở (tải lười) đã đổi
   }
 
   /** Nhật ký thao tác của ban tổ chức (giữ 200 dòng gần nhất). */
@@ -242,6 +245,7 @@ class OTour {
     this.otCache().delete(id);
     this.otUsed.delete(id);
     this.otSnaps?.delete(id);
+    this.otFullViews?.delete(id);
     const timer = this.otPushTimers?.get(id);
     if (timer) { clearTimeout(timer); this.otPushTimers.delete(id); }
   }
