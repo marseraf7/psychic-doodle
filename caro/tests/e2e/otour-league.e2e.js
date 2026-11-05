@@ -38,7 +38,8 @@ const { setup, sleep } = require('./helpers.js');
   ok(t.players[0].roster.length === 2, 'Sửa đội hình');
   // Bắt đầu, mở trận có FC Một
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(300);
-  await boss.click('dialog[open] button.primary').catch(() => {}); await sleep(900);
+  // hộp xác nhận: helpers.js tự bấm Đồng ý
+  await sleep(900);
   ok(t.status === 'running', 'Bắt đầu giải');
   const m = Object.values(t.st[0].matches).find((x) => x.a === t.players[0].uid || x.b === t.players[0].uid);
   await boss.click(`.scorable[data-mid="${m.id}"]`); await sleep(300);

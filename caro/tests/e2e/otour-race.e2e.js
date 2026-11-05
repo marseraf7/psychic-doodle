@@ -34,7 +34,8 @@ const { setup, sleep } = require('./helpers.js');
   const t = app.hub.otGet(id);
   ok(t && t.stages[0].type === 'race' && t.stages[0].events === 2 && t.stages[0].teams && t.players[0].team === 'Đỏ', 'Tạo giải đua: 2 chặng, bảng đội, tên đội');
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(300);
-  await boss.click('.confirm-dlg button.primary, dialog[open] button.primary').catch(() => {}); await sleep(800);
+  // hộp xác nhận: helpers.js tự bấm Đồng ý
+  await sleep(800);
   ok(t.status === 'running', 'Bắt đầu giải');
   // Chặng 1: điền theo thứ tự danh sách
   await boss.click('[data-act="otRaceFill"]'); await sleep(100);
@@ -43,7 +44,8 @@ const { setup, sleep } = require('./helpers.js');
   ok(/43|25/.test(await boss.textContent('.stand')), 'Bảng chung có điểm');
   // Huỷ rồi nhập lại
   await boss.click('[data-act="otRaceUndo"]'); await sleep(300);
-  await boss.click('dialog[open] button.primary').catch(() => {}); await sleep(700);
+  // hộp xác nhận: helpers.js tự bấm Đồng ý
+  await sleep(700);
   ok(!t.st[0].events[0].done, 'Huỷ kết quả chặng');
   await boss.click('[data-act="otRaceFill"]'); await sleep(100);
   await boss.click('.race-form button.primary'); await sleep(800);
@@ -66,7 +68,8 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('#otf button.primary'); await sleep(800);
   const id2 = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(300);
-  await boss.click('dialog[open] button.primary').catch(() => {}); await sleep(800);
+  // hộp xác nhận: helpers.js tự bấm Đồng ý
+  await sleep(800);
   await boss.fill(`${rowOf('An')} .r-v`, '20:50.0');
   await boss.fill(`${rowOf('Bình')} .r-v`, '19:59.5');
   await boss.fill(`${rowOf('Chi')} .r-v`, 'abc');

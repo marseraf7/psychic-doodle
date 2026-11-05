@@ -57,8 +57,10 @@ test('Giải offline kiểu MyLeague: lịch & sân, đội hình, sự kiện t
   const stats = ctx.app.hub.otStats(t);
   assert.deepStrictEqual(stats.scorers[0], { who: 'Messi Phủi', team: (t.players.find((p) => p.uid === m.a) || {}).name, n: 2 });
   assert.deepStrictEqual([stats.cards[0].who, stats.cards[0].y, stats.cards[0].r], ['Hậu vệ X', 1, 1]);
-  await until(() => { const v = viewer.ot[id]; return v && v.stats && v.stats.scorers.length === 1; });
-  const vm = viewer.ot[id].stageViews[0].rounds.flat().find((x) => x && x.id === m.id);
+  // Chờ người xem nhận đủ (kể cả bản vá bỏ sự kiện) rồi mới kiểm
+  const vmOf = () => { const v = viewer.ot[id]; return v && v.stageViews[0] && v.stageViews[0].rounds.flat().find((x) => x && x.id === m.id); };
+  await until(() => { const v = viewer.ot[id], x = vmOf(); return v && v.stats && v.stats.scorers.length === 1 && x && x.events && x.events.length === 4; });
+  const vm = vmOf();
   assert.deepStrictEqual([vm.when, vm.venue, vm.events.length], [when, 'Sân Chi Lăng', 4], 'người xem thấy lịch, sân, sự kiện');
   assert.ok(viewer.ot[id].players[0].roster, 'người xem thấy đội hình');
   // Kết quả vẫn nhập riêng; sự kiện giữ lại sau khi huỷ kết quả

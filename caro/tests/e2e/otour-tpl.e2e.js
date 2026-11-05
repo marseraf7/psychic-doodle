@@ -28,7 +28,8 @@ const { setup, sleep } = require('./helpers.js');
   const t = app.hub.otGet(id);
   ok(t && t.stages[0].league && t.stages[1].legs && t.players.length === 36 && t.players[0].country === 'ENG', 'Tạo giải theo mẫu CL (có quốc gia)');
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(300);
-  await boss.click('dialog[open] button.primary').catch(() => {}); await sleep(1200);
+  // hộp xác nhận: helpers.js tự bấm Đồng ý
+  await sleep(1200);
   const ms = t.st ? Object.values(t.st[0].matches) : [];
   const cty = new Map(t.players.map((p) => [p.uid, p.country]));
   ok(ms.length === 144 && ms.every((m) => cty.get(m.a) !== cty.get(m.b)), 'Bắt đầu: 144 trận league phase, không gặp đội cùng quốc gia');
