@@ -176,7 +176,7 @@ class OTour {
     if (!this.otMemo) this.otMemo = new WeakMap();
     if (!this.otMemo.has(t)) this.otMemo.set(t, new Map());
     return {
-      id: t.id, kind: 'otour', name: t.name, desc: t.desc, slug: t.slug, access: t.access, status: t.status, sport: t.sport, result: t.result,
+      id: t.id, kind: 'otour', name: t.name, desc: t.desc, slug: t.slug, access: t.access, status: t.status, sport: t.sport, result: t.result, set: t.set || null,
       owner: this.store.users.get(t.owner)?.name || '?', created: t.created, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
       stages: t.stages, stage: t.stage || 0, format: 'bracket', offline: true, hideSeeds: false, showStandings: true, roundLabels: true,
       players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null })),

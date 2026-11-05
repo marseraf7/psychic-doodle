@@ -79,6 +79,9 @@ function normalizeStage(c, last) {
     const w = int(p.w, 0, 10, 3);
     // Điểm trận thắng / hoà / thua; mỗi ván thắng / hoà cộng thêm; miễn đấu (Thụy Sĩ số lẻ) mặc định như thắng
     out.points = { w, d: int(p.d, 0, 10, 1), l: int(p.l, 0, 10, 0), gw: int(p.gw, 0, 10, 0), gt: int(p.gt, 0, 10, 0), bye: int(p.bye, 0, 10, w) };
+    // Thắng / thua ở set quyết định, sau hiệp phụ / luân lưu (giải offline: bóng chuyền 3–2, khúc côn cầu) – chỉ khi có đặt
+    if (p.wx != null) out.points.wx = int(p.wx, 0, 10, w);
+    if (p.lx != null) out.points.lx = int(p.lx, 0, 10, out.points.l);
     out.tiebreaks = normalizeTiebreaks(c.tiebreaks, type);
     // Trận không đấu khi tính hệ số phụ: theo FIDE (mặc định) / như bản trước (stages-tb-calc.js)
     out.unplayed = c.unplayed === 'raw' ? 'raw' : 'fide';

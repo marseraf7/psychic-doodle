@@ -1,6 +1,7 @@
 /*
  * Thể thức thi đấu – bảng điểm và xếp hạng của vòng tròn / Thụy Sĩ (như Challonge, theo quy chế tie-break FIDE):
- *  - Điểm: trận thắng / hoà / thua (points.w/d/l) + mỗi ván thắng / hoà (points.gw/gt) + miễn đấu (points.bye).
+ *  - Điểm: trận thắng / hoà / thua (points.w/d/l) + mỗi ván thắng / hoà (points.gw/gt) + miễn đấu (points.bye); giải offline
+ *    có thể đặt riêng điểm thắng / thua "sát" (points.wx/lx – m.ext: set quyết định, hiệp phụ, luân lưu).
  *  - Xếp theo (rankBy, vòng tròn): điểm · số trận thắng · số ván thắng · tỉ lệ thắng ván · hiệu số ván. Thụy Sĩ luôn theo điểm.
  *  - Tie-break tối đa MAX_TB cấp (tiebreaks), mỗi cấp một tiêu chí: đối đầu (bảng điểm riêng giữa những người bằng nhau),
  *    Buchholz (đủ / Cut-1 / Cut-2 / Median / Median-2 / Fore / trung bình Buchholz đối thủ), Sonneborn–Berger, Koya, điểm
@@ -15,7 +16,7 @@ const { extend } = require('./stages-tb-calc.js');
 
 const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
 const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
-  'gdiff', 'gwins', 'gpct'];
+  'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct'];
 const MAX_TB = 5;
 // Mặc định giữ đúng cách xếp của bản trước: vòng tròn đối đầu → hiệu số → số ván thắng; Thụy Sĩ Buchholz → SB → số trận thắng
 const DEFAULT_TB = { roundrobin: ['h2h', 'gdiff', 'gwins'], swiss: ['bh', 'sb', 'wins'] };
@@ -34,6 +35,8 @@ const PRIMARY = {
 };
 const KEY = {
   wins: (x) => x.w, gdiff: (x) => x.gw - x.gl, gwins: (x) => x.gw, gpct: pct,
+  // Điểm trong các set (giải offline kiểu 'sets'): hiệu số điểm, tỉ lệ điểm thắng (bóng chuyền, cầu lông, bóng bàn…)
+  pdiff: (x) => x.pw - x.pl, ppct: (x) => (x.pw + x.pl ? x.pw / (x.pw + x.pl) : 0),
 };
 // Các hệ số lưu sẵn trong thống kê (tally + stages-tb-calc.js) cùng tên
 for (const k of TIEBREAKS) if (!KEY[k] && k !== 'h2h') KEY[k] = (x) => x[k];
@@ -48,7 +51,7 @@ function tally(st, only, ctx) {
   const p = { w: 1, d: 0, l: 0, ...st.cfg.points };
   const gw = p.gw || 0, gt = p.gt || 0, bye = p.bye == null ? p.w : p.bye;
   const s = {};
-  for (const uid of only || st.entrants) s[uid] = { uid, mp: 0, w: 0, d: 0, l: 0, gw: 0, gl: 0, gt: 0, pts: 0, opps: [], beat: [], drew: [], byes: 0, rs: [], bpg: 0 };
+  for (const uid of only || st.entrants) s[uid] = { uid, mp: 0, w: 0, d: 0, l: 0, gw: 0, gl: 0, gt: 0, pts: 0, opps: [], beat: [], drew: [], byes: 0, rs: [], bpg: 0, pw: 0, pl: 0 };
   for (const m of Object.values(st.matches)) {
     if (!m.done) continue;
     if (m.bye) { // miễn đấu (Thụy Sĩ): tính như thắng, điểm riêng
@@ -66,11 +69,13 @@ function tally(st, only, ctx) {
       x.gl += m.wins[op] || 0;
       x.gt += ties;
       x.pts += (m.wins[me] || 0) * gw + ties * gt;
+      // Điểm trong từng set (giải offline): ô của mình là cột 0 nếu mình là m.a
+      if (Array.isArray(m.sets)) for (const st2 of m.sets) { x.pw += st2[me === m.a ? 0 : 1] || 0; x.pl += st2[me === m.a ? 1 : 0] || 0; }
       // Ván đi sau: ván đầu do m.first đi trước, các ván sau trong trận đổi bên (bracket.js)
       if (m.first) (m.games || []).forEach((g, i) => { if ((i % 2 === 0) !== (m.first === me)) x.bpg++; });
       let f = 0;
       if (m.double) { x.l++; x.pts += p.l; } // cả hai vắng mặt: đều thua
-      else if (m.winner === null) { x.d++; x.pts += p.d; x.drew.push(op); f = 0.5; } else if (m.winner === me) { x.w++; x.pts += p.w; x.beat.push(op); f = 1; } else { x.l++; x.pts += p.l; }
+      else if (m.winner === null) { x.d++; x.pts += p.d; x.drew.push(op); f = 0.5; } else if (m.winner === me) { x.w++; x.pts += m.ext && p.wx != null ? p.wx : p.w; x.beat.push(op); f = 1; } else { x.l++; x.pts += m.ext && p.lx != null ? p.lx : p.l; }
       x.rs.push({ r: m.round, o: op, pts: x.pts - before, f, played: !m.double && !m.walkover });
     }
   }

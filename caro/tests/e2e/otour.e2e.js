@@ -1,6 +1,6 @@
 /*
  * Kiểm thử trình duyệt – Giải đấu Offline (mọi bộ môn): lối vào từ trang Giải đấu, tạo giải cầu lông (bộ môn tự điền kiểu
- * kết quả / Bo), bắt đầu, nhập điểm từng set, huỷ kết quả, khách mở bằng link riêng (không đăng nhập) và thấy cập nhật.
+ * kết quả / Bo / luật set), bắt đầu, nhập điểm từng set (sai luật set báo ngay), huỷ kết quả, khách mở bằng link riêng (không đăng nhập) và thấy cập nhật.
  *   node caro/tests/e2e/otour.e2e.js
  */
 'use strict';
@@ -21,6 +21,7 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   ok(await boss.$eval('#otf select[name=result]', (e) => e.value) === 'sets', 'Chọn cầu lông: tự điền "Điểm từng set"');
   await boss.selectOption('#otf select[name=preset]', 'single'); await sleep(150);
   ok(await boss.$eval('#otf-stages [data-k="bestOf"]', (e) => e.value) === '3', 'Cầu lông: Bo3');
+  ok(await boss.$eval('#otf input[name=set_cap]', (e) => e.value) === '30', 'Cầu lông: luật set tự điền (trần 30)');
   await boss.fill('#otf textarea[name=teams]', 'An\nBình\nChi\nDũng');
   await boss.$eval('#otf textarea[name=teams]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(150);
   ok(/4 trận/.test(await boss.textContent('#otf-est')), 'Ước tính: 4 người loại trực tiếp + tranh hạng ba = 4 trận');
@@ -46,7 +47,11 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   const m = Object.values(t.st[0].matches).find((x) => typeof x.a === 'string' && typeof x.b === 'string' && x.a !== '-' && x.b !== '-' && !x.done);
   await boss.click(`.scorable[data-mid="${m.id}"]`); await sleep(300);
   ok(/tới 21 điểm/.test(await boss.textContent('.score-panel')), 'Khung nhập nhắc luật set cầu lông');
-  await boss.fill('[data-set="0"][data-side="0"]', '21'); await boss.fill('[data-set="0"][data-side="1"]', '15');
+  // Sai luật set (21–20 chưa xong set): báo ngay trong khung, không gửi
+  await boss.fill('[data-set="0"][data-side="0"]', '21'); await boss.fill('[data-set="0"][data-side="1"]', '20');
+  await boss.click('#ots button.primary'); await sleep(200);
+  ok(/Set 1/.test(await boss.textContent('#ots-err')) && !m.done, 'Sai luật set: báo lỗi ngay ở set 1');
+  await boss.fill('[data-set="0"][data-side="1"]', '15');
   await boss.click('[data-act="otSetAdd"]'); await sleep(150);
   await boss.fill('[data-set="1"][data-side="0"]', '21'); await boss.fill('[data-set="1"][data-side="1"]', '18');
   await boss.click('#ots button.primary'); await sleep(800);

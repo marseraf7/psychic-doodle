@@ -3,7 +3,8 @@
  * giải (CaroTourKit – tour.js) và cách vẽ nhánh / bảng (tour-stages.js). Máy chủ: server/src/hub/otour*.js.
  *   Trang 'otours'  – danh sách: giải của tôi + giải công khai gần đây (khách xem được).
  *   Trang 'otNew'   – tạo giải: tên, link riêng, mô tả có định dạng, ai xem được, bộ môn (điểm / tie-break / kiểu kết quả
- *                     tự điền theo môn – otour-sports.js), thể thức (trình sửa giai đoạn của giải Caro), danh sách đội.
+ *                     tự điền theo môn – otour-sports.js), luật set (kiểu điểm từng set), thể thức (trình sửa giai đoạn
+ *                     của giải Caro), danh sách đội.
  *   Trang 'ot'      – trang giải: đội (thêm / xoá trước khi bắt đầu), bắt đầu, nhánh / bảng, nhập kết quả (otour-score.js).
  * Link mở thẳng: …/?o=<mã hoặc link riêng>.
  */
@@ -44,12 +45,24 @@
     const s = SP.SPORTS[sport] || SP.SPORTS.other;
     for (const c of stages) {
       c.bestOf = s.bestOf;
-      if (c.points) { c.points = { ...c.points, ...s.points }; c.tiebreaks = [...s.tiebreaks]; }
+      // Bỏ điểm thắng / thua sát của môn cũ (bóng chuyền → bóng đá không còn 3–2 = 2 điểm)
+      if (c.points) { const { wx, lx, ...rest } = c.points; c.points = { ...rest, ...s.points }; c.tiebreaks = [...s.tiebreaks]; }
     }
     return stages;
   }
+  /** Luật set mặc định của môn (môn không có luật: 21 điểm cách 2 khi người dùng tự bật). */
+  const sportSet = (sport) => { const r = (SP.SPORTS[sport] || SP.SPORTS.other).set; return r ? { ...r } : null; };
+  /** Phần "Luật set" (chỉ kiểu điểm từng set): bật / tắt kiểm luật, điểm thắng set, cách, trần, set quyết định. */
+  function setHtml() {
+    if (F.d.result !== 'sets') return '';
+    const r = F.d.set;
+    const num = (k, v, min, max) => `<label class="field inline"><span>${esc(T('ot_setf_' + k))}</span><input type="number" name="set_${k}" value="${v}" min="${min}" max="${max}"></label>`;
+    return `<fieldset class="ot-set"><legend>${esc(T('ot_set_legend'))}</legend>
+      <label class="check"><input type="checkbox" name="setOn" ${r ? 'checked' : ''}> <span>${esc(T('ot_set_on'))}</span></label>
+      ${r ? `${num('to', r.to, 1, 99)}${num('by', r.by, 1, 10)}${num('cap', r.cap || 0, 0, 199)}${num('last', r.last || 0, 0, 99)}<small class="hint">${esc(T('ot_set_hint'))}</small>` : `<small class="hint">${esc(T('ot_set_off_hint'))}</small>`}</fieldset>`;
+  }
   function begin() {
-    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, preset: 'groups_single', teams: '' };
+    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, set: null, preset: 'groups_single', teams: '' };
     F.stages = applySport(PRESETS.groups_single(), 'football');
   }
   function pageNew() {
@@ -65,8 +78,9 @@
       <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
       <label class="field"><span>${esc(T('ot_sport'))}</span><select name="sport">${Object.keys(SP.SPORTS).map((k) => opt(k, d.sport, SP.SPORTS[k].icon + ' ' + T('sport_' + k))).join('')}</select></label>
       <label class="field"><span>${esc(T('ot_result'))}</span><select name="result">${SP.RESULTS.map((k) => opt(k, d.result, T('otres_' + k))).join('')}</select></label>
+      <div id="otf-set">${setHtml()}</div>
       <label class="field"><span>${esc(T('format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>
-      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4) })}</div>
+      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), ext: true })}</div>
       <p class="est" id="otf-est"></p>
       <label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>
       <fieldset><legend>${esc(T('ot_access'))}</legend><div class="seg">${['public', 'link', 'private'].map((k) => `<label><input type="radio" name="access" value="${k}" ${d.access === k ? 'checked' : ''}> <span>${esc(T('ot_acc_' + k))}</span></label>`).join('')}</div></fieldset>
@@ -78,6 +92,11 @@
   function collect(f) {
     for (const k of ['name', 'slug', 'desc', 'sport', 'result', 'preset', 'teams']) if (f.elements[k]) F.d[k] = f.elements[k].value;
     F.d.access = (f.querySelector('input[name=access]:checked') || {}).value || 'public';
+    // Luật set: đọc các ô khi đang bật (bật / tắt xử lý ở sự kiện change)
+    if (F.d.set && f.elements.set_to) {
+      const v = (k) => Math.floor(Number(f.elements['set_' + k].value)) || 0;
+      F.d.set = { to: v('to'), by: v('by'), cap: v('cap'), last: v('last') };
+    }
   }
   function showEst(f) {
     const n = F.d.teams.split('\n').filter((x) => x.trim()).length;
@@ -91,12 +110,19 @@
     const f = $('otf');
     if (!f) return;
     const box = $('otf-stages');
-    const draw = () => { box.innerHTML = SE.html(F.stages, true, { max: Math.max(4, F.d.teams.split('\n').filter((x) => x.trim()).length) }); showEst(f); };
+    const draw = () => { box.innerHTML = SE.html(F.stages, true, { max: Math.max(4, F.d.teams.split('\n').filter((x) => x.trim()).length), ext: true }); showEst(f); };
+    const drawSet = () => { $('otf-set').innerHTML = setHtml(); };
     f.addEventListener('input', () => { collect(f); showEst(f); });
     f.addEventListener('change', (e) => {
       if (e.target.closest('#otf-stages')) return;
       collect(f);
-      if (e.target.name === 'sport') { F.d.result = (SP.SPORTS[F.d.sport] || SP.SPORTS.other).result; f.elements.result.value = F.d.result; applySport(F.stages, F.d.sport); draw(); }
+      if (e.target.name === 'sport') {
+        F.d.result = (SP.SPORTS[F.d.sport] || SP.SPORTS.other).result; f.elements.result.value = F.d.result;
+        F.d.set = sportSet(F.d.sport);
+        applySport(F.stages, F.d.sport); draw(); drawSet();
+      }
+      if (e.target.name === 'result') { if (F.d.result === 'sets' && !F.d.set) F.d.set = sportSet(F.d.sport); drawSet(); }
+      if (e.target.name === 'setOn') { F.d.set = e.target.checked ? sportSet(F.d.sport) || { to: 21, by: 2, cap: 0, last: 0 } : null; drawSet(); }
       if (e.target.name === 'preset' && PRESETS[F.d.preset]) { F.stages = applySport(PRESETS[F.d.preset](), F.d.sport); draw(); }
       if (e.target.name === 'teams') draw();
     });
@@ -108,7 +134,7 @@
       const teams = F.d.teams.split('\n').map((x) => x.trim()).filter(Boolean);
       if (F.d.name.trim().length < 3) { $('otf-err').textContent = T('srv_tour_name_short'); return; }
       O.send({ t: 'otCreate', name: F.d.name.trim(), slug: F.d.slug.trim().toLowerCase(), desc: F.d.desc, access: F.d.access,
-        spec: { sport: F.d.sport, result: F.d.result, stages: F.stages }, teams });
+        spec: { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages }, teams });
     };
     showEst(f);
   }
