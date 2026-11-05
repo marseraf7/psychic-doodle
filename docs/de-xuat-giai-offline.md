@@ -174,6 +174,19 @@ Có hai kiểu nhập:
 | **O7 – Trình bày** | Nhánh / bảng / lịch đẹp trên điện thoại, ảnh chia sẻ, nhúng, xuất CSV / PDF |
 | **O8 – Sẵn sàng cho AI** | Công bố lược đồ JSON, `describeSpec` (mô tả bằng lời), nhập cấu hình từ JSON. Khung hỏi – đáp để sau này cắm chatbot. Chatbot thật (khoá API, chi phí) là quyết định riêng sau |
 
+### 8.1 Trạng thái (05/11/2026)
+
+| Đợt | Đã làm | Còn lại / làm khác |
+|---|---|---|
+| O1 | Xong: kho riêng nạp theo yêu cầu + LRU, hạn mức, trang công khai `?o=`, `normalizeSpec`, memo giai đoạn đã xong | – |
+| O2 | Xong: 13 bộ môn, luật set (kiểm cả trận theo Bo), hiệp phụ, luân lưu, điểm thắng / thua sát, tie-break theo điểm trong set | – |
+| O3 | Xong: league lượt đi – về (bảng tới 64), league phase (pot, tránh cùng quốc gia, đi tiếp theo dải hạng qua hạt giống), Thụy Sĩ theo thắng / thua, hạng ba tốt nhất, knock-out 2 lượt | Bảng phân nhánh theo tổ hợp bảng của World Cup 2026: chưa (đội hạng ba xếp theo hạt giống) |
+| O4 | Xong: Single Race, Grand Prix (bảng điểm, countback, điểm tay, bảng đội), Time Trial (chênh lệch) | Chia lượt (heat) cho đoàn rất đông: chưa |
+| O5 | Xong: 10 mẫu, mô tả bằng lời + ước tính, đội mẫu | – |
+| O6 | Xong: lịch & sân, đội hình, sự kiện trận, vua phá lưới / thẻ, đăng ký đội + duyệt, biên bản in | Treo giò tự động: chưa |
+| O7 | Xong: Thụy Sĩ chỉ gửi vòng mới, bài đo tải trong CI, xuất CSV / JSON | Lazy-load "chỉ tải bảng của mình", ảnh chia sẻ, nhúng, PDF: chưa (bài đo: 512 đội vẫn ~80 ms / kết quả, bản vá ~1 KB) |
+| O8 | Xong: lược đồ `/api/otour/schema.json` (kèm ví dụ), `describeSpec`, nhập / xuất cấu hình JSON | Chatbot thật: quyết định riêng sau |
+
 ## 9. Không làm / làm khác
 
 - Không chép mã Challonge / MyLeague (chỉ học ý tưởng). Không nhúng mã AGPL / GPL.
