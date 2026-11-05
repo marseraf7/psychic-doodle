@@ -39,7 +39,7 @@ const { setup, sleep } = require('./helpers.js');
   ok(t.players.some((p) => p.uid === AN), 'Bulk Add: "@an_tu_bao" thêm đúng tài khoản');
   await boss.click('[data-act="start"]'); await sleep(800);
   // An: chuông có "tới trận", mở giải tự nhập tỉ số trận của mình
-  ok(/tới trận của bạn/.test(await an.evaluate(() => { document.getElementById('tb-bell').click(); return document.getElementById('tb-pop').textContent; })), 'An: chuông "tới trận của bạn"');
+  ok(/đến trận của bạn/.test(await an.evaluate(() => { document.getElementById('tb-bell').click(); return document.getElementById('tb-pop').textContent; })), 'An: chuông "tới trận của bạn"');
   await an.evaluate(() => document.getElementById('tb-bell').click());
   await an.evaluate((i) => window.CaroTour.open(i), id); await sleep(600);
   const scorable = await an.$$eval('.scorable', (x) => x.length);

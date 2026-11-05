@@ -52,7 +52,7 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   await boss.click('#ta-stages [data-sact="placeNone"]'); await sleep(80);
   await boss.check('#ta-stages [data-k="place"][data-p="5"]'); await sleep(120);
   ok(/10 trận/.test(await boss.textContent('#ta-est')), 'Chỉ đấu hạng 5–6: 7 trận chính + bán kết nhánh 5–8 (2) + trận hạng 5 = 10 trận');
-  ok(/Giống các vòng khác \(Bo3\)/.test(await boss.textContent('#ta-stages [data-k="boFinal"]')), 'Bo chung kết: "Giống các vòng khác (Bo3)" thay cho "Như giai đoạn"');
+  ok(/Như các vòng khác \(Bo3\)/.test(await boss.textContent('#ta-stages [data-k="boFinal"]')), 'Bo chung kết: "Giống các vòng khác (Bo3)" thay cho "Như giai đoạn"');
   await boss.selectOption('#ta-stages [data-k="boFinal"]', 'c'); await sleep(100);
   await boss.fill('#ta-stages [data-k="boFinalN"]', '10');
   await boss.$eval('#ta-stages [data-k="boFinalN"]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(100);
@@ -78,7 +78,7 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   await boss.fill('#bulk-names', 'P1\nP2\nP3\nP4\nP5\nP6');
   await boss.click('[data-act="bulkAdd"]'); await sleep(500);
   const bt = await boss.textContent('#tour-body');
-  ok(/Nhánh đấu dự kiến/.test(bt) && /Chỉ ban tổ chức thấy/.test(bt), 'Ban tổ chức: thấy nhánh dự kiến (ghi rõ đã ẩn với người xem)');
+  ok(/Nhánh đấu dự kiến/.test(bt) && /chỉ ban tổ chức thấy/.test(bt), 'Ban tổ chức: thấy nhánh dự kiến (ghi rõ đã ẩn với người xem)');
   await gotoRetry(guest, `http://localhost:${PORT}/?t=cup-link-1`); await sleep(1500);
   ok(await guest.evaluate(() => window.CaroTourKit.D.tour && window.CaroTourKit.D.tour.name) === 'Cúp Link Riêng', 'Mở bằng link riêng ?t=cup-link-1');
   ok(!/Nhánh đấu dự kiến/.test(await guest.textContent('#tour-body')), 'Người xem: không thấy nhánh dự kiến (đã ẩn)');
@@ -103,16 +103,25 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   ok(r0[0].att && r0[0].att.length === 1 && /Biên bản đã ký/.test(await boss.textContent('.mx-dlg .mx-list')), 'Đính kèm trận: thêm ghi chú + link, hiện ngay trong danh sách');
   await boss.click('.mx-dlg .mx-x'); await sleep(150);
 
-  // ---- Thụy Sĩ: 5 cấp tie-break + giải thích + cách xếp cặp
+  // ---- Thụy Sĩ: chỉ số phụ không giới hạn, đổi thứ tự + giải thích + cách xếp cặp
   await boss.evaluate(() => window.CaroTourKit.acts.tourNew()); await sleep(300);
   await boss.fill('#tf input[name=name]', 'Swiss FIDE');
   await boss.selectOption('#tf select[name=preset]', 'swiss'); await sleep(100);
   await boss.selectOption('#tf select[name=preset]', 'custom'); await sleep(100);
   await boss.click('#tf-adv'); await sleep(300);
   await boss.click('.ta-tab[data-tab="format"]'); await sleep(100);
-  ok((await boss.$$('#ta-stages select[data-k^="tb"]')).length === 5, 'Thụy Sĩ: 5 ô tie-break');
-  const opts = await boss.$$eval('#ta-stages select[data-k="tb0"] option', (x) => x.map((o) => o.value));
+  ok((await boss.$$('#ta-stages .tb-list li')).length === 3, 'Thụy Sĩ: 3 chỉ số phụ mặc định, xếp theo thứ tự');
+  const opts = await boss.$$eval('#ta-stages select[data-k="tbAdd"] option', (x) => x.map((o) => o.value));
   ok(['bh1', 'mbh2', 'fb', 'aob', 'ps', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro'].every((k) => opts.includes(k)) && !opts.includes('koya'), 'Có đủ hệ số FIDE (Koya chỉ ở vòng tròn)');
+  // Thêm bao nhiêu cũng được (quá 5), đổi thứ tự, bỏ
+  for (const k of ['bh1', 'mbh2', 'fb', 'aob']) { await boss.selectOption('#ta-stages select[data-k="tbAdd"]', k); await sleep(120); }
+  const tbList = () => boss.$$eval('#ta-stages .tb-list .tb-crit', (x) => x.map((e) => e.textContent));
+  ok((await tbList()).length === 7, 'Thêm được 7 chỉ số phụ (không giới hạn 5)');
+  await boss.click('#ta-stages .tb-list li:nth-child(7) [data-sact="tbUp"]'); await sleep(150);
+  const l2 = await tbList();
+  ok(/Fore-Buchholz/.test(l2[6]) && /Trung bình Buchholz/.test(l2[5]), 'Nút ↑: đổi thứ tự – ' + l2.join(', '));
+  await boss.click('#ta-stages .tb-list li:nth-child(1) [data-sact="tbDel"]'); await sleep(150);
+  ok((await tbList()).length === 6, 'Nút ✕: bỏ một chỉ số');
   ok(await boss.$eval('#ta-stages select[data-k="pairing"]', (e) => e.value) === 'dutch' && await boss.$eval('#ta-stages select[data-k="unplayed"]', (e) => e.value) === 'fide', 'Mặc định: xếp cặp Hà Lan, trận không đấu theo FIDE');
   await boss.click('#ta-stages .tb-help summary'); await sleep(80);
   ok(/Buchholz Cut-1/.test(await boss.textContent('#ta-stages .tb-help')) && /Elo thành tích/.test(await boss.textContent('#ta-stages .tb-help')), 'Bảng giải thích các hệ số phụ');

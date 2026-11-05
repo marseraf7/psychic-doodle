@@ -33,7 +33,6 @@
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
     'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct'];
-  const MAX_TB = 5;
   const BO_OPTS = [1, 3, 5, 7];
   const MAX_BO = 25; // như máy chủ (stages.js)
   const PLACE_CHIPS = 64; // chọn từng cặp hạng tới hạng 64; sau đó một ô "tất cả các hạng sau"
@@ -46,7 +45,21 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tb0', 'tb1', 'tb2', 'tb3', 'tb4', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table'];
+
+  // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
+  const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
+  /** Chỉ số phụ (tie-break): danh sách theo thứ tự ưu tiên (↑ / ↓ / bỏ) + ô "Thêm chỉ số phụ" – chọn bao nhiêu tuỳ ý. */
+  function tbList(i, c) {
+    const tbs = tbsOf(c);
+    const btn = (act, n, label, inner, off) => `<button type="button" class="ghost sm icon" data-sact="${act}" data-i="${i}" data-n="${n}" title="${esc(label)}" aria-label="${esc(label)}" ${off ? 'disabled' : ''}>${inner}</button>`;
+    const rows = tbs.map((x, n) => `<li><span class="tb-n">${n + 1}</span><span class="tb-crit">${esc(T('tb_' + x))}</span>
+      ${btn('tbUp', n, T('tb_up'), '↑', n === 0)}${btn('tbDown', n, T('tb_down'), '↓', n === tbs.length - 1)}${btn('tbDel', n, T('tb_del'), icon('close'))}</li>`).join('');
+    const left = tbChoices(c).filter((x) => !tbs.includes(x));
+    const add = left.length ? `<select class="tb-add" data-i="${i}" data-k="tbAdd" aria-label="${esc(T('tb_add'))}"><option value="">${esc('+ ' + T('tb_add'))}</option>${left.map((x) => `<option value="${x}">${esc(T('tb_' + x))}</option>`).join('')}</select>` : '';
+    return `<div class="field tb-row"><span>${esc(T('opt_tiebreaks'))}</span><small class="hint">${esc(T('tb_order_hint'))}</small>
+      ${rows ? `<ol class="tb-list">${rows}</ol>` : `<p class="hint">${esc(T('tb_empty'))}</p>`}${add}</div>`;
+  }
 
   function html(stages, adv, ctx = {}) {
     const st = stages || [];
@@ -151,9 +164,7 @@
           // Giải offline: điểm thắng / thua ở set quyết định / sau hiệp phụ – luân lưu (bóng chuyền 3–2, khúc côn cầu)
           if (ctx.ext) more.push(`<div class="field inline"><span>${esc(T('opt_pts_ext'))}</span><span class="pts3">${num(i, 'pwx', c.points.wx != null ? c.points.wx : c.points.w, 0, 10)}${num(i, 'plx', c.points.lx != null ? c.points.lx : c.points.l, 0, 10)}</span></div>`);
           if (c.type === 'swiss') more.push(field(T('opt_pts_bye'), num(i, 'pbye', c.points.bye != null ? c.points.bye : c.points.w, 0, 10)));
-          const tbs = tbsOf(c);
-          const opts = [['', T('tb_none')], ...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin').map((x) => [x, T('tb_' + x)])];
-          more.push(`<div class="field tb-row"><span>${esc(T('opt_tiebreaks'))}</span><span class="tb4">${Array.from({ length: MAX_TB }, (_, n) => sel(i, 'tb' + n, opts, tbs[n] || '')).join('')}</span></div>`);
+          more.push(tbList(i, c));
           // Trận không đấu (miễn đấu, thắng / thua do vắng mặt): theo FIDE / như bản cũ
           more.push(field(T('opt_unplayed'), sel(i, 'unplayed', [['fide', T('unplayed_fide')], ['raw', T('unplayed_raw')]], c.unplayed || 'fide')));
           more.push(`<details class="tb-help"><summary>${esc(T('tb_help'))}</summary><dl>${TIEBREAKS.map((x) => `<dt>${esc(T('tb_' + x))}</dt><dd>${esc(T('tbx_' + x))}</dd>`).join('')}</dl></details>`);
@@ -210,10 +221,10 @@
     else if (k === 'table') c.table = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64);
     else if (k === 'path') { if (el.checked) c.path = 'groups'; else delete c.path; } // nhánh theo vị trí trong bảng (otour-path.js)
     else if (el.type === 'checkbox') c[k] = el.checked;
-    else if (/^tb\d$/.test(k)) {
-      const tbs = [...tbsOf(c)];
-      tbs[Number(k[2])] = v;
-      c.tiebreaks = tbs.filter((x, j) => x && tbs.indexOf(x) === j).slice(0, MAX_TB); // bỏ ô trống và trùng
+    else if (k === 'tbAdd') {
+      const tbs = tbsOf(c);
+      if (!tbChoices(c).includes(v) || tbs.includes(v)) return false;
+      c.tiebreaks = [...tbs, v];
     } else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye', 'pwx', 'plx'].includes(k)) c.points[k.slice(1)] = clamp(v);
     else if (el.tagName === 'SELECT') c[k] = v;
     else if (Number.isFinite(v)) c[k] = clamp(v);
@@ -232,6 +243,19 @@
     const c = stages[Number(b.dataset.i)];
     if (b.dataset.sact === 'placeAll' && c) { setPlaces(c, Array.from({ length: Number(b.dataset.size) / 2 - 1 }, (_, j) => 3 + 2 * j)); return true; }
     if (b.dataset.sact === 'placeNone' && c) { setPlaces(c, []); return true; }
+    // Chỉ số phụ: đổi thứ tự / bỏ
+    if (/^tb(Up|Down|Del)$/.test(b.dataset.sact) && c) {
+      const tbs = [...tbsOf(c)], n = Number(b.dataset.n), act = b.dataset.sact;
+      if (!(n >= 0 && n < tbs.length)) return false;
+      if (act === 'tbDel') tbs.splice(n, 1);
+      else {
+        const m = act === 'tbUp' ? n - 1 : n + 1;
+        if (m < 0 || m >= tbs.length) return false;
+        [tbs[n], tbs[m]] = [tbs[m], tbs[n]];
+      }
+      c.tiebreaks = tbs;
+      return true;
+    }
     if (b.dataset.sact === 'add' && stages.length < MAX) stages.unshift(DEFAULT.roundrobin());
     else if (b.dataset.sact === 'del' && stages.length > 1) {
       stages.splice(Number(b.dataset.i), 1);

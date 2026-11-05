@@ -28,7 +28,7 @@
     badge_beat_boat_rapfi: 'Sink BOAT–Rapfi',
     badge_beat_boat_rapfi_d: 'Beat BOAT while Rapfi – the Gomocup champion engine – is playing',
     an_refining_rapfi: 'Quick result · Rapfi (Gomocup champion engine) is refining… {p}%',
-    an_by_rapfi: 'Analysed by Rapfi – the Gomocup champion engine',
+    an_by_rapfi: 'Analyzed by Rapfi – the Gomocup champion engine',
     rapfi_loading: 'BOAT is downloading its Rapfi brain (~{mb} MB, first time only)…',
     rapfi_ready: 'BOAT is ready with Rapfi – the Gomocup champion engine ⛵',
     rapfi_failed: 'Could not load Rapfi – BOAT uses the game\'s own engine',

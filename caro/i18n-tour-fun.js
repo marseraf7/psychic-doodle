@@ -9,22 +9,22 @@
 
   // ================================================================ Tiếng Việt
   X('vi', {
-    fun_predict: 'Dự đoán bục vinh quang', fun_predict_hint: 'Đoán trước giờ đấu: đúng vị trí 3 điểm, có trên bục nhưng sai vị trí 1 điểm. {n} người đã đoán.',
+    fun_predict: 'Dự đoán bục vinh quang', fun_predict_hint: 'Đoán trước khi giải bắt đầu: đúng vị trí được 3 điểm, có mặt trên bục nhưng sai vị trí được 1 điểm. Đã có {n} người đoán.',
     fun_place_1: 'Vô địch', fun_place_2: 'Á quân', fun_place_3: 'Hạng ba', fun_predict_save: 'Lưu dự đoán', fun_predict_update: 'Cập nhật dự đoán',
-    fun_pred_dup: 'Mỗi người chỉ chọn một vị trí.', fun_pred_top: 'Người đoán giỏi nhất', fun_my_score: 'Bạn được {n} điểm dự đoán.',
+    fun_pred_dup: 'Mỗi người chỉ được chọn cho một vị trí.', fun_pred_top: 'Người đoán giỏi nhất', fun_my_score: 'Bạn được {n} điểm dự đoán.',
     fun_vote: 'Ai sẽ thắng?', fun_votes_n: '{n} phiếu',
-    fun_awards: 'Bình chọn cuối giải', fun_awards_hint: 'Mở trong 3 ngày sau khi giải kết thúc. Bạn đổi lựa chọn được.',
+    fun_awards: 'Bình chọn cuối giải', fun_awards_hint: 'Mở trong 3 ngày sau khi giải kết thúc. Bạn có thể đổi lựa chọn.',
     fun_award_mvp: 'Kỳ thủ xuất sắc', fun_award_game: 'Ván đẹp nhất', fun_award_pick: 'Chọn…', fun_award_none: 'Chưa có phiếu.',
     fun_poster: 'Tải poster', fun_poster_podium: 'Bục vinh quang', fun_poster_join: 'Xem và tham gia tại',
     tpl_mine: 'Mẫu của tôi', tpl_use: 'Dùng mẫu', tpl_del: 'Xoá mẫu', tpl_save: 'Lưu thành mẫu', tpl_used: 'Đã điền theo mẫu "{name}"',
     tpl_del_q: 'Xoá mẫu "{name}"?', tpl_name_q: 'Tên mẫu (mỗi người tối đa 10 mẫu):',
-    clone_title: 'Sao chép giải', clone_hint: 'Tạo giải mới với cùng cài đặt (thể thức, đăng ký, thời gian ván…). Người chơi không được sao chép.', clone_btn: 'Sao chép thành giải mới',
+    clone_title: 'Sao chép giải', clone_hint: 'Tạo giải mới với cùng cài đặt (thể thức, đăng ký, thời gian mỗi ván…). Danh sách người chơi không được sao chép.', clone_btn: 'Sao chép thành giải mới',
     recur: 'Lặp lại', recur_none: 'Không lặp lại', recur_weekly: 'Hằng tuần', recur_monthly: 'Hằng tháng',
-    recur_hint: 'Giải xong sẽ tự tạo kỳ sau cùng cài đặt (vẫn qua quản trị viên duyệt).', recur_tag_weekly: 'Hằng tuần · kỳ {n}', recur_tag_monthly: 'Hằng tháng · kỳ {n}',
+    recur_hint: 'Giải xong sẽ tự tạo kỳ sau với cùng cài đặt (vẫn cần quản trị viên duyệt).', recur_tag_weekly: 'Hằng tuần · kỳ {n}', recur_tag_monthly: 'Hằng tháng · kỳ {n}',
     log_recur_created: 'Tạo tự động (giải định kỳ, kỳ {n})',
     srv_tour_vote_closed: 'Trận này không còn bình chọn được', srv_tour_predict_closed: 'Chỉ dự đoán được trước khi giải bắt đầu',
-    srv_tour_award_closed: 'Bình chọn hạng mục đã đóng', srv_tour_tpl_name: 'Tên mẫu cần ít nhất 2 ký tự',
-    srv_tour_tpl_limit: 'Mỗi người lưu tối đa {n} mẫu giải – hãy xoá bớt', srv_tour_recur_next: 'Đã tạo kỳ tiếp theo của giải định kỳ: {name}',
+    srv_tour_award_closed: 'Hạng mục bình chọn này đã đóng', srv_tour_tpl_name: 'Tên mẫu cần ít nhất 2 ký tự',
+    srv_tour_tpl_limit: 'Mỗi người lưu được tối đa {n} mẫu giải. Hãy xoá bớt.', srv_tour_recur_next: 'Đã tạo kỳ tiếp theo của giải định kỳ: {name}',
   });
 
   // ================================================================ English

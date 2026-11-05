@@ -24,7 +24,7 @@
       const cur = L.pick[t.id] || t.myTeams[0].id;
       pick = `<label class="field"><span>${esc(T('tb_pick'))}</span><select id="team-pick">${t.myTeams.map((x) => `<option value="${esc(x.id)}" ${x.id === cur ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>`;
     }
-    return `<section class="team-battle"><h4>${icon('swords')}${esc(T('tb_title'))}</h4><p class="hint">${esc(T('tb_rule', { n: t.teamTop }))}</p>${pick}<ol class="ranks team-table">${rows}</ol></section>`;
+    return `<section class="team-battle"><h4>${icon('swords')}${esc(T('tb_title'))}</h4><p class="hint">${esc(T('tbt_rule', { n: t.teamTop }))}</p>${pick}<ol class="ranks team-table">${rows}</ol></section>`;
   }
   K.joinExtra = () => {
     const t = D.tour;

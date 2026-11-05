@@ -3,7 +3,7 @@
  *  - Điểm: trận thắng / hoà / thua (points.w/d/l) + mỗi ván thắng / hoà (points.gw/gt) + miễn đấu (points.bye); giải offline
  *    có thể đặt riêng điểm thắng / thua "sát" (points.wx/lx – m.ext: set quyết định, hiệp phụ, luân lưu).
  *  - Xếp theo (rankBy, vòng tròn): điểm · số trận thắng · số ván thắng · tỉ lệ thắng ván · hiệu số ván. Thụy Sĩ luôn theo điểm.
- *  - Tie-break tối đa MAX_TB cấp (tiebreaks), mỗi cấp một tiêu chí: đối đầu (bảng điểm riêng giữa những người bằng nhau),
+ *  - Tie-break bao nhiêu cấp cũng được (tiebreaks, tối đa MAX_TB = số tiêu chí), mỗi cấp một tiêu chí: đối đầu (bảng điểm riêng giữa những người bằng nhau),
  *    Buchholz (đủ / Cut-1 / Cut-2 / Median / Median-2 / Fore / trung bình Buchholz đối thủ), Sonneborn–Berger, Koya, điểm
  *    luỹ tiến, số trận thắng (mọi trận / thắng thật), số ván đi sau, Elo trung bình đối thủ (ARO, Cut-1), Elo thành tích
  *    (TPR, trung bình TPR đối thủ), hiệu số ván, số ván thắng, tỉ lệ thắng ván. Cuối cùng là hạt giống.
@@ -17,11 +17,11 @@ const { extend } = require('./stages-tb-calc.js');
 const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
 const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
   'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
-const MAX_TB = 5;
+const MAX_TB = TIEBREAKS.length; // chọn bao nhiêu cũng được, mỗi tiêu chí một lần
 // Mặc định giữ đúng cách xếp của bản trước: vòng tròn đối đầu → hiệu số → số ván thắng; Thụy Sĩ Buchholz → SB → số trận thắng
 const DEFAULT_TB = { roundrobin: ['h2h', 'gdiff', 'gwins'], swiss: ['bh', 'sb', 'wins'] };
 
-/** Danh sách tie-break hợp lệ (không trùng, tối đa MAX_TB); không có thì dùng mặc định theo thể thức. */
+/** Danh sách tie-break hợp lệ (giữ thứ tự ưu tiên, bỏ trùng / lạ); không có thì dùng mặc định theo thể thức. */
 function normalizeTiebreaks(list, type) {
   if (!Array.isArray(list)) return [...(DEFAULT_TB[type] || DEFAULT_TB.roundrobin)];
   const out = [];

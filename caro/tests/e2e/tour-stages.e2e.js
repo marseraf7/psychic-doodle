@@ -60,7 +60,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
     ok(await boss.$eval('#tf select[name=preset]', (e) => e.value) === 'custom', 'Sửa giai đoạn -> chuyển sang "Tuỳ chỉnh"');
     await setStage(0, 'groupSize', 3);
     await setStage(1, 'bestOf', 1);
-    ok((await boss.textContent('#tf-stages .flow')).includes('3 người/bảng'), 'Chia theo số người mỗi bảng: "Vòng tròn (3 người/bảng) → … → Loại trực tiếp"');
+    ok((await boss.textContent('#tf-stages .flow')).includes('3 người mỗi bảng'), 'Chia theo số người mỗi bảng: "Vòng tròn (3 người/bảng) → … → Loại trực tiếp"');
     await shot(boss, 'p1-stage-editor-vi.png');
   });
   await boss.click('#tf button.primary'); await sleep(600);
@@ -105,7 +105,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
   ok(tb.includes('Group A') && tb.includes('Stage 2') && tb.includes('Pts'), 'Tiếng Anh: Group A, Stage 2, cột Pts');
   await shot(B, 'p4-groups-en-mobile.png');
   // Người bị loại ở vòng bảng thấy "Không vào vòng sau"
-  ok((await boss.textContent('#tour-body')).includes('Không vào vòng sau'), 'Danh sách người chơi: "Không vào vòng sau"');
+  ok((await boss.textContent('#tour-body')).includes('Không vào được vòng sau'), 'Danh sách người chơi: "Không vào vòng sau"');
   ok(boss.patches > 10, `Trang giải cập nhật bằng bản vá (chỉ phần đổi): ${boss.patches} bản vá`);
 
   // ---------------- Giải 2: Thụy Sĩ 3 vòng (top 4) -> nhánh thắng-thua
@@ -117,7 +117,7 @@ const { setup, play, roomOf, sleep } = require('./helpers.js');
     ok(await boss.isVisible('#tf-stages [data-k="reset"]'), 'Nhánh thắng-thua: có tuỳ chọn reset');
   });
   await boss.click('#tf button.primary'); await sleep(600);
-  ok((await boss.textContent('#tour-body')).includes('Nhánh thắng – thua · Bo1'), 'Đổi Bo bằng ô chọn được lưu (Bo1)');
+  ok((await boss.textContent('#tour-body')).includes('Nhánh thắng – nhánh thua · Bo1'), 'Đổi Bo bằng ô chọn được lưu (Bo1)');
   await joinAll('Swiss Masters');
   await boss.click('[data-act="start"]'); await sleep(1500);
   const S2 = { an_vi: 6, bob_en: 5, dima_ru: 4, chen_zh: 3, eve_vi: 2, fay_en: 1 };

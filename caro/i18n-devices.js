@@ -29,7 +29,7 @@
   });
   I.extend('en', {
     dev_title: 'Devices',
-    dev_hint: 'Where your account is signed in. If you see a device you do not recognise, sign it out and change your password.',
+    dev_hint: 'Where your account is signed in. If you see a device you do not recognize, sign it out and change your password.',
     dev_this: 'This device',
     dev_online: 'Online now',
     dev_seen: 'Active {when}',

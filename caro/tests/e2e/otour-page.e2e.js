@@ -1,6 +1,7 @@
 /*
  * Kiểm thử trình duyệt – Giải đấu Offline là trang riêng (kiểu Challonge / MyLeague, không phải hộp thoại) + ảnh chia sẻ:
- *   - ?ot=new mở thẳng form tạo giải ở trang riêng (#page-otour), hộp thoại giải đấu đóng; tạo xong địa chỉ thành ?o=<link>;
+ *   - ?ot=new mở thẳng form tạo giải ở trang riêng (#page-otour), hộp thoại giải đấu đóng; ô URL có sẵn mã ngẫu nhiên (đổi / sửa
+ *     được); tạo xong địa chỉ thành ?o=<link>;
  *   - các tab (Tổng quan / Thể thức…), tự sang tab Thể thức khi giải chạy, về Tổng quan khi xong;
  *   - nút ‹ lùi lên trang trên (giải → danh sách giải offline → Trang chủ); nút "Giải đấu"; nút Back / Forward của trình duyệt;
  *   - ảnh bảng xếp hạng, bục trao giải, ảnh kết quả một trận (hộp xem trước có ảnh PNG).
@@ -20,6 +21,11 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   await gotoRetry(boss, `http://localhost:${PORT}/?ot=new`);
   await boss.waitForSelector('#page-otour #otf', { timeout: 10000 }).catch(() => {});
   ok(await visible(boss, '#page-otour') && !(await boss.evaluate(() => document.getElementById('tour-dlg').open)), '?ot=new: form tạo giải ở trang riêng, không phải hộp thoại');
+  // URL kiểu Challonge: có sẵn mã ngẫu nhiên, nút đổi mã, sửa tay được
+  const slug0 = await boss.$eval('#otf input[name=slug]', (e) => e.value).catch(() => '');
+  ok(/^[a-z0-9]{8}$/.test(slug0) && /\/\?o=$/.test(await boss.textContent('#otf .slug-pre')), 'Ô URL có sẵn mã ngẫu nhiên, tiền tố …/?o=');
+  await boss.click('#otf [data-act="slugShuffle"]'); await sleep(150);
+  ok(await boss.$eval('#otf input[name=slug]', (e) => e.value) !== slug0, 'Nút đổi mã: mã mới');
   await boss.fill('#otf input[name=name]', 'Bóng đá khu phố');
   await boss.fill('#otf input[name=slug]', 'bong-da-khu-pho');
   await boss.selectOption('#otf select[name=sport]', 'football'); await sleep(150);

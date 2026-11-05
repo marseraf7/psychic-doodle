@@ -21,7 +21,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('[data-act="otTplTeams"]'); await sleep(300);
   const n = await boss.$eval('#otf textarea[name=teams]', (e) => e.value.split('\n').length);
   // 144 trận league phase + 23 trận loại trực tiếp 24 đội (8 đội miễn vòng đầu)
-  ok(n === 36 && /≈ 167 trận/.test(await boss.textContent('#otf-est')), 'Điền 36 đội mẫu, ước tính 144 + 23 = 167 trận');
+  ok(n === 36 && /Khoảng 167 trận/.test(await boss.textContent('#otf-est')), 'Điền 36 đội mẫu, ước tính 144 + 23 = 167 trận');
   await shot(boss, 'ot-tpl.png');
   await boss.click('#otf button.primary.wide'); await sleep(900);
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);

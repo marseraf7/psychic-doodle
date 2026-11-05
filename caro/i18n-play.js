@@ -307,7 +307,7 @@
     btn_abort: '取消对局',
     aborted_title: '对局已取消',
     abandoned_title: '对局取消——连接中断',
-    abandoned_sub: '双方断线时间过长——无人判负,本局不计分',
+    abandoned_sub: '双方断线时间过长——无人判负，本局不计分',
     takeback_ask: '{name} 请求悔棋',
     first_move_you: '请在 {n} 秒内走第一步',
     first_move_opp: '对手需在 {n} 秒内走第一步',

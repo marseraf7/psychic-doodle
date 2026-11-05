@@ -13,7 +13,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
   ok(/Giai đoạn 1: vòng tròn 4 bảng/.test(await boss.textContent('#otf-desc')), 'Xem trước bằng lời theo cấu hình mặc định');
   await boss.click('.tpl-card[data-id="champions_league"]'); await sleep(300);
-  ok(/league phase: mỗi đội 8 trận/.test(await boss.textContent('#otf-desc')), 'Mô tả đổi theo mẫu');
+  ok(/vòng phân hạng: mỗi đội 8 trận/.test(await boss.textContent('#otf-desc')), 'Mô tả đổi theo mẫu');
   await boss.$eval('details[data-k="otf:io"]', (d) => { d.open = true; }); await sleep(200);
   await boss.click('[data-act="otIoCopy"]'); await sleep(200);
   const json = await boss.$eval('#otf-json', (e) => e.value);

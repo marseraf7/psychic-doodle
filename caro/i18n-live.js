@@ -8,7 +8,7 @@
     an_refining: 'Kết quả nhanh · đang phân tích kỹ hơn… {p}%',
   });
   I.extend('en', {
-    live_an: 'Analyse while playing',
+    live_an: 'Analyze while playing',
     live_an_d: 'The engine checks each move on this device during the game, so the analysis is ready when it ends. Turn off to save battery.',
     an_refining: 'Quick result · refining… {p}%',
   });

@@ -44,7 +44,7 @@
             rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent'] },
             record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo } },
             points: { type: 'object', properties: { w: int(0, 10), d: int(0, 10), l: int(0, 10), wx: int(0, 10), lx: int(0, 10), gw: int(0, 10), gt: int(0, 10), bye: int(0, 10) } },
-            tiebreaks: { type: 'array', maxItems: 5, items: { type: 'string', enum: TIEBREAKS } },
+            tiebreaks: { type: 'array', maxItems: TIEBREAKS.length, items: { type: 'string', enum: TIEBREAKS } },
             rankBy: { type: 'string', enum: ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'] },
             events: int(1, 30, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time'] },
             table: { type: 'array', maxItems: 64, items: int(0, 1000), description: 'hệ Race: điểm theo hạng' }, teams: { type: 'boolean', description: 'hệ Race: bảng đội' },

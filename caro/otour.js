@@ -65,7 +65,7 @@
       ${r ? `${num('to', r.to, 1, 99)}${num('by', r.by, 1, 10)}${num('cap', r.cap || 0, 0, 199)}${num('last', r.last || 0, 0, 99)}<small class="hint">${esc(T('ot_set_hint'))}</small>` : `<small class="hint">${esc(T('ot_set_off_hint'))}</small>`}</fieldset>`;
   }
   function begin() {
-    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, set: null, preset: 'groups_single', teams: '', tpl: null };
+    F.d = { name: '', slug: K.slugKit ? K.slugKit.rand() : '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, set: null, preset: 'groups_single', teams: '', tpl: null };
     F.stages = applySport(PRESETS.groups_single(), 'football');
   }
   function pageNew() {
@@ -79,7 +79,7 @@
       ${K.otAiHtml ? K.otAiHtml() : ''}
       ${K.otTplHtml ? K.otTplHtml(d) : ''}
       <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
-      <label class="field"><span>${esc(T('adv_url'))}</span><input name="slug" maxlength="20" autocomplete="off" value="${esc(d.slug)}" placeholder="cup-lang-2026"><small class="hint">${esc(T('ot_slug_hint'))}</small></label>
+      ${K.slugKit ? K.slugKit.field(d.slug, 'o') : ''}
       <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
       <label class="field"><span>${esc(T('ot_sport'))}</span><select name="sport">${Object.keys(SP.SPORTS).map((k) => opt(k, d.sport, SP.SPORTS[k].icon + ' ' + T('sport_' + k))).join('')}</select></label>
       <label class="field"><span>${esc(T('ot_result'))}</span><select name="result">${SP.RESULTS.map((k) => opt(k, d.result, T('otres_' + k))).join('')}</select></label>

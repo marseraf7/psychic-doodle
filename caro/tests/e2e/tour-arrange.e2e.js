@@ -51,7 +51,7 @@ const { setup, sleep } = require('./helpers.js');
   ok(!!t.arrange && t.st.length === 1, 'Thụy Sĩ xong: dừng chờ xếp nhánh (chưa bốc thăm giai đoạn 2)');
   ok((await boss.$$('#ar-box .ar-slot')).length === 4 && /#\d/.test(await boss.textContent('#ar-box')), 'Ban tổ chức: 4 ô kèm thứ hạng Thụy Sĩ (#1…)');
   await viewer.evaluate((i) => window.CaroTour.open(i), id); await sleep(600);
-  ok(/đang xếp nhánh giai đoạn 2/.test(await viewer.textContent('#tour-body')) && !(await viewer.$('#ar-box')), 'Người xem: dòng "đang xếp nhánh", không có khung kéo thả');
+  ok(/đang xếp nhánh cho giai đoạn 2/.test(await viewer.textContent('#tour-body')) && !(await viewer.$('#ar-box')), 'Người xem: dòng "đang xếp nhánh", không có khung kéo thả');
   // Bấm hai ô để đổi chỗ (điện thoại)
   const before = [...t.arrange.slots];
   await boss.click('#ar-box [data-ar="1"]'); await sleep(150);

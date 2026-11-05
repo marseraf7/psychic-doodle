@@ -59,7 +59,7 @@
     menu_rotate: 'Quay bàn cờ',
     menu_draft_x: 'Quân nháp X',
     menu_draft_o: 'Quân nháp O',
-    menu_draft_clear: 'Xóa hết quân nháp',
+    menu_draft_clear: 'Xoá hết quân nháp',
     menu_quickset: 'Cài đặt nhanh (bàn, quân, âm thanh)',
     set_board: 'Cài đặt bàn cờ',
     set_play: 'Thao tác chơi',
@@ -99,7 +99,7 @@
     home_bot_hint: 'You play X, the computer plays a {style} style. Beat the top level to unlock a stronger one.',
     home_intro: 'Caro x Gomoku is free with no ads: play the computer, friends or online opponents, solve puzzles and learn openings.',
     home_offline: 'No server: you can play the computer or 2 players on one device.',
-    home_about: 'Caro x Gomoku is a free, ad-free website and app for playing Caro (Vietnamese five-in-a-row) and Gomoku: play friends or matched opponents online, play against computer characters, analyse your games, solve puzzles and learn openings. Google Sign-In is used only to create and sign in to your player account.',
+    home_about: 'Caro x Gomoku is a free, ad-free website and app for playing Caro (Vietnamese five-in-a-row) and Gomoku: play friends or matched opponents online, play against computer characters, analyze your games, solve puzzles and learn openings. Google Sign-In is used only to create and sign in to your player account.',
     home_credit: 'A product of the Youth Union chapter of the University of the Ministry of Internal Affairs of the Russian Federation',
   
     more_play: 'Play',

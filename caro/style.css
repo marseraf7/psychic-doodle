@@ -66,9 +66,11 @@
   --grid: #d9d3c4;
   --grid-strong: #bfb7a4;
   --panel: #fffdf8;
-  --panel-border: rgba(0, 0, 0, 0.08);
+  --panel-border: rgba(0, 0, 0, 0.13);
   --text: #23201a;
-  --muted: #6f6857;
+  --muted: #5d5646; /* chữ phụ: đủ tương phản (≥ 6:1) trên nền sáng */
+  --line: #cbc1ad; /* viền khối / thẻ */
+  --field-border: #978d78; /* viền ô nhập, ô chọn, nút viền (≥ 3:1 – WCAG cho thành phần giao diện) */
   --x: #d8342c;
   --o: #1f5fd1;
   --last: rgba(255, 196, 0, 0.28);
@@ -102,9 +104,11 @@
     --grid: #2b2925;
     --grid-strong: #3c3934;
     --panel: #262421;
-    --panel-border: rgba(255, 255, 255, 0.08);
+    --panel-border: rgba(255, 255, 255, 0.13);
     --text: #e6e4e1;
-    --muted: #9b9893;
+    --muted: #aba79f;
+    --line: rgba(255, 255, 255, 0.16);
+    --field-border: rgba(255, 255, 255, 0.32);
     --x: #ff5d52;
     --o: #57a0ff;
     --last: rgba(255, 196, 0, 0.18);
@@ -120,9 +124,11 @@
   --grid: #2b2925;
   --grid-strong: #3c3934;
   --panel: #262421;
-  --panel-border: rgba(255, 255, 255, 0.08);
+  --panel-border: rgba(255, 255, 255, 0.13);
   --text: #e6e4e1;
-  --muted: #9b9893;
+  --muted: #aba79f;
+  --line: rgba(255, 255, 255, 0.16);
+  --field-border: rgba(255, 255, 255, 0.32);
   --x: #ff5d52;
   --o: #57a0ff;
   --last: rgba(255, 196, 0, 0.18);
@@ -242,9 +248,13 @@ button {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ghost {
   padding: 10px 14px;
-  color: var(--muted);
+  color: var(--text);
 }
 .ghost:hover { background: rgba(127, 127, 127, 0.12); }
+/* Nút phụ có chữ: viền + nền thẻ để trông ra nút (trước chỉ là chữ xám, khó nhận ra); nút biểu tượng giữ nguyên */
+.ghost:not(.icon) { border: 1px solid var(--field-border); background: var(--panel); }
+.ghost:not(.icon):hover { background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+.ghost:disabled { opacity: 0.5; }
 
 .banner {
   position: fixed;
