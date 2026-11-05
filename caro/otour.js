@@ -2,7 +2,7 @@
  * Giải đấu Offline – giải của mọi bộ môn (docs/de-xuat-giai-offline.md), tách khỏi giải Caro nhưng dùng chung khung trang
  * giải (CaroTourKit – tour.js) và cách vẽ nhánh / bảng (tour-stages.js). Máy chủ: server/src/hub/otour*.js.
  *   Trang 'otours'  – danh sách: giải của tôi + giải công khai gần đây (khách xem được).
- *   Trang 'otNew'   – tạo giải: tên, link riêng, mô tả có định dạng, ai xem được, bộ môn (điểm / tie-break / kiểu kết quả
+ *   Trang 'otNew'   – tạo giải: mẫu giải nổi tiếng (otour-tpl.js), tên, link riêng, mô tả có định dạng, ai xem được, bộ môn (điểm / tie-break / kiểu kết quả
  *                     tự điền theo môn – otour-sports.js), luật set (kiểu điểm từng set), thể thức (trình sửa giai đoạn
  *                     của giải Caro), danh sách đội.
  *   Trang 'ot'      – trang giải: đội (thêm / xoá trước khi bắt đầu), bắt đầu, nhánh / bảng, nhập kết quả (otour-score.js).
@@ -65,7 +65,7 @@
       ${r ? `${num('to', r.to, 1, 99)}${num('by', r.by, 1, 10)}${num('cap', r.cap || 0, 0, 199)}${num('last', r.last || 0, 0, 99)}<small class="hint">${esc(T('ot_set_hint'))}</small>` : `<small class="hint">${esc(T('ot_set_off_hint'))}</small>`}</fieldset>`;
   }
   function begin() {
-    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, set: null, preset: 'groups_single', teams: '' };
+    F.d = { name: '', slug: '', desc: '', access: 'public', sport: 'football', result: SP.SPORTS.football.result, set: null, preset: 'groups_single', teams: '', tpl: null };
     F.stages = applySport(PRESETS.groups_single(), 'football');
   }
   function pageNew() {
@@ -76,6 +76,7 @@
     const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
     const n = d.teams.split('\n').filter((x) => x.trim()).length;
     return `<form id="otf" class="tform">
+      ${K.otTplHtml ? K.otTplHtml(d) : ''}
       <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
       <label class="field"><span>${esc(T('adv_url'))}</span><input name="slug" maxlength="20" autocomplete="off" value="${esc(d.slug)}" placeholder="cup-lang-2026"><small class="hint">${esc(T('ot_slug_hint'))}</small></label>
       <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
@@ -119,6 +120,8 @@
     f.addEventListener('change', (e) => {
       if (e.target.closest('#otf-stages')) return;
       collect(f);
+      // Đổi môn / mẫu thể thức: không còn theo mẫu giải nổi tiếng đã chọn (otour-tpl.js) – bỏ đánh dấu mẫu
+      if (F.d.tpl && (e.target.name === 'sport' || e.target.name === 'preset')) { F.d.tpl = null; setTimeout(() => render(true), 0); }
       if (e.target.name === 'sport') {
         F.d.result = (SP.SPORTS[F.d.sport] || SP.SPORTS.other).result; f.elements.result.value = F.d.result;
         F.d.set = sportSet(F.d.sport);
@@ -147,6 +150,8 @@
     };
     showEst(f);
   }
+  // Cho thư viện mẫu giải (otour-tpl.js): đọc / sửa bản nháp form
+  K.otForm = { F, collect: () => { const f = $('otf'); if (f) collect(f); }, applySport, sportSet };
 
   // ------------------------------------------------------------ Trang giải
   function pageView() {
