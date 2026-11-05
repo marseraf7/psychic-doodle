@@ -11,13 +11,17 @@
   const SPORTS = {
     football: { icon: '⚽', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['gdiff', 'gwins', 'h2h'], bestOf: 1, extra: 'aet' },
     futsal: { icon: '🥅', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'aet' },
-    basketball: { icon: '🏀', result: 'score', points: { w: 2, d: 1, l: 1 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot' },
+    basketball: { icon: '🏀', result: 'score', points: { w: 2, d: 1, l: 1 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot', unit: 'game' },
     volleyball: { icon: '🏐', result: 'sets', points: { w: 3, d: 0, l: 0, wx: 2, lx: 1 }, tiebreaks: ['wins', 'gpct', 'ppct'], bestOf: 5, set: { to: 25, by: 2, cap: 0, last: 15 } },
     badminton: { icon: '🏸', result: 'sets', points: { w: 2, d: 0, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'pdiff'], bestOf: 3, set: { to: 21, by: 2, cap: 30, last: 0 } },
     tabletennis: { icon: '🏓', result: 'sets', points: { w: 2, d: 0, l: 1 }, tiebreaks: ['h2h', 'gpct', 'ppct'], bestOf: 5, set: { to: 11, by: 2, cap: 0, last: 0 } },
     pickleball: { icon: '🥒', result: 'sets', points: { w: 2, d: 0, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'pdiff'], bestOf: 3, set: { to: 11, by: 2, cap: 0, last: 0 } },
     tennis: { icon: '🎾', result: 'sets', points: { w: 2, d: 0, l: 0 }, tiebreaks: ['h2h', 'gpct', 'ppct'], bestOf: 3, set: { to: 6, by: 2, cap: 7, last: 0 } },
-    hockey: { icon: '🏒', result: 'score', points: { w: 3, d: 1, l: 0, wx: 2, lx: 1 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot' },
+    hockey: { icon: '🏒', result: 'score', points: { w: 3, d: 1, l: 0, wx: 2, lx: 1 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot', unit: 'game' },
+    // Bóng bầu dục Mỹ, bóng chày: không hoà (hiệp phụ / hiệp đấu thêm). unit 'game': khi chọn kiểu "điểm từng set" mà
+    // không có luật set, mỗi "set" là một trận trong loạt Bo (playoff Bo5 / Bo7 kiểu NBA, MLB, NHL) – form ghi "Trận 1, 2…"
+    amfootball: { icon: '🏈', result: 'score', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot', unit: 'game' },
+    baseball: { icon: '⚾', result: 'score', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot', unit: 'game' },
     handball: { icon: '🤾', result: 'score', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'aet' },
     esports: { icon: '🎮', result: 'sets', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 3, set: null },
     // Hệ Race (stages-race.js): preset = mẫu thể thức chọn sẵn khi đổi sang môn này

@@ -39,6 +39,29 @@ const { setup, sleep } = require('./helpers.js');
   ok(await boss.isChecked('#otf-stages [data-k="record"]') && await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'esports', 'Mẫu LoL: Thụy Sĩ theo thắng / thua, thể thao điện tử');
   await boss.click('.tpl-card[data-id="f1"]'); await sleep(300);
   ok(await boss.$eval('#otf-stages [data-k="events"]', (e) => e.value) === '24' && await boss.isChecked('#otf-stages [data-k="teams"]'), 'Mẫu F1: 24 chặng, bảng đội');
+  // Mẫu giải Mỹ: NBA – bóng rổ, mỗi "set" là một trận trong loạt (form ghi "Trận 1"), playoff Bo7
+  for (const [tid, sport] of [['nfl', 'amfootball'], ['mlb', 'baseball'], ['nhl', 'hockey'], ['mls', 'football']]) {
+    await boss.click(`.tpl-card[data-id="${tid}"]`); await sleep(250);
+    ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === sport, `Mẫu ${tid.toUpperCase()}: bộ môn ${sport}`);
+  }
+  await boss.click('.tpl-card[data-id="nba"]'); await sleep(300);
+  ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'basketball' && await boss.$eval('#otf select[name=result]', (e) => e.value) === 'sets', 'Mẫu NBA: bóng rổ, ghi theo từng trận của loạt');
+  ok(/Kiểu NBA/.test(await boss.textContent('.tpl-card.on')) && /Bo7/.test(await boss.textContent('.tpl-desc')), 'Mẫu NBA: thẻ đang chọn + mô tả có Bo7');
+  await boss.fill('#otf input[name=name]', 'Bóng rổ kiểu NBA');
+  await boss.click('[data-act="otTplTeams"]'); await sleep(300);
+  await boss.click('#otf button.primary.wide'); await sleep(900);
+  const tn = app.hub.otGet(await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id));
+  ok(tn && tn.sport === 'basketball' && tn.result === 'sets' && tn.set == null && tn.players.length === 30 && tn.stages[1].bestOf === 7, 'Tạo giải NBA: 30 đội, không luật set, playoff Bo7');
+  await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(1500);
+  await boss.click('[data-act="otTab"][data-tab="stages"]').catch(() => {}); await sleep(300);
+  await boss.$$eval('details.fold', (ds) => ds.forEach((d) => { d.open = true; })); await sleep(1200);
+  const sc = await boss.$('.scorable');
+  if (sc) { await sc.click(); await sleep(400); }
+  ok(!!sc && /Trận 1/.test(await boss.textContent('.score-panel').catch(() => '')) && /Nhập tỉ số của trận/.test(await boss.textContent('.score-panel').catch(() => '')), 'Khung nhập mùa giải (Bo1): "Trận 1", "Nhập tỉ số của trận"');
+  ok(/🏀 Ghi điểm/.test(await boss.textContent('#otm-type').catch(() => '')) && !/Phản lưới/.test(await boss.textContent('#otm-type').catch(() => '')), 'Diễn biến trận bóng rổ: 🏀 Ghi điểm, không có phản lưới nhà');
+  await shot(boss, 'ot-tpl-nba.png');
+  await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
+  await boss.click('.tpl-card[data-id="f1"]'); await sleep(300);
   await boss.selectOption('#otf select[name=sport]', 'badminton'); await sleep(400);
   ok(!(await boss.$('.tpl-card.on')), 'Đổi môn: bỏ đánh dấu mẫu');
   await finish();

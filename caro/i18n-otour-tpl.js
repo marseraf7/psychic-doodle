@@ -43,6 +43,11 @@
     tpl_time_trial: 'Đua tính giờ (chạy bộ, đua xe…)', tpl_time_trial_d: 'Một chặng tính thời gian: xếp theo thời gian, tự tính chênh lệch với người dẫn đầu và người ngay trên.',
     tpl_badminton_open: 'Cầu lông loại trực tiếp', tpl_badminton_open_d: '32 người đấu loại trực tiếp, mỗi trận Bo3, mỗi set 21 điểm, phải hơn 2, chạm 30 là thắng.',
     tpl_tabletennis_cup: 'Bóng bàn vòng bảng + loại trực tiếp', tpl_tabletennis_cup_d: '16 người chia 4 bảng; nhất và nhì mỗi bảng vào vòng loại trực tiếp. Mỗi trận Bo5, mỗi set 11 điểm, phải hơn 2.',
+    tpl_nba: 'Kiểu NBA (bóng rổ)', tpl_nba_d: '30 đội chia 2 miền (2 bảng 15 đội), đá vòng tròn lượt đi – về trong bảng (28 trận mỗi đội), xếp theo số trận thắng. 8 đội đầu mỗi miền vào playoff loại trực tiếp, mỗi vòng đấu loạt Bo7.',
+    tpl_nfl: 'Kiểu NFL (bóng bầu dục Mỹ)', tpl_nfl_d: '32 đội chia 2 nhánh (2 bảng 16 đội), mỗi đội đá 15 trận vòng tròn một lượt. 7 đội đầu mỗi nhánh vào playoff loại trực tiếp một trận, 2 đội đầu bảng được miễn vòng đầu.',
+    tpl_mlb: 'Kiểu MLB (bóng chày)', tpl_mlb_d: '30 đội chia 2 liên đoàn (2 bảng 15 đội), đá vòng tròn lượt đi – về (28 trận mỗi đội), xếp theo số trận thắng. 6 đội đầu mỗi liên đoàn vào playoff: vòng đầu Bo5, bán kết và chung kết Bo7; 4 đội đầu được miễn vòng đầu.',
+    tpl_nhl: 'Kiểu NHL (khúc côn cầu)', tpl_nhl_d: '32 đội chia 2 miền (2 bảng 16 đội), đá vòng tròn lượt đi – về (30 trận mỗi đội), thắng được 2 điểm. 8 đội đầu mỗi miền vào playoff loại trực tiếp, mỗi vòng đấu loạt Bo7.',
+    tpl_mls: 'Kiểu MLS (bóng đá Mỹ)', tpl_mls_d: '30 đội chia 2 miền (2 bảng 15 đội), đá vòng tròn lượt đi – về (28 trận mỗi đội). Thắng 3 điểm, hoà 1. 8 đội đầu mỗi miền vào playoff loại trực tiếp một trận, hoà thì đá luân lưu.',
     tpl_volleyball_league: 'Bóng chuyền vòng tròn + chung kết 4 đội', tpl_volleyball_league_d: '8 đội đá vòng tròn một lượt (thắng 3–0 hoặc 3–1 được 3 điểm, thắng 3–2 được 2 điểm, thua 2–3 được 1 điểm); 4 đội đầu vào bán kết, có tranh hạng ba.',
   });
 
@@ -83,6 +88,11 @@
     tpl_time_trial: 'Time Trial (timed run / race)', tpl_time_trial_d: 'One timed leg: ranked by time, with the gap to the leader and to the one ahead worked out for you.',
     tpl_badminton_open: 'Badminton knockout', tpl_badminton_open_d: '32 players, single elimination, Bo3; games to 21, win by 2, capped at 30.',
     tpl_tabletennis_cup: 'Table tennis groups + knockout', tpl_tabletennis_cup_d: '16 players in 4 groups; the top two of each group reach the knockout. Bo5, games to 11, win by 2.',
+    tpl_nba: 'NBA style (basketball)', tpl_nba_d: '30 teams in 2 conferences (2 groups of 15), home-and-away round robin within the group (28 games each), ranked by wins. The top 8 of each conference make the knockout playoffs, every round a best-of-7 series.',
+    tpl_nfl: 'NFL style (American football)', tpl_nfl_d: '32 teams in 2 conferences (2 groups of 16), 15 games each in a single round robin. The top 7 of each conference make the single-game knockout playoffs; the two group winners get a first-round bye.',
+    tpl_mlb: 'MLB style (baseball)', tpl_mlb_d: '30 teams in 2 leagues (2 groups of 15), home-and-away round robin (28 games each), ranked by wins. The top 6 of each league make the playoffs: first round best of 5, semifinals and final best of 7; the top 4 seeds get a bye.',
+    tpl_nhl: 'NHL style (ice hockey)', tpl_nhl_d: '32 teams in 2 conferences (2 groups of 16), home-and-away round robin (30 games each), 2 points for a win. The top 8 of each conference make the knockout playoffs, every round a best-of-7 series.',
+    tpl_mls: 'MLS style (soccer)', tpl_mls_d: '30 teams in 2 conferences (2 groups of 15), home-and-away round robin (28 games each). 3 points for a win, 1 for a draw. The top 8 of each conference make the single-game knockout playoffs, with penalties after a draw.',
     tpl_volleyball_league: 'Volleyball round robin + final four', tpl_volleyball_league_d: '8 teams, single round robin (3–0 / 3–1 win: 3 pts, 3–2: 2 pts, 2–3 loss: 1 pt); the top 4 play semi-finals, with a third-place match.',
   });
 
@@ -123,6 +133,11 @@
     tpl_time_trial: 'Гонка на время (бег / заезд)', tpl_time_trial_d: 'Один этап на время: места по времени, отставание от лидера и от предыдущего считается само.',
     tpl_badminton_open: 'Бадминтон на выбывание', tpl_badminton_open_d: '32 игрока, олимпийская система, Bo3; гейм до 21, разница 2, максимум 30.',
     tpl_tabletennis_cup: 'Настольный теннис: группы + плей-офф', tpl_tabletennis_cup_d: '16 игроков в 4 группах; по двое лучших из группы выходят в плей-офф. Bo5, партия до 11, разница 2.',
+    tpl_nba: 'Как в НБА (баскетбол)', tpl_nba_d: '30 команд в 2 конференциях (2 группы по 15), двухкруговой турнир внутри группы (по 28 матчей), места по числу побед. По 8 лучших из каждой конференции выходят в плей-офф, каждый раунд — серия до 4 побед (Bo7).',
+    tpl_nfl: 'Как в НФЛ (американский футбол)', tpl_nfl_d: '32 команды в 2 конференциях (2 группы по 16), однокруговой турнир (по 15 матчей). По 7 лучших из каждой конференции выходят в плей-офф на выбывание в одном матче; победители групп пропускают первый раунд.',
+    tpl_mlb: 'Как в МЛБ (бейсбол)', tpl_mlb_d: '30 команд в 2 лигах (2 группы по 15), двухкруговой турнир (по 28 матчей), места по числу побед. По 6 лучших из каждой лиги выходят в плей-офф: первый раунд Bo5, полуфиналы и финал Bo7; четыре лучшие по посеву пропускают первый раунд.',
+    tpl_nhl: 'Как в НХЛ (хоккей)', tpl_nhl_d: '32 команды в 2 конференциях (2 группы по 16), двухкруговой турнир (по 30 матчей), 2 очка за победу. По 8 лучших из каждой конференции выходят в плей-офф, каждый раунд — серия Bo7.',
+    tpl_mls: 'Как в МЛС (футбол)', tpl_mls_d: '30 команд в 2 конференциях (2 группы по 15), двухкруговой турнир (по 28 матчей). 3 очка за победу, 1 за ничью. По 8 лучших из каждой конференции выходят в плей-офф на выбывание в одном матче, при ничьей — серия пенальти.',
     tpl_volleyball_league: 'Волейбол: круг + финал четырёх', tpl_volleyball_league_d: '8 команд, один круг (победа 3–0 / 3–1: 3 очка, 3–2: 2 очка, поражение 2–3: 1 очко); 4 лучших играют полуфиналы и матч за третье место.',
   });
 
@@ -163,6 +178,11 @@
     tpl_time_trial: '计时赛（跑步 / 计时竞速）', tpl_time_trial_d: '一站计时：按用时排名，自动计算与领先者及前一名的差距。',
     tpl_badminton_open: '羽毛球淘汰赛', tpl_badminton_open_d: '32 人单败淘汰，每场 Bo3，每局 21 分、领先 2 分、30 分封顶。',
     tpl_tabletennis_cup: '乒乓球小组赛 + 淘汰赛', tpl_tabletennis_cup_d: '16 人分 4 组；每组前两名进入淘汰赛。Bo5，每局 11 分、领先 2 分。',
+    tpl_nba: 'NBA 式（篮球）', tpl_nba_d: '30 队分东西两个分区（2 组各 15 队），组内主客场双循环（每队 28 场），按胜场排名。每个分区前 8 名进入季后赛淘汰赛，每轮七场四胜制。',
+    tpl_nfl: 'NFL 式（美式橄榄球）', tpl_nfl_d: '32 队分两个联合会（2 组各 16 队），单循环每队 15 场。每个联合会前 7 名进入单场淘汰季后赛，两组第一名首轮轮空。',
+    tpl_mlb: 'MLB 式（棒球）', tpl_mlb_d: '30 队分两个联盟（2 组各 15 队），主客场双循环（每队 28 场），按胜场排名。每个联盟前 6 名进入季后赛：首轮五场三胜制，半决赛和决赛七场四胜制；前 4 号种子首轮轮空。',
+    tpl_nhl: 'NHL 式（冰球）', tpl_nhl_d: '32 队分两个分区（2 组各 16 队），主客场双循环（每队 30 场），胜一场得 2 分。每个分区前 8 名进入季后赛淘汰赛，每轮七场四胜制。',
+    tpl_mls: 'MLS 式（美职联足球）', tpl_mls_d: '30 队分东西两个分区（2 组各 15 队），主客场双循环（每队 28 场）。胜得 3 分，平得 1 分。每个分区前 8 名进入单场淘汰季后赛，平局则点球决胜。',
     tpl_volleyball_league: '排球单循环 + 四强决赛', tpl_volleyball_league_d: '8 队单循环（3–0 / 3–1 胜得 3 分，3–2 胜得 2 分，2–3 负得 1 分）；前 4 名进半决赛，设三四名决赛。',
   });
 })();

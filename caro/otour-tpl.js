@@ -66,7 +66,8 @@
     if (!tpl || !fm) return;
     fm.collect();
     const spec = TP.specOf(tpl, SP.SPORTS);
-    Object.assign(fm.F.d, { tpl: tpl.id, sport: spec.sport, result: spec.result, set: spec.result === 'sets' ? fm.sportSet(spec.sport) : null, preset: 'custom' });
+    const set = spec.result !== 'sets' ? null : spec.set !== undefined ? spec.set : fm.sportSet(spec.sport); // mẫu có thể bỏ luật set
+    Object.assign(fm.F.d, { tpl: tpl.id, sport: spec.sport, result: spec.result, set, preset: 'custom' });
     if (!fm.F.d.name.trim()) fm.F.d.name = T('tpl_' + tpl.id);
     fm.F.stages = spec.stages;
     render(true);
