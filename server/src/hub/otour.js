@@ -185,6 +185,8 @@ class OTour {
       podium: (t.podium || []).map(side), now: Date.now(),
       // Đăng ký đội đang mở; thống kê cầu thủ (vua phá lưới, thẻ phạt) – otour-league.js
       reg: t.reg && t.reg.open && t.status === 'draft' ? { open: true } : null, stats: this.otStats(t),
+      // Luật treo giò + danh sách treo giò tính từ thẻ phạt (otour-disc.js)
+      disc: t.disc || null, susp: this.otSusp(t),
     };
   }
 

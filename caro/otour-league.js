@@ -35,7 +35,7 @@
     const evs = (m.events || []).map((e, i) => `<li>${EV[e.type] || ''} ${e.min != null ? `<b>${e.min}'</b>` : ''} ${esc(e.who || '')} <small class="muted">(${esc((e.side === 'a' ? m.a : m.b).name)})</small>
       <button type="button" class="ghost sm icon" data-act="otEvDel" data-i="${i}" aria-label="${esc(T('ot_ev_del'))}">${icon('close')}</button></li>`).join('');
     const names = [m.a, m.b].flatMap((s) => ((teamOf(t, s.uid) || {}).roster || []).map((r) => (r.no != null ? r.no + ' ' : '') + r.name));
-    return `<div class="ot-mx">
+    return `<div class="ot-mx">${K.otSuspOf ? K.otSuspOf(t, m) : ''}
       <div class="row ot-info"><label class="field inline"><span>${esc(T('ot_when'))}</span><input type="datetime-local" id="otm-when" value="${esc(toLocalInput(m.when))}"></label>
         <label class="field inline"><span>${esc(T('ot_venue'))}</span><input id="otm-venue" maxlength="60" value="${esc(m.venue || '')}"></label>
         <button type="button" class="ghost sm" data-act="otInfoSave">${esc(T('ot_info_save'))}</button></div>
@@ -51,7 +51,7 @@
   K.otMatchView = (t, m) => {
     const info = [m.when ? '📅 ' + fmtWhen(m.when) : '', m.venue ? '📍 ' + m.venue : ''].filter(Boolean).join(' · ');
     const evs = (m.events || []).map((e) => `<li>${EV[e.type] || ''} ${e.min != null ? `<b>${e.min}'</b>` : ''} ${esc(e.who || '')} <small class="muted">(${esc((e.side === 'a' ? m.a : m.b).name)})</small></li>`).join('');
-    return `<div class="ot-mx">${info ? `<p>${esc(info)}</p>` : ''}${evs ? `<h6>${esc(T('ot_events'))}</h6><ul class="ot-evs">${evs}</ul>` : ''}
+    return `<div class="ot-mx">${K.otSuspOf ? K.otSuspOf(t, m) : ''}${info ? `<p>${esc(info)}</p>` : ''}${evs ? `<h6>${esc(T('ot_events'))}</h6><ul class="ot-evs">${evs}</ul>` : ''}
       <div class="row"><button type="button" class="ghost sm" data-act="otPrint">${esc(T('ot_print'))}</button></div></div>`;
   };
   const cur = () => K.otCurMatch && K.otCurMatch(); // trận đang mở trong khung nhập (otour-score.js)
