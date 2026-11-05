@@ -100,6 +100,10 @@ const ST = require('../../../server/src/hub/stages.js');
   await boss.$eval('.bracket.pi', (e) => e.scrollIntoView()).catch(() => {}); await sleep(200);
   await shot(boss, 'ot-playoff-nba.png');
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
+  // Tắt mùa giải ở mẫu NBA: playoff kiểu Mỹ cũng bỏ theo (chỉ có nghĩa ngay sau mùa giải)
+  await boss.click('.tpl-card[data-id="nba"]'); await sleep(300);
+  await boss.uncheck('#otf-stages [data-k="season"]'); await sleep(300);
+  ok(!(await boss.$('#otf-stages [data-k="playoff"]')) && !/Playoff/.test(await boss.textContent('#otf-stages .flow')), 'Tắt mùa giải: bỏ luôn playoff kiểu Mỹ');
   await boss.click('.tpl-card[data-id="f1"]'); await sleep(300);
   await boss.selectOption('#otf select[name=sport]', 'badminton'); await sleep(400);
   ok(!(await boss.$('.tpl-card.on')), 'Đổi môn: bỏ đánh dấu mẫu');

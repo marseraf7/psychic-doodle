@@ -86,6 +86,11 @@ test('NFL: nhất bảng con giữ hạt giống 1–4, hạt giống 1 miễn �
   playAll(p, s, (m) => (m.round === 0 && [m.a, m.b].includes(seeds[6]) ? seeds[6] : rank(m.a) < rank(m.b) ? m.a : m.b));
   const r1 = p.rounds[1].slice(0, 2).map((mid) => pair(p, mid));
   assert.deepStrictEqual(r1, [[seeds[0], seeds[6]], [seeds[2], seeds[3]]]);
+  // Vòng 2 miền A đã đấu → không huỷ được kết quả vòng 1 của miền A (cặp đã xếp lại sẽ sai); miền khác không bị ảnh hưởng
+  const a0 = p.matches[p.rounds[0][1]];
+  assert.strictEqual(PO.undoLocked(p, a0), true);
+  assert.strictEqual(PO.undoLocked(p, p.matches[p.rounds[2][0]]), false, 'chung kết miền: không có vòng sau trong nửa nhánh');
+  assert.strictEqual(PO.undoLocked({ ...p, cfg: { ...p.cfg, playoff: { ...p.cfg.playoff, reseed: false } } }, a0), false);
   assert.ok(p.done);
 });
 

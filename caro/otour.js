@@ -200,7 +200,7 @@
       return html;
     },
     stages: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + K.stagesHtml(t), // khung nhập kết quả (otour-score.js) + nhánh / bảng
-    sched: (t) => { schedNeedAll(t); return (K.otScoreHtml ? K.otScoreHtml(t) : '') + ((L().sched && L().sched(t)) || hint(t.canManage ? 'ot_sched_none_m' : 'ot_sched_none')); },
+    sched: (t) => { schedNeedAll(t); return (K.otScoreHtml ? K.otScoreHtml(t) : '') + ((K.otSchedUi ? K.otSchedUi.html(t) : L().sched && L().sched(t)) || hint(t.canManage ? 'ot_sched_none_m' : 'ot_sched_none')); },
     stats: (t) => (((L().stats && L().stats(t)) || hint('ot_stats_none')) + (K.otDiscHtml ? K.otDiscHtml(t) : '')), // + treo giò (otour-disc.js)
     teams: teamsTab,
     more: (t) => (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '') // nhúng vào website (tour-embed.js)

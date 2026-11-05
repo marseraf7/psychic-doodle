@@ -142,10 +142,12 @@ class OTourRun {
       const next = ST.buildStage(cfg, t.stage, plan.seeds, this.otBuildOpts(t, { groupOf, slots: plan.slots }));
       PO.attachPre(next, plan);
       t.st.push(next);
+      this.otSchedNext(t); // tự xếp lịch giai đoạn mới (otour-sched.js)
       return;
     }
     const slots = this.otPathSlots(t, st, cfg, seeds, groupOf);
     t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
+    this.otSchedNext(t);
   }
 
   /**
@@ -217,6 +219,7 @@ class OTourRun {
     }
     ST.recordResult(st, m, w, { seedOf: this.otSeedOf(t), isActive: () => true });
     PO.reseed(st); // NFL: xếp lại cặp vòng sau trong từng miền (cao nhất gặp thấp nhất)
+    if (st.type === 'swiss' && !st.done) this.otSchedNext(t); // Thụy Sĩ vừa bốc thăm vòng mới: tự xếp lịch (otour-sched.js)
     st.v = (st.v || 0) + 1;
     const name = (u) => (t.players.find((p) => p.uid === u) || {}).name || '?';
     this.otLog(t, me.id, 'score', { a: name(m.a), b: name(m.b), s: m.score && !m.legs ? m.score.join('-') : m.sets ? m.sets.map((x) => x.join('-')).join(' ') : w ? name(w) : '½' });
@@ -228,7 +231,7 @@ class OTourRun {
   on_otUndo(conn, { id, match }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, m } = this.otMatch(t, match);
-    if (!m.done || m.bye || m.split) throw E('tour_undo_locked');
+    if (!m.done || m.bye || m.split || PO.undoLocked(st, m)) throw E('tour_undo_locked');
     if (ST.isElim(st.type)) {
       const targets = [m.next, m.loserTo].filter(Boolean).map((r) => ({ r, x: st.matches[r.to] }));
       if (targets.some(({ x }) => x.done)) throw E('tour_undo_locked');

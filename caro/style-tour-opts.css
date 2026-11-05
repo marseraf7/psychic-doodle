@@ -44,10 +44,10 @@
 .slug-row .icon { border-radius: 0; }
 
 /* ---- Trận xếp hạng: chọn từng cặp hạng; Bo tự nhập; giải thích tie-break */
-.place-pick .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
-.place-pick .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 1px solid var(--panel-border); border-radius: 999px;
+.place-pick .chips, .sc-form .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.place-pick .chip, .sc-form .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 1px solid var(--panel-border); border-radius: 999px;
   font-size: var(--fs-sm); cursor: pointer; }
-.place-pick .chip:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.place-pick .chip:has(input:checked), .sc-form .chip:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .place-pick .row { gap: 6px; }
 .bo-n { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
 .bo-n input { width: 64px; }
@@ -110,3 +110,9 @@
 .sn-table th[scope="row"] { font-weight: 500; }
 .sn-table input { width: 5em; }
 .sn-sum { font-weight: 600; color: var(--text); }
+/* Tự xếp lịch (otour-sched-ui.js): ô sân nhà từng đội hai cột, ngày trong lịch, trận trùng lịch */
+.sc-homes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; }
+.sc-day { margin: 12px 0 4px; text-transform: capitalize; }
+.ot-sched .mrow.sc-warn { border-color: var(--warn, #d9a43b); }
+.sc-cf ul { margin: 4px 0; padding-left: 18px; }
+.sc-shift { flex-wrap: wrap; align-items: flex-end; gap: 8px; }

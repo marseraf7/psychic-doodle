@@ -309,6 +309,7 @@ class Bracket {
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
       sets: m.sets || null, extra: m.extra || null, override: !!m.override, quick: !!m.quick, // tỉ số từng set (giải offline), ghi đè, chỉ báo người thắng
       ...(m.aet ? { aet: true } : {}), // giải offline: có đá hiệp phụ
+      ...(m.postponed ? { postponed: true } : {}), // giải offline: trận hoãn (otour-sched.js)
       ...(m.tag ? { tag: m.tag } : {}), // play-in (stages-playoff.js): 'pi_78' / 'pi_910' / 'pi_last' / 'pi_89'
       ...(ST.twoLeg(st, m) ? { legs: true } : {}), // giải offline: knock-out 2 lượt (sets = tỉ số từng lượt)
       // Giải offline (otour-league.js): giờ đấu, sân, sự kiện trong trận

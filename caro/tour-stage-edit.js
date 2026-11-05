@@ -234,7 +234,13 @@
     } else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye', 'pwx', 'plx'].includes(k)) c.points[k.slice(1)] = clamp(v);
     else if (el.tagName === 'SELECT') c[k] = v;
     else if (Number.isFinite(v)) c[k] = clamp(v);
+    dropPlayoff(stages);
     return true;
+  }
+
+  /** Playoff kiểu Mỹ chỉ có nghĩa ngay sau mùa giải (như normalizeStages của máy chủ): bỏ khi mùa giải bị tắt / xoá. */
+  function dropPlayoff(stages) {
+    stages.forEach((c, i) => { if (c.playoff && !(i > 0 && stages[i - 1].season)) { delete c.playoff; delete c.boRounds; } });
   }
 
   /** Đặt danh sách cặp hạng (bỏ cách ghi cũ placement / thirdPlace). */
@@ -273,6 +279,7 @@
       if (i < stages.length - 1 && !c.points && c.type !== 'race') stages[i] = DEFAULT.roundrobin();
       else if (i < stages.length - 1 && !c.advance) c.advance = DEFAULT[c.type]().advance;
     });
+    dropPlayoff(stages);
     return true;
   }
 

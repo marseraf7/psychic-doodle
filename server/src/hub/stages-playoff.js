@@ -16,6 +16,7 @@
  *   attachPre(st, plan)   – gắn kế hoạch vào giai đoạn đã dựng: trận play-in (nối người thắng / thua vào nhánh), nhãn
  *                           hạt giống, số nửa nhánh, thứ tự hạt giống cho reseed
  *   reseed(st)            – NFL: xếp lại cặp vòng sau trong từng miền khi vòng trước của miền đó xong
+ *   undoLocked(st, m)     – có xếp lại cặp: khoá huỷ kết quả khi vòng sau cùng nửa nhánh đã có trận xong
  */
 'use strict';
 const { BYE, real, newMatch } = require('./stages-base.js');
@@ -184,4 +185,18 @@ function reseed(st) {
   return changed;
 }
 
-module.exports = { PLAYIN, normalizePlayoff, need, confSeeds, playoffPlan, attachPre, reseed };
+/**
+ * Có xếp lại cặp: huỷ kết quả một trận vòng r khi vòng r + 1 cùng nửa nhánh đã có trận đấu xong thì cặp đã chốt sẽ sai –
+ * khoá lại (otour-run.js – on_otUndo). Trả true nếu phải khoá.
+ */
+function undoLocked(st, m) {
+  const po = st.cfg.playoff;
+  if (!po || !po.reseed || st.type !== 'single' || m.pre || !st.rounds[m.round + 1]) return false;
+  const next = st.rounds[m.round + 1], cur = st.rounds[m.round];
+  const halves = st.halves || 1, per = next.length / halves;
+  if (per < 1) return false;
+  const h = Math.floor(cur.indexOf(m.id) / (cur.length / halves));
+  return next.slice(h * per, (h + 1) * per).some((id) => st.matches[id].done);
+}
+
+module.exports = { PLAYIN, normalizePlayoff, need, confSeeds, playoffPlan, attachPre, reseed, undoLocked };

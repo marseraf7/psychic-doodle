@@ -23,7 +23,9 @@
   };
   const evLabel = (t, k) => T(k === 'goal' && t.sport && !GOAL_SPORTS.includes(t.sport) ? 'ot_ev_point' : 'ot_ev_' + k);
 
-  const fmtWhen = (ms) => new Date(ms).toLocaleString(undefined, { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  // Theo ngôn ngữ của ứng dụng (không theo trình duyệt), giờ 24 tiếng
+  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N && window.I18N.lang] || undefined);
+  const fmtWhen = (ms) => new Date(ms).toLocaleString(locale(), { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   const toLocalInput = (ms) => (ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
   const teamOf = (t, uid) => (t.players || []).find((p) => p.uid === uid) || null;
   /** Mọi trận của các giai đoạn đang hiện. */
@@ -32,6 +34,7 @@
 
   K.otMatchTags = (m) => {
     const out = [];
+    if (m.postponed && !m.done) out.push(`<span class="pill held">⏸ ${esc(T('ot_sc_pp_tag'))}</span>`); // trận hoãn (otour-sched-ui.js)
     if (m.when) out.push(`<span class="pill">📅 ${esc(fmtWhen(m.when))}</span>`);
     if (m.venue) out.push(`<span class="muted">📍 ${esc(m.venue)}</span>`);
     if (m.events) { const g = m.events.filter((e) => e.type === 'goal' || e.type === 'own').length; if (g) out.push(`<span class="muted">⚽${g}</span>`); }
@@ -47,7 +50,7 @@
     return `<div class="ot-mx">${K.otSuspOf ? K.otSuspOf(t, m) : ''}
       <div class="row ot-info"><label class="field inline"><span>${esc(T('ot_when'))}</span><input type="datetime-local" id="otm-when" value="${esc(toLocalInput(m.when))}"></label>
         <label class="field inline"><span>${esc(T('ot_venue'))}</span><input id="otm-venue" maxlength="60" value="${esc(m.venue || '')}"></label>
-        <button type="button" class="ghost sm" data-act="otInfoSave">${esc(T('ot_info_save'))}</button></div>
+        <button type="button" class="ghost sm" data-act="otInfoSave">${esc(T('ot_info_save'))}</button></div>${K.otSchedUi ? K.otSchedUi.matchBtns(t, m) : ''}
       <h6>${esc(T('ot_events'))}</h6>${evs ? `<ul class="ot-evs">${evs}</ul>` : `<p class="hint">${esc(T('ot_events_none'))}</p>`}
       <div class="row ot-evadd"><select id="otm-type">${Object.keys(EVT).map((k) => `<option value="${k}">${EVT[k]} ${esc(evLabel(t, k))}</option>`).join('')}</select>
         <select id="otm-side"><option value="a">${esc(m.a.name)}</option><option value="b">${esc(m.b.name)}</option></select>

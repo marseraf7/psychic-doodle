@@ -79,6 +79,8 @@
   const KINDS = {
     table: { label: 'ot_x_tables', file: (t) => `${slug(t)}-bang-xep-hang.csv`, text: (t) => csv(tableRows(t)), type: 'text/csv;charset=utf-8', views: true },
     matches: { label: 'ot_x_matches', file: (t) => `${slug(t)}-ket-qua.csv`, text: (t) => csv(matchRows(t)), type: 'text/csv;charset=utf-8', views: true },
+    // Lịch thi đấu dạng iCalendar (otour-sched-ui.js): nhập vào Google Calendar / lịch điện thoại
+    ics: { label: 'ot_x_ics', file: (t) => `${slug(t)}-lich.ics`, text: (t) => (K.otIcs ? K.otIcs(t) : ''), type: 'text/calendar;charset=utf-8', views: true },
     spec: { label: 'ot_x_spec', file: (t) => `${slug(t)}-cau-hinh.json`, text: (t) => JSON.stringify(specOf(t), null, 2), type: 'application/json' },
   };
   K.otExportHtml = (t) => (t.status === 'draft' && !t.canManage ? '' : K.fold('ot:' + t.id + ':export', esc(T('ot_export')), () => `<div class="ot-x">
@@ -90,7 +92,7 @@
       <p class="hint">${esc(T('ot_pdf_hint'))}</p>` : ''}</div>`, false)); // báo cáo PDF (otour-pdf.js)
 
   // Kết quả các trận: giải nhiều bảng tải lười – tải đủ mọi bảng trước (otour.js – K.otGroupsAll)
-  const ready = (kind) => (kind === 'matches' && K.otGroupsAll ? K.otGroupsAll(D.ot) : Promise.resolve());
+  const ready = (kind) => ((kind === 'matches' || kind === 'ics') && K.otGroupsAll ? K.otGroupsAll(D.ot) : Promise.resolve());
   K.acts.otExport = (b) => { const k = KINDS[b.dataset.kind]; if (k) ready(b.dataset.kind).then(() => save(k.file(D.ot), k.text(D.ot), k.type)); };
   K.acts.otExportCopy = (b) => { const k = KINDS[b.dataset.kind]; if (k) ready(b.dataset.kind).then(() => copy(k.text(D.ot).replace(/^\uFEFF/, ''))); };
 
