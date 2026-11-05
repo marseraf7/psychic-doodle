@@ -8,6 +8,7 @@
  *   cap  – điểm trần (cầu lông 30: 30–29 vẫn thắng; tennis 7: 7–6 là thắng loạt tie-break); 0 = không có trần
  *   last – điểm set quyết định nếu khác (bóng chuyền 15); 0 = như các set khác
  * Số set: Bo N → ai thắng đủ ⌊N/2⌋ + 1 set là thắng trận; không có set nào sau khi đã đủ; không quá N set.
+ * Thời gian (hệ Race – stages-race.js ở máy chủ): parseTime / fmtTime / fmtGap.
  */
 (function (global) {
   'use strict';
@@ -75,7 +76,35 @@
   /** Trận đi tới set quyết định (Bo5 thắng 3–2): điểm "thắng / thua sát" (points.wx / lx) nếu giải dùng. */
   const decidingPlayed = (sets, bo) => bo > 1 && Array.isArray(sets) && sets.length === bo;
 
-  const api = { cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT };
+  // ------------------------------------------------------------ Thời gian (hệ Race – Time Trial)
+  const MAX_TIME = 100 * 3600 * 1000; // 100 giờ
+  /**
+   * Đọc thời gian "1:23.456", "83.456", "1:02:03.5", "45" → mili giây; sai → null.
+   * Phần lẻ là phần nghìn giây (".5" = 500 ms).
+   */
+  function parseTime(str) {
+    const m = /^\s*(?:(\d{1,3}):)?(?:(\d{1,2}):)?(\d{1,6})(?:[.,](\d{1,3}))?\s*$/.exec(String(str == null ? '' : str));
+    if (!m) return null;
+    let h = 0, min = 0;
+    if (m[1] != null && m[2] != null) { h = Number(m[1]); min = Number(m[2]); } else if (m[1] != null) min = Number(m[1]);
+    const sec = Number(m[3]);
+    if ((m[1] != null || m[2] != null) && sec >= 60) return null; // có phút thì giây < 60
+    if (m[2] != null && min >= 60) return null;
+    const ms = ((h * 60 + min) * 60 + sec) * 1000 + (m[4] ? Number(m[4].padEnd(3, '0')) : 0);
+    return ms > 0 && ms <= MAX_TIME ? ms : null;
+  }
+  /** Mili giây → "1:23.456" (có giờ: "1:02:03.500"; dưới một phút: "23.456"). */
+  function fmtTime(ms) {
+    if (!Number.isFinite(ms)) return '';
+    const t = Math.round(ms), h = Math.floor(t / 3600000), mi = Math.floor((t % 3600000) / 60000), s = Math.floor((t % 60000) / 1000), f = String(t % 1000).padStart(3, '0');
+    if (h) return `${h}:${String(mi).padStart(2, '0')}:${String(s).padStart(2, '0')}.${f}`;
+    if (mi) return `${mi}:${String(s).padStart(2, '0')}.${f}`;
+    return `${s}.${f}`;
+  }
+  /** Chênh lệch "+0.512", "+1:02.300". */
+  const fmtGap = (ms) => (Number.isFinite(ms) && ms > 0 ? '+' + fmtTime(ms) : '');
+
+  const api = { cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, MAX_TIME };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourRules = api;
 })(typeof window !== 'undefined' ? window : globalThis);

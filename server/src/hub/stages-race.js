@@ -1,0 +1,191 @@
+/*
+ * Hệ Race của giải đấu Offline (docs/de-xuat-giai-offline.md mục 4.6–4.7, báo cáo Challonge Race của Laplace – chỉ học
+ * ý tưởng): một giai đoạn kiểu 'race' gồm `events` chặng (1–30), mỗi chặng cả đoàn cùng thi (đua xe, điền kinh, bơi,
+ * battle royale…). Hai cách tính:
+ *   'points' – nhập thứ hạng từng chặng; máy tự đổi hạng ra điểm theo bảng điểm `table` (mặc định F1 25-18-15-12-10-8-6-4-2-1),
+ *              sửa tay được từng dòng (pts – điểm thưởng, phạt). Xếp theo tổng điểm, bằng điểm thì đếm số lần về nhất,
+ *              nhì… (countback như F1), rồi hạt giống. 1 chặng = Single Race; nhiều chặng = Grand Prix.
+ *   'time'   – nhập thời gian (Time Trial): xếp theo tổng thời gian của người hoàn thành mọi chặng đã đua; tự tính chênh
+ *              lệch với người dẫn đầu và với người ngay trên. Bỏ cuộc (DNF) ở một chặng thì xếp sau.
+ * Bảng đội (teams): cộng điểm các thành viên cùng đội (như bảng đội đua của F1) – đội ghi ở danh sách "Tên | Quốc gia | Đội".
+ * Trạng thái chặt chẽ: mỗi chặng chỉ có chưa nhập / đã nhập (huỷ được); không có bước điểm danh làm kẹt giải.
+ * Hàm thuần, không phụ thuộc mạng; hub gọi từ stages.js (dựng, bảng xếp hạng, người đi tiếp) và otour-run.js (nhập kết quả).
+ */
+'use strict';
+
+const SCORES = ['points', 'time'];
+const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+const MAX_EVENTS = 30;
+const MAX_RACE = 200; // tối đa người / đội trong một giai đoạn race
+const MAX_TABLE = 64;
+
+const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
+
+/** Bảng điểm theo hạng: mảng số nguyên 0–1000, tối đa MAX_TABLE hạng; rỗng / sai → null. */
+function cleanTable(x) {
+  const arr = Array.isArray(x) ? x : typeof x === 'string' ? x.split(/[\s,;]+/) : null;
+  if (!arr) return null;
+  const out = arr.filter((v) => v !== '' && v != null).slice(0, MAX_TABLE).map((v) => int(v, 0, 1000, 0));
+  return out.length ? out : null;
+}
+
+/** Chuẩn hoá cấu hình giai đoạn race (stages.js gọi khi giải offline). */
+function normalizeRace(c, last) {
+  const score = SCORES.includes(c.score) ? c.score : 'points';
+  const out = { type: 'race', bestOf: 1, events: int(c.events, 1, MAX_EVENTS, 1), score };
+  if (score === 'points') out.table = cleanTable(c.table) || [...F1];
+  if (c.teams === true) out.teams = true;
+  if (!last) out.advance = int(c.advance, 1, MAX_RACE, 8);
+  return out;
+}
+
+/** Dựng giai đoạn: các chặng trống (st.matches rỗng – race không có trận đối đầu). */
+function buildRace(st) {
+  st.events = Array.from({ length: st.cfg.events }, (_, i) => ({ i, done: false, rows: null }));
+}
+
+/**
+ * Kiểm và chuẩn hoá kết quả một chặng. rows: [{ uid, rank? (points) | time? ms (time), dnf?, pts? }]. Người không có
+ * trong rows = không xuất phát (DNS – không điểm). Trả { rows } hoặc { code } (mã lỗi).
+ */
+function cleanEvent(st, rows) {
+  if (!Array.isArray(rows) || rows.length > st.entrants.length) return { code: 'tour_score_bad' };
+  const inStage = new Set(st.entrants), seen = new Set(), out = [];
+  const pts = st.cfg.score === 'points';
+  for (const r of rows) {
+    const uid = r && String(r.uid);
+    if (!inStage.has(uid) || seen.has(uid)) return { code: 'tour_score_bad' };
+    seen.add(uid);
+    const x = { uid, dnf: r.dnf === true };
+    if (!x.dnf) {
+      if (pts) {
+        x.rank = Math.floor(Number(r.rank));
+        if (!Number.isInteger(x.rank) || x.rank < 1 || x.rank > st.entrants.length) return { code: 'ot_race_rank' };
+      } else {
+        x.time = Math.round(Number(r.time));
+        if (!Number.isFinite(x.time) || x.time <= 0 || x.time > 360000000) return { code: 'ot_race_time' };
+      }
+    }
+    if (pts && r.pts != null && r.pts !== '') x.pts = int(r.pts, -1000, 1000, 0); // điểm sửa tay (thưởng / phạt)
+    out.push(x);
+  }
+  if (!out.some((x) => !x.dnf)) return { code: 'ot_race_empty' };
+  if (pts) { // hạng không trùng
+    const ranks = out.filter((x) => !x.dnf).map((x) => x.rank);
+    if (new Set(ranks).size !== ranks.length) return { code: 'ot_race_rank_dup' };
+  }
+  return { rows: out };
+}
+
+/** Điểm của một dòng (points): sửa tay nếu có, không thì theo bảng điểm; bỏ cuộc 0. */
+const rowPts = (cfg, x) => (x.pts != null ? x.pts : x.dnf ? 0 : cfg.table[x.rank - 1] || 0);
+
+/** Thứ tự một chặng: theo hạng / thời gian, bỏ cuộc xếp cuối. */
+function eventOrder(st, ev) {
+  const key = st.cfg.score === 'points' ? 'rank' : 'time';
+  return [...ev.rows].sort((a, b) => (a.dnf - b.dnf) || (a.dnf ? 0 : a[key] - b[key]));
+}
+
+/** Ghi kết quả chặng i. Trả true nếu cả giai đoạn đã xong. */
+function recordEvent(st, i, rows) {
+  const ev = st.events[i];
+  ev.rows = rows;
+  ev.done = true;
+  st.done = st.events.every((e) => e.done);
+  return st.done;
+}
+
+function undoEvent(st, i) {
+  Object.assign(st.events[i], { done: false, rows: null });
+  st.done = false;
+}
+
+/** Bảng xếp hạng chung: { list, stats } (cùng hình dạng bảng điểm vòng tròn để dùng chung người đi tiếp / bục trao giải). */
+function raceTable(st, seedOf) {
+  const cfg = st.cfg, pts = cfg.score === 'points';
+  const stats = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, pts: 0, time: 0, races: 0, fin: 0, dnf: 0, places: [] }]));
+  const done = st.events.filter((e) => e.done);
+  for (const ev of done) {
+    for (const x of ev.rows) {
+      const s = stats[x.uid];
+      if (!s) continue;
+      s.races++;
+      if (x.dnf) { s.dnf++; } else s.fin++;
+      if (pts) {
+        s.pts += rowPts(cfg, x);
+        if (!x.dnf) s.places[x.rank - 1] = (s.places[x.rank - 1] || 0) + 1;
+      } else if (!x.dnf) s.time += x.time;
+    }
+  }
+  const all = done.length;
+  const cmp = pts
+    ? (a, b) => {
+      const x = stats[a], y = stats[b];
+      if (y.pts !== x.pts) return y.pts - x.pts;
+      // Countback: nhiều lần về nhất hơn, rồi nhì…
+      for (let k = 0; k < Math.max(x.places.length, y.places.length); k++) if ((y.places[k] || 0) !== (x.places[k] || 0)) return (y.places[k] || 0) - (x.places[k] || 0);
+      return seedOf(a) - seedOf(b);
+    }
+    : (a, b) => {
+      const x = stats[a], y = stats[b];
+      // Hoàn thành mọi chặng đã đua trước; rồi nhiều chặng hoàn thành hơn; rồi tổng thời gian ít hơn
+      const fx = x.fin === all, fy = y.fin === all;
+      if (fx !== fy) return fx ? -1 : 1;
+      if (y.fin !== x.fin) return y.fin - x.fin;
+      if (x.time !== y.time) return x.time - y.time;
+      return seedOf(a) - seedOf(b);
+    };
+  return { list: [...st.entrants].sort(cmp), stats };
+}
+
+/**
+ * Phần gửi cho client (bracket.js – stageView). side(uid): tên / thông tin hiển thị; teamOf(uid): tên đội.
+ * Chặng: các dòng theo thứ tự về đích (điểm hoặc thời gian + chênh lệch với người dẫn đầu / người ngay trên).
+ * Bảng chung: hạng, tổng điểm / tổng thời gian, chênh lệch; bảng đội nếu bật.
+ */
+function raceView(st, i, adv, side, seedOf, teamOf = () => '') {
+  const cfg = st.cfg, pts = cfg.score === 'points';
+  const events = st.events.map((ev) => {
+    if (!ev.done) return { i: ev.i, done: false };
+    const order = eventOrder(st, ev);
+    const lead = order[0] && !order[0].dnf ? order[0].time : null;
+    let prev = null;
+    return {
+      i: ev.i, done: true,
+      rows: order.map((x) => {
+        const r = { ...side(x.uid), dnf: x.dnf };
+        if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; } else if (!x.dnf) {
+          r.time = x.time; r.gap = lead != null ? x.time - lead : null; r.gapPrev = prev != null ? x.time - prev : null; prev = x.time;
+        }
+        return r;
+      }),
+    };
+  });
+  const { list, stats } = raceTable(st, seedOf);
+  const all = st.events.filter((e) => e.done).length;
+  const lead = list.length ? stats[list[0]] : null;
+  let prev = null;
+  const table = list.map((u, k) => {
+    const s = stats[u];
+    const r = { ...side(u), rank: k + 1, races: s.races, fin: s.fin, dnf: s.dnf, adv: k < adv };
+    if (pts) { r.pts = s.pts; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
+      r.time = s.fin === all && all ? s.time : null;
+      r.gap = r.time != null && lead && lead.fin === all ? s.time - lead.time : null;
+      r.gapPrev = r.time != null && prev != null ? s.time - prev : null;
+      if (r.time != null) prev = s.time;
+    }
+    return r;
+  });
+  const v = { index: i, type: 'race', cfg, done: st.done, events, table, entrants: st.entrants.map(side) };
+  if (cfg.teams && pts) {
+    const tm = new Map();
+    for (const u of list) { const name = teamOf(u); if (name) tm.set(name, (tm.get(name) || 0) + stats[u].pts); }
+    v.teams = [...tm].sort((a, b) => b[1] - a[1]).map(([name, p], k) => ({ name, pts: p, rank: k + 1 }));
+  }
+  return v;
+}
+
+/** Lỗi cỡ giai đoạn race (null nếu được). */
+const raceError = (cfg, n) => (cfg.type === 'race' && n > MAX_RACE ? { code: 'ot_race_many', args: { n: MAX_RACE } } : null);
+
+module.exports = { SCORES, F1, MAX_EVENTS, MAX_RACE, cleanTable, normalizeRace, buildRace, cleanEvent, recordEvent, undoEvent, raceTable, raceView, raceError, eventOrder, rowPts };

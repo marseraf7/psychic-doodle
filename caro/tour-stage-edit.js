@@ -24,6 +24,8 @@
     double: () => ({ type: 'double', bestOf: 3, reset: true, gf: '2' }),
     roundrobin: () => ({ type: 'roundrobin', bestOf: 1, groups: 1, meetings: 1, points: { ...PT }, advance: 2 }),
     swiss: () => ({ type: 'swiss', bestOf: 1, rounds: 5, points: { w: 2, d: 1, l: 0 }, advance: 4 }),
+    // Hệ Race (chỉ giải offline – ctx.ext): chặng đua cả đoàn, điểm theo hạng (bảng F1) hoặc thời gian
+    race: () => ({ type: 'race', bestOf: 1, events: 1, score: 'points', table: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], advance: 8 }),
   };
   const MAX = 3;
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
@@ -43,7 +45,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tb0', 'tb1', 'tb2', 'tb3', 'tb4', 'gmode', 'type', 'pairing', 'unplayed'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tb0', 'tb1', 'tb2', 'tb3', 'tb4', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table'];
 
   function html(stages, adv, ctx = {}) {
     const st = stages || [];
@@ -77,8 +79,18 @@
     };
     const cards = st.map((c, i) => {
       const last = i === st.length - 1;
-      const types = (last ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']).map((x) => [x, T('fmt_' + x)]);
-      const f = [field(T('format'), sel(i, 'type', types, c.type)), field(T('format_bo'), boPick(i, 'bestOf', c.bestOf))];
+      const types = [...(last ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['race'] : [])].map((x) => [x, T('fmt_' + x)]);
+      const f = [field(T('format'), sel(i, 'type', types, c.type))];
+      if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf)));
+      // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
+      if (c.type === 'race') {
+        f.push(field(T('opt_race_events'), num(i, 'events', c.events, 1, 30)),
+          field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')]], c.score || 'points')));
+        if ((c.score || 'points') === 'points') {
+          f.push(`<label class="field"><span>${esc(T('opt_race_table'))}</span><input data-i="${i}" data-k="table" value="${esc((c.table || []).join(' '))}" inputmode="numeric"><small class="hint">${esc(T('opt_race_table_hint'))}</small></label>`,
+            chk(i, 'teams', !!c.teams, T('opt_race_teams')));
+        }
+      }
       const more = []; // tuỳ chọn nâng cao (chỉ ở trang nâng cao)
       if (c.type === 'single') {
         f.push(chk(i, 'thirdPlace', placesOf(c, 4).includes(3), T('third_place_opt')));
@@ -186,6 +198,7 @@
     else if (k === 'record') { if (el.checked) c.record = { win: 3, lose: 3, bo: 3 }; else delete c.record; }
     else if (k === 'recWin' || k === 'recLose') c.record[k === 'recWin' ? 'win' : 'lose'] = clamp(v);
     else if (k === 'recBo') c.record.bo = Number(el.value) || 0;
+    else if (k === 'table') c.table = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64);
     else if (el.type === 'checkbox') c[k] = el.checked;
     else if (/^tb\d$/.test(k)) {
       const tbs = [...tbsOf(c)];
@@ -217,7 +230,7 @@
     } else return false;
     // Giai đoạn đứng trước phải là vòng tròn / Thụy Sĩ và có số người đi tiếp
     stages.forEach((c, i) => {
-      if (i < stages.length - 1 && !c.points) stages[i] = DEFAULT.roundrobin();
+      if (i < stages.length - 1 && !c.points && c.type !== 'race') stages[i] = DEFAULT.roundrobin();
       else if (i < stages.length - 1 && !c.advance) c.advance = DEFAULT[c.type]().advance;
     });
     return true;

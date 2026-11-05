@@ -20,11 +20,16 @@
     hockey: { icon: '🏒', result: 'score', points: { w: 3, d: 1, l: 0, wx: 2, lx: 1 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot' },
     handball: { icon: '🤾', result: 'score', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'aet' },
     esports: { icon: '🎮', result: 'sets', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 3, set: null },
+    // Hệ Race (stages-race.js): preset = mẫu thể thức chọn sẵn khi đổi sang môn này
+    racing: { icon: '🏎️', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'grand_prix' },
+    running: { icon: '🏃', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
+    swimming: { icon: '🏊', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
     chess: { icon: '♟️', result: 'winner', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['bh1', 'bh', 'sb'], bestOf: 1 },
     other: { icon: '🏆', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'aet' },
   };
   const RESULTS = ['score', 'sets', 'winner'];
-  const api = { SPORTS, RESULTS };
+  const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]; // bảng điểm mặc định của hệ Race (như stages-race.js)
+  const api = { SPORTS, RESULTS, F1 };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourSports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

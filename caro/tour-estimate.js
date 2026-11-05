@@ -135,6 +135,8 @@
     if (n < 2) return { matches: 0, maxMatches: 0, waves: 0, advance: n };
     if (c.type === 'single') return single(c, n);
     if (c.type === 'double') return double(c, n);
+    // Hệ Race (giải offline): mỗi chặng cả đoàn thi một lần
+    if (c.type === 'race') { const ev = Number(c.events) || 1; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, c.advance || 0) }; }
     if (c.type === 'roundrobin' && c.league) {
       // League phase: mỗi đội gặp `games` đối thủ; lịch xếp tham lam thường dài hơn số trận mỗi đội 1–2 lượt
       const g = Math.min(Number(c.league.games) || 8, n - 1), matches = Math.floor((n * g) / 2);

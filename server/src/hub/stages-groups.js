@@ -7,6 +7,7 @@
 const { BYE, MAX_GROUP, MAX_GROUPS, real, newMatch } = require('./stages-base.js');
 const { tally, rankList, crossCompare } = require('./stages-tiebreak.js');
 const { MAX_BIG, buildLeague, records, recordActive, recordBo, bestNextTier } = require('./stages-league.js');
+const { raceTable } = require('./stages-race.js');
 
 // ------------------------------------------------------------ Vòng tròn
 /** Tên bảng: A..Z, rồi AA, AB… */
@@ -187,6 +188,7 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null) {
 function standings(st, seedOf) {
   if (st.type === 'roundrobin') return st.groups.map((g) => rankList(st, g.players, seedOf));
   if (st.type === 'swiss') return [rankList(st, st.entrants, seedOf)];
+  if (st.type === 'race') return [raceTable(st, seedOf || ((u) => st.entrants.indexOf(u)))]; // giải offline: hệ Race
   return null;
 }
 
@@ -200,7 +202,7 @@ function advancers(st, seedOf) {
     const seeds = tables[0].list.filter((u) => rec[u].w >= win);
     return { seeds: seeds.length >= 2 ? seeds : tables[0].list.slice(0, 2), groupOf };
   }
-  if (st.type === 'swiss') return { seeds: tables[0].list.slice(0, Math.max(2, k)), groupOf };
+  if (st.type === 'swiss' || st.type === 'race') return { seeds: tables[0].list.slice(0, Math.max(2, k)), groupOf };
   const tiers = [];
   tables.forEach((t, g) => t.list.slice(0, k).forEach((uid, pos) => { (tiers[pos] = tiers[pos] || []).push({ uid, s: t.stats[uid] }); groupOf[uid] = g; }));
   const seeds = [];

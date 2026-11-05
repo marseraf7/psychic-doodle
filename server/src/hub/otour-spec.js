@@ -12,6 +12,7 @@ const ST = require('./stages.js');
 // Bộ môn có sẵn và kiểu kết quả: dùng chung với trình duyệt (caro/otour-sports.js)
 const { SPORTS, RESULTS } = require('../../../caro/otour-sports.js');
 const Rules = require('../../../caro/otour-rules.js');
+const Race = require('./stages-race.js');
 const MAX_TEAMS = 512;
 const MAX_MATCHES = 10000;
 
@@ -55,7 +56,8 @@ function checkSize(spec, n) {
   if ((e.maxMatches || e.matches) > MAX_MATCHES) throw new SpecError('ot_many_matches', { n: MAX_MATCHES });
   // League phase: số đội (theo ước tính từng giai đoạn) phải chia đều cho các nhóm hạt giống, số trận chia đều cho các nhóm
   spec.stages.forEach((c, i) => {
-    const bad = ST.leagueError(c, e.stages[i] ? e.stages[i].players : n);
+    const k = e.stages[i] ? e.stages[i].players : n;
+    const bad = ST.leagueError(c, k) || Race.raceError(c, k);
     if (bad) throw new SpecError(bad.code, bad.args);
   });
   return e;

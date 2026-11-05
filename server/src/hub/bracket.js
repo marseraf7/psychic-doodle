@@ -12,6 +12,7 @@ const crypto = require('crypto');
 const { E, note } = require('../msg.js');
 const { userPid, uidOf } = require('./shared.js');
 const ST = require('./stages.js');
+const Race = require('./stages-race.js');
 const { normalizeTiebreaks } = require('./stages-tiebreak.js');
 
 class Bracket {
@@ -342,6 +343,10 @@ class Bracket {
   stageView(t, st, i, seedOf, table) {
     const M = (id) => this.matchView(t, st.matches[id], st);
     const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
+    if (st.type === 'race') { // giải offline: hệ Race – các chặng + bảng chung + bảng đội (stages-race.js)
+      const team = new Map((t.players || []).map((p) => [p.uid, p.team || '']));
+      return Race.raceView(st, i, adv, (u) => this.tourSide(t, u), seedOf, (u) => team.get(u) || '');
+    }
     const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
     if (st.type === 'single' || st.type === 'double') {
       // Split: vòng 1 nhánh thắng không đấu (hạt giống cao vào thẳng vòng 2) nên không hiện

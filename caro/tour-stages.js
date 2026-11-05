@@ -15,6 +15,7 @@
   function stageName(c) {
     const x = [];
     if (c.type === 'roundrobin' && c.league) return T('fmt_league', { n: c.league.games }); // giải offline: league phase
+    if (c.type === 'race') return T(c.score === 'time' ? 'race_name_tt' : c.events > 1 ? 'race_name_gp' : 'race_name_single', { n: c.events }); // hệ Race
     if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));
     else if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
     if (c.type === 'swiss' && c.record) x.push(T('tag_record', { w: c.record.win, l: c.record.lose })); // giải offline: kiểu LoL
@@ -147,6 +148,7 @@
   }
   function stageBody(t, v) {
     cur = t;
+    if (v.type === 'race') return K.raceHtml ? K.raceHtml(t, v) : ''; // giải offline: hệ Race (otour-race.js)
     const key = t.id + ':' + v.index;
     // Tắt "Hiện bảng xếp hạng" (tab Khác): người xem không thấy bảng điểm vòng tròn / Thụy Sĩ, vẫn thấy các trận
     const table = (rows, cfg) => (t.showStandings === false && !t.canManage ? '' : standTable(rows, cfg));
@@ -217,7 +219,7 @@
     const multi = cfgs.length > 1;
     return cfgs.map((c, i) => {
       const v = views[i];
-      const info = [stageName(c), 'Bo' + c.bestOf, advText(c)].filter(Boolean).join(' · ');
+      const info = [stageName(c), c.type === 'race' ? '' : 'Bo' + c.bestOf, advText(c)].filter(Boolean).join(' · ');
       const pv = !v && i === 0 && t.preview;
       const body = v ? stageBody(t, v) : pv ? fold(t.id + ':pv0', esc(T('pv_title')), () => previewHtml(t, t.preview), true)
         : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>`;

@@ -118,6 +118,8 @@
     else if (V.page === 'clubs' || V.page === 'tourNew' || V.page === 'tourAdv') O.send({ t: 'clubList' });
     else if (V.page === 'club' || V.page === 'clubAdmin') { D.club = D.club && D.club.id === V.id ? D.club : null; O.send({ t: 'clubGet', id: V.id }); }
     else if (V.page === 'admin') { O.send({ t: 'adminQueue' }); O.send({ t: 'adminStats' }); }
+    // Trang của module khác (giải offline – otour.js): tải lại khi kết nối lại (người xem được theo dõi lại trên máy chủ)
+    else if (K.reload && K.reload[V.page]) K.reload[V.page]();
   }
 
   const dlg = $('tour-dlg');
@@ -374,6 +376,9 @@
     V.page = home;
     open(page, String(id).replace(/[^\w-]/g, '').slice(0, 20), false);
   }
+  // Máy chậm: kết nối (online.js tự kết nối khi URL có ?t / ?club / ?o) có thể xong trước khi file này chạy – khi đó
+  // hook 'welcome' ở trên chưa kịp đăng ký, link không được mở. Mở bù ngay lúc nạp.
+  if (O.connected) setTimeout(checkLink, 0);
   K.pages.tours = pageTours;
   K.pages.tour = pageTour;
   Object.assign(K, {

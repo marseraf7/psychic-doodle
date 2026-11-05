@@ -26,6 +26,7 @@ const { seedOrder, resolveElim, buildSingle, buildDouble, elimSize, checkSlots, 
 const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds } = require('./stages-groups.js');
 const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB } = require('./stages-tiebreak.js');
 const League = require('./stages-league.js');
+const Race = require('./stages-race.js');
 
 const MAX_BO = 25;
 /** Bo (số ván tối đa của một trận): số lẻ 1…MAX_BO (cần phân thắng thua); không hợp lệ = 0. */
@@ -41,6 +42,7 @@ const swissAutoRounds = (n) => Math.max(1, Math.ceil(Math.log2(Math.max(2, n))))
 function normalizeStage(c, last, opts = {}) {
   c = c || {};
   let type = TYPES.includes(c.type) ? c.type : 'single';
+  if (opts.offline && c.type === 'race') return Race.normalizeRace(c, last); // giải offline: hệ Race (stages-race.js)
   if (!last && !GROUP_TYPES.includes(type)) type = 'roundrobin';
   const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
   // Bo của cả giai đoạn: chọn sẵn Bo1 / 3 / 5 / 7 hoặc ban tổ chức tự nhập số lẻ tới MAX_BO
@@ -109,6 +111,7 @@ function buildStage(cfg, index, seeds, opts = {}) {
   if (cfg.type === 'single') buildSingle(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
   else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
   else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups, opts); // opts.countryOf: league phase
+  else if (cfg.type === 'race') Race.buildRace(st); // giải offline: các chặng đua
   else {
     st.rounds = [];
     const want = cfg.rounds || swissAutoRounds(seeds.length);

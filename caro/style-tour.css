@@ -364,3 +364,13 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .fun-cat { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .fun-awards { margin: 0; padding-inline-start: 1.4em; font-size: var(--fs-sm); }
 .tpl-row { flex-wrap: wrap; align-items: flex-end; gap: 6px; }
+
+/* Giải đấu Offline – hệ Race (otour-race.js) */
+.race-in input.r-v { width: 7.5em; }
+.race-in input.r-pts { width: 5.5em; }
+.race-in td { padding: 2px 4px; }
+.race-rows { padding-left: 1.6em; margin: 6px 0; }
+.race-rows li { display: flex; gap: 8px; align-items: baseline; }
+.race-rows li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.race-rows li.dnf { opacity: .6; }
+.race-form { display: flex; flex-direction: column; gap: 6px; }

@@ -273,3 +273,44 @@ test('Giải offline thể thức mới: league phase (quốc gia) → knock-out
   assert.strictEqual(tc.st[1].entrants.length, 4);
   org.close();
 });
+
+test('Giải offline hệ Race: Grand Prix 2 chặng (hạng → điểm, bảng đội), huỷ chặng, kết thúc; Time Trial cho người xem', async () => {
+  const org = await account();
+  const spec = { sport: 'racing', stages: [{ type: 'race', events: 2, teams: true }] };
+  const drivers = ['Max | NED | Đỏ', 'Lando | GBR | Cam', 'Charles | MON | Đỏ', 'Oscar | AUS | Cam'];
+  const { id } = await org.req({ t: 'otCreate', name: 'Đua vui 2026', spec, teams: drivers }, 'otCreated');
+  const t = app.hub.otGet(id);
+  assert.deepStrictEqual([t.stages[0].type, t.players[0].team, t.players[0].country], ['race', 'Đỏ', 'NED']);
+  const viewer = await Client.open();
+  await viewer.req({ t: 'otGet', id }, 'ot');
+  org.send({ t: 'otStart', id });
+  await until(() => t.status === 'running');
+  const u = t.players.map((p) => p.uid);
+  assert.strictEqual((await org.req({ t: 'otRace', id, event: 0, rows: [{ uid: u[0], rank: 1 }, { uid: u[1], rank: 1 }] }, 'error')).code, 'ot_race_rank_dup');
+  assert.strictEqual((await org.req({ t: 'otRace', id, event: 5, rows: [] }, 'error')).code, 'tour_match_not_found');
+  org.send({ t: 'otRace', id, event: 0, rows: u.map((x, k) => ({ uid: x, rank: k + 1 })) });
+  await until(() => t.st[0].events[0].done);
+  assert.strictEqual((await org.req({ t: 'otRace', id, event: 0, rows: [{ uid: u[0], rank: 1 }] }, 'error')).code, 'tour_match_done');
+  org.send({ t: 'otRaceUndo', id, event: 0 });
+  await until(() => !t.st[0].events[0].done);
+  org.send({ t: 'otRace', id, event: 0, rows: u.map((x, k) => ({ uid: x, rank: k + 1 })) });
+  org.send({ t: 'otRace', id, event: 1, rows: [{ uid: u[1], rank: 1 }, { uid: u[0], rank: 2 }, { uid: u[2], rank: 3 }, { uid: u[3], dnf: true }] });
+  await until(() => t.status === 'finished');
+  assert.deepStrictEqual(t.podium, [u[0], u[1], u[2]], 'Max 43, Lando 43 (countback: 1 lần nhất mỗi người → hạt giống), Charles 30');
+  await until(() => { const v = viewer.ot[id]; return v && v.status === 'finished'; });
+  const v = viewer.ot[id].stageViews[0];
+  assert.deepStrictEqual([v.type, v.events.length, v.table[0].pts, v.teams[0].name, v.teams[0].pts], ['race', 2, 43, 'Đỏ', 43 + 30]);
+  // Time Trial: nhập thời gian (ms), người xem thấy chênh lệch
+  const tt = await org.req({ t: 'otCreate', name: 'Chạy 5 km', spec: { sport: 'running', stages: [{ type: 'race', score: 'time' }] }, teams: ['An', 'Bình', 'Chi'] }, 'otCreated');
+  const t2 = app.hub.otGet(tt.id);
+  org.send({ t: 'otStart', id: tt.id });
+  await until(() => t2.status === 'running');
+  const w = t2.players.map((p) => p.uid);
+  await viewer.req({ t: 'otGet', id: tt.id }, 'ot');
+  org.send({ t: 'otRace', id: tt.id, event: 0, rows: [{ uid: w[0], time: 1250000 }, { uid: w[1], time: 1199500 }, { uid: w[2], dnf: true }] });
+  await until(() => t2.status === 'finished');
+  await until(() => viewer.ot[tt.id] && viewer.ot[tt.id].status === 'finished');
+  const tab = viewer.ot[tt.id].stageViews[0].table;
+  assert.deepStrictEqual(tab.map((x) => [x.name, x.time, x.gap]), [['Bình', 1199500, 0], ['An', 1250000, 50500], ['Chi', null, null]]);
+  [org, viewer].forEach((c) => c.close());
+});
