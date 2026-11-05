@@ -5,6 +5,8 @@
  *            hạt giống (CL: 36 đội, 4 nhóm, 8 trận – 2 đối thủ mỗi nhóm, 1 sân nhà 1 sân khách), cố tránh đội cùng quốc
  *            gia; một bảng xếp hạng chung. Đi tiếp theo dải hạng: giai đoạn sau là loại trực tiếp 24 đội thì hạng 1–8
  *            được miễn vòng đầu, 9–24 đá play-off (xếp nhánh theo hạt giống chuẩn), 25+ bị loại.
+ *   season   (vòng tròn) – mùa giải kiểu nhà nghề Mỹ: miền (mỗi miền một bảng xếp hạng) chia bảng con, số lần gặp nhau
+ *            theo quan hệ (cùng bảng con / cùng miền / khác miền) – caro/otour-season.js, dựng ở stages-season.js.
  *   big      (vòng tròn) – bảng lớn tới MAX_BIG đội (league lượt đi – về 20 đội như Premier League).
  *   bestNext (vòng tròn, không phải vòng cuối) – thêm N đội đứng ngay sau suất đi tiếp có thành tích tốt nhất giữa các
  *            bảng (World Cup 2026: 12 bảng, nhất nhì + 8 đội hạng ba tốt nhất).
@@ -17,6 +19,7 @@
  */
 'use strict';
 const { BYE, real, newMatch } = require('./stages-base.js');
+const { cleanSeason, seasonInfo } = require('../../../caro/otour-season.js');
 
 const MAX_BIG = 64;
 const MAX_LEAGUE_GAMES = 20;
@@ -36,6 +39,15 @@ function normalizeExtras(c, out, last, oddBo) {
       out.league = { games: int(c.league.games, 1, MAX_LEAGUE_GAMES, 8), pots };
       out.big = true;
       out.groups = 1;
+      delete out.groupSize;
+      out.meetings = 1;
+    }
+    // Mùa giải kiểu nhà nghề Mỹ: miền / bảng con, số lần gặp theo quan hệ (caro/otour-season.js, stages-season.js)
+    if (c.season && typeof c.season === 'object') {
+      out.season = cleanSeason(c.season);
+      delete out.league;
+      out.big = true;
+      out.groups = out.season.confs;
       delete out.groupSize;
       out.meetings = 1;
     }
@@ -68,6 +80,11 @@ function leagueError(cfg, n) {
   // Trong nhóm của mình: k đối thủ trong s − 1 đội còn lại (k lẻ thì s phải chẵn); nhóm khác: k ≤ s
   if (k > s - 1 || (k % 2 && s % 2)) return { code: 'ot_league_size', args: { games: L.games, n } };
   return null;
+}
+
+/** Lỗi cấu hình mùa giải với n đội (null nếu được). */
+function seasonError(cfg, n) {
+  return cfg.season ? seasonInfo(cfg.season, n).error : null;
 }
 
 /** Trộn ngẫu nhiên (Fisher–Yates). */
@@ -205,4 +222,4 @@ function bestNextTier(tables, k, n, compare) {
   return tier.sort(compare).slice(0, n);
 }
 
-module.exports = { MAX_BIG, MAX_LEAGUE_GAMES, MAX_POTS, normalizeExtras, leagueError, leagueDraw, scheduleRounds, buildLeague, records, recordActive, recordBo, bestNextTier, twoLeg };
+module.exports = { MAX_BIG, MAX_LEAGUE_GAMES, MAX_POTS, normalizeExtras, leagueError, seasonError, leagueDraw, scheduleRounds, buildLeague, records, recordActive, recordBo, bestNextTier, twoLeg };

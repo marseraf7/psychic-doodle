@@ -85,7 +85,7 @@
       <label class="field"><span>${esc(T('ot_result'))}</span><select name="result">${SP.RESULTS.map((k) => opt(k, d.result, T('otres_' + k))).join('')}</select></label>
       <div id="otf-set">${setHtml()}</div>
       <label class="field"><span>${esc(T('format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>
-      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), ext: true, result: F.d.result })}</div>
+      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), n, ext: true, result: F.d.result })}</div>
       <p class="est" id="otf-est"></p>
       <div class="ot-desc" id="otf-desc"></div>
       <label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>
@@ -117,7 +117,7 @@
     const f = $('otf');
     if (!f) return;
     const box = $('otf-stages');
-    const draw = () => { box.innerHTML = SE.html(F.stages, true, { max: Math.max(4, F.d.teams.split('\n').filter((x) => x.trim()).length), ext: true, result: F.d.result }); showEst(f); };
+    const draw = () => { const n = F.d.teams.split('\n').filter((x) => x.trim()).length; box.innerHTML = SE.html(F.stages, true, { max: Math.max(4, n), n, ext: true, result: F.d.result }); showEst(f); };
     const drawSet = () => { $('otf-set').innerHTML = setHtml(); };
     f.addEventListener('input', () => { collect(f); showEst(f); });
     f.addEventListener('change', (e) => {

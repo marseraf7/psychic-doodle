@@ -114,7 +114,7 @@
     if (v.type === 'race') return out.concat(table(v.table || [], true, cfg.score === 'time'));
     if (v.groups) {
       v.groups.forEach((g, gi) => {
-        if (v.groups.length > 1) out.push(h3(T('group_name', { name: g.name })));
+        if (v.groups.length > 1) out.push(h3(T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name })));
         out.push(...table(g.table || [], false));
         const rs = K.roundsOfGroup ? K.roundsOfGroup(t, v, gi) : g.rounds;
         if (rs) out.push(...rounds(rs, (i) => lbl(t, v, i, T('r_round', { n: i + 1 }))));

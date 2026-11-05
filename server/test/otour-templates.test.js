@@ -29,12 +29,12 @@ test('Mọi mẫu giải: chuẩn hoá được, đủ cỡ với số đội g�
   assert.deepStrictEqual([est('world_cup_2026')[0].matches, est('world_cup_2026')[0].advance], [72, 32], 'World Cup 2026: 72 trận vòng bảng, 32 đội vào loại trực tiếp');
   assert.deepStrictEqual([est('lol_worlds')[0].matches, est('lol_worlds')[0].advance], [33, 8], 'LoL Worlds: Thụy Sĩ 33 trận, 8 đội');
   assert.strictEqual(est('f1')[0].matches, 24, 'F1: 24 chặng');
-  // Giải nhà nghề Mỹ: 2 nhánh vòng tròn rồi playoff
-  assert.deepStrictEqual([est('nba')[0].matches, est('nba')[0].advance, est('nba')[1].matches], [420, 16, 15], 'NBA: 2 bảng 15 đội lượt đi – về, 16 đội playoff');
-  assert.deepStrictEqual([est('nfl')[0].matches, est('nfl')[0].advance, est('nfl')[1].matches], [240, 14, 13], 'NFL: 2 bảng 16 đội một lượt, 14 đội playoff (2 đội miễn vòng đầu)');
-  assert.deepStrictEqual([est('mlb')[0].advance, est('mlb')[1].matches], [12, 11], 'MLB: 12 đội playoff');
-  assert.deepStrictEqual([est('nhl')[0].matches, est('nhl')[0].advance], [480, 16], 'NHL: 2 bảng 16 đội lượt đi – về, 16 đội playoff');
-  assert.deepStrictEqual([est('mls')[0].matches, est('mls')[0].advance], [420, 16], 'MLS: 2 bảng 15 đội lượt đi – về, 16 đội playoff');
+  // Giải nhà nghề Mỹ: mùa giải đúng số trận như thật (caro/otour-season.js) rồi playoff
+  assert.deepStrictEqual([est('nba')[0].matches, est('nba')[0].advance, est('nba')[1].matches], [1230, 16, 15], 'NBA: 82 trận mỗi đội, 16 đội playoff');
+  assert.deepStrictEqual([est('nfl')[0].matches, est('nfl')[0].advance, est('nfl')[1].matches], [272, 14, 13], 'NFL: 17 trận mỗi đội, 14 đội playoff');
+  assert.deepStrictEqual([est('mlb')[0].matches, est('mlb')[0].advance, est('mlb')[1].matches], [2430, 12, 11], 'MLB: 162 trận mỗi đội, 12 đội playoff');
+  assert.deepStrictEqual([est('nhl')[0].matches, est('nhl')[0].advance], [1312, 16], 'NHL: 82 trận mỗi đội, 16 đội playoff');
+  assert.deepStrictEqual([est('mls')[0].matches, est('mls')[0].advance], [510, 16], 'MLS: 34 trận mỗi đội, 16 đội playoff');
   // Bóng rổ / bóng chày / khúc côn cầu: loạt Bo theo trận, không luật set; MLB vòng đầu Bo5, bán kết – chung kết Bo7
   for (const id of ['nba', 'mlb', 'nhl']) {
     const sp = Spec.normalizeSpec(TP.specOf(TP.byId(id), SPORTS));

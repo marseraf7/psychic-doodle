@@ -22,6 +22,7 @@
   const MAX_BIG = 64; // bảng lớn của giải offline (stages-league.js)
   function groupCount(c, n) {
     if (c.league) return 1;
+    if (c.season) return c.season.confs || 1;
     let G = c.groupSize ? Math.ceil(n / c.groupSize) : c.groups || 1;
     G = Math.max(G, Math.ceil(n / (c.big ? MAX_BIG : MAX_GROUP)));
     return Math.max(1, Math.min(G, Math.floor(n / 2), MAX_GROUPS));
@@ -137,6 +138,14 @@
     if (c.type === 'double') return double(c, n);
     // Hệ Race (giải offline): mỗi chặng cả đoàn thi một lần
     if (c.type === 'race') { const ev = Number(c.events) || 1; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, c.advance || 0) }; }
+    if (c.type === 'roundrobin' && c.season) {
+      // Mùa giải kiểu Mỹ (caro/otour-season.js): số trận chính xác; lịch xếp tham lam dài hơn số trận mỗi đội ~5%
+      const SS = typeof module !== 'undefined' && module.exports ? require('./otour-season.js') : global.CaroOTourSeason;
+      const info = SS ? SS.seasonInfo(c.season, n) : null;
+      const per = info && !info.error ? info.perTeam : 0, matches = info && !info.error ? info.matches : 0;
+      const G = (info && info.confs) || 1;
+      return { matches, maxMatches: matches, waves: per + Math.ceil(per / 20), advance: last ? null : Math.min(n, (c.advance || 0) * G), groups: G, groupSize: Math.ceil(n / G) };
+    }
     if (c.type === 'roundrobin' && c.league) {
       // League phase: mỗi đội gặp `games` đối thủ; lịch xếp tham lam thường dài hơn số trận mỗi đội 1–2 lượt
       const g = Math.min(Number(c.league.games) || 8, n - 1), matches = Math.floor((n * g) / 2);

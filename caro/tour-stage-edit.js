@@ -121,12 +121,14 @@
         more.push(`<p class="hint">${esc(T('opt_bo_sf_hint'))}</p>`, field(T('opt_bo_semi'), boSel(i, 'boSemi', c.boSemi, c.bestOf)), field(T('opt_bo_final'), boSel(i, 'boFinal', c.boFinal, c.bestOf)));
       }
       // Giải offline (ctx.ext): league phase kiểu Champions League – mỗi đội gặp N đối thủ chia theo nhóm hạt giống
-      if (ctx.ext && c.type === 'roundrobin') {
+      // Giải offline: mùa giải kiểu nhà nghề Mỹ – miền, bảng con, số lần gặp theo quan hệ (otour-season-edit.js)
+      if (ctx.ext && c.type === 'roundrobin' && K.seasonEdit && !c.league) f.push(...K.seasonEdit.html(i, c, ctx));
+      if (ctx.ext && c.type === 'roundrobin' && !c.season) {
         f.push(chk(i, 'league', !!c.league, T('opt_league')));
         // Cấu hình nhập từ JSON có thể thiếu trường: hiện giá trị mặc định như máy chủ (stages-league.js)
         if (c.league) f.push(field(T('opt_league_games'), num(i, 'lgGames', c.league.games || 8, 1, 20)), field(T('opt_league_pots'), num(i, 'lgPots', c.league.pots || 4, 1, 8)), `<small class="hint">${esc(T('opt_league_hint'))}</small>`);
       }
-      if (c.type === 'roundrobin' && !c.league) {
+      if (c.type === 'roundrobin' && !c.league && !c.season) {
         // Chia theo số bảng, hoặc theo số người mỗi bảng (như Challonge); giải offline: bảng tới 64 đội
         const bySize = c.groupSize != null;
         f.push(field(T('gmode'), sel(i, 'gmode', [['count', T('gmode_count')], ['size', T('gmode_size')]], bySize ? 'size' : 'count')));
@@ -135,7 +137,7 @@
       }
       if (c.type === 'roundrobin' && adv) more.push(field(T('opt_rankby'), sel(i, 'rankBy', RANK_BY.map((x) => [x, T('rank_' + x)]), c.rankBy || 'points')));
       // Giải offline: thêm các đội đứng ngay sau suất đi tiếp có thành tích tốt nhất (World Cup 2026: 8 đội hạng ba)
-      if (ctx.ext && c.type === 'roundrobin' && !last && !c.league) f.push(field(T('opt_best_next'), num(i, 'bestNext', c.bestNext || 0, 0, 32)));
+      if (ctx.ext && c.type === 'roundrobin' && !last && !c.league && !c.season) f.push(field(T('opt_best_next'), num(i, 'bestNext', c.bestNext || 0, 0, 32)));
       // Giải offline: Thụy Sĩ theo số thắng / thua kiểu LoL (đủ số thắng thì đi tiếp, đủ số thua thì bị loại)
       if (ctx.ext && c.type === 'swiss') {
         f.push(chk(i, 'record', !!c.record, T('opt_record')));
@@ -171,7 +173,7 @@
         }
       }
       // Thụy Sĩ theo số thắng / thua: ai đủ số thắng đều đi tiếp (không cần ô số người đi tiếp)
-      if (!last && !c.record) f.push(field(T(c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
+      if (!last && !c.record) f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
       const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
       const extra = more.length ? `<div class="sc-more"><b>${esc(T('stage_more'))}</b><div class="sc-body">${more.join('')}</div></div>` : '';
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div>${extra}</div>`;
@@ -212,6 +214,7 @@
       if (n % 2 === 0) n = n < MAX_BO ? n + 1 : n - 1; // Bo luôn là số lẻ
       c[k.slice(0, -1)] = n;
     }
+    else if (K.seasonEdit && K.seasonEdit.change(c, k, el)) { /* mùa giải kiểu Mỹ (otour-season-edit.js) */ }
     else if (k === 'league') {
       if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
     } else if (k === 'lgGames' || k === 'lgPots') c.league = { games: 8, pots: 4, ...c.league, [k === 'lgGames' ? 'games' : 'pots']: clamp(v) };

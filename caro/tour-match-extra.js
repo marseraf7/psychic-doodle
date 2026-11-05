@@ -23,7 +23,7 @@
         || scan(v.gf && [v.gf], () => T('gf')) || scan(v.third && [[v.third]], () => T('third_place'));
       if (x) return x;
       for (const p of v.places || []) { const y = scan(p.rounds, () => T('place_range', { a: p.base, b: p.base + p.size - 1 })); if (y) return y; }
-      for (const [gi, g] of (v.groups || []).entries()) { const y = scan(K.roundsOfGroup ? K.roundsOfGroup(t, v, gi) : g.rounds, (r) => T('group_name', { name: g.name }) + ' · ' + rr(r)); if (y) return y; }
+      for (const [gi, g] of (v.groups || []).entries()) { const y = scan(K.roundsOfGroup ? K.roundsOfGroup(t, v, gi) : g.rounds, (r) => T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }) + ' · ' + rr(r)); if (y) return y; }
     }
     return null;
   }

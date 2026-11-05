@@ -13,7 +13,8 @@
   const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race'];
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
-  const bo = { type: 'integer', enum: Array.from({ length: 13 }, (_, i) => 2 * i + 1), description: 'Best of N (lẻ, 1–25)' };
+  const lv = { type: 'object', properties: { m: int(0, 30, 'số lần gặp mỗi đối thủ ở mức này'), x: int(0, 999, 'số đối thủ ở mức này gặp thêm 1 lần') } };
+    const bo = { type: 'integer', enum: Array.from({ length: 13 }, (_, i) => 2 * i + 1), description: 'Best of N (lẻ, 1–25)' };
 
   const SCHEMA = {
     $schema: 'http://json-schema.org/draft-07/schema#',
@@ -40,6 +41,8 @@
             path: { type: 'string', enum: ['groups'], description: 'loại trực tiếp sau vòng bảng: nhánh cố định theo vị trí trong bảng (1A–2B, kiểu World Cup 2026)' },
             groups: int(1, 64), groupSize: int(2, 64), meetings: { type: 'integer', enum: [1, 2, 3] },
             league: { type: 'object', description: 'league phase kiểu Champions League', properties: { games: int(1, 20), pots: int(1, 8) } },
+            season: { type: 'object', description: 'mùa giải kiểu nhà nghề Mỹ: confs miền × divs bảng con (đội chia theo thứ tự danh sách); div / conf / inter = gặp đội cùng bảng con / cùng miền khác bảng con / khác miền: m lần mỗi đối thủ + x đối thủ gặp thêm 1 lần',
+              properties: { confs: int(1, 8), divs: int(1, 8), div: lv, conf: lv, inter: lv } },
             bestNext: int(0, 32, 'thêm đội xếp ngay sau suất đi tiếp tốt nhất'),
             rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent'] },
             record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo } },
@@ -65,6 +68,7 @@
       if (c.path === 'groups') x.push(T('ds_path'));
     } else if (c.type === 'roundrobin') {
       if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
+      else if (c.season) x.push(seasonText(c.season, T));
       else {
         x.push(c.groupSize ? T('ds_group_size', { n: c.groupSize }) : (c.groups || 1) > 1 ? T('ds_groups', { n: c.groups }) : T('ds_rr'));
         if (c.meetings === 2) x.push(T('ds_home_away')); else if (c.meetings === 3) x.push(T('ds_meet3'));
@@ -82,12 +86,23 @@
     }
     if (!last) {
       if (c.type === 'swiss' && c.record) x.push(T('ds_adv_rec', { n: c.record.win }));
-      else if (c.advance) x.push(T(c.type === 'roundrobin' && !c.league ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
+      else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'roundrobin' && !c.league ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
     }
     return x.join(', ');
   }
 
   /** Mô tả cả bản cấu hình: [câu bộ môn, câu luật set?, câu từng giai đoạn…]. */
+  /** "mùa giải 2 miền × 3 bảng con: cùng bảng con 4 lần, cùng miền 3 lần (+6 đội thêm 1 lần), khác miền 2 lần". */
+  function seasonText(se, T) {
+    const lv = (k) => {
+      const v = se[k] || {};
+      if (!v.m && !v.x) return '';
+      return T('ds_sn_' + k, { m: v.m || 0 }) + (v.x ? ' ' + T('ds_sn_extra', { x: v.x }) : '');
+    };
+    const parts = ['div', 'conf', 'inter'].filter((k) => (k !== 'conf' || se.divs > 1) && (k !== 'inter' || se.confs > 1)).map(lv).filter(Boolean);
+    return T(se.divs > 1 ? 'ds_season_div' : 'ds_season', { c: se.confs, d: se.divs }) + ': ' + parts.join(', ');
+  }
+
   function describeSpec(spec, T) {
     const sp = SP.SPORTS[spec.sport] || SP.SPORTS.other;
     const out = [T('ds_sport', { icon: sp.icon, sport: T('sport_' + (SP.SPORTS[spec.sport] ? spec.sport : 'other')), result: T('otres_' + (spec.result || sp.result)) })];
