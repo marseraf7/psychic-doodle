@@ -25,14 +25,15 @@ const pair = (x) => {
   const [a, b] = x.map((v) => Math.floor(Number(v)));
   return Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b >= 0 && a <= MAX_POINT && b <= MAX_POINT ? [a, b] : null;
 };
-const teamName = (s) => cleanPublicText(s, 40).replace(/[<>|]/g, '').trim();
+const teamName = (s) => cleanPublicText(s, 40).replace(/[<>]/g, '').trim();
 /**
  * Một dòng danh sách đội: "Tên đội", "Tên đội | Quốc gia" (league phase tránh hai đội cùng quốc gia gặp nhau) hoặc
- * "Tên | Quốc gia | Đội" (hệ Race: bảng xếp hạng đội – như tay đua và đội đua F1).
+ * "Tên | Quốc gia | Đội" (hệ Race: bảng xếp hạng đội – như tay đua và đội đua F1). Tên có dấu | thật thì viết \|.
  */
 function parseTeam(raw) {
-  const [name, country, team] = String(raw || '').split('|');
-  const clean = (x, n) => cleanPublicText(x || '', n).replace(/[<>|]/g, '').trim();
+  const parts = String(raw || '').split(/(?<!\\)\|/).map((x) => x.replace(/\\\|/g, '|'));
+  const [name, country, team] = parts;
+  const clean = (x, n) => cleanPublicText(x || '', n).replace(/[<>]/g, '').trim();
   return { name: teamName(name), country: clean(country, 20).toUpperCase(), team: clean(team, 40) };
 }
 
@@ -216,4 +217,4 @@ class OTourRun {
   }
 }
 
-module.exports = { OTourRun };
+module.exports = { OTourRun, parseTeam };

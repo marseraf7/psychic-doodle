@@ -53,13 +53,13 @@
   };
 
   /** Mô tả một giai đoạn (một câu). T(key, args) – hàm dịch. */
-  function stageText(c, T, last) {
+  function stageText(c, T, last, result = 'score') {
     const x = [];
     if (c.type === 'single' || c.type === 'double') {
       x.push(T(c.type === 'single' ? 'ds_single' : 'ds_double', { bo: c.bestOf || 1 }));
       if (c.type === 'single' && (c.thirdPlace || (c.places || []).includes(3))) x.push(T('ds_third'));
       if (c.boFinal) x.push(T('ds_bo_final', { bo: c.boFinal }));
-      if (c.legs) x.push(T(c.legsFinal ? 'ds_legs_all' : 'ds_legs'));
+      if (c.legs && result === 'score') x.push(T(c.legsFinal ? 'ds_legs_all' : 'ds_legs')); // 2 lượt chỉ với kiểu tỉ số
     } else if (c.type === 'roundrobin') {
       if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
       else {
@@ -90,7 +90,7 @@
     const r = spec.result === 'sets' ? spec.set : null;
     if (r) out.push(T('ds_set', { to: r.to, by: r.by }) + (r.cap ? ' ' + T('ds_set_cap', { cap: r.cap }) : '') + (r.last ? ' ' + T('ds_set_last', { last: r.last }) : ''));
     const st = spec.stages || [];
-    st.forEach((c, i) => out.push(T('ds_stage', { n: i + 1, text: stageText(c, T, i === st.length - 1) })));
+    st.forEach((c, i) => out.push(T('ds_stage', { n: i + 1, text: stageText(c, T, i === st.length - 1, spec.result || sp.result) })));
     return out;
   }
 

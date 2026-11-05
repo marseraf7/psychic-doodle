@@ -189,6 +189,7 @@ const VI = {
   ot_race_empty: 'Chặng cần ít nhất một người về đích',
   ot_race_many: 'Một giai đoạn đua tối đa {n} người / đội',
   ot_events_many: 'Mỗi trận tối đa {n} sự kiện',
+  ot_events_tour: 'Mỗi giải tối đa {n} sự kiện trận',
   ot_reg_closed: 'Giải không nhận đăng ký',
   ot_reg_dup: 'Bạn đã gửi đăng ký cho giải này',
   ot_reg_full: 'Giải đã nhận đủ đơn đăng ký – hãy chờ ban tổ chức duyệt',

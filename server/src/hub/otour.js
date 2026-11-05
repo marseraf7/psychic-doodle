@@ -64,9 +64,7 @@ class OTour {
     for (const id of idle) {
       if (!force && now - (this.otUsed.get(id) || 0) < IDLE_MS) continue;
       if (force && cache.size <= MAX_CACHED) break;
-      cache.delete(id);
-      this.otUsed.delete(id);
-      this.otSnaps?.delete(id);
+      this.otForget(id);
     }
   }
 
@@ -141,8 +139,7 @@ class OTour {
   on_otDelete(conn, { id }) {
     const { t } = this.otManaged(conn, id);
     for (const set of this.byPid.values()) for (const c of set) if (c.watchOt === t.id) { c.watchOt = null; c.send({ t: 'ot', id: t.id, tour: null }); }
-    this.otCache().delete(t.id);
-    this.otUsed.delete(t.id);
+    this.otForget(t.id);
     this.store.dropOTour(t.id);
     conn.send({ t: 'otDeleted', id: t.id });
   }
@@ -237,7 +234,16 @@ class OTour {
 
   /** Xoá tài khoản (auth.js): bỏ giải offline của người đó khỏi RAM (CSDL xoá trong store.deleteUser). */
   otUserGone(uid) {
-    for (const [id, t] of this.otCache()) if (t.owner === uid) { this.otours.delete(id); this.otUsed.delete(id); }
+    for (const [id, t] of this.otCache()) if (t.owner === uid) this.otForget(id);
+  }
+
+  /** Bỏ hẳn một giải khỏi RAM: bản giải, lần đụng, bản chụp tính bản vá (có thể vài MB), nhịp gửi đang chờ. */
+  otForget(id) {
+    this.otCache().delete(id);
+    this.otUsed.delete(id);
+    this.otSnaps?.delete(id);
+    const timer = this.otPushTimers?.get(id);
+    if (timer) { clearTimeout(timer); this.otPushTimers.delete(id); }
   }
 }
 

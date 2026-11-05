@@ -3,7 +3,7 @@
  *   K.otLeagueHtml(t)    – đăng ký đội (mở / duyệt; người có tài khoản gửi đơn), lịch thi đấu, thống kê cầu thủ
  *                          (vua phá lưới, thẻ phạt), đội hình (ban tổ chức sửa: "số áo tên | vị trí").
  *   K.otMatchExtra(t, m) – trong khung trận (otour-score.js): giờ đấu + sân, sự kiện (bàn thắng / phản lưới / thẻ),
- *                          in biên bản trận.
+ *                          in biên bản trận. K.otMatchView(t, m): bản chỉ xem cho người xem (in biên bản được).
  *   K.otMatchTags(m)     – nhãn nhỏ trên nhánh / danh sách (giờ, sân, số bàn ghi nhận) – tour-stages.js gọi.
  */
 (function () {
@@ -46,6 +46,13 @@
         <button type="button" class="ghost sm" data-act="otEvAdd">${icon('plus')}${esc(T('ot_ev_add'))}</button></div>
       <div class="row"><button type="button" class="ghost sm" data-act="otPrint">${esc(T('ot_print'))}</button></div></div>`;
   };
+  /** Khung xem chi tiết trận cho người xem (không sửa được): giờ, sân, diễn biến, in biên bản. */
+  K.otMatchView = (t, m) => {
+    const info = [m.when ? '📅 ' + fmtWhen(m.when) : '', m.venue ? '📍 ' + m.venue : ''].filter(Boolean).join(' · ');
+    const evs = (m.events || []).map((e) => `<li>${EV[e.type] || ''} ${e.min != null ? `<b>${e.min}'</b>` : ''} ${esc(e.who || '')} <small class="muted">(${esc((e.side === 'a' ? m.a : m.b).name)})</small></li>`).join('');
+    return `<div class="ot-mx">${info ? `<p>${esc(info)}</p>` : ''}${evs ? `<h6>${esc(T('ot_events'))}</h6><ul class="ot-evs">${evs}</ul>` : ''}
+      <div class="row"><button type="button" class="ghost sm" data-act="otPrint">${esc(T('ot_print'))}</button></div></div>`;
+  };
   const cur = () => K.otCurMatch && K.otCurMatch(); // trận đang mở trong khung nhập (otour-score.js)
   K.acts.otInfoSave = () => {
     const v = $('otm-when').value;
@@ -54,7 +61,11 @@
   K.acts.otEvAdd = () => {
     O.send({ t: 'otEvent', id: D.ot.id, match: cur(), type: $('otm-type').value, side: $('otm-side').value, who: $('otm-who').value, min: $('otm-min').value });
   };
-  K.acts.otEvDel = (b) => O.send({ t: 'otEventDel', id: D.ot.id, match: cur(), i: Number(b.dataset.i) });
+  K.acts.otEvDel = (b) => {
+    const m = allMatches(D.ot).find((x) => x.id === cur());
+    const ev = m && m.events && m.events[Number(b.dataset.i)];
+    O.send({ t: 'otEventDel', id: D.ot.id, match: cur(), i: Number(b.dataset.i), ...(ev ? { ev } : {}) });
+  };
 
   /** Biên bản trận: trang in (giải, trận, giờ / sân, đội hình hai bên, sự kiện, kết quả, chỗ ký). */
   K.acts.otPrint = () => {

@@ -79,6 +79,8 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   await boss.selectOption('#otf select[name=preset]', 'single'); await sleep(150);
   await boss.check('#otf-stages [data-k="legs"]'); await sleep(200);
   ok(await boss.isVisible('#otf-stages [data-k="legsFinal"]'), 'Knock-out 2 lượt + tuỳ chọn chung kết 2 lượt');
+  await boss.selectOption('#otf select[name=result]', 'sets'); await sleep(300);
+  ok(!(await boss.$('#otf-stages [data-k="legs"]')), 'Kiểu điểm từng set: không có ô 2 lượt');
   await shot(guest, 'ot-guest.png');
   await ctx.close();
   await finish();

@@ -32,7 +32,7 @@ const { setup, sleep } = require('./helpers.js');
   // Tạo giải nhỏ, nhập một kết quả, xuất CSV / JSON
   await boss.selectOption('#otf select[name=preset]', 'groups_single'); await sleep(300);
   await boss.fill('#otf input[name=name]', 'Giải xuất dữ liệu');
-  await boss.fill('#otf textarea[name=teams]', 'An\nBình\nChi\nDũng\nEm\nPhong\nGiang\nHải');
+  await boss.fill('#otf textarea[name=teams]', '=HYPERLINK(1)\nBình\nChi\nDũng\nEm\nPhong\nGiang\nHải');
   await boss.click('#otf button.primary.wide'); await sleep(800); // nút Tạo giải (khung JSON đang mở cũng có nút primary)
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(300);
@@ -45,14 +45,18 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('#ots button.primary'); await sleep(900);
   await boss.click('summary:has-text("Xuất dữ liệu")'); await sleep(200);
   const grab = async (act) => {
-    const [dl] = await Promise.all([boss.waitForEvent('download', { timeout: 5000 }), boss.click(`[data-act="${act}"]`)]);
+    const [dl] = await Promise.all([boss.waitForEvent('download', { timeout: 5000 }), boss.click(`[data-act="otExport"][data-kind="${act}"]`)]);
     const fs = require('fs'); return fs.readFileSync(await dl.path(), 'utf8');
   };
-  const csvT = await grab('otCsvTable');
+  const csvT = await grab('table');
   ok(csvT.charCodeAt(0) === 0xfeff && /Giai đoạn,Bảng,#,Đội/.test(csvT) && csvT.split('\r\n').length === 9, 'CSV bảng xếp hạng (BOM, tiêu đề, 8 đội)');
-  const csvM = await grab('otCsvMatches');
+  ok(/'=HYPERLINK\(1\)/.test(csvT) && !/,=HYPERLINK/.test(csvT), 'CSV: tên đội bắt đầu bằng = được thêm dấu \' (không thành công thức)');
+  await boss.evaluate(() => { window.__clip = ''; navigator.clipboard.writeText = async (x) => { window.__clip = x; }; });
+  await boss.click('[data-act="otExportCopy"][data-kind="spec"]'); await sleep(300);
+  ok(/"stages"/.test(await boss.evaluate(() => window.__clip)), 'Nút Chép: chép cấu hình JSON vào bộ nhớ tạm');
+  const csvM = await grab('matches');
   ok(/3-1/.test(csvM), 'CSV kết quả có tỉ số 3-1');
-  const spec = JSON.parse(await grab('otJsonSpec'));
+  const spec = JSON.parse(await grab('spec'));
   ok(spec.sport === 'football' && spec.stages.length === 2, 'JSON cấu hình giải');
   // Lược đồ công khai
   const sch = await boss.evaluate(async () => (await fetch('/api/otour/schema.json')).json());
