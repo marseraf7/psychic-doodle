@@ -15,7 +15,7 @@
   const RU = window.CaroOTourRules;
   if (!K || !SP || !RU) return;
   const { O, T, esc, $, D, icon, render } = K;
-  const S = { tour: null, match: null, sets: [['', '']] };
+  const S = { tour: null, match: null, sets: [['', '']], pens: [['', '']] }; // pens: luân lưu từng trận (loạt Bo kiểu tỉ số)
 
   /** Trận theo mã trong các giai đoạn đang hiện (kèm giai đoạn). */
   function find(t, id) {
@@ -35,6 +35,8 @@
   const elimType = (v) => v.type === 'single' || v.type === 'double' || !!(v.cfg && v.cfg.record);
   const boOf = (m, v) => m.bo || (v.cfg && v.cfg.bestOf) || 1;
   // Ô luân lưu: loại trực tiếp (hoà phải có) hoặc vòng tròn có điểm thắng / thua sát (khúc côn cầu: hoà → luân lưu)
+  // Kiểu tỉ số + loại trực tiếp + Bo > 1 (không phải 2 lượt): nhập cả loạt trận (otour-run.js)
+  const series = (m, v) => elimType(v) && boOf(m, v) > 1 && !m.legs;
   const penOn = (v) => elimType(v) || !!(v.cfg && v.cfg.points && v.cfg.points.wx != null);
   /** Câu nhắc luật set: "Bo3 · mỗi set tới 21 điểm, cách 2 · chạm 30 là thắng" (+ " · set quyết định tới 15"). */
   function ruleText(r, bo) {
@@ -54,7 +56,7 @@
     const head = `<div class="sp-head"><b>${esc(m.a.name)}</b> <span class="muted">vs</span> <b>${esc(m.b.name)}</b>
       <button type="button" class="ghost sm icon" data-act="otScoreClose" aria-label="${esc(T('close'))}">${icon('close')}</button></div>`;
     const res = () => {
-      const r = m.sets ? m.sets.map((s) => s.join('-')).join(' · ') : `${m.wa}–${m.wb}`;
+      const r = m.sets ? (K.setsText ? K.setsText({ ...m, extra: null }) : m.sets.map((s) => s.join('-')).join(' · ')) : `${m.wa}–${m.wb}`;
       const more = [m.aet ? T('ot_aet_tag') : '', m.extra ? T('ot_pen_tag', { s: m.extra.join('-') }) : ''].filter(Boolean).join(', ');
       return `<p class="hint">${esc(T('score_current', { s: r + (more ? ` (${more})` : '') }))}</p>`;
     };
@@ -83,6 +85,14 @@
       body = `${rule}<div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T(games ? 'ot_game_n' : 'score_set_n', { n: i + 1 }))}</span>
         <input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="0" value="${esc(s[0])}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="1" value="${esc(s[1])}">${del(i)}</div>`).join('')}</div>
         ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T(games ? 'ot_game_add' : 'score_set_add'))}</button>` : ''}`;
+    } else if (series(m, v)) {
+      // Loạt Bo ở loại trực tiếp với kiểu tỉ số (vd. vòng 1 playoff MLS Bo3): mỗi dòng một trận, hoà thì nhập luân lưu
+      const bo = boOf(m, v);
+      const del = (i) => (S.sets.length > 1 ? `<button type="button" class="ghost sm icon" data-act="otSetDel" data-i="${i}" aria-label="${esc(T('score_set_del'))}">${icon('close')}</button>` : '');
+      const num = (i, side, k, val, max) => `<input type="number" min="0" max="${max}" inputmode="numeric" data-${k}="${i}" data-side="${side}" value="${esc(val)}">`;
+      body = `<p class="hint">${esc(T('ot_series_rule', { bo }))} ${esc(T('ot_series_pen'))}</p><div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T('ot_game_n', { n: i + 1 }))}</span>
+        ${num(i, 0, 'set', s[0], 999)}<span>–</span>${num(i, 1, 'set', s[1], 999)}<span class="muted sm">${esc(T('ot_pen'))}</span>${num(i, 0, 'pen', (S.pens[i] || [])[0] || '', 99)}<span>–</span>${num(i, 1, 'pen', (S.pens[i] || [])[1] || '', 99)}${del(i)}</div>`).join('')}</div>
+        ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T('ot_game_add'))}</button>` : ''}`;
     } else {
       const ex = sp.extra === 'ot' ? 'ot' : 'aet';
       const row = (label, a, b) => `<div class="set-row"><span class="muted">${esc(label)}</span><input type="number" min="0" max="999" inputmode="numeric" id="${a}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" id="${b}"></div>`;
@@ -96,10 +106,13 @@
     return `<div class="score-panel"><form id="ots" class="score-form">${head}${body}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>${extra(t, m)}</div>`;
   };
 
-  const readSets = () => { document.querySelectorAll('#ots-sets [data-set]').forEach((el) => { S.sets[el.dataset.set][el.dataset.side] = el.value; }); };
+  const readSets = () => {
+    document.querySelectorAll('#ots-sets [data-set]').forEach((el) => { S.sets[el.dataset.set][el.dataset.side] = el.value; });
+    document.querySelectorAll('#ots-sets [data-pen]').forEach((el) => { (S.pens[el.dataset.pen] = S.pens[el.dataset.pen] || ['', ''])[el.dataset.side] = el.value; });
+  };
   K.acts.otScoreClose = () => { S.match = null; render(true); };
-  K.acts.otSetAdd = () => { readSets(); if (S.sets.length < 25) S.sets.push(['', '']); render(true); };
-  K.acts.otSetDel = (b) => { readSets(); if (S.sets.length > 1) S.sets.splice(Number(b.dataset.i), 1); render(true); };
+  K.acts.otSetAdd = () => { readSets(); if (S.sets.length < 25) { S.sets.push(['', '']); S.pens.push(['', '']); } render(true); };
+  K.acts.otSetDel = (b) => { readSets(); if (S.sets.length > 1) { S.sets.splice(Number(b.dataset.i), 1); S.pens.splice(Number(b.dataset.i), 1); } render(true); };
   K.acts.otWin = (b) => O.send({ t: 'otScore', id: D.ot.id, match: S.match, ...(b.dataset.uid ? { winner: b.dataset.uid } : { draw: true }) });
   K.acts.otUndo = () => window.CaroConfirm.ask(T('score_undo_confirm')).then((ok) => { if (ok) O.send({ t: 'otUndo', id: D.ot.id, match: S.match }); });
 
@@ -115,6 +128,7 @@
         if (e.target.closest('a, button')) return;
         S.match = el.dataset.mid;
         S.sets = [['', '']];
+        S.pens = [['', '']];
         render(true);
         const p = document.querySelector('.score-panel');
         if (p) { p.scrollIntoView({ block: 'nearest' }); const f = p.querySelector('input'); if (f) f.focus(); }
@@ -136,6 +150,16 @@
         const bad = x && RU.setsError(t.set || null, list, boOf(x.m, x.v));
         if (bad) { $('ots-err').textContent = T('srv_' + bad.code, bad.args); return; }
         O.send({ t: 'otScore', id: t.id, match: S.match, sets: list });
+        return;
+      }
+      const x = find(t, S.match);
+      if (x && series(x.m, x.v)) {
+        readSets();
+        const rows = S.sets.map((s, i) => [s, S.pens[i] || ['', '']]).filter(([s]) => s[0] !== '' || s[1] !== '');
+        if (!rows.length || rows.some(([s]) => s[0] === '' || s[1] === '')) return err('ot_need_score');
+        const sets = rows.map(([s]) => s.map(Number));
+        const pens = rows.map(([s, p]) => (Number(s[0]) === Number(s[1]) && p[0] !== '' && p[1] !== '' ? p.map(Number) : null));
+        O.send({ t: 'otScore', id: t.id, match: S.match, sets, ...(pens.some(Boolean) ? { pens } : {}) });
         return;
       }
       const a = $('ots-a').value, b = $('ots-b').value;

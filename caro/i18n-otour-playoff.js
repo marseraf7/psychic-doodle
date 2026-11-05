@@ -8,6 +8,7 @@
   const X = window.I18N.extend;
 
   X('vi', {
+    ot_series_pen: 'Trận hoà thì nhập tỉ số luân lưu ở ô bên cạnh.', srv_ot_series_short: 'Chưa đội nào thắng đủ {k} trận (Bo{bo}).', srv_ot_series_after: 'Thừa trận {n}: loạt Bo{bo} đã có đội thắng.',
     opt_po: 'Playoff kiểu nhà nghề Mỹ (nhánh riêng từng miền)',
     opt_po_mode: 'Cách xếp nhánh', po_mode_seed: 'Theo hạt giống trong miền', po_mode_div: 'Theo bảng con (kiểu NHL)',
     opt_po_per: 'Số đội mỗi miền vào nhánh chính', opt_po_divwin: 'Nhất các bảng con giữ các hạt giống đầu',
@@ -26,6 +27,7 @@
   });
 
   X('en', {
+    ot_series_pen: 'For a drawn game, enter the shootout score in the boxes next to it.', srv_ot_series_short: 'No team has won {k} games yet (best of {bo}).', srv_ot_series_after: 'Game {n} is extra: the best-of-{bo} series is already decided.',
     opt_po: 'US pro-style playoffs (a bracket for each conference)',
     opt_po_mode: 'Bracket layout', po_mode_seed: 'By seed within the conference', po_mode_div: 'By division (NHL style)',
     opt_po_per: 'Teams per conference in the main bracket', opt_po_divwin: 'Division winners get the top seeds',
@@ -44,6 +46,7 @@
   });
 
   X('ru', {
+    ot_series_pen: 'Если матч закончился вничью, введите счёт серии пенальти в соседних полях.', srv_ot_series_short: 'Ни одна команда ещё не выиграла {k} матча (Bo{bo}).', srv_ot_series_after: 'Матч {n} лишний: серия Bo{bo} уже решена.',
     opt_po: 'Плей-офф как в лигах США (своя сетка у каждой конференции)',
     opt_po_mode: 'Схема сетки', po_mode_seed: 'По посеву внутри конференции', po_mode_div: 'По дивизионам (как в НХЛ)',
     opt_po_per: 'Команд от конференции в основной сетке', opt_po_divwin: 'Победители дивизионов получают верхние номера посева',
@@ -62,6 +65,7 @@
   });
 
   X('zh', {
+    ot_series_pen: '平局的场次请在旁边填写点球比分。', srv_ot_series_short: '还没有球队赢满 {k} 场（{bo} 场制）。', srv_ot_series_after: '第 {n} 场多余：{bo} 场制系列赛已分出胜负。',
     opt_po: '美国职业联赛式季后赛（每个分区单独一张对阵图）',
     opt_po_mode: '对阵方式', po_mode_seed: '按分区内种子', po_mode_div: '按赛区（NHL 式）',
     opt_po_per: '每个分区进入正赛的队数', opt_po_divwin: '赛区第一占据前几号种子',

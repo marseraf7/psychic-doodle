@@ -37,7 +37,7 @@
   /** Trận đang chờ nhập (đủ 2 người, chưa xong) của giai đoạn hiện tại. */
   const waiting = (t) => allMatches(t).filter(({ m, v }) => v.index === (t.stage || 0) && !m.done && m.a && m.a.uid && m.b && m.b.uid && !m.bye);
   /** "21-15 · 15-21 (5-3)". */
-  const setsText = (m) => (m.sets ? m.sets.map((s) => s.join('-')).join(' · ') + (m.extra ? ` (${m.extra.join('-')})` : '') : '');
+  const setsText = (m) => (m.sets ? m.sets.map((s, i) => s.join('-') + (m.pens && m.pens[i] ? ` (${m.pens[i].join('-')})` : '')).join(' · ') + (m.extra ? ` (${m.extra.join('-')})` : '') : '');
 
   function rowsHtml() {
     return S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T('score_set_n', { n: i + 1 }))}</span>

@@ -46,7 +46,7 @@
       const all = [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.pre || []), ...(v.gf || []), ...(v.third ? [v.third] : []),
         ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())].filter((m) => m && m.a && m.b && !m.a.bye && !m.b.bye);
       for (const m of all) {
-        out.push([v.index + 1, m.round + 1, m.a.name, m.b.name, m.done ? `${m.wa}-${m.wb}` : '', m.sets ? m.sets.map((s) => s.join('-')).join(' ') : '',
+        out.push([v.index + 1, m.round + 1, m.a.name, m.b.name, m.done ? `${m.wa}-${m.wb}` : '', m.sets ? m.sets.map((s, i) => s.join('-') + (m.pens && m.pens[i] ? ` (${m.pens[i].join('-')})` : '')).join(' ') : '',
           m.extra ? m.extra.join('-') : '', m.when ? localTime(m.when) : '', m.venue || '']);
       }
     }
