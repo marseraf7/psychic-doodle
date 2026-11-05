@@ -29,7 +29,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.fill('#otf-stages [data-k="events"]', '2');
   await boss.press('#otf-stages [data-k="events"]', 'Tab'); await sleep(200);
   ok(/2 trận|2 lượt/.test(await boss.textContent('#otf-est')), 'Ước tính: 2 chặng');
-  await boss.click('#otf button.primary'); await sleep(800);
+  await boss.click('#otf button.primary.wide'); await sleep(800);
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   const t = app.hub.otGet(id);
   ok(t && t.stages[0].type === 'race' && t.stages[0].events === 2 && t.stages[0].teams && t.players[0].team === 'Đỏ', 'Tạo giải đua: 2 chặng, bảng đội, tên đội');
@@ -66,7 +66,7 @@ const { setup, sleep } = require('./helpers.js');
   // Time Trial: thời gian sai báo ngay trong khung
   await newTour('Chạy 5 km', 'running', ['An', 'Bình', 'Chi']);
   ok(await boss.$eval('#otf select[name=preset]', (e) => e.value) === 'time_trial', 'Môn chạy: tự chọn Time Trial');
-  await boss.click('#otf button.primary'); await sleep(800);
+  await boss.click('#otf button.primary.wide'); await sleep(800);
   const id2 = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(300);
   // hộp xác nhận: helpers.js tự bấm Đồng ý
@@ -90,7 +90,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.fill('#otf-stages [data-i="0"][data-k="heat"]', '4');
   await boss.$eval('#otf-stages [data-i="0"][data-k="heat"]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(300);
   ok(/chia lượt, tối đa 4 người/.test(await boss.textContent('#otf-desc')), 'Mô tả bằng lời: chia lượt tối đa 4 người');
-  await boss.click('#otf button.primary'); await sleep(800);
+  await boss.click('#otf button.primary.wide'); await sleep(800);
   const id3 = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   const t3 = app.hub.otGet(id3);
   ok(t3.stages[0].heat === 4, 'Cấu hình heat = 4');

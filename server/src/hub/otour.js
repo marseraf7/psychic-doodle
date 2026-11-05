@@ -89,7 +89,8 @@ class OTour {
 
   /** Ghi (gom) + gửi cập nhật cho người đang xem. */
   otSave(t) {
-    t.updated = Date.now();
+    // Luôn tăng ngặt (hai lần lưu cùng một mili giây vẫn khác nhau): otour-lazy.js dùng updated để biết bản đầy đủ đã cũ
+    t.updated = Math.max(Date.now(), (t.updated || 0) + 1);
     this.store.saveOTour(t);
     this.otPush(t);
   }

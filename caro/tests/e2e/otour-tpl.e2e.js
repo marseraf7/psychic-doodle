@@ -23,7 +23,7 @@ const { setup, sleep } = require('./helpers.js');
   // 144 trận league phase + 23 trận loại trực tiếp 24 đội (8 đội miễn vòng đầu)
   ok(n === 36 && /≈ 167 trận/.test(await boss.textContent('#otf-est')), 'Điền 36 đội mẫu, ước tính 144 + 23 = 167 trận');
   await shot(boss, 'ot-tpl.png');
-  await boss.click('#otf button.primary'); await sleep(900);
+  await boss.click('#otf button.primary.wide'); await sleep(900);
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   const t = app.hub.otGet(id);
   ok(t && t.stages[0].league && t.stages[1].legs && t.players.length === 36 && t.players[0].country === 'ENG', 'Tạo giải theo mẫu CL (có quốc gia)');

@@ -200,7 +200,7 @@
       return html;
     },
     stages: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + K.stagesHtml(t), // khung nhập kết quả (otour-score.js) + nhánh / bảng
-    sched: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + ((L().sched && L().sched(t)) || hint(t.canManage ? 'ot_sched_none_m' : 'ot_sched_none')),
+    sched: (t) => { schedNeedAll(t); return (K.otScoreHtml ? K.otScoreHtml(t) : '') + ((L().sched && L().sched(t)) || hint(t.canManage ? 'ot_sched_none_m' : 'ot_sched_none')); },
     stats: (t) => (((L().stats && L().stats(t)) || hint('ot_stats_none')) + (K.otDiscHtml ? K.otDiscHtml(t) : '')), // + treo giò (otour-disc.js)
     teams: teamsTab,
     more: (t) => (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '') // nhúng vào website (tour-embed.js)
@@ -288,7 +288,7 @@
   });
   // ------------------------------------------------------------ Tải lười các trận của vòng tròn nhiều bảng
   // (máy chủ: otour-lazy.js) – trang chung chỉ có bảng xếp hạng; mở bảng nào (tour-stages.js) thì tải các trận bảng đó
-  const G = { id: null, rounds: new Map(), asked: new Set(), waits: [] };
+  const G = { id: null, rounds: new Map(), asked: new Set(), waits: [], allId: null, allAt: 0 };
   const gkey = (i, g) => i + ':' + g;
   const gReset = (id) => { if (G.id !== id) { G.id = id; G.rounds.clear(); G.asked.clear(); } };
   K.otGroupRounds = (t, i, g) => (t.kind === 'otour' && G.id === t.id ? G.rounds.get(gkey(i, g)) || null : null);
@@ -305,16 +305,31 @@
     if (!lazy.length) return Promise.resolve();
     gReset(t.id);
     const left = new Map(lazy.map((v) => [v.index, v.groups.length])); // giai đoạn → số bảng phải nhận đủ
-    return Promise.race([new Promise((resolve) => {
-      G.waits.push((m) => {
+    let wait = null;
+    const got = new Promise((resolve) => {
+      wait = (m) => {
         if (left.get(m.stage) === m.groups.length) left.delete(m.stage);
         if (left.size) return false;
         resolve();
         return true;
-      });
+      };
+      G.waits.push(wait);
       for (const v of lazy) O.send({ t: 'otGroup', id: t.id, stage: v.index, g: 'all' });
-    }), new Promise((resolve) => setTimeout(resolve, 8000))]);
+    });
+    // Quá 8 giây (mạng chậm): thôi chờ – bỏ hàm chờ khỏi danh sách (không để lại hàm chờ thừa)
+    return Promise.race([got, new Promise((resolve) => setTimeout(resolve, 8000))]).then(() => { G.waits = G.waits.filter((w) => w !== wait); });
   };
+  /**
+   * Tab Lịch thi đấu của giải tải lười: lịch cần giờ đấu của mọi trận – tải đủ các bảng (tối đa 5 phút một lần: trang vẽ lại
+   * sau mỗi bản vá; giải 512 đội ~1,6 MB). Các bảng đã mở vẫn được máy chủ đẩy cập nhật như thường.
+   */
+  const SCHED_EVERY = 300000;
+  function schedNeedAll(t) {
+    if (!(t.stageViews || []).some((v) => v.lazy)) return;
+    if (G.allId === t.id && Date.now() - G.allAt < SCHED_EVERY) return;
+    Object.assign(G, { allId: t.id, allAt: Date.now() });
+    K.otGroupsAll(t);
+  }
   O.on('otGroup', (m) => {
     if (!D.ot || m.id !== D.ot.id) return;
     gReset(m.id);

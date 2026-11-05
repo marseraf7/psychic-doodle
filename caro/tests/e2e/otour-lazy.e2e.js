@@ -50,6 +50,17 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   const [dl] = await Promise.all([boss.waitForEvent('download', { timeout: 10000 }), boss.click('[data-act="otExport"][data-kind="matches"]')]);
   const csvText = require('fs').readFileSync(await dl.path(), 'utf8');
   ok(csvText.split('\r\n').length === 97 && /4-0/.test(csvText), 'CSV kết quả đủ 96 trận (tải đủ các bảng)');
+  // Tab Lịch thi đấu: trận ở bảng chưa ai mở (bảng H) có giờ / sân → người xem mới vẫn thấy (tải đủ các bảng)
+  const mh = Object.values(t.st[0].matches).find((x) => x.group === 7);
+  await boss.evaluate(([tid, mid]) => window.CaroTourKit.O.send({ t: 'otMatchInfo', id: tid, match: mid, when: Date.UTC(2026, 10, 21, 12), venue: 'Sân Bảng H' }), [id, mh.id]); await sleep(600);
+  const ctx2 = await browser.newContext({ viewport: { width: 430, height: 900 } });
+  await ctx2.addInitScript(() => localStorage.setItem('caro.lang', 'vi'));
+  const late = await ctx2.newPage();
+  await gotoRetry(late, `http://localhost:${PORT}/?o=giai-16-bang`);
+  await late.waitForFunction(() => window.CaroTourKit && window.CaroTourKit.D.ot, null, { timeout: 10000 }).catch(() => {});
+  await late.click('[data-act="otTab"][data-tab="sched"]');
+  ok(await late.waitForFunction(() => /Sân Bảng H/.test((document.querySelector('.ot-sched') || {}).textContent || ''), null, { timeout: 8000 }).then(() => true, () => false), 'Tab Lịch: có cả trận ở bảng chưa mở (tải đủ các bảng)');
+  await ctx2.close();
   // Báo cáo PDF (otour-pdf.js): tải đủ các bảng rồi dàn trang – 16 bảng × (bảng xếp hạng + 6 trận) → nhiều trang
   const [pdf] = await Promise.all([boss.waitForEvent('download', { timeout: 30000 }), boss.click('[data-act="otPdf"]')]);
   const ptxt = require('fs').readFileSync(await pdf.path(), 'latin1');

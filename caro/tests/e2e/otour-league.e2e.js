@@ -16,7 +16,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.fill('#otf input[name=name]', 'Giải phủi phường');
   await boss.selectOption('#otf select[name=preset]', 'single'); await sleep(150);
   await boss.fill('#otf textarea[name=teams]', 'FC Một\nFC Hai\nFC Ba');
-  await boss.click('#otf button.primary'); await sleep(800);
+  await boss.click('#otf button.primary.wide'); await sleep(800);
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
   const t = app.hub.otGet(id);
   // Mở đăng ký, người khác gửi đơn
