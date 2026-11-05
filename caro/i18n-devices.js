@@ -4,19 +4,19 @@
   const I = window.I18N;
   I.extend('vi', {
     dev_title: 'Thiết bị',
-    dev_hint: 'Những nơi tài khoản của bạn đang đăng nhập. Thấy thiết bị lạ thì đăng xuất nó và đổi mật khẩu.',
+    dev_hint: 'Những nơi tài khoản của bạn đang đăng nhập. Thấy thiết bị lạ thì hãy đăng xuất thiết bị đó và đổi mật khẩu.',
     dev_this: 'Thiết bị này',
     dev_online: 'Đang trực tuyến',
     dev_seen: 'Hoạt động {when}',
     dev_signed: 'Đăng nhập {when}',
-    dev_app: 'App Caro x Gomoku',
+    dev_app: 'Ứng dụng Caro x Gomoku',
     dev_unknown: 'Thiết bị không rõ',
     dev_on: '{a} trên {b}',
     dev_ip: 'IP {ip}',
     dev_logout: 'Đăng xuất',
     dev_logout_others: 'Đăng xuất mọi thiết bị khác',
-    dev_confirm_one: 'Đăng xuất "{name}"? Thiết bị đó phải đăng nhập lại.',
-    dev_confirm_others: 'Đăng xuất tất cả thiết bị khác? Các thiết bị đó phải đăng nhập lại.',
+    dev_confirm_one: 'Đăng xuất "{name}"? Thiết bị đó sẽ phải đăng nhập lại.',
+    dev_confirm_others: 'Đăng xuất tất cả thiết bị khác? Các thiết bị đó sẽ phải đăng nhập lại.',
     dev_only_this: 'Chỉ có thiết bị này đang đăng nhập.',
     dev_now: 'vừa xong',
     dev_min: '{n} phút trước',
@@ -25,7 +25,7 @@
     srv_device_not_found: 'Thiết bị này đã đăng xuất',
     srv_device_removed: 'Đã đăng xuất thiết bị',
     srv_devices_removed: 'Đã đăng xuất {n} thiết bị khác',
-    srv_session_revoked: 'Thiết bị này đã bị đăng xuất từ thiết bị khác',
+    srv_session_revoked: 'Thiết bị này đã bị đăng xuất từ một thiết bị khác',
   });
   I.extend('en', {
     dev_title: 'Devices',

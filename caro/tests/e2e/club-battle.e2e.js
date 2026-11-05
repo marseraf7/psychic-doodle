@@ -87,7 +87,7 @@ const { setup, sleep } = require('./helpers.js');
   await binh.evaluate(() => { const d = document.getElementById('tour-dlg'); if (d.open) d.close(); });
   await binh.evaluate(() => document.getElementById('open-clubs').click()); await sleep(400);
   await binh.click('[data-act="clubRanking"]'); await sleep(500);
-  ok(/10 \/ 6 \/ 4/.test(await binh.textContent('#tour-body')), 'Trang Xếp hạng CLB: ghi cách tính điểm');
+  ok(/10, 6, 4 điểm/.test(await binh.textContent('#tour-body')), 'Trang Xếp hạng CLB: ghi cách tính điểm');
   ok(await binh.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '430 px: không tràn ngang');
   await finish();
 })();

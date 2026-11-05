@@ -62,7 +62,7 @@ const { setup, sleep } = require('./helpers.js');
   await an.click('#tour-back'); await sleep(500);
   await boss.click('#tour-back'); await sleep(500);
   await boss.selectOption(`select.mops[data-uid="${AN}"]`, 'talkoff'); await sleep(600);
-  ok(!(await an.$('#cc-input')) && /cấm nói/.test(await an.textContent('.club-chat')), 'Cấm nói: thành viên không còn ô chat');
+  ok(!(await an.$('#cc-input')) && /cấm viết/.test(await an.textContent('.club-chat')), 'Cấm nói: thành viên không còn ô chat');
   ok(!(await an.$('[data-act="ftNew"]')), 'Cấm nói: không mở chủ đề mới');
   await shot(an, 'club-talk-360.png');
   ok(await an.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), '430 px: trang CLB có chat + diễn đàn không tràn ngang');

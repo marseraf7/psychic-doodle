@@ -61,7 +61,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
   await p.click('.an-mv[data-i="6"]');
   await sleep(200);
   await p.click('#an-now [data-pv]');
-  await p.waitForFunction(() => /Dòng máy:/.test((document.querySelector('.an-pv') || {}).textContent || ''), null, { timeout: 15000 });
+  await p.waitForFunction(() => /Máy gợi ý:/.test((document.querySelector('.an-pv') || {}).textContent || ''), null, { timeout: 15000 });
   const pv = await p.evaluate(() => ({ n: window.CaroApp.board.moves.length, marks: (window.CaroApp.marks || []).filter((m) => /^\d$/.test(m.text || '')).map((m) => m.text), txt: document.querySelector('.an-pv').textContent.replace(/\s+/g, ' ').trim() }));
   ok(pv.n === 5 && pv.marks.length >= 1 && pv.marks[0] === '1', 'dòng máy gợi ý: lùi về thế trước nước 6, quân mờ đánh số – ' + JSON.stringify(pv));
   await shot(p, 'analysis-plus-pv.png');
@@ -102,7 +102,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
   ok(await p.isVisible('#an-now [data-better]'), 'nước 2 (sai lầm theo khả năng thắng): có nút Tìm nước tốt hơn');
   await p.click('#an-now [data-better]');
   await sleep(300);
-  ok(/Tìm nước tốt hơn/.test(await p.textContent('#turn')), 'Tìm nước tốt hơn: hiện yêu cầu');
+  ok(/Tìm một nước tốt hơn/.test(await p.textContent('#turn')), 'Tìm nước tốt hơn: hiện yêu cầu');
   await p.evaluate(() => window.CaroApp.ext.onMove(12, -9)); // nước ở rất xa, không liên quan
   await p.waitForFunction(() => /Chưa tốt hơn|khó cứu|Tốt!/.test(document.getElementById('turn').textContent), null, { timeout: 15000 });
   const far = (await p.textContent('#turn')).trim();

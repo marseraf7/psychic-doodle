@@ -10,22 +10,22 @@
   // ================================================================ Tiếng Việt
   X('vi', {
     tb_title: 'Đấu đồng đội giữa các CLB (Team Battle)', tbt_rule: 'Điểm mỗi CLB là tổng điểm của {n} thành viên cao điểm nhất. Không phải gặp người cùng CLB.',
-    tb_players_n: '{n} người', tb_pick: 'Thi đấu cho CLB', tb_on: 'Bật Team Battle', tb_top: 'Số người tính điểm mỗi CLB',
-    tb_on_hint: 'Chọn ít nhất 2 CLB. Chỉ thành viên các CLB này được tham gia; bạn cần quyền Giải đấu ở ít nhất một CLB.',
-    tm_board_n: 'Bàn {n}', tm_boards_n: '{n} bàn', tm_accepted: 'Hai CLB đã đồng ý – ban quản lý mỗi bên xếp đội hình trước giờ đấu',
+    tb_players_n: '{n} người', tb_pick: 'Thi đấu cho CLB', tb_on: 'Bật đấu đồng đội (Team Battle)', tb_top: 'Số người tính điểm mỗi CLB',
+    tb_on_hint: 'Chọn ít nhất 2 CLB. Chỉ thành viên các CLB này được tham gia; bạn cần có quyền Giải đấu ở ít nhất một CLB.',
+    tm_board_n: 'Bàn {n}', tm_boards_n: '{n} bàn', tm_accepted: 'Hai CLB đã đồng ý. Ban quản lý mỗi bên hãy xếp đội hình trước giờ đấu.',
     tm_wait_accept: 'Chờ {club} chấp nhận lời mời', tm_accept: 'Chấp nhận giao hữu', tm_decline: 'Từ chối', tm_decline_q: 'Từ chối lời mời giao hữu? Giải sẽ bị huỷ.',
     tm_lineup: 'Đội hình {club}', tm_lineup_save: 'Lưu đội hình',
-    cup_title: 'Tủ cúp', cup_points: '{n} điểm xếp hạng', cup_none: 'Chưa có cúp nào – thử sức ở Team Battle hoặc giao hữu!',
+    cup_title: 'Tủ cúp', cup_points: '{n} điểm xếp hạng', cup_none: 'Chưa có cúp nào. Hãy thử sức ở đấu đồng đội hoặc giao hữu!',
     cup_match_win: 'Thắng giao hữu', cup_battle_1: 'Vô địch Team Battle', cup_battle_2: 'Á quân Team Battle', cup_battle_3: 'Hạng ba Team Battle',
-    cm_new: 'Thách đấu CLB khác', cm_hint: 'Giao hữu {club} với một CLB khác: bàn 1 gặp bàn 1… Cần quản trị viên duyệt và CLB kia chấp nhận.',
+    cm_new: 'Thách đấu CLB khác', cm_hint: 'Giao hữu giữa {club} và một CLB khác: bàn 1 gặp bàn 1, bàn 2 gặp bàn 2… Cần quản trị viên duyệt và CLB kia chấp nhận.',
     cm_opp: 'CLB đối thủ', cm_boards: 'Số bàn', cm_start: 'Giờ đấu', cm_time: 'Thời gian ván', cm_bo: 'Mỗi bàn đấu', cm_send: 'Gửi lời mời',
-    cm_pick_opp: 'Hãy chọn CLB đối thủ.', cm_bad_start: 'Giờ đấu phải sau lúc này ít nhất 1 phút.',
-    cr_title: 'Xếp hạng CLB', cr_none: 'Chưa CLB nào có điểm.', cr_rule: 'Team Battle: hạng 1 / 2 / 3 được 10 / 6 / 4 điểm. Giao hữu: thắng 3, hoà 1.',
+    cm_pick_opp: 'Hãy chọn CLB đối thủ.', cm_bad_start: 'Giờ đấu phải cách bây giờ ít nhất 1 phút.',
+    cr_title: 'Xếp hạng CLB', cr_none: 'Chưa CLB nào có điểm.', cr_rule: 'Đấu đồng đội: hạng 1, 2, 3 lần lượt được 10, 6, 4 điểm. Giao hữu: thắng 3 điểm, hoà 1 điểm.',
     cr_cups: '{g} cúp vàng · {n} danh hiệu',
     cancel_match_declined: 'CLB được mời đã từ chối', cancel_match_not_accepted: 'CLB được mời chưa chấp nhận', cancel_match_no_lineup: 'chưa đủ đội hình',
     log_match_accepted: 'CLB được mời chấp nhận giao hữu',
     srv_team_battle_few: 'Team Battle cần ít nhất 2 câu lạc bộ đã được duyệt', srv_tour_team_only: 'Giải này chỉ dành cho thành viên các câu lạc bộ tham gia',
-    srv_tour_team_match: 'Giao hữu câu lạc bộ: ban quản lý hai CLB xếp đội hình', srv_club_match_invite: '{club} mời câu lạc bộ của bạn giao hữu: {name}',
+    srv_tour_team_match: 'Giao hữu giữa hai CLB: ban quản lý mỗi CLB hãy xếp đội hình', srv_club_match_invite: '{club} mời câu lạc bộ của bạn giao hữu: {name}',
   });
 
   // ================================================================ English

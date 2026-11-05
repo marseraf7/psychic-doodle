@@ -281,7 +281,7 @@ if (process.env.RAPFI_NETS && process.env.E2E_BROWSER === 'webkit') {
   ok(card === 'Rapfi', 'thẻ BOAT ghi "Rapfi" thay cho ~2700 — ' + card);
   await p.click('#ng-picker .bot-card:last-child');
   await sleep(150);
-  ok(/luật Việt Nam là Rapfi-CARO/.test(await p.textContent('#ng-picker .bot-say')), 'mô tả BOAT: Rapfi ở 3 luật Gomoku, Rapfi-CARO ở luật Việt Nam');
+  ok(/luật Việt Nam dùng Rapfi-CARO/.test(await p.textContent('#ng-picker .bot-say')), 'mô tả BOAT: Rapfi ở 3 luật Gomoku, Rapfi-CARO ở luật Việt Nam');
   await p.keyboard.press('Escape');
   const badge = await p.evaluate(() => {
     const R = window.CaroRapfi;

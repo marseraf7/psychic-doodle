@@ -76,7 +76,7 @@ const { setup, gotoRetry } = require('./helpers');
   await a.click('#profile-body [data-add]');
   await sleep(400);
   await openProfile(b, 'fc_an');
-  ok((await acts(b)).includes('Chấp nhận kết bạn'), 'người được mời: nút Chấp nhận kết bạn');
+  ok((await acts(b)).includes('Đồng ý kết bạn'), 'người được mời: nút Đồng ý kết bạn');
   await b.click('#profile-body [data-accept-pf]');
   ok(await until(b, () => !!document.querySelector('#profile-body [data-unfriend][data-rel="friend"]')), 'chấp nhận: thành bạn bè, nút Huỷ kết bạn');
   ok(await until(a, () => !!document.querySelector('#profile-body [data-unfriend][data-rel="friend"]')), 'bên gửi: hồ sơ tự đổi sang Huỷ kết bạn');

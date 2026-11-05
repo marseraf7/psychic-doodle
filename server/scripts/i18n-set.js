@@ -13,13 +13,15 @@ const { loadAll } = require('./i18n-load.js');
 const CARO = path.join(__dirname, '..', '..', 'caro');
 const MARK = /(?:\bX|\bI\.extend|\bI18N\.extend|\bextend)\(\s*'(vi|en|ru|zh)'\s*,\s*\{|^ {4}(vi|en|ru|zh): \{/gm;
 
-/** Khoảng [đầu, cuối) của khối ngôn ngữ lang trong file. */
-function block(src, lang) {
+/** Các khoảng [đầu, cuối) của mọi khối ngôn ngữ lang trong file (một file có thể có nhiều khối, vd. i18n-rapfi.js). */
+function blocks(src, lang) {
   const ms = [...src.matchAll(MARK)];
-  const i = ms.findIndex((m) => (m[1] || m[2]) === lang);
-  if (i < 0) return null;
-  return [ms[i].index, i + 1 < ms.length ? ms[i + 1].index : src.length];
+  const out = [];
+  ms.forEach((m, i) => { if ((m[1] || m[2]) === lang) out.push([m.index, i + 1 < ms.length ? ms[i + 1].index : src.length]); });
+  return out;
 }
+/** Khối đầu tiên (giữ cho bài thử cũ). */
+const block = (src, lang) => blocks(src, lang)[0] || null;
 
 /** Đọc chuỗi JS bắt đầu ở src[at] (', " hoặc `) → vị trí ngay sau dấu đóng. */
 function literalEnd(src, at) {
@@ -36,12 +38,15 @@ function literalEnd(src, at) {
 const quote = (s) => "'" + s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n') + "'";
 
 function setOne(src, lang, key, value) {
-  const b = block(src, lang);
-  if (!b) throw new Error(`không thấy khối ${lang}`);
-  const re = new RegExp(`(^|[\\s,{])['"]?${key.replace(/[$]/g, '\\$')}['"]?\\s*:\\s*`, 'gm');
-  re.lastIndex = b[0];
-  let m, last = null;
-  while ((m = re.exec(src)) && m.index < b[1]) last = m; // khoá trùng trong cùng khối: cái sau thắng (như Object)
+  const bs = blocks(src, lang);
+  if (!bs.length) throw new Error(`không thấy khối ${lang}`);
+  let last = null;
+  for (const b of bs) {
+    const re = new RegExp(`(^|[\\s,{])['"]?${key.replace(/[$]/g, '\\$')}['"]?\\s*:\\s*`, 'gm');
+    re.lastIndex = b[0];
+    let m;
+    while ((m = re.exec(src)) && m.index < b[1]) last = m; // khoá trùng: cái sau cùng thắng (như khi trình duyệt nạp)
+  }
   if (!last) throw new Error(`không thấy khoá ${lang}.${key}`);
   const at = last.index + last[0].length;
   const end = literalEnd(src, at);
@@ -76,4 +81,4 @@ if (require.main === module) {
   console.log(`${done.length} chuỗi${process.argv.includes('--dry') ? ' (thử, chưa ghi)' : ''}`);
 }
 
-module.exports = { apply, setOne, block };
+module.exports = { apply, setOne, block, blocks };

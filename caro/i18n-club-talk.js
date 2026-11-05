@@ -8,19 +8,19 @@
 
   // ================================================================ Tiếng Việt
   X('vi', {
-    talk_chat: 'Chat CLB', talk_chat_empty: 'Chưa có tin nào – chào mọi người đi!', talk_chat_ph: 'Nhắn cho cả CLB…', talk_send: 'Gửi',
+    talk_chat: 'Chat CLB', talk_chat_empty: 'Chưa có tin nào. Chào mọi người đi!', talk_chat_ph: 'Nhắn cho cả CLB…', talk_send: 'Gửi',
     talk_delete: 'Xoá', talk_edit: 'Sửa', talk_edited: 'đã sửa',
-    talk_chat_readonly: 'Chỉ ban quản lý viết được ở chat này.', talk_muted_me: 'Bạn đang bị cấm nói ở chat và diễn đàn của CLB.',
+    talk_chat_readonly: 'Chỉ ban quản lý viết được ở chat này.', talk_muted_me: 'Bạn đang bị cấm viết ở chat và diễn đàn của CLB.',
     talk_forum: 'Diễn đàn', talk_topic_new: 'Chủ đề mới', talk_forum_empty: 'Chưa có chủ đề nào.', talk_posts_n: '{n} bài',
     talk_page: 'Trang {a}/{b}', talk_pinned: 'Ghim', talk_locked: 'Khoá',
     talk_pin: 'Ghim', talk_unpin: 'Bỏ ghim', talk_lock: 'Khoá chủ đề', talk_unlock: 'Mở khoá', talk_topic_delete: 'Xoá chủ đề',
     talk_topic_delete_q: 'Xoá chủ đề này và mọi bài trong đó?', talk_post_delete_q: 'Xoá bài này?',
-    talk_reply: 'Trả lời', talk_locked_hint: 'Chủ đề đã khoá – không trả lời được nữa.', talk_forum_readonly: 'Bạn chỉ đọc được diễn đàn này.',
+    talk_reply: 'Trả lời', talk_locked_hint: 'Chủ đề đã khoá nên không trả lời được nữa.', talk_forum_readonly: 'Bạn chỉ đọc được diễn đàn này.',
     talk_title: 'Tiêu đề', talk_content: 'Nội dung', talk_post: 'Đăng',
-    talk_mute: 'Cấm nói (chat, diễn đàn)', talk_unmute: 'Bỏ cấm nói',
-    srv_club_talk_denied: 'Bạn không viết được ở đây (câu lạc bộ đã tắt / chỉ ban quản lý / bạn bị cấm nói)',
-    srv_club_topic_short: 'Tiêu đề cần ít nhất 3 ký tự và có nội dung', srv_club_topic_limit: 'Diễn đàn đã đủ {n} chủ đề – hãy xoá bớt chủ đề cũ',
-    srv_club_topic_gone: 'Chủ đề không còn', srv_club_topic_locked: 'Chủ đề đã khoá',
+    talk_mute: 'Cấm viết (chat và diễn đàn)', talk_unmute: 'Bỏ cấm viết',
+    srv_club_talk_denied: 'Bạn không viết được ở đây (CLB đã tắt mục này, chỉ ban quản lý được viết, hoặc bạn đang bị cấm viết)',
+    srv_club_topic_short: 'Tiêu đề cần ít nhất 3 ký tự và phải có nội dung', srv_club_topic_limit: 'Diễn đàn đã đủ {n} chủ đề. Hãy xoá bớt chủ đề cũ.',
+    srv_club_topic_gone: 'Chủ đề này không còn nữa', srv_club_topic_locked: 'Chủ đề đã khoá',
   });
 
   // ================================================================ English
