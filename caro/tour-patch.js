@@ -38,6 +38,7 @@
         const fixRounds = (rounds) => rounds.map(fix);
         if (v.rounds) v.rounds = fixRounds(v.rounds);
         if (v.lrounds) v.lrounds = fixRounds(v.lrounds);
+        if (v.pre) v.pre = fix(v.pre); // trận play-in (playoff kiểu Mỹ)
         if (v.gf) v.gf = fix(v.gf);
         if (v.third && upd.has(v.third.id)) v.third = upd.get(v.third.id);
         if (v.groups) for (const g of v.groups) if (g.rounds) g.rounds = fixRounds(g.rounds); // rounds null: bảng tải lười (giải offline)

@@ -13,6 +13,7 @@ const D = {};
 global.window = { I18N: { extend: (l, o) => { D[l] = Object.assign(D[l] || {}, o); } } };
 require('../../caro/i18n-otour.js');
 require('../../caro/i18n-otour-tpl.js');
+require('../../caro/i18n-otour-playoff.js');
 delete global.window;
 const missing = new Set();
 const T = (lang) => (k, a = {}) => { const s = D[lang][k]; if (s == null) { missing.add(lang + ':' + k); return k; } return s.replace(/\{(\w+)\}/g, (_, x) => (a[x] != null ? a[x] : '')); };

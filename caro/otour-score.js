@@ -20,7 +20,7 @@
   /** Trận theo mã trong các giai đoạn đang hiện (kèm giai đoạn). */
   function find(t, id) {
     for (const v of t.stageViews || []) {
-      const all = [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.gf || []), ...(v.third ? [v.third] : []),
+      const all = [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.pre || []), ...(v.gf || []), ...(v.third ? [v.third] : []),
         ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())]; // bảng tải lười: bản đã tải
       const m = all.find((x) => x && x.id === id);
       if (m) return { m, v };

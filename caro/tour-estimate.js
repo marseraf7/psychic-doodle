@@ -84,6 +84,21 @@
     } else if ((Array.isArray(c.places) ? c.places.includes(3) : c.thirdPlace !== false) && size >= 4) play(losers[losers.length - 2][0], losers[losers.length - 2][1], out);
     return { matches: out.m, maxMatches: out.m, waves: out.w, advance: null };
   }
+  /**
+   * Playoff kiểu nhà nghề Mỹ (server/src/hub/stages-playoff.js): n = số đội mùa giải cho đi tiếp (số miền × need).
+   * Mỗi miền một nửa nhánh cỡ lũy thừa 2; play-in: NBA 3 trận / miền (2 lượt), MLS 1 trận / miền.
+   */
+  function playoff(c, n) {
+    const po = c.playoff, PI = { nba: 2, one: 1 };
+    const main = po.mode === 'div' ? 8 : Number(po.per) || 8;
+    const need = main + (po.mode === 'div' ? 0 : PI[po.playin] || 0);
+    const C = Math.max(1, Math.round(n / need));
+    const base = single({ ...c, playoff: null }, C * main);
+    const size = pow2(C) * pow2(main), lift = Math.log2(size) - Math.log2(pow2(Math.max(2, C * main)));
+    const pre = po.mode === 'div' ? 0 : po.playin === 'nba' ? 3 * C : po.playin === 'one' ? C : 0;
+    const preW = pre ? (po.playin === 'nba' ? 2 : 1) : 0;
+    return { matches: base.matches + pre, maxMatches: base.matches + pre, waves: base.waves + lift + preW, advance: null };
+  }
   /** Nhánh thắng – thua: dựng đủ các trận như buildDouble rồi lan dần kết quả tới khi không còn trận nào xử được. */
   function double(c, n) {
     const size = pow2(Math.max(4, n)), k = Math.log2(size), nL = 2 * (k - 1);
@@ -134,7 +149,7 @@
   /** Một giai đoạn với n người: { matches, maxMatches, waves, advance, rounds?, groups? }. */
   function stage(c, n, last) {
     if (n < 2) return { matches: 0, maxMatches: 0, waves: 0, advance: n };
-    if (c.type === 'single') return single(c, n);
+    if (c.type === 'single') return c.playoff ? playoff(c, n) : single(c, n);
     if (c.type === 'double') return double(c, n);
     // Hệ Race (giải offline): mỗi chặng cả đoàn thi một lần
     if (c.type === 'race') { const ev = Number(c.events) || 1; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, c.advance || 0) }; }

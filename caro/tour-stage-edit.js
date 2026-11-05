@@ -154,7 +154,9 @@
       }
       // Giải offline: nhánh theo vị trí trong bảng (1A–2B, 1E–3…) khi giai đoạn trước là vòng bảng nhiều bảng
       const prev = st[i - 1];
-      if (ctx.ext && (c.type === 'single' || c.type === 'double') && prev && prev.type === 'roundrobin' && !prev.league && ((prev.groups || 1) > 1 || prev.groupSize)) {
+      // Giải offline: playoff kiểu nhà nghề Mỹ sau mùa giải (otour-playoff-edit.js) – thay cho nhánh theo vị trí trong bảng
+      if (ctx.ext && c.type === 'single' && prev && prev.season && K.playoffEdit) f.push(...K.playoffEdit.html(i, c, prev, ctx));
+      if (ctx.ext && (c.type === 'single' || c.type === 'double') && !(c.playoff && prev && prev.season) && prev && prev.type === 'roundrobin' && !prev.league && ((prev.groups || 1) > 1 || prev.groupSize)) {
         f.push(chk(i, 'path', c.path === 'groups', T('opt_path')));
       }
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
@@ -215,6 +217,7 @@
       c[k.slice(0, -1)] = n;
     }
     else if (K.seasonEdit && K.seasonEdit.change(c, k, el)) { /* mùa giải kiểu Mỹ (otour-season-edit.js) */ }
+    else if (K.playoffEdit && K.playoffEdit.change(stages, i, k, el)) { /* playoff kiểu Mỹ (otour-playoff-edit.js) */ }
     else if (k === 'league') {
       if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
     } else if (k === 'lgGames' || k === 'lgPots') c.league = { games: 8, pots: 4, ...c.league, [k === 'lgGames' ? 'games' : 'pots']: clamp(v) };
@@ -231,7 +234,13 @@
     } else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye', 'pwx', 'plx'].includes(k)) c.points[k.slice(1)] = clamp(v);
     else if (el.tagName === 'SELECT') c[k] = v;
     else if (Number.isFinite(v)) c[k] = clamp(v);
+    dropPlayoff(stages);
     return true;
+  }
+
+  /** Playoff kiểu Mỹ chỉ có nghĩa ngay sau mùa giải (như normalizeStages của máy chủ): bỏ khi mùa giải bị tắt / xoá. */
+  function dropPlayoff(stages) {
+    stages.forEach((c, i) => { if (c.playoff && !(i > 0 && stages[i - 1].season)) { delete c.playoff; delete c.boRounds; } });
   }
 
   /** Đặt danh sách cặp hạng (bỏ cách ghi cũ placement / thirdPlace). */
@@ -270,6 +279,7 @@
       if (i < stages.length - 1 && !c.points && c.type !== 'race') stages[i] = DEFAULT.roundrobin();
       else if (i < stages.length - 1 && !c.advance) c.advance = DEFAULT[c.type]().advance;
     });
+    dropPlayoff(stages);
     return true;
   }
 

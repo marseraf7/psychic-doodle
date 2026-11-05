@@ -179,7 +179,7 @@ class OTour {
       owner: this.store.users.get(t.owner)?.name || '?', created: t.created, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
       stages: t.stages, stage: t.stage || 0, format: 'bracket', offline: true, hideSeeds: false, showStandings: true, roundLabels: true, shareImages: true,
       players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null, ...(p.country ? { country: p.country } : {}), ...(p.team ? { team: p.team } : {}),
-        ...(p.roster && p.roster.length ? { roster: p.roster } : {}) })), // đội hình (otour-league.js)
+        ...(p.roster && p.roster.length ? { roster: p.roster } : {}), ...(p.home ? { home: p.home } : {}) })), // đội hình (otour-league.js), sân nhà (otour-sched.js)
       // Giai đoạn đã xong không đổi nữa: dựng một lần (otMemo) – giải nhiều bảng không phải dựng lại mỗi kết quả
       // Vòng tròn nhiều bảng: chỉ bảng xếp hạng, các trận tải khi người xem mở bảng (otour-lazy.js)
       stageViews: this.otLite(t, this.stageViews(t, this.otMemo.get(t))),
@@ -188,6 +188,7 @@ class OTour {
       reg: t.reg && t.reg.open && t.status === 'draft' ? { open: true } : null, stats: this.otStats(t),
       // Luật treo giò + danh sách treo giò tính từ thẻ phạt (otour-disc.js)
       disc: t.disc || null, susp: this.otSusp(t),
+      sched: t.sched || null, // cấu hình tự xếp lịch (otour-sched.js)
     };
   }
 
