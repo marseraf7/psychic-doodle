@@ -39,7 +39,7 @@ const { setup, sleep } = require('./helpers.js');
 
   // ---------------------------------------------------------------- Hồ sơ: Giới thiệu
   await boss.evaluate(() => { document.getElementById('tour-dlg').close(); window.CaroProfile.open(window.CaroOnline.state.me.id.replace(/^u_/, '')); }); await sleep(600);
-  ok(/Chưa có giới thiệu/.test(await boss.textContent('#profile-body .pf-bio')), 'Hồ sơ của mình: mục Giới thiệu trống + nút Sửa');
+  ok(/Chưa có phần giới thiệu/.test(await boss.textContent('#profile-body .pf-bio')), 'Hồ sơ của mình: mục Giới thiệu trống + nút Sửa');
   await boss.click('#profile-body [data-bio="edit"]'); await sleep(200);
   ok(!!(await boss.$('#bio-form .rt-bar')), 'Sửa giới thiệu: có thanh định dạng');
   await boss.fill('#bio-form textarea[name=bio]', 'Kỳ thủ **Caro** từ 2010\n- Thích khai cuộc Swap2');

@@ -29,7 +29,7 @@
     bot_mai: "Người Tày",
     bot_mai_desc: "Kiên nhẫn: phòng thủ kỹ, tạo thế đánh hai đường rất khéo.",
     bot_mai_hi: "Chào bạn, mình cùng chơi một ván thật đẹp nhé.",
-    bot_mai_win: "Nhớ để ý mấy đường 3 không bị chặn nhé!",
+    bot_mai_win: 'Chưa Tày đâu! Lần sau nhớ để ý mấy đường 3 không bị chặn nhé.',
     bot_mai_lose: "Giỏi lắm! Mình rất vui.",
     bot_minh: "Rung Động",
     bot_minh_desc: 'Tính sâu chuỗi nước ép, hiếm khi bỏ lỡ cơ hội.',

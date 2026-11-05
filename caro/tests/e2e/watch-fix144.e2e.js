@@ -89,7 +89,7 @@ const { setup } = require('./helpers');
   await sleep(4200); // quá hạn nước đầu 3 giây → ván tự huỷ
   ok(await sp2.evaluate(() => !document.getElementById('wt-result').hidden), 'C: ván bị huỷ thì khán giả thấy thẻ kết quả');
   const subC = await sp2.textContent('#wt-result-sub');
-  ok(subC.includes('không đi nước đầu'), 'C: thẻ ghi lý do huỷ vì không đi nước đầu: ' + subC.trim());
+  ok(subC.includes('không ai đi nước đầu'), 'C: thẻ ghi lý do huỷ vì không đi nước đầu: ' + subC.trim());
 
   await finish();
 })();

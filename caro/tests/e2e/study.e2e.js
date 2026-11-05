@@ -121,7 +121,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     await p.click('#an-now button[data-retry]');
     await sleep(300);
     ok(await p.evaluate(() => document.body.classList.contains('ext')), 'Thử lại: vào chế độ luyện');
-    ok(/giữ thế/.test(await p.textContent('#turn')), 'yêu cầu: tìm nước giữ thế');
+    ok(/giữ được thế/.test(await p.textContent('#turn')), 'yêu cầu: tìm nước giữ thế');
     await p.evaluate(() => window.CaroApp.ext.onMove(8, 8));
     await sleep(200);
     ok(/Chưa đúng/.test(await p.textContent('#turn')), 'đặt sai: báo Chưa đúng');
@@ -171,7 +171,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     if (width === 430) await shot(p, 'study-puzzle-dlg-430.png');
     await p.click('.pz-mode[data-pz=rated]');
     await p.waitForFunction(() => document.body.classList.contains('ext'), null, { timeout: 5000 });
-    ok(/tìm chuỗi thắng/.test(await p.textContent('#turn')), 'bài đố: yêu cầu tìm chuỗi thắng');
+    ok(/tìm chuỗi nước thắng/.test(await p.textContent('#turn')), 'bài đố: yêu cầu tìm chuỗi thắng');
     await shot(p, `study-puzzle-${width}.png`);
     // Giải bằng chính bộ tìm chuỗi ép
     let solved = false;
@@ -206,7 +206,7 @@ const GAME = [[0, 0], [0, 5], [1, 0], [1, 5], [2, 0], [5, 5], [3, 0]];
     ok(r2.r < r.r && r2.n === 2, `điểm giảm còn ${r2.r}`);
     // Đáp án tự chạy tới khi xong
     await p.click('#ext-bar button[data-act=solution]');
-    await p.waitForFunction(() => /Đã hiện xong/.test(document.getElementById('turn').textContent), null, { timeout: 20000 });
+    await p.waitForFunction(() => /Đã hiện hết đáp án/.test(document.getElementById('turn').textContent), null, { timeout: 20000 });
     ok(true, 'Đáp án: tự đi hết lời giải');
     await p.click('#ext-bar button[data-act=exit]');
     await sleep(300);

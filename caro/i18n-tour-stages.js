@@ -27,7 +27,7 @@
     fmt_roundrobin: 'Vòng tròn',
     fmt_swiss: 'Hệ Thụy Sĩ',
     fmt_groups_single: 'Vòng bảng + loại trực tiếp',
-    fmt_groups_double: 'Vòng bảng + nhánh thắng – nhánh thua',
+    fmt_groups_double: 'Vòng bảng + nhánh thắng – thua',
     fmt_swiss_single: 'Hệ Thụy Sĩ + loại trực tiếp',
     fmt_custom: 'Tuỳ chỉnh',
     hint_single: 'Thua là bị loại. Hạt giống xếp theo Elo; thiếu người thì hạt giống cao được miễn đấu vòng đầu.',

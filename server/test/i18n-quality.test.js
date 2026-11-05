@@ -75,6 +75,9 @@ test('Tiếng Việt: thuật ngữ thống nhất theo bảng thuật ngữ', (
     [/\bSplit\b/, 'chia đôi'],
     [/\bpreview\b/i, 'xem trước'],
     [/\btick\b/i, 'đánh dấu'],
+    [/\bengine\b/i, 'máy cờ'],
+    [/\bapp\b/i, 'ứng dụng'],
+    [/2 người (trên )?một máy/i, '2 người chung máy'],
   ];
   const bad = [];
   for (const [k, s] of Object.entries(merged.vi)) for (const [re, good] of TERMS) if (re.test(s)) bad.push(`vi.${k}: «${s.match(re)[0]}» → ${good}`);
@@ -98,4 +101,9 @@ test('Tiếng Nga: không lẫn chữ Latin trong một từ (vd. "Mатч" gõ 
     for (const w of s.match(/[A-Za-zА-Яа-яЁё]+/g) || []) if (/[A-Za-z]/.test(w) && /[А-Яа-яЁё]/.test(w)) bad.push(`ru.${k}: «${w}»`);
   }
   assert.deepStrictEqual(bad, [], report(bad));
+});
+
+test('Lời thoại riêng tiếng Việt: Người Tày thắng thì nói "Chưa Tày đâu" (chỉ bản tiếng Việt)', () => {
+  assert.match(merged.vi.bot_mai_win, /^Chưa Tày đâu!/);
+  for (const l of ['en', 'ru', 'zh']) assert.doesNotMatch(merged[l].bot_mai_win, /Tày/, l);
 });

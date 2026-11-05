@@ -3,9 +3,9 @@
   'use strict';
   const I = window.I18N;
   I.extend('vi', {
-    live_an: 'Phân tích ngầm khi chơi',
-    live_an_d: 'Engine chấm từng nước ngay trên máy này trong lúc chơi, hết ván là có phân tích. Tắt nếu muốn tiết kiệm pin.',
-    an_refining: 'Kết quả nhanh · đang phân tích kỹ hơn… {p}%',
+    live_an: 'Phân tích ngầm trong lúc chơi',
+    live_an_d: 'Máy chấm từng nước ngay trên thiết bị này trong lúc chơi, hết ván là có phân tích. Tắt nếu muốn tiết kiệm pin.',
+    an_refining: 'Đã có kết quả nhanh · đang phân tích kỹ hơn… {p}%',
   });
   I.extend('en', {
     live_an: 'Analyze while playing',

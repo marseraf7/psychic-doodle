@@ -16,7 +16,7 @@
 .rt-preview { margin-left: auto; font-family: ui-monospace, monospace; }
 .rt-sep { width: 1px; height: 22px; background: var(--panel-border); margin: 0 3px; }
 /* Ô chọn kiểu đoạn: cao cố định 32px – bỏ đệm dọc của select trong form (trước bị cắt mất nửa dưới chữ "Đoạn văn") */
-.rt-para, .tour-body select.rt-para { height: 32px; max-width: 140px; width: auto; padding: 0 26px 0 8px; line-height: 30px; font-size: var(--fs-sm); }
+.rt-para, .tour-body select.rt-para { height: 32px; width: 10.5em; max-width: none; flex: none; padding: 0 8px; line-height: 30px; font-size: var(--fs-sm); } /* rộng theo lựa chọn dài nhất: không cắt chữ */
 .rt-ed textarea { border: 0; border-radius: 0; resize: vertical; min-height: 110px; }
 .rt-view { padding: 8px 12px; min-height: 110px; }
 .rt-pop { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border-bottom: 1px solid var(--panel-border); align-items: center; }

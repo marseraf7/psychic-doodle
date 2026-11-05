@@ -78,6 +78,21 @@ Microsoft Terminology Collection; quy ước dịch thuật ngữ cờ của FID
 | tick (checkbox) | đánh dấu | tick |
 | copy | sao chép | chép |
 
+### Bảng thuật ngữ chơi cờ
+
+| Tiếng Anh | Tiếng Việt dùng | Không dùng |
+| --- | --- | --- |
+| engine (AI chơi cờ) | máy cờ | engine |
+| bot (nhân vật máy) | nhân vật máy, máy | bot |
+| app | ứng dụng | app |
+| hot-seat / local 2 players | 2 người chung máy | 2 người một máy, 2 người trên một máy |
+| open three / open four | 3 mở / 4 mở (3, 4 quân hai đầu còn trống) | |
+| double threat | nước đôi | đa tuyến |
+| forbidden move (Renju) | nước cấm | |
+| overline | quá năm | |
+| takeback | đi lại | |
+| premove | đặt sẵn nước đi | đặt trước nước đi |
+
 ## Tiếng Anh
 
 - **Tiếng Anh Mỹ**: color, analyze, center, defense, organizer, practice (động từ cũng viết practice). "cancelled" giữ

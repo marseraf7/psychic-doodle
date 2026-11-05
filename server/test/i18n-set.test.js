@@ -38,3 +38,9 @@ test('apply (thử, không ghi): tìm file nạp sau cùng có khoá; khoá lạ
   assert.deepStrictEqual(done, ['i18n-otour.js vi.ot_title']);
   assert.throws(() => apply({ vi: { khoa_khong_co_that: 'x' } }, { dry: true }), /khoá chưa có/);
 });
+
+test('setOne: khoá nằm ở khối ngôn ngữ thứ hai cùng file (vd. i18n-rapfi.js)', () => {
+  const src = "X('vi', { a: 'Một' });\nX('en', { a: 'One' });\nif (ok) {\n  X('vi', { b: 'Hai' });\n}";
+  const s = setOne(src, 'vi', 'b', 'Hai mới');
+  assert.ok(s.includes("X('vi', { b: 'Hai mới' })") && s.includes("a: 'Một'"));
+});

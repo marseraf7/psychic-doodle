@@ -53,7 +53,7 @@ const { setup, play } = require('./helpers');
   await closeDialogs(a); await closeDialogs(b);
   const r2 = await room(a);
   const xa = r2.seats.x === a.uid ? a : b;
-  ok(/Hãy đi nước đầu trong \d+ giây/.test(await xa.textContent('#invites')), 'người đi trước thấy đếm ngược nước đầu');
+  ok(/Hãy đi nước đầu tiên trong \d+ giây/.test(await xa.textContent('#invites')), 'người đi trước thấy đếm ngược nước đầu');
   ok(await a.isVisible('[data-gx="more"]') && !(await a.isVisible('[data-gx="tb"]')), 'phòng công khai: có +15 giây, không có đi lại');
   await shot(xa, 'batchd-firstmove-430.png');
   const before = (await room(b)).clocks;

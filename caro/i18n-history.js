@@ -11,7 +11,7 @@
     hist_vis_private: 'Chỉ mình tôi',
     hist_vis_saved: 'Lịch sử đấu: {v}',
     hist_hidden: '{name} không công khai lịch sử đấu.',
-    hist_more: 'Tải thêm',
+    hist_more: 'Xem thêm',
     hist_analyze: 'Phân tích',
     hist_open: 'Lịch sử đấu',
   });
