@@ -86,6 +86,7 @@
       <label class="field"><span>${esc(T('format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>
       <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), ext: true })}</div>
       <p class="est" id="otf-est"></p>
+      <div class="ot-desc" id="otf-desc"></div>
       <label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>
       <fieldset><legend>${esc(T('ot_access'))}</legend><div class="seg">${['public', 'link', 'private'].map((k) => `<label><input type="radio" name="access" value="${k}" ${d.access === k ? 'checked' : ''}> <span>${esc(T('ot_acc_' + k))}</span></label>`).join('')}</div></fieldset>
       <p class="hint">${esc(T('ot_quota_hint'))}</p>
@@ -103,6 +104,7 @@
     }
   }
   function showEst(f) {
+    if (K.otDescribe) K.otDescribe(F); // xem trước bằng lời (otour-tpl.js)
     const n = F.d.teams.split('\n').filter((x) => x.trim()).length;
     $('otf-n').textContent = n;
     const el = $('otf-est');
@@ -175,6 +177,7 @@
       html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
     }
     html += K.stagesHtml(t); // trước khi bắt đầu: chỉ ghi cấu hình từng giai đoạn
+    if (K.otExportHtml) html += K.otExportHtml(t); // xuất CSV / JSON (otour-export.js)
     if (t.log && t.log.length) html += K.fold('ot:' + t.id + ':log', esc(T('mg_log')), () => `<ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul>`, false);
     return html;
   }

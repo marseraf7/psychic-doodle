@@ -406,3 +406,6 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
   #ot-print .ps-sign { display: flex; justify-content: space-between; margin-top: 48px; }
   #ot-print .ps-sign div { width: 30%; border-top: 1px solid #000; text-align: center; padding-top: 4px; }
 }
+.ot-desc { font-size: .92em; }
+.ot-desc ul { margin: 4px 0; padding-left: 1.3em; }
+#otf-json { width: 100%; font-family: ui-monospace, monospace; font-size: .85em; }

@@ -296,6 +296,16 @@ function makeHandler({ store, hub }) {
     json(res, status, body, { 'cache-control': 'public, max-age=60' });
   }
 
+  let schemaCache = null;
+  /** Lược đồ + ví dụ (mẫu giải nổi tiếng) – dựng một lần. */
+  function otourSchema() {
+    if (!schemaCache) {
+      const IO = require('../../caro/otour-spec-io.js'), TP = require('../../caro/otour-templates.js'), { SPORTS } = require('../../caro/otour-sports.js');
+      schemaCache = { ...IO.SCHEMA, examples: TP.TEMPLATES.map((x) => ({ id: x.id, teams: x.n, spec: TP.specOf(x, SPORTS) })) };
+    }
+    return schemaCache;
+  }
+
   return function handle(req, res) {
     let u, url;
     try { u = new URL(req.url, 'http://x'); url = decodeURIComponent(u.pathname); } catch (e) { res.writeHead(400); return res.end(); }
@@ -321,6 +331,8 @@ function makeHandler({ store, hub }) {
       return json(res, 200, { players: c.players, games: c.games }, { 'cache-control': 'no-cache' });
     }
     if (url === '/api/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
+    // Lược đồ JSON cấu hình giải đấu Offline (chatbot AI / công cụ ngoài – caro/otour-spec-io.js) + các mẫu giải làm ví dụ
+    if (url === '/api/otour/schema.json') return json(res, 200, otourSchema(), { 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' });
     // Trang giải công khai dạng JSON (nhúng / website ngoài): giới hạn theo IP, giữ 10 giây
     if (/^\/api\/tour\/[0-9a-f]{6,20}\.json$/.test(url)) {
       const now = Date.now();
