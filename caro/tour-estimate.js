@@ -19,9 +19,11 @@
 
   const log2up = (n) => { let k = 0; while ((1 << k) < n) k++; return k; };
   /** Số bảng vòng tròn (như groupCount ở stages-groups.js). */
+  const MAX_BIG = 64; // bảng lớn của giải offline (stages-league.js)
   function groupCount(c, n) {
+    if (c.league) return 1;
     let G = c.groupSize ? Math.ceil(n / c.groupSize) : c.groups || 1;
-    G = Math.max(G, Math.ceil(n / MAX_GROUP));
+    G = Math.max(G, Math.ceil(n / (c.big ? MAX_BIG : MAX_GROUP)));
     return Math.max(1, Math.min(G, Math.floor(n / 2), MAX_GROUPS));
   }
   /** Cỡ từng bảng khi chia đều n người vào G bảng. */
@@ -133,17 +135,48 @@
     if (n < 2) return { matches: 0, maxMatches: 0, waves: 0, advance: n };
     if (c.type === 'single') return single(c, n);
     if (c.type === 'double') return double(c, n);
+    if (c.type === 'roundrobin' && c.league) {
+      // League phase: mỗi đội gặp `games` đối thủ; lịch xếp tham lam thường dài hơn số trận mỗi đội 1–2 lượt
+      const g = Math.min(Number(c.league.games) || 8, n - 1), matches = Math.floor((n * g) / 2);
+      return { matches, maxMatches: matches, waves: g + 1, advance: last ? null : Math.min(n, (c.advance || 0) + (c.bestNext || 0)), groups: 1, groupSize: n };
+    }
     if (c.type === 'roundrobin') {
       const G = groupCount(c, n), sizes = groupSizes(n, G), meet = [2, 3].includes(Number(c.meetings)) ? Number(c.meetings) : 1;
       const big = sizes[0];
       const matches = meet * sizes.reduce((t, s) => t + (s * (s - 1)) / 2, 0);
-      const adv = last ? null : sizes.reduce((t, s) => t + Math.min(c.advance || 0, s), 0);
+      // + các đội đứng ngay sau suất đi tiếp tốt nhất (bestNext – mỗi bảng tối đa một đội)
+      const adv = last ? null : sizes.reduce((t, s) => t + Math.min(c.advance || 0, s), 0) + Math.min(c.bestNext || 0, sizes.filter((s) => s > (c.advance || 0)).length);
       return { matches, maxMatches: matches, waves: meet * (big % 2 ? big : big - 1), advance: adv, groups: G, groupSize: big };
     }
+    if (c.record) return recordSwiss(c, n, last);
     // Thụy Sĩ: 0 vòng = tự động ⌈log₂ n⌉; số vòng bị giới hạn khi ít người
     const rounds = Math.min(c.rounds || Math.max(1, Math.ceil(Math.log2(n))), swissMax(n));
     const matches = rounds * Math.floor(n / 2);
     return { matches, maxMatches: matches, waves: rounds, rounds, advance: last ? null : Math.min(c.advance || 0, n) };
+  }
+
+  /**
+   * Thụy Sĩ theo số thắng / thua (LoL: 3 thắng đi tiếp, 3 thua bị loại): mô phỏng các nhóm cùng thành tích – mỗi nhóm
+   * chia đôi thắng / thua mỗi lượt (lẻ: người dư được miễn đấu, tính thắng).
+   */
+  function recordSwiss(c, n, last) {
+    const win = Number(c.record.win) || 3, lose = Number(c.record.lose) || 3;
+    let b = new Map([['0:0', n]]), matches = 0, waves = 0, adv = 0;
+    while (b.size && waves < win + lose) {
+      const nb = new Map(), add = (w, l, k) => {
+        if (!k) return;
+        if (w >= win) adv += k; else if (l < lose) nb.set(w + ':' + l, (nb.get(w + ':' + l) || 0) + k);
+      };
+      for (const [key, k] of b) {
+        const [w, l] = key.split(':').map(Number), pairs = Math.floor(k / 2);
+        matches += pairs;
+        add(w + 1, l, pairs + (k % 2));
+        add(w, l + 1, pairs);
+      }
+      b = nb;
+      waves++;
+    }
+    return { matches, maxMatches: matches, waves, rounds: waves, advance: last ? null : Math.max(2, adv) };
   }
 
   /** Thời gian trung bình của một ván (phút): giới hạn mỗi nước timeLimit giây, hoặc đồng hồ '5+3'. */

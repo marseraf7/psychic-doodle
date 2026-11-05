@@ -1,6 +1,7 @@
 /*
  * Kiểm thử trình duyệt – Giải đấu Offline (mọi bộ môn): lối vào từ trang Giải đấu, tạo giải cầu lông (bộ môn tự điền kiểu
- * kết quả / Bo / luật set), bắt đầu, nhập điểm từng set (sai luật set báo ngay), huỷ kết quả, khách mở bằng link riêng (không đăng nhập) và thấy cập nhật.
+ * kết quả / Bo / luật set), bắt đầu, nhập điểm từng set (sai luật set báo ngay), các ô thể thức mới (league phase,
+ * Thụy Sĩ theo thắng / thua, 2 lượt), huỷ kết quả, khách mở bằng link riêng (không đăng nhập) và thấy cập nhật.
  *   node caro/tests/e2e/otour.e2e.js
  */
 'use strict';
@@ -63,6 +64,21 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   await boss.click('[data-act="otUndo"]'); await sleep(600);
   ok(!m.done, 'Huỷ kết quả');
   await shot(boss, 'ot-view.png');
+
+  // Thể thức mới trong form tạo giải: league phase, Thụy Sĩ theo thắng / thua, knock-out 2 lượt
+  await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
+  await boss.fill('#otf textarea[name=teams]', Array.from({ length: 36 }, (_, i) => `CLB ${i + 1} | C${i % 6}`).join('\n'));
+  await boss.$eval('#otf textarea[name=teams]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(150);
+  await boss.selectOption('#otf select[name=preset]', 'roundrobin'); await sleep(150);
+  await boss.check('#otf-stages [data-k="league"]'); await sleep(200);
+  ok(await boss.$eval('#otf-stages [data-k="lgGames"]', (e) => e.value) === '8' && !(await boss.$('#otf-stages [data-k="groups"]')), 'League phase: ô số trận / nhóm hạt giống, ẩn chia bảng');
+  ok(/144 trận/.test(await boss.textContent('#otf-est')), 'Ước tính league phase 36 đội × 8 trận = 144 trận');
+  await boss.selectOption('#otf select[name=preset]', 'swiss'); await sleep(150);
+  await boss.check('#otf-stages [data-k="record"]'); await sleep(200);
+  ok(await boss.isVisible('#otf-stages [data-k="recWin"]') && !(await boss.$('#otf-stages [data-k="rounds"]')), 'Thụy Sĩ theo số thắng / thua');
+  await boss.selectOption('#otf select[name=preset]', 'single'); await sleep(150);
+  await boss.check('#otf-stages [data-k="legs"]'); await sleep(200);
+  ok(await boss.isVisible('#otf-stages [data-k="legsFinal"]'), 'Knock-out 2 lượt + tuỳ chọn chung kết 2 lượt');
   await shot(guest, 'ot-guest.png');
   await ctx.close();
   await finish();

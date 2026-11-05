@@ -14,16 +14,24 @@
   /** Tên ngắn của một giai đoạn: "Vòng tròn (4 bảng)", "Thụy Sĩ (5 vòng)"… */
   function stageName(c) {
     const x = [];
+    if (c.type === 'roundrobin' && c.league) return T('fmt_league', { n: c.league.games }); // giải offline: league phase
     if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));
     else if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
-    if (c.type === 'swiss') x.push(c.rounds ? T('rounds_n', { n: c.rounds }) : T('rounds_auto'));
+    if (c.type === 'swiss' && c.record) x.push(T('tag_record', { w: c.record.win, l: c.record.lose })); // giải offline: kiểu LoL
+    else if (c.type === 'swiss') x.push(c.rounds ? T('rounds_n', { n: c.rounds }) : T('rounds_auto'));
+    if (c.legs) x.push(T('tag_legs'));
     if (c.type === 'single' && (c.placement || (c.places || []).some((p) => p > 3))) x.push(T('tag_placement'));
     if (c.type === 'double' && c.gf === 'none') x.push(T('tag_no_gf'));
     if (c.type === 'double' && c.split) x.push(T('tag_split'));
     return T('fmt_' + c.type) + (x.length ? ` (${x.join(', ')})` : '');
   }
   /** Ai đi tiếp sau giai đoạn này (chỉ giai đoạn trước vòng cuối). */
-  const advText = (c) => (c.advance ? T(c.type === 'roundrobin' ? 'adv_group_n' : 'adv_n', { n: c.advance }) : '');
+  const advText = (c) => {
+    if (c.type === 'swiss' && c.record) return T('adv_record', { n: c.record.win }); // giải offline: đủ số thắng
+    if (!c.advance) return '';
+    const s = T(c.type === 'roundrobin' && !c.league ? 'adv_group_n' : 'adv_n', { n: c.advance });
+    return c.bestNext ? s + ' ' + T('adv_best_next', { n: c.bestNext }) : s;
+  };
 
   // ---- Các giai đoạn: nhánh đấu, nhánh thắng-thua, bảng vòng tròn, Thụy Sĩ
   /** Tên vòng của nhánh loại trực tiếp (đếm từ cuối): Chung kết, Bán kết, Tứ kết, Vòng n. */

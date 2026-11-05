@@ -27,7 +27,8 @@
     return null;
   }
   const canScore = (t) => t && t.canManage && t.status === 'running';
-  const elimType = (v) => v.type === 'single' || v.type === 'double';
+  // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua (kiểu LoL)
+  const elimType = (v) => v.type === 'single' || v.type === 'double' || !!(v.cfg && v.cfg.record);
   const boOf = (m, v) => m.bo || (v.cfg && v.cfg.bestOf) || 1;
   // Ô luân lưu: loại trực tiếp (hoà phải có) hoặc vòng tròn có điểm thắng / thua sát (khúc côn cầu: hoà → luân lưu)
   const penOn = (v) => elimType(v) || !!(v.cfg && v.cfg.points && v.cfg.points.wx != null);
@@ -68,7 +69,10 @@
         ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T('score_set_add'))}</button>` : ''}`;
     } else {
       const ex = sp.extra === 'ot' ? 'ot' : 'aet';
-      body = `<div class="set-row"><span class="muted">${esc(T('ot_score'))}</span><input type="number" min="0" max="999" inputmode="numeric" id="ots-a"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" id="ots-b"></div>
+      const row = (label, a, b) => `<div class="set-row"><span class="muted">${esc(label)}</span><input type="number" min="0" max="999" inputmode="numeric" id="${a}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" id="${b}"></div>`;
+      // Knock-out 2 lượt: tỉ số từng lượt (cột trái luôn là đội ô trên), tổng tỉ số quyết định, hoà thì luân lưu
+      body = (m.legs ? row(T('ot_leg1', { name: m.a.name }), 'ots-a', 'ots-b') + row(T('ot_leg2', { name: m.b.name }), 'ots-a2', 'ots-b2') + `<p class="hint">${esc(T('ot_legs_hint'))}</p>`
+        : row(T('ot_score'), 'ots-a', 'ots-b')) + `
         <label class="check"><input type="checkbox" id="ots-aet"> <span>${esc(T('ot_aet_' + ex))}</span></label>
         ${penOn(v) ? `<div class="set-row"><span class="muted">${esc(T('ot_pen'))}</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pa"><span>–</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pb"></div><p class="hint">${esc(T(elimType(v) ? 'ot_pen_hint' : 'ot_pen_hint_rr'))}</p>` : ''}`;
     }
@@ -119,9 +123,12 @@
       }
       const a = $('ots-a').value, b = $('ots-b').value;
       if (a === '' || b === '') return err('ot_need_score');
+      const two = $('ots-a2');
+      if (two && ($('ots-a2').value === '' || $('ots-b2').value === '')) return err('ot_need_score');
       const pa = $('ots-pa') ? $('ots-pa').value : '', pb = $('ots-pb') ? $('ots-pb').value : '';
       const aet = !!($('ots-aet') && $('ots-aet').checked);
-      O.send({ t: 'otScore', id: t.id, match: S.match, score: [Number(a), Number(b)], aet, ...(pa !== '' && pb !== '' ? { pen: [Number(pa), Number(pb)] } : {}) });
+      const res = two ? { legs: [[Number(a), Number(b)], [Number($('ots-a2').value), Number($('ots-b2').value)]] } : { score: [Number(a), Number(b)] };
+      O.send({ t: 'otScore', id: t.id, match: S.match, ...res, aet, ...(pa !== '' && pb !== '' ? { pen: [Number(pa), Number(pb)] } : {}) });
     };
   });
   // Lưu xong (trận đã có kết quả trong bản cập nhật): đóng khung; lỗi: hiện trong khung

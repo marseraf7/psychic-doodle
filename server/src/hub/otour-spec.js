@@ -35,6 +35,7 @@ function normalizeSpec(o) {
   const raw = o.stages.map((c) => {
     const x = { ...(c || {}) };
     if (x.bestOf == null) x.bestOf = preset.bestOf;
+    if (x.type === 'roundrobin') x.big = true; // giải offline: bảng lớn tới 64 đội (league lượt đi – về)
     if (x.type === 'roundrobin' || x.type === 'swiss') {
       if (!x.points) x.points = { ...preset.points };
       if (!x.tiebreaks) x.tiebreaks = [...preset.tiebreaks];
@@ -42,7 +43,7 @@ function normalizeSpec(o) {
     return x;
   });
   const set = result === 'sets' ? Rules.cleanSet(o.set === undefined ? preset.set : o.set) : null;
-  return { sport, result, set, stages: ST.normalizeStages(raw) };
+  return { sport, result, set, stages: ST.normalizeStages(raw, { offline: true }) };
 }
 
 /** Kiểm cỡ giải sau khi đã có số đội: đủ người, tối đa MAX_TEAMS, ước tính số trận không vượt MAX_MATCHES. */
@@ -52,6 +53,11 @@ function checkSize(spec, n) {
   const E = require('../../../caro/tour-estimate.js');
   const e = E.estimate({ stages: spec.stages, players: n, timeLimit: 20 });
   if ((e.maxMatches || e.matches) > MAX_MATCHES) throw new SpecError('ot_many_matches', { n: MAX_MATCHES });
+  // League phase: số đội (theo ước tính từng giai đoạn) phải chia đều cho các nhóm hạt giống, số trận chia đều cho các nhóm
+  spec.stages.forEach((c, i) => {
+    const bad = ST.leagueError(c, e.stages[i] ? e.stages[i].players : n);
+    if (bad) throw new SpecError(bad.code, bad.args);
+  });
   return e;
 }
 

@@ -7,7 +7,8 @@
  * Thụy Sĩ: 0 vòng = tự động, cách xếp cặp (Hà Lan / liền kề), cách tính trận không đấu (FIDE / như bản cũ).
  *   K.stageEdit = { DEFAULT, MAX, html(stages, adv, ctx), change(stages, el), click(stages, btn) } – change / click sửa
  *   mảng stages tại chỗ, trả true nếu có đổi; ctx.max: số người tối đa (số cặp hạng chọn được); ctx.ext: hiện ô điểm
- *   thắng / thua "sát" (giải offline – set quyết định, hiệp phụ).
+ *   thắng / thua "sát" (giải offline – set quyết định, hiệp phụ) và các thể thức thêm của giải offline (stages-league.js ở
+ *   máy chủ): league phase, đội xếp sau tốt nhất, Thụy Sĩ theo số thắng / thua, knock-out 2 lượt, bảng tới 64 đội.
  *   Nạp sau tour.js, tour-stages.js; trước tour-form.js.
  */
 (function () {
@@ -92,16 +93,34 @@
       if (adv && (c.type === 'single' || c.type === 'double')) {
         more.push(`<p class="hint">${esc(T('opt_bo_sf_hint'))}</p>`, field(T('opt_bo_semi'), boSel(i, 'boSemi', c.boSemi, c.bestOf)), field(T('opt_bo_final'), boSel(i, 'boFinal', c.boFinal, c.bestOf)));
       }
-      if (c.type === 'roundrobin') {
-        // Chia theo số bảng, hoặc theo số người mỗi bảng (như Challonge)
+      // Giải offline (ctx.ext): league phase kiểu Champions League – mỗi đội gặp N đối thủ chia theo nhóm hạt giống
+      if (ctx.ext && c.type === 'roundrobin') {
+        f.push(chk(i, 'league', !!c.league, T('opt_league')));
+        if (c.league) f.push(field(T('opt_league_games'), num(i, 'lgGames', c.league.games, 1, 20)), field(T('opt_league_pots'), num(i, 'lgPots', c.league.pots, 1, 8)), `<small class="hint">${esc(T('opt_league_hint'))}</small>`);
+      }
+      if (c.type === 'roundrobin' && !c.league) {
+        // Chia theo số bảng, hoặc theo số người mỗi bảng (như Challonge); giải offline: bảng tới 64 đội
         const bySize = c.groupSize != null;
         f.push(field(T('gmode'), sel(i, 'gmode', [['count', T('gmode_count')], ['size', T('gmode_size')]], bySize ? 'size' : 'count')));
-        f.push(bySize ? field(T('gmode_size'), num(i, 'groupSize', c.groupSize, 2, 16)) : field(T('opt_groups'), num(i, 'groups', c.groups, 1, 64)));
+        f.push(bySize ? field(T('gmode_size'), num(i, 'groupSize', c.groupSize, 2, ctx.ext ? 64 : 16)) : field(T('opt_groups'), num(i, 'groups', c.groups, 1, 64)));
         f.push(field(T('opt_meetings'), sel(i, 'meetings', [[1, T('meet_1')], [2, T('meet_2')], ...(adv ? [[3, T('meet_3')]] : [])], c.meetings)));
-        if (adv) more.push(field(T('opt_rankby'), sel(i, 'rankBy', RANK_BY.map((x) => [x, T('rank_' + x)]), c.rankBy || 'points')));
+      }
+      if (c.type === 'roundrobin' && adv) more.push(field(T('opt_rankby'), sel(i, 'rankBy', RANK_BY.map((x) => [x, T('rank_' + x)]), c.rankBy || 'points')));
+      // Giải offline: thêm các đội đứng ngay sau suất đi tiếp có thành tích tốt nhất (World Cup 2026: 8 đội hạng ba)
+      if (ctx.ext && c.type === 'roundrobin' && !last && !c.league) f.push(field(T('opt_best_next'), num(i, 'bestNext', c.bestNext || 0, 0, 32)));
+      // Giải offline: Thụy Sĩ theo số thắng / thua kiểu LoL (đủ số thắng thì đi tiếp, đủ số thua thì bị loại)
+      if (ctx.ext && c.type === 'swiss') {
+        f.push(chk(i, 'record', !!c.record, T('opt_record')));
+        if (c.record) f.push(field(T('opt_rec_win'), num(i, 'recWin', c.record.win, 1, 5)), field(T('opt_rec_lose'), num(i, 'recLose', c.record.lose, 1, 5)),
+          field(T('opt_rec_bo'), sel(i, 'recBo', [[0, T('bo_same_n', { n: c.bestOf })], ...BO_OPTS.map((n) => [n, 'Bo' + n])], c.record.bo || 0)));
       }
       // 0 = tự động (⌈log₂ n⌉) – cả hai form cùng một ô để không hiện số khác với số sẽ gửi
-      if (c.type === 'swiss') f.push(field(T('opt_rounds_auto'), num(i, 'rounds', c.rounds, 0, 15)));
+      if (c.type === 'swiss' && !c.record) f.push(field(T('opt_rounds_auto'), num(i, 'rounds', c.rounds, 0, 15)));
+      // Giải offline: knock-out 2 lượt (tổng tỉ số, hoà thì luân lưu)
+      if (ctx.ext && (c.type === 'single' || c.type === 'double')) {
+        f.push(chk(i, 'legs', !!c.legs, T('opt_legs')));
+        if (c.legs && c.type === 'single') f.push(chk(i, 'legsFinal', !!c.legsFinal, T('opt_legs_final')));
+      }
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
       if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')]], c.pairing || 'dutch')));
       if (c.points) {
@@ -119,7 +138,8 @@
           more.push(`<details class="tb-help"><summary>${esc(T('tb_help'))}</summary><dl>${TIEBREAKS.map((x) => `<dt>${esc(T('tb_' + x))}</dt><dd>${esc(T('tbx_' + x))}</dd>`).join('')}</dl></details>`);
         }
       }
-      if (!last) f.push(field(T(c.type === 'roundrobin' ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
+      // Thụy Sĩ theo số thắng / thua: ai đủ số thắng đều đi tiếp (không cần ô số người đi tiếp)
+      if (!last && !c.record) f.push(field(T(c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
       const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
       const extra = more.length ? `<div class="sc-more"><b>${esc(T('stage_more'))}</b><div class="sc-body">${more.join('')}</div></div>` : '';
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div>${extra}</div>`;
@@ -160,6 +180,12 @@
       if (n % 2 === 0) n = n < MAX_BO ? n + 1 : n - 1; // Bo luôn là số lẻ
       c[k.slice(0, -1)] = n;
     }
+    else if (k === 'league') {
+      if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
+    } else if (k === 'lgGames' || k === 'lgPots') c.league[k === 'lgGames' ? 'games' : 'pots'] = clamp(v);
+    else if (k === 'record') { if (el.checked) c.record = { win: 3, lose: 3, bo: 3 }; else delete c.record; }
+    else if (k === 'recWin' || k === 'recLose') c.record[k === 'recWin' ? 'win' : 'lose'] = clamp(v);
+    else if (k === 'recBo') c.record.bo = Number(el.value) || 0;
     else if (el.type === 'checkbox') c[k] = el.checked;
     else if (/^tb\d$/.test(k)) {
       const tbs = [...tbsOf(c)];
