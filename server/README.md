@@ -280,22 +280,32 @@ email đó thì mới lấy lại mật khẩu được (không xác minh thì k
 
 ### Bật trợ lý AI tạo giải đấu Offline (tuỳ chọn, có tính phí)
 
-Trong form tạo giải offline có khung **Trợ lý AI**: người dùng tả giải bằng lời, Claude (Anthropic) đề xuất cấu hình,
-người dùng xem trước rồi tự bấm dùng (`server/src/hub/otour-ai.js`). Không có khoá thì khung tự ẩn – mọi thứ khác vẫn chạy.
+Trong form tạo giải offline có khung **Trợ lý AI**: người dùng tả giải bằng lời, AI đề xuất cấu hình, người dùng xem trước
+rồi tự bấm dùng (`server/src/hub/otour-ai.js`). Có hai cách, dùng song song được:
 
-1. Tạo khoá API ở <https://platform.claude.com> (tài khoản Anthropic của bạn, nạp tiền trước; nên đặt hạn mức chi tiêu
-   tháng trong trang quản lý).
+**1. AI của máy chủ – mặc định Muse Spark (Meta), rẻ.** Giá ở <https://dev.meta.ai/docs/pricing-rate-limits>
+(lúc viết: `muse-spark-1.3` $1,25 / $4,25 mỗi triệu token vào / ra; bản `muse-spark-1.3-contributor` $0,10 / $0,20 –
+xem điều khoản của bản *contributor* trước khi dùng).
+
+1. Tạo tài khoản và khoá ở <https://dev.meta.ai> (Model API → API keys); nên đặt hạn mức chi tiêu trong trang quản lý.
 2. **Tự đặt khoá trên VPS bằng SSH** – không gửi khoá qua chat, email hay Issue, không đưa vào repo:
-   `install -m 600 -o caro /dev/null /var/lib/caro/anthropic-key` rồi mở file đó bằng `nano` dán khoá vào
-   (thay `/var/lib/caro` bằng `DATA_DIR` của bạn, `caro` bằng tài khoản chạy máy chủ). Hoặc đặt biến `ANTHROPIC_API_KEY`.
+   `install -m 600 -o caro /dev/null /var/lib/caro/muse-key` rồi mở file đó bằng `nano` dán khoá vào
+   (thay `/var/lib/caro` bằng `DATA_DIR` của bạn, `caro` bằng tài khoản chạy máy chủ). Hoặc đặt biến `MODEL_API_KEY`.
    Máy chủ đọc lại file mỗi lần hỏi – không cần khởi động lại; xoá file là tắt.
-3. Trần chi phí (biến môi trường, tuỳ chọn): `OTOUR_AI_USER_DAY` (lượt / tài khoản / ngày, mặc định 20), `OTOUR_AI_DAY`
-   (lượt / cả máy chủ / ngày, mặc định 100), `OTOUR_AI_MODEL` (mặc định `claude-opus-5-5`), `OTOUR_AI_EFFORT`
-   (mặc định `medium`). Ước tính với Opus 5.5 ($4 / $20 mỗi triệu token vào / ra): mỗi lượt khoảng 2–3 nghìn token vào
-   và 1–3 nghìn token ra (cả phần suy nghĩ) ≈ 0,03–0,08 USD; trần 100 lượt / ngày ≈ tối đa 8 USD / ngày. Muốn rẻ hơn
-   thì tự chọn model khác qua `OTOUR_AI_MODEL` (đánh đổi chất lượng).
-4. `anthropic-key` là file bí mật như `eval-key`: không đưa lên web hay vào chat; bản sao lưu mã hoá không cần chứa nó
-   (mất thì tạo khoá mới).
+3. Muốn dùng Claude thay Muse: file `DATA_DIR/anthropic-key` hoặc biến `ANTHROPIC_API_KEY` (có cả hai khoá thì đặt
+   `OTOUR_AI_PROVIDER=anthropic`).
+4. Trần chi phí (biến môi trường, tuỳ chọn): `OTOUR_AI_USER_DAY` (lượt / tài khoản / ngày, mặc định 20), `OTOUR_AI_DAY`
+   (lượt / cả máy chủ / ngày, mặc định 100), `OTOUR_AI_MODEL` (mặc định `muse-spark-1.3`; Claude: `claude-opus-5-5`).
+   Ước tính với Muse Spark: mỗi lượt khoảng 3 nghìn token vào, 1–2 nghìn token ra ≈ 0,01 USD; trần 100 lượt / ngày ≈
+   1 USD / ngày.
+5. `muse-key` / `anthropic-key` là file bí mật như `eval-key`: không đưa lên web hay vào chat; bản sao lưu mã hoá không
+   cần chứa chúng (mất thì tạo khoá mới).
+
+**2. Người dùng tự dùng khoá API của mình** (máy chủ không tốn tiền): mục *Dùng khoá API AI của riêng bạn* trong khung
+trợ lý – chọn Muse Spark, Claude, OpenAI, Gemini, DeepSeek hoặc OpenRouter (danh sách cố định ở
+`caro/otour-ai-providers.js`; máy chủ chỉ gọi đúng các địa chỉ đó), dán khoá, tuỳ chọn tên model. Khoá nằm trên máy người
+dùng (chỉ lưu lại nếu họ chọn "Nhớ"), gửi kèm từng lần hỏi; máy chủ chỉ dùng cho đúng lần gọi đó – không lưu, không ghi log.
+Không tính vào trần của máy chủ; vẫn có `OTOUR_AI_OWN_DAY` (lượt / tài khoản / ngày, mặc định 200) để máy chủ đỡ tải.
 
 ### Sao lưu dữ liệu
 

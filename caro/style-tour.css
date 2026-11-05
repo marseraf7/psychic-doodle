@@ -445,3 +445,7 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* giáº
 .ot-ai-log li.assistant { align-self: flex-start; background: var(--bg); }
 .ot-ai-spec { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
 .ot-ai-spec ul { margin: 4px 0 6px; padding-left: 18px; }
+.ot-ai-own { margin-top: 6px; }
+.ot-ai-own summary { cursor: pointer; font-size: var(--fs-sm); }
+.ot-ai-own-row { flex-wrap: wrap; gap: 8px; }
+.ot-ai-own input[type=password], .ot-ai-own #otai-model { font-family: var(--mono, monospace); }

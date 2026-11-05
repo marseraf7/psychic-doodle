@@ -196,6 +196,8 @@ const VI = {
   ot_ai_limit: 'Đã hết lượt hỏi trợ lý AI hôm nay – mai thử lại',
   ot_ai_failed: 'Trợ lý AI đang lỗi – thử lại sau ít phút',
   ot_ai_refused: 'Trợ lý AI không trả lời được yêu cầu này – thử diễn đạt khác',
+  ot_ai_key_bad: 'Khoá API không đúng hoặc không còn dùng được – kiểm tra lại nhà cung cấp và khoá',
+  ot_ai_rate: 'Nhà cung cấp AI của bạn báo quá giới hạn / hết tiền – thử lại sau hoặc kiểm tra tài khoản',
   ot_reg_closed: 'Giải không nhận đăng ký',
   ot_reg_dup: 'Bạn đã gửi đăng ký cho giải này',
   ot_reg_full: 'Giải đã nhận đủ đơn đăng ký – hãy chờ ban tổ chức duyệt',
