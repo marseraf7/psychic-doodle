@@ -2,6 +2,7 @@
  * Giải đấu Offline – xuất dữ liệu trang giải (không cần máy chủ: dùng đúng dữ liệu đang hiện):
  *   - Bảng xếp hạng (CSV): mọi bảng vòng tròn / Thụy Sĩ / league phase / Race.
  *   - Kết quả các trận (CSV): giai đoạn, vòng, hai đội, tỉ số, từng set / lượt, luân lưu, giờ, sân.
+ *   - Báo cáo giải (PDF, A4): otour-pdf.js.
  *   - Cấu hình giải (JSON): bộ môn, cách ghi kết quả, luật set, các giai đoạn – dùng lại để tạo giải giống hệt
  *     (form tạo giải – "Nhập cấu hình JSON", otour-spec-io.js) hoặc đưa cho chatbot AI sau này.
  * CSV có BOM UTF-8 để Excel đọc đúng tiếng Việt. Trình duyệt trong app (Zalo, Messenger…) chặn tải file: chép vào bộ
@@ -84,7 +85,9 @@
       ${Object.entries(KINDS).filter(([, k]) => !k.views || (t.stageViews && t.stageViews.length)).map(([id, k]) => `<div class="row">
         <button type="button" class="ghost sm" data-act="otExport" data-kind="${id}">${esc(T(k.label))}</button>
         <button type="button" class="ghost sm" data-act="otExportCopy" data-kind="${id}">${esc(T('ot_x_copy'))}</button></div>`).join('')}
-      <p class="hint">${esc(T('ot_x_hint'))}</p></div>`, false));
+      <p class="hint">${esc(T('ot_x_hint'))}</p>
+      ${t.stageViews && t.stageViews.length && K.acts.otPdf ? `<div class="row"><button type="button" class="ghost sm" data-act="otPdf">${esc(T('ot_pdf'))}</button></div>
+      <p class="hint">${esc(T('ot_pdf_hint'))}</p>` : ''}</div>`, false)); // báo cáo PDF (otour-pdf.js)
 
   // Kết quả các trận: giải nhiều bảng tải lười – tải đủ mọi bảng trước (otour.js – K.otGroupsAll)
   const ready = (kind) => (kind === 'matches' && K.otGroupsAll ? K.otGroupsAll(D.ot) : Promise.resolve());

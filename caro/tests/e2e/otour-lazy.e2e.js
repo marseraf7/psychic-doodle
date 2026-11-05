@@ -50,6 +50,12 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   const [dl] = await Promise.all([boss.waitForEvent('download', { timeout: 10000 }), boss.click('[data-act="otExport"][data-kind="matches"]')]);
   const csvText = require('fs').readFileSync(await dl.path(), 'utf8');
   ok(csvText.split('\r\n').length === 97 && /4-0/.test(csvText), 'CSV kết quả đủ 96 trận (tải đủ các bảng)');
+  // Báo cáo PDF (otour-pdf.js): tải đủ các bảng rồi dàn trang – 16 bảng × (bảng xếp hạng + 6 trận) → nhiều trang
+  const [pdf] = await Promise.all([boss.waitForEvent('download', { timeout: 30000 }), boss.click('[data-act="otPdf"]')]);
+  const ptxt = require('fs').readFileSync(await pdf.path(), 'latin1');
+  const npages = Number((/\/Type \/Pages \/Count (\d+)/.exec(ptxt) || [])[1]);
+  const nmatch = await boss.evaluate(() => window.CaroOTourPdf.layout(window.CaroTourKit.D.ot).pages.flat().filter((x) => x.b.mid).length);
+  ok(npages >= 5 && ptxt.endsWith('%%EOF\n') && nmatch === 96, `PDF giải 16 bảng: ${npages} trang, đủ các trận (tải đủ các bảng trước)`);
   await shot(guest, 'ot-lazy.png');
   await ctx.close();
   await finish();

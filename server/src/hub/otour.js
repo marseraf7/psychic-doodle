@@ -188,6 +188,16 @@ class OTour {
     };
   }
 
+  /**
+   * Trang giải công khai dạng JSON (/api/otour/<mã | link riêng>.json – trang nhúng caro/embed.html?o=, website ngoài):
+   * đúng phần khách chưa đăng nhập thấy (otShared); không có giải riêng tư và giải nháp.
+   */
+  publicOTour(key) {
+    const t = this.otGet(String(key || '').slice(0, 40));
+    if (!t || t.status === 'draft' || !this.otCanSee(t, null)) return null;
+    return { ...this.otShared(t), url: '/?o=' + (t.slug || t.id) };
+  }
+
   otMine(t, uid) {
     return { canManage: this.otCanManage(t, uid), log: this.otCanManage(t, uid) ? (t.log || []).slice(-50).reverse() : null, now: Date.now(), ...this.otRegMine(t, uid) };
   }
