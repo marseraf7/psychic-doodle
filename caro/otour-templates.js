@@ -26,6 +26,21 @@
       stages: [{ type: 'single', thirdPlace: false }] },
     { id: 'tabletennis_cup', icon: '🏓', sport: 'tabletennis', n: 16,
       stages: [{ type: 'roundrobin', groupSize: 4, advance: 2 }, { type: 'single', thirdPlace: true }] },
+    // Giải nhà nghề Mỹ: mùa giải chia 2 nhánh (conference / league) đấu vòng tròn rút gọn, rồi playoff. Bóng rổ, bóng chày,
+    // khúc côn cầu đấu loạt Bo (result 'sets', không luật set: mỗi "set" là một trận trong loạt)
+    { id: 'nba', icon: '🏀', sport: 'basketball', n: 30, result: 'sets', set: null,
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, advance: 8, points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'pdiff', 'wins'] },
+        { type: 'single', bestOf: 7, thirdPlace: false }] },
+    { id: 'nfl', icon: '🏈', sport: 'amfootball', n: 32,
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 1, advance: 7 }, { type: 'single', bestOf: 1, thirdPlace: false }] },
+    { id: 'mlb', icon: '⚾', sport: 'baseball', n: 30, result: 'sets', set: null,
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, advance: 6, points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'pdiff', 'wins'] },
+        { type: 'single', bestOf: 5, boSemi: 7, boFinal: 7, thirdPlace: false }] },
+    { id: 'nhl', icon: '🏒', sport: 'hockey', n: 32, result: 'sets', set: null,
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, advance: 8, points: { w: 2, d: 0, l: 0 }, tiebreaks: ['wins', 'h2h', 'pdiff'] },
+        { type: 'single', bestOf: 7, thirdPlace: false }] },
+    { id: 'mls', icon: '⚽', sport: 'football', n: 30,
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, advance: 8 }, { type: 'single', bestOf: 1, thirdPlace: false }] },
     { id: 'volleyball_league', icon: '🏐', sport: 'volleyball', n: 8,
       stages: [{ type: 'roundrobin', groups: 1, advance: 4 }, { type: 'single', thirdPlace: true }] },
   ];
@@ -43,7 +58,7 @@
       if (c.type === 'race' && c.score !== 'time' && !c.table) c.table = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
       return c;
     });
-    return { sport: tpl.sport, result: tpl.result || sp.result, stages };
+    return { sport: tpl.sport, result: tpl.result || sp.result, ...(tpl.set !== undefined ? { set: tpl.set } : {}), stages };
   }
 
   /** Danh sách đội mẫu để thử nhanh: "Đội 1", … (league phase: kèm mã quốc gia mẫu xoay vòng; đua: kèm đội). */

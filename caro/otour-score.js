@@ -76,11 +76,13 @@
     }
     if (t.result === 'sets') {
       const bo = boOf(m, v);
-      const rule = `<p class="hint">${esc(ruleText(t.set, bo))}</p>`;
+      // Môn đấu loạt Bo theo trận (bóng rổ, bóng chày, khúc côn cầu…) mà không có luật set: mỗi dòng là một trận
+      const games = !t.set && sp.unit === 'game';
+      const rule = `<p class="hint">${esc(games ? T(bo > 1 ? 'ot_series_rule' : 'ot_game_one') : ruleText(t.set, bo))}</p>`;
       const del = (i) => (S.sets.length > 1 ? `<button type="button" class="ghost sm icon" data-act="otSetDel" data-i="${i}" aria-label="${esc(T('score_set_del'))}">${icon('close')}</button>` : '');
-      body = `${rule}<div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T('score_set_n', { n: i + 1 }))}</span>
+      body = `${rule}<div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T(games ? 'ot_game_n' : 'score_set_n', { n: i + 1 }))}</span>
         <input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="0" value="${esc(s[0])}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="1" value="${esc(s[1])}">${del(i)}</div>`).join('')}</div>
-        ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T('score_set_add'))}</button>` : ''}`;
+        ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T(games ? 'ot_game_add' : 'score_set_add'))}</button>` : ''}`;
     } else {
       const ex = sp.extra === 'ot' ? 'ot' : 'aet';
       const row = (label, a, b) => `<div class="set-row"><span class="muted">${esc(label)}</span><input type="number" min="0" max="999" inputmode="numeric" id="${a}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" id="${b}"></div>`;
