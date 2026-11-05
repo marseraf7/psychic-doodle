@@ -124,6 +124,8 @@
     if (v.table) out.push(...table(v.table, false)); // Thụy Sĩ / league phase
     const elim = v.type === 'single' || v.type === 'double';
     const rn = (n, r, fk) => (K.roundName ? K.roundName(n, r, fk) : T('r_round', { n: r + 1 }));
+    const pre = (v.pre || []).filter(real);
+    if (pre.length) out.push(h3(T('pi_title')), ...pre.map(match)); // play-in trước nhánh chính
     out.push(...rounds(v.rounds || [], (i) => lbl(t, v, i, elim ? rn(v.rounds.length, i, v.type === 'double' ? 'wb_final' : 'r_final') : T('r_round', { n: i + 1 }))));
     if (v.third && real(v.third)) out.push(block(46, text(T('third_place'), 24, 700, C.soft), 50), match(v.third));
     for (const p of v.places || []) out.push(...rounds(p.rounds, (i) => `${T('place_range', { a: p.base, b: p.base + p.size - 1 })} · ${T('r_round', { n: i + 1 })}`));

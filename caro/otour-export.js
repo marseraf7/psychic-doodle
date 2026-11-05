@@ -43,7 +43,7 @@
   function matchRows(t) {
     const out = [[T('ot_x_stage'), T('ot_x_round'), T('ot_x_home'), T('ot_x_away'), T('ot_score'), T('ot_x_detail'), T('ot_pen'), T('ot_when'), T('ot_venue')]];
     for (const v of t.stageViews || []) {
-      const all = [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.gf || []), ...(v.third ? [v.third] : []),
+      const all = [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.pre || []), ...(v.gf || []), ...(v.third ? [v.third] : []),
         ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())].filter((m) => m && m.a && m.b && !m.a.bye && !m.b.bye);
       for (const m of all) {
         out.push([v.index + 1, m.round + 1, m.a.name, m.b.name, m.done ? `${m.wa}-${m.wb}` : '', m.sets ? m.sets.map((s) => s.join('-')).join(' ') : '',

@@ -64,6 +64,7 @@
 .b-p { display: flex; align-items: center; gap: 6px; padding: 5px 8px; }
 .b-p + .b-p { border-top: 1px solid var(--panel-border); }
 .b-p .seed { width: 16px; color: var(--muted); font-size: var(--fs-2xs); text-align: right; flex: none; }
+.b-p .seed.lab { width: auto; min-width: 16px; white-space: nowrap; } /* nhãn hạt giống theo miền: A1, B8 */
 .b-p .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .b-p b { font-variant-numeric: tabular-nums; }
 .b-p.win { font-weight: var(--fw-bold); background: color-mix(in srgb, #2fb45a 10%, transparent); }

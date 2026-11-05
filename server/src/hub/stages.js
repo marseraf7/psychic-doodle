@@ -99,7 +99,10 @@ function normalizeStage(c, last, opts = {}) {
 
 function normalizeStages(list, opts = {}) {
   const arr = Array.isArray(list) && list.length ? list.slice(0, 3) : [{ type: 'single' }];
-  return arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
+  const out = arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
+  // Playoff kiểu Mỹ chỉ có nghĩa ngay sau một mùa giải (stages-playoff.js)
+  out.forEach((c, i) => { if (c.playoff && !(i > 0 && out[i - 1].season)) delete c.playoff; });
+  return out;
 }
 
 // ------------------------------------------------------------ Khởi tạo / tiến trình
@@ -194,8 +197,11 @@ function podium(st, seedOf) {
 /** Số ván tối đa của một trận: Bo riêng cho chung kết / bán kết (nếu đặt), còn lại như cả giai đoạn. */
 function boOf(st, m) {
   const c = st.cfg;
-  if (m && m.bo) return m.bo; // Bo riêng của trận (Thụy Sĩ theo thắng / thua: trận quyết định)
-  if (!isElim(st.type) || !m || (!c.boFinal && !c.boSemi)) return c.bestOf;
+  if (m && m.bo) return m.bo; // Bo riêng của trận (Thụy Sĩ theo thắng / thua: trận quyết định; play-in)
+  // Bo riêng từng vòng (giải offline – playoff MLB: 3, 5, 7, 7)
+  const base = st.type === 'single' && Array.isArray(c.boRounds) && c.boRounds.length && m && !m.place && !m.third
+    ? c.boRounds[Math.min(m.round, c.boRounds.length - 1)] || c.bestOf : c.bestOf;
+  if (!isElim(st.type) || !m || (!c.boFinal && !c.boSemi)) return base;
   let level = 0; // 2 = chung kết, 1 = bán kết
   if (st.type === 'single') {
     const R = st.rounds.length;
@@ -204,7 +210,7 @@ function boOf(st, m) {
   // Chung kết nhánh thắng (không có chung kết tổng thì đây là trận quyết định vô địch)
   else if (!m.lb && m.round === st.rounds.length - 1) level = st.gf.length ? 1 : 2;
   else if (m.lb && m.round === st.lrounds.length - 1) level = 1; // chung kết nhánh thua
-  return (level === 2 && c.boFinal) || (level === 1 && c.boSemi) || c.bestOf;
+  return (level === 2 && c.boFinal) || (level === 1 && c.boSemi) || base;
 }
 
 /** Người bị loại ở vòng loại trực tiếp (thua trận cuối của mình và không còn trận nào). */

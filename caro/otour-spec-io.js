@@ -43,6 +43,9 @@
             league: { type: 'object', description: 'league phase kiểu Champions League', properties: { games: int(1, 20), pots: int(1, 8) } },
             season: { type: 'object', description: 'mùa giải kiểu nhà nghề Mỹ: confs miền × divs bảng con (đội chia theo thứ tự danh sách); div / conf / inter = gặp đội cùng bảng con / cùng miền khác bảng con / khác miền: m lần mỗi đối thủ + x đối thủ gặp thêm 1 lần',
               properties: { confs: int(1, 8), divs: int(1, 8), div: lv, conf: lv, inter: lv } },
+            playoff: { type: 'object', description: 'loại trực tiếp ngay sau mùa giải: playoff kiểu nhà nghề Mỹ – mỗi miền một nửa nhánh, hai đội vô địch miền gặp nhau ở chung kết. mode seed: per đội mỗi miền theo hạt giống (thiếu đội thì hạt giống cao miễn đấu), divWin: nhất bảng con giữ hạt giống đầu, playin nba (hạt giống per−1 … per+2) / one (per gặp per+1); mode div: kiểu NHL (3 đội đầu mỗi bảng con + 2 vé vớt, cần 2 bảng con mỗi miền); reseed: xếp lại cặp sau mỗi vòng. Mùa giải phải cho per + đội play-in (div: 8) đội mỗi miền đi tiếp',
+              properties: { mode: { type: 'string', enum: ['seed', 'div'] }, per: int(2, 16), divWin: { type: 'boolean' }, playin: { type: 'string', enum: ['none', 'nba', 'one'] }, reseed: { type: 'boolean' }, playinBo: { type: 'integer', enum: [1, 3, 5, 7] } } },
+            boRounds: { type: 'array', maxItems: 8, items: bo, description: 'loại trực tiếp: Bo riêng từng vòng từ vòng 1 (số cuối áp cho các vòng sau), vd. [3, 5, 7, 7]' },
             bestNext: int(0, 32, 'thêm đội xếp ngay sau suất đi tiếp tốt nhất'),
             rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent'] },
             record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo } },
@@ -66,6 +69,8 @@
       if (c.boFinal) x.push(T('ds_bo_final', { bo: c.boFinal }));
       if (c.legs && result === 'score') x.push(T(c.legsFinal ? 'ds_legs_all' : 'ds_legs')); // 2 lượt chỉ với kiểu tỉ số
       if (c.path === 'groups') x.push(T('ds_path'));
+      if (c.type === 'single' && c.playoff) x.push(...playoffText(c.playoff, T)); // playoff kiểu Mỹ
+      if (c.type === 'single' && Array.isArray(c.boRounds) && c.boRounds.length) x.push(T('ds_bo_rounds', { list: c.boRounds.join(', ') }));
     } else if (c.type === 'roundrobin') {
       if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
       else if (c.season) x.push(seasonText(c.season, T));
@@ -93,6 +98,15 @@
 
   /** Mô tả cả bản cấu hình: [câu bộ môn, câu luật set?, câu từng giai đoạn…]. */
   /** "mùa giải 2 miền × 3 bảng con: cùng bảng con 4 lần, cùng miền 3 lần (+6 đội thêm 1 lần), khác miền 2 lần". */
+  /** Playoff kiểu Mỹ: các mảnh mô tả. */
+  function playoffText(po, T) {
+    if (po.mode === 'div') return [T('ds_po_div')].concat(po.reseed ? [T('ds_po_reseed')] : []);
+    const x = [T('ds_playoff', { n: po.per || 8 })];
+    if (po.divWin) x.push(T('ds_po_divwin'));
+    if (po.playin === 'nba' || po.playin === 'one') x.push(T('ds_po_pi_' + po.playin));
+    if (po.reseed) x.push(T('ds_po_reseed'));
+    return x;
+  }
   function seasonText(se, T) {
     const lv = (k) => {
       const v = se[k] || {};

@@ -27,7 +27,7 @@
   function votable(t) {
     const out = [];
     for (const v of t.stageViews || []) {
-      const lists = [...(v.rounds || []), ...(v.lrounds || []), v.gf || [], ...((v.groups || []).flatMap((g) => g.rounds))];
+      const lists = [...(v.rounds || []), ...(v.lrounds || []), v.gf || [], v.pre || [], ...((v.groups || []).flatMap((g) => g.rounds))];
       for (const r of lists) for (const m of r) if (m && m.a && m.a.uid && m.b && m.b.uid && !m.done && !m.live && !m.bye) out.push(m);
     }
     return out.slice(0, 8);

@@ -29,20 +29,28 @@
     // Giải nhà nghề Mỹ: mùa giải đúng số trận như thật (miền / bảng con, số lần gặp theo quan hệ – caro/otour-season.js),
     // rồi playoff. Bóng rổ, bóng chày, khúc côn cầu đấu loạt Bo (result 'sets', không luật set: mỗi "set" là một trận)
     { id: 'nba', icon: '🏀', sport: 'basketball', n: 30, result: 'sets', set: null, // 82 trận: 4×4 + 6×4 + 4×3 + 15×2
-      stages: [{ type: 'roundrobin', season: { confs: 2, divs: 3, div: { m: 4, x: 0 }, conf: { m: 3, x: 6 }, inter: { m: 2, x: 0 } }, advance: 8,
-        points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'pdiff', 'wins'] }, { type: 'single', bestOf: 7, thirdPlace: false }] },
+      stages: [{ type: 'roundrobin', season: { confs: 2, divs: 3, div: { m: 4, x: 0 }, conf: { m: 3, x: 6 }, inter: { m: 2, x: 0 } }, advance: 10,
+        points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'pdiff', 'wins'] },
+      // Hạng 1–6 vào thẳng, 7–10 đá play-in giành 2 suất; mỗi miền 8 đội, mọi vòng Bo7, chung kết là hai nhà vô địch miền
+      { type: 'single', bestOf: 7, thirdPlace: false, playoff: { per: 8, playin: 'nba' } }] },
     { id: 'nfl', icon: '🏈', sport: 'amfootball', n: 32, // 17 trận: 3×2 + 6 đội cùng miền + 5 đội miền kia
       stages: [{ type: 'roundrobin', season: { confs: 2, divs: 4, div: { m: 2, x: 0 }, conf: { m: 0, x: 6 }, inter: { m: 0, x: 5 } }, advance: 7 },
-        { type: 'single', bestOf: 1, thirdPlace: false }] },
+      // 4 đội nhất bảng con giữ hạt giống 1–4, 3 vé vớt 5–7; hạt giống 1 miễn vòng đầu; xếp lại cặp sau mỗi vòng
+      { type: 'single', bestOf: 1, thirdPlace: false, playoff: { per: 7, divWin: true, reseed: true } }] },
     { id: 'mlb', icon: '⚾', sport: 'baseball', n: 30, result: 'sets', set: null, // 162 trận: 4×13 + 6×6 + 4×7 + 14×3 + 1×4
       stages: [{ type: 'roundrobin', season: { confs: 2, divs: 3, div: { m: 13, x: 0 }, conf: { m: 6, x: 4 }, inter: { m: 3, x: 1 } }, advance: 6,
-        points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'pdiff', 'wins'] }, { type: 'single', bestOf: 5, boSemi: 7, boFinal: 7, thirdPlace: false }] },
+        points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'pdiff', 'wins'] },
+      // 3 đội nhất bảng con (hạt giống 1–3) + 3 vé vớt; 1, 2 miễn vòng wild card (Bo3), rồi Bo5, Bo7, World Series Bo7
+      { type: 'single', bestOf: 5, boRounds: [3, 5, 7, 7], thirdPlace: false, playoff: { per: 6, divWin: true } }] },
     { id: 'nhl', icon: '🏒', sport: 'hockey', n: 32, result: 'sets', set: null, // 82 trận: 5×4 + 2×3 + 8×3 + 16×2
       stages: [{ type: 'roundrobin', season: { confs: 2, divs: 2, div: { m: 3, x: 5 }, conf: { m: 3, x: 0 }, inter: { m: 2, x: 0 } }, advance: 8,
-        points: { w: 2, d: 0, l: 0 }, tiebreaks: ['wins', 'h2h', 'pdiff'] }, { type: 'single', bestOf: 7, thirdPlace: false }] },
+        points: { w: 2, d: 0, l: 0 }, tiebreaks: ['wins', 'h2h', 'pdiff'] },
+      // Mỗi bảng con 3 đội đầu + 2 vé vớt mỗi miền; nhánh theo bảng con; mọi vòng Bo7
+      { type: 'single', bestOf: 7, thirdPlace: false, playoff: { mode: 'div' } }] },
     { id: 'mls', icon: '⚽', sport: 'football', n: 30, // 34 trận: 14×2 trong miền + 6 đội miền kia
-      stages: [{ type: 'roundrobin', season: { confs: 2, divs: 1, div: { m: 2, x: 0 }, conf: { m: 0, x: 0 }, inter: { m: 0, x: 6 } }, advance: 8 },
-        { type: 'single', bestOf: 1, thirdPlace: false }] },
+      stages: [{ type: 'roundrobin', season: { confs: 2, divs: 1, div: { m: 2, x: 0 }, conf: { m: 0, x: 0 }, inter: { m: 0, x: 6 } }, advance: 9 },
+      // Hạng 8 gặp 9 giành suất cuối; vòng 1 đấu loạt Bo3, các vòng sau một trận
+      { type: 'single', bestOf: 1, boRounds: [3, 1], thirdPlace: false, playoff: { per: 8, playin: 'one' } }] },
     { id: 'volleyball_league', icon: '🏐', sport: 'volleyball', n: 8,
       stages: [{ type: 'roundrobin', groups: 1, advance: 4 }, { type: 'single', thirdPlace: true }] },
   ];

@@ -5,6 +5,8 @@
  *            hạt giống (CL: 36 đội, 4 nhóm, 8 trận – 2 đối thủ mỗi nhóm, 1 sân nhà 1 sân khách), cố tránh đội cùng quốc
  *            gia; một bảng xếp hạng chung. Đi tiếp theo dải hạng: giai đoạn sau là loại trực tiếp 24 đội thì hạng 1–8
  *            được miễn vòng đầu, 9–24 đá play-off (xếp nhánh theo hạt giống chuẩn), 25+ bị loại.
+ *   playoff  (loại trực tiếp sau mùa giải) – nhánh theo miền, nhất bảng con, play-in, xếp lại cặp (stages-playoff.js);
+ *   boRounds (loại trực tiếp) – Bo riêng từng vòng, vòng cuối danh sách áp cho các vòng sau.
  *   season   (vòng tròn) – mùa giải kiểu nhà nghề Mỹ: miền (mỗi miền một bảng xếp hạng) chia bảng con, số lần gặp nhau
  *            theo quan hệ (cùng bảng con / cùng miền / khác miền) – caro/otour-season.js, dựng ở stages-season.js.
  *   big      (vòng tròn) – bảng lớn tới MAX_BIG đội (league lượt đi – về 20 đội như Premier League).
@@ -20,6 +22,7 @@
 'use strict';
 const { BYE, real, newMatch } = require('./stages-base.js');
 const { cleanSeason, seasonInfo } = require('../../../caro/otour-season.js');
+const { normalizePlayoff } = require('./stages-playoff.js');
 
 const MAX_BIG = 64;
 const MAX_LEAGUE_GAMES = 20;
@@ -64,6 +67,15 @@ function normalizeExtras(c, out, last, oddBo) {
   if ((out.type === 'single' || out.type === 'double') && c.legs === true) {
     out.legs = true;
     out.legsFinal = c.legsFinal === true;
+  }
+  // Playoff kiểu nhà nghề Mỹ sau mùa giải (stages-playoff.js) + Bo riêng từng vòng (MLB: 3, 5, 7, 7)
+  if (out.type === 'single') {
+    const po = normalizePlayoff(c.playoff);
+    if (po) out.playoff = po;
+    if (Array.isArray(c.boRounds)) {
+      const list = c.boRounds.slice(0, 8).map(oddBo).filter(Boolean);
+      if (list.length) out.boRounds = list;
+    }
   }
   // Nhánh theo vị trí trong bảng (1A gặp 2B, kiểu World Cup 2026) thay cho xếp theo hạt giống – caro/otour-path.js
   if ((out.type === 'single' || out.type === 'double') && c.path === 'groups') out.path = 'groups';

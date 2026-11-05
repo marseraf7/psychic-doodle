@@ -309,6 +309,7 @@ class Bracket {
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
       sets: m.sets || null, extra: m.extra || null, override: !!m.override, quick: !!m.quick, // tỉ số từng set (giải offline), ghi đè, chỉ báo người thắng
       ...(m.aet ? { aet: true } : {}), // giải offline: có đá hiệp phụ
+      ...(m.tag ? { tag: m.tag } : {}), // play-in (stages-playoff.js): 'pi_78' / 'pi_910' / 'pi_last' / 'pi_89'
       ...(ST.twoLeg(st, m) ? { legs: true } : {}), // giải offline: knock-out 2 lượt (sets = tỉ số từng lượt)
       // Giải offline (otour-league.js): giờ đấu, sân, sự kiện trong trận
       ...(m.when ? { when: m.when } : {}), ...(m.venue ? { venue: m.venue } : {}), ...(m.events && m.events.length ? { events: m.events } : {}),
@@ -359,6 +360,8 @@ class Bracket {
       if (st.places && st.places.length) v.places = st.places.map((p) => ({ base: p.base, size: p.n || 2 << (p.rounds.length - 1), rounds: p.rounds.map((r) => r.map(M)) }));
       if (st.lrounds) v.lrounds = st.lrounds.map((r) => r.map(M));
       if (st.gf) v.gf = st.gf.map(M);
+      if (st.pre) v.pre = st.pre.map(M); // play-in (playoff kiểu Mỹ – stages-playoff.js)
+      if (st.seedLabel) v.seedLabel = st.seedLabel;
     } else if (st.type === 'roundrobin') {
       const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
       v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)),

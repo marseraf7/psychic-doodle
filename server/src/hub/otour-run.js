@@ -19,6 +19,7 @@ const Spec = require('./otour-spec.js');
 const { specGuard } = require('./otour.js');
 const Rules = require('../../../caro/otour-rules.js');
 const PATH = require('../../../caro/otour-path.js');
+const PO = require('./stages-playoff.js');
 
 const MAX_POINT = 999;
 const pair = (x) => {
@@ -130,11 +131,21 @@ class OTourRun {
       return;
     }
     const { seeds, groupOf } = ST.advancers(st, this.otSeedOf(t));
-    const going = new Set(seeds);
+    const cfg = t.stages[t.stage + 1];
+    // Playoff kiểu nhà nghề Mỹ sau mùa giải (stages-playoff.js): nhánh theo miền, nhất bảng con, play-in – ai đi tiếp
+    // theo kế hoạch playoff (không theo số đội đi tiếp của mùa giải)
+    const plan = cfg.playoff ? PO.playoffPlan(st, cfg, ST.standings(st, this.otSeedOf(t))) : null;
+    const going = new Set(plan ? plan.seeds : seeds);
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) p.out = 'not_advanced'; }
     t.stage++;
-    const slots = this.otPathSlots(t, st, t.stages[t.stage], seeds, groupOf);
-    t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
+    if (plan) {
+      const next = ST.buildStage(cfg, t.stage, plan.seeds, this.otBuildOpts(t, { groupOf, slots: plan.slots }));
+      PO.attachPre(next, plan);
+      t.st.push(next);
+      return;
+    }
+    const slots = this.otPathSlots(t, st, cfg, seeds, groupOf);
+    t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
   }
 
   /**
@@ -205,6 +216,7 @@ class OTourRun {
       Object.assign(m, { quick: true, sets: null, extra: null, ext: false, wins: tie ? { [m.a]: 0, [m.b]: 0 } : { [w]: 1, [w === m.a ? m.b : m.a]: 0 } });
     }
     ST.recordResult(st, m, w, { seedOf: this.otSeedOf(t), isActive: () => true });
+    PO.reseed(st); // NFL: xếp lại cặp vòng sau trong từng miền (cao nhất gặp thấp nhất)
     st.v = (st.v || 0) + 1;
     const name = (u) => (t.players.find((p) => p.uid === u) || {}).name || '?';
     this.otLog(t, me.id, 'score', { a: name(m.a), b: name(m.b), s: m.score && !m.legs ? m.score.join('-') : m.sets ? m.sets.map((x) => x.join('-')).join(' ') : w ? name(w) : '½' });

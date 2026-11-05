@@ -16,6 +16,7 @@
     const x = [];
     if (c.type === 'roundrobin' && c.league) return T('fmt_league', { n: c.league.games }); // giải offline: league phase
     if (c.type === 'roundrobin' && c.season) return T(c.season.divs > 1 ? 'fmt_season_div' : 'fmt_season', { c: c.season.confs, d: c.season.divs }); // mùa giải kiểu Mỹ
+    if (c.type === 'single' && c.playoff) return T(c.playoff.mode === 'div' ? 'fmt_playoff_div' : 'fmt_playoff', { n: c.playoff.per || 8 }) + (c.playoff.playin && c.playoff.playin !== 'none' ? ` (${T('tag_playin')})` : ''); // playoff kiểu Mỹ
     if (c.type === 'race') return T(c.score === 'time' ? 'race_name_tt' : c.events > 1 ? 'race_name_gp' : 'race_name_single', { n: c.events }); // hệ Race
     if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));
     else if (c.type === 'roundrobin' && c.groups > 1) x.push(T('groups_n', { n: c.groups }));
@@ -58,6 +59,10 @@
   const replays = (m) => m.games.map((g, i) => `<a href="#" data-act="replay" data-share="${esc(g)}">${icon('play')}${i + 1}</a>`);
   /** Giải đang vẽ (cho nút ảnh chia sẻ / đính kèm của từng trận). */
   let cur = null;
+  /** Nhãn hạt giống theo miền của nhánh đang vẽ (playoff kiểu Mỹ: "A1", "B8"… – server stages-playoff.js). */
+  let seedLab = null;
+  /** Tên trận play-in theo tag (playoff kiểu Mỹ). */
+  const preName = (m) => T(m && m.tag ? m.tag : 'pi_title');
   /** Giải đấu Offline kiểu tỉ số: sau hiệp phụ, tỉ số luân lưu (kiểu set đã ghi luân lưu trong setsText). */
   const otTags = (m) => [...(m.sets ? [] : [m.aet ? esc(T('ot_aet_tag')) : '', m.extra ? esc(T('ot_pen_tag', { s: m.extra.join('-') })) : ''].filter(Boolean)),
     ...(K.otMatchTags ? K.otMatchTags(m) : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js)
@@ -71,7 +76,7 @@
   }
   function matchBox(m) {
     const row = (p, w, isWin) => p && p.uid
-      ? `<div class="b-p ${isWin ? 'win' : ''} ${p.uid === uidMe() ? 'me' : ''}"><span class="seed">${p.seed || ''}</span><span class="nm">${esc(p.name)}</span><b>${m.bye ? '' : w}</b></div>`
+      ? `<div class="b-p ${isWin ? 'win' : ''} ${p.uid === uidMe() ? 'me' : ''}">${seedLab && seedLab[p.uid] ? `<span class="seed lab">${esc(seedLab[p.uid])}</span>` : `<span class="seed">${p.seed || ''}</span>`}<span class="nm">${esc(p.name)}</span><b>${m.bye ? '' : w}</b></div>`
       : `<div class="b-p empty"><span class="seed"></span><span class="nm">${esc(p && p.bye ? T('bye') : '—')}</span><b></b></div>`;
     const extra = [];
     if (m.live) extra.push(m.room ? `<a href="#" class="pill live" data-watch="${esc(m.room)}" title="${esc(T('watch'))}">● ${esc(T('live'))} ${icon('eye')}</a>` : `<span class="pill live">● ${esc(T('live'))}</span>`);
@@ -168,13 +173,22 @@
     // Tắt "Hiện bảng xếp hạng" (tab Khác): người xem không thấy bảng điểm vòng tròn / Thụy Sĩ, vẫn thấy các trận
     const table = (rows, cfg) => (t.showStandings === false && !t.canManage ? '' : standTable(rows, cfg));
     if (v.type === 'single') {
-      let html = bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r)), (r) => slot(t, v.index, r), key + ':m');
+      seedLab = v.seedLabel || null;
+      let html = '';
+      // Play-in (playoff kiểu Mỹ): cột 1 các trận đầu, cột 2 trận quyết định (NBA: thua 7–8 gặp thắng 9–10)
+      if (v.pre && v.pre.length) {
+        const cols = [v.pre.filter((m) => m.tag !== 'pi_last'), v.pre.filter((m) => m.tag === 'pi_last')].filter((c) => c.length);
+        html += `<h5 class="br-h">${esc(T('pi_title'))}</h5><p class="hint">${esc(T(v.pre.some((m) => m.tag === 'pi_last') ? 'pi_hint_nba' : 'pi_hint_one'))}</p><div class="bracket pi">${cols.map((c, i) => `<div class="b-col"><h5>${esc(T(i ? 'pi_last' : 'pi_title'))}</h5>${c.map(matchBox).join('')}</div>`).join('')}</div>`
+          + `<h5 class="br-h">${esc(T('pi_main'))}</h5>`;
+      }
+      html += bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r)), (r) => slot(t, v.index, r), key + ':m');
       if (v.third) html += `<h5>${esc(T('third_place'))}</h5><div class="bracket"><div class="b-col">${matchBox(v.third)}</div></div>`;
       // Trận xếp hạng các vị trí sau (5–8, 9–16…): mỗi nhánh một khối thu gọn
       if (v.places && v.places.length) {
         html += `<h5 class="br-h">${esc(T('places_title'))}</h5>` + v.places.map((p) => fold(key + ':p' + p.base, esc(T('place_range', { a: p.base, b: p.base + p.size - 1 })),
           () => bracketCols(p.rounds, (r) => (p.rounds[r].length === 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 })), null, key + ':p' + p.base), false)).join('');
       }
+      seedLab = null;
       return html;
     }
     if (v.type === 'double') {
@@ -269,5 +283,5 @@
     }).join('');
   }
 
-  Object.assign(K, { stageName, advText, stagesHtml, fold, roundName, roundsOfGroup });
+  Object.assign(K, { stageName, advText, stagesHtml, fold, roundName, roundsOfGroup, preName });
 })();

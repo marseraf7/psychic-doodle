@@ -166,7 +166,8 @@ function checkSlots(type, seeds, slots) {
 const defaultSlots = (type, seeds, groupOf, placeBy) => firstRound(seeds, elimSize(type, seeds.length), groupOf, placeBy).flat();
 
 function buildSingle(st, seeds, groupOf, placeBy, slots) {
-  const size = pow2(Math.max(2, seeds.length));
+  // Có khuôn ô (kéo thả, nhánh theo bảng, playoff có play-in – một số đội chưa vào nhánh ngay): cỡ nhánh theo khuôn
+  const size = Array.isArray(slots) && slots.length >= 2 ? slots.length : pow2(Math.max(2, seeds.length));
   const R = Math.log2(size);
   const id = (r, i) => `${st.key}w${r}m${i}`;
   st.rounds = [];
