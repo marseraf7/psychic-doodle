@@ -17,7 +17,13 @@
 
   const SLUG_RE = /^[a-z0-9][a-z0-9_-]{2,19}$/; // như máy chủ
   const randSlug = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
-  const linkBase = () => (window.CARO_SERVER || location.origin).replace(/\/+$/, '').replace(/^https?:\/\//, '') + '/?t=';
+  const linkBase = (q = 't') => (window.CARO_SERVER || location.origin).replace(/\/+$/, '').replace(/^https?:\/\//, '') + '/?' + q + '=';
+  /** Ô URL riêng kiểu Challonge (tiền tố địa chỉ + mã sửa được + nút đổi mã ngẫu nhiên) – dùng cả ở giải offline (otour.js, q = 'o'). */
+  const slugField = (slug, q = 't') => `<div class="field slug-field"><span>${esc(T('adv_url'))}</span><div class="slug-row"><span class="slug-pre">${esc(linkBase(q))}</span>
+      <input name="slug" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(slug || '')}" aria-label="${esc(T('adv_url'))}">
+      <button type="button" class="ghost sm icon" data-act="slugShuffle" title="${esc(T('adv_url_shuffle'))}" aria-label="${esc(T('adv_url_shuffle'))}">${icon('retry')}</button></div>
+      <small class="hint">${esc(T('adv_url_hint'))}</small></div>`;
+  K.slugKit = { rand: randSlug, field: slugField };
   const chk = (name, v, label, hint, cls = '') => `<label class="check ${esc(cls)}"><input type="checkbox" name="${name}" ${v ? 'checked' : ''}> <span>${esc(label)}${hint ? `<small class="hint">${esc(hint)}</small>` : ''}</span></label>`;
 
   Object.assign(DR.EXT.defaults, {
@@ -27,10 +33,7 @@
   DR.EXT.loaders.push((d) => { if (!d.slug && !DR.F.editId) d.slug = randSlug(); });
 
   Object.assign(DR.FIELDS, {
-    slug: (d) => `<div class="field slug-field"><span>${esc(T('adv_url'))}</span><div class="slug-row"><span class="slug-pre">${esc(linkBase())}</span>
-      <input name="slug" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(d.slug || '')}" aria-label="${esc(T('adv_url'))}">
-      <button type="button" class="ghost sm icon" data-act="slugShuffle" title="${esc(T('adv_url_shuffle'))}" aria-label="${esc(T('adv_url_shuffle'))}">${icon('retry')}</button></div>
-      <small class="hint">${esc(T('adv_url_hint'))}</small></div>`,
+    slug: (d) => slugField(d.slug),
     // Mô tả có định dạng (thay ô chữ thường của tour-form.js)
     desc: (d) => (R ? `<div class="field"><span>${esc(T('tour_desc'))}</span>${R.editor('desc', d.desc, { rows: 5, max: 4000 })}</div>`
       : `<label class="field"><span>${esc(T('tour_desc'))}</span><textarea name="desc" maxlength="4000" rows="3">${esc(d.desc)}</textarea></label>`),
@@ -57,10 +60,11 @@
   });
 
   K.acts.slugShuffle = () => {
-    const f = $('ta') || $('tf');
+    const f = $('ta') || $('tf') || $('otf');
     if (!f || !f.elements.slug) return;
     f.elements.slug.value = randSlug();
-    DR.collect(f);
+    if (f.id === 'otf') f.elements.slug.dispatchEvent(new Event('input', { bubbles: true })); // form giải offline tự đọc lại
+    else DR.collect(f);
   };
   // Gõ link: chữ thường, bỏ ký tự không dùng được
   document.addEventListener('input', (e) => {
@@ -68,6 +72,6 @@
     const v = e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9_-]/g, '');
     if (v !== e.target.value) e.target.value = v;
     const f = e.target.form;
-    if (f) DR.collect(f, true);
+    if (f && f.id !== 'otf') DR.collect(f, true);
   });
 })();

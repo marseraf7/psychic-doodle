@@ -365,8 +365,10 @@ test('xếp hạng: đối đầu 3 người bằng điểm (bảng điểm riê
   const t4 = S.standings(st4, seedOf)[0];
   assert.strictEqual(t4.stats.p1.pts, 3 + 5);
   assert.strictEqual(t4.list[0], 'p1');
-  // Tie-break không hợp lệ bị bỏ, tối đa 5, không trùng
-  assert.deepStrictEqual(S.normalizeStages([{ type: 'swiss', tiebreaks: ['mbh', 'x', 'mbh', 'sb', 'h2h', 'wins', 'gdiff', 'tpr'] }])[0].tiebreaks, ['mbh', 'sb', 'h2h', 'wins', 'gdiff']);
+  // Tie-break không hợp lệ / trùng bị bỏ; bao nhiêu cấp cũng được, giữ đúng thứ tự người tạo xếp
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'swiss', tiebreaks: ['mbh', 'x', 'mbh', 'sb', 'h2h', 'wins', 'gdiff', 'tpr'] }])[0].tiebreaks, ['mbh', 'sb', 'h2h', 'wins', 'gdiff', 'tpr']);
+  assert.strictEqual(S.normalizeStages([{ type: 'swiss', tiebreaks: [...S.TIEBREAKS, ...S.TIEBREAKS] }])[0].tiebreaks.length, S.TIEBREAKS.length);
+  assert.deepStrictEqual(S.normalizeStages([{ type: 'roundrobin', tiebreaks: [] }])[0].tiebreaks, [], 'bỏ hết: không dùng chỉ số phụ');
 });
 
 test('Thụy Sĩ: điểm miễn đấu riêng, Median-Buchholz, số vòng tự động; vòng tròn gặp nhau 3 lần', () => {

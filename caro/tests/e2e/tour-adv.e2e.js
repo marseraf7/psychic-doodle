@@ -147,9 +147,16 @@ const { setup, sleep } = require('./helpers.js');
   await boss.selectOption('#ta-stages [data-i="1"][data-k="gf"]', 'none'); await sleep(80);
   await boss.check('#ta-stages [data-i="1"][data-k="split"]'); await sleep(80);
   await boss.selectOption('#ta-stages [data-i="0"][data-k="rankBy"]', 'game_diff'); await sleep(80);
-  await boss.selectOption('#ta-stages [data-i="0"][data-k="tb0"]', 'mbh'); await sleep(80);
-  const tbs = await boss.$$eval('#ta-stages [data-i="0"][data-k^="tb"]', (x) => x.map((e) => e.value));
-  ok(tbs[0] === 'mbh' && !tbs.slice(1).includes('mbh'), 'Tie-break không trùng nhau – ' + tbs.join(','));
+  await boss.selectOption('#ta-stages [data-i="0"][data-k="tbAdd"]', 'mbh'); await sleep(80);
+  // Thêm vào cuối; bấm ↑ tới khi lên đầu danh sách
+  for (let n = 0; n < 6; n++) {
+    const at = await boss.$$eval('#ta-stages .tb-list .tb-crit', (x) => x.findIndex((e) => e.textContent === 'Median-Buchholz'));
+    if (at <= 0) break;
+    await boss.click(`#ta-stages .tb-list li:nth-child(${at + 1}) [data-sact="tbUp"]`); await sleep(80);
+  }
+  const tbs = await boss.$$eval('#ta-stages .tb-list .tb-crit', (x) => x.map((e) => e.textContent));
+  const left = await boss.$$eval('#ta-stages [data-i="0"][data-k="tbAdd"] option', (x) => x.map((e) => e.value));
+  ok(tbs.filter((x) => x === 'Median-Buchholz').length === 1 && !left.includes('mbh'), 'Chỉ số phụ không trùng nhau – ' + tbs.join(','));
   ok(/không chung kết tổng/.test(await boss.textContent('#ta-stages .flow')) && /split/.test(await boss.textContent('#ta-stages .flow')), 'Chuỗi giai đoạn ghi "không chung kết tổng", "split"');
   await shot(boss, 'tadv-stage-more.png');
   await boss.click('.ta-tab[data-tab="reg"]'); await sleep(80);

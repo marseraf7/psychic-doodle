@@ -4,7 +4,7 @@
  * hộp thoại ảnh kết quả / đính kèm trận (tour-match-extra.js).
  */
 /* ---- Trình soạn mô tả */
-.rt-ed { display: flex; flex-direction: column; border: 1px solid var(--panel-border); border-radius: 10px; overflow: hidden; background: var(--panel, transparent); }
+.rt-ed { display: flex; flex-direction: column; border: 1px solid var(--field-border); border-radius: 10px; overflow: hidden; background: var(--panel, transparent); }
 .rt-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 4px; border-bottom: 1px solid var(--panel-border);
   background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .rt-b { min-width: 34px; height: 32px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: var(--fs-sm); cursor: pointer; }
@@ -15,7 +15,8 @@
 .rt-strike { text-decoration: line-through; }
 .rt-preview { margin-left: auto; font-family: ui-monospace, monospace; }
 .rt-sep { width: 1px; height: 22px; background: var(--panel-border); margin: 0 3px; }
-.rt-para { height: 32px; max-width: 130px; font-size: var(--fs-sm); }
+/* Ô chọn kiểu đoạn: cao cố định 32px – bỏ đệm dọc của select trong form (trước bị cắt mất nửa dưới chữ "Đoạn văn") */
+.rt-para, .tour-body select.rt-para { height: 32px; max-width: 140px; width: auto; padding: 0 26px 0 8px; line-height: 30px; font-size: var(--fs-sm); }
 .rt-ed textarea { border: 0; border-radius: 0; resize: vertical; min-height: 110px; }
 .rt-view { padding: 8px 12px; min-height: 110px; }
 .rt-pop { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px; border-bottom: 1px solid var(--panel-border); align-items: center; }
@@ -36,7 +37,7 @@
 .rich .rt-j { text-align: justify; }
 
 /* ---- URL riêng */
-.slug-row { display: flex; align-items: stretch; border: 1px solid var(--panel-border); border-radius: 10px; overflow: hidden; }
+.slug-row { display: flex; align-items: stretch; border: 1px solid var(--field-border); border-radius: 10px; overflow: hidden; background: var(--panel); }
 .slug-pre { display: flex; align-items: center; padding: 0 10px; background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted);
   font-size: var(--fs-sm); white-space: nowrap; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
 .slug-row input { flex: 1; min-width: 0; border: 0; border-radius: 0; }
@@ -50,8 +51,6 @@
 .place-pick .row { gap: 6px; }
 .bo-n { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
 .bo-n input { width: 64px; }
-.tb4 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-@media (max-width: 700px) { .tb4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .sc-body .tb-help, .sc-body .place-pick, .sc-body > .hint { grid-column: 1 / -1; }
 .tb-help { font-size: var(--fs-sm); }
 .tb-help summary { cursor: pointer; color: var(--accent); }

@@ -52,8 +52,8 @@ body.online .banner-actions .online-only { display: inline-block !important; }
 
 input:not([type="radio"]):not([type="checkbox"]):not([type="range"]) {
   font: inherit; font-size: var(--fs-input);
-  color: var(--text); background: transparent;
-  border: 1px solid var(--grid-strong); border-radius: 10px;
+  color: var(--text); background: var(--panel);
+  border: 1px solid var(--field-border); border-radius: 10px;
   padding: 9px 11px; width: 100%;
   -webkit-user-select: text; user-select: text;
 }
@@ -243,8 +243,8 @@ dialog form.dlg { padding: 16px 18px 18px; }
 .clock.low { color: #fff; background: #e5392f; animation: tick 1s steps(1) infinite; }
 @keyframes tick { 50% { opacity: 0.75; } }
 .select {
-  font: inherit; font-size: var(--fs-md); color: var(--text); background: transparent;
-  border: 1px solid var(--grid-strong); border-radius: 10px; padding: 8px 10px; min-width: 180px;
+  font: inherit; font-size: var(--fs-md); color: var(--text); background: var(--panel);
+  border: 1px solid var(--field-border); border-radius: 10px; padding: 8px 10px; min-width: 180px;
 }
 .select option { color: #000; }
 .bar.bottom button[hidden] { display: none; }
