@@ -45,7 +45,8 @@ const { setup, sleep, gotoRetry } = require('./helpers.js');
   // Tiến độ (K.statsHtml – dùng ở trang nhúng) đếm cả các bảng chưa tải các trận: 1 / 96 trận vòng bảng (+ loại trực tiếp)
   ok(await guest.evaluate(() => /<b>1\/(\d+)<\/b>/.exec(window.CaroTourKit.statsHtml(window.CaroTourKit.D.ot))?.[1]) === '96', 'Tiến độ: 1/96 trận dù chưa tải các bảng');
   // Xuất CSV kết quả: tải đủ mọi bảng
-  await boss.click('summary:has-text("Xuất dữ liệu")'); await sleep(200);
+  await boss.click('[data-act="otTab"][data-tab="more"]'); await sleep(300); // tab Khác
+  await boss.$eval('details[data-k$=":export"]', (d) => { d.open = true; }).catch(() => {}); await sleep(300);
   const [dl] = await Promise.all([boss.waitForEvent('download', { timeout: 10000 }), boss.click('[data-act="otExport"][data-kind="matches"]')]);
   const csvText = require('fs').readFileSync(await dl.path(), 'utf8');
   ok(csvText.split('\r\n').length === 97 && /4-0/.test(csvText), 'CSV kết quả đủ 96 trận (tải đủ các bảng)');

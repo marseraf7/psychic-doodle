@@ -43,7 +43,8 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click(`.scorable[data-mid="${m.id}"]`); await sleep(300);
   await boss.fill('#ots-a', '3'); await boss.fill('#ots-b', '1');
   await boss.click('#ots button.primary'); await sleep(900);
-  await boss.click('summary:has-text("Xuất dữ liệu")'); await sleep(200);
+  await boss.click('[data-act="otTab"][data-tab="more"]'); await sleep(300); // tab Khác
+  await boss.$eval('details[data-k$=":export"]', (d) => { d.open = true; }).catch(() => {}); await sleep(300);
   const grab = async (act) => {
     const [dl] = await Promise.all([boss.waitForEvent('download', { timeout: 5000 }), boss.click(`[data-act="otExport"][data-kind="${act}"]`)]);
     const fs = require('fs'); return fs.readFileSync(await dl.path(), 'utf8');

@@ -10,6 +10,7 @@ const { setup, sleep } = require('./helpers.js');
   const PORT = Number(process.env.E2E_PORT) || 8814;
   const { app, user, ok, shot, finish } = await setup(PORT);
   const boss = await user('vi', 'ban_phui', 1100);
+  const tab = (p, k) => p.click(`[data-act="otTab"][data-tab="${k}"]`).then(() => sleep(300)); // các tab của trang giải offline
   const fan = await user('vi', 'doi_truong', 430);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
   await boss.fill('#otf input[name=name]', 'Giải phủi phường');
@@ -19,7 +20,6 @@ const { setup, sleep } = require('./helpers.js');
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
   const t = app.hub.otGet(id);
   // Mở đăng ký, người khác gửi đơn
-  await boss.click('summary:has-text("Đăng ký đội")').catch(() => {}); await sleep(200);
   await boss.check('#ot-reg-open'); await sleep(500);
   ok(t.reg && t.reg.open, 'Mở đăng ký');
   await fan.evaluate((x) => window.CaroOTour.open(x), id); await sleep(800);
@@ -31,12 +31,13 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('[data-act="otRegOk"]'); await sleep(800);
   ok(t.players.length === 4 && t.players[3].roster.length === 2, 'Duyệt đơn: thêm đội kèm đội hình');
   // Sửa đội hình FC Một
-  await boss.click('summary:has-text("Đội hình các đội")'); await sleep(300);
+  await tab(boss, 'teams');
   await boss.click(`[data-act="otRosterEdit"][data-uid="${t.players[0].uid}"]`); await sleep(300);
   await boss.fill('#ot-roster-in', '10 Số Mười\n7 Số Bảy | FW');
   await boss.click('[data-act="otRosterSave"]'); await sleep(700);
   ok(t.players[0].roster.length === 2, 'Sửa đội hình');
   // Bắt đầu, mở trận có FC Một
+  await tab(boss, 'stages'); // bắt đầu (otStart) rồi nhập kết quả ở tab Nhánh đấu
   await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(300);
   // hộp xác nhận: helpers.js tự bấm Đồng ý
   await sleep(900);
@@ -57,12 +58,13 @@ const { setup, sleep } = require('./helpers.js');
   }
   ok(m.events && m.events.length === 3, 'Ghi 3 sự kiện');
   ok(await boss.isVisible('.ot-evs li'), 'Danh sách sự kiện trong khung trận');
-  await boss.click('summary:has-text("Thống kê")'); await sleep(300);
+  await tab(boss, 'stats');
   ok(/10 Số Mười/.test(await boss.textContent('body')) && /Vua phá lưới/.test(await boss.textContent('body')), 'Vua phá lưới');
-  await boss.click('summary:has-text("Lịch thi đấu")'); await sleep(300);
+  await tab(boss, 'sched');
   ok(/Sân Bờ Sông/.test(await boss.textContent('.ot-sched')), 'Lịch thi đấu có sân');
   // In biên bản: chặn hộp in thật, kiểm nội dung
   await boss.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed++; }; });
+  await tab(boss, 'stages');
   await boss.click(`.scorable[data-mid="${m.id}"]`).catch(() => {}); await sleep(300);
   await boss.click('[data-act="otPrint"]'); await sleep(300);
   ok(await boss.evaluate(() => window.__printed) === 1 && /Biên bản trận đấu/.test(await boss.textContent('#ot-print')) && /Số Mười/.test(await boss.textContent('#ot-print')), 'In biên bản trận (đội hình + sự kiện)');

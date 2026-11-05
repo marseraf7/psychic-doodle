@@ -23,7 +23,7 @@
         || scan(v.gf && [v.gf], () => T('gf')) || scan(v.third && [[v.third]], () => T('third_place'));
       if (x) return x;
       for (const p of v.places || []) { const y = scan(p.rounds, () => T('place_range', { a: p.base, b: p.base + p.size - 1 })); if (y) return y; }
-      for (const g of v.groups || []) { const y = scan(g.rounds, (r) => T('group_name', { name: g.name }) + ' · ' + rr(r)); if (y) return y; }
+      for (const [gi, g] of (v.groups || []).entries()) { const y = scan(K.roundsOfGroup ? K.roundsOfGroup(t, v, gi) : g.rounds, (r) => T('group_name', { name: g.name }) + ' · ' + rr(r)); if (y) return y; }
     }
     return null;
   }
@@ -81,7 +81,7 @@
     g.font = `500 24px ${font}`;
     g.fillStyle = '#9fb3dd';
     const site = (window.CARO_SERVER || location.origin).replace(/^https?:\/\//, '').replace(/\/+$/, '');
-    g.fillText(`Caro x Gomoku · ${site}/?t=${t.slug || t.id}`, W / 2, 585);
+    g.fillText(`Caro x Gomoku · ${site}/?${t.kind === 'otour' ? 'o' : 't'}=${t.slug || t.id}`, W / 2, 585); // giải offline: link ?o=
     return c;
   }
 
@@ -101,15 +101,15 @@
     return box;
   }
 
-  K.acts.matchImg = (b) => {
-    const t = D.tour;
-    const x = t && findMatch(t, b.dataset.mid);
-    if (!x) return;
-    const canvas = draw(t, x);
+  /**
+   * Xem trước ảnh (canvas) trong hộp thoại, tải về / chia sẻ (Web Share). Dùng chung: ảnh kết quả trận (ở đây), ảnh bảng
+   * xếp hạng / bục trao giải của giải offline (otour-share.js).
+   */
+  K.imgShare = (canvas, name, title) => {
     const d = dialog('mx-img', `<h4>${esc(T('mx_img'))}</h4><img alt="" src="${canvas.toDataURL('image/png')}">
       <div class="row"><button type="button" class="primary" data-mx="save">${icon('disk')}${esc(T('mx_save'))}</button>
       ${navigator.canShare ? `<button type="button" class="ghost" data-mx="share">${icon('share')}${esc(T('mx_share'))}</button>` : ''}</div>`);
-    const file = () => new Promise((res) => canvas.toBlob((blob) => res(new File([blob], `${(t.slug || t.id)}-${x.m.id}.png`, { type: 'image/png' })), 'image/png'));
+    const file = () => new Promise((res) => canvas.toBlob((blob) => res(new File([blob], name, { type: 'image/png' })), 'image/png'));
     d.querySelector('[data-mx="save"]').onclick = async () => {
       const f = await file();
       const a = document.createElement('a');
@@ -123,10 +123,19 @@
     if (sh) {
       sh.onclick = async () => {
         const f = await file();
-        if (navigator.canShare({ files: [f] })) navigator.share({ files: [f], title: t.name }).catch(() => {});
+        if (navigator.canShare({ files: [f] })) navigator.share({ files: [f], title }).catch(() => {});
         else O.toast(T('mx_share_no'));
       };
     }
+    return d;
+  };
+  /** Giải đang xem: giải Caro (D.tour) hoặc giải offline (D.ot – trang riêng). */
+  const curTour = () => (K.V.page === 'ot' ? D.ot : D.tour);
+  K.acts.matchImg = (b) => {
+    const t = curTour();
+    const x = t && findMatch(t, b.dataset.mid);
+    if (!x) return;
+    K.imgShare(draw(t, x), `${(t.slug || t.id)}-${x.m.id}.png`, t.name);
   };
 
   // ------------------------------------------------------------ Đính kèm trận

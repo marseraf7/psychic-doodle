@@ -410,3 +410,20 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .ot-desc ul { margin: 4px 0; padding-left: 1.3em; }
 #otf-json { width: 100%; font-family: ui-monospace, monospace; font-size: .85em; }
 table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* giải offline: miễn vòng đầu loại trực tiếp */
+
+/* Giải đấu Offline – trang riêng (shell.js – #page-otour), kiểu Challonge / MyLeague: nội dung giữa trang, tab trên cùng */
+.otp-body { padding-left: max(12px, calc((100% - 1080px) / 2)); padding-right: max(12px, calc((100% - 1080px) / 2)); }
+.otp .pg-right .ghost.sm { white-space: nowrap; }
+.ot-tabs { position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 0; background: var(--bg); border-bottom: 1px solid var(--line, #8883); }
+.ot-tabs::-webkit-scrollbar { display: none; }
+.ot-tabs button { flex: none; padding: 8px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-weight: var(--fw-medium); cursor: pointer; }
+.ot-tabs button.on { background: var(--accent); color: var(--accent-ink, #fff); }
+.ot-tab { display: flex; flex-direction: column; gap: 12px; }
+.ot-sec { background: var(--panel); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.ot-sec > h4 { margin: 0; }
+.ot-img-row { flex-wrap: wrap; gap: 6px; align-items: center; }
+.ot-img-row button .ico { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
+@media (min-width: 900px) {
+  .otp-body .ot-tab[data-tab="overview"] { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
+  .otp-body .ot-tab[data-tab="overview"] > .thead, .otp-body .ot-tab[data-tab="overview"] > .podium, .otp-body .ot-tab[data-tab="overview"] > .tactions { grid-column: 1 / -1; }
+}

@@ -225,7 +225,7 @@ body.online .home .welcome-card { display: flex; }
   .tabbar > button.on { color: var(--accent); }
   .tabbar .badge { top: 10px; right: 4px; }
   .pg-head { display: none; } /* tiêu đề đã có trên menu */
-  #page-settings .pg-head { display: grid; }
+  #page-settings .pg-head, #page-otour .pg-head { display: grid; } /* trang giải offline: tên giải + nút ‹ / Giải đấu */
   .pg-right .conn:not(:empty) { font-size: var(--fs-xs); gap: 5px; }
   .pg-body { padding: 18px 24px 0; }
   .pg-body::after { height: 28px; }

@@ -136,7 +136,8 @@
 
   window.CaroHome = { open, pane: showPane, render };
 
-  // Mở app: vào Trang chủ (trừ khi đã vào bàn cờ – link xem lại, đang trong phòng…)
-  if (!App.online && !App.replay && !App.ext) open();
+  // Mở app: vào Trang chủ (trừ khi đã vào bàn cờ – link xem lại, đang trong phòng…; hoặc đã mở trang khác trước khi
+  // file này chạy – link ?o= giải đấu Offline mở trang riêng ngay khi kết nối xong)
+  if (Shell.current && Shell.current !== 'home') { /* giữ trang đang mở */ } else if (!App.online && !App.replay && !App.ext) open();
   else Shell.hide(); // khung hiện sẵn từ HTML (index.html): mở thẳng vào bàn cờ thì ẩn đi
 })();
