@@ -9,7 +9,9 @@
   X('vi', {
     ds_sport: '{icon} {sport} · ghi kết quả: {result}', ds_set: 'Luật set: mỗi set tới {to} điểm, cách {by}', ds_set_cap: '(chạm {cap} là thắng)', ds_set_last: '(set quyết định tới {last})',
     ds_stage: 'Giai đoạn {n}: {text}.', ds_single: 'loại trực tiếp Bo{bo}', ds_double: 'nhánh thắng – nhánh thua Bo{bo}', ds_third: 'có tranh hạng ba', ds_bo_final: 'chung kết Bo{bo}',
-    ds_legs: 'đá 2 lượt (chung kết 1 trận)', ds_legs_all: 'đá 2 lượt (cả chung kết)', ds_league: 'league phase: mỗi đội {games} trận, {pots} nhóm hạt giống',
+    ds_legs: 'đá 2 lượt (chung kết 1 trận)', ds_legs_all: 'đá 2 lượt (cả chung kết)', ds_path: 'nhánh cố định theo vị trí trong bảng', ds_heat: 'đoàn đông thì chia lượt, tối đa {n} người mỗi lượt',
+    ot_ai: 'Trợ lý AI tạo giải', ot_ai_hint: 'Tả giải bằng lời, ví dụ: "Giải bóng đá 16 đội, 4 bảng, nhất nhì vào tứ kết, có tranh hạng ba". Trợ lý đề xuất cấu hình – bạn xem trước rồi mới dùng.', ot_ai_ph: 'Tả giải bạn muốn tạo…', ot_ai_send: 'Gửi', ot_ai_wait: 'Trợ lý đang soạn…', ot_ai_spec: 'Cấu hình trợ lý đề xuất', ot_ai_apply: 'Dùng cấu hình này', ot_ai_left: 'còn {n} lượt hôm nay', ot_ai_note: 'AI có thể nhầm – kiểm tra trước khi tạo',
+    srv_ot_ai_off: 'Trợ lý AI chưa được bật trên máy chủ này', srv_ot_ai_busy: 'Trợ lý AI đang trả lời câu trước – chờ một chút', srv_ot_ai_limit: 'Đã hết lượt hỏi trợ lý AI hôm nay – mai thử lại', srv_ot_ai_failed: 'Trợ lý AI đang lỗi – thử lại sau ít phút', srv_ot_ai_refused: 'Trợ lý AI không trả lời được yêu cầu này – thử diễn đạt khác', ds_league: 'league phase: mỗi đội {games} trận, {pots} nhóm hạt giống',
     ds_rr: 'vòng tròn một bảng', ds_groups: 'vòng tròn {n} bảng', ds_group_size: 'vòng tròn, mỗi bảng {n} đội', ds_home_away: 'lượt đi – về', ds_meet3: 'gặp nhau 3 lượt',
     ds_swiss: 'Thụy Sĩ {n} vòng', ds_swiss_auto: 'Thụy Sĩ (số vòng tự động)', ds_swiss_rec: 'Thụy Sĩ theo số thắng / thua: thắng {w} đi tiếp, thua {l} bị loại', ds_rec_bo: 'trận quyết định Bo{bo}',
     ds_race: 'đua {n} chặng, điểm theo hạng {top}…', ds_time: 'Time Trial {n} chặng (tính tổng thời gian)', ds_teams: 'có bảng xếp hạng đội',
@@ -44,7 +46,9 @@
   X('en', {
     ds_sport: '{icon} {sport} · results: {result}', ds_set: 'Set rules: sets to {to}, win by {by}', ds_set_cap: '({cap} wins outright)', ds_set_last: '(deciding set to {last})',
     ds_stage: 'Stage {n}: {text}.', ds_single: 'single elimination Bo{bo}', ds_double: 'double elimination Bo{bo}', ds_third: 'with a third-place match', ds_bo_final: 'final Bo{bo}',
-    ds_legs: 'two legs (one-match final)', ds_legs_all: 'two legs (final included)', ds_league: 'league phase: {games} games per team, {pots} pots',
+    ds_legs: 'two legs (one-match final)', ds_legs_all: 'two legs (final included)', ds_path: 'fixed bracket by group position', ds_heat: 'large fields split into heats of up to {n}',
+    ot_ai: 'AI tournament assistant', ot_ai_hint: 'Describe the tournament, e.g. "16-team football, 4 groups, top two to the quarter-finals, with a third-place match". The assistant suggests a setup – preview it before using it.', ot_ai_ph: 'Describe the tournament you want…', ot_ai_send: 'Send', ot_ai_wait: 'The assistant is writing…', ot_ai_spec: 'Suggested setup', ot_ai_apply: 'Use this setup', ot_ai_left: '{n} requests left today', ot_ai_note: 'AI can make mistakes – check before creating',
+    srv_ot_ai_off: 'The AI assistant is not enabled on this server', srv_ot_ai_busy: 'The AI assistant is still answering – wait a moment', srv_ot_ai_limit: 'No AI requests left today – try again tomorrow', srv_ot_ai_failed: 'The AI assistant failed – try again in a few minutes', srv_ot_ai_refused: 'The AI assistant can’t answer this request – try rephrasing', ds_league: 'league phase: {games} games per team, {pots} pots',
     ds_rr: 'single-group round robin', ds_groups: 'round robin in {n} groups', ds_group_size: 'round robin, {n} teams per group', ds_home_away: 'home and away', ds_meet3: 'three meetings',
     ds_swiss: 'Swiss, {n} rounds', ds_swiss_auto: 'Swiss (automatic rounds)', ds_swiss_rec: 'Swiss by wins / losses: {w} wins advance, {l} losses are out', ds_rec_bo: 'deciding matches Bo{bo}',
     ds_race: '{n} races, points by position {top}…', ds_time: 'Time Trial over {n} legs (total time)', ds_teams: 'with team standings',
@@ -79,7 +83,9 @@
   X('ru', {
     ds_sport: '{icon} {sport} · результат: {result}', ds_set: 'Правила сетов: до {to} очков, разница {by}', ds_set_cap: '(при {cap} — победа)', ds_set_last: '(решающий сет до {last})',
     ds_stage: 'Этап {n}: {text}.', ds_single: 'на выбывание Bo{bo}', ds_double: 'двойное выбывание Bo{bo}', ds_third: 'есть матч за третье место', ds_bo_final: 'финал Bo{bo}',
-    ds_legs: 'два матча (финал — один)', ds_legs_all: 'два матча (включая финал)', ds_league: 'общий этап: у каждой {games} матчей, {pots} корзин',
+    ds_legs: 'два матча (финал — один)', ds_legs_all: 'два матча (включая финал)', ds_path: 'сетка по местам в группах', ds_heat: 'большие составы делятся на заезды до {n} участников',
+    ot_ai: 'ИИ-помощник по турнирам', ot_ai_hint: 'Опишите турнир, например: «футбол, 16 команд, 4 группы, по двое в четвертьфинал, матч за третье место». Помощник предложит настройку — посмотрите её перед применением.', ot_ai_ph: 'Опишите нужный турнир…', ot_ai_send: 'Отправить', ot_ai_wait: 'Помощник пишет…', ot_ai_spec: 'Предложенная настройка', ot_ai_apply: 'Применить настройку', ot_ai_left: 'осталось запросов сегодня: {n}', ot_ai_note: 'ИИ может ошибаться — проверьте перед созданием',
+    srv_ot_ai_off: 'ИИ-помощник на этом сервере не включён', srv_ot_ai_busy: 'ИИ-помощник ещё отвечает — подождите', srv_ot_ai_limit: 'Запросы к ИИ на сегодня закончились — попробуйте завтра', srv_ot_ai_failed: 'Ошибка ИИ-помощника — попробуйте через несколько минут', srv_ot_ai_refused: 'ИИ-помощник не может ответить на этот запрос — переформулируйте', ds_league: 'общий этап: у каждой {games} матчей, {pots} корзин',
     ds_rr: 'круговой турнир в одной группе', ds_groups: 'круговой турнир в {n} группах', ds_group_size: 'круговой турнир, по {n} команд в группе', ds_home_away: 'дома и в гостях', ds_meet3: 'три встречи',
     ds_swiss: 'швейцарская система, {n} туров', ds_swiss_auto: 'швейцарская система (туры автоматически)', ds_swiss_rec: 'швейцарка по победам / поражениям: {w} побед — выход, {l} поражений — вылет', ds_rec_bo: 'решающие матчи Bo{bo}',
     ds_race: '{n} гонок, очки за место {top}…', ds_time: 'гонка на время, {n} этапов (общее время)', ds_teams: 'есть командный зачёт',
@@ -114,7 +120,9 @@
   X('zh', {
     ds_sport: '{icon} {sport} · 记分：{result}', ds_set: '每局规则：{to} 分、领先 {by} 分', ds_set_cap: '（先到 {cap} 分即胜）', ds_set_last: '（决胜局 {last} 分）',
     ds_stage: '阶段 {n}：{text}。', ds_single: '单败淘汰 Bo{bo}', ds_double: '双败淘汰 Bo{bo}', ds_third: '设三四名决赛', ds_bo_final: '决赛 Bo{bo}',
-    ds_legs: '两回合（决赛一场）', ds_legs_all: '两回合（含决赛）', ds_league: '联赛阶段：每队 {games} 场，{pots} 档种子',
+    ds_legs: '两回合（决赛一场）', ds_legs_all: '两回合（含决赛）', ds_path: '按小组名次固定对阵', ds_heat: '人数多时分组进行，每组最多 {n} 人',
+    ot_ai: 'AI 赛事助手', ot_ai_hint: '用文字描述赛事，例如：“16 队足球赛，4 个小组，前两名进八强，设三四名决赛”。助手会给出设置建议——先预览再使用。', ot_ai_ph: '描述你想创建的赛事…', ot_ai_send: '发送', ot_ai_wait: '助手正在撰写…', ot_ai_spec: '建议的设置', ot_ai_apply: '使用此设置', ot_ai_left: '今天还剩 {n} 次', ot_ai_note: 'AI 可能出错——创建前请检查',
+    srv_ot_ai_off: '本服务器未开启 AI 助手', srv_ot_ai_busy: 'AI 助手还在回答上一个问题——请稍候', srv_ot_ai_limit: '今天的 AI 次数已用完——明天再试', srv_ot_ai_failed: 'AI 助手出错——几分钟后再试', srv_ot_ai_refused: 'AI 助手无法回答此请求——请换种说法', ds_league: '联赛阶段：每队 {games} 场，{pots} 档种子',
     ds_rr: '单组循环赛', ds_groups: '{n} 组循环赛', ds_group_size: '循环赛，每组 {n} 队', ds_home_away: '主客场', ds_meet3: '三循环',
     ds_swiss: '瑞士轮 {n} 轮', ds_swiss_auto: '瑞士轮（自动轮数）', ds_swiss_rec: '按胜负场数的瑞士轮：{w} 胜晋级，{l} 负淘汰', ds_rec_bo: '决定场 Bo{bo}',
     ds_race: '{n} 站，按名次积分 {top}…', ds_time: '计时赛 {n} 站（总用时）', ds_teams: '设团队积分榜',

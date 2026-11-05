@@ -76,6 +76,7 @@
     const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
     const n = d.teams.split('\n').filter((x) => x.trim()).length;
     return `<form id="otf" class="tform">
+      ${K.otAiHtml ? K.otAiHtml() : ''}
       ${K.otTplHtml ? K.otTplHtml(d) : ''}
       <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
       <label class="field"><span>${esc(T('adv_url'))}</span><input name="slug" maxlength="20" autocomplete="off" value="${esc(d.slug)}" placeholder="cup-lang-2026"><small class="hint">${esc(T('ot_slug_hint'))}</small></label>

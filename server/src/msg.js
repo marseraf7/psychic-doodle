@@ -190,6 +190,12 @@ const VI = {
   ot_race_many: 'Một giai đoạn đua tối đa {n} người / đội',
   ot_events_many: 'Mỗi trận tối đa {n} sự kiện',
   ot_events_tour: 'Mỗi giải tối đa {n} sự kiện trận',
+  // Trợ lý AI tạo giải (hub/otour-ai.js)
+  ot_ai_off: 'Trợ lý AI chưa được bật trên máy chủ này',
+  ot_ai_busy: 'Trợ lý AI đang trả lời câu trước – chờ một chút',
+  ot_ai_limit: 'Đã hết lượt hỏi trợ lý AI hôm nay – mai thử lại',
+  ot_ai_failed: 'Trợ lý AI đang lỗi – thử lại sau ít phút',
+  ot_ai_refused: 'Trợ lý AI không trả lời được yêu cầu này – thử diễn đạt khác',
   ot_reg_closed: 'Giải không nhận đăng ký',
   ot_reg_dup: 'Bạn đã gửi đăng ký cho giải này',
   ot_reg_full: 'Giải đã nhận đủ đơn đăng ký – hãy chờ ban tổ chức duyệt',

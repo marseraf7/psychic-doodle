@@ -18,6 +18,7 @@ const { cleanPublicText } = require('./shared.js');
 const Spec = require('./otour-spec.js');
 const { specGuard } = require('./otour.js');
 const Rules = require('../../../caro/otour-rules.js');
+const PATH = require('../../../caro/otour-path.js');
 
 const MAX_POINT = 999;
 const pair = (x) => {
@@ -132,7 +133,22 @@ class OTourRun {
     const going = new Set(seeds);
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) p.out = 'not_advanced'; }
     t.stage++;
-    t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, this.otBuildOpts(t, { groupOf })));
+    const slots = this.otPathSlots(t, st, t.stages[t.stage], seeds, groupOf);
+    t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
+  }
+
+  /**
+   * Nhánh theo vị trí trong bảng (cfg.path = 'groups', caro/otour-path.js): ô vòng 1 lấy từ khuôn (1A–2B, 1E–3…);
+   * vòng trước không phải vòng bảng hoặc không hợp khuôn → null (xếp theo hạt giống như thường).
+   */
+  otPathSlots(t, prev, cfg, seeds, groupOf) {
+    if (cfg.path !== 'groups' || prev.type !== 'roundrobin' || !prev.groups || prev.groups.length < 2) return null;
+    const k = prev.cfg.advance || 2, G = prev.groups.length, n = prev.cfg.bestNext || 0;
+    const pairs = PATH.template(G, k, n);
+    if (!pairs || seeds.length !== G * k + n || pairs.length * 2 !== ST.elimSize(cfg.type, seeds.length)) return null;
+    const tables = ST.standings(prev, this.otSeedOf(t));
+    const thirds = seeds.slice(G * k).map((u) => groupOf[u]);
+    return PATH.resolve(pairs, (pos, g) => tables[g] && tables[g].list[pos - 1], thirds);
   }
 
   // ------------------------------------------------------------ Kết quả

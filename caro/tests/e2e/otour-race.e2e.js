@@ -83,5 +83,36 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('[data-act="otTab"][data-tab="stages"]'); await sleep(300); // giải xong → Tổng quan; bảng thời gian ở tab Nhánh đấu
   ok(/\+50\.500/.test(await boss.textContent('.stand')), 'Chênh lệch với người dẫn đầu +50.500');
   await shot(boss, 'ot-tt.png');
+
+  // Chia lượt (heat): 10 người, tối đa 4 người mỗi lượt → 3 lượt; nhập từng lượt, đủ lượt thì có kết quả gộp
+  const runners = Array.from({ length: 10 }, (_, k) => `VĐV ${k + 1}`);
+  await newTour('Bơi 100 m', 'swimming', runners);
+  await boss.fill('#otf-stages [data-i="0"][data-k="heat"]', '4');
+  await boss.$eval('#otf-stages [data-i="0"][data-k="heat"]', (e) => e.dispatchEvent(new Event('change', { bubbles: true }))); await sleep(300);
+  ok(/chia lượt, tối đa 4 người/.test(await boss.textContent('#otf-desc')), 'Mô tả bằng lời: chia lượt tối đa 4 người');
+  await boss.click('#otf button.primary'); await sleep(800);
+  const id3 = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
+  const t3 = app.hub.otGet(id3);
+  ok(t3.stages[0].heat === 4, 'Cấu hình heat = 4');
+  await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(1100);
+  const heats = t3.st[0].events[0].heats;
+  ok(heats && heats.length === 3 && await boss.$$eval('.race-form[data-heat]', (x) => x.length) === 3, 'Bắt đầu: 3 lượt, mỗi lượt một khung nhập');
+  const f0 = '.race-form[data-heat="0"]';
+  for (const [k, u] of heats[0].uids.entries()) {
+    const name = t3.players.find((p) => p.uid === u).name;
+    await boss.fill(`${f0} tr:has(td.nm:text-is("${name}")) .r-v`, `1:0${k}.50`);
+  }
+  await boss.click(`${f0} button.primary`); await sleep(900);
+  ok(heats[0].done && !t3.st[0].events[0].done && await boss.$$eval('.race-form[data-heat]', (x) => x.length) === 2, 'Nhập lượt 1: còn 2 khung nhập');
+  for (const h of [1, 2]) {
+    await boss.evaluate(([tid, hh, us]) => window.CaroTourKit.O.send({ t: 'otRace', id: tid, event: 0, heat: hh, rows: us.map((u, k) => ({ uid: u, time: 59000 + hh * 300 + k * 900 })) }), [id3, h, heats[h].uids]);
+    await sleep(500);
+  }
+  await sleep(600);
+  ok(t3.status === 'finished', 'Đủ 3 lượt: chặng xong, giải kết thúc');
+  await boss.click('[data-act="otTab"][data-tab="stages"]'); await sleep(300);
+  await boss.$$eval('details.fold', (ds) => ds.forEach((d) => { d.open = true; })); await sleep(400);
+  ok(/Kết quả gộp các lượt/.test(await boss.textContent('#otp-body')) && await boss.$$eval('.race-heat', (x) => x.length) === 3, 'Kết quả gộp + từng lượt');
+  await shot(boss, 'ot-heats.png');
   await finish();
 })();

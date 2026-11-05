@@ -61,6 +61,8 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
   // Khoá bí mật cho mã người gửi điểm phân tích (src/evalcache.js) – file riêng cạnh caro.db, không nằm trong bản sao lưu CSDL
   if (dataFile) EvalCache.useKeyFile(path.join(path.dirname(dataFile), 'eval-key'));
   const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, ...(timers ? { timers } : {}) });
+  // Trợ lý AI tạo giải offline (hub/otour-ai.js): khoá API bí mật ở DATA_DIR/anthropic-key (hoặc biến ANTHROPIC_API_KEY)
+  if (dataFile) hub.otAiKeyFile = path.join(path.dirname(dataFile), 'anthropic-key');
   const server = http.createServer(makeHandler({ store, hub }));
   // Nén tin lớn (trang giải, danh sách…) – JSON nén còn khoảng 1/10. Tin nhỏ (nước đi) không nén cho nhanh.
   // Không giữ ngữ cảnh nén giữa các tin để mỗi kết nối không chiếm thêm bộ nhớ (hàng trăm người xem một giải).

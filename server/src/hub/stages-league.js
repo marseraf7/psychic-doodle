@@ -10,6 +10,8 @@
  *            bảng (World Cup 2026: 12 bảng, nhất nhì + 8 đội hạng ba tốt nhất).
  *   record   (Thụy Sĩ) – theo số thắng / thua kiểu LoL Worlds: thắng `win` trận thì đi tiếp, thua `lose` trận thì bị loại,
  *            ghép cặp cùng thành tích (1–0 gặp 1–0); trận quyết định đi tiếp / bị loại dùng Bo `bo`.
+ *   path     (loại trực tiếp sau vòng bảng) – 'groups': nhánh cố định theo vị trí trong bảng (1A–2B, 1E–3A/B/C/D/F kiểu
+ *            World Cup 2026 – caro/otour-path.js; otour-run.js dựng). Không hợp khuôn thì xếp theo hạt giống như thường.
  *   legs     (loại trực tiếp) – knock-out 2 lượt (tổng tỉ số, hoà thì luân lưu); legsFinal: chung kết cũng 2 lượt.
  *            Máy chủ giải offline ghi 2 lượt (otour-run.js); lõi nhánh đấu không đổi.
  */
@@ -51,6 +53,8 @@ function normalizeExtras(c, out, last, oddBo) {
     out.legs = true;
     out.legsFinal = c.legsFinal === true;
   }
+  // Nhánh theo vị trí trong bảng (1A gặp 2B, kiểu World Cup 2026) thay cho xếp theo hạt giống – caro/otour-path.js
+  if ((out.type === 'single' || out.type === 'double') && c.path === 'groups') out.path = 'groups';
   return out;
 }
 
