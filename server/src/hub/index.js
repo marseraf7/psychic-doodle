@@ -55,6 +55,7 @@ const { OTourRace } = require('./otour-race.js');
 const { OTourLeague } = require('./otour-league.js');
 const { OTourLazy } = require('./otour-lazy.js');
 const { OTourDisc } = require('./otour-disc.js');
+const { OTourAi } = require('./otour-ai.js');
 const { Tournaments } = require('./tournaments.js');
 const { TourRun } = require('./tour-run.js');
 const { Arena } = require('./arena.js');
@@ -74,7 +75,7 @@ const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourRace, OTourLeague, OTourLazy, OTourDisc, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourRace, OTourLeague, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

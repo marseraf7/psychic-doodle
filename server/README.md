@@ -278,6 +278,25 @@ Cần một tài khoản gửi thư SMTP. Dễ nhất là Gmail: bật xác minh
 Người chơi phải tự thêm email trong mục **Tài khoản** và **xác minh** bằng mã 6 số gửi tới
 email đó thì mới lấy lại mật khẩu được (không xác minh thì không ai dùng được email của người khác).
 
+### Bật trợ lý AI tạo giải đấu Offline (tuỳ chọn, có tính phí)
+
+Trong form tạo giải offline có khung **Trợ lý AI**: người dùng tả giải bằng lời, Claude (Anthropic) đề xuất cấu hình,
+người dùng xem trước rồi tự bấm dùng (`server/src/hub/otour-ai.js`). Không có khoá thì khung tự ẩn – mọi thứ khác vẫn chạy.
+
+1. Tạo khoá API ở <https://platform.claude.com> (tài khoản Anthropic của bạn, nạp tiền trước; nên đặt hạn mức chi tiêu
+   tháng trong trang quản lý).
+2. **Tự đặt khoá trên VPS bằng SSH** – không gửi khoá qua chat, email hay Issue, không đưa vào repo:
+   `install -m 600 -o caro /dev/null /var/lib/caro/anthropic-key` rồi mở file đó bằng `nano` dán khoá vào
+   (thay `/var/lib/caro` bằng `DATA_DIR` của bạn, `caro` bằng tài khoản chạy máy chủ). Hoặc đặt biến `ANTHROPIC_API_KEY`.
+   Máy chủ đọc lại file mỗi lần hỏi – không cần khởi động lại; xoá file là tắt.
+3. Trần chi phí (biến môi trường, tuỳ chọn): `OTOUR_AI_USER_DAY` (lượt / tài khoản / ngày, mặc định 20), `OTOUR_AI_DAY`
+   (lượt / cả máy chủ / ngày, mặc định 100), `OTOUR_AI_MODEL` (mặc định `claude-opus-5-5`), `OTOUR_AI_EFFORT`
+   (mặc định `medium`). Ước tính với Opus 5.5 ($4 / $20 mỗi triệu token vào / ra): mỗi lượt khoảng 2–3 nghìn token vào
+   và 1–3 nghìn token ra (cả phần suy nghĩ) ≈ 0,03–0,08 USD; trần 100 lượt / ngày ≈ tối đa 8 USD / ngày. Muốn rẻ hơn
+   thì tự chọn model khác qua `OTOUR_AI_MODEL` (đánh đổi chất lượng).
+4. `anthropic-key` là file bí mật như `eval-key`: không đưa lên web hay vào chat; bản sao lưu mã hoá không cần chứa nó
+   (mất thì tạo khoá mới).
+
 ### Sao lưu dữ liệu
 
 Toàn bộ tài khoản, lịch sử, tin nhắn nằm trong `DATA_DIR/caro.db` (kèm 2 file tạm

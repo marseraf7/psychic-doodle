@@ -42,18 +42,22 @@
     $('otf-json').value = text;
     try { navigator.clipboard.writeText(text).catch(() => {}); } catch (e) { /* bộ nhớ tạm bị chặn: vẫn có trong ô */ }
   };
-  K.acts.otIoApply = () => {
+  /** Áp một bản cấu hình (đã qua parseSpec) vào form – dùng chung: nhập JSON, trợ lý AI (otour-ai.js). */
+  K.otApplySpec = (spec) => {
     const fm = K.otForm;
-    if (!fm) return;
+    if (!fm) return false;
+    fm.collect();
+    const sp = SP.SPORTS[spec.sport] || SP.SPORTS.other;
+    const result = spec.result || sp.result;
+    Object.assign(fm.F.d, { tpl: null, sport: spec.sport, result, set: result === 'sets' ? (spec.set !== undefined ? spec.set : fm.sportSet(spec.sport)) : null, preset: 'custom' });
+    fm.F.stages = spec.stages;
+    render(true);
+    return true;
+  };
+  K.acts.otIoApply = () => {
     const r = IO.parseSpec($('otf-json').value);
     if (r.error) { $('otf-json-err').textContent = T(r.error); return; }
-    fm.collect();
-    const sp = SP.SPORTS[r.spec.sport] || SP.SPORTS.other;
-    const result = r.spec.result || sp.result;
-    Object.assign(fm.F.d, { tpl: null, sport: r.spec.sport, result, set: result === 'sets' ? (r.spec.set !== undefined ? r.spec.set : fm.sportSet(r.spec.sport)) : null, preset: 'custom' });
-    fm.F.stages = r.spec.stages;
-    render(true);
-    window.CaroConfirm.info(T('ot_io_ok'));
+    if (K.otApplySpec(r.spec)) window.CaroConfirm.info(T('ot_io_ok'));
   };
 
   K.acts.otTpl = (b) => {

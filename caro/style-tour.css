@@ -438,3 +438,10 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* gi�
 .race-heat { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 6px; }
 .race-heat h6 { margin: 0 0 4px; }
 .race-who { font-size: var(--fs-sm); }
+/* Trợ lý AI tạo giải (otour-ai.js) */
+.ot-ai-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow: auto; }
+.ot-ai-log li { padding: 6px 10px; border-radius: 10px; white-space: pre-wrap; max-width: 90%; }
+.ot-ai-log li.user { align-self: flex-end; background: var(--accent); color: var(--accent-ink, #fff); }
+.ot-ai-log li.assistant { align-self: flex-start; background: var(--bg); }
+.ot-ai-spec { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.ot-ai-spec ul { margin: 4px 0 6px; padding-left: 18px; }
