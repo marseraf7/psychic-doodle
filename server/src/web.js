@@ -334,15 +334,17 @@ function makeHandler({ store, hub }) {
     // Lược đồ JSON cấu hình giải đấu Offline (chatbot AI / công cụ ngoài – caro/otour-spec-io.js) + các mẫu giải làm ví dụ
     if (url === '/api/otour/schema.json') return json(res, 200, otourSchema(), { 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' });
     // Trang giải công khai dạng JSON (nhúng / website ngoài): giới hạn theo IP, giữ 10 giây
-    if (/^\/api\/tour\/[0-9a-f]{6,20}\.json$/.test(url)) {
+    // Giải đấu Offline: /api/otour/<mã | link riêng>.json (cùng bộ nhớ 10 giây, khoá "o:")
+    const ot = /^\/api\/otour\/([a-z0-9][a-z0-9_-]{0,39})\.json$/i.exec(url);
+    if (/^\/api\/tour\/[0-9a-f]{6,20}\.json$/.test(url) || ot) {
       const now = Date.now();
-      const id = url.slice(10, -5);
+      const id = ot ? 'o:' + ot[1].toLowerCase() : url.slice(10, -5);
       // Bản đã dựng còn mới: trả luôn, không tính lượt (cả lớp học chung một IP cùng mở trang nhúng vẫn xem được)
       const c = tourCache.get(id);
       if (c && now - c.at < TOUR_CACHE_MS) return json(res, c.status, c.body, { 'cache-control': 'public, max-age=10' });
       const wait = hit(apiHits, clientIp(req), API_RATE, 60000, now);
       if (wait) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });
-      const body = hub.publicTour(id);
+      const body = ot ? hub.publicOTour(ot[1].toLowerCase()) : hub.publicTour(id);
       const entry = { at: now, status: body ? 200 : 404, body: body || { error: 'not_found' } };
       tourCache.set(id, entry);
       if (tourCache.size > 500) tourCache.delete(tourCache.keys().next().value);

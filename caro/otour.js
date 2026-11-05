@@ -202,7 +202,7 @@
     sched: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + ((L().sched && L().sched(t)) || hint(t.canManage ? 'ot_sched_none_m' : 'ot_sched_none')),
     stats: (t) => (L().stats && L().stats(t)) || hint('ot_stats_none'),
     teams: teamsTab,
-    more: (t) => (K.otExportHtml ? K.otExportHtml(t) : '')
+    more: (t) => (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '') // nhúng vào website (tour-embed.js)
       + (t.log && t.log.length ? `<section class="ot-sec"><h4>${esc(T('mg_log'))}</h4><ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul></section>` : ''),
   };
   function pageView() {

@@ -1,5 +1,5 @@
 /*
- * Trang nhúng (embed.html) – tải /api/tour/<mã>.json, vẽ nhánh đấu / bảng xếp hạng / người chơi bằng các module của
+ * Trang nhúng (embed.html) – tải /api/tour/<mã>.json (giải Caro, ?t=) hoặc /api/otour/<mã>.json (giải đấu Offline, ?o=), vẽ nhánh đấu / bảng xếp hạng / người chơi bằng các module của
  * trang giải, tự tải lại mỗi 20 giây khi trang đang hiện và giải chưa xong (máy chủ giữ bản dựng 10 giây – nhiều trang
  * nhúng cùng giải chỉ tốn một lần dựng). Bấm vào giải / ván thì mở app ở thẻ mới.
  */
@@ -9,7 +9,10 @@
   const { T, esc, D } = K;
   const $ = (id) => document.getElementById(id);
   const q = new URLSearchParams(location.search);
-  const id = (q.get('t') || '').replace(/[^0-9a-f]/g, '').slice(0, 20);
+  // ?o=<mã | link riêng>: giải đấu Offline; ?t=<mã>: giải Caro
+  const oid = (q.get('o') || '').toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 40);
+  const id = oid || (q.get('t') || '').replace(/[^0-9a-f]/g, '').slice(0, 20);
+  const api = oid ? `/api/otour/${oid}.json` : `/api/tour/${id}.json`;
   const view = ['bracket', 'standings', 'players'].includes(q.get('view')) ? q.get('view') : 'bracket';
   const EVERY = 20000;
   let timer = 0, failed = 0, last = '';
@@ -49,7 +52,7 @@
   async function load() {
     clearTimeout(timer);
     try {
-      const r = await fetch(`/api/tour/${id}.json`, { cache: 'no-cache' });
+      const r = await fetch(api, { cache: 'no-cache' });
       if (r.status === 404) { $('embed').innerHTML = `<p class="hint">${esc(T('embed_not_found'))}</p>`; return; }
       if (!r.ok) throw new Error(String(r.status));
       const t = await r.json();
@@ -75,7 +78,7 @@
     e.preventDefault();
     const u = new URL('/', location.origin);
     if (a.dataset.share) u.searchParams.set('replay', a.dataset.share);
-    else u.searchParams.set('t', id);
+    else u.searchParams.set(oid ? 'o' : 't', id);
     window.open(u.toString(), '_blank', 'noopener');
   });
 

@@ -119,7 +119,8 @@
       };
     });
   });
-  // Lưu xong: bỏ nháp của chặng; lỗi: hiện trong khung vừa gửi
+  // Lưu xong: bỏ nháp của chặng; lỗi: hiện trong khung vừa gửi (trang nhúng embed.html không có kết nối O: bỏ qua)
+  if (!O) return;
   O.on('otPatch', () => { if (S.last) { delete S.draft[S.last]; S.last = null; } });
   O.on('error', (m) => {
     if (m.ctx !== 'otRace' || !S.last) return;
