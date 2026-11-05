@@ -40,7 +40,7 @@
         if (v.lrounds) v.lrounds = fixRounds(v.lrounds);
         if (v.gf) v.gf = fix(v.gf);
         if (v.third && upd.has(v.third.id)) v.third = upd.get(v.third.id);
-        if (v.groups) for (const g of v.groups) g.rounds = fixRounds(g.rounds);
+        if (v.groups) for (const g of v.groups) if (g.rounds) g.rounds = fixRounds(g.rounds); // rounds null: bảng tải lười (giải offline)
         if (v.places) for (const p of v.places) p.rounds = fixRounds(p.rounds); // trận xếp hạng
       }
       for (const tb of s.tables || []) {

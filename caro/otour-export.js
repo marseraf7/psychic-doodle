@@ -43,7 +43,7 @@
     const out = [[T('ot_x_stage'), T('ot_x_round'), T('ot_x_home'), T('ot_x_away'), T('ot_score'), T('ot_x_detail'), T('ot_pen'), T('ot_when'), T('ot_venue')]];
     for (const v of t.stageViews || []) {
       const all = [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.gf || []), ...(v.third ? [v.third] : []),
-        ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g) => g.rounds.flat())].filter((m) => m && m.a && m.b && !m.a.bye && !m.b.bye);
+        ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())].filter((m) => m && m.a && m.b && !m.a.bye && !m.b.bye);
       for (const m of all) {
         out.push([v.index + 1, m.round + 1, m.a.name, m.b.name, m.done ? `${m.wa}-${m.wb}` : '', m.sets ? m.sets.map((s) => s.join('-')).join(' ') : '',
           m.extra ? m.extra.join('-') : '', m.when ? localTime(m.when) : '', m.venue || '']);
@@ -86,8 +86,10 @@
         <button type="button" class="ghost sm" data-act="otExportCopy" data-kind="${id}">${esc(T('ot_x_copy'))}</button></div>`).join('')}
       <p class="hint">${esc(T('ot_x_hint'))}</p></div>`, false));
 
-  K.acts.otExport = (b) => { const k = KINDS[b.dataset.kind]; if (k) save(k.file(D.ot), k.text(D.ot), k.type); };
-  K.acts.otExportCopy = (b) => { const k = KINDS[b.dataset.kind]; if (k) copy(k.text(D.ot).replace(/^\uFEFF/, '')); };
+  // Kết quả các trận: giải nhiều bảng tải lười – tải đủ mọi bảng trước (otour.js – K.otGroupsAll)
+  const ready = (kind) => (kind === 'matches' && K.otGroupsAll ? K.otGroupsAll(D.ot) : Promise.resolve());
+  K.acts.otExport = (b) => { const k = KINDS[b.dataset.kind]; if (k) ready(b.dataset.kind).then(() => save(k.file(D.ot), k.text(D.ot), k.type)); };
+  K.acts.otExportCopy = (b) => { const k = KINDS[b.dataset.kind]; if (k) ready(b.dataset.kind).then(() => copy(k.text(D.ot).replace(/^\uFEFF/, ''))); };
 
   window.CaroOTourExport = { tableRows, matchRows, specOf, csv };
 })();

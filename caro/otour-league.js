@@ -19,7 +19,7 @@
   const teamOf = (t, uid) => (t.players || []).find((p) => p.uid === uid) || null;
   /** Mọi trận của các giai đoạn đang hiện. */
   const allMatches = (t) => (t.stageViews || []).flatMap((v) => [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.gf || []), ...(v.third ? [v.third] : []),
-    ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g) => g.rounds.flat())]).filter(Boolean);
+    ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())]).filter(Boolean);
 
   K.otMatchTags = (m) => {
     const out = [];

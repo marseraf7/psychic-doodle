@@ -32,7 +32,13 @@
       add(v.gf);
       if (v.third) add([v.third]);
       for (const p of v.places || []) for (const r of p.rounds) add(r);
-      for (const g of v.groups || []) for (const r of g.rounds) add(r);
+      (v.groups || []).forEach((g, gi) => {
+        const rounds = K.roundsOfGroup ? K.roundsOfGroup(t, v, gi) : g.rounds;
+        if (rounds) { for (const r of rounds) add(r); return; }
+        // Bảng chưa tải các trận (giải offline nhiều bảng): đếm từ bảng xếp hạng – số trận đã đấu = tổng số trận / 2
+        const k = g.table.length, total = (v.cfg.meetings || 1) * (k * (k - 1)) / 2, done = g.table.reduce((n, r) => n + r.mp, 0) / 2;
+        for (let i = 0; i < total; i++) out.push({ done: i < done, games: [] });
+      });
     }
     return out;
   }

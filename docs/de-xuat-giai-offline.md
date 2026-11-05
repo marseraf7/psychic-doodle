@@ -184,7 +184,7 @@ Có hai kiểu nhập:
 | O4 | Xong: Single Race, Grand Prix (bảng điểm, countback, điểm tay, bảng đội), Time Trial (chênh lệch) | Chia lượt (heat) cho đoàn rất đông: chưa |
 | O5 | Xong: 10 mẫu, mô tả bằng lời + ước tính, đội mẫu | – |
 | O6 | Xong: lịch & sân, đội hình, sự kiện trận, vua phá lưới / thẻ, đăng ký đội + duyệt, biên bản in | Treo giò tự động: chưa |
-| O7 | Xong: Thụy Sĩ chỉ gửi vòng mới, bài đo tải trong CI, xuất CSV / JSON | Lazy-load "chỉ tải bảng của mình", ảnh chia sẻ, nhúng, PDF: chưa (bài đo: 512 đội vẫn ~80 ms / kết quả, bản vá ~1 KB) |
+| O7 | Xong: Thụy Sĩ chỉ gửi vòng mới, bài đo tải trong CI, xuất CSV / JSON, tải lười vòng tròn > 8 bảng (trang 512 đội 1,6 MB → 125 KB; mở bảng nào tải các trận bảng đó, bảng đang mở được đẩy cập nhật) | Ảnh chia sẻ, nhúng, PDF: chưa |
 | O8 | Xong: lược đồ `/api/otour/schema.json` (kèm ví dụ), `describeSpec`, nhập / xuất cấu hình JSON | Chatbot thật: quyết định riêng sau |
 
 ## 9. Không làm / làm khác
