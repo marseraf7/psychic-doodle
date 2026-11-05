@@ -16,7 +16,7 @@ const { extend } = require('./stages-tb-calc.js');
 
 const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
 const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
-  'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct'];
+  'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
 const MAX_TB = 5;
 // Mặc định giữ đúng cách xếp của bản trước: vòng tròn đối đầu → hiệu số → số ván thắng; Thụy Sĩ Buchholz → SB → số trận thắng
 const DEFAULT_TB = { roundrobin: ['h2h', 'gdiff', 'gwins'], swiss: ['bh', 'sb', 'wins'] };
@@ -36,12 +36,13 @@ const PRIMARY = {
 const KEY = {
   wins: (x) => x.w, gdiff: (x) => x.gw - x.gl, gwins: (x) => x.gw, gpct: pct,
   // Điểm trong các set (giải offline kiểu 'sets'): hiệu số điểm, tỉ lệ điểm thắng (bóng chuyền, cầu lông, bóng bàn…)
+  losses: (x) => -x.l, // ít trận thua hơn (Thụy Sĩ theo thắng / thua: 3–0 > 3–1 > 3–2)
   pdiff: (x) => x.pw - x.pl, ppct: (x) => (x.pw + x.pl ? x.pw / (x.pw + x.pl) : 0),
 };
 // Các hệ số lưu sẵn trong thống kê (tally + stages-tb-calc.js) cùng tên
 for (const k of TIEBREAKS) if (!KEY[k] && k !== 'h2h') KEY[k] = (x) => x[k];
 /** Giá trị một tie-break của một người (bảng xếp hạng hiện cột); đối đầu không có giá trị riêng. */
-const tbValue = (k, x) => (KEY[k] ? Math.round(KEY[k](x) * 100) / 100 : null);
+const tbValue = (k, x) => (k === 'losses' ? x.l : KEY[k] ? Math.round(KEY[k](x) * 100) / 100 : null); // cột 'ít thua': hiện số trận thua
 
 /**
  * Thống kê từng người trong vòng (vòng tròn / Thụy Sĩ). only: chỉ tính cho những người này.

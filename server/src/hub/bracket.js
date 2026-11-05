@@ -308,6 +308,7 @@ class Bracket {
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
       sets: m.sets || null, extra: m.extra || null, override: !!m.override, quick: !!m.quick, // tỉ số từng set (giải offline), ghi đè, chỉ báo người thắng
       ...(m.aet ? { aet: true } : {}), // giải offline: có đá hiệp phụ
+      ...(ST.twoLeg(st, m) ? { legs: true } : {}), // giải offline: knock-out 2 lượt (sets = tỉ số từng lượt)
       votes: this.voteCount(t, m), // "Ai sẽ thắng?" – số phiếu hai bên (tour-fun.js)
       att: m.att && m.att.length ? this.attView(m) : null, // đính kèm của trận (tour-opts.js)
       live: !!(m.room && !m.done && this.rooms.has(m.room)), room: m.room && !m.done && this.rooms.has(m.room) ? m.room : null, games: m.games.map((g) => g.share).filter(Boolean),

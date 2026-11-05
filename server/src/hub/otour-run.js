@@ -25,7 +25,14 @@ const pair = (x) => {
   const [a, b] = x.map((v) => Math.floor(Number(v)));
   return Number.isFinite(a) && Number.isFinite(b) && a >= 0 && b >= 0 && a <= MAX_POINT && b <= MAX_POINT ? [a, b] : null;
 };
-const teamName = (s) => cleanPublicText(s, 40).replace(/[<>]/g, '').trim();
+const teamName = (s) => cleanPublicText(s, 40).replace(/[<>|]/g, '').trim();
+/** Một dòng danh sách đội: "Tên đội" hoặc "Tên đội | Quốc gia" (league phase tránh hai đội cùng quốc gia gặp nhau). */
+function parseTeam(raw) {
+  const str = String(raw || '');
+  const i = str.lastIndexOf('|');
+  const country = i < 0 ? '' : cleanPublicText(str.slice(i + 1), 20).replace(/[<>|]/g, '').trim().toUpperCase();
+  return { name: teamName(i < 0 ? str : str.slice(0, i)), country };
+}
 
 class OTourRun {
   // ------------------------------------------------------------ Đội / người tham gia (trước khi bắt đầu)
@@ -34,11 +41,11 @@ class OTourRun {
     let n = 0;
     const have = new Set(t.players.map((p) => p.name.toLowerCase()));
     for (const raw of (Array.isArray(names) ? names : []).slice(0, Spec.MAX_TEAMS)) {
-      const name = teamName(raw);
+      const { name, country } = parseTeam(raw);
       if (!name || have.has(name.toLowerCase())) continue;
       if (t.players.length >= Spec.MAX_TEAMS) throw E('ot_many_teams', { n: Spec.MAX_TEAMS });
       have.add(name.toLowerCase());
-      t.players.push({ uid: 't:' + crypto.randomBytes(5).toString('hex'), name });
+      t.players.push({ uid: 't:' + crypto.randomBytes(5).toString('hex'), name, ...(country ? { country } : {}) });
       n++;
     }
     return n;
@@ -90,12 +97,18 @@ class OTourRun {
     return (uid) => (t.players.find((p) => p.uid === uid) || {}).seed || 999;
   }
 
+  /** Tuỳ chọn dựng giai đoạn: hạt giống, quốc gia (league phase). */
+  otBuildOpts(t, extra = {}) {
+    const country = new Map(t.players.map((p) => [p.uid, p.country || '']));
+    return { seedOf: this.otSeedOf(t), isActive: () => true, countryOf: (u) => country.get(u) || '', ...extra };
+  }
+
   on_otStart(conn, { id }) {
     const { t, me } = this.otDraft(conn, id);
     const teams = t.players.filter((p) => !p.withdrawn);
     specGuard(() => Spec.checkSize(t, teams.length));
     teams.forEach((p, i) => { p.seed = i + 1; });
-    t.st = [ST.buildStage(t.stages[0], 0, teams.map((p) => p.uid), { seedOf: this.otSeedOf(t), isActive: () => true })];
+    t.st = [ST.buildStage(t.stages[0], 0, teams.map((p) => p.uid), this.otBuildOpts(t))];
     t.stage = 0;
     t.status = 'running';
     t.startedAt = Date.now();
@@ -116,7 +129,7 @@ class OTourRun {
     const going = new Set(seeds);
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) p.out = 'not_advanced'; }
     t.stage++;
-    t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, { groupOf, seedOf: this.otSeedOf(t), isActive: () => true }));
+    t.st.push(ST.buildStage(t.stages[t.stage], t.stage, seeds, this.otBuildOpts(t, { groupOf })));
   }
 
   // ------------------------------------------------------------ Kết quả
@@ -135,14 +148,19 @@ class OTourRun {
    * Nhập kết quả: score [a, b] (+ pen [a, b] khi hoà ở loại trực tiếp) | sets [[a, b], …] | winner (mã đội) / draw.
    * Trận đã có kết quả thì phải huỷ trước (on_otUndo) – tránh nhập đè nhầm.
    */
-  on_otScore(conn, { id, match, score, pen, aet, sets, winner, draw }) {
+  on_otScore(conn, { id, match, score, legs, pen, aet, sets, winner, draw }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, m } = this.otMatch(t, match);
     if (m.done) throw E('tour_match_done');
-    const elim = ST.isElim(st.type);
+    // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua
+    const elim = ST.isElim(st.type) || !!st.cfg.record;
     let w;
     if (t.result === 'score') {
-      const s = pair(score);
+      // Knock-out 2 lượt: legs [[a, b], [a, b]] (số bàn của ô trên / ô dưới mỗi lượt) → tổng tỉ số, hoà thì luân lưu
+      const two = ST.twoLeg(st, m);
+      const ls = two && Array.isArray(legs) && legs.length === 2 ? legs.map(pair) : null;
+      if (two && (!ls || ls.some((x) => !x))) throw E('tour_score_bad');
+      const s = ls ? [ls[0][0] + ls[1][0], ls[0][1] + ls[1][1]] : pair(score);
       if (!s) throw E('tour_score_bad');
       const p = pen == null ? null : pair(pen);
       if (pen != null && !p) throw E('tour_score_bad');
@@ -150,7 +168,7 @@ class OTourRun {
       if (w === null && p && p[0] !== p[1]) w = p[0] > p[1] ? m.a : m.b;
       if (w === null && elim) throw E('ot_need_pen');
       const shootout = w !== null && s[0] === s[1];
-      Object.assign(m, { score: s, extra: shootout ? p : null, sets: null, aet: aet === true, ext: aet === true || shootout, wins: { [m.a]: s[0], [m.b]: s[1] } });
+      Object.assign(m, { score: s, extra: shootout ? p : null, sets: ls, legs: !!ls, aet: aet === true, ext: aet === true || shootout, wins: { [m.a]: s[0], [m.b]: s[1] } });
     } else if (t.result === 'sets') {
       const list = Array.isArray(sets) && sets.length <= ST.MAX_BO ? sets.map(pair) : [];
       if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
@@ -170,7 +188,7 @@ class OTourRun {
     ST.recordResult(st, m, w, { seedOf: this.otSeedOf(t), isActive: () => true });
     st.v = (st.v || 0) + 1;
     const name = (u) => (t.players.find((p) => p.uid === u) || {}).name || '?';
-    this.otLog(t, me.id, 'score', { a: name(m.a), b: name(m.b), s: m.score ? m.score.join('-') : m.sets ? m.sets.map((x) => x.join('-')).join(' ') : w ? name(w) : '½' });
+    this.otLog(t, me.id, 'score', { a: name(m.a), b: name(m.b), s: m.score && !m.legs ? m.score.join('-') : m.sets ? m.sets.map((x) => x.join('-')).join(' ') : w ? name(w) : '½' });
     if (st.done) this.otNextStage(t);
     this.otSave(t);
   }
@@ -188,7 +206,7 @@ class OTourRun {
       for (const { r, x } of targets) x[r.slot] = null;
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, extra: null, aet: false, ext: false, quick: false, double: false });
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false });
     st.done = false;
     st.v = (st.v || 0) + 1;
     this.otLog(t, me.id, 'undo', { match: m.id });

@@ -25,6 +25,7 @@ const { TYPES, GROUP_TYPES, BYE, MAX_GROUP, MAX_GROUPS, isElim, real } = require
 const { seedOrder, resolveElim, buildSingle, buildDouble, elimSize, checkSlots, defaultSlots } = require('./stages-elim.js');
 const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds } = require('./stages-groups.js');
 const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB } = require('./stages-tiebreak.js');
+const League = require('./stages-league.js');
 
 const MAX_BO = 25;
 /** Bo (số ván tối đa của một trận): số lẻ 1…MAX_BO (cần phân thắng thua); không hợp lệ = 0. */
@@ -33,8 +34,11 @@ const GF = ['2', '1', 'none']; // chung kết tổng: 1–2 trận (reset) / 1 t
 /** Số vòng Thụy Sĩ tự động: ⌈log₂ n⌉ (đủ để còn đúng một người toàn thắng). */
 const swissAutoRounds = (n) => Math.max(1, Math.ceil(Math.log2(Math.max(2, n))));
 
-/** Chuẩn hoá cấu hình một vòng (dữ liệu từ client). last: có phải vòng cuối không. */
-function normalizeStage(c, last) {
+/**
+ * Chuẩn hoá cấu hình một vòng (dữ liệu từ client). last: có phải vòng cuối không.
+ * opts.offline: giải đấu Offline (otour-spec.js) – nhận thêm các thể thức của stages-league.js; giải Caro thì bỏ qua.
+ */
+function normalizeStage(c, last, opts = {}) {
   c = c || {};
   let type = TYPES.includes(c.type) ? c.type : 'single';
   if (!last && !GROUP_TYPES.includes(type)) type = 'roundrobin';
@@ -87,12 +91,13 @@ function normalizeStage(c, last) {
     out.unplayed = c.unplayed === 'raw' ? 'raw' : 'fide';
     if (!last) out.advance = int(c.advance, 1, 32, 2); // RR: mỗi bảng; Thụy Sĩ: tổng số người đi tiếp
   }
-  return out;
+  // Tuỳ chọn thêm của giải offline: league phase, bảng lớn, hạng ba tốt nhất, Thụy Sĩ theo thắng / thua, 2 lượt
+  return opts.offline ? League.normalizeExtras(c, out, last, oddBo) : out;
 }
 
-function normalizeStages(list) {
+function normalizeStages(list, opts = {}) {
   const arr = Array.isArray(list) && list.length ? list.slice(0, 3) : [{ type: 'single' }];
-  return arr.map((c, i) => normalizeStage(c, i === arr.length - 1));
+  return arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
 }
 
 // ------------------------------------------------------------ Khởi tạo / tiến trình
@@ -103,7 +108,7 @@ function buildStage(cfg, index, seeds, opts = {}) {
   // kéo thả (stages-elim.js)
   if (cfg.type === 'single') buildSingle(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
   else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
-  else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups);
+  else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups, opts); // opts.countryOf: league phase
   else {
     st.rounds = [];
     const want = cfg.rounds || swissAutoRounds(seeds.length);
@@ -149,7 +154,8 @@ function recordResult(st, m, winner, opts = {}) {
     if (opts.double) { m.double = true; m.winner = BYE; }
     if (st.type === 'swiss') {
       const cur = st.rounds[st.rounds.length - 1];
-      if (cur.every((id) => st.matches[id].done) && st.rounds.length < st.cfg.rounds) swissNextRound(st, opts.seedOf || ((u) => st.entrants.indexOf(u)), opts.isActive);
+      const more = !st.cfg.record || League.recordActive(st).length >= 2; // theo thắng / thua: còn người chưa phân định
+      if (cur.every((id) => st.matches[id].done) && st.rounds.length < st.cfg.rounds && more) swissNextRound(st, opts.seedOf || ((u) => st.entrants.indexOf(u)), opts.isActive);
     }
   }
   st.done = Object.values(st.matches).every((x) => x.done);
@@ -185,6 +191,7 @@ function podium(st, seedOf) {
 /** Số ván tối đa của một trận: Bo riêng cho chung kết / bán kết (nếu đặt), còn lại như cả giai đoạn. */
 function boOf(st, m) {
   const c = st.cfg;
+  if (m && m.bo) return m.bo; // Bo riêng của trận (Thụy Sĩ theo thắng / thua: trận quyết định)
   if (!isElim(st.type) || !m || (!c.boFinal && !c.boSemi)) return c.bestOf;
   let level = 0; // 2 = chung kết, 1 = bán kết
   if (st.type === 'single') {
@@ -207,5 +214,6 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
+  twoLeg: League.twoLeg, leagueError: League.leagueError, records: League.records,
   tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS,
 };
