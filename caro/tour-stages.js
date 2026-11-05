@@ -225,6 +225,19 @@
     return K.otGroupRounds ? K.otGroupRounds(t, v.index, gi) : null;
   }
 
+  /**
+   * Giải offline – nhánh theo vị trí trong bảng (cfg.path, otour-path.js): trước khi vòng bảng xong đã biết đường đi
+   * ("1E – 3 A/B/C/D/F"), hiện theo đúng thứ tự trên nhánh.
+   */
+  function pathPreview(t, i) {
+    const P = window.CaroOTourPath, c = (t.stages || [])[i], pc = (t.stages || [])[i - 1], pv = (t.stageViews || [])[i - 1];
+    if (!P || !c || c.path !== 'groups' || !pc || !pv || !pv.groups || pv.groups.length < 2) return '';
+    const pairs = P.template(pv.groups.length, pc.advance || 2, pc.bestNext || 0);
+    if (!pairs) return '';
+    const list = P.labels(pairs, (g) => (pv.groups[g] ? pv.groups[g].name : '?'));
+    return `<h5>${esc(T('ot_path_preview'))}</h5><ol class="ot-path">${list.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`;
+  }
+
   /** Tất cả giai đoạn của giải (giai đoạn chưa tới thì chỉ ghi cấu hình; giai đoạn đầu trước giờ đấu: nhánh xem trước). */
   function stagesHtml(t) {
     cur = t;
@@ -236,7 +249,7 @@
       const info = [stageName(c), c.type === 'race' ? '' : 'Bo' + c.bestOf, advText(c)].filter(Boolean).join(' · ');
       const pv = !v && i === 0 && t.preview;
       const body = v ? stageBody(t, v) : pv ? fold(t.id + ':pv0', esc(T('pv_title')), () => previewHtml(t, t.preview), true)
-        : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>`;
+        : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>${pathPreview(t, i)}`;
       if (!multi) return `<h4>${esc(info)}</h4>${body}`;
       const title = `<b>${esc(T('stage_n', { n: i + 1 }))}</b> <span class="muted">${esc(info)}</span>${v && v.done ? icon('check', 'ok') : ''}`;
       const current = t.status === 'finished' ? i === cfgs.length - 1 : i === (t.stage || 0);

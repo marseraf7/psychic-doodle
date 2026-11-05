@@ -13,7 +13,7 @@
     { id: 'champions_league', icon: '⭐', sport: 'football', n: 36, countries: ['ENG', 'ESP', 'GER', 'ITA', 'FRA', 'POR', 'NED', 'BEL', 'SCO'],
       stages: [{ type: 'roundrobin', league: { games: 8, pots: 4 }, advance: 24 }, { type: 'single', thirdPlace: false, legs: true, legsFinal: false }] },
     { id: 'world_cup_2026', icon: '🌎', sport: 'football', n: 48,
-      stages: [{ type: 'roundrobin', groupSize: 4, advance: 2, bestNext: 8 }, { type: 'single', thirdPlace: true }] },
+      stages: [{ type: 'roundrobin', groupSize: 4, advance: 2, bestNext: 8 }, { type: 'single', thirdPlace: true, path: 'groups' }] },
     { id: 'world_cup', icon: '🏆', sport: 'football', n: 32,
       stages: [{ type: 'roundrobin', groupSize: 4, advance: 2 }, { type: 'single', thirdPlace: true }] },
     { id: 'lol_worlds', icon: '🎮', sport: 'esports', n: 16,

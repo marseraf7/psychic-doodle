@@ -180,7 +180,7 @@ Có hai kiểu nhập:
 |---|---|---|
 | O1 | Xong: kho riêng nạp theo yêu cầu + LRU, hạn mức, trang công khai `?o=`, `normalizeSpec`, memo giai đoạn đã xong | – |
 | O2 | Xong: 13 bộ môn, luật set (kiểm cả trận theo Bo), hiệp phụ, luân lưu, điểm thắng / thua sát, tie-break theo điểm trong set | – |
-| O3 | Xong: league lượt đi – về (bảng tới 64), league phase (pot, tránh cùng quốc gia, đi tiếp theo dải hạng qua hạt giống), Thụy Sĩ theo thắng / thua, hạng ba tốt nhất, knock-out 2 lượt | Bảng phân nhánh theo tổ hợp bảng của World Cup 2026: chưa (đội hạng ba xếp theo hạt giống) |
+| O3 | Xong: league lượt đi – về (bảng tới 64), league phase (pot, tránh cùng quốc gia, đi tiếp theo dải hạng qua hạt giống), Thụy Sĩ theo thắng / thua, hạng ba tốt nhất, knock-out 2 lượt; **nhánh theo vị trí trong bảng** (`path: 'groups'`, `caro/otour-path.js`): khuôn đúng 16 cặp vòng 32 đội World Cup 2026 (trận 73–88 và đường lên các vòng sau), khuôn chung cho nhất + nhì (+ hạng ba tốt nhất) – đội cùng bảng ở hai nửa nhánh; xem trước đường đi "1E – 3 A/B/C/D/F" khi vòng bảng chưa xong | Đội hạng ba vào ô nào: ghép hợp lệ (đúng bảng được phép, không trùng – kiểm cả 495 tổ hợp), có thể khác bảng Annex C của FIFA ở một số tổ hợp |
 | O4 | Xong: Single Race, Grand Prix (bảng điểm, countback, điểm tay, bảng đội), Time Trial (chênh lệch) | Chia lượt (heat) cho đoàn rất đông: chưa |
 | O5 | Xong: 10 mẫu, mô tả bằng lời + ước tính, đội mẫu | – |
 | O6 | Xong: lịch & sân, đội hình, sự kiện trận, vua phá lưới / thẻ, đăng ký đội + duyệt, biên bản in; **treo giò tự động** (`otour-disc.js`: tích luỹ thẻ vàng, thẻ đỏ / 2 thẻ vàng một trận, xoá thẻ khi sang giai đoạn mới – ban tổ chức chỉnh; án rơi vào trận kế tiếp của đội, cảnh báo cầu thủ bị treo giò vẫn có tên trong trận) | – |

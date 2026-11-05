@@ -36,6 +36,7 @@
             thirdPlace: { type: 'boolean' }, places: { type: 'array', items: { type: 'integer' }, description: 'trận xếp hạng: 3 = hạng 3–4, 5 = 5–6…' },
             boSemi: bo, boFinal: bo, gf: { type: 'string', enum: ['2', '1', 'none'] }, split: { type: 'boolean' },
             legs: { type: 'boolean', description: 'loại trực tiếp 2 lượt (tổng tỉ số)' }, legsFinal: { type: 'boolean' },
+            path: { type: 'string', enum: ['groups'], description: 'loại trực tiếp sau vòng bảng: nhánh cố định theo vị trí trong bảng (1A–2B, kiểu World Cup 2026)' },
             groups: int(1, 64), groupSize: int(2, 64), meetings: { type: 'integer', enum: [1, 2, 3] },
             league: { type: 'object', description: 'league phase kiểu Champions League', properties: { games: int(1, 20), pots: int(1, 8) } },
             bestNext: int(0, 32, 'thêm đội xếp ngay sau suất đi tiếp tốt nhất'),
@@ -60,6 +61,7 @@
       if (c.type === 'single' && (c.thirdPlace || (c.places || []).includes(3))) x.push(T('ds_third'));
       if (c.boFinal) x.push(T('ds_bo_final', { bo: c.boFinal }));
       if (c.legs && result === 'score') x.push(T(c.legsFinal ? 'ds_legs_all' : 'ds_legs')); // 2 lượt chỉ với kiểu tỉ số
+      if (c.path === 'groups') x.push(T('ds_path'));
     } else if (c.type === 'roundrobin') {
       if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
       else {

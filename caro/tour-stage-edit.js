@@ -136,6 +136,11 @@
         f.push(chk(i, 'legs', !!c.legs, T('opt_legs')));
         if (c.legs && c.type === 'single') f.push(chk(i, 'legsFinal', !!c.legsFinal, T('opt_legs_final')));
       }
+      // Giải offline: nhánh theo vị trí trong bảng (1A–2B, 1E–3…) khi giai đoạn trước là vòng bảng nhiều bảng
+      const prev = st[i - 1];
+      if (ctx.ext && (c.type === 'single' || c.type === 'double') && prev && prev.type === 'roundrobin' && !prev.league && ((prev.groups || 1) > 1 || prev.groupSize)) {
+        f.push(chk(i, 'path', c.path === 'groups', T('opt_path')));
+      }
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
       if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')]], c.pairing || 'dutch')));
       if (c.points) {
@@ -202,6 +207,7 @@
     else if (k === 'recWin' || k === 'recLose') c.record = { win: 3, lose: 3, ...c.record, [k === 'recWin' ? 'win' : 'lose']: clamp(v) };
     else if (k === 'recBo') c.record.bo = Number(el.value) || 0;
     else if (k === 'table') c.table = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64);
+    else if (k === 'path') { if (el.checked) c.path = 'groups'; else delete c.path; } // nhánh theo vị trí trong bảng (otour-path.js)
     else if (el.type === 'checkbox') c[k] = el.checked;
     else if (/^tb\d$/.test(k)) {
       const tbs = [...tbsOf(c)];
