@@ -180,14 +180,31 @@ class OTourRun {
    * Nhập kết quả: score [a, b] (+ pen [a, b] khi hoà ở loại trực tiếp) | sets [[a, b], …] | winner (mã đội) / draw.
    * Trận đã có kết quả thì phải huỷ trước (on_otUndo) – tránh nhập đè nhầm.
    */
-  on_otScore(conn, { id, match, score, legs, pen, aet, sets, winner, draw }) {
+  on_otScore(conn, { id, match, score, legs, pen, pens, aet, sets, winner, draw }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, m } = this.otMatch(t, match);
     if (m.done) throw E('tour_match_done');
     // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua
     const elim = ST.isElim(st.type) || !!st.cfg.record;
     let w;
-    if (t.result === 'score') {
+    const bo = ST.boOf(st, m);
+    if (t.result === 'score' && elim && bo > 1 && !ST.twoLeg(st, m)) {
+      // Loạt Bo ở loại trực tiếp (vd. vòng 1 playoff MLS Bo3): sets = tỉ số từng trận, trận hoà thì pens[i] = luân lưu
+      const list = Array.isArray(sets) && sets.length <= bo ? sets.map(pair) : [];
+      if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
+      const need = Math.floor(bo / 2) + 1, pk = [];
+      let ka = 0, kb = 0;
+      list.forEach(([x, y], i) => {
+        if (ka >= need || kb >= need) throw E('ot_series_after', { n: i + 1, bo });
+        const p = x === y && Array.isArray(pens) && pens[i] != null ? pair(pens[i]) : null;
+        if (x === y && (!p || p[0] === p[1])) throw E('ot_need_pen');
+        pk.push(p);
+        if (x > y || (p && p[0] > p[1])) ka++; else kb++;
+      });
+      if (ka < need && kb < need) throw E('ot_series_short', { k: need, bo });
+      w = ka > kb ? m.a : m.b;
+      Object.assign(m, { score: [ka, kb], sets: list, pens: pk.some(Boolean) ? pk : null, extra: null, legs: false, aet: false, ext: false, wins: { [m.a]: ka, [m.b]: kb } });
+    } else if (t.result === 'score') {
       // Knock-out 2 lượt: legs [[a, b], [a, b]] (số bàn của ô trên / ô dưới mỗi lượt) → tổng tỉ số, hoà thì luân lưu
       const two = ST.twoLeg(st, m);
       const ls = two && Array.isArray(legs) && legs.length === 2 ? legs.map(pair) : null;
@@ -204,7 +221,6 @@ class OTourRun {
     } else if (t.result === 'sets') {
       const list = Array.isArray(sets) && sets.length <= ST.MAX_BO ? sets.map(pair) : [];
       if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
-      const bo = ST.boOf(st, m);
       const bad = Rules.setsError(t.set || null, list, bo);
       if (bad) throw E(bad.code, bad.args);
       const { ka, kb } = matchScore(list, 'sets');
@@ -240,7 +256,7 @@ class OTourRun {
       for (const { r, x } of targets) x[r.slot] = null;
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false });
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, pens: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false });
     st.done = false;
     st.v = (st.v || 0) + 1;
     this.otLog(t, me.id, 'undo', { match: m.id });

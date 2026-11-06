@@ -22,5 +22,5 @@
     return s ? [s.at ? when(s.at) : '', s.place || ''].filter(Boolean).join(' · ') : '';
   };
   /** "21-15 · 15-21 (5-3)" – tỉ số từng set của giải offline (giống tour-score.js). */
-  K.setsText = (m) => (m.sets ? m.sets.map((s) => s.join('-')).join(' · ') + (m.extra ? ` (${m.extra.join('-')})` : '') : '');
+  K.setsText = (m) => (m.sets ? m.sets.map((s, i) => s.join('-') + (m.pens && m.pens[i] ? ` (${m.pens[i].join('-')})` : '')).join(' · ') + (m.extra ? ` (${m.extra.join('-')})` : '') : '');
 })();

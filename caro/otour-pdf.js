@@ -83,7 +83,7 @@
   /** Một trận: "Đội A   2–1   Đội B" (+ dòng nhỏ: từng set, luân lưu, giờ – sân). */
   function match(m) {
     const score = m.done ? `${m.wa}–${m.wb}` : '–';
-    const extra = [m.sets ? m.sets.map((s) => s.join('-')).join(' · ') : '', m.extra ? T('ot_pen_tag', { s: m.extra.join('-') }) : '', m.aet && !m.sets ? T('ot_aet_tag') : '',
+    const extra = [m.sets ? m.sets.map((s, i) => s.join('-') + (m.pens && m.pens[i] ? ` (${m.pens[i].join('-')})` : '')).join(' · ') : '', // pens: luân lưu từng trận của loạt Bo m.extra ? T('ot_pen_tag', { s: m.extra.join('-') }) : '', m.aet && !m.sets ? T('ot_aet_tag') : '',
       m.when ? localTime(m.when) : '', m.venue || ''].filter(Boolean).join(' · ');
     const mid = W / 2;
     return Object.assign(block(extra ? 64 : 42, (g, y, f) => {
