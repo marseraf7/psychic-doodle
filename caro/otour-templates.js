@@ -16,8 +16,13 @@
       stages: [{ type: 'roundrobin', groupSize: 4, advance: 2, bestNext: 8 }, { type: 'single', thirdPlace: true, path: 'groups' }] },
     { id: 'world_cup', icon: '🏆', sport: 'football', n: 32,
       stages: [{ type: 'roundrobin', groupSize: 4, advance: 2 }, { type: 'single', thirdPlace: true }] },
-    { id: 'lol_worlds', icon: '🎮', sport: 'esports', n: 16,
-      stages: [{ type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 } }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+    // LoL Worlds (thể thức 2025): 17 đội – hạt giống 16 và 17 đá Play-In một loạt Bo5, 15 đội còn lại vào thẳng vòng
+    // Thụy Sĩ 16 đội (thắng 3 đi tiếp, thua 3 bị loại, trận quyết định Bo3, vòng 1 tránh cùng khu vực), 8 đội vào loại
+    // trực tiếp Bo5. Cấm chọn kiểu LoL, Fearless cứng trong từng loạt. Khu vực mẫu xếp như Worlds (2 đội Play-In: KR, CN).
+    { id: 'lol_worlds', icon: '🎮', sport: 'esports', n: 17, countries: ['KR', 'CN', 'EU', 'NA', 'AP', 'KR', 'CN', 'EU', 'NA', 'AP', 'KR', 'CN', 'EU', 'NA', 'AP', 'KR', 'CN'],
+      esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
+      stages: [{ type: 'roundrobin', groups: 1, meetings: 1, bestOf: 5, advance: 1 },
+        { type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, region: true, direct: 15 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,
       stages: [{ type: 'race', events: 24, score: 'points', teams: true }] },
     { id: 'time_trial', icon: '⏱️', sport: 'running', n: 30,
@@ -68,7 +73,7 @@
       if (c.type === 'race' && c.score !== 'time' && !c.table) c.table = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
       return c;
     });
-    return { sport: tpl.sport, result: tpl.result || sp.result, ...(tpl.set !== undefined ? { set: tpl.set } : {}), stages };
+    return { sport: tpl.sport, result: tpl.result || sp.result, ...(tpl.set !== undefined ? { set: tpl.set } : {}), stages, ...(tpl.esports ? { esports: JSON.parse(JSON.stringify(tpl.esports)) } : {}) };
   }
 
   /** Danh sách đội mẫu để thử nhanh: "Đội 1", … (league phase: kèm mã quốc gia mẫu xoay vòng; đua: kèm đội). */

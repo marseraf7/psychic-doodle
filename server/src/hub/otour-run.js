@@ -113,7 +113,10 @@ class OTourRun {
     const teams = t.players.filter((p) => !p.withdrawn);
     specGuard(() => Spec.checkSize(t, teams.length));
     teams.forEach((p, i) => { p.seed = i + 1; });
-    t.st = [ST.buildStage(t.stages[0], 0, teams.map((p) => p.uid), this.otBuildOpts(t))];
+    // Đội hạt giống cao vào thẳng giai đoạn sau (cfg.direct): giữ lại tới lúc bốc thăm giai đoạn đó
+    const dp = ST.directPlan(t.stages, teams.map((p) => p.uid));
+    t.direct = Object.keys(dp.direct).length ? dp.direct : null;
+    t.st = [ST.buildStage(t.stages[0], 0, dp.first, this.otBuildOpts(t))];
     t.stage = 0;
     t.status = 'running';
     t.startedAt = Date.now();
@@ -130,12 +133,16 @@ class OTourRun {
       t.podium = ST.podium(st, this.otSeedOf(t)).slice(0, 4);
       return;
     }
-    const { seeds, groupOf } = ST.advancers(st, this.otSeedOf(t));
+    // Đội vào thẳng giai đoạn này (hạt giống cao hơn) đứng trước các đội đi tiếp
+    const direct = (t.direct && t.direct[t.stage + 1]) || [];
+    const adv = ST.advancers(st, this.otSeedOf(t), direct.length ? 1 : 2);
+    const { groupOf } = adv;
     const cfg = t.stages[t.stage + 1];
+    const seeds = [...direct, ...adv.seeds.filter((u) => !direct.includes(u))];
     // Playoff kiểu nhà nghề Mỹ sau mùa giải (stages-playoff.js): nhánh theo miền, nhất bảng con, play-in – ai đi tiếp
     // theo kế hoạch playoff (không theo số đội đi tiếp của mùa giải)
     const plan = cfg.playoff ? PO.playoffPlan(st, cfg, ST.standings(st, this.otSeedOf(t))) : null;
-    const going = new Set(plan ? plan.seeds : seeds);
+    const going = new Set(plan ? plan.seeds : adv.seeds);
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) p.out = 'not_advanced'; }
     t.stage++;
     if (plan) {

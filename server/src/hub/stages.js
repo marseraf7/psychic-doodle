@@ -102,8 +102,29 @@ function normalizeStages(list, opts = {}) {
   const out = arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
   // Playoff kiểu Mỹ chỉ có nghĩa ngay sau một mùa giải (stages-playoff.js)
   out.forEach((c, i) => { if (c.playoff && !(i > 0 && out[i - 1].season)) delete c.playoff; });
+  // Giải offline: đội hạt giống cao vào thẳng giai đoạn i ≥ 1 (LoL Worlds: 15 đội vào thẳng vòng Thụy Sĩ, 2 đội đá Play-In)
+  out.forEach((c, i) => {
+    const d = Math.floor(Number(arr[i] && arr[i].direct));
+    if (i > 0 && opts.offline && d > 0 && !c.playoff) c.direct = Math.min(d, 256); // playoff kiểu Mỹ tự chọn đội từ mùa giải
+  });
   return out;
 }
+
+/**
+ * Chia đội theo "vào thẳng": giai đoạn sau cùng nhận các hạt giống cao nhất trước (vd. vào thẳng chung kết), rồi tới
+ * giai đoạn trước nó… Trả { first: đội đá giai đoạn đầu, direct: { [giai đoạn]: [đội] } }. uids theo thứ tự hạt giống.
+ */
+function directPlan(stages, uids) {
+  const direct = {};
+  let k = 0;
+  for (let i = stages.length - 1; i >= 1; i--) {
+    const d = stages[i].direct || 0;
+    if (d) { direct[i] = uids.slice(k, k + d); k += d; }
+  }
+  return { first: uids.slice(k), direct };
+}
+/** Tổng số đội vào thẳng các giai đoạn sau. */
+const directTotal = (stages) => stages.reduce((s, c, i) => s + (i ? c.direct || 0 : 0), 0);
 
 // ------------------------------------------------------------ Khởi tạo / tiến trình
 /** Tạo vòng mới với danh sách hạt giống (thứ tự = hạt giống 1, 2, …). */
@@ -119,7 +140,7 @@ function buildStage(cfg, index, seeds, opts = {}) {
     st.rounds = [];
     const want = cfg.rounds || swissAutoRounds(seeds.length);
     st.cfg = { ...cfg, rounds: Math.min(want, swissMaxRounds(seeds.length)) };
-    swissNextRound(st, opts.seedOf || ((u) => seeds.indexOf(u)), opts.isActive, opts.pairs); // pairs: vòng 1 cặp cố định (giao hữu CLB)
+    swissNextRound(st, opts.seedOf || ((u) => seeds.indexOf(u)), opts.isActive, opts.pairs, opts.countryOf); // pairs: vòng 1 cặp cố định (giao hữu CLB); countryOf: vòng 1 tránh cùng khu vực
   }
   return st;
 }
@@ -224,5 +245,5 @@ function eliminated(st, uid) {
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
   twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
-  tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS,
+  tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
 };

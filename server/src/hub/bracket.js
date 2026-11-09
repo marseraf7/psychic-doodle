@@ -311,6 +311,7 @@ class Bracket {
       ...(m.pens ? { pens: m.pens } : {}), // luân lưu từng trận của loạt Bo (kiểu tỉ số – otour-run.js)
       ...(m.aet ? { aet: true } : {}), // giải offline: có đá hiệp phụ
       ...(m.postponed ? { postponed: true } : {}), // giải offline: trận hoãn (otour-sched.js)
+      ...(m.esp ? { esp: m.esp } : {}), // esports: chi tiết từng ván (otour-games.js)
       ...(m.tag ? { tag: m.tag } : {}), // play-in (stages-playoff.js): 'pi_78' / 'pi_910' / 'pi_last' / 'pi_89'
       ...(ST.twoLeg(st, m) ? { legs: true } : {}), // giải offline: knock-out 2 lượt (sets = tỉ số từng lượt)
       // Giải offline (otour-league.js): giờ đấu, sân, sự kiện trong trận

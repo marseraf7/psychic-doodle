@@ -131,7 +131,11 @@ class OTour {
   on_otEdit(conn, o) {
     const { t, me } = this.otManaged(conn, o.id);
     Object.assign(t, this.otFields(o, t.id));
-    if (o.spec && t.status === 'draft') Object.assign(t, specGuard(() => Spec.normalizeSpec(o.spec)));
+    if (o.spec && t.status === 'draft') {
+      const sp = specGuard(() => Spec.normalizeSpec(o.spec));
+      if (o.spec.esports === undefined && sp.sport === t.sport) delete sp.esports; // không gửi cấu hình esports: giữ như cũ
+      Object.assign(t, sp);
+    }
     this.otLog(t, me.id, 'edited');
     this.otSave(t);
     conn.send({ t: 'otEdited', id: t.id });
@@ -189,6 +193,7 @@ class OTour {
       // Luật treo giò + danh sách treo giò tính từ thẻ phạt (otour-disc.js)
       disc: t.disc || null, susp: this.otSusp(t),
       sched: t.sched || null, // cấu hình tự xếp lịch (otour-sched.js)
+      esports: t.esports || null, esp: this.otEspStats(t), // cấm chọn / Fearless + thống kê tướng (otour-games.js)
     };
   }
 

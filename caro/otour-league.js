@@ -46,17 +46,19 @@
     const EVT = evKinds(t);
     const evs = (m.events || []).map((e, i) => `<li>${EVT[e.type] || EV[e.type] || ''} ${e.min != null ? `<b>${e.min}'</b>` : ''} ${esc(e.who || '')} <small class="muted">(${esc((e.side === 'a' ? m.a : m.b).name)})</small>
       <button type="button" class="ghost sm icon" data-act="otEvDel" data-i="${i}" aria-label="${esc(T('ot_ev_del'))}">${icon('close')}</button></li>`).join('');
+    // Esports: không có bàn thắng / thẻ phạt – diễn biến từng ván nằm ở phần chi tiết ván (otour-games-ui.js)
+    const noEv = t.sport === 'esports';
     const names = [m.a, m.b].flatMap((s) => ((teamOf(t, s.uid) || {}).roster || []).map((r) => (r.no != null ? r.no + ' ' : '') + r.name));
     return `<div class="ot-mx">${K.otSuspOf ? K.otSuspOf(t, m) : ''}
       <div class="row ot-info"><label class="field inline"><span>${esc(T('ot_when'))}</span><input type="datetime-local" id="otm-when" value="${esc(toLocalInput(m.when))}"></label>
         <label class="field inline"><span>${esc(T('ot_venue'))}</span><input id="otm-venue" maxlength="60" value="${esc(m.venue || '')}"></label>
         <button type="button" class="ghost sm" data-act="otInfoSave">${esc(T('ot_info_save'))}</button></div>${K.otSchedUi ? K.otSchedUi.matchBtns(t, m) : ''}
-      <h6>${esc(T('ot_events'))}</h6>${evs ? `<ul class="ot-evs">${evs}</ul>` : `<p class="hint">${esc(T('ot_events_none'))}</p>`}
+      ${noEv ? '' : `<h6>${esc(T('ot_events'))}</h6>${evs ? `<ul class="ot-evs">${evs}</ul>` : `<p class="hint">${esc(T('ot_events_none'))}</p>`}
       <div class="row ot-evadd"><select id="otm-type">${Object.keys(EVT).map((k) => `<option value="${k}">${EVT[k]} ${esc(evLabel(t, k))}</option>`).join('')}</select>
         <select id="otm-side"><option value="a">${esc(m.a.name)}</option><option value="b">${esc(m.b.name)}</option></select>
         <input id="otm-who" list="otm-roster" maxlength="40" placeholder="${esc(T('ot_ev_who'))}"><datalist id="otm-roster">${names.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
         <input id="otm-min" type="number" min="0" max="300" inputmode="numeric" placeholder="${esc(T('ot_ev_min'))}">
-        <button type="button" class="ghost sm" data-act="otEvAdd">${icon('plus')}${esc(T('ot_ev_add'))}</button></div>
+        <button type="button" class="ghost sm" data-act="otEvAdd">${icon('plus')}${esc(T('ot_ev_add'))}</button></div>`}
       <div class="row"><button type="button" class="ghost sm" data-act="otPrint">${esc(T('ot_print'))}</button></div></div>`;
   };
   /** Khung xem chi tiết trận cho người xem (không sửa được): giờ, sân, diễn biến, in biên bản. */

@@ -27,6 +27,9 @@
       result: { type: 'string', enum: SP.RESULTS, description: "'score' tỉ số, 'sets' điểm từng set, 'winner' chỉ người thắng" },
       set: { type: ['object', 'null'], description: 'Luật set (kiểu sets); null = không kiểm điểm từng set',
         properties: { to: int(1, 99, 'điểm thắng set'), by: int(1, 10, 'phải hơn'), cap: int(0, 199, 'điểm trần, 0 = không'), last: int(0, 99, 'set quyết định, 0 = như trên') } },
+      esports: { type: 'object', description: 'Esports: cấm chọn và chi tiết từng ván. draft lol (20 bước) / custom (bans, picks mỗi đội) / off; fearless hard (tướng đã chọn ở ván trước không ai chọn lại) / soft (chỉ đội đã chọn) / off; scope series / stage; stats: chỉ số đội bắt buộc (kills, gold, towers, dragons, barons, heralds, inhibitors hoặc nhãn tự đặt); players: nhập K/D/A; pool: danh sách tướng gợi ý',
+        properties: { draft: { type: 'string', enum: ['lol', 'custom', 'off'] }, bans: int(0, 10), picks: int(1, 10), fearless: { type: 'string', enum: ['hard', 'soft', 'off'] },
+          scope: { type: 'string', enum: ['series', 'stage'] }, stats: { type: 'array', maxItems: 8, items: { type: 'string' } }, players: { type: 'boolean' }, pool: { type: 'array', maxItems: 400, items: { type: 'string' } } } },
       stages: {
         type: 'array', minItems: 1, maxItems: 3, description: 'Các giai đoạn; mọi giai đoạn trừ cuối phải là roundrobin / swiss / race',
         items: {
@@ -46,6 +49,8 @@
             playoff: { type: 'object', description: 'loại trực tiếp ngay sau mùa giải: playoff kiểu nhà nghề Mỹ – mỗi miền một nửa nhánh, hai đội vô địch miền gặp nhau ở chung kết. mode seed: per đội mỗi miền theo hạt giống (thiếu đội thì hạt giống cao miễn đấu), divWin: nhất bảng con giữ hạt giống đầu, playin nba (hạt giống per−1 … per+2) / one (per gặp per+1); mode div: kiểu NHL (3 đội đầu mỗi bảng con + 2 vé vớt, cần 2 bảng con mỗi miền); reseed: xếp lại cặp sau mỗi vòng. Mùa giải phải cho per + đội play-in (div: 8) đội mỗi miền đi tiếp',
               properties: { mode: { type: 'string', enum: ['seed', 'div'] }, per: int(2, 16), divWin: { type: 'boolean' }, playin: { type: 'string', enum: ['none', 'nba', 'one'] }, reseed: { type: 'boolean' }, playinBo: { type: 'integer', enum: [1, 3, 5, 7] } } },
             boRounds: { type: 'array', maxItems: 8, items: bo, description: 'loại trực tiếp: Bo riêng từng vòng từ vòng 1 (số cuối áp cho các vòng sau), vd. [3, 5, 7, 7]' },
+            direct: int(0, 256, 'giai đoạn thứ 2 trở đi: số đội hạt giống cao nhất vào thẳng giai đoạn này (không đá các giai đoạn trước)'),
+            region: { type: 'boolean', description: 'Thụy Sĩ: vòng 1 tránh hai đội cùng khu vực (cột quốc gia)' },
             bestNext: int(0, 32, 'thêm đội xếp ngay sau suất đi tiếp tốt nhất'),
             rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent'] },
             record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo } },
@@ -93,6 +98,8 @@
       if (c.type === 'swiss' && c.record) x.push(T('ds_adv_rec', { n: c.record.win }));
       else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'roundrobin' && !c.league ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
     }
+    if (c.direct) x.push(T('ds_direct', { n: c.direct })); // đội hạt giống cao vào thẳng giai đoạn này
+    if (c.type === 'swiss' && c.region) x.push(T('ds_region'));
     return x.join(', ');
   }
 
@@ -124,6 +131,9 @@
     if (r) out.push(T('ds_set', { to: r.to, by: r.by }) + (r.cap ? ' ' + T('ds_set_cap', { cap: r.cap }) : '') + (r.last ? ' ' + T('ds_set_last', { last: r.last }) : ''));
     const st = spec.stages || [];
     st.forEach((c, i) => out.push(T('ds_stage', { n: i + 1, text: stageText(c, T, i === st.length - 1, spec.result || sp.result) })));
+    // Esports: cấm chọn / Fearless (otour-draft.js)
+    const e = spec.esports;
+    if (e) out.push(T('ds_esp', { draft: T('esp_dr_' + (e.draft || 'lol')), fl: T('esp_fl_' + (e.fearless || 'hard')) }));
     return out;
   }
 
@@ -138,6 +148,7 @@
     const spec = { sport: SP.SPORTS[o.sport] ? o.sport : 'other', stages: o.stages };
     if (SP.RESULTS.includes(o.result)) spec.result = o.result;
     if (o.set !== undefined) spec.set = o.set;
+    if (o.esports && typeof o.esports === 'object') spec.esports = o.esports;
     return { spec };
   }
 

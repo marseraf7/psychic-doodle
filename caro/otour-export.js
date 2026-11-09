@@ -54,7 +54,7 @@
   }
 
   /** Cấu hình giải (bản dùng lại được). */
-  const specOf = (t) => ({ sport: t.sport, result: t.result, ...(t.set !== undefined ? { set: t.set } : {}), stages: t.stages });
+  const specOf = (t) => ({ sport: t.sport, result: t.result, ...(t.set !== undefined ? { set: t.set } : {}), stages: t.stages, ...(t.esports ? { esports: t.esports } : {}) });
 
   /** Chép nội dung (trình duyệt trong app – Zalo, Messenger… – có thể chặn tải file mà không báo lỗi). */
   async function copy(text) {

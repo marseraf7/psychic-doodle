@@ -45,6 +45,8 @@
   }
   K.otRuleText = ruleText;
   K.otCurMatch = () => S.match; // trận đang mở (otour-league.js – giờ, sân, sự kiện)
+  K.otFindMatch = (t, id) => { const x = find(t, id); return x ? x.m : null; }; // otour-games-ui.js
+  const games = (t, m, v) => (K.otGamesHtml ? K.otGamesHtml(t, m, v) : ''); // esports: chi tiết từng ván
   const extra = (t, m) => (K.otMatchExtra ? K.otMatchExtra(t, m) : '');
 
   K.otScoreHtml = (t) => {
@@ -63,11 +65,11 @@
     // Không nhập kết quả được (người xem, hoặc giải đã kết thúc): chỉ xem – ban tổ chức vẫn sửa giờ / sân / sự kiện
     if (!canScore(t)) {
       const info = t.canManage ? extra(t, m) : K.otMatchView ? K.otMatchView(t, m) : '';
-      return `<div class="score-panel">${head}${m.done ? res() : ''}${info}</div>`;
+      return `<div class="score-panel">${head}${m.done ? res() : ''}${games(t, m, v)}${info}</div>`;
     }
     if (m.done) {
       return `<div class="score-panel">${head}${res()}
-        <div class="row"><button type="button" class="ghost sm danger" data-act="otUndo">${esc(T('score_undo'))}</button></div>${extra(t, m)}</div>`;
+        <div class="row"><button type="button" class="ghost sm danger" data-act="otUndo">${esc(T('score_undo'))}</button></div>${games(t, m, v)}${extra(t, m)}</div>`;
     }
     const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
     let body;
@@ -103,7 +105,7 @@
         ${penOn(v) ? `<div class="set-row"><span class="muted">${esc(T('ot_pen'))}</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pa"><span>–</span><input type="number" min="0" max="99" inputmode="numeric" id="ots-pb"></div><p class="hint">${esc(T(elimType(v) ? 'ot_pen_hint' : 'ot_pen_hint_rr'))}</p>` : ''}`;
     }
     // Giờ / sân / sự kiện nằm ngoài form tỉ số (Enter trong các ô đó không lưu tỉ số)
-    return `<div class="score-panel"><form id="ots" class="score-form">${head}${body}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>${extra(t, m)}</div>`;
+    return `<div class="score-panel"><form id="ots" class="score-form">${head}${body}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>${games(t, m, v)}${extra(t, m)}</div>`;
   };
 
   const readSets = () => {
