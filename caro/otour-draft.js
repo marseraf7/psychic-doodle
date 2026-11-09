@@ -4,7 +4,7 @@
  * Cấu hình của giải (t.esports):
  *   { draft: 'lol' | 'custom' | 'off', bans, picks (kịch bản tự chọn: số cấm / chọn mỗi đội), fearless: 'hard' | 'soft' |
  *     'off', scope: 'series' | 'stage', stats: ['kills', 'gold', …, hoặc nhãn tự đặt], players: true = nhập K/D/A từng
- *     người, pool: ['Tên tướng', …] gợi ý (gõ tự do vẫn được) }
+ *     người, sides: 'br' (bên xanh / đỏ) | 'ps' (đua thuyền: vào từ mạn trái / phải), pool: ['Tên tướng', …] gợi ý }
  *   Fearless cứng: tướng đã được chọn (pick) ở ván trước – bởi bất kỳ đội nào – không ai được chọn lại; mềm: chỉ đội đã
  *   chọn không được chọn lại. Phạm vi 'series': trong một loạt (như giải chuyên nghiệp); 'stage': tính cả các trận vòng
  *   trước của hai đội trong giai đoạn. Tướng bị cấm (ban) không bị khoá.
@@ -15,7 +15,11 @@
  */
 (function (global) {
   'use strict';
-  const STATS = ['kills', 'gold', 'towers', 'dragons', 'barons', 'heralds', 'inhibitors'];
+  const STATS = ['kills', 'gold', 'towers', 'dragons', 'barons', 'heralds', 'inhibitors', 'finish'];
+  // Bộ môn có chi tiết từng ván: esports (cấm chọn, chỉ số trận) và đua thuyền (bên vào sân, thời gian về đích)
+  const SPORTS = ['esports', 'sailing'];
+  /** Cấu hình mặc định khi bật chi tiết ván cho bộ môn. */
+  const defaults = (sport) => (sport === 'sailing' ? { draft: 'off', fearless: 'off', stats: ['finish'], sides: 'ps' } : {});
   const LOL_STATS = ['kills', 'gold', 'towers', 'dragons', 'barons'];
   const MAX_POOL = 400, MAX_NAME = 30, MAX_STATS = 8, MAX_PLAYERS = 10, MAX_GOLD = 120, MAX_DUR = 4 * 3600;
   // Thứ tự cấm chọn chuẩn của LoL thi đấu (20 bước): cấm 3–3, chọn B1 R1 R2 B2 B3 R3, cấm R4 B4 R5 B5, chọn R4 B4 B5 R5
@@ -41,6 +45,7 @@
       scope: o.scope === 'stage' ? 'stage' : 'series',
       stats: Array.isArray(o.stats) || typeof o.stats === 'string' ? st : [...LOL_STATS],
       players: o.players === true,
+      sides: o.sides === 'ps' ? 'ps' : 'br', // nhãn hai bên: xanh / đỏ (esports) hoặc vào từ mạn trái / phải (đua thuyền)
       pool,
     };
   }
@@ -201,7 +206,7 @@
     return m ? Number(m[1]) * 60 + Number(m[2] || 0) : null;
   }
 
-  const api = { STATS, LOL_STATS, LOL, MAX_POOL, cleanEsports, script, counts, teamOf, priorPicks, locked, cleanGame, parseGold, stats, fmtDur, parseDur };
+  const api = { STATS, LOL_STATS, LOL, MAX_POOL, SPORTS, defaults, cleanEsports, script, counts, teamOf, priorPicks, locked, cleanGame, parseGold, stats, fmtDur, parseDur };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourDraft = api;
 })(typeof window !== 'undefined' ? window : globalThis);

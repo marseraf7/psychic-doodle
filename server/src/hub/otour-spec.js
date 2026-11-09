@@ -45,8 +45,8 @@ function normalizeSpec(o) {
     return x;
   });
   const set = result === 'sets' ? Rules.cleanSet(o.set === undefined ? preset.set : o.set) : null;
-  // Esports: cấm chọn / Fearless / chi tiết ván (caro/otour-draft.js) – chỉ khi bộ môn esports và có ghi (mẫu LoL…)
-  const esports = sport === 'esports' && o.esports ? DR.cleanEsports(o.esports) : null;
+  // Chi tiết ván (caro/otour-draft.js): esports – cấm chọn / Fearless; đua thuyền – bên vào sân, thời gian về đích
+  const esports = DR.SPORTS.includes(sport) && o.esports ? DR.cleanEsports(o.esports) : null;
   return { sport, result, set, stages: ST.normalizeStages(raw, { offline: true }), esports };
 }
 
@@ -63,6 +63,8 @@ function checkSize(spec, n) {
   // League phase: số đội (theo ước tính từng giai đoạn) phải chia đều cho các nhóm hạt giống, số trận chia đều cho các nhóm
   spec.stages.forEach((c, i) => {
     const k = e.stages[i] ? e.stages[i].players : n;
+    // Mỗi giai đoạn sau phải có ít nhất 2 đội (loại trực tiếp ở giữa chỉ cho 1 đội đi tiếp mà không có đội vào thẳng)
+    if (i > 0 && k < 2) throw new SpecError('ot_stage_few', { n: i + 1 });
     const bad = ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k);
     if (bad) throw new SpecError(bad.code, bad.args);
   });

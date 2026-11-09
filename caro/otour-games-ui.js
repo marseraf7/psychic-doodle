@@ -16,6 +16,10 @@
   const S = { mid: null, i: -1, vals: {}, err: '', saving: null }; // ván đang sửa (mã trận, chỉ số ván), giá trị đang gõ, đang gửi
   const SIDES = ['blue', 'red'];
   const statLabel = (k) => (DR.STATS.includes(k) ? T('esp_st_' + k) : k);
+  /** Nhãn bên: xanh / đỏ (esports) hoặc vào từ mạn trái / phải (đua thuyền – cfg.sides 'ps'). */
+  /** "Ván 3" (esports) / "Race 3" (đua thuyền). */
+  const gameN = (cfg, i) => T(cfg && cfg.sides === 'ps' ? 'esp_race_n' : 'esp_game_n', { n: i + 1 });
+  const sideLabel = (cfg, side) => T(cfg && cfg.sides === 'ps' ? (side === 'blue' ? 'esp_port' : 'esp_stbd') : 'esp_' + side);
   const teamName = (m, who) => (who === 'a' ? m.a : m.b).name;
   const fmtNum = (n) => (n >= 10000 ? (Math.round(n / 100) / 10) + 'k' : String(n));
 
@@ -44,15 +48,17 @@
     const s = (m.sets || [])[i];
     const win = s && s[0] !== s[1] ? (s[0] > s[1] ? 'a' : 'b') : null;
     const sideTeam = (side) => DR.teamOf(g, side);
-    const head = SIDES.map((side) => `<span class="esp-side ${esc(side)}">${esc(T('esp_' + side))}: <b>${esc(teamName(m, sideTeam(side)))}</b>${win === sideTeam(side) ? ` <span class="pill">${esc(T('esp_win'))}</span>` : ''}</span>`).join(' ');
+    const head = SIDES.map((side) => `<span class="esp-side ${esc(side)}">${esc(sideLabel(cfg, side))}: <b>${esc(teamName(m, sideTeam(side)))}</b>${win === sideTeam(side) ? ` <span class="pill">${esc(T('esp_win'))}</span>` : ''}</span>`).join(' ');
     const meta = [g.dur ? DR.fmtDur(g.dur) : '', g.mvp ? `${T('esp_mvp')}: ${g.mvp}` : ''].filter(Boolean).join(' · ');
     const draft = g.draft ? SIDES.map((side) => `<div class="esp-draft ${esc(side)}"><small class="muted">${esc(T('esp_ban'))}</small> ${g.draft[side].bans.filter(Boolean).map((c) => `<s class="chip-x">${esc(c)}</s>`).join(' ')}
       <br><small class="muted">${esc(T('esp_pick'))}</small> ${g.draft[side].picks.filter(Boolean).map((c) => `<span class="chip-x">${esc(c)}</span>`).join(' ')}</div>`).join('') : '';
     const keys = g.st ? Object.keys(g.st.blue) : [];
-    const stats = keys.length ? `<table class="stand esp-st"><thead><tr><th></th><th>${esc(T('esp_blue'))}</th><th>${esc(T('esp_red'))}</th></tr></thead><tbody>${keys.map((k) => `<tr><td>${esc(statLabel(k))}</td><td>${esc(fmtNum(g.st.blue[k]))}</td><td>${esc(fmtNum(g.st.red[k]))}</td></tr>`).join('')}</tbody></table>` : '';
+    const stats = keys.length ? `<table class="stand esp-st"><thead><tr><th></th><th>${esc(sideLabel(cfg, 'blue'))}</th><th>${esc(sideLabel(cfg, 'red'))}</th></tr></thead><tbody>${keys.map((k) => `<tr><td>${esc(statLabel(k))}</td><td>${esc(fmtNum(g.st.blue[k]))}</td><td>${esc(fmtNum(g.st.red[k]))}</td></tr>`).join('')}</tbody></table>` : '';
+    // Đua thuyền: cách biệt về đích (giây) từ thời gian về đích của hai thuyền
+    const margin = g.st && g.st.blue.finish != null && g.st.red.finish != null ? `<p class="hint">${esc(T('esp_margin', { s: Math.abs(g.st.blue.finish - g.st.red.finish) }))}</p>` : '';
     const pl = g.players ? SIDES.map((side) => (g.players[side] || []).length ? `<table class="stand esp-pl ${esc(side)}"><tbody>${g.players[side].map((p) => `<tr><td>${esc(p.n)}</td><td class="muted">${esc(p.c)}</td><td>${p.k}/${p.d}/${p.a}</td></tr>`).join('')}</tbody></table>` : '').join('') : '';
-    return `<div class="esp-game"><div class="esp-head"><b>${esc(T('esp_game_n', { n: i + 1 }))}</b> ${head}${meta ? ` <small class="muted">${esc(meta)}</small>` : ''}</div>
-      ${draft ? `<div class="esp-drafts">${draft}</div>` : ''}<div class="esp-row">${stats}${goldSvg(g.gold)}</div>${pl ? `<div class="esp-pls">${pl}</div>` : ''}</div>`;
+    return `<div class="esp-game"><div class="esp-head"><b>${esc(gameN(t.esports, i))}</b> ${head}${meta ? ` <small class="muted">${esc(meta)}</small>` : ''}</div>
+      ${draft ? `<div class="esp-drafts">${draft}</div>` : ''}<div class="esp-row">${stats}${goldSvg(g.gold)}</div>${margin}${pl ? `<div class="esp-pls">${pl}</div>` : ''}</div>`;
   }
 
   // ------------------------------------------------------------ Nhập / sửa một ván
@@ -81,22 +87,22 @@
     });
     const half = (side) => draft.filter((_, j) => steps[j][1] === side).join('');
     const stats = cfg.stats.map((k) => `<tr><td>${esc(statLabel(k))}</td>${SIDES.map((side) => `<td><input type="number" min="0" inputmode="numeric" data-gk="st.${side}.${esc(k)}" value="${esc(val(`st.${side}.${k}`, g.st && g.st[side][k] != null ? g.st[side][k] : ''))}"></td>`).join('')}</tr>`).join('');
-    const pl = cfg.players ? SIDES.map((side) => `<div class="esp-pl-in ${esc(side)}"><b>${esc(T('esp_' + side))}</b>${Array.from({ length: 5 }, (_, j) => {
+    const pl = cfg.players ? SIDES.map((side) => `<div class="esp-pl-in ${esc(side)}"><b>${esc(sideLabel(cfg, side))}</b>${Array.from({ length: 5 }, (_, j) => {
       const p = (g.players && g.players[side] && g.players[side][j]) || {};
       const inp = (f, w, type) => `<input data-gk="pl.${side}.${j}.${f}" ${type ? `type="number" min="0" inputmode="numeric"` : 'maxlength="40"'} ${f === 'c' ? 'list="ot-champs"' : ''} placeholder="${esc(w)}" value="${esc(val(`pl.${side}.${j}.${f}`, p[f] != null ? p[f] : ''))}">`;
       return `<div class="pl-row">${inp('n', T('esp_pl_name'))}${inp('c', T('esp_pl_champ'))}${inp('k', 'K', 1)}${inp('d', 'D', 1)}${inp('a', 'A', 1)}</div>`;
     }).join('')}</div>`).join('') : '';
     const goldText = val('gold', (g.gold || []).map((r) => r.join(' ')).join('\n'));
     const lockHtml = (list, who) => (list.length ? `<p class="hint esp-lock">${esc((who ? teamName(m, who) + ' – ' : '') + T('esp_locked', { list: list.join(', ') }))}</p>` : '');
-    return `<div class="esp-edit" id="otg-edit"><b>${esc(T('esp_game_n', { n: i + 1 }))}</b>
-      <div class="row"><label class="field inline"><span>${esc(T('esp_side_pick'))}</span><select data-gk="blue">${['a', 'b'].map((w) => `<option value="${w}" ${blue === w ? 'selected' : ''}>${esc(teamName(m, w))}</option>`).join('')}</select></label>
+    return `<div class="esp-edit" id="otg-edit"><b>${esc(gameN(t.esports, i))}</b>
+      <div class="row"><label class="field inline"><span>${esc(T(cfg.sides === 'ps' ? 'esp_side_pick_ps' : 'esp_side_pick'))}</span><select data-gk="blue">${['a', 'b'].map((w) => `<option value="${w}" ${blue === w ? 'selected' : ''}>${esc(teamName(m, w))}</option>`).join('')}</select></label>
         <label class="field inline"><span>${esc(T('esp_dur'))}</span><input data-gk="dur" placeholder="32:15" maxlength="7" value="${esc(val('dur', g.dur ? DR.fmtDur(g.dur) : ''))}"></label></div>
-      ${steps.length ? `${locks ? lockHtml(locks) : lockHtml(lockA, 'a') + lockHtml(lockB, 'b')}<div class="esp-dr-in">${SIDES.map((side) => `<div class="${esc(side)}"><b>${esc(T('esp_' + side))}</b>${half(side)}</div>`).join('')}</div>` : ''}
-      ${stats ? `<table class="stand esp-st"><thead><tr><th>${esc(T('esp_stats_team'))}</th><th>${esc(T('esp_blue'))}</th><th>${esc(T('esp_red'))}</th></tr></thead><tbody>${stats}</tbody></table>` : ''}
+      ${steps.length ? `${locks ? lockHtml(locks) : lockHtml(lockA, 'a') + lockHtml(lockB, 'b')}<div class="esp-dr-in">${SIDES.map((side) => `<div class="${esc(side)}"><b>${esc(sideLabel(cfg, side))}</b>${half(side)}</div>`).join('')}</div>` : ''}
+      ${stats ? `<table class="stand esp-st"><thead><tr><th>${esc(T('esp_stats_team'))}</th><th>${esc(sideLabel(cfg, 'blue'))}</th><th>${esc(sideLabel(cfg, 'red'))}</th></tr></thead><tbody>${stats}</tbody></table>` : ''}
       <label class="field inline"><span>${esc(T('esp_mvp'))}</span><input data-gk="mvp" maxlength="40" value="${esc(val('mvp', g.mvp || ''))}"></label>
       ${pl ? `<div class="field"><span>${esc(T('esp_players'))}</span><div class="esp-pls">${pl}</div></div>` : ''}
-      <label class="field"><span>${esc(T('esp_gold'))}</span><textarea data-gk="gold" rows="4" placeholder="5 8100 7900&#10;10 17200 16400">${esc(goldText)}</textarea><small class="hint">${esc(T('esp_gold_hint'))}</small></label>
-      <div id="otg-gold-prev">${(() => { const p = DR.parseGold(goldText); return p.gold ? goldSvg(p.gold) : ''; })()}</div>
+      ${cfg.sides === 'ps' ? '' : `<label class="field"><span>${esc(T('esp_gold'))}</span><textarea data-gk="gold" rows="4" placeholder="5 8100 7900&#10;10 17200 16400">${esc(goldText)}</textarea><small class="hint">${esc(T('esp_gold_hint'))}</small></label>
+      <div id="otg-gold-prev">${(() => { const p = DR.parseGold(goldText); return p.gold ? goldSvg(p.gold) : ''; })()}</div>`}
       <p class="err" id="otg-err">${esc(S.err)}</p>
       <div class="row"><button type="button" class="primary sm" data-act="otGameSave">${esc(T('esp_save'))}</button>
         ${g.blue ? `<button type="button" class="ghost sm danger" data-act="otGameDel">${esc(T('esp_del'))}</button>` : ''}
@@ -147,12 +153,12 @@
     for (let i = 0; i < n; i++) {
       const g = games[i];
       if (editing && S.i === i) { rows.push(editor(t, m, i)); continue; }
-      rows.push(g ? gameView(t, m, g, i) : `<div class="esp-game empty"><b>${esc(T('esp_game_n', { n: i + 1 }))}</b> <span class="muted">${esc(T('esp_none'))}</span></div>`);
-      if (t.canManage && !editing) rows.push(`<button type="button" class="ghost sm" data-act="otGameEdit" data-mid="${esc(m.id)}" data-i="${i}">${esc(T(g ? 'esp_fix' : 'esp_edit'))} · ${esc(T('esp_game_n', { n: i + 1 }))}</button>`);
+      rows.push(g ? gameView(t, m, g, i) : `<div class="esp-game empty"><b>${esc(gameN(t.esports, i))}</b> <span class="muted">${esc(T('esp_none'))}</span></div>`);
+      if (t.canManage && !editing) rows.push(`<button type="button" class="ghost sm" data-act="otGameEdit" data-mid="${esc(m.id)}" data-i="${i}">${esc(T(g ? 'esp_fix' : 'esp_edit'))} · ${esc(gameN(t.esports, i))}</button>`);
     }
     // Ván kế tiếp của loạt đang đấu dở (nhập trực tiếp từng ván)
-    if (t.canManage && !editing && !m.done && n < bo) rows.push(`<button type="button" class="ghost sm" data-act="otGameEdit" data-mid="${esc(m.id)}" data-i="${n}">${esc(T('esp_edit'))} · ${esc(T('esp_game_n', { n: n + 1 }))}</button>`);
-    return `<section class="esp-games"><h6>${esc(T('esp_title'))}</h6>${rows.join('')}${champList(t)}</section>`;
+    if (t.canManage && !editing && !m.done && n < bo) rows.push(`<button type="button" class="ghost sm" data-act="otGameEdit" data-mid="${esc(m.id)}" data-i="${n}">${esc(T('esp_edit'))} · ${esc(gameN(t.esports, n))}</button>`);
+    return `<section class="esp-games"><h6>${esc(T(t.esports.sides === 'ps' ? 'esp_title_ps' : 'esp_title'))}</h6>${rows.join('')}${champList(t)}</section>`;
   };
 
   /** Gợi ý tướng: danh sách ban tổ chức dán + tên đã dùng trong giải. */
@@ -168,14 +174,14 @@
     const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
     const rows = s.champs.slice(0, 60).map((x) => `<tr><td class="nm">${esc(x.c)}</td><td>${x.pick}</td><td>${x.ban}</td><td>${pct(x.pick + x.ban, s.games)}%</td><td>${x.pick ? pct(x.win, x.pick) + '%' : '–'}</td></tr>`).join('');
     return `<section class="ot-sec esp-stats"><h4>${esc(T('esp_st_title'))}</h4>
-      <p class="hint">${esc(T('esp_sum', { g: s.games, d: s.avgDur ? DR.fmtDur(s.avgDur) : '–', b: pct(s.blueWins, s.decided) }))}</p>
+      <p class="hint">${esc(T(t.esports && t.esports.sides === 'ps' ? 'esp_sum_ps' : 'esp_sum', { g: s.games, d: s.avgDur ? DR.fmtDur(s.avgDur) : '–', b: pct(s.blueWins, s.decided) }))}</p>
       ${rows ? `<div class="tscroll"><table class="stand"><thead><tr><th>${esc(T('esp_col_champ'))}</th><th>${esc(T('esp_col_pick'))}</th><th>${esc(T('esp_col_ban'))}</th><th>${esc(T('esp_col_pres'))}</th><th>${esc(T('esp_col_win'))}</th></tr></thead><tbody>${rows}</tbody></table></div>` : ''}
       ${s.mvp.length ? `<h5>${esc(T('esp_mvp_top'))}</h5><ol>${s.mvp.slice(0, 10).map((x) => `<li>${esc(x.who)} <b>×${x.n}</b></li>`).join('')}</ol>` : ''}</section>`;
   };
 
   // ------------------------------------------------------------ Cấu hình (tab Khác)
   K.otEspCfgHtml = (t) => {
-    if (!t.canManage || t.sport !== 'esports') return '';
+    if (!t.canManage || !DR.SPORTS.includes(t.sport)) return '';
     const c = t.esports;
     const body = () => {
       if (!c) return `<button type="button" class="ghost sm" data-act="otEspOn">${esc(T('esp_cfg_on'))}</button>`;
@@ -185,6 +191,7 @@
         <label class="field inline"><span>${esc(T('esp_draft'))}</span>${sel('draft', [['lol', T('esp_dr_lol')], ['custom', T('esp_dr_custom')], ['off', T('esp_dr_off')]], c.draft)}</label>
         <div class="row"><label class="field inline"><span>${esc(T('esp_bans'))}</span><input type="number" name="bans" min="0" max="10" value="${c.bans}"></label>
           <label class="field inline"><span>${esc(T('esp_picks'))}</span><input type="number" name="picks" min="1" max="10" value="${c.picks}"></label></div>
+        <label class="field inline"><span>${esc(T('esp_sides'))}</span>${sel('sides', [['br', T('esp_blue') + ' / ' + T('esp_red')], ['ps', T('esp_port') + ' / ' + T('esp_stbd')]], c.sides)}</label>
         <label class="field inline"><span>${esc(T('esp_fearless'))}</span>${sel('fearless', [['hard', T('esp_fl_hard')], ['soft', T('esp_fl_soft')], ['off', T('esp_fl_off')]], c.fearless)}</label>
         <label class="field inline"><span>${esc(T('esp_scope'))}</span>${sel('scope', [['series', T('esp_sc_series')], ['stage', T('esp_sc_stage')]], c.scope)}</label>
         <div class="field"><span>${esc(T('esp_cfg_stats'))}</span><div class="chips">${DR.STATS.map((k) => `<label class="chip"><input type="checkbox" name="stat" value="${k}" ${c.stats.includes(k) ? 'checked' : ''}><span>${esc(T('esp_st_' + k))}</span></label>`).join('')}</div></div>
@@ -215,13 +222,13 @@
   K.acts.otGameDel = () => window.CaroConfirm.ask(T('esp_del_confirm', { n: S.i + 1 })).then((ok) => {
     if (ok) { O.send({ t: 'otGameDel', id: D.ot.id, match: S.mid, i: S.i }); Object.assign(S, { mid: null, i: -1, vals: {}, err: '' }); }
   });
-  K.acts.otEspOn = () => O.send({ t: 'otEspCfg', id: D.ot.id, esports: {} });
+  K.acts.otEspOn = () => O.send({ t: 'otEspCfg', id: D.ot.id, esports: DR.defaults(D.ot.sport) });
   K.acts.otEspSave = () => {
     const f = $('otesp');
     if (!f) return;
     const stats = [...f.querySelectorAll('input[name=stat]:checked')].map((x) => x.value).concat(String(f.elements.custom.value).split(',').map((x) => x.trim()).filter(Boolean));
     O.send({ t: 'otEspCfg', id: D.ot.id, esports: { draft: f.elements.draft.value, bans: f.elements.bans.value, picks: f.elements.picks.value, fearless: f.elements.fearless.value,
-      scope: f.elements.scope.value, stats, players: f.elements.players.checked, pool: f.elements.pool.value } });
+      scope: f.elements.scope.value, sides: f.elements.sides.value, stats, players: f.elements.players.checked, pool: f.elements.pool.value } });
     window.CaroConfirm.info(T('esp_cfg_saved'));
   };
 

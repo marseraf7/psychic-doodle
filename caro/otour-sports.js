@@ -24,6 +24,8 @@
     baseball: { icon: '⚾', result: 'score', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'ot', unit: 'game' },
     handball: { icon: '🤾', result: 'score', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'aet' },
     esports: { icon: '🎮', result: 'sets', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 3, set: null },
+    // Đua thuyền buồm đối kháng (kiểu America's Cup): mỗi race là một "ván" (Bo13 = ai thắng 7 race trước), không hoà
+    sailing: { icon: '⛵', result: 'sets', points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'wins'], bestOf: 1, set: null, unit: 'game' },
     // Hệ Race (stages-race.js): preset = mẫu thể thức chọn sẵn khi đổi sang môn này
     racing: { icon: '🏎️', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'grand_prix' },
     running: { icon: '🏃', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },

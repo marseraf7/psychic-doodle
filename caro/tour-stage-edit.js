@@ -93,7 +93,8 @@
     };
     const cards = st.map((c, i) => {
       const last = i === st.length - 1;
-      const types = [...(last ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['race'] : [])].map((x) => [x, T('fmt_' + x)]);
+      // Giải offline: loại trực tiếp cũng được làm giai đoạn giữa (vòng loại đội thách đấu kiểu America's Cup)
+      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['race'] : [])].map((x) => [x, T('fmt_' + x)]);
       const f = [field(T('format'), sel(i, 'type', types, c.type))];
       if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf)));
       // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
@@ -202,6 +203,7 @@
       const nc = DEFAULT[v]();
       nc.bestOf = c.bestOf;
       if (i === stages.length - 1) delete nc.advance; // giai đoạn cuối không có "đi tiếp"
+      else if (nc.advance == null) nc.advance = 1; // loại trực tiếp làm giai đoạn giữa: mặc định vô địch nhánh đi tiếp
       stages[i] = nc;
     } else if (k === 'gmode') {
       if (v === 'size') { delete c.groups; c.groupSize = 4; } else { delete c.groupSize; c.groups = 2; }
@@ -280,7 +282,7 @@
     } else return false;
     // Giai đoạn đứng trước phải là vòng tròn / Thụy Sĩ và có số người đi tiếp
     stages.forEach((c, i) => {
-      if (i < stages.length - 1 && !c.points && c.type !== 'race') stages[i] = DEFAULT.roundrobin();
+      if (i < stages.length - 1 && !c.points && c.type !== 'race' && !((c.type === 'single' || c.type === 'double') && c.advance)) stages[i] = DEFAULT.roundrobin();
       else if (i < stages.length - 1 && !c.advance) c.advance = DEFAULT[c.type]().advance;
     });
     dropPlayoff(stages);

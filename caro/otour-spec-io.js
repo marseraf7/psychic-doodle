@@ -31,7 +31,7 @@
         properties: { draft: { type: 'string', enum: ['lol', 'custom', 'off'] }, bans: int(0, 10), picks: int(1, 10), fearless: { type: 'string', enum: ['hard', 'soft', 'off'] },
           scope: { type: 'string', enum: ['series', 'stage'] }, stats: { type: 'array', maxItems: 8, items: { type: 'string' } }, players: { type: 'boolean' }, pool: { type: 'array', maxItems: 400, items: { type: 'string' } } } },
       stages: {
-        type: 'array', minItems: 1, maxItems: 3, description: 'Các giai đoạn; mọi giai đoạn trừ cuối phải là roundrobin / swiss / race',
+        type: 'array', minItems: 1, maxItems: 3, description: 'Các giai đoạn; giai đoạn giữa: roundrobin / swiss / race hoặc single / double (đi tiếp theo thứ hạng chung cuộc, advance)',
         items: {
           type: 'object', required: ['type'],
           properties: {
