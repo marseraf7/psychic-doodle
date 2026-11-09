@@ -12,6 +12,7 @@
  *   big      (vòng tròn) – bảng lớn tới MAX_BIG đội (league lượt đi – về 20 đội như Premier League).
  *   bestNext (vòng tròn, không phải vòng cuối) – thêm N đội đứng ngay sau suất đi tiếp có thành tích tốt nhất giữa các
  *            bảng (World Cup 2026: 12 bảng, nhất nhì + 8 đội hạng ba tốt nhất).
+ *   region   (Thụy Sĩ) – vòng 1 tránh hai đội cùng khu vực (cột quốc gia); vòng sau ghép như thường.
  *   record   (Thụy Sĩ) – theo số thắng / thua kiểu LoL Worlds: thắng `win` trận thì đi tiếp, thua `lose` trận thì bị loại,
  *            ghép cặp cùng thành tích (1–0 gặp 1–0); trận quyết định đi tiếp / bị loại dùng Bo `bo`.
  *   path     (loại trực tiếp sau vòng bảng) – 'groups': nhánh cố định theo vị trí trong bảng (1A–2B, 1E–3A/B/C/D/F kiểu
@@ -64,6 +65,8 @@ function normalizeExtras(c, out, last, oddBo) {
     // Thứ hạng: ít trận thua hơn (3–0 > 3–1 > 3–2), rồi các hệ số đã chọn
     if (!out.tiebreaks.includes('losses')) out.tiebreaks = ['losses', ...out.tiebreaks].slice(0, 5);
   }
+  // Thụy Sĩ: vòng 1 không cho hai đội cùng khu vực (cột "quốc gia" của danh sách) gặp nhau – như LoL Worlds
+  if (out.type === 'swiss' && c.region === true) out.region = true;
   if ((out.type === 'single' || out.type === 'double') && c.legs === true) {
     out.legs = true;
     out.legsFinal = c.legsFinal === true;

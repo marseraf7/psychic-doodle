@@ -79,7 +79,7 @@
     if (!fm || !fm.F || !fm.F.d) return null;
     fm.collect();
     const F = fm.F;
-    return { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages };
+    return { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages, ...(F.d.esports ? { esports: F.d.esports } : {}) };
   }
 
   K.acts.otAiSend = () => {

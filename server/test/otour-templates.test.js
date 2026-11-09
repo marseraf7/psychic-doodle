@@ -27,7 +27,8 @@ test('Mọi mẫu giải: chuẩn hoá được, đủ cỡ với số đội g�
   assert.strictEqual(est('premier_league')[0].matches, 380, 'Premier League: 20 đội lượt đi – về = 380 trận');
   assert.deepStrictEqual([est('champions_league')[0].matches, est('champions_league')[0].advance], [144, 24], 'CL: 144 trận league phase, 24 đội đi tiếp');
   assert.deepStrictEqual([est('world_cup_2026')[0].matches, est('world_cup_2026')[0].advance], [72, 32], 'World Cup 2026: 72 trận vòng bảng, 32 đội vào loại trực tiếp');
-  assert.deepStrictEqual([est('lol_worlds')[0].matches, est('lol_worlds')[0].advance], [33, 8], 'LoL Worlds: Thụy Sĩ 33 trận, 8 đội');
+  // LoL Worlds 2025: Play-In 2 đội 1 loạt Bo5 → 1 đội + 15 đội vào thẳng vòng Thụy Sĩ 16 đội (33 trận) → 8 đội loại trực tiếp
+  assert.deepStrictEqual(est('lol_worlds').map((s) => [s.players, s.matches]), [[2, 1], [16, 33], [8, 7]], 'LoL Worlds: Play-In, Thụy Sĩ 16 đội 33 trận, 8 đội');
   assert.strictEqual(est('f1')[0].matches, 24, 'F1: 24 chặng');
   // Giải nhà nghề Mỹ: mùa giải đúng số trận như thật (caro/otour-season.js) rồi playoff
   assert.deepStrictEqual([est('nba')[0].matches, est('nba')[0].advance, est('nba')[1].matches], [1230, 20, 21], 'NBA: 82 trận mỗi đội, 20 đội (gồm play-in), 6 trận play-in + 15 trận playoff');

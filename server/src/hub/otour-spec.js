@@ -13,6 +13,7 @@ const ST = require('./stages.js');
 const { SPORTS, RESULTS } = require('../../../caro/otour-sports.js');
 const Rules = require('../../../caro/otour-rules.js');
 const Race = require('./stages-race.js');
+const DR = require('../../../caro/otour-draft.js');
 const MAX_TEAMS = 512;
 const MAX_MATCHES = 10000;
 
@@ -21,7 +22,7 @@ class SpecError extends Error {
 }
 
 /**
- * Chuẩn hoá bản cấu hình từ client / mẫu / chatbot. Trả { sport, result, set, stages }.
+ * Chuẩn hoá bản cấu hình từ client / mẫu / chatbot. Trả { sport, result, set, stages, esports }.
  * set: luật set (otour-rules.js – chỉ kiểu 'sets'); không ghi thì lấy theo bộ môn, null / false = không kiểm điểm từng set.
  * stages dùng đúng định dạng giai đoạn của giải Caro (stages.js – normalizeStages): loại trực tiếp, nhánh thắng –
  * thua, vòng tròn, Thụy Sĩ… Điểm / tie-break của vòng tròn / Thụy Sĩ lấy từ bộ môn nếu không ghi rõ.
@@ -44,13 +45,18 @@ function normalizeSpec(o) {
     return x;
   });
   const set = result === 'sets' ? Rules.cleanSet(o.set === undefined ? preset.set : o.set) : null;
-  return { sport, result, set, stages: ST.normalizeStages(raw, { offline: true }) };
+  // Esports: cấm chọn / Fearless / chi tiết ván (caro/otour-draft.js) – chỉ khi bộ môn esports và có ghi (mẫu LoL…)
+  const esports = sport === 'esports' && o.esports ? DR.cleanEsports(o.esports) : null;
+  return { sport, result, set, stages: ST.normalizeStages(raw, { offline: true }), esports };
 }
 
 /** Kiểm cỡ giải sau khi đã có số đội: đủ người, tối đa MAX_TEAMS, ước tính số trận không vượt MAX_MATCHES. */
 function checkSize(spec, n) {
   if (n < 2) throw new SpecError('ot_few_teams');
   if (n > MAX_TEAMS) throw new SpecError('ot_many_teams', { n: MAX_TEAMS });
+  // Đội vào thẳng giai đoạn sau: giai đoạn đầu còn ít nhất 2 đội
+  const dt = ST.directTotal(spec.stages);
+  if (dt && n - dt < 2) throw new SpecError('ot_direct_many', { n: dt });
   const E = require('../../../caro/tour-estimate.js');
   const e = E.estimate({ stages: spec.stages, players: n, timeLimit: 20 });
   if ((e.maxMatches || e.matches) > MAX_MATCHES) throw new SpecError('ot_many_matches', { n: MAX_MATCHES });

@@ -159,6 +159,10 @@
       if (ctx.ext && (c.type === 'single' || c.type === 'double') && !(c.playoff && prev && prev.season) && prev && prev.type === 'roundrobin' && !prev.league && ((prev.groups || 1) > 1 || prev.groupSize)) {
         f.push(chk(i, 'path', c.path === 'groups', T('opt_path')));
       }
+      // Giải offline: đội hạt giống cao vào thẳng giai đoạn này (LoL Worlds: 15 đội vào thẳng vòng Thụy Sĩ); Thụy Sĩ vòng 1
+      // tránh hai đội cùng khu vực (cột quốc gia)
+      if (ctx.ext && i > 0) f.push(field(T('opt_direct'), num(i, 'direct', c.direct || 0, 0, 256)));
+      if (ctx.ext && c.type === 'swiss') f.push(chk(i, 'region', !!c.region, T('opt_region')));
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
       if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')]], c.pairing || 'dutch')));
       if (c.points) {
@@ -181,7 +185,7 @@
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div>${extra}</div>`;
     });
     const arrows = [];
-    st.forEach((c, i) => { arrows.push(stageName(c)); if (i < st.length - 1) arrows.push(advText(c)); });
+    st.forEach((c, i) => { arrows.push(stageName(c)); if (i < st.length - 1) arrows.push(advText(c) + (st[i + 1].direct ? ' ' + T('adv_direct', { n: st[i + 1].direct }) : '')); });
     return `<p class="flow">${arrows.map((x, i) => (i % 2 ? `<span class="muted">→ ${esc(x)} →</span>` : `<b>${esc(x)}</b>`)).join(' ')}</p>
       ${cards.join('<div class="sc-arrow">↓</div>')}
       ${st.length < MAX ? `<button type="button" class="ghost sm" data-sact="add">${icon('plus')}${esc(T('stage_add'))}</button>` : ''}`;

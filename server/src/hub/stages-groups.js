@@ -147,7 +147,7 @@ function swissPairs(order, played, byes, mode, score) {
   return { pairs, bye };
 }
 
-function swissNextRound(st, seedOf, isActive = () => true, fixed = null) {
+function swissNextRound(st, seedOf, isActive = () => true, fixed = null, countryOf = null) {
   const r = st.rounds.length;
   const stats = tally(st);
   // Theo số thắng / thua (stages-league.js): chỉ ghép người chưa đi tiếp / chưa bị loại, cùng thành tích gặp nhau
@@ -158,6 +158,10 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null) {
     : pool.sort((a, b) => stats[b].pts - stats[a].pts || seedOf(a) - seedOf(b));
   const played = new Set();
   for (const m of Object.values(st.matches)) if (real(m.a) && real(m.b)) played.add(m.a < m.b ? m.a + '|' + m.b : m.b + '|' + m.a);
+  // Vòng 1 tránh cùng khu vực (cfg.region): coi các cặp cùng khu vực như đã gặp – bộ ghép cặp tự né (hết cách thì cho phép)
+  if (r === 0 && st.cfg.region && countryOf) {
+    for (const a of order) for (const b of order) if (a < b && countryOf(a) && countryOf(a) === countryOf(b)) played.add(a + '|' + b);
+  }
   const byes = {};
   for (const m of Object.values(st.matches)) if (m.bye && real(m.winner)) byes[m.winner] = (byes[m.winner] || 0) + 1;
   // Cặp cố định (giao hữu CLB: bàn 1 gặp bàn 1…) chỉ cho vòng đầu
@@ -195,15 +199,18 @@ function standings(st, seedOf) {
   return null;
 }
 
-/** Người đi tiếp sang vòng sau, theo thứ tự hạt giống mới (nhất các bảng, rồi nhì các bảng…). */
-function advancers(st, seedOf) {
+/**
+ * Người đi tiếp sang vòng sau, theo thứ tự hạt giống mới (nhất các bảng, rồi nhì các bảng…). min: số người tối thiểu
+ * (mặc định 2 để giai đoạn sau đấu được; 1 khi có đội vào thẳng giai đoạn sau – Play-In chỉ lấy 1 đội).
+ */
+function advancers(st, seedOf, min = 2) {
   const k = st.cfg.advance || 2;
   const tables = standings(st, seedOf);
   const groupOf = {};
   if (st.type === 'swiss' && st.cfg.record) { // theo số thắng / thua: mọi người đủ số trận thắng
     const rec = records(st), win = st.cfg.record.win;
     const seeds = tables[0].list.filter((u) => rec[u].w >= win);
-    return { seeds: seeds.length >= 2 ? seeds : tables[0].list.slice(0, 2), groupOf };
+    return { seeds: seeds.length >= min ? seeds : tables[0].list.slice(0, 2), groupOf };
   }
   if (st.type === 'swiss' || st.type === 'race') return { seeds: tables[0].list.slice(0, Math.max(2, k)), groupOf };
   const tiers = [];
@@ -215,7 +222,7 @@ function advancers(st, seedOf) {
   }
   // Thêm các đội đứng ngay sau suất đi tiếp có thành tích tốt nhất (World Cup 2026: 8 đội hạng ba tốt nhất)
   for (const x of bestNextTier(tables, k, st.cfg.bestNext, crossCompare(st, seedOf))) { seeds.push(x.uid); groupOf[x.uid] = x.g; }
-  return { seeds: seeds.length >= 2 ? seeds : tables.flatMap((t) => t.list).slice(0, 2), groupOf };
+  return { seeds: seeds.length >= min ? seeds : tables.flatMap((t) => t.list).slice(0, 2), groupOf };
 }
 
 /**

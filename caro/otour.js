@@ -149,7 +149,7 @@
       const teams = F.d.teams.split('\n').map((x) => x.trim()).filter(Boolean);
       if (F.d.name.trim().length < 3) { $('otf-err').textContent = T('srv_tour_name_short'); return; }
       O.send({ t: 'otCreate', name: F.d.name.trim(), slug: F.d.slug.trim().toLowerCase(), desc: F.d.desc, access: F.d.access,
-        spec: { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages }, teams });
+        spec: { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages, ...(F.d.sport === 'esports' ? { esports: F.d.esports || {} } : {}) }, teams });
     };
     showEst(f);
   }
@@ -201,9 +201,10 @@
     },
     stages: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + K.stagesHtml(t), // khung nhập kết quả (otour-score.js) + nhánh / bảng
     sched: (t) => { schedNeedAll(t); return (K.otScoreHtml ? K.otScoreHtml(t) : '') + ((K.otSchedUi ? K.otSchedUi.html(t) : L().sched && L().sched(t)) || hint(t.canManage ? 'ot_sched_none_m' : 'ot_sched_none')); },
-    stats: (t) => (((L().stats && L().stats(t)) || hint('ot_stats_none')) + (K.otDiscHtml ? K.otDiscHtml(t) : '')), // + treo giò (otour-disc.js)
+    stats: (t) => (((K.otEspStatsHtml && K.otEspStatsHtml(t)) || (L().stats && L().stats(t)) || hint('ot_stats_none')) + (K.otDiscHtml ? K.otDiscHtml(t) : '')), // esports / cầu thủ + treo giò (otour-disc.js)
     teams: teamsTab,
-    more: (t) => (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '') // nhúng vào website (tour-embed.js)
+    // Cấu hình esports (otour-games-ui.js), xuất file, nhúng vào website (tour-embed.js), nhật ký
+    more: (t) => (K.otEspCfgHtml ? K.otEspCfgHtml(t) : '') + (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '')
       + (t.log && t.log.length ? `<section class="ot-sec"><h4>${esc(T('mg_log'))}</h4><ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul></section>` : ''),
   };
   function pageView() {

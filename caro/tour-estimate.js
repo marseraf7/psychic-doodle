@@ -216,6 +216,9 @@
   function estimate({ stages, players, timeLimit, clock }) {
     const list = Array.isArray(stages) ? stages : [];
     let n = Math.max(0, Math.floor(Number(players) || 0));
+    // Giải offline: đội hạt giống vào thẳng giai đoạn sau (cfg.direct) – không đá các giai đoạn trước
+    const direct = list.map((c, i) => (i ? Math.max(0, Math.floor(Number(c.direct) || 0)) : 0));
+    n = Math.max(0, n - direct.reduce((a, b) => a + b, 0));
     const per = gameMinutes(timeLimit, clock);
     const out = { stages: [], matches: 0, maxMatches: 0, waves: 0, minutes: 0 };
     list.forEach((c, i) => {
@@ -230,7 +233,7 @@
       out.maxMatches += s.maxMatches;
       out.waves += s.maxWaves || s.waves;
       out.minutes += s.minutes + (i ? STAGE_BREAK_MIN : 0);
-      if (!last) n = s.advance;
+      if (!last) n = s.advance + direct[i + 1];
     });
     out.minutes = Math.round(out.minutes);
     return out;
