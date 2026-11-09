@@ -18,8 +18,9 @@
 'use strict';
 
 const RU = require('../../../caro/otour-rules.js');
+const GT = require('./stages-gt.js'); // cách tính 'gt': xe đạp nhiều chặng, nhiều bảng xếp hạng
 
-const SCORES = ['points', 'time'];
+const SCORES = ['points', 'time', 'gt'];
 const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const MAX_EVENTS = 30;
 const MAX_RACE = 200; // tối đa người / đội trong một giai đoạn race (không chia lượt)
@@ -42,9 +43,10 @@ function normalizeRace(c, last) {
   const score = SCORES.includes(c.score) ? c.score : 'points';
   const out = { type: 'race', bestOf: 1, events: int(c.events, 1, MAX_EVENTS, 1), score };
   if (score === 'points') out.table = cleanTable(c.table) || [...F1];
-  if (c.teams === true) out.teams = true;
+  if (score === 'gt') GT.normalizeGt(c, out); // bảng đội luôn tính theo cột "Đội"; không chia lượt
+  else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
-  if (heat >= 2) out.heat = heat;
+  if (heat >= 2 && score !== 'gt') out.heat = heat;
   if (!last) out.advance = int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
@@ -62,7 +64,8 @@ function buildRace(st) {
  * Kiểm và chuẩn hoá kết quả một chặng. rows: [{ uid, rank? (points) | time? ms (time), dnf?, pts? }]. Người không có
  * trong rows = không xuất phát (DNS – không điểm). Trả { rows } hoặc { code } (mã lỗi).
  */
-function cleanEvent(st, rows, members = st.entrants) {
+function cleanEvent(st, rows, members = st.entrants, i = 0) {
+  if (st.cfg.score === 'gt') return GT.cleanGtEvent(st, i, rows);
   if (!Array.isArray(rows) || rows.length > members.length) return { code: 'tour_score_bad' };
   const inStage = new Set(members), seen = new Set(), out = [];
   const pts = st.cfg.score === 'points';
@@ -132,6 +135,7 @@ function undoHeat(st, i, h) {
 
 /** Bảng xếp hạng chung: { list, stats } (cùng hình dạng bảng điểm vòng tròn để dùng chung người đi tiếp / bục trao giải). */
 function raceTable(st, seedOf) {
+  if (st.cfg.score === 'gt') { const C = GT.gtCalc(st, seedOf, null); return { list: C.gc, stats: C.stats }; }
   const cfg = st.cfg, pts = cfg.score === 'points';
   const stats = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, pts: 0, time: 0, races: 0, fin: 0, dnf: 0, places: [] }]));
   const done = st.events.filter((e) => e.done);
@@ -173,7 +177,8 @@ function raceTable(st, seedOf) {
  * Chặng: các dòng theo thứ tự về đích (điểm hoặc thời gian + chênh lệch với người dẫn đầu / người ngay trên).
  * Bảng chung: hạng, tổng điểm / tổng thời gian, chênh lệch; bảng đội nếu bật.
  */
-function raceView(st, i, adv, side, seedOf, teamOf = () => '') {
+function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => false) {
+  if (st.cfg.score === 'gt') return GT.gtView(st, i, adv, side, seedOf, teamOf, youngOf);
   const cfg = st.cfg, pts = cfg.score === 'points';
   // Chia lượt: từng lượt – chỉ trạng thái + kết quả; người trong lượt trình duyệt tự tính (RU.heatsOf, cùng thứ tự entrants)
   // – không gửi lại danh sách mọi lượt của mọi chặng mỗi lần cập nhật (đoàn 512 người × 30 chặng ≈ 200 KB)

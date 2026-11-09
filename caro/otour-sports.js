@@ -28,6 +28,8 @@
     sailing: { icon: '⛵', result: 'sets', points: { w: 1, d: 0, l: 0 }, tiebreaks: ['h2h', 'wins'], bestOf: 1, set: null, unit: 'game' },
     // Hệ Race (stages-race.js): preset = mẫu thể thức chọn sẵn khi đổi sang môn này
     racing: { icon: '🏎️', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'grand_prix' },
+    // Xe đạp: mặc định giải nhiều chặng kiểu Grand Tour (stages-gt.js – tổng thời gian, điểm, leo núi, trẻ, đồng đội)
+    cycling: { icon: '🚴', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'stage_race' },
     running: { icon: '🏃', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
     swimming: { icon: '🏊', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
     chess: { icon: '♟️', result: 'winner', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['bh1', 'bh', 'sb'], bestOf: 1 },

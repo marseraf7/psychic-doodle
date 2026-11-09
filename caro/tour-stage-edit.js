@@ -28,6 +28,12 @@
     // Hệ Race (chỉ giải offline – ctx.ext): chặng đua cả đoàn, điểm theo hạng (bảng F1) hoặc thời gian
     race: () => ({ type: 'race', bestOf: 1, events: 1, score: 'points', table: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], advance: 8 }),
   };
+  // Xe đạp nhiều chặng (cách tính 'gt' – stages-gt.js): loại từng chặng
+  const GT_KINDS = ['flat', 'hilly', 'mtn', 'itt'];
+  const gtKinds = (c) => Array.from({ length: c.events || 1 }, (_, j) => (GT_KINDS.includes((c.kinds || [])[j]) ? c.kinds[j] : GT_PATTERN[j % GT_PATTERN.length]));
+  // Mẫu loại chặng mặc định (như một Grand Tour 21 chặng: đồng bằng, đồi, núi, 2 chặng tính giờ) – lặp lại nếu nhiều hơn
+  const GT_PATTERN = ['flat', 'hilly', 'flat', 'hilly', 'itt', 'hilly', 'hilly', 'flat', 'flat', 'mtn', 'flat', 'mtn', 'itt', 'mtn', 'hilly', 'mtn', 'flat', 'mtn', 'mtn', 'hilly', 'flat'];
+  const gtStage = (n) => ({ type: 'race', bestOf: 1, events: n, score: 'gt', bonus: true, kinds: Array.from({ length: n }, (_, j) => GT_PATTERN[j % GT_PATTERN.length]) });
   const MAX = 3;
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
@@ -45,7 +51,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind'];
 
   // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
   const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
@@ -99,9 +105,16 @@
       if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf)));
       // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
       if (c.type === 'race') {
-        f.push(field(T('opt_race_heat'), num(i, 'heat', c.heat || 0, 0, 64))); // chia lượt cho đoàn đông (0 = không chia)
+        if (c.score !== 'gt') f.push(field(T('opt_race_heat'), num(i, 'heat', c.heat || 0, 0, 64))); // chia lượt cho đoàn đông (0 = không chia)
         f.push(field(T('opt_race_events'), num(i, 'events', c.events, 1, 30)),
-          field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')]], c.score || 'points')));
+          field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')], ['gt', T('race_gt')]], c.score || 'points')));
+        if (c.score === 'gt') { // loại từng chặng + giây thưởng về đích
+          const kinds = GT_KINDS.map((x) => [x, T('gt_kind_' + x)]);
+          f.push(`<div class="field gt-kinds"><span>${esc(T('opt_gt_kinds'))}</span><small class="hint">${esc(T('opt_gt_kinds_hint'))}</small><div class="gt-kind-grid">${
+            gtKinds(c).map((x, j) => `<label class="gt-kind-sel"><small>${j + 1}</small><select data-i="${i}" data-k="kind" data-n="${j}" aria-label="${esc(T('gt_stage_n', { n: j + 1 }))}">${
+              kinds.map(([v, l]) => `<option value="${v}" ${v === x ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`).join('')}</div></div>`,
+          chk(i, 'bonus', c.bonus !== false, T('opt_gt_bonus')));
+        }
         if ((c.score || 'points') === 'points') {
           f.push(`<label class="field"><span>${esc(T('opt_race_table'))}</span><input data-i="${i}" data-k="table" value="${esc((c.table || []).join(' '))}" inputmode="numeric"><small class="hint">${esc(T('opt_race_table_hint'))}</small></label>`,
             chk(i, 'teams', !!c.teams, T('opt_race_teams')));
@@ -205,7 +218,12 @@
       if (i === stages.length - 1) delete nc.advance; // giai đoạn cuối không có "đi tiếp"
       else if (nc.advance == null) nc.advance = 1; // loại trực tiếp làm giai đoạn giữa: mặc định vô địch nhánh đi tiếp
       stages[i] = nc;
-    } else if (k === 'gmode') {
+    } else if (k === 'score') { // đổi cách tính hệ Race: dọn tuỳ chọn không còn dùng
+      c.score = v;
+      if (v === 'gt') { Object.assign(c, { bonus: true, kinds: gtKinds(c) }); delete c.table; delete c.teams; delete c.heat; }
+      else { delete c.kinds; delete c.bonus; if (v === 'points' && !c.table) c.table = DEFAULT.race().table; }
+    } else if (k === 'kind') { c.kinds = gtKinds(c); if (GT_KINDS.includes(v)) c.kinds[Number(el.dataset.n)] = v; }
+    else if (k === 'gmode') {
       if (v === 'size') { delete c.groups; c.groupSize = 4; } else { delete c.groupSize; c.groups = 2; }
     } else if (k === 'reset') { c.gf = el.checked ? '2' : '1'; c.reset = el.checked; }
     else if (k === 'gf') { c.gf = v; c.reset = v === '2'; }
@@ -240,6 +258,7 @@
     } else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye', 'pwx', 'plx'].includes(k)) c.points[k.slice(1)] = clamp(v);
     else if (el.tagName === 'SELECT') c[k] = v;
     else if (Number.isFinite(v)) c[k] = clamp(v);
+    if (k === 'events' && c.score === 'gt') c.kinds = gtKinds(c); // đổi số chặng: giữ loại các chặng đầu
     dropPlayoff(stages);
     return true;
   }
@@ -289,5 +308,5 @@
     return true;
   }
 
-  K.stageEdit = { DEFAULT, MAX, html, change, click, tbsOf, gfOf, placesOf, TIEBREAKS };
+  K.stageEdit = { DEFAULT, MAX, gtStage, html, change, click, tbsOf, gfOf, placesOf, TIEBREAKS };
 })();

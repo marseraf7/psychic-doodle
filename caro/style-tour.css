@@ -383,6 +383,20 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .race-rows li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .race-rows li.dnf { opacity: .6; }
 .race-form { display: flex; flex-direction: column; gap: 6px; }
+/* Xe đạp nhiều chặng (otour-gt.js): áo vàng / xanh / chấm bi / trắng / đội, loại chặng, khung nhập */
+.jersey { display: inline-block; width: 14px; height: 12px; border-radius: 3px 3px 5px 5px; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.35); }
+.j-yellow { background: #f5c400; } .j-green { background: #1f9d48; } .j-white { background: #fff; }
+.j-kom { background: radial-gradient(circle, #d6202a 28%, transparent 30%) 0 0 / 5px 5px, #fff; } .j-team { background: linear-gradient(90deg, #555 50%, #999 50%); }
+.gt-holders { list-style: none; padding: 0; margin: 4px 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.gt-holders li { display: flex; align-items: center; gap: 4px; }
+.gt-kind { font-size: var(--fs-sm); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); }
+.gt-kind.k-mtn { border-color: #c0392b; } .gt-kind.k-itt { border-color: #2c7be5; } .gt-kind.k-hilly { border-color: #b8860b; }
+.gt-kind-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 4px; }
+.gt-kind-sel { display: flex; align-items: center; gap: 4px; } .gt-kind-sel small { min-width: 1.6em; text-align: right; }
+.gt-in input { width: 6em; } .gt-in input.g-rank { width: 4.5em; } .gt-in input.g-time { width: 8em; }
+.gt-form { display: flex; flex-direction: column; gap: 6px; }
+.gt-paste textarea { width: 100%; box-sizing: border-box; }
+tr.dnf td { opacity: .65; }
 
 /* Giải đấu Offline – thư viện mẫu giải (otour-tpl.js) */
 .tpl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }

@@ -111,7 +111,7 @@
   function stage(t, v) {
     const cfg = v.cfg || (t.stages || [])[v.index] || {};
     const out = [h2((t.stageViews.length > 1 ? T('stage_n', { n: v.index + 1 }) + ' · ' : '') + (K.stageName ? K.stageName(cfg) : ''))];
-    if (v.type === 'race') return out.concat(table(v.table || [], true, cfg.score === 'time'));
+    if (v.type === 'race') return out.concat(table(v.table || [], true, cfg.score === 'time' || cfg.score === 'gt'));
     if (v.groups) {
       v.groups.forEach((g, gi) => {
         if (v.groups.length > 1) out.push(h3(T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name })));
