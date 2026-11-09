@@ -35,7 +35,7 @@ class OTourGames {
 
   on_otEspCfg(conn, { id, esports }) {
     const { t, me } = this.otManaged(conn, id);
-    if (t.sport !== 'esports') throw E('ot_g_off');
+    if (!DR.SPORTS.includes(t.sport)) throw E('ot_g_off');
     t.esports = esports === null ? null : DR.cleanEsports(esports);
     this.otLog(t, me.id, 'esp_cfg');
     this.otSave(t);

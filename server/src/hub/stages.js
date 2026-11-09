@@ -23,7 +23,7 @@
 'use strict';
 const { TYPES, GROUP_TYPES, BYE, MAX_GROUP, MAX_GROUPS, isElim, real } = require('./stages-base.js');
 const { seedOrder, resolveElim, buildSingle, buildDouble, elimSize, checkSlots, defaultSlots } = require('./stages-elim.js');
-const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers, swissMaxRounds } = require('./stages-groups.js');
+const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers: groupAdvancers, swissMaxRounds } = require('./stages-groups.js');
 const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB } = require('./stages-tiebreak.js');
 const League = require('./stages-league.js');
 const Race = require('./stages-race.js');
@@ -43,7 +43,8 @@ function normalizeStage(c, last, opts = {}) {
   c = c || {};
   let type = TYPES.includes(c.type) ? c.type : 'single';
   if (opts.offline && c.type === 'race') return Race.normalizeRace(c, last); // giải offline: hệ Race (stages-race.js)
-  if (!last && !GROUP_TYPES.includes(type)) type = 'roundrobin';
+  // Giai đoạn giữa: vòng tròn / Thụy Sĩ; giải offline cho thêm loại trực tiếp (vòng loại đội thách đấu kiểu America's Cup)
+  if (!last && !GROUP_TYPES.includes(type) && !(opts.offline && isElim(type))) type = 'roundrobin';
   const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
   // Bo của cả giai đoạn: chọn sẵn Bo1 / 3 / 5 / 7 hoặc ban tổ chức tự nhập số lẻ tới MAX_BO
   const out = { type, bestOf: oddBo(c.bestOf) || (isElim(type) ? 3 : 1) };
@@ -93,6 +94,9 @@ function normalizeStage(c, last, opts = {}) {
     out.unplayed = c.unplayed === 'raw' ? 'raw' : 'fide';
     if (!last) out.advance = int(c.advance, 1, 32, 2); // RR: mỗi bảng; Thụy Sĩ: tổng số người đi tiếp
   }
+  // Giải offline: loại trực tiếp không phải giai đoạn cuối (vòng loại của đội thách đấu kiểu America's Cup) – người đi
+  // tiếp theo thứ hạng chung cuộc của nhánh (vô địch, á quân…)
+  if (opts.offline && isElim(type) && !last) out.advance = int(c.advance, 1, 8, 1);
   // Tuỳ chọn thêm của giải offline: league phase, bảng lớn, hạng ba tốt nhất, Thụy Sĩ theo thắng / thua, 2 lượt
   return opts.offline ? League.normalizeExtras(c, out, last, oddBo) : out;
 }
@@ -190,6 +194,12 @@ function recordResult(st, m, winner, opts = {}) {
 }
 
 /** Thứ hạng cuối của vòng cuối: [nhất, nhì, ba…] (mã người chơi). */
+/** Người đi tiếp: vòng tròn / Thụy Sĩ / Race theo bảng xếp hạng; loại trực tiếp (giải offline) theo thứ hạng chung cuộc. */
+function advancers(st, seedOf, min = 2) {
+  if (isElim(st.type)) return { seeds: podium(st, seedOf).slice(0, Math.max(1, st.cfg.advance || 1)), groupOf: {} };
+  return groupAdvancers(st, seedOf, min);
+}
+
 function podium(st, seedOf) {
   if (st.type === 'single') {
     const final = st.matches[st.rounds[st.rounds.length - 1][0]];
@@ -212,7 +222,7 @@ function podium(st, seedOf) {
   const tables = standings(st, seedOf);
   if (tables.length === 1) return tables[0].list.slice(0, 3);
   // Nhiều bảng ở vòng cuối: nhất các bảng xếp theo thành tích
-  return advancers({ ...st, cfg: { ...st.cfg, advance: 1 } }, seedOf).seeds.slice(0, 3);
+  return groupAdvancers({ ...st, cfg: { ...st.cfg, advance: 1 } }, seedOf).seeds.slice(0, 3);
 }
 
 /** Số ván tối đa của một trận: Bo riêng cho chung kết / bán kết (nếu đặt), còn lại như cả giai đoạn. */

@@ -23,6 +23,14 @@
       esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
       stages: [{ type: 'roundrobin', groups: 1, meetings: 1, bestOf: 5, advance: 1 },
         { type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, region: true, direct: 15 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+    // America's Cup (thể thức 2024): đội đầu danh sách là đội giữ cúp – vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng
+    // tròn 2 lượt (thắng 1 điểm), 4 đội đầu vào bán kết ai thắng 5 race trước (Bo9), chung kết đội thách đấu ai thắng 7
+    // race trước (Bo13); đội thắng gặp đội giữ cúp trong trận tranh cúp Bo13. Mỗi race ghi bên vào sân + thời gian về đích.
+    { id: 'americas_cup', icon: '⛵', sport: 'sailing', n: 6,
+      esports: { draft: 'off', fearless: 'off', stats: ['finish'], sides: 'ps' },
+      stages: [{ type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4 },
+        { type: 'single', bestOf: 9, boRounds: [9, 13], thirdPlace: false, advance: 1 },
+        { type: 'single', bestOf: 13, thirdPlace: false, direct: 1 }] },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,
       stages: [{ type: 'race', events: 24, score: 'points', teams: true }] },
     { id: 'time_trial', icon: '⏱️', sport: 'running', n: 30,

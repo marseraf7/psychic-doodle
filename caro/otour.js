@@ -128,6 +128,7 @@
       if (e.target.name === 'sport') {
         F.d.result = (SP.SPORTS[F.d.sport] || SP.SPORTS.other).result; f.elements.result.value = F.d.result;
         F.d.set = sportSet(F.d.sport);
+        F.d.esports = null; // cấu hình chi tiết ván theo môn mới (mặc định của môn khi tạo)
         // Môn có mẫu thể thức riêng (đua xe → Grand Prix, chạy / bơi → Time Trial); rời môn đua thì về mẫu mặc định
         const sp = SP.SPORTS[F.d.sport] || SP.SPORTS.other;
         const racing = (F.stages || []).some((c) => c.type === 'race');
@@ -149,7 +150,7 @@
       const teams = F.d.teams.split('\n').map((x) => x.trim()).filter(Boolean);
       if (F.d.name.trim().length < 3) { $('otf-err').textContent = T('srv_tour_name_short'); return; }
       O.send({ t: 'otCreate', name: F.d.name.trim(), slug: F.d.slug.trim().toLowerCase(), desc: F.d.desc, access: F.d.access,
-        spec: { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages, ...(F.d.sport === 'esports' ? { esports: F.d.esports || {} } : {}) }, teams });
+        spec: { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages, ...(window.CaroOTourDraft && window.CaroOTourDraft.SPORTS.includes(F.d.sport) ? { esports: F.d.esports || window.CaroOTourDraft.defaults(F.d.sport) } : {}) }, teams });
     };
     showEst(f);
   }

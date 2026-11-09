@@ -46,8 +46,8 @@
     const EVT = evKinds(t);
     const evs = (m.events || []).map((e, i) => `<li>${EVT[e.type] || EV[e.type] || ''} ${e.min != null ? `<b>${e.min}'</b>` : ''} ${esc(e.who || '')} <small class="muted">(${esc((e.side === 'a' ? m.a : m.b).name)})</small>
       <button type="button" class="ghost sm icon" data-act="otEvDel" data-i="${i}" aria-label="${esc(T('ot_ev_del'))}">${icon('close')}</button></li>`).join('');
-    // Esports: không có bàn thắng / thẻ phạt – diễn biến từng ván nằm ở phần chi tiết ván (otour-games-ui.js)
-    const noEv = t.sport === 'esports';
+    // Esports, đua thuyền: không có bàn thắng / thẻ phạt – diễn biến từng ván nằm ở phần chi tiết ván (otour-games-ui.js)
+    const noEv = ((window.CaroOTourDraft && window.CaroOTourDraft.SPORTS) || ['esports']).includes(t.sport);
     const names = [m.a, m.b].flatMap((s) => ((teamOf(t, s.uid) || {}).roster || []).map((r) => (r.no != null ? r.no + ' ' : '') + r.name));
     return `<div class="ot-mx">${K.otSuspOf ? K.otSuspOf(t, m) : ''}
       <div class="row ot-info"><label class="field inline"><span>${esc(T('ot_when'))}</span><input type="datetime-local" id="otm-when" value="${esc(toLocalInput(m.when))}"></label>

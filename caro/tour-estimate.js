@@ -149,8 +149,10 @@
   /** Một giai đoạn với n người: { matches, maxMatches, waves, advance, rounds?, groups? }. */
   function stage(c, n, last) {
     if (n < 2) return { matches: 0, maxMatches: 0, waves: 0, advance: n };
-    if (c.type === 'single') return c.playoff ? playoff(c, n) : single(c, n);
-    if (c.type === 'double') return double(c, n);
+    // Loại trực tiếp không phải giai đoạn cuối (giải offline – vòng loại đội thách đấu): đi tiếp theo thứ hạng chung cuộc
+    const elimAdv = (s) => (last ? s : { ...s, advance: Math.min(n, Math.max(1, Number(c.advance) || 1)) });
+    if (c.type === 'single') return elimAdv(c.playoff ? playoff(c, n) : single(c, n));
+    if (c.type === 'double') return elimAdv(double(c, n));
     // Hệ Race (giải offline): mỗi chặng cả đoàn thi một lần
     if (c.type === 'race') { const ev = Number(c.events) || 1; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, c.advance || 0) }; }
     if (c.type === 'roundrobin' && c.season) {
