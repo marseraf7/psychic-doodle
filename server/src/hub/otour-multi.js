@@ -4,8 +4,11 @@
  * là một giải offline bình thường (thể thức riêng) mang `t.parent = <mã giải tổng>`.
  *   - Câu lạc bộ: mỗi đội ở giải con thuộc một câu lạc bộ = cột thứ 3 "Đội" của danh sách (bỏ trống: tên đội).
  *   - Bảng điểm câu lạc bộ: giải con kết thúc thì mỗi câu lạc bộ nhận điểm theo thứ hạng chung cuộc của đội xếp cao
- *     nhất của mình ở giải đó (bảng điểm `table` theo hạng – mặc định 1000-750-500-300-200-200-100-100); cộng dồn qua
- *     các giải con; bằng điểm thì xét số lần đạt hạng cao hơn (nhiều hạng nhất hơn, rồi hạng nhì…).
+ *     nhất của mình ở giải đó (bảng điểm `table` theo hạng – mặc định 1000-750-500-300-200-150-100-50; đồng hạng thì
+ *     cùng nhận điểm của hạng đó: đồng hạng 3 nhận 500, đồng hạng 5 nhận 200); cộng dồn qua các giải con; bằng điểm thì
+ *     xét số lần đạt hạng cao hơn (nhiều hạng nhất hơn, rồi hạng nhì…).
+ *   - Điều kiện xếp hạng (t.multi.minTop, needWin – như giải vô địch câu lạc bộ của Esports World Cup): câu lạc bộ phải
+ *     có điểm ở ít nhất `minTop` giải con mới được xếp hạng; `needWin`: phải vô địch ít nhất một giải con mới được đứng đầu.
  *   - Trang tổng: bảng điểm câu lạc bộ, các giải con (trạng thái, nhà vô địch), lịch thi đấu gộp các trận sắp tới.
  *   - Giải con không tính vào hạn mức số giải của tài khoản (store-otour.js – countActiveOTours); tối đa MAX_CHILDREN.
  * Giải con riêng tư không hiện ở trang tổng (và không cộng điểm) – trang tổng ai xem được cũng thấy như nhau.
@@ -17,7 +20,7 @@ const ST = require('./stages.js');
 const Spec = require('./otour-spec.js');
 const { cleanPublicName } = require('./shared.js');
 
-const TABLE = [1000, 750, 500, 300, 200, 200, 100, 100];
+const TABLE = [1000, 750, 500, 300, 200, 150, 100, 50];
 const MAX_CHILDREN = 30;
 const MAX_TABLE = 64;
 const MAX_SCHED = 40;
@@ -29,6 +32,12 @@ function cleanTable(x) {
   const arr = Array.isArray(x) ? x : typeof x === 'string' ? x.split(/[\s,;]+/) : [];
   const out = arr.filter((v) => v !== '' && v != null).slice(0, MAX_TABLE).map((v) => Math.max(0, Math.min(100000, Math.floor(Number(v)) || 0)));
   return out.length ? out : [...TABLE];
+}
+
+/** Điều kiện xếp hạng câu lạc bộ: có điểm ở ít nhất minTop giải con (1 = không đòi); needWin: phải vô địch một giải mới đứng đầu. */
+function cleanRule(x) {
+  const n = Math.floor(Number(x && x.minTop));
+  return { minTop: Number.isFinite(n) ? Math.max(1, Math.min(MAX_CHILDREN, n)) : 1, needWin: !!(x && x.needWin === true) };
 }
 
 /**
@@ -145,10 +154,11 @@ class OTourMulti {
   }
 
   /** Sửa bảng điểm theo hạng của giải tổng. */
-  on_otMultiCfg(conn, { id, table }) {
+  on_otMultiCfg(conn, { id, table, minTop, needWin }) {
     const { t, me } = this.otManaged(conn, id);
     if (!t.multi) throw E('ot_multi_not');
     t.multi.table = cleanTable(table);
+    Object.assign(t.multi, cleanRule({ minTop, needWin }));
     this.otLog(t, me.id, 'multi_cfg');
     this.otSave(t);
   }
@@ -208,9 +218,10 @@ class OTourMulti {
       const name = new Map(c.players.map((p) => [p.uid, p.name]));
       for (const x of this.otMultiResult(c)) {
         const k = x.name.toLowerCase();
-        if (!clubs.has(k)) clubs.set(k, { name: x.name, pts: 0, res: {}, cnt: [] });
+        if (!clubs.has(k)) clubs.set(k, { name: x.name, pts: 0, res: {}, cnt: [], scored: 0 });
         const cl = clubs.get(k), pts = table[x.place - 1] || 0;
         cl.pts += pts;
+        if (pts > 0) cl.scored++;
         cl.res[c.id] = { place: x.place, pts };
         cl.cnt[x.place - 1] = (cl.cnt[x.place - 1] || 0) + 1;
       }
@@ -224,13 +235,22 @@ class OTourMulti {
       return { id: c.id, slug: c.slug || null, name: c.name, sport: c.sport, status: c.status, n: c.players.length, ...(champ ? { champ: name.get(champ) || '?' } : {}) };
     });
     // Bằng điểm: nhiều hạng nhất hơn, rồi hạng nhì… rồi tên
-    const list = [...clubs.values()].sort((a, b) => {
+    const minTop = t.multi.minTop || 1, needWin = !!t.multi.needWin;
+    const ok = (c) => c.scored >= minTop;
+    const all = [...clubs.values()].sort((a, b) => {
+      if (ok(a) !== ok(b)) return ok(a) ? -1 : 1; // chưa đủ điều kiện: xếp sau
       if (b.pts !== a.pts) return b.pts - a.pts;
       for (let k = 0; k < Math.max(a.cnt.length, b.cnt.length); k++) if ((b.cnt[k] || 0) !== (a.cnt[k] || 0)) return (b.cnt[k] || 0) - (a.cnt[k] || 0);
       return a.name.localeCompare(b.name);
-    }).slice(0, 200).map((c, i) => ({ rank: i + 1, name: c.name, pts: c.pts, wins: c.cnt[0] || 0, res: c.res }));
+    });
+    // Phải vô địch ít nhất một giải con mới được đứng đầu: đưa câu lạc bộ đủ điều kiện có chức vô địch, nhiều điểm nhất lên hạng 1
+    if (needWin && all.length && !(all[0].cnt[0] > 0)) {
+      const k = all.findIndex((c) => ok(c) && c.cnt[0] > 0);
+      if (k > 0) all.unshift(...all.splice(k, 1));
+    }
+    const list = all.slice(0, 200).map((c, i) => ({ rank: i + 1, name: c.name, pts: c.pts, wins: c.cnt[0] || 0, res: c.res, ...(ok(c) ? {} : { inel: true }) }));
     sched.sort((a, b) => a.when - b.when);
-    return { table, children, clubs: list, sched: sched.slice(0, MAX_SCHED), hidden: t.multi.children.length - kids.length, max: MAX_CHILDREN };
+    return { table, minTop, needWin, children, clubs: list, sched: sched.slice(0, MAX_SCHED), hidden: t.multi.children.length - kids.length, max: MAX_CHILDREN };
   }
 
   /** Liên kết về giải tổng cho trang giải con. */
@@ -240,4 +260,4 @@ class OTourMulti {
   }
 }
 
-module.exports = { OTourMulti, cleanTable, finalPlaces, TABLE, MAX_CHILDREN };
+module.exports = { OTourMulti, cleanTable, cleanRule, finalPlaces, TABLE, MAX_CHILDREN };

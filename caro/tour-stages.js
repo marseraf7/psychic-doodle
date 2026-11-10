@@ -34,7 +34,7 @@
   const advText = (c) => {
     if (c.type === 'swiss' && c.record) return T('adv_record', { n: c.record.win }); // giải offline: đủ số thắng
     if (!c.advance) return '';
-    const s = T(c.season ? 'adv_conf_n' : c.type === 'roundrobin' && !c.league ? 'adv_group_n' : 'adv_n', { n: c.advance });
+    const s = T(c.season ? 'adv_conf_n' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'adv_group_n' : 'adv_n', { n: c.advance });
     return c.bestNext ? s + ' ' + T('adv_best_next', { n: c.bestNext }) : s;
   };
 
@@ -200,6 +200,19 @@
         ${v.lrounds && v.lrounds.length ? `<h5 class="br-h">${esc(T('lb'))}</h5>${bracketCols(v.lrounds, (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })), null, key + ':l')}` : ''}
         ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
+    }
+    if (v.type === 'gsl') { // giải offline: bảng đấu loại kép 4 đội (máy chủ: stages-gsl.js)
+      const tags = [['gsl_open', 'gsl_open'], ['gsl_win', 'gsl_lose'], ['gsl_dec']];
+      const many = v.groups.length > 4;
+      return `<p class="hint">${esc(T('gsl_note'))}</p>` + v.groups.map((g, gi) => {
+        const inner = () => `<div class="tscroll"><table class="stand gsl-tab"><thead><tr><th>#</th><th></th><th>${esc(T('gsl_wl'))}</th><th></th></tr></thead><tbody>${g.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}${x.out ? ' dnf' : ''}">
+          <td>${x.rank || ''}</td><td class="nm">${esc(x.name)}</td><td><b>${x.w}–${x.l}</b></td><td>${x.rank ? `<span class="pill">${esc(T(x.rank <= 2 ? 'gsl_through' : 'gsl_out'))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+          + g.rounds.map((r, ri) => r.map((m, mi) => `<h6>${esc(T(tags[ri][mi] || tags[ri][0]))}${m.bo ? ` · Bo${m.bo}` : ''}</h6><ul class="mlist">${matchRow(m)}</ul>`).join('')).join('');
+        const name = esc(T('group_name', { name: g.name }));
+        if (!many) return `<h5>${name}</h5>` + inner();
+        const mine = g.table.some((x) => x.uid === uidMe());
+        return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? icon('star', 'star') : ''} <span class="muted">${esc(g.table.filter((x) => x.adv).map((x) => x.name).join(', '))}</span>`, inner, mine || gi === 0);
+      }).join('');
     }
     if (v.type === 'roundrobin') {
       // Nhiều bảng (> 4): mỗi bảng thu gọn được, mặc định chỉ mở bảng của mình

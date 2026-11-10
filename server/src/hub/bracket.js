@@ -348,11 +348,13 @@ class Bracket {
   /** Một giai đoạn gửi cho client (stageViews). */
   stageView(t, st, i, seedOf, table) {
     const M = (id) => this.matchView(t, st.matches[id], st);
-    const adv = i === t.stages.length - 1 ? 0 : st.cfg.advance || 0;
+    const adv = i === t.stages.length - 1 ? 0 : (st.cfg.advance || 0) + (st.cfg.skip || 0); // skip: vào thẳng giai đoạn sau nữa
     if (st.type === 'race') { // giải offline: hệ Race – các chặng + bảng chung + bảng đội (stages-race.js)
       const team = new Map((t.players || []).map((p) => [p.uid, p.team || '']));
       const young = new Set((t.players || []).filter((p) => p.young).map((p) => p.uid)); // tay đua trẻ (bảng áo trắng – 'gt')
-      return Race.raceView(st, i, adv, (u) => this.tourSide(t, u), seedOf, (u) => team.get(u) || '', (u) => young.has(u));
+      const rv = Race.raceView(st, i, adv, (u) => this.tourSide(t, u), seedOf, (u) => team.get(u) || '', (u) => young.has(u));
+      if (t.kind === 'otour' && st.cfg.skip) this.markAdvance(t, st, i, rv, seedOf); // đánh dấu đội vào thẳng giai đoạn sau nữa
+      return rv;
     }
     const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
     if (st.type === 'single' || st.type === 'double') {
@@ -366,6 +368,9 @@ class Bracket {
       if (st.gf) v.gf = st.gf.map(M);
       if (st.pre) v.pre = st.pre.map(M); // play-in (playoff kiểu Mỹ – stages-playoff.js)
       if (st.seedLabel) v.seedLabel = st.seedLabel;
+    } else if (st.type === 'gsl') { // giải offline: bảng đấu loại kép 4 đội (stages-gsl.js)
+      const tabs = ST.gslTables(st, (u) => this.tourSide(t, u), seedOf, adv);
+      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: tabs[gi] }));
     } else if (st.type === 'roundrobin') {
       const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
       v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)),
@@ -386,13 +391,14 @@ class Bracket {
    * hạng 1–8 vào thẳng vòng 1/8). Giải Caro giữ cách đánh dấu cũ (top N mỗi bảng).
    */
   markAdvance(t, st, i, v, seedOf) {
-    const { seeds } = ST.advancers(st, seedOf);
-    const going = new Set(seeds);
+    if (st.type === 'gsl') return; // bảng GSL tự đánh dấu theo trận (nhất, nhì bảng)
+    const sp = ST.splitAdvancers(st, seedOf), seeds = [...sp.skip, ...sp.seeds];
+    const going = new Set(seeds), skip = new Set(sp.skip);
     const next = t.stages[i + 1];
     let byes = 0;
     if (next && next.type === 'single' && seeds.length > 2) { let p = 2; while (p < seeds.length) p *= 2; byes = p - seeds.length; }
     const bye = new Set(seeds.slice(0, byes));
-    const mark = (rows) => { for (const r of rows || []) { r.adv = going.has(r.uid); if (bye.has(r.uid)) r.bye = true; } };
+    const mark = (rows) => { for (const r of rows || []) { r.adv = going.has(r.uid); if (bye.has(r.uid)) r.bye = true; if (skip.has(r.uid)) r.skip = true; } };
     if (v.groups) for (const g of v.groups) mark(g.table);
     mark(v.table);
     if (byes) v.byes = byes;

@@ -22,12 +22,15 @@
 
   function standings(v) {
     const pts = v.cfg.score !== 'time';
-    const head = pts ? `<th>#</th><th></th><th>${esc(T('race_pts'))}</th><th>${esc(T('race_wins'))}</th><th>${esc(T('race_podiums'))}</th>`
+    const kill = pts && v.cfg.kill; // sinh tồn: cột số hạ gục
+    const head = pts ? `<th>#</th><th></th><th>${esc(T('race_pts'))}</th>${kill ? `<th>${esc(T('br_kills'))}</th>` : ''}<th>${esc(T('race_wins'))}</th><th>${esc(T('race_podiums'))}</th>`
       : `<th>#</th><th></th><th>${esc(T('race_total'))}</th><th>${esc(T('race_gap'))}</th><th>${esc(T('race_gap_prev'))}</th>`;
-    const rows = v.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.dnf ? ` <small class="muted">${esc(T('race_dnf_n', { n: x.dnf }))}</small>` : ''}</td>${pts
-      ? `<td><b>${x.pts}</b></td><td>${x.wins}</td><td>${x.podiums}</td>`
+    const rows = v.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.dnf ? ` <small class="muted">${esc(T('race_dnf_n', { n: x.dnf }))}</small>` : ''}${x.skip ? ` <small class="pill">${esc(T('adv_skip_tag'))}</small>` : ''}${x.mp && !(v.mp && v.mp.winner) ? ` <small class="pill mp">${esc(T('mp_tag'))}</small>` : ''}</td>${pts
+      ? `<td><b>${x.pts}</b></td>${kill ? `<td>${x.kills || 0}</td>` : ''}<td>${x.wins}</td><td>${x.podiums}</td>`
       : `<td><b>${x.time != null ? esc(RU.fmtTime(x.time)) : '–'}</b></td><td>${esc(gap(x.gap))}</td><td>${esc(gap(x.gapPrev))}</td>`}</tr>`).join('');
-    return `<div class="tscroll"><table class="stand"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    // Match point: ngưỡng điểm, đội đã đạt ngưỡng, đội thắng theo match point
+    const mp = v.mp ? `<p class="hint mp-note">${esc(v.mp.winner ? T('mp_won', { name: v.mp.winner }) : v.mp.at != null ? T('mp_note', { n: v.mp.at }) : T('mp_wait', { n: v.cfg.mp.after, p: v.cfg.mp.plus }))}</p>` : '';
+    return `${mp}<div class="tscroll"><table class="stand"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
   }
 
   function teamsTable(v) {
@@ -40,7 +43,7 @@
   function eventResult(v, ev) {
     const pts = v.cfg.score !== 'time';
     return `<ol class="race-rows">${ev.rows.map((x) => `<li class="${x.dnf ? 'dnf' : ''}"><span class="nm">${esc(x.name)}</span> ${x.dnf ? `<span class="pill">${esc(T('race_dnf'))}</span>` : ''}${pts
-      ? `<b>${x.pts}${x.manual ? '*' : ''}</b>`
+      ? `${x.kills ? `<small class="muted">${esc(T('br_kills_n', { n: x.kills }))}</small> ` : ''}<b>${x.pts}${x.manual ? '*' : ''}</b>`
       : x.dnf ? '' : `<b>${esc(RU.fmtTime(x.time))}</b> <small class="muted">${esc(gap(x.gap))}${x.gapPrev ? ' · ' + esc(gap(x.gapPrev)) : ''}</small>`}</li>`).join('')}</ol>`;
   }
 
@@ -57,6 +60,7 @@
       return `<tr data-uid="${esc(p.uid)}"><td class="nm">${esc(p.name)}</td>
         <td><input class="r-v" ${pts ? `type="number" min="1" max="${members.length}" inputmode="numeric" placeholder="${esc(T('race_rank'))}"` : `inputmode="decimal" placeholder="1:23.456"`} value="${esc(x.v || '')}"></td>
         <td><label class="check"><input type="checkbox" class="r-dnf" ${x.dnf ? 'checked' : ''}> <span>${esc(T('race_dnf'))}</span></label></td>
+        ${pts && v.cfg.kill ? `<td><input class="r-k" type="number" min="0" max="200" inputmode="numeric" placeholder="${esc(T('br_kills'))}" value="${esc(x.k || '')}"></td>` : ''}
         ${pts ? `<td><input class="r-pts" type="number" min="-1000" max="1000" placeholder="${esc(T('race_pts_auto'))}" value="${esc(x.pts || '')}"></td>` : ''}</tr>`;
     }).join('');
     return `<form class="race-form" data-key="${esc(key)}" data-ev="${i}"${h != null ? ` data-heat="${h}"` : ''}>
@@ -84,11 +88,13 @@
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     const next = v.events.findIndex((e) => !e.done);
     const lastDone = v.events.map((e) => e.done).lastIndexOf(true);
+    const seq = !!v.cfg.mp;
     const evs = v.events.map((ev) => {
       const title = `<b>${esc(T('race_event_n', { n: ev.i + 1 }))}</b> ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
       const undo = (h) => (can ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}"${h != null ? ` data-heat="${h}"` : ''}>${esc(T(h != null ? 'race_undo_heat' : 'race_undo'))}</button></div>` : '');
       const body = () => (ev.heats ? heatsHtml(t, v, ev, can, undo)
-        : ev.done ? eventResult(v, ev) + undo(null) : can ? eventForm(t, v, ev.i) : `<p class="hint">${esc(T('race_wait'))}</p>`);
+        // Match point: nhập lần lượt, chỉ huỷ trận sau cùng
+        : ev.done ? eventResult(v, ev) + (seq && ev.i !== lastDone ? '' : undo(null)) : can && (!seq || ev.i === next) ? eventForm(t, v, ev.i) : `<p class="hint">${esc(T(can && seq ? 'gt_wait_prev' : 'race_wait'))}</p>`);
       // Mở sẵn: ban tổ chức – chặng cần nhập tiếp; người xem – chặng vừa có kết quả
       return K.fold(`${t.id}:r${v.index}:${ev.i}`, title, body, can ? ev.i === next : ev.i === lastDone);
     }).join('');
@@ -101,7 +107,8 @@
     const d = {};
     form.querySelectorAll('tr[data-uid]').forEach((tr) => {
       const v = tr.querySelector('.r-v').value.trim(), dnf = tr.querySelector('.r-dnf').checked, p = tr.querySelector('.r-pts');
-      d[tr.dataset.uid] = { v, dnf, pts: p ? p.value.trim() : '' };
+      const k = tr.querySelector('.r-k');
+      d[tr.dataset.uid] = { v, dnf, pts: p ? p.value.trim() : '', k: k ? k.value.trim() : '' };
     });
     S.draft[form.dataset.key] = d;
     return d;
@@ -132,6 +139,7 @@
           else if (pts) r.rank = Number(x.v);
           else { r.time = RU.parseTime(x.v); if (r.time == null) return fail('srv_ot_race_time'); }
           if (pts && x.pts !== '') r.pts = Number(x.pts);
+          if (pts && x.k) r.kills = Number(x.k);
           rows.push(r);
         }
         if (!rows.some((r) => !r.dnf)) return fail('srv_ot_race_empty');

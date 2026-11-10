@@ -141,7 +141,7 @@ class OTour {
     const t = { id: crypto.randomBytes(5).toString('hex'), kind: 'otour', ...f, ...spec, owner: me.id, status: 'draft', created: now, updated: now,
       players: [], st: null, stage: 0, podium: null, log: [] };
     this.otAddTeams(t, o.teams);
-    if (parent) { t.owner = parent.owner; this.otMultiLink(parent, t); } else if (o.multi) t.multi = { table: Multi.cleanTable(o.multi.table), children: [], st: {} };
+    if (parent) { t.owner = parent.owner; this.otMultiLink(parent, t); } else if (o.multi) t.multi = { table: Multi.cleanTable(o.multi.table), ...Multi.cleanRule(o.multi), children: [], st: {} };
     this.otAdd(t, me.id);
     if (parent) this.otSave(parent);
     else if (t.multi) { this.otMultiGames(t, me, o.multi.games); this.otSave(t); }
