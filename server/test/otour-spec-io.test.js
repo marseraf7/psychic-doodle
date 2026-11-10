@@ -16,6 +16,7 @@ require('../../caro/i18n-otour-tpl.js');
 require('../../caro/i18n-otour-playoff.js');
 require('../../caro/i18n-otour-esports.js');
 require('../../caro/i18n-otour-special.js');
+require('../../caro/i18n-otour-cycling.js');
 delete global.window;
 const missing = new Set();
 const T = (lang) => (k, a = {}) => { const s = D[lang][k]; if (s == null) { missing.add(lang + ':' + k); return k; } return s.replace(/\{(\w+)\}/g, (_, x) => (a[x] != null ? a[x] : '')); };

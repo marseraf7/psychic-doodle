@@ -32,11 +32,14 @@ const teamName = (s) => cleanPublicText(s, 40).replace(/[<>]/g, '').trim();
  * Một dòng danh sách đội: "Tên đội", "Tên đội | Quốc gia" (league phase tránh hai đội cùng quốc gia gặp nhau) hoặc
  * "Tên | Quốc gia | Đội" (hệ Race: bảng xếp hạng đội – như tay đua và đội đua F1). Tên có dấu | thật thì viết \|.
  */
+const YOUNG = /^(u\d{2}|\*|young|trẻ|молодой|青年)$/i;
 function parseTeam(raw) {
   const parts = String(raw || '').split(/(?<!\\)\|/).map((x) => x.replace(/\\\|/g, '|'));
-  const [name, country, team] = parts;
+  const [name, country, team, flag] = parts;
   const clean = (x, n) => cleanPublicText(x || '', n).replace(/[<>]/g, '').trim();
-  return { name: teamName(name), country: clean(country, 20).toUpperCase(), team: clean(team, 40) };
+  // Cột thứ 4: tay đua trẻ (bảng áo trắng của giải xe đạp nhiều chặng) – "U25", "U23", "*", "young", "trẻ"…
+  const young = YOUNG.test(String(flag || '').trim());
+  return { name: teamName(name), country: clean(country, 20).toUpperCase(), team: clean(team, 40), young };
 }
 
 class OTourRun {
@@ -46,11 +49,11 @@ class OTourRun {
     let n = 0;
     const have = new Set(t.players.map((p) => p.name.toLowerCase()));
     for (const raw of (Array.isArray(names) ? names : []).slice(0, Spec.MAX_TEAMS)) {
-      const { name, country, team } = parseTeam(raw);
+      const { name, country, team, young } = parseTeam(raw);
       if (!name || have.has(name.toLowerCase())) continue;
       if (t.players.length >= Spec.MAX_TEAMS) throw E('ot_many_teams', { n: Spec.MAX_TEAMS });
       have.add(name.toLowerCase());
-      t.players.push({ uid: 't:' + crypto.randomBytes(5).toString('hex'), name, ...(country ? { country } : {}), ...(team ? { team } : {}) });
+      t.players.push({ uid: 't:' + crypto.randomBytes(5).toString('hex'), name, ...(country ? { country } : {}), ...(team ? { team } : {}), ...(young ? { young: true } : {}) });
       n++;
     }
     return n;

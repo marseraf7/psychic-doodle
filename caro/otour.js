@@ -42,6 +42,8 @@
     // Hệ Race: một chặng (thứ hạng → điểm), Grand Prix nhiều chặng có bảng đội, Time Trial (thời gian)
     race_single: () => [SE.DEFAULT.race()], grand_prix: () => [{ ...SE.DEFAULT.race(), events: 10, teams: true }],
     time_trial: () => [{ ...SE.DEFAULT.race(), score: 'time' }],
+    // Xe đạp nhiều chặng: 21 chặng, đồng bằng / đồi / núi / tính giờ (sửa từng chặng ở cấu hình giai đoạn)
+    stage_race: () => [SE.gtStage(21)],
   };
   /** Điểm / tie-break / Bo theo bộ môn cho mọi giai đoạn (đổi môn hoặc đổi thể thức). */
   function applySport(stages, sport) {
@@ -178,7 +180,7 @@
       html += `<section class="ot-sec mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
         <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
     } else {
-      html += `<section class="ot-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)}${p.country ? ` <small class="muted">${esc(p.country)}</small>` : ''}${p.team ? ` <small class="muted">· ${esc(p.team)}</small>` : ''}</li>`).join('')}</ol></section>`;
+      html += `<section class="ot-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)}${p.country ? ` <small class="muted">${esc(p.country)}</small>` : ''}${p.team ? ` <small class="muted">· ${esc(p.team)}</small>` : ''}${p.young ? ` <small class="pill gt-young">${esc(T('gt_young_tag'))}</small>` : ''}</li>`).join('')}</ol></section>`;
     }
     return html + (L().rosters ? L().rosters(t) : '');
   }

@@ -31,6 +31,11 @@
       stages: [{ type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4 },
         { type: 'single', bestOf: 9, boRounds: [9, 13], thirdPlace: false, advance: 1 },
         { type: 'single', bestOf: 13, thirdPlace: false, direct: 1 }] },
+    // Tour de France (kiểu 2025): 21 chặng – đồng bằng, đồi, núi, 2 chặng tính giờ cá nhân; 23 đội × 8 tay đua. Bảng tổng
+    // thời gian (áo vàng, có giây thưởng 10-6-4), điểm (xanh), leo núi (chấm bi), tay đua trẻ (trắng), đồng đội
+    { id: 'tour_de_france', icon: '🚴', sport: 'cycling', n: 184, squad: 8,
+      stages: [{ type: 'race', events: 21, score: 'gt', bonus: true,
+        kinds: ['flat', 'hilly', 'flat', 'hilly', 'itt', 'hilly', 'hilly', 'flat', 'flat', 'mtn', 'flat', 'mtn', 'itt', 'mtn', 'hilly', 'mtn', 'flat', 'mtn', 'mtn', 'hilly', 'flat'] }] },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,
       stages: [{ type: 'race', events: 24, score: 'points', teams: true }] },
     { id: 'time_trial', icon: '⏱️', sport: 'running', n: 30,
@@ -78,7 +83,7 @@
     const stages = JSON.parse(JSON.stringify(tpl.stages)).map((c) => {
       if (c.type !== 'race' && c.bestOf == null) c.bestOf = sp.bestOf;
       if ((c.type === 'roundrobin' || c.type === 'swiss') && !c.points) { c.points = { ...sp.points }; if (!c.tiebreaks) c.tiebreaks = [...sp.tiebreaks]; }
-      if (c.type === 'race' && c.score !== 'time' && !c.table) c.table = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+      if (c.type === 'race' && (c.score || 'points') === 'points' && !c.table) c.table = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
       return c;
     });
     return { sport: tpl.sport, result: tpl.result || sp.result, ...(tpl.set !== undefined ? { set: tpl.set } : {}), stages, ...(tpl.esports ? { esports: JSON.parse(JSON.stringify(tpl.esports)) } : {}) };
@@ -89,6 +94,7 @@
     return Array.from({ length: tpl.n }, (_, i) => {
       let s = `${word} ${i + 1}`;
       if (tpl.countries) s += ' | ' + tpl.countries[i % tpl.countries.length];
+      else if (tpl.squad) s += ' |  | ' + `${word} ${String.fromCharCode(65 + Math.floor(i / tpl.squad) % 26)}` + (i % tpl.squad === tpl.squad - 1 ? ' | U25' : ''); // đua xe đạp: đội nhiều người, mỗi đội một tay đua trẻ
       else if (tpl.stages.some((c) => c.teams)) s += ' |  | ' + `${word} ${String.fromCharCode(65 + Math.floor(i / 2) % 26)}`;
       return s;
     });

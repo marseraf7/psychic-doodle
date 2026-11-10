@@ -33,7 +33,9 @@ class OTourRace {
     if (st.events[i].done) throw E('tour_match_done');
     const h = this.otRaceHeat(st, i, heat);
     if (h != null && st.events[i].heats[h].done) throw E('tour_match_done');
-    const r = Race.cleanEvent(st, rows, h != null ? st.events[i].heats[h].uids : undefined);
+    // Xe đạp nhiều chặng ('gt'): nhập lần lượt từng chặng (người bỏ cuộc rời các chặng sau)
+    if (st.cfg.score === 'gt' && st.events.some((e) => e.i < i && !e.done)) throw E('ot_gt_seq');
+    const r = Race.cleanEvent(st, rows, h != null ? st.events[i].heats[h].uids : undefined, i);
     if (r.code) throw E(r.code, r.args || {});
     if (h != null) Race.recordHeat(st, i, h, r.rows);
     else Race.recordEvent(st, i, r.rows);
@@ -49,6 +51,8 @@ class OTourRace {
     const { st, i } = this.otRaceEvent(t, event);
     const h = heat == null ? null : this.otRaceHeat(st, i, heat);
     const ev = st.events[i];
+    // 'gt': chỉ huỷ chặng nhập sau cùng (huỷ chặng giữa làm sai danh sách bỏ cuộc của các chặng sau)
+    if (st.cfg.score === 'gt' && st.events.some((e) => e.i > i && e.done)) throw E('ot_gt_undo_last');
     if (h != null) {
       if (!ev.heats[h].done) throw E('tour_undo_locked');
       Race.undoHeat(st, i, h);
