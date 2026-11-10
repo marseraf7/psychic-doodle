@@ -36,6 +36,10 @@
     { id: 'tour_de_france', icon: '🚴', sport: 'cycling', n: 184, squad: 8,
       stages: [{ type: 'race', events: 21, score: 'gt', bonus: true,
         kinds: ['flat', 'hilly', 'flat', 'hilly', 'itt', 'hilly', 'hilly', 'flat', 'flat', 'mtn', 'flat', 'mtn', 'itt', 'mtn', 'hilly', 'mtn', 'flat', 'mtn', 'mtn', 'hilly', 'flat'] }] },
+    // The Masters (thể thức 2025): khoảng 90 người mời, 4 vòng × 18 lỗ par 72; sau vòng 2 chỉ 50 người đầu và đồng hạng
+    // đánh tiếp (cộng dồn); bằng điểm ở hạng nhất thì đấu phụ đột tử lỗ 18, 10 luân phiên. Nhập tổng gậy mỗi vòng
+    { id: 'masters', icon: '⛳', sport: 'golf', n: 90,
+      stages: [{ type: 'race', events: 4, score: 'golf', input: 'round', cut: { after: 2, top: 50 }, po: [18, 10] }] },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,
       stages: [{ type: 'race', events: 24, score: 'points', teams: true }] },
     { id: 'time_trial', icon: '⏱️', sport: 'running', n: 30,

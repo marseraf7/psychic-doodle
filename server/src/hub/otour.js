@@ -69,9 +69,9 @@ class OTour {
   }
 
   // ------------------------------------------------------------ Quyền
-  /** Xem được: giải công khai / có link; riêng tư chỉ chủ giải và quản trị viên. */
+  /** Xem được: giải công khai / có link; riêng tư chỉ chủ giải, quản trị viên và người được mời đăng ký. */
   otCanSee(t, uid) {
-    return t.access !== 'private' || this.otCanManage(t, uid);
+    return t.access !== 'private' || this.otCanManage(t, uid) || !!(uid && t.reg && (t.reg.invited || []).includes(uid));
   }
 
   otCanManage(t, uid) {
@@ -106,24 +106,34 @@ class OTour {
     return { name, desc: cleanRich(o.desc, 4000), slug: slug || null, access: ACCESS.includes(o.access) ? o.access : 'public' };
   }
 
-  on_otCreate(conn, o) {
-    const me = this.requireUser(conn);
+  /** Hạn mức tạo giải (mỗi ngày / đang chạy). Trả hàm ghi nhận một lần tạo (gọi khi tạo xong). */
+  otQuota(me) {
     const today = new Date().toISOString().slice(0, 10);
     const day = me.otDay && me.otDay.d === today ? me.otDay : { d: today, n: 0 };
     if (day.n >= MAX_PER_DAY) throw E('ot_daily_limit', { n: MAX_PER_DAY });
     if (this.store.countActiveOTours(me.id) >= MAX_ACTIVE) throw E('ot_active_limit', { n: MAX_ACTIVE });
+    return () => { me.otDay = { d: today, n: day.n + 1 }; this.store.touch(me); };
+  }
+
+  /** Đưa giải mới tạo vào bộ nhớ đệm + ghi. */
+  otAdd(t, uid, act = 'created') {
+    this.otCache().set(t.id, t);
+    this.otUsed.set(t.id, t.created);
+    this.otLog(t, uid, act);
+    this.otSave(t);
+  }
+
+  on_otCreate(conn, o) {
+    const me = this.requireUser(conn);
+    const commit = this.otQuota(me);
     const f = this.otFields(o);
     const spec = specGuard(() => Spec.normalizeSpec(o.spec));
     const now = Date.now();
     const t = { id: crypto.randomBytes(5).toString('hex'), kind: 'otour', ...f, ...spec, owner: me.id, status: 'draft', created: now, updated: now,
       players: [], st: null, stage: 0, podium: null, log: [] };
     this.otAddTeams(t, o.teams);
-    this.otCache().set(t.id, t);
-    this.otUsed.set(t.id, now);
-    me.otDay = { d: today, n: day.n + 1 };
-    this.store.touch(me);
-    this.otLog(t, me.id, 'created');
-    this.otSave(t);
+    this.otAdd(t, me.id);
+    commit();
     conn.send({ t: 'otCreated', id: t.id });
   }
 
@@ -183,17 +193,18 @@ class OTour {
       owner: this.store.users.get(t.owner)?.name || '?', created: t.created, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
       stages: t.stages, stage: t.stage || 0, format: 'bracket', offline: true, hideSeeds: false, showStandings: true, roundLabels: true, shareImages: true,
       players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null, ...(p.country ? { country: p.country } : {}), ...(p.team ? { team: p.team } : {}), ...(p.young ? { young: true } : {}),
-        ...(p.roster && p.roster.length ? { roster: p.roster } : {}), ...(p.home ? { home: p.home } : {}) })), // đội hình (otour-league.js), sân nhà (otour-sched.js)
+        ...(p.roster && p.roster.length ? { roster: p.roster } : {}), ...(p.home ? { home: p.home } : {}), ...(p.exempt ? { exempt: true } : {}) })), // đội hình (otour-league.js), sân nhà (otour-sched.js)
       // Giai đoạn đã xong không đổi nữa: dựng một lần (otMemo) – giải nhiều bảng không phải dựng lại mỗi kết quả
       // Vòng tròn nhiều bảng: chỉ bảng xếp hạng, các trận tải khi người xem mở bảng (otour-lazy.js)
       stageViews: this.otLite(t, this.stageViews(t, this.otMemo.get(t))),
       podium: (t.podium || []).map(side), now: Date.now(),
       // Đăng ký đội đang mở; thống kê cầu thủ (vua phá lưới, thẻ phạt) – otour-league.js
-      reg: t.reg && t.reg.open && t.status === 'draft' ? { open: true } : null, stats: this.otStats(t),
+      reg: t.reg && t.reg.open && t.status === 'draft' ? { open: true, ...(t.reg.invite ? { invite: true } : {}) } : null, stats: this.otStats(t),
       // Luật treo giò + danh sách treo giò tính từ thẻ phạt (otour-disc.js)
       disc: t.disc || null, susp: this.otSusp(t),
       sched: t.sched || null, // cấu hình tự xếp lịch (otour-sched.js)
       esports: t.esports || null, esp: this.otEspStats(t), // cấm chọn / Fearless + thống kê tướng (otour-games.js)
+      series: this.otSeriesView(t), exempt: t.exempt || [], // giải nhiều mùa + đặc cách trọn đời (otour-next.js)
     };
   }
 

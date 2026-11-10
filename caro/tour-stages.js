@@ -17,6 +17,7 @@
     if (c.type === 'roundrobin' && c.league) return T('fmt_league', { n: c.league.games }); // giải offline: league phase
     if (c.type === 'roundrobin' && c.season) return T(c.season.divs > 1 ? 'fmt_season_div' : 'fmt_season', { c: c.season.confs, d: c.season.divs }); // mùa giải kiểu Mỹ
     if (c.type === 'single' && c.playoff) return T(c.playoff.mode === 'div' ? 'fmt_playoff_div' : 'fmt_playoff', { n: c.playoff.per || 8 }) + (c.playoff.playin && c.playoff.playin !== 'none' ? ` (${T('tag_playin')})` : ''); // playoff kiểu Mỹ
+    if (c.type === 'race' && c.score === 'golf') return T('race_name_golf', { n: c.events }); // golf đấu gậy
     if (c.type === 'race' && c.score === 'gt') return T('race_name_gt', { n: c.events }); // xe đạp nhiều chặng
     if (c.type === 'race') return T(c.score === 'time' ? 'race_name_tt' : c.events > 1 ? 'race_name_gp' : 'race_name_single', { n: c.events }); // hệ Race
     if (c.type === 'roundrobin' && c.groupSize) x.push(T('group_size_n', { n: c.groupSize }));

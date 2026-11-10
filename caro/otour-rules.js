@@ -102,6 +102,8 @@
     return `${s}.${f}`;
   }
   /** Chênh lệch "+0.512", "+1:02.300". */
+  /** Golf – số gậy so với par: "−3", "E", "+2". */
+  const fmtPar = (n) => (!Number.isFinite(n) ? '' : n === 0 ? 'E' : n > 0 ? '+' + n : '−' + -n);
   const fmtGap = (ms) => (Number.isFinite(ms) && ms > 0 ? '+' + fmtTime(ms) : '');
 
   /**
@@ -120,7 +122,7 @@
     return hs;
   }
 
-  const api = { cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, MAX_TIME, heatsOf };
+  const api = { cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, fmtPar, MAX_TIME, heatsOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourRules = api;
 })(typeof window !== 'undefined' ? window : globalThis);

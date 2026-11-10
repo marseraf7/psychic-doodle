@@ -34,6 +34,9 @@
   // Mẫu loại chặng mặc định (như một Grand Tour 21 chặng: đồng bằng, đồi, núi, 2 chặng tính giờ) – lặp lại nếu nhiều hơn
   const GT_PATTERN = ['flat', 'hilly', 'flat', 'hilly', 'itt', 'hilly', 'hilly', 'flat', 'flat', 'mtn', 'flat', 'mtn', 'itt', 'mtn', 'hilly', 'mtn', 'flat', 'mtn', 'mtn', 'hilly', 'flat'];
   const gtStage = (n) => ({ type: 'race', bestOf: 1, events: n, score: 'gt', bonus: true, kinds: Array.from({ length: n }, (_, j) => GT_PATTERN[j % GT_PATTERN.length]) });
+  // Golf đấu gậy (cách tính 'golf' – stages-golf.js): par từng lỗ, nhập tổng vòng / từng lỗ, cắt sau vòng N
+  const PAR72 = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
+  const golfStage = () => ({ type: 'race', bestOf: 1, events: 4, score: 'golf', input: 'round', par: [...PAR72], cut: { after: 2, top: 50 }, po: [18, 10] });
   const MAX = 3;
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
@@ -51,7 +54,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par'];
 
   // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
   const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
@@ -105,9 +108,18 @@
       if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf)));
       // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
       if (c.type === 'race') {
-        if (c.score !== 'gt') f.push(field(T('opt_race_heat'), num(i, 'heat', c.heat || 0, 0, 64))); // chia lượt cho đoàn đông (0 = không chia)
+        if (c.score !== 'gt' && c.score !== 'golf') f.push(field(T('opt_race_heat'), num(i, 'heat', c.heat || 0, 0, 64))); // chia lượt cho đoàn đông (0 = không chia)
         f.push(field(T('opt_race_events'), num(i, 'events', c.events, 1, 30)),
-          field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')], ['gt', T('race_gt')]], c.score || 'points')));
+          field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')], ['gt', T('race_gt')], ['golf', T('race_golf')]], c.score || 'points')));
+        if (c.score === 'golf') { // cách nhập, par từng lỗ, cắt sau vòng N
+          const parTxt = (c.par || PAR72).join(' ');
+          f.push(field(T('opt_golf_input'), sel(i, 'input', [['round', T('golf_input_round')], ['hole', T('golf_input_hole')]], c.input || 'round')),
+            `<label class="field"><span>${esc(T('opt_golf_par', { n: (c.par || PAR72).length, p: (c.par || PAR72).reduce((a, b) => a + b, 0) }))}</span><input data-i="${i}" data-k="par" value="${esc(parTxt)}" inputmode="numeric"><small class="hint">${esc(T('opt_golf_par_hint'))}</small></label>`);
+          if ((c.events || 1) > 1) {
+            f.push(chk(i, 'cutOn', !!c.cut, T('opt_golf_cut')));
+            if (c.cut) f.push(field(T('opt_golf_cut_after'), num(i, 'cutAfter', c.cut.after, 1, (c.events || 2) - 1)), field(T('opt_golf_cut_top'), num(i, 'cutTop', c.cut.top, 1, 512)));
+          }
+        }
         if (c.score === 'gt') { // loại từng chặng + giây thưởng về đích
           const kinds = GT_KINDS.map((x) => [x, T('gt_kind_' + x)]);
           f.push(`<div class="field gt-kinds"><span>${esc(T('opt_gt_kinds'))}</span><small class="hint">${esc(T('opt_gt_kinds_hint'))}</small><div class="gt-kind-grid">${
@@ -220,9 +232,18 @@
       stages[i] = nc;
     } else if (k === 'score') { // đổi cách tính hệ Race: dọn tuỳ chọn không còn dùng
       c.score = v;
+      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po']) delete c[k2];
       if (v === 'gt') { Object.assign(c, { bonus: true, kinds: gtKinds(c) }); delete c.table; delete c.teams; delete c.heat; }
-      else { delete c.kinds; delete c.bonus; if (v === 'points' && !c.table) c.table = DEFAULT.race().table; }
-    } else if (k === 'kind') { c.kinds = gtKinds(c); if (GT_KINDS.includes(v)) c.kinds[Number(el.dataset.n)] = v; }
+      else if (v === 'golf') { const g = golfStage(); Object.assign(c, { events: c.events > 1 ? c.events : 4, input: g.input, par: g.par, po: g.po }); if (c.events > 2) c.cut = { after: 2, top: 50 }; delete c.table; delete c.teams; delete c.heat; }
+      else if (v === 'points' && !c.table) c.table = DEFAULT.race().table;
+    } else if (k === 'par') { // par từng lỗ: 1–18 số, mỗi số 3–6
+      const p = String(el.value).split(/[\s,;]+/).filter(Boolean).slice(0, 18).map((x) => Math.max(3, Math.min(6, Math.floor(Number(x)) || 4)));
+      c.par = p.length ? p : [...PAR72];
+      c.po = (c.po || [18, 10]).filter((h) => h <= c.par.length);
+      if (!c.po.length) c.po = [c.par.length];
+    } else if (k === 'cutOn') { if (el.checked) c.cut = { after: Math.min(2, (c.events || 2) - 1), top: 50 }; else delete c.cut; }
+    else if (k === 'cutAfter' || k === 'cutTop') c.cut = { after: 2, top: 50, ...c.cut, [k === 'cutAfter' ? 'after' : 'top']: clamp(v) };
+    else if (k === 'kind') { c.kinds = gtKinds(c); if (GT_KINDS.includes(v)) c.kinds[Number(el.dataset.n)] = v; }
     else if (k === 'gmode') {
       if (v === 'size') { delete c.groups; c.groupSize = 4; } else { delete c.groupSize; c.groups = 2; }
     } else if (k === 'reset') { c.gf = el.checked ? '2' : '1'; c.reset = el.checked; }
@@ -259,6 +280,7 @@
     else if (el.tagName === 'SELECT') c[k] = v;
     else if (Number.isFinite(v)) c[k] = clamp(v);
     if (k === 'events' && c.score === 'gt') c.kinds = gtKinds(c); // đổi số chặng: giữ loại các chặng đầu
+    if (k === 'events' && c.score === 'golf' && c.cut) { if (c.events < 2) delete c.cut; else c.cut.after = Math.min(c.cut.after, c.events - 1); }
     dropPlayoff(stages);
     return true;
   }
@@ -308,5 +330,5 @@
     return true;
   }
 
-  K.stageEdit = { DEFAULT, MAX, gtStage, html, change, click, tbsOf, gfOf, placesOf, TIEBREAKS };
+  K.stageEdit = { DEFAULT, MAX, gtStage, golfStage, html, change, click, tbsOf, gfOf, placesOf, TIEBREAKS };
 })();

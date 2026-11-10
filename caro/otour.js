@@ -44,6 +44,7 @@
     time_trial: () => [{ ...SE.DEFAULT.race(), score: 'time' }],
     // Xe đạp nhiều chặng: 21 chặng, đồng bằng / đồi / núi / tính giờ (sửa từng chặng ở cấu hình giai đoạn)
     stage_race: () => [SE.gtStage(21)],
+    stroke_play: () => [SE.golfStage()], // golf đấu gậy: 4 vòng, cắt sau vòng 2
   };
   /** Điểm / tie-break / Bo theo bộ môn cho mọi giai đoạn (đổi môn hoặc đổi thể thức). */
   function applySport(stages, sport) {
@@ -180,14 +181,14 @@
       html += `<section class="ot-sec mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
         <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
     } else {
-      html += `<section class="ot-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)}${p.country ? ` <small class="muted">${esc(p.country)}</small>` : ''}${p.team ? ` <small class="muted">· ${esc(p.team)}</small>` : ''}${p.young ? ` <small class="pill gt-young">${esc(T('gt_young_tag'))}</small>` : ''}</li>`).join('')}</ol></section>`;
+      html += `<section class="ot-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)}${p.country ? ` <small class="muted">${esc(p.country)}</small>` : ''}${p.team ? ` <small class="muted">· ${esc(p.team)}</small>` : ''}${p.young ? ` <small class="pill gt-young">${esc(T('gt_young_tag'))}</small>` : ''}${p.exempt ? ` <small class="pill">${esc(T('ot_exempt_tag'))}</small>` : ''}</li>`).join('')}</ol></section>`;
     }
     return html + (L().rosters ? L().rosters(t) : '');
   }
   const TAB_BODY = {
     overview: (t) => {
       const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
-      let html = `<div class="thead"><span class="pill ${esc(t.status)}">${esc(T('ot_st_' + t.status))}</span> <span class="muted">${esc(sp.icon + ' ' + T('sport_' + t.sport))} · ${esc(T('ot_n_teams', { n: t.players.length }))} · ${esc(T('ot_by', { name: t.owner }))}</span></div>`;
+      let html = `<div class="thead"><span class="pill ${esc(t.status)}">${esc(T('ot_st_' + t.status))}</span> <span class="muted">${esc(sp.icon + ' ' + T('sport_' + t.sport))} · ${esc(T('ot_n_teams', { n: t.players.length }))} · ${esc(T('ot_by', { name: t.owner }))}${K.otSeasonTag ? K.otSeasonTag(t) : ''}</span></div>`;
       if (t.podium && t.podium.length && t.status === 'finished') {
         html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
       }
@@ -207,7 +208,7 @@
     stats: (t) => (((K.otEspStatsHtml && K.otEspStatsHtml(t)) || (L().stats && L().stats(t)) || hint('ot_stats_none')) + (K.otDiscHtml ? K.otDiscHtml(t) : '')), // esports / cầu thủ + treo giò (otour-disc.js)
     teams: teamsTab,
     // Cấu hình esports (otour-games-ui.js), xuất file, nhúng vào website (tour-embed.js), nhật ký
-    more: (t) => (K.otEspCfgHtml ? K.otEspCfgHtml(t) : '') + (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '')
+    more: (t) => (K.otNextHtml ? K.otNextHtml(t) : '') + (K.otEspCfgHtml ? K.otEspCfgHtml(t) : '') + (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '')
       + (t.log && t.log.length ? `<section class="ot-sec"><h4>${esc(T('mg_log'))}</h4><ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul></section>` : ''),
   };
   function pageView() {

@@ -18,6 +18,7 @@ const MAX_EVENTS = 60; // mỗi trận
 const MAX_TOUR_EVENTS = 5000; // cả giải (giải 10 000 trận × 60 sự kiện sẽ làm bản ghi phình hàng chục MB)
 const MAX_ROSTER = 40;
 const MAX_REGS = 100;
+const MAX_INVITES = 200; // tài khoản được mời đăng ký mỗi giải
 const clean = (s, n) => cleanPublicText(String(s == null ? '' : s), n).replace(/[<>|]/g, '').trim();
 
 /** Đọc danh sách cầu thủ: mỗi dòng "10 Nguyễn Văn A | Tiền đạo" hoặc "Nguyễn Văn A". */
@@ -123,10 +124,44 @@ class OTourLeague {
   }
 
   // ------------------------------------------------------------ Đăng ký đội
-  on_otRegOpen(conn, { id, open }) {
+  /** Mở / đóng đăng ký; invite: chỉ tài khoản được ban tổ chức mời mới đăng ký được (kiểu giải mời như The Masters). */
+  on_otRegOpen(conn, { id, open, invite }) {
     const { t } = this.otManaged(conn, id);
     if (t.status !== 'draft') throw E('tour_closed');
     t.reg = { ...(t.reg || {}), open: open === true };
+    if (invite != null) t.reg.invite = invite === true;
+    this.otSave(t);
+  }
+
+  /**
+   * Mời tài khoản đăng ký (tên đăng nhập, mỗi dòng / dấu phẩy một tên, có thể có @). Người được mời nhận thông báo (chuông
+   * thông báo – topbar-inbox.js) và xem được cả giải riêng tư. Trả cho ban tổ chức số đã mời + các tên không tìm thấy.
+   */
+  on_otInvite(conn, { id, names }) {
+    const { t, me } = this.otManaged(conn, id);
+    if (t.status !== 'draft') throw E('tour_closed');
+    const inv = new Set((t.reg && t.reg.invited) || []), miss = [];
+    let n = 0;
+    for (const raw of String(names || '').split(/[\n,;]+/).map((x) => x.trim().replace(/^@/, '')).filter(Boolean).slice(0, 100)) {
+      const u = this.store.byUsername.get(raw.toLowerCase());
+      if (!u) { miss.push(raw.slice(0, 30)); continue; }
+      if (inv.has(u.id) || (u.blocked || []).includes(me.id)) continue; // đã mời / người này đã chặn ban tổ chức: bỏ qua
+      if (inv.size >= MAX_INVITES) throw E('ot_invite_full', { n: MAX_INVITES });
+      inv.add(u.id);
+      n++;
+      this.pushNote(u.id, { k: 'ot_invite', id: t.id, name: t.name });
+    }
+    t.reg = { ...(t.reg || {}), invited: [...inv] };
+    if (n) this.otLog(t, me.id, 'invite', { n });
+    this.otSave(t);
+    conn.send({ t: 'otInvited', id: t.id, n, miss });
+  }
+
+  /** Bỏ lời mời một tài khoản. */
+  on_otUninvite(conn, { id, uid }) {
+    const { t } = this.otManaged(conn, id);
+    if (!t.reg || !t.reg.invited) return;
+    t.reg.invited = t.reg.invited.filter((x) => x !== uid);
     this.otSave(t);
   }
 
@@ -136,6 +171,7 @@ class OTourLeague {
     const t = this.otGet(id);
     if (!t || !this.otCanSee(t, me.id)) throw E('ot_not_found');
     if (t.status !== 'draft' || !(t.reg && t.reg.open)) throw E('ot_reg_closed');
+    if (t.reg.invite && !(t.reg.invited || []).includes(me.id)) throw E('ot_reg_invite_only');
     t.regs = t.regs || [];
     const n = clean(name, 40);
     if (!n) throw E('bad_message');
@@ -167,10 +203,15 @@ class OTourLeague {
 
   /** Phần riêng theo người xem (otMine): ban tổ chức thấy các đơn; người đăng ký thấy đơn của mình. */
   otRegMine(t, uid) {
-    if (!t.reg || !t.regs) return {};
-    if (this.otCanManage(t, uid)) return { regs: t.regs.map((r) => ({ id: r.id, name: r.name, byName: r.byName, n: r.roster.length, at: r.at })) };
-    const mine = uid && t.regs.find((r) => r.by === uid);
-    return mine ? { myReg: { name: mine.name } } : {};
+    if (!t.reg) return {};
+    const regs = t.regs || [];
+    if (this.otCanManage(t, uid)) {
+      return { regs: regs.map((r) => ({ id: r.id, name: r.name, byName: r.byName, n: r.roster.length, at: r.at })), regInvite: !!t.reg.invite,
+        invited: (t.reg.invited || []).map((u) => ({ uid: u, name: this.store.users.get(u)?.name || '?' })) };
+    }
+    const mine = uid && regs.find((r) => r.by === uid);
+    const invited = !!(uid && (t.reg.invited || []).includes(uid));
+    return { ...(mine ? { myReg: { name: mine.name } } : {}), ...(invited ? { invited: true } : {}) };
   }
 }
 

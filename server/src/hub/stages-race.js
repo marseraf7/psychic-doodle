@@ -19,8 +19,9 @@
 
 const RU = require('../../../caro/otour-rules.js');
 const GT = require('./stages-gt.js'); // cách tính 'gt': xe đạp nhiều chặng, nhiều bảng xếp hạng
+const GOLF = require('./stages-golf.js'); // cách tính 'golf': golf đấu gậy (vòng, par, cắt, đấu phụ)
 
-const SCORES = ['points', 'time', 'gt'];
+const SCORES = ['points', 'time', 'gt', 'golf'];
 const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const MAX_EVENTS = 30;
 const MAX_RACE = 200; // tối đa người / đội trong một giai đoạn race (không chia lượt)
@@ -44,9 +45,10 @@ function normalizeRace(c, last) {
   const out = { type: 'race', bestOf: 1, events: int(c.events, 1, MAX_EVENTS, 1), score };
   if (score === 'points') out.table = cleanTable(c.table) || [...F1];
   if (score === 'gt') GT.normalizeGt(c, out); // bảng đội luôn tính theo cột "Đội"; không chia lượt
+  else if (score === 'golf') GOLF.normalizeGolf(c, out);
   else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
-  if (heat >= 2 && score !== 'gt') out.heat = heat;
+  if (heat >= 2 && score !== 'gt' && score !== 'golf') out.heat = heat;
   if (!last) out.advance = int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
@@ -66,6 +68,7 @@ function buildRace(st) {
  */
 function cleanEvent(st, rows, members = st.entrants, i = 0) {
   if (st.cfg.score === 'gt') return GT.cleanGtEvent(st, i, rows);
+  if (st.cfg.score === 'golf') return GOLF.cleanRound(st, i, rows);
   if (!Array.isArray(rows) || rows.length > members.length) return { code: 'tour_score_bad' };
   const inStage = new Set(members), seen = new Set(), out = [];
   const pts = st.cfg.score === 'points';
@@ -105,6 +108,7 @@ function eventOrder(st, ev) {
 
 /** Ghi kết quả chặng i. Trả true nếu cả giai đoạn đã xong. */
 function recordEvent(st, i, rows) {
+  if (st.cfg.score === 'golf') return GOLF.recordRound(st, i, rows); // vòng golf lưu được khi đang đánh dở
   const ev = st.events[i];
   ev.rows = rows;
   ev.done = true;
@@ -121,6 +125,7 @@ function recordHeat(st, i, h, rows) {
 }
 
 function undoEvent(st, i) {
+  delete st.playoff; // golf: kết quả đấu phụ không còn đúng
   Object.assign(st.events[i], { done: false, rows: null });
   for (const x of st.events[i].heats || []) Object.assign(x, { done: false, rows: null });
   st.done = false;
@@ -136,6 +141,7 @@ function undoHeat(st, i, h) {
 /** Bảng xếp hạng chung: { list, stats } (cùng hình dạng bảng điểm vòng tròn để dùng chung người đi tiếp / bục trao giải). */
 function raceTable(st, seedOf) {
   if (st.cfg.score === 'gt') { const C = GT.gtCalc(st, seedOf, null); return { list: C.gc, stats: C.stats }; }
+  if (st.cfg.score === 'golf') { const C = GOLF.golfCalc(st, seedOf); return { list: C.order, stats: C.stats }; }
   const cfg = st.cfg, pts = cfg.score === 'points';
   const stats = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, pts: 0, time: 0, races: 0, fin: 0, dnf: 0, places: [] }]));
   const done = st.events.filter((e) => e.done);
@@ -179,6 +185,7 @@ function raceTable(st, seedOf) {
  */
 function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => false) {
   if (st.cfg.score === 'gt') return GT.gtView(st, i, adv, side, seedOf, teamOf, youngOf);
+  if (st.cfg.score === 'golf') return GOLF.golfView(st, i, adv, side, seedOf);
   const cfg = st.cfg, pts = cfg.score === 'points';
   // Chia lượt: từng lượt – chỉ trạng thái + kết quả; người trong lượt trình duyệt tự tính (RU.heatsOf, cùng thứ tự entrants)
   // – không gửi lại danh sách mọi lượt của mọi chặng mỗi lần cập nhật (đoàn 512 người × 30 chặng ≈ 200 KB)

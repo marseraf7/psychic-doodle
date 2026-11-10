@@ -58,7 +58,8 @@
 
   /** Bảng xếp hạng: [{ t: tiêu đề cột, x, align }], các dòng. */
   function table(rows, race, time) {
-    const cols = race ? (time ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('race_total'), W - M - 220, 'right'], [T('race_gap'), W - M - 8, 'right']]
+    const golf = time === 'golf'; // golf: so với par + tổng gậy
+    const cols = race ? (golf ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('golf_topar'), W - M - 220, 'right'], [T('golf_total'), W - M - 8, 'right']] : time ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('race_total'), W - M - 220, 'right'], [T('race_gap'), W - M - 8, 'right']]
       : [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('race_wins'), W - M - 220, 'right'], [T('race_pts'), W - M - 8, 'right']])
       : [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('col_mp'), W - M - 470, 'right'], [T('col_wdl'), W - M - 320, 'right'], [T('col_diff'), W - M - 170, 'right'], [T('col_pts'), W - M - 8, 'right']];
     const nameW = (race ? W - M - 220 - 160 : W - M - 470 - 90) - (M + 64);
@@ -70,9 +71,9 @@
     rows.forEach((r, i) => out.push(block(42, (g, y, f) => {
       if (r.adv) { g.fillStyle = '#e3f3e8'; g.fillRect(M, y - 30, W - 2 * M, 40); } else if (i % 2) { g.fillStyle = C.band; g.fillRect(M, y - 30, W - 2 * M, 40); }
       g.fillStyle = C.ink; g.font = `${i < 3 ? 700 : 500} 25px ${f}`;
-      g.textAlign = 'left'; g.fillText(String(r.rank || i + 1), M + 8, y); g.fillText(fit(g, r.name, nameW), M + 64, y);
+      g.textAlign = 'left'; g.fillText(golf && (r.cut || r.wd) ? T(r.wd ? 'golf_wd' : 'golf_mc') : (golf && r.tie ? 'T' : '') + String(r.rank || i + 1), M + 8, y); g.fillText(fit(g, r.name, nameW), M + 64, y);
       g.textAlign = 'right';
-      const cells = race ? (time ? [r.time != null && RU ? RU.fmtTime(r.time) : '–', r.gap && RU ? RU.fmtGap(r.gap) : ''] : [r.wins || 0, r.pts != null ? r.pts : ''])
+      const cells = race ? (golf ? [RU ? RU.fmtPar(r.toPar) : '', r.total != null ? r.total : ''] : time ? [r.time != null && RU ? RU.fmtTime(r.time) : '–', r.gap && RU ? RU.fmtGap(r.gap) : ''] : [r.wins || 0, r.pts != null ? r.pts : ''])
         : [r.mp, `${r.w}-${r.d}-${r.l}`, (r.gw - r.gl > 0 ? '+' : '') + (r.gw - r.gl), r.pts];
       cells.forEach((v, k) => { if (k === cells.length - 1) g.font = `800 25px ${f}`; g.fillText(String(v), cols[k + 2][1], y); });
     })));
@@ -111,7 +112,7 @@
   function stage(t, v) {
     const cfg = v.cfg || (t.stages || [])[v.index] || {};
     const out = [h2((t.stageViews.length > 1 ? T('stage_n', { n: v.index + 1 }) + ' · ' : '') + (K.stageName ? K.stageName(cfg) : ''))];
-    if (v.type === 'race') return out.concat(table(v.table || [], true, cfg.score === 'time' || cfg.score === 'gt'));
+    if (v.type === 'race') return out.concat(table(v.table || [], true, cfg.score === 'golf' ? 'golf' : cfg.score === 'time' || cfg.score === 'gt'));
     if (v.groups) {
       v.groups.forEach((g, gi) => {
         if (v.groups.length > 1) out.push(h3(T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name })));

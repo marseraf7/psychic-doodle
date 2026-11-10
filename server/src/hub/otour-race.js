@@ -7,6 +7,9 @@
 'use strict';
 const { E } = require('../msg.js');
 const Race = require('./stages-race.js');
+const GOLF = require('./stages-golf.js');
+// Nhập lần lượt (người bỏ cuộc / bị cắt rời các chặng, vòng sau): xe đạp nhiều chặng, golf
+const SEQ = ['gt', 'golf'];
 
 class OTourRace {
   /** Giai đoạn race hiện tại và chặng thứ `event` (lỗi nếu không có). */
@@ -33,8 +36,8 @@ class OTourRace {
     if (st.events[i].done) throw E('tour_match_done');
     const h = this.otRaceHeat(st, i, heat);
     if (h != null && st.events[i].heats[h].done) throw E('tour_match_done');
-    // Xe đạp nhiều chặng ('gt'): nhập lần lượt từng chặng (người bỏ cuộc rời các chặng sau)
-    if (st.cfg.score === 'gt' && st.events.some((e) => e.i < i && !e.done)) throw E('ot_gt_seq');
+    // Xe đạp nhiều chặng / golf: nhập lần lượt từng chặng / vòng (người bỏ cuộc, bị cắt rời các chặng / vòng sau)
+    if (SEQ.includes(st.cfg.score) && st.events.some((e) => e.i < i && !e.done)) throw E('ot_gt_seq');
     const r = Race.cleanEvent(st, rows, h != null ? st.events[i].heats[h].uids : undefined, i);
     if (r.code) throw E(r.code, r.args || {});
     if (h != null) Race.recordHeat(st, i, h, r.rows);
@@ -51,17 +54,39 @@ class OTourRace {
     const { st, i } = this.otRaceEvent(t, event);
     const h = heat == null ? null : this.otRaceHeat(st, i, heat);
     const ev = st.events[i];
-    // 'gt': chỉ huỷ chặng nhập sau cùng (huỷ chặng giữa làm sai danh sách bỏ cuộc của các chặng sau)
-    if (st.cfg.score === 'gt' && st.events.some((e) => e.i > i && e.done)) throw E('ot_gt_undo_last');
+    // 'gt' / 'golf': chỉ huỷ chặng / vòng nhập sau cùng (huỷ ở giữa làm sai danh sách bỏ cuộc / bị cắt của phần sau)
+    if (SEQ.includes(st.cfg.score) && st.events.some((e) => e.i > i && (e.done || e.rows))) throw E('ot_gt_undo_last');
     if (h != null) {
       if (!ev.heats[h].done) throw E('tour_undo_locked');
       Race.undoHeat(st, i, h);
     } else {
-      if (!ev.done && !(ev.heats && ev.heats.some((x) => x.done))) throw E('tour_undo_locked');
+      if (!ev.done && !ev.rows && !(ev.heats && ev.heats.some((x) => x.done))) throw E('tour_undo_locked'); // golf: vòng đang dở
       Race.undoEvent(st, i);
     }
     st.v = (st.v || 0) + 1;
     this.otLog(t, me.id, 'race_undo', { n: i + 1 });
+    this.otSave(t);
+  }
+
+  /**
+   * Golf: bằng điểm ở hạng nhất sau vòng cuối – ghi người thắng đấu phụ đột tử (holes: số lỗ đấu phụ đã đánh), rồi
+   * giai đoạn kết thúc. Huỷ vòng cuối thì bỏ luôn kết quả đấu phụ.
+   */
+  on_otGolfPlayoff(conn, { id, winner, holes }) {
+    const { t, me } = this.otManaged(conn, id);
+    if (t.status !== 'running') throw E('tour_not_running');
+    const st = t.st && t.st[t.stage];
+    if (!st || st.type !== 'race' || st.cfg.score !== 'golf') throw E('bad_message');
+    const C = GOLF.golfCalc(st, this.otSeedOf(t));
+    if (!C.all || C.leaders.length < 2 || st.done) throw E('ot_golf_no_po');
+    if (!C.leaders.includes(String(winner))) throw E('bad_message');
+    const n = Math.floor(Number(holes));
+    st.playoff = { winner: String(winner), holes: Number.isInteger(n) && n >= 1 && n <= 30 ? n : 1 };
+    GOLF.settle(st);
+    st.v = (st.v || 0) + 1;
+    const p = t.players.find((x) => x.uid === st.playoff.winner);
+    this.otLog(t, me.id, 'golf_po', { name: p ? p.name : '?' });
+    if (st.done) this.otNextStage(t);
     this.otSave(t);
   }
 }

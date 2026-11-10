@@ -118,11 +118,12 @@
         <button type="button" class="ghost sm danger" data-act="otRegNo" data-id="${esc(r.id)}">${esc(T('ot_reg_no'))}</button></li>`).join('');
       return sec('ot:' + t.id + ':reg', esc(T('ot_reg')) + (t.regs && t.regs.length ? ` <span class="pill">${t.regs.length}</span>` : ''), () => `
         <label class="check"><input type="checkbox" id="ot-reg-open" ${t.reg ? 'checked' : ''}> <span>${esc(T('ot_reg_open'))}</span></label>
-        <p class="hint">${esc(T('ot_reg_hint'))}</p>${list ? `<ul class="ot-regs">${list}</ul>` : ''}`, !!(t.regs && t.regs.length));
+        <p class="hint">${esc(T('ot_reg_hint'))}</p>${K.otInviteHtml ? K.otInviteHtml(t) : ''}${list ? `<ul class="ot-regs">${list}</ul>` : ''}`, !!(t.regs && t.regs.length));
     }
     if (!t.reg) return '';
     if (t.myReg) return `<p class="hint">${esc(T('ot_reg_sent', { name: t.myReg.name }))}</p>`;
     if (!me()) return `<p class="hint">${esc(T('ot_reg_login'))}</p>`;
+    if (t.reg.invite && !t.invited) return `<p class="hint">${esc(T('ot_reg_invite_only'))}</p>`; // giải mời: chỉ tài khoản được mời
     return sec('ot:' + t.id + ':regf', esc(T('ot_reg_join')), () => `<form id="otreg" class="tform">
       <label class="field"><span>${esc(T('ot_reg_name'))}</span><input name="name" maxlength="40" required></label>
       <label class="field"><span>${esc(T('ot_roster'))}</span><textarea name="roster" rows="4" placeholder="${esc(T('ot_roster_ph'))}"></textarea></label>
