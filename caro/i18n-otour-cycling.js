@@ -30,8 +30,8 @@
     gt_paste_bad: 'Không thấy tay đua: {names}', gt_err_first: 'Người về nhất cần có thời gian (ví dụ 4:12:33).',
     gt_wait_prev: 'Nhập xong chặng trước rồi mới nhập chặng này.',
     srv_ot_gt_out: 'Có tay đua đã bỏ cuộc ở chặng trước.', srv_ot_gt_missing: 'Còn {n} tay đua chưa có thứ hạng: nhập hạng hoặc đánh dấu bỏ cuộc.',
-    srv_ot_gt_time_order: 'Thời gian của người hạng {n} nhanh hơn người về trước.', srv_ot_gt_seq: 'Hãy nhập các chặng theo thứ tự.',
-    srv_ot_gt_undo_last: 'Chỉ huỷ được chặng nhập sau cùng.',
+    srv_ot_gt_time_order: 'Thời gian của người hạng {n} nhanh hơn người về trước.', srv_ot_gt_seq: 'Hãy nhập theo thứ tự: chặng / vòng trước chưa xong.',
+    srv_ot_gt_undo_last: 'Chỉ huỷ được chặng / vòng nhập sau cùng.',
   });
 
   X('en', {
@@ -57,8 +57,8 @@
     gt_paste_bad: 'Riders not found: {names}', gt_err_first: 'The winner needs a time (for example 4:12:33).',
     gt_wait_prev: 'Finish entering the previous stage first.',
     srv_ot_gt_out: 'A rider already abandoned on an earlier stage.', srv_ot_gt_missing: '{n} riders still have no position: enter a position or mark DNF.',
-    srv_ot_gt_time_order: 'The rider in position {n} has a faster time than the rider ahead.', srv_ot_gt_seq: 'Enter the stages in order.',
-    srv_ot_gt_undo_last: 'Only the most recently entered stage can be undone.',
+    srv_ot_gt_time_order: 'The rider in position {n} has a faster time than the rider ahead.', srv_ot_gt_seq: 'Enter in order: the previous stage or round is not finished.',
+    srv_ot_gt_undo_last: 'Only the most recently entered stage or round can be undone.',
   });
 
   X('ru', {
@@ -84,8 +84,8 @@
     gt_paste_bad: 'Гонщики не найдены: {names}', gt_err_first: 'У победителя должно быть время (например, 4:12:33).',
     gt_wait_prev: 'Сначала внесите результаты предыдущего этапа.',
     srv_ot_gt_out: 'Один из гонщиков уже сошёл на предыдущем этапе.', srv_ot_gt_missing: 'У {n} гонщиков нет места: укажите место или отметьте сход.',
-    srv_ot_gt_time_order: 'У гонщика на месте {n} время лучше, чем у финишировавшего перед ним.', srv_ot_gt_seq: 'Вносите этапы по порядку.',
-    srv_ot_gt_undo_last: 'Отменить можно только последний внесённый этап.',
+    srv_ot_gt_time_order: 'У гонщика на месте {n} время лучше, чем у финишировавшего перед ним.', srv_ot_gt_seq: 'Вносите по порядку: предыдущий этап или раунд не завершён.',
+    srv_ot_gt_undo_last: 'Отменить можно только последний внесённый этап или раунд.',
   });
 
   X('zh', {
@@ -111,7 +111,7 @@
     gt_paste_bad: '找不到车手：{names}', gt_err_first: '第一名需要填写用时（例如 4:12:33）。',
     gt_wait_prev: '请先录入上一赛段。',
     srv_ot_gt_out: '有车手已在之前的赛段退赛。', srv_ot_gt_missing: '还有 {n} 名车手没有名次：请填写名次或标记退赛。',
-    srv_ot_gt_time_order: '第 {n} 名的用时比前一名还快。', srv_ot_gt_seq: '请按顺序录入各赛段。',
-    srv_ot_gt_undo_last: '只能撤销最后录入的赛段。',
+    srv_ot_gt_time_order: '第 {n} 名的用时比前一名还快。', srv_ot_gt_seq: '请按顺序录入：上一赛段或轮次尚未完成。',
+    srv_ot_gt_undo_last: '只能撤销最后录入的赛段或轮次。',
   });
 })();

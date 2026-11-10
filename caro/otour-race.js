@@ -80,6 +80,7 @@
 
   K.raceHtml = (t, v) => {
     if (v.cfg.score === 'gt' && K.gtHtml) return K.gtHtml(t, v); // xe đạp nhiều chặng (otour-gt.js)
+    if (v.cfg.score === 'golf' && K.golfHtml) return K.golfHtml(t, v); // golf đấu gậy (otour-golf.js)
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     const next = v.events.findIndex((e) => !e.done);
     const lastDone = v.events.map((e) => e.done).lastIndexOf(true);

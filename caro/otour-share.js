@@ -53,7 +53,7 @@
     const out = [];
     for (const v of t.stageViews || []) {
       const st = T('stage_n', { n: v.index + 1 });
-      if (v.type === 'race') out.push({ key: `${v.index}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + K.stageName(v.cfg), rows: v.table, race: true, time: v.cfg.score === 'time' || v.cfg.score === 'gt' });
+      if (v.type === 'race') out.push({ key: `${v.index}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + K.stageName(v.cfg), rows: v.table, race: true, time: v.cfg.score === 'golf' ? 'golf' : v.cfg.score === 'time' || v.cfg.score === 'gt' });
       else if (v.table) out.push({ key: `${v.index}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + K.stageName(v.cfg), rows: v.table });
       else if (v.groups) v.groups.forEach((g, gi) => out.push({ key: `${v.index}:${gi}`, label: (t.stageViews.length > 1 ? st + ' · ' : '') + (v.groups.length > 1 ? T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }) : K.stageName(v.cfg)), rows: g.table }));
     }
@@ -65,7 +65,7 @@
     const { c, g, font } = frame(t, W, H, tb.label);
     const rows = tb.rows.slice(0, MAX_ROWS);
     const top = 210, rowH = Math.min(52, Math.floor((H - top - 110) / (rows.length + 1)));
-    const cols = tb.race ? (tb.time ? [['#', 70], ['', 0], [T('race_total'), 820], [T('race_gap'), 990]] : [['#', 70], ['', 0], [T('race_wins'), 760], [T('race_pts'), 990]])
+    const cols = tb.race ? (tb.time === 'golf' ? [['#', 70], ['', 0], [T('golf_topar'), 820], [T('golf_total'), 990]] : tb.time ? [['#', 70], ['', 0], [T('race_total'), 820], [T('race_gap'), 990]] : [['#', 70], ['', 0], [T('race_wins'), 760], [T('race_pts'), 990]])
       : [['#', 70], ['', 0], [T('col_mp'), 640], [T('col_wdl'), 770], [T('col_diff'), 880], [T('col_pts'), 990]];
     g.font = `600 26px ${font}`;
     g.fillStyle = '#9fc4b4';
@@ -76,10 +76,10 @@
       g.fillStyle = i === 0 ? '#ffd36b' : '#ffffff';
       g.font = `${i < 3 ? 700 : 500} 30px ${font}`;
       g.textAlign = 'left';
-      g.fillText(String(r.rank || i + 1), 70, y);
+      g.fillText(tb.time === 'golf' && (r.cut || r.wd) ? T(r.wd ? 'golf_wd' : 'golf_mc') : (tb.time === 'golf' && r.tie ? 'T' : '') + String(r.rank || i + 1), 70, y);
       g.fillText(fit(g, r.name, tb.race ? 560 : 480), 130, y);
       g.textAlign = 'right';
-      const cells = tb.race ? (tb.time ? [r.time != null && RU ? RU.fmtTime(r.time) : '–', r.gap ? RU.fmtGap(r.gap) : ''] : [r.wins, r.pts])
+      const cells = tb.race ? (tb.time === 'golf' ? [RU ? RU.fmtPar(r.toPar) : '', r.total != null ? r.total : ''] : tb.time ? [r.time != null && RU ? RU.fmtTime(r.time) : '–', r.gap ? RU.fmtGap(r.gap) : ''] : [r.wins, r.pts])
         : [r.mp, `${r.w}-${r.d}-${r.l}`, (r.gw - r.gl > 0 ? '+' : '') + (r.gw - r.gl), r.pts];
       cells.forEach((v, k) => g.fillText(String(v), cols[k + 2][1], y));
     });

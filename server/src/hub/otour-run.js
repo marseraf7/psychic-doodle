@@ -56,6 +56,7 @@ class OTourRun {
       t.players.push({ uid: 't:' + crypto.randomBytes(5).toString('hex'), name, ...(country ? { country } : {}), ...(team ? { team } : {}), ...(young ? { young: true } : {}) });
       n++;
     }
+    if (n && t.exempt && t.exempt.length) this.otMarkExempt(t); // đội có tên trong danh sách đặc cách (otour-next.js)
     return n;
   }
 

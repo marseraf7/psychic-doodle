@@ -57,9 +57,13 @@
             points: { type: 'object', properties: { w: int(0, 10), d: int(0, 10), l: int(0, 10), wx: int(0, 10), lx: int(0, 10), gw: int(0, 10), gt: int(0, 10), bye: int(0, 10) } },
             tiebreaks: { type: 'array', maxItems: TIEBREAKS.length, items: { type: 'string', enum: TIEBREAKS } },
             rankBy: { type: 'string', enum: ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'] },
-            events: int(1, 30, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội)" },
+            events: int(1, 30, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt', 'golf'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội), 'golf' golf đấu gậy (events = số vòng)" },
             kinds: { type: 'array', maxItems: 30, items: { type: 'string', enum: ['flat', 'hilly', 'mtn', 'itt'] }, description: "'gt': loại từng chặng – đồng bằng / đồi / núi / tính giờ cá nhân" },
             bonus: { type: 'boolean', description: "'gt': giây thưởng về đích top 3 (10-6-4)" },
+            par: { type: 'array', maxItems: 18, items: int(3, 6), description: "'golf': par từng lỗ (mặc định 18 lỗ par 72)" },
+            input: { type: 'string', enum: ['round', 'hole'], description: "'golf': nhập tổng gậy mỗi vòng hoặc từng lỗ" },
+            cut: { type: 'object', description: "'golf': sau vòng after chỉ top người đầu và đồng hạng đánh tiếp", properties: { after: int(1, 29), top: int(1, 512) } },
+            po: { type: 'array', maxItems: 18, items: int(1, 18), description: "'golf': thứ tự lỗ đấu phụ đột tử" },
             table: { type: 'array', maxItems: 64, items: int(0, 1000), description: 'hệ Race: điểm theo hạng' }, teams: { type: 'boolean', description: 'hệ Race: bảng đội' },
           },
         },
@@ -89,7 +93,12 @@
       x.push(c.record ? T('ds_swiss_rec', { w: c.record.win, l: c.record.lose }) : c.rounds ? T('ds_swiss', { n: c.rounds }) : T('ds_swiss_auto'));
       if (c.record && c.record.bo) x.push(T('ds_rec_bo', { bo: c.record.bo }));
     } else if (c.type === 'race') {
-      if (c.score === 'gt') { // xe đạp nhiều chặng: số chặng theo loại
+      if (c.score === 'golf') { // golf đấu gậy
+        const p = (c.par || []).reduce((a, b) => a + b, 0) || 72;
+        x.push(T('ds_golf', { n: c.events || 1, h: (c.par || []).length || 18, p }));
+        if (c.cut) x.push(T('ds_golf_cut', { r: c.cut.after, n: c.cut.top }));
+        if (c.input === 'hole') x.push(T('ds_golf_hole'));
+      } else if (c.score === 'gt') { // xe đạp nhiều chặng: số chặng theo loại
         const n = (k) => (c.kinds || []).filter((x) => x === k).length;
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));

@@ -397,6 +397,13 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .gt-form { display: flex; flex-direction: column; gap: 6px; }
 .gt-paste textarea { width: 100%; box-sizing: border-box; }
 tr.dnf td { opacity: .65; }
+/* Golf đấu gậy (otour-golf.js): dưới par đỏ, trên par xanh như bảng điểm golf; vạch cắt; khung nhập từng lỗ */
+.golf-par.under { color: #d63031; } .golf-par.over { color: #2c7be5; }
+tr.golf-cut td { text-align: center; font-size: var(--fs-sm); color: var(--muted, #888); border-top: 2px dashed var(--line); }
+.golf-in.holes input { width: 2.6em; padding: 2px; text-align: center; } .golf-in input.g-s { width: 6em; }
+.golf-in.holes th { font-size: var(--fs-sm); text-align: center; padding: 2px; }
+.golf-form { display: flex; flex-direction: column; gap: 6px; } .golf-info { margin: 4px 0; }
+.golf-po { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 6px 0; }
 
 /* Giải đấu Offline – thư viện mẫu giải (otour-tpl.js) */
 .tpl-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
