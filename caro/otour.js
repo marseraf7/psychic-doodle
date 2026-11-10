@@ -76,9 +76,11 @@
     if (!me()) return K.needLogin();
     if (!F.d) begin();
     const d = F.d;
+    if (d.multi && K.otMultiForm) return K.otMultiForm(d); // giải tổng từ mẫu (otour-multi.js)
     const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
     const n = d.teams.split('\n').filter((x) => x.trim()).length;
     return `<form id="otf" class="tform">
+      ${d.parent ? `<p class="hint ot-parent"><b>${esc(T('multi_child_of', { name: d.parent.name }))}</b></p>` : ''}
       ${K.otAiHtml ? K.otAiHtml() : ''}
       ${K.otTplHtml ? K.otTplHtml(d) : ''}
       <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
@@ -152,7 +154,7 @@
       collect(f);
       const teams = F.d.teams.split('\n').map((x) => x.trim()).filter(Boolean);
       if (F.d.name.trim().length < 3) { $('otf-err').textContent = T('srv_tour_name_short'); return; }
-      O.send({ t: 'otCreate', name: F.d.name.trim(), slug: F.d.slug.trim().toLowerCase(), desc: F.d.desc, access: F.d.access,
+      O.send({ t: 'otCreate', name: F.d.name.trim(), slug: F.d.slug.trim().toLowerCase(), desc: F.d.desc, access: F.d.access, ...(F.d.parent ? { parent: F.d.parent.id } : {}),
         spec: { sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages, ...(window.CaroOTourDraft && window.CaroOTourDraft.SPORTS.includes(F.d.sport) ? { esports: F.d.esports || window.CaroOTourDraft.defaults(F.d.sport) } : {}) }, teams });
     };
     showEst(f);
@@ -163,6 +165,7 @@
   // ------------------------------------------------------------ Trang giải
   // ------------------------------------------------------------ Trang giải: các tab (kiểu Challonge / MyLeague)
   const TABS = ['overview', 'stages', 'sched', 'stats', 'teams', 'more'];
+  const MULTI_TABS = ['overview', 'more']; // giải tổng (otour-multi.js) không có trận riêng
   const TAB = { id: null, tab: null, auto: true };
   /**
    * Tab đang xem: mặc định giải chưa bắt đầu / đã kết thúc → Tổng quan, đang diễn ra → Nhánh đấu & bảng. Tab tự chọn
@@ -170,7 +173,8 @@
    */
   const tabOf = (t) => {
     if (TAB.id !== t.id || !TABS.includes(TAB.tab)) Object.assign(TAB, { id: t.id, auto: true });
-    if (TAB.auto) TAB.tab = t.status === 'running' ? 'stages' : 'overview'; // kết thúc: Tổng quan (bục trao giải)
+    if (TAB.auto) TAB.tab = t.status === 'running' && !t.multi ? 'stages' : 'overview'; // kết thúc: Tổng quan (bục trao giải)
+    if (t.multi && !MULTI_TABS.includes(TAB.tab)) TAB.tab = 'overview'; // giải tổng: chỉ Tổng quan + Khác
     return TAB.tab;
   };
   const hint = (k) => `<p class="hint">${esc(T(k))}</p>`;
@@ -188,16 +192,17 @@
   const TAB_BODY = {
     overview: (t) => {
       const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
-      let html = `<div class="thead"><span class="pill ${esc(t.status)}">${esc(T('ot_st_' + t.status))}</span> <span class="muted">${esc(sp.icon + ' ' + T('sport_' + t.sport))} · ${esc(T('ot_n_teams', { n: t.players.length }))} · ${esc(T('ot_by', { name: t.owner }))}${K.otSeasonTag ? K.otSeasonTag(t) : ''}</span></div>`;
+      let html = `${K.otParentTag ? K.otParentTag(t) : ''}<div class="thead"><span class="pill ${esc(t.status)}">${esc(T('ot_st_' + t.status))}</span> <span class="muted">${esc(t.multi ? '🌐 ' + T('multi_n', { n: t.multi.children.length }) : sp.icon + ' ' + T('sport_' + t.sport) + ' · ' + T('ot_n_teams', { n: t.players.length }))} · ${esc(T('ot_by', { name: t.owner }))}${K.otSeasonTag ? K.otSeasonTag(t) : ''}</span></div>`;
       if (t.podium && t.podium.length && t.status === 'finished') {
         html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
       }
       if (t.desc) html += `<div class="tdesc rich">${R ? R.render(t.desc) : esc(t.desc)}</div>`;
       const acts = [`<button type="button" class="ghost" data-act="otShare">${icon('link')}${esc(T('share'))}</button>`];
-      if (t.canManage && t.status === 'draft') acts.push(`<button type="button" class="primary" data-act="otStart" ${t.players.length < 2 ? 'disabled' : ''}>${icon('play')}${esc(T('ot_start'))}</button>`);
+      if (t.canManage && t.status === 'draft' && !t.multi) acts.push(`<button type="button" class="primary" data-act="otStart" ${t.players.length < 2 ? 'disabled' : ''}>${icon('play')}${esc(T('ot_start'))}</button>`);
       if (t.canManage) acts.push(`<button type="button" class="ghost danger" data-act="otDelete">${icon('trash')}${esc(T('ot_delete'))}</button>`);
       html += `<div class="row tactions">${acts.join('')}</div>`;
       if (K.otShareHtml) html += K.otShareHtml(t); // ảnh chia sẻ (otour-share.js)
+      if (t.multi) return html + (K.otMultiHtml ? K.otMultiHtml(t) : ''); // trang tổng: bảng điểm câu lạc bộ, giải con, lịch gộp
       if (L().reg) html += L().reg(t);
       // Cấu hình thể thức (trước khi bắt đầu) – bằng lời
       if (window.CaroOTourSpecIO) html += `<section class="ot-sec ot-desc"><h4>${esc(T('ot_desc_title'))}</h4><ul>${window.CaroOTourSpecIO.describeSpec(t, T).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`;
@@ -208,7 +213,7 @@
     stats: (t) => (((K.otEspStatsHtml && K.otEspStatsHtml(t)) || (L().stats && L().stats(t)) || hint('ot_stats_none')) + (K.otDiscHtml ? K.otDiscHtml(t) : '')), // esports / cầu thủ + treo giò (otour-disc.js)
     teams: teamsTab,
     // Cấu hình esports (otour-games-ui.js), xuất file, nhúng vào website (tour-embed.js), nhật ký
-    more: (t) => (K.otNextHtml ? K.otNextHtml(t) : '') + (K.otEspCfgHtml ? K.otEspCfgHtml(t) : '') + (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : '')
+    more: (t) => (t.multi ? '' : (K.otNextHtml ? K.otNextHtml(t) : '') + (K.otEspCfgHtml ? K.otEspCfgHtml(t) : '') + (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : ''))
       + (t.log && t.log.length ? `<section class="ot-sec"><h4>${esc(T('mg_log'))}</h4><ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul></section>` : ''),
   };
   function pageView() {
@@ -216,7 +221,7 @@
     if (!t || t.id !== V.id) { setTitle('ot_title'); return '<p class="hint">…</p>'; }
     setTitle(null, t.name, 'trophy');
     const tab = tabOf(t);
-    const bar = `<nav class="ot-tabs" role="tablist">${TABS.map((k) => `<button type="button" role="tab" class="${k === tab ? 'on' : ''}" aria-selected="${k === tab}" data-act="otTab" data-tab="${k}">${esc(T('ot_tab_' + k))}</button>`).join('')}</nav>`;
+    const bar = `<nav class="ot-tabs" role="tablist">${(t.multi ? MULTI_TABS : TABS).map((k) => `<button type="button" role="tab" class="${k === tab ? 'on' : ''}" aria-selected="${k === tab}" data-act="otTab" data-tab="${k}">${esc(T('ot_tab_' + k))}</button>`).join('')}</nav>`;
     return `${bar}<div class="ot-tab" data-tab="${tab}">${TAB_BODY[tab](t)}</div>`;
   }
   K.acts.otTab = (b) => { Object.assign(TAB, { tab: b.dataset.tab, auto: false }); render(true); };

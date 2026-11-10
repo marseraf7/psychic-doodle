@@ -403,6 +403,11 @@ tr.golf-cut td { text-align: center; font-size: var(--fs-sm); color: var(--muted
 .golf-in.holes input { width: 2.6em; padding: 2px; text-align: center; } .golf-in input.g-s { width: 6em; }
 .golf-in.holes th { font-size: var(--fs-sm); text-align: center; padding: 2px; }
 .golf-form { display: flex; flex-direction: column; gap: 6px; } .golf-info { margin: 4px 0; }
+/* Giải tổng (otour-multi.js): giải con, lịch gộp */
+.multi-kids, .multi-sched, .multi-games { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 6px; }
+.multi-kids li { display: flex; gap: 6px; align-items: center; }
+.multi-kid { flex: 1; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; text-align: left; }
+.multi-sched li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .golf-po { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 6px 0; }
 
 /* Giải đấu Offline – thư viện mẫu giải (otour-tpl.js) */

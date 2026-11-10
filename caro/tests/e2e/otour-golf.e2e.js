@@ -64,7 +64,7 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('[data-act="otExemptSave"]'); await sleep(500);
   ok(t.exempt[0] === 'An', 'Lưu đặc cách trọn đời');
   await boss.click('[data-act="otNextSeason"]'); await sleep(300);
-  await boss.click('.cdlg button.primary, .confirm-dlg button.primary, [data-cf="ok"]').catch(() => {}); await sleep(1200);
+  await boss.click('#confirm-ok').catch(() => {}); await sleep(1200);
   const id2 = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   const t2 = app.hub.otGet(id2);
   ok(id2 !== id && t2 && t2.players.map((p) => p.name).join(',') === 'Bình,An' && t2.series.n === 2, 'Mùa 2: Bình (vô địch) đứng đầu, An đặc cách');

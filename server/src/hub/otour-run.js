@@ -114,6 +114,7 @@ class OTourRun {
 
   on_otStart(conn, { id }) {
     const { t, me } = this.otDraft(conn, id);
+    if (t.multi) throw E('ot_multi_no_start'); // giải tổng không có trận riêng: bắt đầu từng giải con (otour-multi.js)
     const teams = t.players.filter((p) => !p.withdrawn);
     specGuard(() => Spec.checkSize(t, teams.length));
     teams.forEach((p, i) => { p.seed = i + 1; });

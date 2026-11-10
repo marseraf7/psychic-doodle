@@ -40,6 +40,22 @@
     // đánh tiếp (cộng dồn); bằng điểm ở hạng nhất thì đấu phụ đột tử lỗ 18, 10 luân phiên. Nhập tổng gậy mỗi vòng
     { id: 'masters', icon: '⛳', sport: 'golf', n: 90,
       stages: [{ type: 'race', events: 4, score: 'golf', input: 'round', cut: { after: 2, top: 50 }, po: [18, 10] }] },
+    // Esports World Cup (kiểu 2025): "giải tổng" gom nhiều giải con, mỗi game một giải thể thức riêng; câu lạc bộ có đội ở
+    // nhiều game nhận điểm theo thứ hạng ở từng game (1000-750-500-300-200-200-100-100), cộng dồn thành bảng vô địch câu
+    // lạc bộ. Tên game chỉ ghi theo thể loại (không dùng tên / dữ liệu của game thật). stages: thể thức mặc định của một giải con
+    { id: 'esports_world_cup', icon: '🌐', sport: 'esports', n: 16,
+      stages: [{ type: 'single', bestOf: 3, thirdPlace: false }],
+      multi: { table: [1000, 750, 500, 300, 200, 200, 100, 100], games: [
+        { key: 'moba', sport: 'esports', n: 16, esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers'], players: false },
+          stages: [{ type: 'roundrobin', groupSize: 4, advance: 2, bestOf: 3 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+        { key: 'fps', sport: 'esports', n: 16, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+          stages: [{ type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 } }, { type: 'single', bestOf: 3, thirdPlace: false }] },
+        { key: 'br', sport: 'esports', n: 16, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+          stages: [{ type: 'race', events: 12, score: 'points', table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 0, 0] }] },
+        { key: 'fighting', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: [] },
+          stages: [{ type: 'double', bestOf: 3 }] },
+        { key: 'chess', sport: 'chess', n: 16,
+          stages: [{ type: 'swiss', rounds: 5, advance: 8 }, { type: 'single', thirdPlace: false }] }] } },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,
       stages: [{ type: 'race', events: 24, score: 'points', teams: true }] },
     { id: 'time_trial', icon: '⏱️', sport: 'running', n: 30,

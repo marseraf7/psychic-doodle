@@ -59,6 +59,7 @@ class OTourNext {
    */
   on_otNextSeason(conn, { id, carry }) {
     const { t, me } = this.otManaged(conn, id);
+    if (t.multi) throw E('ot_multi_no_start'); // giải tổng: tạo mùa sau cho từng giải con
     if (t.status !== 'finished') throw E('ot_next_not_done');
     if (t.series && t.series.next && this.otGet(t.series.next)) throw E('ot_next_exists');
     const commit = this.otQuota(this.store.users.get(t.owner) || me); // hạn mức của chủ giải (quản trị viên tạo hộ)
