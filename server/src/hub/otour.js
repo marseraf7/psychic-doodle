@@ -15,6 +15,7 @@ const { cleanPublicName, cleanRich, uidOf } = require('./shared.js');
 const { viewParts, diffParts } = require('./tourpush.js');
 const { SLUG_RE } = require('./tour-opts.js');
 const Spec = require('./otour-spec.js');
+const Multi = require('./otour-multi.js');
 
 const MAX_ACTIVE = 10;
 const MAX_PER_DAY = 20;
@@ -93,6 +94,7 @@ class OTour {
     t.updated = Math.max(Date.now(), (t.updated || 0) + 1);
     this.store.saveOTour(t);
     this.otPush(t);
+    if (t.parent) this.otMultiChildSaved(t); // giải con: cập nhật trang giải tổng (otour-multi.js)
   }
 
   // ------------------------------------------------------------ Tạo / sửa / xoá
@@ -115,6 +117,11 @@ class OTour {
     return () => { me.otDay = { d: today, n: day.n + 1 }; this.store.touch(me); };
   }
 
+  /** Chủ giải đã đủ số giải chưa kết thúc thì báo lỗi (giải con rời giải tổng sẽ thành giải thường – otour-multi.js). */
+  otActiveCheck(uid) {
+    if (this.store.countActiveOTours(uid) >= MAX_ACTIVE) throw E('ot_active_limit', { n: MAX_ACTIVE });
+  }
+
   /** Đưa giải mới tạo vào bộ nhớ đệm + ghi. */
   otAdd(t, uid, act = 'created') {
     this.otCache().set(t.id, t);
@@ -125,14 +132,19 @@ class OTour {
 
   on_otCreate(conn, o) {
     const me = this.requireUser(conn);
-    const commit = this.otQuota(me);
+    // Giải con của một giải tổng (otour-multi.js): không tính vào hạn mức; giải tổng không lồng nhau
+    const parent = o.parent ? this.otMultiParent(conn, o.parent) : null;
+    const commit = parent ? this.otMultiQuota(me, 1) : this.otQuota(me);
     const f = this.otFields(o);
     const spec = specGuard(() => Spec.normalizeSpec(o.spec));
     const now = Date.now();
     const t = { id: crypto.randomBytes(5).toString('hex'), kind: 'otour', ...f, ...spec, owner: me.id, status: 'draft', created: now, updated: now,
       players: [], st: null, stage: 0, podium: null, log: [] };
     this.otAddTeams(t, o.teams);
+    if (parent) { t.owner = parent.owner; this.otMultiLink(parent, t); } else if (o.multi) t.multi = { table: Multi.cleanTable(o.multi.table), children: [], st: {} };
     this.otAdd(t, me.id);
+    if (parent) this.otSave(parent);
+    else if (t.multi) { this.otMultiGames(t, me, o.multi.games); this.otSave(t); }
     commit();
     conn.send({ t: 'otCreated', id: t.id });
   }
@@ -153,6 +165,9 @@ class OTour {
 
   on_otDelete(conn, { id }) {
     const { t } = this.otManaged(conn, id);
+    // Giải tổng còn giải con: gỡ / xoá giải con trước (giải con không tính hạn mức – không để chúng thành giải thường hàng loạt)
+    if (t.multi && t.multi.children.length) throw E('ot_multi_has_children');
+    this.otMultiForget(t); // giải con rời giải tổng / giải tổng thả các giải con
     for (const set of this.byPid.values()) for (const c of set) if (c.watchOt === t.id) { c.watchOt = null; c.send({ t: 'ot', id: t.id, tour: null }); }
     this.otForget(t.id);
     this.store.dropOTour(t.id);
@@ -204,6 +219,7 @@ class OTour {
       disc: t.disc || null, susp: this.otSusp(t),
       sched: t.sched || null, // cấu hình tự xếp lịch (otour-sched.js)
       esports: t.esports || null, esp: this.otEspStats(t), // cấm chọn / Fearless + thống kê tướng (otour-games.js)
+      multi: t.multi ? this.otMultiView(t) : null, parent: this.otParentView(t), // giải tổng / giải con (otour-multi.js)
       series: this.otSeriesView(t), exempt: t.exempt || [], // giải nhiều mùa + đặc cách trọn đời (otour-next.js)
     };
   }

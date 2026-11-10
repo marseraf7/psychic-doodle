@@ -64,6 +64,7 @@
     const tpl = TP.byId(b.dataset.id);
     const fm = K.otForm;
     if (!tpl || !fm) return;
+    if (tpl.multi && K.otMultiPick) { K.otMultiPick(tpl); return; } // mẫu giải tổng (otour-multi.js)
     fm.collect();
     const spec = TP.specOf(tpl, SP.SPORTS);
     const set = spec.result !== 'sets' ? null : spec.set !== undefined ? spec.set : fm.sportSet(spec.sport); // mẫu có thể bỏ luật set

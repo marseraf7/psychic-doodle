@@ -11,7 +11,7 @@ const { setup, sleep } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8838;
-  const { app, user, ok, shot, finish } = await setup(PORT);
+  const { app, user, ok, shot, finish, browser } = await setup(PORT);
   const boss = await user('vi', 'ban_golf', 1100);
   const tab = (k) => boss.click(`[data-act="otTab"][data-tab="${k}"]`).then(() => sleep(400));
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
@@ -58,13 +58,25 @@ const { setup, sleep } = require('./helpers.js');
   await boss.fill('.golf-po-form input[name=holes]', '2');
   await boss.click('.golf-po-form button.primary'); await sleep(1200);
   ok(t.status === 'finished' && t.podium[0] === uid('Bình') && t.st[0].playoff.holes === 2, 'Bình thắng đấu phụ sau 2 lỗ, giải kết thúc');
+  // Xuất CSV bảng xếp hạng: hạng (bị cắt / rút lui), số vòng, tổng gậy, so với par
+  const csvRows = await boss.evaluate(() => window.CaroOTourExport.tableRows(window.CaroTourKit.D.ot).map((r) => r.join('|')));
+  ok(csvRows[1] === '1||1|Bình|4||||||284|−4' && csvRows[2] === '1||2|An|4||||||284|−4' && csvRows.some((r) => /\|Bị cắt\|Dũng\|2\|/.test(r)) && csvRows.some((r) => /\|Rút lui\|Giang\|0\|/.test(r)), 'Xuất CSV golf: ' + csvRows.slice(1, 3).join(' ; '));
+  // Trang nhúng (khách): bảng dẫn đầu golf
+  const ectx = await browser.newContext({ viewport: { width: 760, height: 900 } });
+  const em = await ectx.newPage();
+  const emErr = [];
+  em.on('pageerror', (e) => emErr.push(e.message));
+  await em.goto(`http://localhost:${PORT}/embed.html?o=${id}&lang=vi&theme=light`);
+  await em.waitForSelector('#embed .golf-board', { timeout: 10000 }).catch(() => {});
+  ok(/Thắng đấu phụ/.test(await em.textContent('#embed').catch(() => '')) && /Bị cắt/.test(await em.textContent('#embed')) && !emErr.length, 'Trang nhúng: bảng dẫn đầu golf' + (emErr.length ? ' – lỗi JS: ' + emErr.join(' | ') : ''));
+  await ectx.close();
   // Mùa sau
   await tab('more');
   await boss.fill('#ot-exempt', 'An');
   await boss.click('[data-act="otExemptSave"]'); await sleep(500);
   ok(t.exempt[0] === 'An', 'Lưu đặc cách trọn đời');
   await boss.click('[data-act="otNextSeason"]'); await sleep(300);
-  await boss.click('.cdlg button.primary, .confirm-dlg button.primary, [data-cf="ok"]').catch(() => {}); await sleep(1200);
+  await boss.click('#confirm-ok').catch(() => {}); await sleep(1200);
   const id2 = await boss.evaluate(() => window.CaroTourKit.D.ot && window.CaroTourKit.D.ot.id);
   const t2 = app.hub.otGet(id2);
   ok(id2 !== id && t2 && t2.players.map((p) => p.name).join(',') === 'Bình,An' && t2.series.n === 2, 'Mùa 2: Bình (vô địch) đứng đầu, An đặc cách');

@@ -57,7 +57,8 @@ test('Tổng vòng: lưu dở, cắt top N + đồng hạng, rút lui, bảng d�
   st.playoff = { winner: 'g3', holes: 2 };
   assert.strictEqual(G.settle(st), true);
   assert.deepStrictEqual(Race.raceTable(st, seedOf).list.slice(0, 2), ['g3', 'g1'], 'người thắng đấu phụ lên đầu');
-  assert.ok(Race.raceView(st, 0, 0, side, seedOf).table[0].po);
+  const pv = Race.raceView(st, 0, 0, side, seedOf).table;
+  assert.deepStrictEqual(pv.slice(0, 3).map((x) => [x.name, x.rank, x.tie, !!x.po]), [['g3', 1, false, true], ['g1', 2, false, false], ['g0', 3, false, false]], 'thua đấu phụ: hạng 2');
   // Huỷ vòng cuối: bỏ luôn kết quả đấu phụ
   Race.undoEvent(st, 2);
   assert.ok(!st.playoff && !st.done);

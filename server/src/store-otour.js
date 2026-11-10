@@ -6,6 +6,8 @@
  */
 'use strict';
 
+// Giải con của một giải tổng (hub/otour-multi.js – data.parent): không liệt kê riêng, không tính vào hạn mức
+const TOP = "json_extract(data, '$.parent') IS NULL";
 const row = (r) => (r ? { ...r } : null); // node:sqlite trả về đối tượng không có prototype
 
 class OTourStore {
@@ -47,15 +49,15 @@ class OTourStore {
   listOTours({ owner = null, limit = 50 } = {}) {
     this.flushOTours();
     const rows = owner
-      ? this.db.prepare('SELECT id, slug, owner, status, access, name, created, updated FROM offline_tours WHERE owner = ? ORDER BY updated DESC LIMIT ?').all(owner, limit)
-      : this.db.prepare("SELECT id, slug, owner, status, access, name, created, updated FROM offline_tours WHERE access = 'public' ORDER BY updated DESC LIMIT ?").all(limit);
+      ? this.db.prepare(`SELECT id, slug, owner, status, access, name, created, updated FROM offline_tours WHERE owner = ? AND ${TOP} ORDER BY updated DESC LIMIT ?`).all(owner, limit)
+      : this.db.prepare(`SELECT id, slug, owner, status, access, name, created, updated FROM offline_tours WHERE access = 'public' AND ${TOP} ORDER BY updated DESC LIMIT ?`).all(limit);
     return rows.map(row);
   }
 
-  /** Số giải chưa kết thúc của một người (hạn mức). */
+  /** Số giải chưa kết thúc của một người (hạn mức) – không kể giải con của giải tổng. */
   countActiveOTours(owner) {
     this.flushOTours();
-    return this.db.prepare("SELECT COUNT(*) AS n FROM offline_tours WHERE owner = ? AND status <> 'finished'").get(owner).n;
+    return this.db.prepare(`SELECT COUNT(*) AS n FROM offline_tours WHERE owner = ? AND status <> 'finished' AND ${TOP}`).get(owner).n;
   }
 
   dropOTour(id) {

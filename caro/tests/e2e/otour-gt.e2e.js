@@ -10,7 +10,7 @@ const { setup, sleep } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8837;
-  const { app, user, ok, shot, finish } = await setup(PORT);
+  const { app, user, ok, shot, finish, browser } = await setup(PORT);
   const boss = await user('vi', 'ban_xedap', 1100);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
   await boss.click('.tpl-card[data-id="tour_de_france"]'); await sleep(300);
@@ -60,5 +60,14 @@ const { setup, sleep } = require('./helpers.js');
   await boss.$$eval('details.fold', (ds) => ds.forEach((d) => { d.open = true; })); await sleep(500);
   ok(st.events[1].done && await boss.$eval('[data-act="otRaceUndo"]', (b) => b.dataset.ev) === '1', 'Chặng 2 xong: chỉ chặng 2 huỷ được');
   ok(new RegExp('Áo vàng\\s*' + names[0] + '\\b').test(await boss.textContent('.gt-now')), 'Áo vàng sau chặng 2: tay đua 1');
+  // Trang nhúng (khách): bảng áo vàng xe đạp
+  const ectx = await browser.newContext({ viewport: { width: 760, height: 900 } });
+  const em = await ectx.newPage();
+  const emErr = [];
+  em.on('pageerror', (e) => emErr.push(e.message));
+  await em.goto(`http://localhost:${PORT}/embed.html?o=${id}&lang=vi&theme=light`);
+  await em.waitForSelector('#embed table.stand', { timeout: 10000 }).catch(() => {});
+  ok(/Tổng thời gian \(áo vàng\)/.test(await em.textContent('#embed').catch(() => '')) && /Người giữ áo sau chặng 2/.test(await em.textContent('#embed')) && !emErr.length, 'Trang nhúng: bảng áo vàng xe đạp' + (emErr.length ? ' – lỗi JS: ' + emErr.join(' | ') : ''));
+  await ectx.close();
   await finish();
 })();
