@@ -21,6 +21,7 @@ const TABLE = [1000, 750, 500, 300, 200, 200, 100, 100];
 const MAX_CHILDREN = 30;
 const MAX_TABLE = 64;
 const MAX_SCHED = 40;
+const MAX_KIDS_PER_DAY = 100; // giải con không tính hạn mức giải thường, nhưng vẫn có trần mỗi ngày
 const real = (u) => typeof u === 'string' && u !== '-' && u !== '';
 
 /** Bảng điểm theo hạng: số nguyên 0–100000, tối đa 64 hạng; rỗng → mặc định. */
@@ -64,6 +65,14 @@ class OTourMulti {
     if (!t.multi) throw E('ot_multi_not');
     if (t.multi.children.length >= MAX_CHILDREN) throw E('ot_multi_full', { n: MAX_CHILDREN });
     return t;
+  }
+
+  /** Hạn mức tạo giải con mỗi ngày (n giải sắp tạo). Trả hàm ghi nhận. */
+  otMultiQuota(me, n) {
+    const today = new Date().toISOString().slice(0, 10);
+    const day = me.otKidDay && me.otKidDay.d === today ? me.otKidDay : { d: today, n: 0 };
+    if (day.n + n > MAX_KIDS_PER_DAY) throw E('ot_daily_limit', { n: MAX_KIDS_PER_DAY });
+    return (k = n) => { me.otKidDay = { d: today, n: day.n + k }; this.store.touch(me); };
   }
 
   /** Gắn giải con vào giải tổng (ghi cả hai). */
@@ -115,7 +124,11 @@ class OTourMulti {
 
   /** Tạo các giải con kèm theo khi tạo giải tổng từ mẫu: games = [{ name, spec, teams }] (bỏ qua mục sai cấu hình). */
   otMultiGames(parent, me, games) {
-    for (const g of (Array.isArray(games) ? games : []).slice(0, 12)) {
+    const list = (Array.isArray(games) ? games : []).slice(0, 12);
+    if (!list.length) return;
+    const commit = this.otMultiQuota(me, list.length);
+    let made = 0;
+    for (const g of list) {
       const name = cleanPublicName(g && g.name).slice(0, 60);
       let spec;
       try { spec = Spec.normalizeSpec(g.spec); } catch (e) { continue; }
@@ -126,7 +139,9 @@ class OTourMulti {
       this.otAddTeams(c, g.teams);
       this.otMultiLink(parent, c);
       this.otAdd(c, me.id);
+      made++;
     }
+    commit(made);
   }
 
   /** Sửa bảng điểm theo hạng của giải tổng. */
@@ -154,6 +169,8 @@ class OTourMulti {
     const { t: parent, me } = this.otManaged(conn, id);
     if (!parent.multi || !parent.multi.children.includes(child)) throw E('bad_message');
     const c = this.otGet(child);
+    // Giải con chưa kết thúc rời giải tổng sẽ tính vào hạn mức giải thường của chủ giải
+    if (c && c.status !== 'finished') this.otActiveCheck(c.owner);
     parent.multi.children = parent.multi.children.filter((x) => x !== child);
     if (parent.multi.st) delete parent.multi.st[child];
     this.otMultiStatus(parent);

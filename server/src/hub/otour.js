@@ -117,6 +117,11 @@ class OTour {
     return () => { me.otDay = { d: today, n: day.n + 1 }; this.store.touch(me); };
   }
 
+  /** Chủ giải đã đủ số giải chưa kết thúc thì báo lỗi (giải con rời giải tổng sẽ thành giải thường – otour-multi.js). */
+  otActiveCheck(uid) {
+    if (this.store.countActiveOTours(uid) >= MAX_ACTIVE) throw E('ot_active_limit', { n: MAX_ACTIVE });
+  }
+
   /** Đưa giải mới tạo vào bộ nhớ đệm + ghi. */
   otAdd(t, uid, act = 'created') {
     this.otCache().set(t.id, t);
@@ -129,7 +134,7 @@ class OTour {
     const me = this.requireUser(conn);
     // Giải con của một giải tổng (otour-multi.js): không tính vào hạn mức; giải tổng không lồng nhau
     const parent = o.parent ? this.otMultiParent(conn, o.parent) : null;
-    const commit = parent ? () => {} : this.otQuota(me);
+    const commit = parent ? this.otMultiQuota(me, 1) : this.otQuota(me);
     const f = this.otFields(o);
     const spec = specGuard(() => Spec.normalizeSpec(o.spec));
     const now = Date.now();
@@ -160,6 +165,8 @@ class OTour {
 
   on_otDelete(conn, { id }) {
     const { t } = this.otManaged(conn, id);
+    // Giải tổng còn giải con: gỡ / xoá giải con trước (giải con không tính hạn mức – không để chúng thành giải thường hàng loạt)
+    if (t.multi && t.multi.children.length) throw E('ot_multi_has_children');
     this.otMultiForget(t); // giải con rời giải tổng / giải tổng thả các giải con
     for (const set of this.byPid.values()) for (const c of set) if (c.watchOt === t.id) { c.watchOt = null; c.send({ t: 'ot', id: t.id, tour: null }); }
     this.otForget(t.id);

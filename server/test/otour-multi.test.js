@@ -87,21 +87,27 @@ test('Giải tổng qua máy chủ: giải con không tính hạn mức, điểm
   v = (await get(id));
   assert.deepStrictEqual([v.multi.clubs.map((c) => [c.name, c.pts]), v.multi.hidden], [[['Alpha', 10], ['Beta', 1], ['Gamma', 0]], 1]);
   c2.access = 'public';
-  // Gỡ mọi giải con chưa đấu → chỉ còn 2 giải đã xong → giải tổng kết thúc; giải gỡ ra thành giải thường
-  for (const cid of P.multi.children.filter((x) => x !== c1.id && x !== id2)) org.send({ t: 'otMultiDetach', id, child: cid });
-  await until(() => P.multi.children.length === 2);
-  assert.strictEqual(P.status, 'finished');
+  // Gỡ giải con chưa đấu: thành giải thường, tính vào hạn mức 10 giải đang chạy (giải tổng 1 + 9) → lần gỡ thứ 10 bị chặn
+  const drafts = P.multi.children.filter((x) => x !== c1.id && x !== id2);
+  for (const cid of drafts.slice(0, 9)) { org.send({ t: 'otMultiDetach', id, child: cid }); await until(() => !P.multi.children.includes(cid)); }
   assert.strictEqual(ctx.app.store.countActiveOTours(P.owner), 10);
-  // Gắn lại một giải có sẵn; giải tổng không làm giải con được
-  const loose = (await org.req({ t: 'otList' }, 'otList')).mine.find((x) => x.id !== id);
+  assert.strictEqual((await org.req({ t: 'otMultiDetach', id, child: drafts[9] }, 'error')).code, 'ot_active_limit');
+  assert.deepStrictEqual([P.multi.children.length, P.status], [3, 'running']);
+  // Xoá một giải đã gỡ rồi gắn lại một giải khác; giải tổng không làm giải con được
+  await org.req({ t: 'otDelete', id: drafts[0] }, 'otDeleted');
   assert.strictEqual((await org.req({ t: 'otMultiAttach', id, child: id }, 'error')).code, 'ot_multi_bad_child');
-  org.send({ t: 'otMultiAttach', id, child: loose.id });
-  await until(() => P.multi.children.length === 3 && P.status === 'running');
-  // Xoá giải con → rời giải tổng; xoá giải tổng → giải con thành giải thường
-  await org.req({ t: 'otDelete', id: loose.id }, 'otDeleted');
-  assert.strictEqual(P.multi.children.length, 2);
+  org.send({ t: 'otMultiAttach', id, child: drafts[1] });
+  await until(() => P.multi.children.length === 4);
+  // Xoá giải con → rời giải tổng; giải tổng còn giải con thì chưa xoá được
+  await org.req({ t: 'otDelete', id: drafts[1] }, 'otDeleted');
+  assert.strictEqual(P.multi.children.length, 3);
+  assert.strictEqual((await org.req({ t: 'otDelete', id }, 'error')).code, 'ot_multi_has_children');
+  // Gỡ hết (giải đã kết thúc không tính hạn mức; xoá bớt một giải thường để còn chỗ cho giải chưa đấu) rồi xoá giải tổng
+  await org.req({ t: 'otDelete', id: drafts[2] }, 'otDeleted');
+  for (const cid of [c1.id, id2, drafts[9]]) { org.send({ t: 'otMultiDetach', id, child: cid }); await until(() => !P.multi.children.includes(cid)); }
+  assert.ok(!c1.parent && !c2.parent && P.status === 'draft');
   await org.req({ t: 'otDelete', id }, 'otDeleted');
-  assert.ok(!c1.parent && !c2.parent && ctx.app.hub.otGet(c1.id));
+  assert.ok(ctx.app.hub.otGet(c1.id));
   org.close(); other.close();
 });
 

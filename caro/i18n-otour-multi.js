@@ -28,6 +28,7 @@
     srv_ot_multi_not: 'Đây không phải giải tổng.', srv_ot_multi_full: 'Mỗi giải tổng có tối đa {n} giải con.',
     srv_ot_multi_bad_child: 'Không gắn được giải này (đã thuộc một giải tổng, hoặc chính là giải tổng).',
     srv_ot_multi_no_start: 'Giải tổng không có trận riêng: hãy mở từng giải con.',
+    srv_ot_multi_has_children: 'Giải tổng còn giải con: hãy gỡ hoặc xoá các giải con trước.',
     otlog_multi_cfg: 'Sửa bảng điểm theo hạng', otlog_multi_add: 'Gắn giải con {name}', otlog_multi_del: 'Gỡ giải con {name}',
   });
 
@@ -53,6 +54,7 @@
     srv_ot_multi_not: 'This is not a parent event.', srv_ot_multi_full: 'A parent event can have at most {n} tournaments.',
     srv_ot_multi_bad_child: 'This tournament cannot be attached (it already belongs to a parent event, or is one).',
     srv_ot_multi_no_start: 'A parent event has no matches of its own: open each tournament instead.',
+    srv_ot_multi_has_children: 'This parent event still has tournaments: detach or delete them first.',
     otlog_multi_cfg: 'Edited the points table', otlog_multi_add: 'Attached tournament {name}', otlog_multi_del: 'Detached tournament {name}',
   });
 
@@ -78,6 +80,7 @@
     srv_ot_multi_not: 'Это не общее событие.', srv_ot_multi_full: 'В общем событии может быть не более {n} турниров.',
     srv_ot_multi_bad_child: 'Этот турнир нельзя привязать (он уже входит в общее событие или сам им является).',
     srv_ot_multi_no_start: 'У общего события нет своих матчей: откройте нужный турнир.',
+    srv_ot_multi_has_children: 'В общем событии ещё есть турниры: сначала отвяжите или удалите их.',
     otlog_multi_cfg: 'Изменена таблица очков', otlog_multi_add: 'Привязан турнир {name}', otlog_multi_del: 'Отвязан турнир {name}',
   });
 
@@ -103,6 +106,7 @@
     srv_ot_multi_not: '这不是综合赛事。', srv_ot_multi_full: '每个综合赛事最多 {n} 个分项赛。',
     srv_ot_multi_bad_child: '无法关联该赛事（它已属于某个综合赛事，或本身就是综合赛事）。',
     srv_ot_multi_no_start: '综合赛事没有自己的比赛：请打开各个分项赛。',
+    srv_ot_multi_has_children: '综合赛事下还有分项赛：请先移除或删除它们。',
     otlog_multi_cfg: '修改名次积分表', otlog_multi_add: '关联分项赛 {name}', otlog_multi_del: '移除分项赛 {name}',
   });
 })();
