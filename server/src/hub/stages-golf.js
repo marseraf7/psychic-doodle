@@ -151,14 +151,16 @@ const fmtPar = (n) => (n === 0 ? 'E' : n > 0 ? '+' + n : '−' + -n);
 function golfView(st, i, adv, side, seedOf) {
   const cfg = st.cfg, C = golfCalc(st, seedOf), S = C.stats;
   const curIdx = st.events.findIndex((e) => !e.done);
+  // Người thắng đấu phụ đứng riêng hạng 1; những người thua đấu phụ đồng hạng 2
+  const champ = st.playoff && C.leaders.includes(st.playoff.winner) ? st.playoff.winner : null;
   let prevPar = null, pos = 0;
   const table = C.order.map((u, k) => {
     const s = S[u], on = s.wd == null && !s.cut;
-    if (on && s.toPar !== prevPar) { pos = k + 1; prevPar = s.toPar; }
+    if (on && (s.toPar !== prevPar || (champ && k === 1))) { pos = k + 1; prevPar = s.toPar; }
     const r = { ...side(u), rank: on ? pos : k + 1, toPar: s.played ? s.toPar : null, total: s.played ? s.strokes : null,
       rounds: st.events.map((e) => (s.rounds[e.i] ? s.rounds[e.i].strokes : null)), adv: on && k < adv, time: null };
     if (on) {
-      r.tie = C.order.some((v, j) => j !== k && S[v].wd == null && !S[v].cut && S[v].played && S[v].toPar === s.toPar);
+      r.tie = u !== champ && C.order.some((v, j) => j !== k && v !== champ && S[v].wd == null && !S[v].cut && S[v].played && S[v].toPar === s.toPar);
       const cur = curIdx >= 0 ? s.rounds[curIdx] : null;
       if (cur) { r.today = cur.toPar; r.thru = cur.done ? 'F' : cur.played; }
     }
@@ -166,7 +168,7 @@ function golfView(st, i, adv, side, seedOf) {
     if (s.wd != null) r.wd = s.wd + 1;
     return r;
   });
-  if (st.playoff && table.length) table[0].po = true;
+  if (champ && table.length) table[0].po = true;
   const events = st.events.map((ev) => ({ i: ev.i, done: ev.done, ...(ev.rows ? { rows: ev.rows } : {}) }));
   const golf = { par: parTotal(cfg), cutLine: C.cutLine, cutDone: C.cutDone };
   if (C.all && C.leaders.length > 1) golf.playoff = { leaders: C.leaders.map(side), winner: st.playoff ? st.playoff.winner : null, holes: st.playoff ? st.playoff.holes : null };

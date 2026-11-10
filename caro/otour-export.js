@@ -32,6 +32,10 @@
     const out = [[T('ot_x_stage'), T('ot_x_group'), '#', T('ot_x_team'), T('ot_x_mp'), T('ot_x_w'), T('ot_x_d'), T('ot_x_l'), T('ot_x_for'), T('ot_x_against'), T('ot_x_pts'), T('ot_x_time')]];
     for (const v of t.stageViews || []) {
       const n = v.index + 1;
+      if (v.type === 'race' && v.cfg && v.cfg.score === 'golf') { // golf: hạng (bị cắt / rút lui), số vòng đã đánh, tổng gậy, so với par
+        for (const x of v.table) out.push([n, '', x.wd ? T('golf_wd') : x.cut ? T('golf_mc') : x.rank, x.name, (x.rounds || []).filter((r) => r != null).length, '', '', '', '', '', x.total != null ? x.total : '', x.toPar != null && RU ? RU.fmtPar(x.toPar) : '']);
+        continue;
+      }
       if (v.type === 'race') { for (const x of v.table) out.push([n, '', x.rank, x.name, x.races, x.wins || '', '', x.dnf || '', '', '', x.pts != null ? x.pts : '', x.time != null && RU ? RU.fmtTime(x.time) : '']); continue; }
       const tabs = v.groups ? v.groups.map((g) => [g.name, g.table]) : v.table ? [['', v.table]] : [];
       for (const [g, rows] of tabs) for (const x of rows || []) out.push([n, g, x.rank, x.name, x.mp, x.w, x.d, x.l, x.gw, x.gl, x.pts, '']);
