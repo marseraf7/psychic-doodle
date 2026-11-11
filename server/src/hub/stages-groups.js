@@ -7,6 +7,7 @@
 const { BYE, MAX_GROUP, MAX_GROUPS, real, newMatch } = require('./stages-base.js');
 const { tally, rankList, crossCompare } = require('./stages-tiebreak.js');
 const { MAX_BIG, buildLeague, records, recordActive, recordBo, bestNextTier } = require('./stages-league.js');
+const Valve = require('./stages-valve.js'); // giải offline: ghép cặp Thụy Sĩ kiểu CS Major
 const { raceTable } = require('./stages-race.js');
 const { buildSeason } = require('./stages-season.js');
 
@@ -166,7 +167,9 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
   for (const m of Object.values(st.matches)) if (m.bye && real(m.winner)) byes[m.winner] = (byes[m.winner] || 0) + 1;
   // Cặp cố định (giao hữu CLB: bàn 1 gặp bàn 1…) chỉ cho vòng đầu
   const score = Object.fromEntries(order.map((u) => [u, rec ? rec[u].w * 100 - rec[u].l : stats[u].pts]));
-  const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : swissPairs(order, played, byes, st.cfg.pairing, score);
+  // Kiểu CS Major (theo số thắng / thua): vòng 1 hạt giống i gặp i + n/2, sau đó theo độ khó – không ghép được thì như thường
+  const vp = rec && st.cfg.pairing === 'valve' && !(fixed && r === 0) ? Valve.valvePairs(st, rec, order, played) : null;
+  const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : vp ? { pairs: vp, bye: null } : swissPairs(order, played, byes, st.cfg.pairing, score);
   const ids = [];
   pairs.forEach(([a, b], i) => {
     const m = newMatch(`${st.key}s${r}m${i}`, r);
@@ -194,7 +197,12 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
 /** Bảng xếp hạng của vòng: vòng tròn = từng bảng; Thụy Sĩ = một bảng. */
 function standings(st, seedOf) {
   if (st.type === 'roundrobin') return st.groups.map((g) => rankList(st, g.players, seedOf));
-  if (st.type === 'swiss') return [rankList(st, st.entrants, seedOf)];
+  if (st.type === 'swiss') {
+    const t = rankList(st, st.entrants, seedOf);
+    // Kiểu CS Major: thắng – thua, độ khó, hạt giống giai đoạn (đi tiếp + hạt giống giai đoạn sau)
+    if (st.cfg.record && st.cfg.pairing === 'valve') t.list = Valve.valveOrder(st, records(st), t.list);
+    return [t];
+  }
   if (st.type === 'race') return [raceTable(st, seedOf || ((u) => st.entrants.indexOf(u)))]; // giải offline: hệ Race
   return null;
 }

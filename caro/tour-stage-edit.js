@@ -5,7 +5,7 @@
  * tổng 2 trận / 1 trận / không có, split, Bo riêng bán kết / chung kết (Bo1–7 hoặc tự nhập số lẻ tới 15), gặp nhau
  * 3 lượt, xếp hạng theo (rankBy), điểm ván thắng / hoà / miễn đấu, tie-break 5 cấp (theo quy chế FIDE – kèm giải thích),
  * Thụy Sĩ: 0 vòng = tự động, cách xếp cặp (Hà Lan / liền kề), cách tính trận không đấu (FIDE / như bản cũ).
- *   K.stageEdit = { DEFAULT, MAX, html(stages, adv, ctx), change(stages, el), click(stages, btn) } – change / click sửa
+ *   K.stageEdit = { DEFAULT, MAX, MAX_EXT, html(stages, adv, ctx), change(stages, el), click(stages, btn, max) } – change / click sửa
  *   mảng stages tại chỗ, trả true nếu có đổi; ctx.max: số người tối đa (số cặp hạng chọn được); ctx.ext: hiện ô điểm
  *   thắng / thua "sát" (giải offline – set quyết định, hiệp phụ); ctx.result: kiểu kết quả giải offline (2 lượt chỉ với
  *   'score') và các thể thức thêm của giải offline (stages-league.js ở
@@ -41,7 +41,8 @@
   // Golf đấu gậy (cách tính 'golf' – stages-golf.js): par từng lỗ, nhập tổng vòng / từng lỗ, cắt sau vòng N
   const PAR72 = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
   const golfStage = () => ({ type: 'race', bestOf: 1, events: 4, score: 'golf', input: 'round', par: [...PAR72], cut: { after: 2, top: 50 }, po: [18, 10] });
-  const MAX = 3;
+  const MAX = 3; // giải Caro trực tuyến
+  const MAX_EXT = 4; // giải offline (CS Major: 3 giai đoạn Thụy Sĩ + playoff)
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
@@ -207,10 +208,11 @@
       // tránh hai đội cùng khu vực (cột quốc gia)
       if (ctx.ext && i > 0) f.push(field(T('opt_direct'), num(i, 'direct', c.direct || 0, 0, 256)));
       // 3 giai đoạn: các đội đầu của giai đoạn 1 vào thẳng giai đoạn 3, phần còn lại đá giai đoạn 2 (vòng vớt)
-      if (ctx.ext && i === 0 && st.length === 3 && ['roundrobin', 'swiss', 'race', 'gsl'].includes(c.type) && !c.record) f.push(field(T(c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'opt_skip_group' : 'opt_skip'), num(i, 'skip', c.skip || 0, 0, c.type === 'gsl' ? (c.advance || 2) - 1 : 256)));
+      if (ctx.ext && i === 0 && st.length >= 3 && ['roundrobin', 'swiss', 'race', 'gsl'].includes(c.type) && !c.record) f.push(field(T(c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'opt_skip_group' : 'opt_skip'), num(i, 'skip', c.skip || 0, 0, c.type === 'gsl' ? (c.advance || 2) - 1 : 256)));
       if (ctx.ext && c.type === 'swiss') f.push(chk(i, 'region', !!c.region, T('opt_region')));
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
-      if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')]], c.pairing || 'dutch')));
+      // Thụy Sĩ theo thắng / thua của giải offline: thêm kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó, cao gặp thấp)
+      if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')]] : [])], c.pairing || 'dutch')));
       if (c.points) {
         f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
         if (adv) {
@@ -234,7 +236,7 @@
     st.forEach((c, i) => { arrows.push(stageName(c)); if (i < st.length - 1) arrows.push(advText(c) + (st[i + 1].direct ? ' ' + T('adv_direct', { n: st[i + 1].direct }) : '') + (c.skip && i + 2 < st.length ? ' ' + T('adv_skip', { n: c.skip }) : '')); });
     return `<p class="flow">${arrows.map((x, i) => (i % 2 ? `<span class="muted">→ ${esc(x)} →</span>` : `<b>${esc(x)}</b>`)).join(' ')}</p>
       ${cards.join('<div class="sc-arrow">↓</div>')}
-      ${st.length < MAX ? `<button type="button" class="ghost sm" data-sact="add">${icon('plus')}${esc(T('stage_add'))}</button>` : ''}`;
+      ${st.length < (ctx.ext ? MAX_EXT : MAX) ? `<button type="button" class="ghost sm" data-sact="add">${icon('plus')}${esc(T('stage_add'))}</button>` : ''}`;
   }
 
   /** Sửa một ô của giai đoạn. Trả true nếu đã đổi. */
@@ -309,8 +311,8 @@
     if (k === 'events' && c.mp && c.mp.after) { if (c.events < 2) delete c.mp; else c.mp.after = Math.min(c.mp.after, c.events - 1); }
     if (k === 'events' && c.score === 'gt') c.kinds = gtKinds(c); // đổi số chặng: giữ loại các chặng đầu
     if (k === 'events' && c.score === 'golf' && c.cut) { if (c.events < 2) delete c.cut; else c.cut.after = Math.min(c.cut.after, c.events - 1); }
-    // `skip` (vào thẳng giai đoạn 3) chỉ có nghĩa ở giai đoạn 1 của giải 3 giai đoạn
-    stages.forEach((x, j) => { if (x.skip != null && !(x.skip > 0 && j === 0 && stages.length === 3)) delete x.skip; });
+    // `skip` (vào thẳng giai đoạn 3) chỉ có nghĩa ở giai đoạn 1 của giải từ 3 giai đoạn trở lên
+    stages.forEach((x, j) => { if (x.skip != null && !(x.skip > 0 && j === 0 && stages.length >= 3)) delete x.skip; });
     dropPlayoff(stages);
     return true;
   }
@@ -328,7 +330,8 @@
   }
 
   /** Nút thêm / bỏ giai đoạn. Trả true nếu đã đổi. */
-  function click(stages, b) {
+  /** max: số giai đoạn tối đa (giải offline: MAX_EXT). */
+  function click(stages, b, max = MAX) {
     const c = stages[Number(b.dataset.i)];
     if (b.dataset.sact === 'placeAll' && c) { setPlaces(c, Array.from({ length: Number(b.dataset.size) / 2 - 1 }, (_, j) => 3 + 2 * j)); return true; }
     if (b.dataset.sact === 'placeNone' && c) { setPlaces(c, []); return true; }
@@ -345,7 +348,7 @@
       c.tiebreaks = tbs;
       return true;
     }
-    if (b.dataset.sact === 'add' && stages.length < MAX) stages.unshift(DEFAULT.roundrobin());
+    if (b.dataset.sact === 'add' && stages.length < max) stages.unshift(DEFAULT.roundrobin());
     else if (b.dataset.sact === 'del' && stages.length > 1) {
       stages.splice(Number(b.dataset.i), 1);
       const last = stages[stages.length - 1];
@@ -361,5 +364,5 @@
     return true;
   }
 
-  K.stageEdit = { DEFAULT, MAX, gtStage, golfStage, html, change, click, tbsOf, gfOf, placesOf, TIEBREAKS };
+  K.stageEdit = { DEFAULT, MAX, MAX_EXT, gtStage, golfStage, html, change, click, tbsOf, gfOf, placesOf, TIEBREAKS };
 })();

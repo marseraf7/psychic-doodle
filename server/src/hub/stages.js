@@ -31,6 +31,7 @@ const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại 
 const Kings = require('./stages-kings.js'); // giải offline: vòng tranh hạt giống + cơ hội cuối
 
 const MAX_BO = 25;
+const MAX_STAGES_OFFLINE = 4;
 /** Bo (số ván tối đa của một trận): số lẻ 1…MAX_BO (cần phân thắng thua); không hợp lệ = 0. */
 const oddBo = (v) => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= MAX_BO && n % 2 === 1 ? n : 0; };
 const GF = ['2', '1', 'none']; // chung kết tổng: 1–2 trận (reset) / 1 trận / không có
@@ -84,7 +85,8 @@ function normalizeStage(c, last, opts = {}) {
     out.rounds = int(c.rounds, 0, 15, 5); // 0 = tự động theo số người
     // Xếp cặp: 'dutch' (chuẩn FIDE: trong mỗi nhóm điểm, nửa trên gặp nửa dưới – 1 gặp n/2+1…) / 'adjacent' (gặp người
     // liền kề: 1–2, 3–4…, cách của bản trước – giải cũ không có trường này vẫn chạy như cũ)
-    out.pairing = c.pairing === 'adjacent' ? 'adjacent' : 'dutch';
+    // Giải offline + Thụy Sĩ theo thắng / thua: 'valve' – kiểu CS Major (stages-valve.js; không có record thì thành 'dutch')
+    out.pairing = c.pairing === 'adjacent' || (c.pairing === 'valve' && opts.offline) ? c.pairing : 'dutch';
   }
   if (!isElim(type)) {
     const p = c.points || {};
@@ -108,11 +110,13 @@ function normalizeStage(c, last, opts = {}) {
   // Loạt Bo2 (vòng bảng Dota 2 ở các giải Esports): đúng 2 ván, 1–1 là hoà – chỉ vòng tròn / Thụy Sĩ tính điểm (không phải
   // Thụy Sĩ theo thắng / thua, không phải loại trực tiếp)
   if (Number(c.bestOf) === 2 && GROUP_TYPES.includes(res.type) && !res.record) res.bestOf = 2;
+  if (res.pairing === 'valve' && !res.record) res.pairing = 'dutch';
   return res;
 }
 
 function normalizeStages(list, opts = {}) {
-  const arr = Array.isArray(list) && list.length ? list.slice(0, 3) : [{ type: 'single' }];
+  // Giải offline tối đa 4 giai đoạn (CS Major: 3 giai đoạn Thụy Sĩ + playoff); giải Caro trực tuyến 3
+  const arr = Array.isArray(list) && list.length ? list.slice(0, opts.offline ? MAX_STAGES_OFFLINE : 3) : [{ type: 'single' }];
   const out = arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
   // Playoff kiểu Mỹ chỉ có nghĩa ngay sau một mùa giải (stages-playoff.js)
   out.forEach((c, i) => { if (c.playoff && !(i > 0 && out[i - 1].season)) delete c.playoff; });
@@ -124,7 +128,7 @@ function normalizeStages(list, opts = {}) {
     // (vòng vớt kiểu Survival Stage / Last Chance của các giải sinh tồn). Vòng tròn nhiều bảng: tính mỗi bảng.
     const sk = Math.floor(Number(arr[i] && arr[i].skip));
     // Bảng GSL: chỉ đội nhất bảng (bảng 8: tối đa 3 đội đầu) – phải còn đội đá giai đoạn 2
-    if (opts.offline && sk > 0 && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings' && !out[i + 2].playoff) c.skip = c.type === 'gsl' ? Math.min(sk, c.advance - 1) : Math.min(sk, 256);
+    if (opts.offline && sk > 0 && i === 0 && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings' && !out[i + 2].playoff) c.skip = c.type === 'gsl' ? Math.min(sk, c.advance - 1) : Math.min(sk, 256);
   });
   return out;
 }
@@ -299,5 +303,5 @@ module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
   linked, splitAdvancers, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places,
   twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
-  tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
+  tally, eliminated, isElim, real, tbValue, MAX_BO, MAX_STAGES_OFFLINE, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
 };

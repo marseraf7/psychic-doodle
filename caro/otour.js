@@ -148,7 +148,7 @@
       if (e.target.name === 'teams') setTimeout(() => { if (box.contains(document.activeElement)) showEst(f); else draw(); }, 0);
     });
     box.addEventListener('change', (e) => { if (SE.change(F.stages, e.target)) { F.d.preset = 'custom'; f.elements.preset.value = 'custom'; draw(); } });
-    box.addEventListener('click', (e) => { const b = e.target.closest('[data-sact]'); if (b && SE.click(F.stages, b)) { F.d.preset = 'custom'; f.elements.preset.value = 'custom'; draw(); } });
+    box.addEventListener('click', (e) => { const b = e.target.closest('[data-sact]'); if (b && SE.click(F.stages, b, SE.MAX_EXT)) { F.d.preset = 'custom'; f.elements.preset.value = 'custom'; draw(); } });
     f.onsubmit = (e) => {
       e.preventDefault();
       collect(f);
