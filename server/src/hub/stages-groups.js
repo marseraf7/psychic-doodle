@@ -8,7 +8,15 @@ const { BYE, MAX_GROUP, MAX_GROUPS, real, newMatch } = require('./stages-base.js
 const { tally, rankList, crossCompare } = require('./stages-tiebreak.js');
 const { MAX_BIG, buildLeague, records, recordActive, recordBo, bestNextTier } = require('./stages-league.js');
 const Valve = require('./stages-valve.js'); // giải offline: ghép cặp Thụy Sĩ kiểu CS Major
-const { raceTable } = require('./stages-race.js');
+const { raceTable, groupMembers } = require('./stages-race.js');
+const TM = require('./stages-tiematch.js'); // giải offline: trận phụ phân hạng ở vòng tròn
+/** So hai đội ở cùng thứ hạng của các bảng sinh tồn: tổng điểm, số lần về nhất, nhì…, số hạ gục, hạt giống. */
+const raceCross = (seedOf) => (a, b) => {
+  const x = a.s, y = b.s;
+  if (y.pts !== x.pts) return y.pts - x.pts;
+  for (let k = 0; k < Math.max(x.places.length, y.places.length); k++) if ((y.places[k] || 0) !== (x.places[k] || 0)) return (y.places[k] || 0) - (x.places[k] || 0);
+  return (y.kills - x.kills) || (seedOf(a.uid) - seedOf(b.uid));
+};
 const { buildSeason } = require('./stages-season.js');
 
 // ------------------------------------------------------------ Vòng tròn
@@ -196,14 +204,19 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
 // ------------------------------------------------------------ Bảng điểm (tally, rankList: stages-tiebreak.js)
 /** Bảng xếp hạng của vòng: vòng tròn = từng bảng; Thụy Sĩ = một bảng. */
 function standings(st, seedOf) {
-  if (st.type === 'roundrobin') return st.groups.map((g) => rankList(st, g.players, seedOf));
+  // Trận phụ phân hạng (cfg.tbm): đội thắng trận phụ xếp trên đội thua
+  if (st.type === 'roundrobin') return st.groups.map((g, gi) => TM.applyTiebreak(st, gi, rankList(st, g.players, seedOf)));
   if (st.type === 'swiss') {
     const t = rankList(st, st.entrants, seedOf);
     // Kiểu CS Major: thắng – thua, độ khó, hạt giống giai đoạn (đi tiếp + hạt giống giai đoạn sau)
     if (st.cfg.record && st.cfg.pairing === 'valve') t.list = Valve.valveOrder(st, records(st), t.list);
     return [t];
   }
-  if (st.type === 'race') return [raceTable(st, seedOf || ((u) => st.entrants.indexOf(u)))]; // giải offline: hệ Race
+  if (st.type === 'race') { // giải offline: hệ Race – chia bảng cố định thì mỗi bảng một bảng xếp hạng
+    const so = seedOf || ((u) => st.entrants.indexOf(u));
+    if (st.cfg.groups) return Array.from({ length: st.cfg.groups }, (_, g) => raceTable(st, so, groupMembers(st, g)));
+    return [raceTable(st, so)];
+  }
   return null;
 }
 
@@ -220,16 +233,18 @@ function advancers(st, seedOf, min = 2) {
     const seeds = tables[0].list.filter((u) => rec[u].w >= win);
     return { seeds: seeds.length >= min ? seeds : tables[0].list.slice(0, 2), groupOf };
   }
-  if (st.type === 'swiss' || st.type === 'race') return { seeds: tables[0].list.slice(0, Math.max(2, k)), groupOf };
+  if (st.type === 'swiss' || (st.type === 'race' && !st.cfg.groups)) return { seeds: tables[0].list.slice(0, Math.max(2, k)), groupOf };
   const tiers = [];
   tables.forEach((t, g) => t.list.slice(0, k).forEach((uid, pos) => { (tiers[pos] = tiers[pos] || []).push({ uid, s: t.stats[uid] }); groupOf[uid] = g; }));
   const seeds = [];
+  // Sinh tồn chia bảng cố định: so giữa các bảng theo tổng điểm, số lần về nhất, số hạ gục
+  const cmp = st.type === 'race' ? raceCross(seedOf) : crossCompare(st, seedOf);
   for (const tier of tiers) {
-    tier.sort(crossCompare(st, seedOf));
+    tier.sort(cmp);
     seeds.push(...tier.map((x) => x.uid));
   }
   // Thêm các đội đứng ngay sau suất đi tiếp có thành tích tốt nhất (World Cup 2026: 8 đội hạng ba tốt nhất)
-  for (const x of bestNextTier(tables, k, st.cfg.bestNext, crossCompare(st, seedOf))) { seeds.push(x.uid); groupOf[x.uid] = x.g; }
+  for (const x of bestNextTier(tables, k, st.cfg.bestNext, cmp)) { seeds.push(x.uid); groupOf[x.uid] = x.g; }
   return { seeds: seeds.length >= min ? seeds : tables.flatMap((t) => t.list).slice(0, 2), groupOf };
 }
 

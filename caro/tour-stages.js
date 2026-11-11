@@ -234,7 +234,7 @@
         // Giải offline nhiều bảng: các trận tải khi mở bảng (otour.js – K.otGroupRounds); chưa có thì báo đang tải
         const rounds = roundsOfGroup(t, v, gi);
         const cur = rounds ? rounds.findIndex((r) => r.some((m) => !m.done)) : -1;
-        const inner = () => table(g.table, v.cfg) + divTables(key + ':d' + gi, g, v.cfg, table) + (rounds ? roundsList(key + ':g' + gi, rounds, (i) => [label(t, v.index, i, T('r_round', { n: i + 1 })), slot(t, v.index, i)].filter(Boolean).join(' · '), !v.done && cur >= 0 && !many)
+        const inner = () => table(g.table, v.cfg) + divTables(key + ':d' + gi, g, v.cfg, table) + (rounds ? roundsList(key + ':g' + gi, rounds, (i) => (rounds[i].some((m) => m.tag === 'tb') ? T('tbm_round') : [label(t, v.index, i, T('r_round', { n: i + 1 })), slot(t, v.index, i)].filter(Boolean).join(' · ')), !v.done && cur >= 0 && !many)
           : K.embed ? `<p class="hint">${esc(T('ot_group_embed'))}</p>` // trang nhúng: không tải được các trận của bảng (giải rất nhiều bảng)
             : `<p class="hint">${esc(T('ot_group_loading'))}</p>${K.otGroupNeed ? (K.otGroupNeed(t, v.index, gi), '') : ''}`);
         const name = esc(T(v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }));

@@ -136,7 +136,12 @@
   /** Bảng (0–2) của người thứ j theo hạt giống khi chia 3 bảng xoay vòng. */
   const lobbyGroup = (j) => { const r = Math.floor(j / 3), c = j % 3; return r % 2 ? 2 - c : c; };
 
-  const api = { lobbyOf, lobbyGroup, cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, fmtPar, MAX_TIME, heatsOf };
+  /** Bảng (0…G − 1) của người thứ j khi chia G bảng cố định kiểu rắn theo hạt giống (1 → A, 2 → B, 3 → B, 4 → A với 2 bảng). */
+  const snakeGroup = (j, G) => { const r = Math.floor(j / G), c = j % G; return r % 2 ? G - 1 - c : c; };
+  /** Người của bảng g khi chia G bảng cố định (sinh tồn kiểu PGC: mỗi trận chỉ một bảng đấu). */
+  const groupList = (list, G, g) => list.filter((_, j) => snakeGroup(j, G) === g);
+
+  const api = { lobbyOf, lobbyGroup, snakeGroup, groupList, cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, fmtPar, MAX_TIME, heatsOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourRules = api;
 })(typeof window !== 'undefined' ? window : globalThis);

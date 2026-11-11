@@ -11,6 +11,7 @@
   'use strict';
   const SP = typeof module !== 'undefined' && module.exports ? require('./otour-sports.js') : global.CaroOTourSports;
   const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings'];
+  const MAX_STAGES = 4; // giải offline tối đa 4 giai đoạn (như máy chủ – stages.js MAX_STAGES_OFFLINE)
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
   const lv = { type: 'object', properties: { m: int(0, 30, 'số lần gặp mỗi đối thủ ở mức này'), x: int(0, 999, 'số đối thủ ở mức này gặp thêm 1 lần') } };
@@ -38,8 +39,12 @@
             type: { type: 'string', enum: TYPES, description: "'gsl': bảng đấu loại kép 4 đội (mở màn, nhánh thắng, nhánh thua, quyết định) – số đội chia hết cho 4, nhất và nhì bảng đi tiếp; 'kings' (chỉ giai đoạn giữa): vòng tranh hạt giống + cơ hội cuối – nửa trên cao gặp thấp, thắng vào nhóm hạt giống 1, thua vào nhóm 2; nửa dưới thắng vào nhóm 2, thua bị loại (3/4 số đội đi tiếp, số đội chia hết cho 4)" },
             size: { type: 'integer', enum: [4, 8], description: "'gsl': cỡ bảng – 4 đội (nhất, nhì đi tiếp) hoặc 8 đội (4 đội đi tiếp)" },
             head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
+            groups: int(0, 8, "Race 'points': chia bảng cố định (2–8; kiểu PGC) – mỗi bảng đấu `events` trận của riêng mình, đi tiếp (advance) và vào thẳng giai đoạn 3 (skip) tính mỗi bảng"),
+            tb: { type: 'string', enum: ['countback', 'pubg'], description: "Race 'points': hệ số phụ khi bằng điểm – 'pubg': tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất" },
+            tbm: { type: 'string', enum: ['match', 'h2h'], description: "Vòng tròn chia bảng (giai đoạn giữa): trận phụ phân hạng khi đúng hai đội bằng điểm ở vạch đi tiếp – 'match': luôn đấu (đối đầu chỉ để chọn bên), 'h2h': chỉ khi đối đầu cũng bằng" },
+            draw: { type: 'string', enum: ['record'], description: "Loại trực tiếp ngay sau Thụy Sĩ thắng / thua: bốc thăm theo thành tích (tốt nhất gặp kém nhất, còn lại ngẫu nhiên, tránh cùng khu vực)" },
             rot: { type: 'boolean', description: "Race 'points': chia 3 bảng xoay vòng, mỗi trận hai bảng đấu, một bảng nghỉ" },
-            boDecider: bo, skip: int(0, 256, 'giải 3 giai đoạn, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
+            boDecider: bo, skip: int(0, 256, 'giải từ 3 giai đoạn trở lên, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
             kill: int(0, 10, "Race 'points' (sinh tồn): điểm mỗi lần hạ gục, cộng với điểm theo hạng"),
             mp: { type: 'object', description: "Race 'points': kết thúc kiểu match point – đội đã đạt ngưỡng mà thắng một trận thì vô địch; { at } ngưỡng cố định, hoặc { after, plus } = điểm đội dẫn đầu sau `after` trận + `plus`", properties: { at: int(1, 100000), min: int(1, 30), after: int(1, 29), plus: int(0, 1000) } },
             boLow: bo,
@@ -118,6 +123,8 @@
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));
       } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
       if (c.rot) x.push(T('ds_rot'));
+      if (c.groups) x.push(T('ds_race_groups', { n: c.groups, m: c.events || 1 }));
+      if (c.tb === 'pubg') x.push(T('ds_tb_pubg'));
       if (c.head) x.push(T('ds_head', { list: c.head.slice(0, 4).join('-') }));
       if (c.kill) x.push(T('ds_kill', { n: c.kill }));
       if (c.mp) x.push(c.mp.at ? T('ds_mp_at', { n: c.mp.at }) + (c.mp.min > 1 ? ' ' + T('ds_mp_min', { n: c.mp.min }) : '') : T('ds_mp_after', { n: c.mp.after, p: c.mp.plus }));
@@ -125,6 +132,8 @@
       if (c.heat >= 2) x.push(T('ds_heat', { n: c.heat }));
     }
     if (c.bestOf === 2 && (c.type === 'roundrobin' || c.type === 'swiss')) x.push(T('ds_bo2'));
+    if (c.tbm) x.push(T(c.tbm === 'h2h' ? 'ds_tbm_h2h' : 'ds_tbm_match'));
+    if (c.draw === 'record') x.push(T('ds_draw_record'));
     if (c.points && (c.type === 'roundrobin' || c.type === 'swiss')) {
       x.push(T('ds_points', { w: c.points.w, d: c.points.d, l: c.points.l }) + (c.points.wx != null ? ' ' + T('ds_points_x', { wx: c.points.wx, lx: c.points.lx }) : ''));
     }
@@ -178,7 +187,7 @@
     try { o = JSON.parse(String(text || '')); } catch (e) { return { error: 'ds_err_json' }; }
     if (o && o.spec && typeof o.spec === 'object') o = o.spec;
     if (!o || typeof o !== 'object' || Array.isArray(o)) return { error: 'ds_err_shape' };
-    if (!Array.isArray(o.stages) || !o.stages.length || o.stages.length > 3) return { error: 'srv_ot_spec_stages' };
+    if (!Array.isArray(o.stages) || !o.stages.length || o.stages.length > MAX_STAGES) return { error: 'srv_ot_spec_stages' };
     if (o.stages.some((c) => !c || !TYPES.includes(c.type))) return { error: 'ds_err_type' };
     const spec = { sport: SP.SPORTS[o.sport] ? o.sport : 'other', stages: o.stages };
     if (SP.RESULTS.includes(o.result)) spec.result = o.result;

@@ -95,6 +95,7 @@
     const goldText = val('gold', (g.gold || []).map((r) => r.join(' ')).join('\n'));
     const lockHtml = (list, who) => (list.length ? `<p class="hint esp-lock">${esc((who ? teamName(m, who) + ' – ' : '') + T('esp_locked', { list: list.join(', ') }))}</p>` : '');
     return `<div class="esp-edit" id="otg-edit"><b>${esc(gameN(t.esports, i))}</b>
+      <p class="hint">${esc(T('esp_side_choice', { name: teamName(m, defaultBlue(m, i)) }))}</p>
       <div class="row"><label class="field inline"><span>${esc(T(cfg.sides === 'ps' ? 'esp_side_pick_ps' : 'esp_side_pick'))}</span><select data-gk="blue">${['a', 'b'].map((w) => `<option value="${w}" ${blue === w ? 'selected' : ''}>${esc(teamName(m, w))}</option>`).join('')}</select></label>
         <label class="field inline"><span>${esc(T('esp_dur'))}</span><input data-gk="dur" placeholder="32:15" maxlength="7" value="${esc(val('dur', g.dur ? DR.fmtDur(g.dur) : ''))}"></label></div>
       ${steps.length ? `${locks ? lockHtml(locks) : lockHtml(lockA, 'a') + lockHtml(lockB, 'b')}<div class="esp-dr-in">${SIDES.map((side) => `<div class="${esc(side)}"><b>${esc(sideLabel(cfg, side))}</b>${half(side)}</div>`).join('')}</div>` : ''}
