@@ -371,6 +371,9 @@ class Bracket {
     } else if (st.type === 'gsl') { // giải offline: bảng đấu loại kép 4 đội (stages-gsl.js)
       const tabs = ST.gslTables(st, (u) => this.tourSide(t, u), seedOf, adv);
       v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: tabs[gi] }));
+    } else if (st.type === 'kings') { // giải offline: vòng tranh hạt giống + cơ hội cuối (stages-kings.js)
+      const tabs = ST.kingsTables(st, (u) => this.tourSide(t, u), seedOf);
+      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: tabs[gi] }));
     } else if (st.type === 'roundrobin') {
       const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
       v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)),
@@ -391,7 +394,7 @@ class Bracket {
    * hạng 1–8 vào thẳng vòng 1/8). Giải Caro giữ cách đánh dấu cũ (top N mỗi bảng).
    */
   markAdvance(t, st, i, v, seedOf) {
-    if (st.type === 'gsl') return; // bảng GSL tự đánh dấu theo trận (nhất, nhì bảng)
+    if (st.type === 'gsl' || st.type === 'kings') return; // bảng GSL / vòng tranh hạt giống tự đánh dấu theo trận
     const sp = ST.splitAdvancers(st, seedOf), seeds = [...sp.skip, ...sp.seeds];
     const going = new Set(seeds), skip = new Set(sp.skip);
     const next = t.stages[i + 1];

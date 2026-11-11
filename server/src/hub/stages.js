@@ -28,6 +28,7 @@ const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB } = require('./s
 const League = require('./stages-league.js');
 const Race = require('./stages-race.js');
 const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại kép 4 đội kiểu GSL
+const Kings = require('./stages-kings.js'); // giải offline: vòng tranh hạt giống + cơ hội cuối
 
 const MAX_BO = 25;
 /** Bo (số ván tối đa của một trận): số lẻ 1…MAX_BO (cần phân thắng thua); không hợp lệ = 0. */
@@ -45,6 +46,8 @@ function normalizeStage(c, last, opts = {}) {
   let type = TYPES.includes(c.type) ? c.type : 'single';
   if (opts.offline && c.type === 'race') return Race.normalizeRace(c, last); // giải offline: hệ Race (stages-race.js)
   if (opts.offline && c.type === 'gsl') return Gsl.normalizeGsl(c, last, oddBo); // giải offline: bảng GSL (stages-gsl.js)
+  // Vòng tranh hạt giống + cơ hội cuối (stages-kings.js): chỉ làm giai đoạn giữa – ở cuối thì thành loại trực tiếp
+  if (opts.offline && c.type === 'kings') return last ? normalizeStage({ ...c, type: 'single' }, last, opts) : Kings.normalizeKings(c, oddBo);
   // Giai đoạn giữa: vòng tròn / Thụy Sĩ; giải offline cho thêm loại trực tiếp (vòng loại đội thách đấu kiểu America's Cup)
   if (!last && !GROUP_TYPES.includes(type) && !(opts.offline && isElim(type))) type = 'roundrobin';
   const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
@@ -121,7 +124,7 @@ function normalizeStages(list, opts = {}) {
     // (vòng vớt kiểu Survival Stage / Last Chance của các giải sinh tồn). Vòng tròn nhiều bảng: tính mỗi bảng.
     const sk = Math.floor(Number(arr[i] && arr[i].skip));
     // Bảng GSL: chỉ đội nhất bảng (bảng 8: tối đa 3 đội đầu) – phải còn đội đá giai đoạn 2
-    if (opts.offline && sk > 0 && i + 2 < out.length && !isElim(c.type) && !out[i + 2].playoff) c.skip = c.type === 'gsl' ? Math.min(sk, c.advance - 1) : Math.min(sk, 256);
+    if (opts.offline && sk > 0 && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings' && !out[i + 2].playoff) c.skip = c.type === 'gsl' ? Math.min(sk, c.advance - 1) : Math.min(sk, 256);
   });
   return out;
 }
@@ -153,6 +156,7 @@ function buildStage(cfg, index, seeds, opts = {}) {
   else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups, opts); // opts.countryOf: league phase
   else if (cfg.type === 'race') Race.buildRace(st); // giải offline: các chặng đua
   else if (cfg.type === 'gsl') Gsl.buildGsl(st, seeds); // giải offline: bảng đấu loại kép 4 đội
+  else if (cfg.type === 'kings') Kings.buildKings(st, seeds); // giải offline: vòng tranh hạt giống + cơ hội cuối
   else {
     st.rounds = [];
     const want = cfg.rounds || swissAutoRounds(seeds.length);
@@ -162,8 +166,11 @@ function buildStage(cfg, index, seeds, opts = {}) {
   return st;
 }
 
-/** Các trận nối sẵn tới trận sau (người thắng / thua tự chuyển): loại trực tiếp, nhánh thắng – thua, bảng GSL. Không có hoà. */
-const linked = (type) => isElim(type) || type === 'gsl';
+/**
+ * Các trận nối sẵn tới trận sau (người thắng / thua tự chuyển): loại trực tiếp, nhánh thắng – thua, bảng GSL. Không có hoà.
+ * Vòng tranh hạt giống (kings) không nối tới trận nào nhưng cũng không có hoà, huỷ kết quả như loại trực tiếp.
+ */
+const linked = (type) => isElim(type) || type === 'gsl' || type === 'kings';
 
 /**
  * Số đội đầu của giai đoạn vào thẳng giai đoạn sau nữa (cfg.skip): tách danh sách đi tiếp thành { skip, next }.
@@ -229,12 +236,14 @@ function recordResult(st, m, winner, opts = {}) {
 /** Người đi tiếp: vòng tròn / Thụy Sĩ / Race theo bảng xếp hạng; loại trực tiếp (giải offline) theo thứ hạng chung cuộc. */
 function advancers(st, seedOf, min = 2) {
   if (st.type === 'gsl') return Gsl.advancers(st, seedOf);
+  if (st.type === 'kings') return Kings.advancers(st, seedOf);
   if (isElim(st.type)) return { seeds: podium(st, seedOf).slice(0, Math.max(1, st.cfg.advance || 1)), groupOf: {} };
   return groupAdvancers(st, seedOf, min);
 }
 
 function podium(st, seedOf) {
   if (st.type === 'gsl') return Gsl.advancers(st, seedOf).seeds.slice(0, 3);
+  if (st.type === 'kings') return Kings.advancers(st, seedOf).seeds.slice(0, 3);
   if (st.type === 'single') {
     const final = st.matches[st.rounds[st.rounds.length - 1][0]];
     const out = [final.winner, final.loser];
@@ -288,7 +297,7 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  linked, splitAdvancers, gslError: Gsl.gslError, gslTables: Gsl.tables,
+  linked, splitAdvancers, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places,
   twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
   tally, eliminated, isElim, real, tbValue, MAX_BO, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
 };

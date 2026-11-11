@@ -65,7 +65,7 @@ function checkSize(spec, n) {
     const k = e.stages[i] ? e.stages[i].players : n;
     // Mỗi giai đoạn sau phải có ít nhất 2 đội (loại trực tiếp ở giữa chỉ cho 1 đội đi tiếp mà không có đội vào thẳng)
     if (i > 0 && k < 2) throw new SpecError('ot_stage_few', { n: i + 1 });
-    const bad = ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k) || ST.gslError(c, k);
+    const bad = ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k) || ST.gslError(c, k) || ST.kingsError(c, k);
     if (bad) throw new SpecError(bad.code, bad.args);
   });
   return e;

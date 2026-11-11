@@ -39,7 +39,7 @@
   function gcTable(v) {
     const rows = v.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}${x.out ? ' dnf' : ''}"><td>${x.out ? '–' : x.rank}</td><td class="nm">${who(x)}</td>${x.out
       ? `<td colspan="2"><span class="pill">${esc(T('gt_out', { n: x.out }))}</span></td>`
-      : `<td><b>${esc(fmt(x.time))}</b>${x.bonus ? ` <small class="muted" title="${esc(T('gt_bonus_total'))}">−${x.bonus}″</small>` : ''}</td><td>${esc(fmtGap(x.gap))}</td>`}</tr>`).join('');
+      : `<td><b>${esc(fmt(x.time))}</b>${x.bonus ? ` <small class="muted" title="${esc(T('gt_bonus_total'))}">${x.bonus > 0 ? '−' + x.bonus : '+' + -x.bonus}″</small>` : ''}</td><td>${esc(fmtGap(x.gap))}</td>`}</tr>`).join('');
     return tbl(['#', '', T('race_total'), T('race_gap')], rows);
   }
   const ptsTable = (list, wins) => (list.length ? tbl(['#', '', T('race_pts'), ...(wins ? [T('race_wins')] : [])],

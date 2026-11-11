@@ -52,7 +52,12 @@ function normalizeRace(c, last) {
     const kill = int(c.kill, 0, 10, 0);
     if (kill) out.kill = kill;
     const mp = c.mp && typeof c.mp === 'object' ? c.mp : null;
-    if (mp && Number(mp.at) > 0) out.mp = { at: int(mp.at, 1, 100000, 50) };
+    if (mp && Number(mp.at) > 0) {
+      out.mp = { at: int(mp.at, 1, 100000, 50) };
+      // Số trận tối thiểu (kiểu Finalist Mode của đua xe ảo): match point chỉ tính từ trận thứ `min`
+      const mn = int(mp.min, 0, out.events, 0);
+      if (mn > 1) out.mp.min = mn;
+    }
     else if (mp && Number(mp.after) > 0 && out.events > 1) out.mp = { after: int(mp.after, 1, out.events - 1, 1), plus: int(mp.plus, 0, 1000, 10) };
     // Điểm thưởng mang sang (kiểu Points Rush): đội vào giai đoạn này ở vị trí k được cộng sẵn head[k] điểm
     const head = cleanTable(c.head);
@@ -64,7 +69,8 @@ function normalizeRace(c, last) {
   else if (score === 'golf') GOLF.normalizeGolf(c, out);
   else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
-  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot) out.heat = heat;
+  // Chia lượt: không đi cùng 3 bảng xoay vòng, không đi cùng match point (mỗi lượt có một người về nhất)
+  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp) out.heat = heat;
   if (!last) out.advance = int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
@@ -147,7 +153,8 @@ function recordEvent(st, i, rows) {
   if (st.cfg.score === 'golf') return GOLF.recordRound(st, i, rows); // vòng golf lưu được khi đang đánh dở
   const ev = st.events[i];
   // Match point: đội thắng trận này đã đạt ngưỡng từ trước trận → vô địch, giai đoạn kết thúc ngay
-  const th = st.cfg.score === 'points' && st.cfg.mp && (st.cfg.mp.at || i >= st.cfg.mp.after) ? mpThreshold(st) : null;
+  const mp = st.cfg.mp;
+  const th = st.cfg.score === 'points' && mp && (mp.at ? i + 1 >= (mp.min || 1) : i >= mp.after) ? mpThreshold(st) : null;
   if (th != null) {
     const w = rows.find((x) => !x.dnf && x.rank === 1);
     if (w && (totalsBefore(st, i)[w.uid] || 0) >= th) st.mpWinner = w.uid;

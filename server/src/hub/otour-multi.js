@@ -22,6 +22,7 @@ const { cleanPublicName } = require('./shared.js');
 
 const TABLE = [1000, 750, 500, 300, 200, 150, 100, 50];
 const MAX_CHILDREN = 30;
+const MAX_INIT_GAMES = 16; // số giải con tạo kèm một lần khi tạo giải tổng từ mẫu
 const MAX_TABLE = 64;
 const MAX_SCHED = 40;
 const MAX_KIDS_PER_DAY = 100; // giải con không tính hạn mức giải thường, nhưng vẫn có trần mỗi ngày
@@ -61,7 +62,30 @@ function finalPlaces(t, seedOf) {
     }
     return out;
   }
-  const tables = ST.standings(st, seedOf);
+  // Bảng GSL ở giai đoạn cuối: một bảng thì theo thứ hạng trong bảng; nhiều bảng thì bục trao giải, rồi các đội cùng
+  // thứ hạng trong bảng đồng hạng (nhì các bảng, ba các bảng…)
+  if (st.type === 'gsl') {
+    const per = st.groups.map((g) => ST.gslPlaces(st, g, seedOf));
+    if (per.length === 1) per[0].forEach((u, i) => put([u], i + 1));
+    else {
+      (t.podium || []).forEach((u, i) => put([u], i + 1));
+      for (let k = 0; k < Math.max(0, ...per.map((x) => x.length)); k++) put(per.map((x) => x[k]).filter((u) => real(u) && !seen.has(u)), out.length + 1);
+    }
+    return out;
+  }
+  const tables = ST.standings(st, seedOf) || [];
+  // Golf: bằng số gậy thì đồng hạng (T3), trừ người thắng đấu phụ
+  if (st.type === 'race' && st.cfg.score === 'golf' && tables.length === 1) {
+    const S = tables[0].stats, champ = st.playoff && st.playoff.winner;
+    let prev = null, place = 0;
+    tables[0].list.forEach((u, i) => {
+      const s = S[u], on = s.wd == null && !s.cut && s.played;
+      if (!on || u === champ || i === 0 || s.toPar !== prev || (champ && i === 1)) place = i + 1;
+      prev = on ? s.toPar : null;
+      put([u], place);
+    });
+    return out;
+  }
   if (tables.length === 1) tables[0].list.forEach((u, i) => put([u], i + 1));
   else (t.podium || []).forEach((u, i) => put([u], i + 1));
   return out;
@@ -133,7 +157,7 @@ class OTourMulti {
 
   /** Tạo các giải con kèm theo khi tạo giải tổng từ mẫu: games = [{ name, spec, teams }] (bỏ qua mục sai cấu hình). */
   otMultiGames(parent, me, games) {
-    const list = (Array.isArray(games) ? games : []).slice(0, 12);
+    const list = (Array.isArray(games) ? games : []).slice(0, MAX_INIT_GAMES);
     if (!list.length) return;
     const commit = this.otMultiQuota(me, list.length);
     let made = 0;
