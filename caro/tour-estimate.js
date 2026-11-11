@@ -159,7 +159,8 @@
     if (c.type === 'gsl') { const K = Number(c.size) === 8 ? 8 : 4, G = Math.floor(n / K), per = K === 8 ? 10 : 5; return { matches: per * G, maxMatches: per * G, waves: 3, advance: last ? null : (K / 2) * G, groups: G, groupSize: K }; }
     // Vòng tranh hạt giống + cơ hội cuối (giải offline – stages-kings.js): mỗi nửa cao gặp thấp, 3/4 số đội đi tiếp
     if (c.type === 'kings') { const m = Math.floor(n / 4) * 2; return { matches: m, maxMatches: m, waves: 1, advance: last ? null : Math.floor(n / 4) * 3 }; }
-    if (c.type === 'race') { const ev = Number(c.events) || 1; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, c.advance || 0) }; }
+    // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng
+    if (c.type === 'race') { const G = Number(c.groups) >= 2 ? Number(c.groups) : 1, ev = (Number(c.events) || 1) * G; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, (c.advance || 0) * G), ...(G > 1 ? { groups: G } : {}) }; }
     if (c.type === 'roundrobin' && c.season) {
       // Mùa giải kiểu Mỹ (caro/otour-season.js): số trận chính xác; lịch xếp tham lam dài hơn số trận mỗi đội ~5%
       const SS = typeof module !== 'undefined' && module.exports ? require('./otour-season.js') : global.CaroOTourSeason;
@@ -243,7 +244,7 @@
       // cfg.skip: các đội đầu vào thẳng giai đoạn sau nữa (vòng tròn nhiều bảng: mỗi bảng) – không đá giai đoạn kế tiếp
       const sk = Math.max(0, Math.floor(Number(c.skip) || 0));
       if (sk && i + 2 < list.length) {
-        const tot = Math.min(sk * (c.type === 'roundrobin' || c.type === 'gsl' ? s.groups || 1 : 1), Math.max(0, n - 1));
+        const tot = Math.min(sk * (c.type === 'roundrobin' || c.type === 'gsl' || c.type === 'race' ? s.groups || 1 : 1), Math.max(0, n - 1));
         s.skip = tot; direct[i + 2] += tot;
         if (c.type === 'gsl') s.advance = Math.max(0, s.advance - tot); // bảng GSL: số đi tiếp cố định, đội vào thẳng tính trong đó
       }

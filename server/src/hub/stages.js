@@ -188,7 +188,8 @@ function splitAdvancers(st, seedOf, min = 2) {
     return { seeds: a.tiers.slice(sk).flat(), groupOf: a.groupOf, skip: a.tiers.slice(0, sk).flat() };
   }
   const adv = advancers({ ...st, cfg: { ...st.cfg, advance: (st.cfg.advance || 0) + sk } }, seedOf, min);
-  const total = Math.min(st.type === 'roundrobin' && st.groups ? sk * st.groups.length : sk, Math.max(0, adv.seeds.length - 1));
+  const per = st.type === 'roundrobin' && st.groups ? st.groups.length : st.type === 'race' && st.cfg.groups ? st.cfg.groups : 1; // mỗi bảng
+  const total = Math.min(sk * per, Math.max(0, adv.seeds.length - 1));
   return { seeds: adv.seeds.slice(total), groupOf: adv.groupOf, skip: adv.seeds.slice(0, total) };
 }
 

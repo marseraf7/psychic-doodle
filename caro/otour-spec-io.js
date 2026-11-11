@@ -38,6 +38,8 @@
             type: { type: 'string', enum: TYPES, description: "'gsl': bảng đấu loại kép 4 đội (mở màn, nhánh thắng, nhánh thua, quyết định) – số đội chia hết cho 4, nhất và nhì bảng đi tiếp; 'kings' (chỉ giai đoạn giữa): vòng tranh hạt giống + cơ hội cuối – nửa trên cao gặp thấp, thắng vào nhóm hạt giống 1, thua vào nhóm 2; nửa dưới thắng vào nhóm 2, thua bị loại (3/4 số đội đi tiếp, số đội chia hết cho 4)" },
             size: { type: 'integer', enum: [4, 8], description: "'gsl': cỡ bảng – 4 đội (nhất, nhì đi tiếp) hoặc 8 đội (4 đội đi tiếp)" },
             head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
+            groups: int(0, 8, "Race 'points': chia bảng cố định (2–8; kiểu PGC) – mỗi bảng đấu `events` trận của riêng mình, đi tiếp (advance) và vào thẳng giai đoạn 3 (skip) tính mỗi bảng"),
+            tb: { type: 'string', enum: ['countback', 'pubg'], description: "Race 'points': hệ số phụ khi bằng điểm – 'pubg': tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất" },
             rot: { type: 'boolean', description: "Race 'points': chia 3 bảng xoay vòng, mỗi trận hai bảng đấu, một bảng nghỉ" },
             boDecider: bo, skip: int(0, 256, 'giải 3 giai đoạn, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
             kill: int(0, 10, "Race 'points' (sinh tồn): điểm mỗi lần hạ gục, cộng với điểm theo hạng"),
@@ -118,6 +120,8 @@
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));
       } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
       if (c.rot) x.push(T('ds_rot'));
+      if (c.groups) x.push(T('ds_race_groups', { n: c.groups, m: c.events || 1 }));
+      if (c.tb === 'pubg') x.push(T('ds_tb_pubg'));
       if (c.head) x.push(T('ds_head', { list: c.head.slice(0, 4).join('-') }));
       if (c.kill) x.push(T('ds_kill', { n: c.kill }));
       if (c.mp) x.push(c.mp.at ? T('ds_mp_at', { n: c.mp.at }) + (c.mp.min > 1 ? ' ' + T('ds_mp_min', { n: c.mp.min }) : '') : T('ds_mp_after', { n: c.mp.after, p: c.mp.plus }));

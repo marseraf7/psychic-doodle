@@ -32,6 +32,15 @@
         { type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, pairing: 'valve', direct: 8 },
         { type: 'swiss', bestOf: 3, record: { win: 3, lose: 3, bo: 3 }, pairing: 'valve', direct: 8 },
         { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: false }] },
+    // Giải vô địch sinh tồn PC kiểu PGC 2025: 33 đội – đội đặc cách (đầu danh sách) vào thẳng chung kết; 32 đội chia 2 bảng
+    // cố định 16 đội (kiểu rắn theo hạt giống), mỗi bảng 18 trận: hạng 1–5 mỗi bảng vào thẳng chung kết, 6–13 đá vòng vớt
+    // (16 đội, 18 trận, lấy 5), 14–16 bị loại. Chung kết 16 đội, 18 trận, chỉ tính điểm chung kết. Điểm hạng 10-6-5-4-3-2-1-1
+    // + 1 điểm mỗi lần hạ gục; bằng điểm xét kiểu PUBG (tổng điểm hạng, trận gần nhất)
+    { id: 'pgc', icon: '🪂', sport: 'esports', n: 33,
+      esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 18, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 8, skip: 5 },
+        { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 5 },
+        { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', direct: 1 }] },
     // America's Cup (thể thức 2024): đội đầu danh sách là đội giữ cúp – vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng
     // tròn 2 lượt (thắng 1 điểm), 4 đội đầu vào bán kết ai thắng 5 race trước (Bo9), chung kết đội thách đấu ai thắng 7
     // race trước (Bo13); đội thắng gặp đội giữ cúp trong trận tranh cúp Bo13. Mỗi race ghi bên vào sân + thời gian về đích.

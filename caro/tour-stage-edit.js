@@ -59,7 +59,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb'];
 
   // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
   const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
@@ -147,7 +147,10 @@
           if (mode === 'after') f.push(field(T('opt_mp_after'), num(i, 'mpAfter', c.mp.after, 1, Math.max(1, (c.events || 2) - 1))), field(T('opt_mp_plus'), num(i, 'mpPlus', c.mp.plus, 0, 1000)));
           if (mode !== 'none') f.push(`<small class="hint">${esc(T('opt_mp_hint'))}</small>`);
           // Chia 3 bảng xoay vòng (mỗi trận hai bảng đấu); điểm thưởng mang sang cho giai đoạn sau giai đoạn đầu
-          if (!c.heat) f.push(chk(i, 'rot', !!c.rot, T('opt_br_rot')));
+          if (!c.heat && !c.groups) f.push(chk(i, 'rot', !!c.rot, T('opt_br_rot')));
+          // Chia bảng cố định (kiểu PGC: mỗi bảng đấu riêng, xếp hạng / đi tiếp theo bảng); hệ số phụ kiểu PUBG
+          if (!c.heat && !c.rot) f.push(field(T('opt_br_groups'), num(i, 'groups', c.groups || 0, 0, 8)));
+          f.push(field(T('opt_br_tb'), sel(i, 'tb', [['countback', T('br_tb_countback')], ['pubg', T('br_tb_pubg')]], c.tb === 'pubg' ? 'pubg' : 'countback')));
           if (i > 0) f.push(`<label class="field"><span>${esc(T('opt_br_head'))}</span><input data-i="${i}" data-k="head" value="${esc((c.head || []).join(' '))}" inputmode="numeric"><small class="hint">${esc(T('opt_br_head_hint'))}</small></label>`);
         }
       }
@@ -254,7 +257,7 @@
       stages[i] = nc;
     } else if (k === 'score') { // đổi cách tính hệ Race: dọn tuỳ chọn không còn dùng
       c.score = v;
-      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head']) delete c[k2];
+      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head', 'groups', 'tb']) delete c[k2];
       if (v === 'gt') { Object.assign(c, { bonus: true, kinds: gtKinds(c) }); delete c.table; delete c.teams; delete c.heat; }
       else if (v === 'golf') { const g = golfStage(); Object.assign(c, { events: c.events > 1 ? c.events : 4, input: g.input, par: g.par, po: g.po }); if (c.events > 2) c.cut = { after: 2, top: 50 }; delete c.table; delete c.teams; delete c.heat; }
       else if (v === 'points' && !c.table) c.table = DEFAULT.race().table;
@@ -297,6 +300,8 @@
     else if (k === 'recWin' || k === 'recLose') c.record = { win: 3, lose: 3, ...c.record, [k === 'recWin' ? 'win' : 'lose']: clamp(v) };
     else if (k === 'recBo') c.record.bo = Number(el.value) || 0;
     else if (k === 'size') { if (v === 8) c.size = 8; else delete c.size; c.advance = (c.size || 4) / 2; if (c.skip) c.skip = Math.min(c.skip, c.advance - 1); }
+    else if (k === 'tb') { if (v === 'pubg') c.tb = 'pubg'; else delete c.tb; }
+    else if (k === 'groups' && c.type === 'race') { const g = clamp(v); if (g >= 2) { c.groups = g; delete c.rot; delete c.mp; delete c.heat; } else delete c.groups; }
     else if (k === 'head') { const h = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64); if (h.some((x) => x > 0)) c.head = h; else delete c.head; }
     else if (k === 'table') c.table = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64);
     else if (k === 'path') { if (el.checked) c.path = 'groups'; else delete c.path; } // nhánh theo vị trí trong bảng (otour-path.js)

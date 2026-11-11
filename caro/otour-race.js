@@ -25,14 +25,18 @@
     const kill = pts && v.cfg.kill; // sinh tồn: cột số hạ gục
     const head = pts ? `<th>#</th><th></th><th>${esc(T('race_pts'))}</th>${kill ? `<th>${esc(T('br_kills'))}</th>` : ''}<th>${esc(T('race_wins'))}</th><th>${esc(T('race_podiums'))}</th>`
       : `<th>#</th><th></th><th>${esc(T('race_total'))}</th><th>${esc(T('race_gap'))}</th><th>${esc(T('race_gap_prev'))}</th>`;
-    const rows = v.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.dnf ? ` <small class="muted">${esc(T('race_dnf_n', { n: x.dnf }))}</small>` : ''}${x.skip ? ` <small class="pill">${esc(T('adv_skip_tag'))}</small>` : ''}${x.mp && !(v.mp && v.mp.winner) ? ` <small class="pill mp">${esc(T('mp_tag'))}</small>` : ''}</td>${pts
+    const rowsOf = (list) => list.map((x) => `<tr class="${x.adv ? 'adv' : ''}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.dnf ? ` <small class="muted">${esc(T('race_dnf_n', { n: x.dnf }))}</small>` : ''}${x.skip ? ` <small class="pill">${esc(T('adv_skip_tag'))}</small>` : ''}${x.mp && !(v.mp && v.mp.winner) ? ` <small class="pill mp">${esc(T('mp_tag'))}</small>` : ''}</td>${pts
       ? `<td><b>${x.pts}</b>${x.head ? ` <small class="muted" title="${esc(T('br_head_tip'))}">(+${x.head})</small>` : ''}</td>${kill ? `<td>${x.kills || 0}</td>` : ''}<td>${x.wins}</td><td>${x.podiums}</td>`
       : `<td><b>${x.time != null ? esc(RU.fmtTime(x.time)) : '–'}</b></td><td>${esc(gap(x.gap))}</td><td>${esc(gap(x.gapPrev))}</td>`}</tr>`).join('');
+    const tbl = (list) => `<div class="tscroll"><table class="stand"><thead><tr>${head}</tr></thead><tbody>${rowsOf(list)}</tbody></table></div>`;
     // Match point: ngưỡng điểm, đội đã đạt ngưỡng, đội thắng theo match point
     const mp = v.mp ? `<p class="hint mp-note">${esc(v.mp.winner ? T('mp_won', { name: v.mp.winner }) : v.mp.at != null ? T('mp_note', { n: v.mp.at }) + (v.cfg.mp && v.cfg.mp.min > 1 ? ' ' + T('mp_min_note', { n: v.cfg.mp.min }) : '') : T('mp_wait', { n: v.cfg.mp.after, p: v.cfg.mp.plus }))}</p>` : '';
     // Chia 3 bảng xoay vòng: ghi các bảng
     const rot = v.cfg.rot ? `<p class="hint">${esc(T('br_rot_note'))} ${['A', 'B', 'C'].map((g, k) => `<b>${g}</b>: ${esc(v.entrants.filter((_, j) => RU.lobbyGroup(j) === k).map((p) => p.name).join(', '))}`).join(' · ')}</p>` : '';
-    return `${mp}${rot}<div class="tscroll"><table class="stand"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    // Hệ số phụ kiểu PUBG; chia bảng cố định: bảng xếp hạng từng bảng
+    const tb = v.cfg.tb === 'pubg' ? `<p class="hint">${esc(T('br_tb_pubg_note'))}</p>` : '';
+    if (v.groups) return `${tb}<p class="hint">${esc(T('br_groups_note', { n: v.groups.length }))}</p>` + v.groups.map((g) => `<h5>${esc(T('group_name', { name: g.name }))}</h5>${tbl(g.table)}`).join('');
+    return `${mp}${rot}${tb}${tbl(v.table)}`;
   }
 
   function teamsTable(v) {
@@ -56,7 +60,7 @@
   function eventForm(t, v, i, h) {
     const pts = v.cfg.score !== 'time', key = dkey(t, v, i) + (h != null ? ':h' + h : ''), d = S.draft[key] || {};
     const names = new Map(v.entrants.map((p) => [p.uid, p]));
-    const members = h != null ? heatUids(v, i)[h].map((u) => names.get(u) || { uid: u, name: '?' }) : v.cfg.rot ? RU.lobbyOf(v.entrants, i) : v.entrants; // rot: hai bảng đấu trận này
+    const members = h != null ? heatUids(v, i)[h].map((u) => names.get(u) || { uid: u, name: '?' }) : v.cfg.groups ? RU.groupList(v.entrants, v.cfg.groups, i % v.cfg.groups) : v.cfg.rot ? RU.lobbyOf(v.entrants, i) : v.entrants; // rot: hai bảng đấu trận này; groups: bảng của trận
     const rows = members.map((p) => {
       const x = d[p.uid] || {};
       return `<tr data-uid="${esc(p.uid)}"><td class="nm">${esc(p.name)}</td>
@@ -92,7 +96,8 @@
     const lastDone = v.events.map((e) => e.done).lastIndexOf(true);
     const seq = !!v.cfg.mp;
     const evs = v.events.map((ev) => {
-      const title = `<b>${esc(T('race_event_n', { n: ev.i + 1 }))}</b>${v.cfg.rot ? ` <small class="muted">${esc(T('br_rot_ev', { g: ['A', 'B', 'C'].filter((_, k) => k !== (ev.i + 2) % 3).join(' + ') }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
+      const G = v.cfg.groups; // chia bảng cố định: "Bảng A · trận 2"
+      const title = `<b>${esc(G ? T('group_name', { name: String.fromCharCode(65 + (ev.i % G)) }) + ' · ' + T('race_event_n', { n: Math.floor(ev.i / G) + 1 }) : T('race_event_n', { n: ev.i + 1 }))}</b>${v.cfg.rot ? ` <small class="muted">${esc(T('br_rot_ev', { g: ['A', 'B', 'C'].filter((_, k) => k !== (ev.i + 2) % 3).join(' + ') }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
       const undo = (h) => (can ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}"${h != null ? ` data-heat="${h}"` : ''}>${esc(T(h != null ? 'race_undo_heat' : 'race_undo'))}</button></div>` : '');
       const body = () => (ev.heats ? heatsHtml(t, v, ev, can, undo)
         // Match point: nhập lần lượt, chỉ huỷ trận sau cùng

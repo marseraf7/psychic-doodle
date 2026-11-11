@@ -3,6 +3,8 @@
  *   1. Thẻ mẫu → form có 4 giai đoạn, không còn nút thêm giai đoạn; mô tả bằng lời ghi ghép cặp kiểu CS Major;
  *      giai đoạn Thụy Sĩ theo thắng / thua có lựa chọn "Kiểu CS Major".
  *   2. Tạo + bắt đầu: giai đoạn 1 là hạt giống 17–32, vòng 1 hạt giống 1 gặp 9 của giai đoạn (Đội 17 – Đội 25).
+ *   3. Đợt 11 – mẫu kiểu PGC: sinh tồn chia 2 bảng cố định (mô tả bằng lời, ô chia bảng, hệ số phụ kiểu PUBG); trang giải
+ *      có bảng xếp hạng từng bảng, trận 1 là "Bảng A · Chặng 1" chỉ có 16 đội của bảng A; lưu kết quả.
  *   node caro/tests/e2e/otour-majors.e2e.js
  */
 'use strict';
@@ -31,5 +33,25 @@ const { setup, sleep } = require('./helpers.js');
   const m0 = t.st[0].matches[t.st[0].rounds[0][0]];
   ok(t.players.find((p) => p.uid === m0.a).name === 'Đội 17' && t.players.find((p) => p.uid === m0.b).name === 'Đội 25', 'Vòng 1: Đội 17 gặp Đội 25 (1 gặp 9 của giai đoạn)');
   await shot(boss, 'ot-major.png');
+
+  // ---------- 3. Kiểu PGC: sinh tồn chia bảng cố định
+  await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
+  await boss.click('.tpl-card[data-id="pgc"]'); await sleep(500);
+  ok(/chia 2 bảng cố định, mỗi bảng 18 trận/.test(await boss.textContent('#otf-desc')) && /kiểu PUBG/.test(await boss.textContent('#otf-desc')), 'Mô tả: chia 2 bảng cố định + hệ số phụ kiểu PUBG');
+  ok(await boss.inputValue('#otf-stages [data-i="0"][data-k="groups"]') === '2' && await boss.inputValue('#otf-stages [data-i="0"][data-k="tb"]') === 'pubg', 'Form: ô chia bảng = 2, hệ số phụ kiểu PUBG');
+  await boss.click('[data-act="otTplTeams"]'); await sleep(400);
+  await boss.click('#otf button.primary.wide'); await sleep(1200);
+  const pid = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
+  const p = app.hub.otGet(pid);
+  await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(1500);
+  ok(p.status === 'running' && p.st[0].entrants.length === 32 && p.st[0].events.length === 36, 'Bắt đầu: 32 đội, 2 bảng × 18 trận');
+  await boss.click('[data-act="otTab"][data-tab="stages"]'); await sleep(500);
+  const txt = await boss.textContent('.ot-tab');
+  ok(/Bảng A/.test(txt) && /Bảng B/.test(txt) && /Chia 2 bảng cố định/.test(txt), 'Trang giải: bảng xếp hạng từng bảng');
+  ok(/Bảng A · Chặng 1/.test(txt) && await boss.$$eval('.race-form tr[data-uid]', (trs) => trs.length) === 16, 'Trận 1 của bảng A: 16 đội');
+  await boss.click('[data-act="otRaceFill"]'); await sleep(200);
+  await boss.click('.race-form button.primary'); await sleep(900);
+  ok(p.st[0].events[0].done && p.st[0].events[0].rows.length === 16, 'Lưu trận 1 bảng A');
+  await shot(boss, 'ot-pgc.png');
   await finish();
 })();

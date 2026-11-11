@@ -98,3 +98,72 @@ test('Mẫu kiểu CS Major qua máy chủ: 32 đội, 4 giai đoạn, đội v�
   assert.deepStrictEqual([ST.boOf(t.st[3], fin), t.podium[0]], [5, U(1)]);
   org.close();
 });
+
+// ---------------------------------------------------------------- Đợt 11: sinh tồn chia bảng cố định + hệ số phụ kiểu PUBG
+const Race = require('../src/hub/stages-race.js');
+const RU = require('../../caro/otour-rules.js');
+
+test('Sinh tồn chia bảng cố định: chia rắn, mỗi trận một bảng, xếp hạng + vào thẳng giai đoạn 3 theo bảng; không đi cùng xoay vòng / match point / chia lượt', () => {
+  const [c] = off([{ type: 'race', score: 'points', events: 2, groups: 2, table: [3, 2, 1], rot: true, heat: 3, mp: { at: 9 }, advance: 2, skip: 1 }, { type: 'race' }, { type: 'race' }]);
+  assert.deepStrictEqual([c.groups, c.rot, c.heat, c.mp, c.skip], [2, undefined, undefined, undefined, 1]);
+  assert.strictEqual(off([{ type: 'race', score: 'time', groups: 2 }])[0].groups, undefined, 'chỉ cách tính điểm');
+  assert.deepStrictEqual([0, 1, 2, 3, 4, 5].map((j) => RU.snakeGroup(j, 2)), [0, 1, 1, 0, 0, 1]);
+  const { s, seedOf } = mkSeeds(8);
+  const st = ST.buildStage(c, 0, s, { seedOf });
+  assert.deepStrictEqual([st.events.length, Race.lobby(st, 0), Race.lobby(st, 1)], [4, ['u0', 'u3', 'u4', 'u7'], ['u1', 'u2', 'u5', 'u6']]);
+  assert.strictEqual(Race.cleanEvent(st, [{ uid: 'u1', rank: 1 }], Race.lobby(st, 0), 0).code, 'tour_score_bad', 'đội bảng B không đấu trận của bảng A');
+  // Hạng ngược hạt giống ở bảng A (u7 nhất), theo hạt giống ở bảng B
+  for (const ev of st.events) {
+    const mem = Race.lobby(st, ev.i), order = ev.g === 0 ? [...mem].reverse() : mem;
+    Race.recordEvent(st, ev.i, Race.cleanEvent(st, order.map((u, k) => ({ uid: u, rank: k + 1 })), mem, ev.i).rows);
+  }
+  assert.deepStrictEqual(ST.standings(st, seedOf).map((x) => x.list), [['u7', 'u4', 'u3', 'u0'], ['u1', 'u2', 'u5', 'u6']]);
+  const sp = ST.splitAdvancers(st, seedOf);
+  assert.deepStrictEqual([sp.skip, sp.seeds], [['u1', 'u7'], ['u2', 'u4', 'u3', 'u5']], 'nhất mỗi bảng vào thẳng; còn lại 2 đội mỗi bảng');
+  assert.throws(() => Spec.checkSize(Spec.normalizeSpec({ sport: 'esports', stages: [{ type: 'race', score: 'points', groups: 4 }] }), 7), (e) => e.code === 'ot_race_groups_few');
+});
+
+test('Hệ số phụ kiểu PUBG: bằng tổng điểm xét tổng điểm hạng (không tính hạ gục), rồi điểm trận gần nhất', () => {
+  const { s, seedOf } = mkSeeds(3);
+  const run = (tb) => {
+    const [c] = off([{ type: 'race', score: 'points', events: 2, table: [10, 6, 5], kill: 1, ...(tb ? { tb } : {}) }]);
+    const st = ST.buildStage(c, 0, s, { seedOf });
+    // u0: nhất trận 1 (10) + hạng 3 trận 2 (5) = 15; u1: hạng 3 trận 1 (5) + 4 hạ gục, nhì trận 2 (6) = 15 (điểm hạng 11)
+    Race.recordEvent(st, 0, [{ uid: 'u0', rank: 1 }, { uid: 'u2', rank: 2 }, { uid: 'u1', rank: 3, kills: 4 }].map((x) => ({ dnf: false, ...x })));
+    Race.recordEvent(st, 1, [{ uid: 'u2', rank: 1 }, { uid: 'u1', rank: 2 }, { uid: 'u0', rank: 3 }].map((x) => ({ dnf: false, ...x })));
+    return Race.raceTable(st, seedOf);
+  };
+  const a = run(null), b = run('pubg');
+  assert.deepStrictEqual([a.stats.u0.pts, a.stats.u1.pts, b.stats.u0.place, b.stats.u1.place], [15, 15, 15, 11]);
+  assert.deepStrictEqual(a.list.slice(1), ['u0', 'u1'], 'countback: u0 có một lần về nhất');
+  assert.deepStrictEqual(b.list.slice(1), ['u0', 'u1'], 'PUBG: u0 nhiều điểm hạng hơn');
+  assert.strictEqual(off([{ type: 'race', score: 'points', tb: 'pubg' }])[0].tb, 'pubg');
+});
+
+test('Mẫu kiểu PGC qua máy chủ: 33 đội, 2 bảng cố định → vòng vớt → chung kết 16 đội (đặc cách + 10 đội vào thẳng + 5)', async () => {
+  const tpl = TP.byId('pgc');
+  const org = await account();
+  const { id } = await org.req({ t: 'otCreate', name: 'Kiểu PGC', spec: TP.specOf(tpl, SPORTS), teams: TP.sampleTeams(tpl, 'Đội') }, 'otCreated', undefined, 15000);
+  const t = ctx.app.hub.otGet(id);
+  org.send({ t: 'otStart', id });
+  await until(() => t.status === 'running', 15000);
+  const U = (n) => t.players[n - 1].uid;
+  assert.deepStrictEqual([t.st[0].entrants.length, t.st[0].events.length, t.direct[2]], [32, 36, [U(1)]]);
+  const seedOf = ctx.app.hub.otSeedOf(t);
+  for (let g = 0; t.status === 'running' && g < 200; g++) {
+    const st = t.st[t.stage], ev = st.events.find((e) => !e.done);
+    const rows = Race.lobby(st, ev.i).slice().sort((a, b) => seedOf(a) - seedOf(b)).map((uid, k) => ({ uid, rank: k + 1, kills: k < 3 ? 2 : 0 }));
+    org.send({ t: 'otRace', id, event: ev.i, rows });
+    await until(() => ev.done, 8000);
+  }
+  assert.strictEqual(t.status, 'finished');
+  assert.deepStrictEqual(t.st.map((st) => st.entrants.length), [32, 16, 16]);
+  // Chung kết: đặc cách (hạt giống 1), rồi nhất – năm mỗi bảng (hạt giống 2–11), rồi 5 đội từ vòng vớt
+  assert.strictEqual(t.st[2].entrants[0], U(1));
+  assert.deepStrictEqual(new Set(t.st[2].entrants.slice(1, 11)), new Set(Array.from({ length: 10 }, (_, i) => U(2 + i))));
+  assert.deepStrictEqual(new Set(t.st[1].entrants), new Set(Array.from({ length: 16 }, (_, i) => U(12 + i))), 'vòng vớt: hạng 6–13 mỗi bảng');
+  assert.strictEqual(t.podium[0], U(1));
+  const v = (await org.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && m.tour)).tour.stageViews[0];
+  assert.deepStrictEqual([v.groups.length, v.groups[0].table.length, v.groups[0].table.filter((x) => x.skip).length], [2, 16, 5]);
+  org.close();
+});
