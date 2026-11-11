@@ -202,12 +202,13 @@
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
     }
     if (v.type === 'gsl') { // giải offline: bảng đấu loại kép 4 đội (máy chủ: stages-gsl.js)
-      const tags = [['gsl_open', 'gsl_open'], ['gsl_win', 'gsl_lose'], ['gsl_dec']];
+      // Lượt 1: mở màn; lượt 2: nửa đầu là trận nhánh thắng, nửa sau nhánh thua; lượt 3: trận quyết định
+      const tagOf = (ri, mi, n) => (ri === 0 ? 'gsl_open' : ri === 2 ? 'gsl_dec' : mi < n / 2 ? 'gsl_win' : 'gsl_lose');
       const many = v.groups.length > 4;
-      return `<p class="hint">${esc(T('gsl_note'))}</p>` + v.groups.map((g, gi) => {
+      return `<p class="hint">${esc(T(v.cfg.size === 8 ? 'gsl_note8' : 'gsl_note'))}</p>` + v.groups.map((g, gi) => {
         const inner = () => `<div class="tscroll"><table class="stand gsl-tab"><thead><tr><th>#</th><th></th><th>${esc(T('gsl_wl'))}</th><th></th></tr></thead><tbody>${g.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}${x.out ? ' dnf' : ''}">
-          <td>${x.rank || ''}</td><td class="nm">${esc(x.name)}</td><td><b>${x.w}–${x.l}</b></td><td>${x.rank ? `<span class="pill">${esc(T(x.rank <= 2 ? 'gsl_through' : 'gsl_out'))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`
-          + g.rounds.map((r, ri) => r.map((m, mi) => `<h6>${esc(T(tags[ri][mi] || tags[ri][0]))}${m.bo ? ` · Bo${m.bo}` : ''}</h6><ul class="mlist">${matchRow(m)}</ul>`).join('')).join('');
+          <td>${x.rank || ''}</td><td class="nm">${esc(x.name)}</td><td><b>${x.w}–${x.l}</b></td><td>${x.skip ? `<span class="pill">${esc(T('adv_skip_tag'))}</span>` : x.adv || x.out ? `<span class="pill">${esc(T(x.adv ? 'gsl_through' : 'gsl_out'))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+          + g.rounds.map((r, ri) => r.map((m, mi) => `<h6>${esc(T(tagOf(ri, mi, r.length)))}${m.bo ? ` · Bo${m.bo}` : ''}</h6><ul class="mlist">${matchRow(m)}</ul>`).join('')).join('');
         const name = esc(T('group_name', { name: g.name }));
         if (!many) return `<h5>${name}</h5>` + inner();
         const mine = g.table.some((x) => x.uid === uidMe());

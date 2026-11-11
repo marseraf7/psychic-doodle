@@ -69,6 +69,8 @@
       if (e) return { code: e, args: { n: i + 1 } };
       if (s[0] > s[1]) wa++; else if (s[1] > s[0]) wb++;
     }
+    // Loạt Bo chẵn (Bo2 ở vòng bảng): đấu đủ số ván, hoà 1–1 hợp lệ
+    if (bo % 2 === 0 && sets.length === bo) return null;
     if (wa < k && wb < k) return { code: 'ot_sets_short', args: { k, bo } };
     return null;
   }
@@ -122,7 +124,19 @@
     return hs;
   }
 
-  const api = { cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, fmtPar, MAX_TIME, heatsOf };
+  /**
+   * Sinh tồn chia 3 bảng xoay vòng (kiểu vòng bảng PUBG Mobile World Cup): đoàn chia 3 bảng kiểu rắn theo hạt giống; mỗi
+   * trận hai bảng cùng đấu, một bảng nghỉ (trận 1: A + B, trận 2: B + C, trận 3: A + C, rồi lặp lại) – sau mỗi 3 trận ai
+   * cũng đấu 2 trận. Trả những người đấu trận i (theo thứ tự hạt giống). Dùng chung máy chủ + trình duyệt.
+   */
+  function lobbyOf(list, i) {
+    const sit = (i + 2) % 3;
+    return list.filter((u, j) => { const r = Math.floor(j / 3), c = j % 3; return (r % 2 ? 2 - c : c) !== sit; });
+  }
+  /** Bảng (0–2) của người thứ j theo hạt giống khi chia 3 bảng xoay vòng. */
+  const lobbyGroup = (j) => { const r = Math.floor(j / 3), c = j % 3; return r % 2 ? 2 - c : c; };
+
+  const api = { lobbyOf, lobbyGroup, cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, fmtPar, MAX_TIME, heatsOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourRules = api;
 })(typeof window !== 'undefined' ? window : globalThis);

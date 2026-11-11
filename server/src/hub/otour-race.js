@@ -38,7 +38,7 @@ class OTourRace {
     if (h != null && st.events[i].heats[h].done) throw E('tour_match_done');
     // Xe đạp nhiều chặng / golf: nhập lần lượt từng chặng / vòng (người bỏ cuộc, bị cắt rời các chặng / vòng sau)
     if ((SEQ.includes(st.cfg.score) || st.cfg.mp) && st.events.some((e) => e.i < i && !e.done)) throw E('ot_gt_seq'); // match point cũng nhập lần lượt
-    const r = Race.cleanEvent(st, rows, h != null ? st.events[i].heats[h].uids : undefined, i);
+    const r = Race.cleanEvent(st, rows, h != null ? st.events[i].heats[h].uids : st.cfg.rot ? Race.lobby(st, i) : undefined, i); // rot: chỉ hai bảng đấu trận này
     if (r.code) throw E(r.code, r.args || {});
     if (h != null) Race.recordHeat(st, i, h, r.rows);
     else Race.recordEvent(st, i, r.rows);

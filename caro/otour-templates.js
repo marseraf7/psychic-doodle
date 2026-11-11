@@ -51,20 +51,34 @@
         // MOBA / bắn súng đội: 4 bảng đấu loại kép 4 đội (GSL) → 8 đội loại trực tiếp
         { key: 'moba', sport: 'esports', n: 16, esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers'], players: false },
           stages: [{ type: 'gsl', bestOf: 1, boDecider: 3 }, { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: true }] },
+        // MOBA kiểu khác: bảng vòng tròn đấu loạt Bo2 (hoà 1–1 chia điểm) → loại trực tiếp
+        { key: 'moba_bo2', sport: 'esports', n: 16, esports: { draft: 'lol', fearless: 'off', stats: ['kills'], players: false },
+          stages: [{ type: 'roundrobin', groupSize: 4, advance: 2, bestOf: 2 }, { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: false }] },
         { key: 'fps', sport: 'esports', n: 16, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
           stages: [{ type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 } }, { type: 'single', bestOf: 3, thirdPlace: false }] },
         // Sinh tồn có vòng vớt: 24 đội, 12 trận vòng bảng → 8 đội đầu vào thẳng chung kết, 16 đội còn lại đá vòng sinh tồn
         // lấy 8 đội; chung kết 16 đội tối đa 18 trận, sau 12 trận đặt ngưỡng = điểm đội dẫn đầu + 10 (kiểu Smash Rule)
         { key: 'br', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
-          stages: [{ type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, advance: 16, skip: 8 },
+          // Vòng bảng chia 3 bảng xoay vòng: mỗi trận hai bảng (16 đội) đấu, một bảng nghỉ
+          stages: [{ type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, advance: 16, skip: 8, rot: true },
             { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, advance: 8 },
             { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, mp: { after: 12, plus: 10 } }] },
         // Sinh tồn match point: 20 đội đấu 10 trận xếp hạt giống, chung kết: đạt 50 điểm rồi thắng một trận thì vô địch
         { key: 'br_mp', sport: 'esports', n: 20, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
           stages: [{ type: 'race', events: 10, score: 'points', table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1], kill: 1, advance: 20 },
             { type: 'race', events: 12, score: 'points', table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1], kill: 1, mp: { at: 50 } }] },
-        { key: 'fighting', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: [] },
-          stages: [{ type: 'double', bestOf: 3 }] },
+        // Sinh tồn có vòng Points Rush: vòng bảng → 12 đội đấu 6 trận giành điểm thưởng mang sang chung kết match point
+        { key: 'br_rush', sport: 'esports', n: 18, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+          stages: [{ type: 'race', events: 6, score: 'points', table: [12, 9, 8, 7, 6, 5, 4, 3, 2, 1], kill: 1, advance: 12 },
+            { type: 'race', events: 6, score: 'points', table: [12, 9, 8, 7, 6, 5, 4, 3, 2, 1], kill: 1, advance: 12 },
+            { type: 'race', events: 12, score: 'points', table: [12, 9, 8, 7, 6, 5, 4, 3, 2, 1], kill: 1, head: [5, 4, 3, 2, 1], mp: { at: 80 } }] },
+        // Đối kháng 1 đấu 1: 12 bảng đấu loại kép 4 người; nhất bảng vào thẳng nhánh chính, nhì bảng đấu 4 bảng vòng tròn
+        // 3 người lấy 4 người nhất → nhánh loại trực tiếp 16 người
+        { key: 'fighting', sport: 'esports', n: 48, esports: { draft: 'off', fearless: 'off', stats: [] },
+          stages: [{ type: 'gsl', bestOf: 3, skip: 1 }, { type: 'roundrobin', groupSize: 3, advance: 1, bestOf: 3 }, { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: false }] },
+        // Chiến thuật thời gian thực: 32 người, 4 bảng đấu loại kép 8 người lấy 4 → loại trực tiếp 16 người
+        { key: 'rts', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: [] },
+          stages: [{ type: 'gsl', size: 8, bestOf: 3 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
         { key: 'chess', sport: 'chess', n: 16,
           stages: [{ type: 'gsl' }, { type: 'single', thirdPlace: true }] }] } },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,

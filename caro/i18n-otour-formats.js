@@ -14,7 +14,7 @@
     gsl_wl: 'Thắng – thua', gsl_through: 'Đi tiếp', gsl_out: 'Bị loại',
     gsl_open: 'Trận mở màn', gsl_win: 'Trận nhánh thắng', gsl_lose: 'Trận nhánh thua', gsl_dec: 'Trận quyết định',
     ds_gsl: 'các bảng đấu loại kép 4 đội (Bo{bo}): thắng 2 trận đi tiếp, thua 2 trận bị loại', ds_gsl_dec: 'trận quyết định Bo{bo}',
-    srv_ot_gsl_four: 'Bảng đấu loại kép cần số đội chia hết cho 4 (đang có {n} đội ở giai đoạn này).', srv_ot_gsl_many: 'Giai đoạn bảng đấu loại kép có tối đa {n} đội.',
+    srv_ot_gsl_four: 'Bảng đấu loại kép cần số đội chia hết cho {k} (đang có {n} đội ở giai đoạn này).', srv_ot_gsl_many: 'Giai đoạn bảng đấu loại kép có tối đa {n} đội.',
     opt_br_kill: 'Điểm mỗi lần hạ gục (0 = không tính)', br_kills: 'Hạ gục', br_kills_n: '{n} hạ gục',
     opt_mp: 'Kết thúc kiểu match point', mp_none: 'Không – đấu hết số trận', mp_at: 'Ngưỡng điểm cố định', mp_after: 'Theo đội dẫn đầu sau một số trận',
     opt_mp_at: 'Ngưỡng điểm', opt_mp_after: 'Đặt ngưỡng sau trận thứ', opt_mp_plus: 'Cộng thêm vào điểm đội dẫn đầu',
@@ -24,6 +24,14 @@
     ds_kill: 'mỗi lần hạ gục {n} điểm', ds_mp_at: 'match point: đạt {n} điểm rồi thắng một trận thì vô địch', ds_mp_after: 'match point: ngưỡng = điểm đội dẫn đầu sau trận {n} cộng {p}',
     opt_skip: 'Số đội đầu vào thẳng giai đoạn 3', opt_skip_group: 'Số đội đầu mỗi bảng vào thẳng giai đoạn 3',
     adv_skip: '({n} đội đầu vào thẳng giai đoạn 3)', adv_skip_tag: 'Vào thẳng giai đoạn 3', ds_skip: '{n} đội đầu vào thẳng giai đoạn 3, các đội đi tiếp còn lại đá giai đoạn 2',
+    bo2_draw: 'Bo2 (có hoà)', opt_gsl_size: 'Cỡ bảng', gsl_size4: '4 đội – nhất, nhì đi tiếp', gsl_size8: '8 đội – 4 đội đi tiếp',
+    gsl_note8: 'Mỗi bảng 8 đội, 10 trận: 4 trận mở màn; hai trận nhánh thắng (thắng thì đi tiếp hạng 1–2); hai trận nhánh thua (thua thì bị loại); hai trận quyết định chọn hạng 3–4.',
+    opt_br_rot: 'Chia 3 bảng xoay vòng (mỗi trận hai bảng đấu, một bảng nghỉ)', opt_br_head: 'Điểm thưởng mang sang (theo thứ tự vào giai đoạn)',
+    opt_br_head_hint: 'Ví dụ 4 3 2 1: đội vào giai đoạn này ở vị trí 1 có sẵn 4 điểm, vị trí 2 có 3 điểm… (kiểu Points Rush).',
+    br_head_tip: 'Điểm thưởng mang sang', br_rot_ev: '(bảng {g} đấu)', br_rot_note: 'Chia 3 bảng, mỗi trận hai bảng đấu, một bảng nghỉ.',
+    ds_gsl8: 'các bảng đấu loại kép 8 người (Bo{bo}): 4 đội đi tiếp', ds_rot: '3 bảng xoay vòng, mỗi trận hai bảng đấu', ds_head: 'điểm thưởng mang sang {list}…',
+    ds_bo2: 'loạt Bo2, hai ván hoà thì chia điểm',
+    srv_ot_rot_few: 'Chia 3 bảng xoay vòng cần ít nhất {n} đội.',
   });
 
   X('en', {
@@ -33,7 +41,7 @@
     gsl_wl: 'W–L', gsl_through: 'Advances', gsl_out: 'Eliminated',
     gsl_open: 'Opening match', gsl_win: 'Winners’ match', gsl_lose: 'Elimination match', gsl_dec: 'Decider match',
     ds_gsl: 'double-elimination groups of 4 (Bo{bo}): two wins advance, two losses eliminate', ds_gsl_dec: 'decider match Bo{bo}',
-    srv_ot_gsl_four: 'Double-elimination groups need a multiple of 4 teams (this stage has {n}).', srv_ot_gsl_many: 'A double-elimination group stage takes at most {n} teams.',
+    srv_ot_gsl_four: 'Double-elimination groups need a multiple of {k} teams (this stage has {n}).', srv_ot_gsl_many: 'A double-elimination group stage takes at most {n} teams.',
     opt_br_kill: 'Points per kill (0 = none)', br_kills: 'Kills', br_kills_n: '{n} kills',
     opt_mp: 'Match point finish', mp_none: 'Off – play every match', mp_at: 'Fixed points threshold', mp_after: 'Based on the leader after some matches',
     opt_mp_at: 'Points threshold', opt_mp_after: 'Set the threshold after match', opt_mp_plus: 'Added to the leader’s points',
@@ -43,6 +51,14 @@
     ds_kill: '{n} point(s) per kill', ds_mp_at: 'match point: reach {n} points, then win a match to take the title', ds_mp_after: 'match point: threshold = the leader’s points after match {n} plus {p}',
     opt_skip: 'Top teams sent straight to stage 3', opt_skip_group: 'Top teams per group sent straight to stage 3',
     adv_skip: '(top {n} go straight to stage 3)', adv_skip_tag: 'Straight to stage 3', ds_skip: 'the top {n} go straight to stage 3, the other qualifiers play stage 2',
+    bo2_draw: 'Bo2 (draws allowed)', opt_gsl_size: 'Group size', gsl_size4: '4 teams – top 2 advance', gsl_size8: '8 teams – top 4 advance',
+    gsl_note8: 'Each group has 8 teams and 10 matches: 4 opening matches; two winners’ matches (winning advances as seed 1–2); two elimination matches (losing is out); two deciders settle places 3–4.',
+    opt_br_rot: 'Rotating 3 lobbies (two lobbies play each match, one sits out)', opt_br_head: 'Head-start points (by entry position)',
+    opt_br_head_hint: 'For example 4 3 2 1: the team entering this stage in position 1 starts with 4 points, position 2 with 3… (Points Rush style).',
+    br_head_tip: 'Head-start points', br_rot_ev: '(lobbies {g} play)', br_rot_note: '3 lobbies; each match two lobbies play and one sits out.',
+    ds_gsl8: 'double-elimination groups of 8 (Bo{bo}): top 4 advance', ds_rot: '3 rotating lobbies, two play each match', ds_head: 'head-start points {list}…',
+    ds_bo2: 'Bo2 series, a 1–1 result is a draw',
+    srv_ot_rot_few: 'Rotating lobbies need at least {n} teams.',
   });
 
   X('ru', {
@@ -52,7 +68,7 @@
     gsl_wl: 'Победы – поражения', gsl_through: 'Проходит дальше', gsl_out: 'Выбывает',
     gsl_open: 'Стартовый матч', gsl_win: 'Матч победителей', gsl_lose: 'Матч на вылет', gsl_dec: 'Решающий матч',
     ds_gsl: 'группы по 4 с двойным выбыванием (Bo{bo}): две победы — выход, два поражения — вылет', ds_gsl_dec: 'решающий матч Bo{bo}',
-    srv_ot_gsl_four: 'Для групп с двойным выбыванием число команд должно делиться на 4 (на этом этапе {n}).', srv_ot_gsl_many: 'На этапе групп с двойным выбыванием может быть не более {n} команд.',
+    srv_ot_gsl_four: 'Для групп с двойным выбыванием число команд должно делиться на {k} (на этом этапе {n}).', srv_ot_gsl_many: 'На этапе групп с двойным выбыванием может быть не более {n} команд.',
     opt_br_kill: 'Очки за убийство (0 = не считать)', br_kills: 'Убийства', br_kills_n: 'убийств: {n}',
     opt_mp: 'Завершение по матч-пойнту', mp_none: 'Нет — играются все матчи', mp_at: 'Фиксированный порог очков', mp_after: 'По лидеру после нескольких матчей',
     opt_mp_at: 'Порог очков', opt_mp_after: 'Порог задаётся после матча', opt_mp_plus: 'Добавить к очкам лидера',
@@ -62,6 +78,14 @@
     ds_kill: 'за убийство — {n} очк.', ds_mp_at: 'матч-пойнт: набрать {n} очков и затем выиграть матч', ds_mp_after: 'матч-пойнт: порог = очки лидера после матча {n} плюс {p}',
     opt_skip: 'Лучшие команды сразу в этап 3', opt_skip_group: 'Лучшие команды каждой группы сразу в этап 3',
     adv_skip: '(первые {n} — сразу в этап 3)', adv_skip_tag: 'Сразу в этап 3', ds_skip: 'первые {n} проходят сразу в этап 3, остальные прошедшие играют этап 2',
+    bo2_draw: 'Bo2 (с ничьей)', opt_gsl_size: 'Размер группы', gsl_size4: '4 команды — двое лучших проходят', gsl_size8: '8 команд — четверо лучших проходят',
+    gsl_note8: 'В группе 8 команд и 10 матчей: 4 стартовых матча; два матча победителей (победа — выход на места 1–2); два матча на вылет (поражение — вылет); два решающих матча определяют места 3–4.',
+    opt_br_rot: 'Три группы по очереди (в матче играют две группы, одна отдыхает)', opt_br_head: 'Стартовые очки (по порядку входа в этап)',
+    opt_br_head_hint: 'Например 4 3 2 1: команда, вошедшая в этап первой, начинает с 4 очками, второй — с 3… (как в Points Rush).',
+    br_head_tip: 'Стартовые очки', br_rot_ev: '(играют группы {g})', br_rot_note: 'Три группы; в каждом матче играют две группы, одна отдыхает.',
+    ds_gsl8: 'группы по 8 с двойным выбыванием (Bo{bo}): четверо лучших проходят', ds_rot: '3 группы по очереди, в матче играют две', ds_head: 'стартовые очки {list}…',
+    ds_bo2: 'серии Bo2, при 1:1 — ничья',
+    srv_ot_rot_few: 'Для ротации трёх групп нужно не менее {n} команд.',
   });
 
   X('zh', {
@@ -71,7 +95,7 @@
     gsl_wl: '胜–负', gsl_through: '晋级', gsl_out: '淘汰',
     gsl_open: '首轮', gsl_win: '胜者组比赛', gsl_lose: '败者组比赛', gsl_dec: '决胜场',
     ds_gsl: '4 队双败小组（Bo{bo}）：两胜晋级，两负淘汰', ds_gsl_dec: '决胜场 Bo{bo}',
-    srv_ot_gsl_four: '双败小组需要队伍数为 4 的倍数（本阶段有 {n} 队）。', srv_ot_gsl_many: '双败小组阶段最多 {n} 队。',
+    srv_ot_gsl_four: '双败小组需要队伍数为 {k} 的倍数（本阶段有 {n} 队）。', srv_ot_gsl_many: '双败小组阶段最多 {n} 队。',
     opt_br_kill: '每次击杀得分（0 = 不计）', br_kills: '击杀', br_kills_n: '{n} 次击杀',
     opt_mp: '赛点制结束', mp_none: '不使用——打完所有场次', mp_at: '固定积分门槛', mp_after: '按若干场后的领先者设定',
     opt_mp_at: '积分门槛', opt_mp_after: '在第几场后设定门槛', opt_mp_plus: '在领先者积分上增加',
@@ -81,5 +105,13 @@
     ds_kill: '每次击杀 {n} 分', ds_mp_at: '赛点制：达到 {n} 分后再赢一场即夺冠', ds_mp_after: '赛点制：门槛 = 第 {n} 场后领先者的积分加 {p}',
     opt_skip: '直接进入第 3 阶段的前几名', opt_skip_group: '每组直接进入第 3 阶段的前几名',
     adv_skip: '（前 {n} 名直接进入第 3 阶段）', adv_skip_tag: '直接进入第 3 阶段', ds_skip: '前 {n} 名直接进入第 3 阶段，其余晋级者参加第 2 阶段',
+    bo2_draw: 'Bo2（可平局）', opt_gsl_size: '小组规模', gsl_size4: '4 队——前 2 名晋级', gsl_size8: '8 队——前 4 名晋级',
+    gsl_note8: '每组 8 队、10 场比赛：4 场首轮；两场胜者组比赛（获胜晋级，列第 1–2 名）；两场败者组比赛（落败淘汰）；两场决胜场决出第 3–4 名。',
+    opt_br_rot: '3 个小组轮换（每场两组参赛，一组轮空）', opt_br_head: '带入的起步积分（按进入本阶段的顺位）',
+    opt_br_head_hint: '例如 4 3 2 1：第 1 位进入本阶段的队伍起步 4 分，第 2 位 3 分……（类似 Points Rush）。',
+    br_head_tip: '带入的起步积分', br_rot_ev: '（{g} 组参赛）', br_rot_note: '共 3 组；每场两组参赛，一组轮空。',
+    ds_gsl8: '8 队双败小组（Bo{bo}）：前 4 名晋级', ds_rot: '3 个小组轮换，每场两组参赛', ds_head: '起步积分 {list}……',
+    ds_bo2: 'Bo2 系列赛，1:1 为平局',
+    srv_ot_rot_few: '3 组轮换至少需要 {n} 队。',
   });
 })();

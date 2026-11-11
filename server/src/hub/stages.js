@@ -100,7 +100,12 @@ function normalizeStage(c, last, opts = {}) {
   // tiếp theo thứ hạng chung cuộc của nhánh (vô địch, á quân…)
   if (opts.offline && isElim(type) && !last) out.advance = int(c.advance, 1, 8, 1);
   // Tuỳ chọn thêm của giải offline: league phase, bảng lớn, hạng ba tốt nhất, Thụy Sĩ theo thắng / thua, 2 lượt
-  return opts.offline ? League.normalizeExtras(c, out, last, oddBo) : out;
+  if (!opts.offline) return out;
+  const res = League.normalizeExtras(c, out, last, oddBo);
+  // Loạt Bo2 (vòng bảng Dota 2 ở các giải Esports): đúng 2 ván, 1–1 là hoà – chỉ vòng tròn / Thụy Sĩ tính điểm (không phải
+  // Thụy Sĩ theo thắng / thua, không phải loại trực tiếp)
+  if (Number(c.bestOf) === 2 && GROUP_TYPES.includes(res.type) && !res.record) res.bestOf = 2;
+  return res;
 }
 
 function normalizeStages(list, opts = {}) {
@@ -115,7 +120,8 @@ function normalizeStages(list, opts = {}) {
     // Giải offline 3 giai đoạn: `skip` đội đầu của giai đoạn 1 vào thẳng giai đoạn 3, các đội đi tiếp còn lại đá giai đoạn 2
     // (vòng vớt kiểu Survival Stage / Last Chance của các giải sinh tồn). Vòng tròn nhiều bảng: tính mỗi bảng.
     const sk = Math.floor(Number(arr[i] && arr[i].skip));
-    if (opts.offline && sk > 0 && i + 2 < out.length && c.type !== 'gsl' && !isElim(c.type) && !out[i + 2].playoff) c.skip = Math.min(sk, 256);
+    // Bảng GSL: chỉ đội nhất bảng (bảng 8: tối đa 3 đội đầu) – phải còn đội đá giai đoạn 2
+    if (opts.offline && sk > 0 && i + 2 < out.length && !isElim(c.type) && !out[i + 2].playoff) c.skip = c.type === 'gsl' ? Math.min(sk, c.advance - 1) : Math.min(sk, 256);
   });
   return out;
 }
@@ -166,6 +172,10 @@ const linked = (type) => isElim(type) || type === 'gsl';
 function splitAdvancers(st, seedOf, min = 2) {
   const sk = st.cfg.skip || 0;
   if (!sk) return { ...advancers(st, seedOf, min), skip: [] };
+  if (st.type === 'gsl') { // các tầng đầu (nhất bảng…) vào thẳng giai đoạn sau nữa
+    const a = Gsl.advancers(st, seedOf);
+    return { seeds: a.tiers.slice(sk).flat(), groupOf: a.groupOf, skip: a.tiers.slice(0, sk).flat() };
+  }
   const adv = advancers({ ...st, cfg: { ...st.cfg, advance: (st.cfg.advance || 0) + sk } }, seedOf, min);
   const total = Math.min(st.type === 'roundrobin' && st.groups ? sk * st.groups.length : sk, Math.max(0, adv.seeds.length - 1));
   return { seeds: adv.seeds.slice(total), groupOf: adv.groupOf, skip: adv.seeds.slice(0, total) };
