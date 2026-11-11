@@ -69,7 +69,8 @@ function normalizeRace(c, last) {
   else if (score === 'golf') GOLF.normalizeGolf(c, out);
   else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
-  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot) out.heat = heat;
+  // Chia lượt: không đi cùng 3 bảng xoay vòng, không đi cùng match point (mỗi lượt có một người về nhất)
+  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp) out.heat = heat;
   if (!last) out.advance = int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }

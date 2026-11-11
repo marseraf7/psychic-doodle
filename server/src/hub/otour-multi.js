@@ -62,7 +62,30 @@ function finalPlaces(t, seedOf) {
     }
     return out;
   }
-  const tables = ST.standings(st, seedOf);
+  // Bảng GSL ở giai đoạn cuối: một bảng thì theo thứ hạng trong bảng; nhiều bảng thì bục trao giải, rồi các đội cùng
+  // thứ hạng trong bảng đồng hạng (nhì các bảng, ba các bảng…)
+  if (st.type === 'gsl') {
+    const per = st.groups.map((g) => ST.gslPlaces(st, g, seedOf));
+    if (per.length === 1) per[0].forEach((u, i) => put([u], i + 1));
+    else {
+      (t.podium || []).forEach((u, i) => put([u], i + 1));
+      for (let k = 0; k < Math.max(0, ...per.map((x) => x.length)); k++) put(per.map((x) => x[k]).filter((u) => real(u) && !seen.has(u)), out.length + 1);
+    }
+    return out;
+  }
+  const tables = ST.standings(st, seedOf) || [];
+  // Golf: bằng số gậy thì đồng hạng (T3), trừ người thắng đấu phụ
+  if (st.type === 'race' && st.cfg.score === 'golf' && tables.length === 1) {
+    const S = tables[0].stats, champ = st.playoff && st.playoff.winner;
+    let prev = null, place = 0;
+    tables[0].list.forEach((u, i) => {
+      const s = S[u], on = s.wd == null && !s.cut && s.played;
+      if (!on || u === champ || i === 0 || s.toPar !== prev || (champ && i === 1)) place = i + 1;
+      prev = on ? s.toPar : null;
+      put([u], place);
+    });
+    return out;
+  }
   if (tables.length === 1) tables[0].list.forEach((u, i) => put([u], i + 1));
   else (t.podium || []).forEach((u, i) => put([u], i + 1));
   return out;

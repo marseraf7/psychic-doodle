@@ -107,3 +107,36 @@ test('Qua máy chủ: bảng GSL → tranh hạt giống + cơ hội cuối → 
   assert.deepStrictEqual([v.type, v.groups.map((g) => g.name), v.groups[0].table.map((x) => [x.name, x.pool])], ['kings', ['top', 'low'], [['Đội 4', 1], ['Đội 3', 2]]]);
   org.close();
 });
+
+// ---------------------------------------------------------------- Soát lại (review): các lỗi đã sửa
+test('Thứ hạng chung cuộc cho giải tổng: bảng GSL ở giai đoạn cuối không làm hỏng trang tổng; golf đồng hạng cùng nhận điểm', () => {
+  const M = require('../src/hub/otour-multi.js');
+  const { s, seedOf } = mkSeeds(8);
+  const cfgs = off([{ type: 'gsl' }]);
+  const st = ST.buildStage(cfgs[0], 0, s, { seedOf });
+  for (let g = 0; !st.done && g < 5; g++) for (const m of ST.playable(st)) ST.recordResult(st, m, seedOf(m.a) < seedOf(m.b) ? m.a : m.b, { seedOf });
+  const places = M.finalPlaces({ status: 'finished', stages: cfgs, st: [st], podium: ST.podium(st, seedOf) }, seedOf);
+  assert.strictEqual(places.length, 8);
+  assert.deepStrictEqual(places.slice(0, 3).map((x) => [x.uid, x.place]), [['u0', 1], ['u1', 2], ['u2', 3]]);
+  // Golf: u0, u1 cùng −2 (u0 thắng đấu phụ), u2, u3 cùng E → 1, 2, T3, T3
+  const [g] = off([{ type: 'race', score: 'golf', events: 1, par: [4, 4] }]);
+  const gs = ST.buildStage(g, 0, s.slice(0, 4), { seedOf });
+  Race.recordEvent(gs, 0, [{ uid: 'u1', s: 6 }, { uid: 'u0', s: 6 }, { uid: 'u2', s: 8 }, { uid: 'u3', s: 8 }]);
+  gs.playoff = { winner: 'u1', holes: 1 };
+  const gp = M.finalPlaces({ status: 'finished', stages: [g], st: [gs] }, seedOf);
+  assert.deepStrictEqual(gp.map((x) => [x.uid, x.place]), [['u1', 1], ['u0', 2], ['u2', 3], ['u3', 3]]);
+});
+
+test('Match point không đi cùng chia lượt; vòng tranh hạt giống số đội lẻ: đội cao nhất nửa dưới miễn đấu, không ai bị bỏ sót', () => {
+  assert.deepStrictEqual(off([{ type: 'race', score: 'points', events: 4, heat: 3, mp: { at: 15 } }])[0].heat, undefined);
+  assert.strictEqual(off([{ type: 'race', score: 'points', events: 4, heat: 3 }])[0].heat, 3);
+  const { s, seedOf } = mkSeeds(6);
+  const [k] = off([{ type: 'kings' }, { type: 'single' }]);
+  const st = ST.buildStage(k, 1, s, { seedOf });
+  assert.deepStrictEqual([st.byes, st.groups[1].players, Object.keys(st.matches).length], [['u2', 'u3'], ['u4', 'u5', 'u2', 'u3'], 2]);
+  for (const m of ST.playable(st)) ST.recordResult(st, m, m.b, { seedOf });
+  const adv = ST.advancers(st, seedOf);
+  assert.deepStrictEqual(adv.tiers, [['u1'], ['u0'], ['u2', 'u3', 'u5']]);
+  const low = ST.kingsTables(st, (u) => ({ uid: u }), seedOf)[1];
+  assert.deepStrictEqual(low.map((x) => [x.uid, x.pool || 0, !!x.bye, !!x.out]), [['u2', 2, true, false], ['u3', 2, true, false], ['u5', 2, false, false], ['u4', 0, false, true]]);
+});

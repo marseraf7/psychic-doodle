@@ -207,7 +207,7 @@
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
     }
     if (v.type === 'kings') { // giải offline: vòng tranh hạt giống + cơ hội cuối (máy chủ: stages-kings.js)
-      const tag = (x) => (x.pool ? `<span class="pill">${esc(T('kings_pool', { n: x.pool }))}</span>` : x.out ? `<span class="pill">${esc(T('gsl_out'))}</span>` : '');
+      const tag = (x) => (x.pool ? `<span class="pill">${esc(T('kings_pool', { n: x.pool }))}</span>${x.bye ? ` <small class="muted">${esc(T('bye'))}</small>` : ''}` : x.out ? `<span class="pill">${esc(T('gsl_out'))}</span>` : '');
       return `<p class="hint">${esc(T('kings_note'))}</p>` + v.groups.map((g) => `<h5>${esc(groupLabel(v, g))}${g.name === 'low' && v.cfg.boLow ? ` · Bo${v.cfg.boLow}` : ''}</h5>
         <div class="tscroll"><table class="stand gsl-tab kings-tab"><thead><tr><th></th><th>${esc(T('gsl_wl'))}</th><th></th></tr></thead><tbody>${g.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}${x.out ? ' dnf' : ''}">
           <td class="nm">${esc(x.name)}</td><td><b>${x.w}–${x.l}</b></td><td>${tag(x)}</td></tr>`).join('')}</tbody></table></div>

@@ -6,6 +6,8 @@
  *   Nửa dưới (các đội xếp sau): cũng cao gặp thấp, Bo riêng (cfg.boLow); đội thắng vào nhóm hạt giống 2, đội thua bị loại.
  * Người đi tiếp: thắng nửa trên, thua nửa trên, thắng nửa dưới (mỗi nhóm theo hạt giống) = 3/4 số đội. Hai đội đã gặp nhau
  * ở nửa trên mang cùng "nhóm" (groupOf) để nhánh sau tránh gặp lại ngay vòng đầu. Không có hoà; trận không nối tới trận sau.
+ * Số đội không chia hết cho 4 (số đội đi tiếp của giai đoạn trước thay đổi – Thụy Sĩ thắng / thua…): các đội
+ * cao nhất của nửa dưới được miễn đấu, vào thẳng nhóm hạt giống 2 (st.byes) – không đội nào bị bỏ sót.
  * st.groups = [{ name: 'top', players, rounds: [[trận…]] }, { name: 'low', … }] – cùng hình dạng bảng vòng tròn để dùng
  * chung xếp lịch (otour-sched.js) và bản vá gửi trình duyệt (tourpush.js).
  */
@@ -29,13 +31,13 @@ function kingsError(cfg, n) {
   return n > MAX ? { code: 'ot_kings_many', args: { n: MAX } } : null;
 }
 
-/** Số đội đi tiếp của n đội. */
-const advanceOf = (n) => Math.floor(n / 4) * 3;
 
 /** Dựng hai nửa: mỗi nửa cao gặp thấp theo thứ tự hạt giống vào giai đoạn. */
 function buildKings(st, seeds) {
-  const h = Math.floor(seeds.length / 4) * 2;
-  st.groups = [seeds.slice(0, h), seeds.slice(h, 2 * h)].map((list, g) => {
+  const h = Math.floor(seeds.length / 4) * 2, rem = seeds.length - 2 * h;
+  // Đội dư: các đội hạt giống cao nhất của nửa dưới được miễn đấu (như miễn đấu vòng đầu nhánh loại trực tiếp)
+  st.byes = seeds.slice(h, h + rem);
+  st.groups = [seeds.slice(0, h), seeds.slice(h + rem)].map((list, g) => {
     const ids = [];
     for (let k = 0; k < h / 2; k++) {
       const m = newMatch(`${st.key}k${g}m${k}`, 0, { grp: g, tag: g ? 'low' : 'top', ...(g && st.cfg.boLow ? { bo: st.cfg.boLow } : {}) });
@@ -43,7 +45,7 @@ function buildKings(st, seeds) {
       st.matches[m.id] = m;
       ids.push(m.id);
     }
-    return { name: g ? 'low' : 'top', players: list, rounds: [ids] };
+    return { name: g ? 'low' : 'top', players: g ? [...list, ...st.byes] : list, rounds: [ids] };
   });
 }
 
@@ -51,7 +53,7 @@ function buildKings(st, seeds) {
 function advancers(st, seedOf = () => 0) {
   const by = (x, y) => seedOf(x) - seedOf(y);
   const pick = (g, k) => st.groups[g].rounds[0].map((id) => st.matches[id]).filter((m) => m.done && real(m[k])).map((m) => m[k]).sort(by);
-  const tiers = [pick(0, 'winner'), pick(0, 'loser'), pick(1, 'winner')];
+  const tiers = [pick(0, 'winner'), pick(0, 'loser'), [...pick(1, 'winner'), ...(st.byes || [])].sort(by)];
   const groupOf = {};
   st.groups[0].rounds[0].forEach((id, k) => { const m = st.matches[id]; for (const u of [m.a, m.b]) if (real(u)) groupOf[u] = k; });
   return { seeds: tiers.flat(), groupOf, tiers };
@@ -67,10 +69,11 @@ function tables(st, side, seedOf = () => 0) {
       if (real(m.winner)) res[m.winner] = { w: 1, l: 0, pool: g ? 2 : 1 };
       if (real(m.loser)) res[m.loser] = g ? { w: 0, l: 1, out: true } : { w: 0, l: 1, pool: 2 };
     }
+    if (g) for (const u of st.byes || []) res[u] = { w: 0, l: 0, pool: 2, bye: true }; // đội dư: miễn đấu
     const rank = (u) => (res[u] ? (res[u].out ? 3 : res[u].pool) : 2.5);
     return [...grp.players].sort((a, b) => rank(a) - rank(b) || seedOf(a) - seedOf(b))
       .map((u) => ({ ...side(u), w: 0, l: 0, ...(res[u] || {}), adv: !!(res[u] && res[u].pool) }));
   });
 }
 
-module.exports = { MAX, normalizeKings, kingsError, advanceOf, buildKings, advancers, tables };
+module.exports = { MAX, normalizeKings, kingsError, buildKings, advancers, tables };
