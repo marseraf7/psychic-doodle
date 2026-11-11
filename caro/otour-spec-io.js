@@ -36,6 +36,9 @@
           type: 'object', required: ['type'],
           properties: {
             type: { type: 'string', enum: TYPES, description: "'gsl': bảng đấu loại kép 4 đội (mở màn, nhánh thắng, nhánh thua, quyết định) – số đội chia hết cho 4, nhất và nhì bảng đi tiếp" },
+            size: { type: 'integer', enum: [4, 8], description: "'gsl': cỡ bảng – 4 đội (nhất, nhì đi tiếp) hoặc 8 đội (4 đội đi tiếp)" },
+            head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
+            rot: { type: 'boolean', description: "Race 'points': chia 3 bảng xoay vòng, mỗi trận hai bảng đấu, một bảng nghỉ" },
             boDecider: bo, skip: int(0, 256, 'giải 3 giai đoạn, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
             kill: int(0, 10, "Race 'points' (sinh tồn): điểm mỗi lần hạ gục, cộng với điểm theo hạng"),
             mp: { type: 'object', description: "Race 'points': kết thúc kiểu match point – đội đã đạt ngưỡng mà thắng một trận thì vô địch; { at } ngưỡng cố định, hoặc { after, plus } = điểm đội dẫn đầu sau `after` trận + `plus`", properties: { at: int(1, 100000), after: int(1, 29), plus: int(0, 1000) } },
@@ -86,7 +89,7 @@
       if (c.type === 'single' && c.playoff) x.push(...playoffText(c.playoff, T)); // playoff kiểu Mỹ
       if (c.type === 'single' && Array.isArray(c.boRounds) && c.boRounds.length) x.push(T('ds_bo_rounds', { list: c.boRounds.join(', ') }));
     } else if (c.type === 'gsl') {
-      x.push(T('ds_gsl', { bo: c.bestOf || 1 }));
+      x.push(T(c.size === 8 ? 'ds_gsl8' : 'ds_gsl', { bo: c.bestOf || 1 }));
       if (c.boDecider) x.push(T('ds_gsl_dec', { bo: c.boDecider }));
     } else if (c.type === 'roundrobin') {
       if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
@@ -109,11 +112,14 @@
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));
       } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
+      if (c.rot) x.push(T('ds_rot'));
+      if (c.head) x.push(T('ds_head', { list: c.head.slice(0, 4).join('-') }));
       if (c.kill) x.push(T('ds_kill', { n: c.kill }));
       if (c.mp) x.push(c.mp.at ? T('ds_mp_at', { n: c.mp.at }) : T('ds_mp_after', { n: c.mp.after, p: c.mp.plus }));
       if (c.teams) x.push(T('ds_teams'));
       if (c.heat >= 2) x.push(T('ds_heat', { n: c.heat }));
     }
+    if (c.bestOf === 2 && (c.type === 'roundrobin' || c.type === 'swiss')) x.push(T('ds_bo2'));
     if (c.points && (c.type === 'roundrobin' || c.type === 'swiss')) {
       x.push(T('ds_points', { w: c.points.w, d: c.points.d, l: c.points.l }) + (c.points.wx != null ? ' ' + T('ds_points_x', { wx: c.points.wx, lx: c.points.lx }) : ''));
     }

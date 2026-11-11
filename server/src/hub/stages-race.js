@@ -54,12 +54,17 @@ function normalizeRace(c, last) {
     const mp = c.mp && typeof c.mp === 'object' ? c.mp : null;
     if (mp && Number(mp.at) > 0) out.mp = { at: int(mp.at, 1, 100000, 50) };
     else if (mp && Number(mp.after) > 0 && out.events > 1) out.mp = { after: int(mp.after, 1, out.events - 1, 1), plus: int(mp.plus, 0, 1000, 10) };
+    // Điểm thưởng mang sang (kiểu Points Rush): đội vào giai đoạn này ở vị trí k được cộng sẵn head[k] điểm
+    const head = cleanTable(c.head);
+    if (head && head.some((x) => x > 0)) out.head = head;
+    // Chia 3 bảng xoay vòng: mỗi trận hai bảng đấu, một bảng nghỉ (không dùng cùng chia lượt)
+    if (c.rot === true && !(int(c.heat, 0, MAX_HEAT, 0) >= 2)) out.rot = true;
   }
   if (score === 'gt') GT.normalizeGt(c, out); // bảng đội luôn tính theo cột "Đội"; không chia lượt
   else if (score === 'golf') GOLF.normalizeGolf(c, out);
   else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
-  if (heat >= 2 && score !== 'gt' && score !== 'golf') out.heat = heat;
+  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot) out.heat = heat;
   if (!last) out.advance = int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
@@ -112,9 +117,12 @@ function cleanEvent(st, rows, members = st.entrants, i = 0) {
 /** Điểm của một dòng (points): sửa tay nếu có, không thì theo bảng điểm; bỏ cuộc 0. */
 const rowPts = (cfg, x) => (x.pts != null ? x.pts : (x.dnf ? 0 : cfg.table[x.rank - 1] || 0) + (cfg.kill ? (x.kills || 0) * cfg.kill : 0));
 
-/** Tổng điểm từng người qua các chặng đã nhập có số thứ tự < upto. */
+/** Những người đấu chặng i khi chia 3 bảng xoay vòng (cfg.rot); không thì cả đoàn. */
+const lobby = (st, i) => (st.cfg.rot ? RU.lobbyOf(st.entrants, i) : st.entrants);
+
+/** Tổng điểm từng người qua các chặng đã nhập có số thứ tự < upto (kể cả điểm thưởng mang sang – st.head). */
 function totalsBefore(st, upto) {
-  const tot = {};
+  const tot = { ...(st.head || {}) };
   for (const ev of st.events) if (ev.done && ev.i < upto) for (const x of ev.rows) tot[x.uid] = (tot[x.uid] || 0) + rowPts(st.cfg, x);
   return tot;
 }
@@ -178,7 +186,7 @@ function raceTable(st, seedOf) {
   if (st.cfg.score === 'gt') { const C = GT.gtCalc(st, seedOf, null); return { list: C.gc, stats: C.stats }; }
   if (st.cfg.score === 'golf') { const C = GOLF.golfCalc(st, seedOf); return { list: C.order, stats: C.stats }; }
   const cfg = st.cfg, pts = cfg.score === 'points';
-  const stats = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, pts: 0, time: 0, races: 0, fin: 0, dnf: 0, places: [], kills: 0 }]));
+  const stats = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, pts: (pts && st.head && st.head[u]) || 0, time: 0, races: 0, fin: 0, dnf: 0, places: [], kills: 0 }]));
   const done = st.events.filter((e) => e.done);
   for (const ev of done) {
     for (const x of ev.rows) {
@@ -252,7 +260,7 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
   const table = list.map((u, k) => {
     const s = stats[u];
     const r = { ...side(u), rank: k + 1, races: s.races, fin: s.fin, dnf: s.dnf, adv: k < adv };
-    if (pts) { r.pts = s.pts; if (cfg.kill) r.kills = s.kills; if (mpAt != null && s.pts >= mpAt) r.mp = true; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
+    if (pts) { r.pts = s.pts; if (st.head && st.head[u]) r.head = st.head[u]; if (cfg.kill) r.kills = s.kills; if (mpAt != null && s.pts >= mpAt) r.mp = true; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
       r.time = s.fin === all && all ? s.time : null;
       r.gap = r.time != null && lead && lead.fin === all ? s.time - lead.time : null;
       r.gapPrev = r.time != null && prev != null ? s.time - prev : null;
@@ -273,7 +281,8 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
 /** Lỗi cỡ giai đoạn race (null nếu được). */
 const raceError = (cfg, n) => {
   const max = cfg.heat ? MAX_RACE_HEATS : MAX_RACE; // đoàn quá MAX_RACE người: phải chia lượt
+  if (cfg.type === 'race' && cfg.rot && n < 6) return { code: 'ot_rot_few', args: { n: 6 } }; // 3 bảng, mỗi bảng ít nhất 2 đội
   return cfg.type === 'race' && n > max ? { code: 'ot_race_many', args: { n: max } } : null;
 };
 
-module.exports = { mpThreshold, totalsBefore, SCORES, F1, MAX_EVENTS, MAX_RACE, MAX_RACE_HEATS, MAX_HEAT, cleanTable, normalizeRace, buildRace, heatsFor, cleanEvent, recordEvent, recordHeat, undoEvent, undoHeat, raceTable, raceView, raceError, eventOrder, rowPts };
+module.exports = { lobby, mpThreshold, totalsBefore, SCORES, F1, MAX_EVENTS, MAX_RACE, MAX_RACE_HEATS, MAX_HEAT, cleanTable, normalizeRace, buildRace, heatsFor, cleanEvent, recordEvent, recordHeat, undoEvent, undoHeat, raceTable, raceView, raceError, eventOrder, rowPts };

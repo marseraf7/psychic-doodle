@@ -155,7 +155,8 @@
     if (c.type === 'double') return elimAdv(double(c, n));
     // Hệ Race (giải offline): mỗi chặng cả đoàn thi một lần
     // Bảng đấu loại kép 4 đội kiểu GSL (giải offline): mỗi bảng 5 trận trong 3 lượt, nhất và nhì bảng đi tiếp
-    if (c.type === 'gsl') { const G = Math.floor(n / 4); return { matches: 5 * G, maxMatches: 5 * G, waves: 3, advance: last ? null : 2 * G, groups: G, groupSize: 4 }; }
+    // (bảng 8 đội: 10 trận, 4 đội đi tiếp)
+    if (c.type === 'gsl') { const K = Number(c.size) === 8 ? 8 : 4, G = Math.floor(n / K), per = K === 8 ? 10 : 5; return { matches: per * G, maxMatches: per * G, waves: 3, advance: last ? null : (K / 2) * G, groups: G, groupSize: K }; }
     if (c.type === 'race') { const ev = Number(c.events) || 1; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, c.advance || 0) }; }
     if (c.type === 'roundrobin' && c.season) {
       // Mùa giải kiểu Mỹ (caro/otour-season.js): số trận chính xác; lịch xếp tham lam dài hơn số trận mỗi đội ~5%
@@ -239,7 +240,11 @@
       out.minutes += s.minutes + (i ? STAGE_BREAK_MIN : 0);
       // cfg.skip: các đội đầu vào thẳng giai đoạn sau nữa (vòng tròn nhiều bảng: mỗi bảng) – không đá giai đoạn kế tiếp
       const sk = Math.max(0, Math.floor(Number(c.skip) || 0));
-      if (sk && i + 2 < list.length) { const tot = Math.min(sk * (c.type === 'roundrobin' ? s.groups || 1 : 1), Math.max(0, n - 1)); s.skip = tot; direct[i + 2] += tot; }
+      if (sk && i + 2 < list.length) {
+        const tot = Math.min(sk * (c.type === 'roundrobin' || c.type === 'gsl' ? s.groups || 1 : 1), Math.max(0, n - 1));
+        s.skip = tot; direct[i + 2] += tot;
+        if (c.type === 'gsl') s.advance = Math.max(0, s.advance - tot); // bảng GSL: số đi tiếp cố định, đội vào thẳng tính trong đó
+      }
       if (!last) n = s.advance + direct[i + 1];
     });
     out.minutes = Math.round(out.minutes);

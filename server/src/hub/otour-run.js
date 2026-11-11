@@ -161,6 +161,9 @@ class OTourRun {
     }
     const slots = this.otPathSlots(t, st, cfg, seeds, groupOf);
     t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
+    // Điểm thưởng mang sang (hệ Race – cfg.head, kiểu Points Rush): theo vị trí vào giai đoạn này (đội vào thẳng, rồi thứ
+    // hạng ở giai đoạn trước)
+    if (cfg.type === 'race' && cfg.head) t.st[t.stage].head = Object.fromEntries(seeds.map((u, k) => [u, cfg.head[k] || 0]).filter(([, p]) => p > 0));
     this.otSchedNext(t);
   }
 
@@ -240,7 +243,7 @@ class OTourRun {
       const { ka, kb } = matchScore(list, 'sets');
       w = ka > kb ? m.a : kb > ka ? m.b : null;
       if (w === null && elim) throw E('tour_score_tie');
-      Object.assign(m, { sets: list, extra: null, ext: Rules.decidingPlayed(list, bo), wins: { [m.a]: ka, [m.b]: kb } });
+      Object.assign(m, { sets: list, extra: null, ext: bo % 2 === 1 && Rules.decidingPlayed(list, bo), wins: { [m.a]: ka, [m.b]: kb } });
     } else {
       const tie = draw === true && !elim;
       if (!tie && winner !== m.a && winner !== m.b) throw E('tour_score_bad');
