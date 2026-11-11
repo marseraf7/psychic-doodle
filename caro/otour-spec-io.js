@@ -40,6 +40,8 @@
             head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
             groups: int(0, 8, "Race 'points': chia bảng cố định (2–8; kiểu PGC) – mỗi bảng đấu `events` trận của riêng mình, đi tiếp (advance) và vào thẳng giai đoạn 3 (skip) tính mỗi bảng"),
             tb: { type: 'string', enum: ['countback', 'pubg'], description: "Race 'points': hệ số phụ khi bằng điểm – 'pubg': tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất" },
+            tbm: { type: 'string', enum: ['match', 'h2h'], description: "Vòng tròn chia bảng (giai đoạn giữa): trận phụ phân hạng khi đúng hai đội bằng điểm ở vạch đi tiếp – 'match': luôn đấu (đối đầu chỉ để chọn bên), 'h2h': chỉ khi đối đầu cũng bằng" },
+            draw: { type: 'string', enum: ['record'], description: "Loại trực tiếp ngay sau Thụy Sĩ thắng / thua: bốc thăm theo thành tích (tốt nhất gặp kém nhất, còn lại ngẫu nhiên, tránh cùng khu vực)" },
             rot: { type: 'boolean', description: "Race 'points': chia 3 bảng xoay vòng, mỗi trận hai bảng đấu, một bảng nghỉ" },
             boDecider: bo, skip: int(0, 256, 'giải 3 giai đoạn, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
             kill: int(0, 10, "Race 'points' (sinh tồn): điểm mỗi lần hạ gục, cộng với điểm theo hạng"),
@@ -129,6 +131,8 @@
       if (c.heat >= 2) x.push(T('ds_heat', { n: c.heat }));
     }
     if (c.bestOf === 2 && (c.type === 'roundrobin' || c.type === 'swiss')) x.push(T('ds_bo2'));
+    if (c.tbm) x.push(T(c.tbm === 'h2h' ? 'ds_tbm_h2h' : 'ds_tbm_match'));
+    if (c.draw === 'record') x.push(T('ds_draw_record'));
     if (c.points && (c.type === 'roundrobin' || c.type === 'swiss')) {
       x.push(T('ds_points', { w: c.points.w, d: c.points.d, l: c.points.l }) + (c.points.wx != null ? ' ' + T('ds_points_x', { wx: c.points.wx, lx: c.points.lx }) : ''));
     }

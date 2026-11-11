@@ -22,7 +22,19 @@
     { id: 'lol_worlds', icon: '🎮', sport: 'esports', n: 17, countries: ['KR', 'CN', 'EU', 'NA', 'AP', 'KR', 'CN', 'EU', 'NA', 'AP', 'KR', 'CN', 'EU', 'NA', 'AP', 'KR', 'CN'],
       esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
       stages: [{ type: 'roundrobin', groups: 1, meetings: 1, bestOf: 5, advance: 1 },
-        { type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, region: true, direct: 15 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+        { type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, region: true, direct: 15 }, { type: 'single', bestOf: 5, thirdPlace: false, draw: 'record' }] },
+    // LoL Worlds (thể thức 2022): 24 đội – 12 đội đá Play-In 2 bảng 6 đội vòng tròn Bo1 (bằng điểm ở vạch đi tiếp thì đấu trận
+    // phụ), 2 đội đầu mỗi bảng vào vòng bảng chính cùng 12 đội vào thẳng: 4 bảng 4 đội vòng tròn 2 lượt Bo1 (có trận phụ),
+    // 2 đội đầu mỗi bảng vào loại trực tiếp Bo5 (nhất bảng gặp nhì bảng khác)
+    { id: 'lol_worlds22', icon: '🏆', sport: 'esports', n: 24, countries: ['KR', 'CN', 'EU', 'NA', 'KR', 'CN', 'EU', 'NA', 'KR', 'CN', 'EU', 'AP', 'KR', 'CN', 'EU', 'NA', 'AP', 'VN', 'BR', 'JP', 'LA', 'OC', 'TR', 'AP'],
+      esports: { draft: 'lol', fearless: 'off', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 1, bestOf: 1, advance: 2, tbm: 'match' },
+        { type: 'roundrobin', groups: 4, meetings: 2, bestOf: 1, advance: 2, tbm: 'match', direct: 12 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+    // LoL MSI (thể thức 2026): 11 đội – 4 đội đá Play-In nhánh thắng – thua Bo5 lấy 1 đội; 7 đội vào thẳng vòng nhánh thắng – thua
+    // 8 đội Bo5 (chung kết một loạt). Fearless cứng trong từng loạt
+    { id: 'lol_msi', icon: '🌸', sport: 'esports', n: 11, countries: ['KR', 'CN', 'EU', 'AP', 'NA', 'BR', 'CN', 'KR', 'EU', 'AP', 'NA'],
+      esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
+      stages: [{ type: 'double', bestOf: 5, gf: '1', advance: 1 }, { type: 'double', bestOf: 5, gf: '1', direct: 7 }] },
     // CS Major (thể thức 2025–2026): 32 đội, 3 giai đoạn Thụy Sĩ 16 đội (thắng 3 đi tiếp, thua 3 bị loại; trận quyết định
     // Bo3, còn lại Bo1 – giai đoạn 3 toàn Bo3), ghép cặp kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó). Hạt giống
     // 17–32 đá giai đoạn 1; 9–16 vào thẳng giai đoạn 2, 1–8 vào thẳng giai đoạn 3. Playoff 8 đội Bo3, chung kết Bo5

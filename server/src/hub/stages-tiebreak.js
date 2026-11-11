@@ -54,7 +54,7 @@ function tally(st, only, ctx) {
   const s = {};
   for (const uid of only || st.entrants) s[uid] = { uid, mp: 0, w: 0, d: 0, l: 0, gw: 0, gl: 0, gt: 0, pts: 0, opps: [], beat: [], drew: [], byes: 0, rs: [], bpg: 0, pw: 0, pl: 0 };
   for (const m of Object.values(st.matches)) {
-    if (!m.done) continue;
+    if (!m.done || m.tb) continue; // trận phụ phân hạng (stages-tiematch.js) không tính điểm
     if (m.bye) { // miễn đấu (Thụy Sĩ): tính như thắng, điểm riêng
       if (s[m.winner]) { s[m.winner].pts += bye; s[m.winner].w++; s[m.winner].byes++; s[m.winner].rs.push({ r: m.round, o: null, pts: bye, f: 1, played: false }); }
       continue;
@@ -95,7 +95,7 @@ function tally(st, only, ctx) {
 function playedBy(st) {
   const by = new Map();
   for (const m of Object.values(st.matches)) {
-    if (!m.done || m.bye || m.double || !real(m.a) || !real(m.b)) continue;
+    if (!m.done || m.bye || m.double || m.tb || !real(m.a) || !real(m.b)) continue;
     for (const u of [m.a, m.b]) { if (!by.has(u)) by.set(u, []); by.get(u).push(m); }
   }
   return by;
@@ -162,4 +162,4 @@ function crossCompare(st, seedOf) {
   };
 }
 
-module.exports = { RANK_BY, TIEBREAKS, MAX_TB, DEFAULT_TB, normalizeTiebreaks, tally, rankList, crossCompare, tbValue };
+module.exports = { PRIMARY, RANK_BY, TIEBREAKS, MAX_TB, DEFAULT_TB, normalizeTiebreaks, tally, rankList, crossCompare, tbValue };

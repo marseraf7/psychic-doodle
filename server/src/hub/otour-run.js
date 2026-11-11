@@ -20,6 +20,7 @@ const { specGuard } = require('./otour.js');
 const Rules = require('../../../caro/otour-rules.js');
 const PATH = require('../../../caro/otour-path.js');
 const PO = require('./stages-playoff.js');
+const RD = require('./stages-recdraw.js'); // bốc thăm nhánh theo thành tích Thụy Sĩ
 
 const MAX_POINT = 999;
 const pair = (x) => {
@@ -159,7 +160,9 @@ class OTourRun {
       this.otSchedNext(t); // tự xếp lịch giai đoạn mới (otour-sched.js)
       return;
     }
-    const slots = this.otPathSlots(t, st, cfg, seeds, groupOf);
+    // Bốc thăm theo thành tích Thụy Sĩ (cfg.draw – stages-recdraw.js): chỉ khi không có đội vào thẳng; không được thì như thường
+    const country = new Map(t.players.map((p) => [p.uid, p.country || '']));
+    const slots = (cfg.draw === 'record' && !direct.length ? RD.recordDraw(st, seeds, (u) => country.get(u) || '') : null) || this.otPathSlots(t, st, cfg, seeds, groupOf);
     t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
     // Điểm thưởng mang sang (hệ Race – cfg.head, kiểu Points Rush): theo vị trí vào giai đoạn này (đội vào thẳng, rồi thứ
     // hạng ở giai đoạn trước)
@@ -202,7 +205,7 @@ class OTourRun {
     const { st, m } = this.otMatch(t, match);
     if (m.done) throw E('tour_match_done');
     // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua
-    const elim = ST.linked(st.type) || !!st.cfg.record;
+    const elim = ST.linked(st.type) || !!st.cfg.record || !!m.tb; // trận phụ phân hạng: không có hoà
     let w;
     const bo = ST.boOf(st, m);
     if (t.result === 'score' && elim && bo > 1 && !ST.twoLeg(st, m)) {
@@ -273,6 +276,7 @@ class OTourRun {
       for (const { r, x } of targets) x[r.slot] = null;
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
+    else if (st.type === 'roundrobin' && !ST.tieBeforeUndo(st, m)) throw E('tour_undo_locked'); // trận phụ đã đấu: huỷ trận phụ trước
     Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, pens: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false });
     st.done = false;
     st.v = (st.v || 0) + 1;

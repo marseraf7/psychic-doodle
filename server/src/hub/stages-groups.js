@@ -9,6 +9,7 @@ const { tally, rankList, crossCompare } = require('./stages-tiebreak.js');
 const { MAX_BIG, buildLeague, records, recordActive, recordBo, bestNextTier } = require('./stages-league.js');
 const Valve = require('./stages-valve.js'); // giải offline: ghép cặp Thụy Sĩ kiểu CS Major
 const { raceTable, groupMembers } = require('./stages-race.js');
+const TM = require('./stages-tiematch.js'); // giải offline: trận phụ phân hạng ở vòng tròn
 /** So hai đội ở cùng thứ hạng của các bảng sinh tồn: tổng điểm, số lần về nhất, nhì…, số hạ gục, hạt giống. */
 const raceCross = (seedOf) => (a, b) => {
   const x = a.s, y = b.s;
@@ -203,7 +204,8 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
 // ------------------------------------------------------------ Bảng điểm (tally, rankList: stages-tiebreak.js)
 /** Bảng xếp hạng của vòng: vòng tròn = từng bảng; Thụy Sĩ = một bảng. */
 function standings(st, seedOf) {
-  if (st.type === 'roundrobin') return st.groups.map((g) => rankList(st, g.players, seedOf));
+  // Trận phụ phân hạng (cfg.tbm): đội thắng trận phụ xếp trên đội thua
+  if (st.type === 'roundrobin') return st.groups.map((g, gi) => TM.applyTiebreak(st, gi, rankList(st, g.players, seedOf)));
   if (st.type === 'swiss') {
     const t = rankList(st, st.entrants, seedOf);
     // Kiểu CS Major: thắng – thua, độ khó, hạt giống giai đoạn (đi tiếp + hạt giống giai đoạn sau)

@@ -59,7 +59,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb', 'tbm'];
 
   // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
   const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
@@ -213,6 +213,10 @@
       // 3 giai đoạn: các đội đầu của giai đoạn 1 vào thẳng giai đoạn 3, phần còn lại đá giai đoạn 2 (vòng vớt)
       if (ctx.ext && i === 0 && st.length >= 3 && ['roundrobin', 'swiss', 'race', 'gsl'].includes(c.type) && !c.record) f.push(field(T(c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'opt_skip_group' : 'opt_skip'), num(i, 'skip', c.skip || 0, 0, c.type === 'gsl' ? (c.advance || 2) - 1 : 256)));
       if (ctx.ext && c.type === 'swiss') f.push(chk(i, 'region', !!c.region, T('opt_region')));
+      // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – kiểu LoL Worlds 2021–2022)
+      if (ctx.ext && !last && c.type === 'roundrobin' && !c.league && !c.season) f.push(field(T('opt_tbm'), sel(i, 'tbm', [['off', T('tbm_off')], ['match', T('tbm_match')], ['h2h', T('tbm_h2h')]], c.tbm || 'off')));
+      // Bốc thăm nhánh theo thành tích Thụy Sĩ thắng / thua (kiểu tứ kết LoL Worlds)
+      if (ctx.ext && c.type === 'single' && prev && prev.type === 'swiss' && prev.record && !c.playoff) f.push(chk(i, 'drawRec', c.draw === 'record', T('opt_draw_record')));
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
       // Thụy Sĩ theo thắng / thua của giải offline: thêm kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó, cao gặp thấp)
       if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')]] : [])], c.pairing || 'dutch')));
@@ -300,6 +304,8 @@
     else if (k === 'recWin' || k === 'recLose') c.record = { win: 3, lose: 3, ...c.record, [k === 'recWin' ? 'win' : 'lose']: clamp(v) };
     else if (k === 'recBo') c.record.bo = Number(el.value) || 0;
     else if (k === 'size') { if (v === 8) c.size = 8; else delete c.size; c.advance = (c.size || 4) / 2; if (c.skip) c.skip = Math.min(c.skip, c.advance - 1); }
+    else if (k === 'tbm') { if (v === 'match' || v === 'h2h') c.tbm = v; else delete c.tbm; }
+    else if (k === 'drawRec') { if (el.checked) c.draw = 'record'; else delete c.draw; }
     else if (k === 'tb') { if (v === 'pubg') c.tb = 'pubg'; else delete c.tb; }
     else if (k === 'groups' && c.type === 'race') { const g = clamp(v); if (g >= 2) { c.groups = g; delete c.rot; delete c.mp; delete c.heat; } else delete c.groups; }
     else if (k === 'head') { const h = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64); if (h.some((x) => x > 0)) c.head = h; else delete c.head; }

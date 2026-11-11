@@ -167,3 +167,125 @@ test('Mẫu kiểu PGC qua máy chủ: 33 đội, 2 bảng cố định → vòn
   assert.deepStrictEqual([v.groups.length, v.groups[0].table.length, v.groups[0].table.filter((x) => x.skip).length], [2, 16, 5]);
   org.close();
 });
+
+// ---------------------------------------------------------------- Đợt 12: trận phụ phân hạng, bốc thăm theo thành tích Thụy Sĩ
+const RD = require('../src/hub/stages-recdraw.js');
+/** Kết quả một trận vòng tròn theo danh sách "a>b". */
+const playRR = (st, beats, seedOf) => { for (const m of Object.values(st.matches)) if (!m.done) ST.recordResult(st, m, beats.has(m.a + '>' + m.b) ? m.a : m.b, { seedOf }); };
+
+test('Trận phụ phân hạng: đúng hai đội bằng điểm ở vạch đi tiếp; kiểu "đối đầu trước"; ba đội bằng điểm thì không; không tính điểm', () => {
+  assert.strictEqual(off([{ type: 'roundrobin', tbm: 'match' }, { type: 'single' }])[0].tbm, 'match');
+  assert.strictEqual(off([{ type: 'roundrobin', tbm: 'match' }])[0].tbm, undefined, 'giai đoạn cuối: không có vạch đi tiếp');
+  assert.strictEqual(off([{ type: 'roundrobin', tbm: 'x' }, { type: 'single' }])[0].tbm, undefined);
+  assert.strictEqual(ST.normalizeStages([{ type: 'roundrobin', tbm: 'match' }, { type: 'single' }])[0].tbm, undefined, 'giải Caro trực tuyến');
+  const { s, seedOf } = mkSeeds(4);
+  // u0 và u1 cùng 2 thắng (u0 thắng u1), u2, u3 cùng 1 thắng; đi tiếp 1 đội
+  const beats = new Set(['u0>u1', 'u0>u2', 'u3>u0', 'u1>u2', 'u1>u3', 'u2>u3']);
+  const mk = (tbm) => { const [c] = off([{ type: 'roundrobin', groups: 1, advance: 1, tbm, points: { w: 1, d: 0, l: 0 } }, { type: 'single' }]); return ST.buildStage(c, 0, s, { seedOf }); };
+  let st = mk('match');
+  playRR(st, beats, seedOf);
+  assert.ok(!st.done && st.tbm && st.tbm[0]);
+  const tb = st.matches[st.tbm[0]];
+  assert.deepStrictEqual([tb.a, tb.b, tb.tag], ['u0', 'u1', 'tb'], 'đội xếp trên theo đối đầu đứng ô trên (chọn bên)');
+  ST.recordResult(st, tb, 'u1', { seedOf });
+  const tab = ST.standings(st, seedOf)[0];
+  assert.ok(st.done);
+  assert.deepStrictEqual([tab.list.slice(0, 2), tab.stats.u1.pts, tab.stats.u1.mp], [['u1', 'u0'], 2, 3], 'thắng trận phụ xếp trên; trận phụ không tính điểm');
+  st = mk('h2h');
+  playRR(st, beats, seedOf);
+  assert.ok(st.done && !st.tbm, 'đối đầu khác nhau: không cần trận phụ');
+  // Đi tiếp 2: u1 (2 thắng) rồi ba đội u0? — dựng ba đội bằng điểm ở vạch: u0 3 thắng, u1 u2 u3 mỗi đội 1 thắng
+  const [c3] = off([{ type: 'roundrobin', groups: 1, advance: 2, tbm: 'match', points: { w: 1, d: 0, l: 0 } }, { type: 'single' }]);
+  const st3 = ST.buildStage(c3, 0, s, { seedOf });
+  playRR(st3, new Set(['u0>u1', 'u0>u2', 'u0>u3', 'u1>u2', 'u2>u3', 'u3>u1']), seedOf);
+  assert.ok(st3.done && !st3.tbm, 'ba đội bằng điểm: xếp theo chỉ số phụ');
+  // Huỷ trận chính: trận phụ chưa đấu bị bỏ; trận phụ đã đấu thì khoá
+  st = mk('match');
+  playRR(st, beats, seedOf);
+  const main = Object.values(st.matches).find((m) => !m.tb);
+  assert.strictEqual(ST.tieBeforeUndo(st, main), true);
+  assert.ok(!st.tbm[0] && !Object.values(st.matches).some((m) => m.tb) && st.groups[0].rounds.every((r) => r.every((id) => st.matches[id])));
+});
+
+test('Bốc thăm nhánh theo thành tích Thụy Sĩ: 3–0 gặp 3–2, hai đội 3–0 ở hai nửa, tránh cùng khu vực', () => {
+  const { s, seedOf } = mkSeeds(16);
+  const [c] = off([{ type: 'swiss', bestOf: 1, record: { win: 3, lose: 3 } }, { type: 'single', draw: 'record' }]);
+  assert.strictEqual(off([{ type: 'swiss', record: { win: 3, lose: 3 } }, { type: 'single', draw: 'record' }])[1].draw, 'record');
+  assert.strictEqual(off([{ type: 'roundrobin' }, { type: 'single', draw: 'record' }])[1].draw, undefined, 'giai đoạn trước không phải Thụy Sĩ thắng / thua');
+  const st = ST.buildStage(c, 0, s, { seedOf });
+  for (let g = 0; !st.done && g < 10; g++) for (const m of ST.playable(st)) ST.recordResult(st, m, seedOf(m.a) < seedOf(m.b) ? m.a : m.b, { seedOf });
+  const seeds = ST.advancers(st, seedOf).seeds, rec = ST.records(st);
+  const country = (u) => ['KR', 'CN', 'EU', 'NA'][s.indexOf(u) % 4];
+  let i = 0;
+  const r = (n) => (i++ * 7) % n; // ngẫu nhiên giả, lặp lại được
+  for (let k = 0; k < 5; k++) {
+    const slots = RD.recordDraw(st, seeds, country, r);
+    assert.strictEqual(slots.length, 8);
+    assert.deepStrictEqual(new Set(slots), new Set(seeds));
+    const pairs = [[0, 1], [2, 3], [4, 5], [6, 7]].map(([x, y]) => [slots[x], slots[y]]);
+    for (const [a, b] of pairs) if (rec[a].l === 0) assert.strictEqual(rec[b].l, 2, '3–0 gặp 3–2');
+    const tops = slots.map((u, j) => (rec[u].l === 0 ? j : -1)).filter((j) => j >= 0);
+    assert.ok(tops.length === 2 && (tops[0] < 4) !== (tops[1] < 4), 'hai đội 3–0 ở hai nửa nhánh');
+    assert.ok(!pairs.some(([a, b]) => country(a) === country(b)), 'không cùng khu vực');
+  }
+  assert.strictEqual(RD.recordDraw(st, seeds.slice(0, 6), country), null, 'không phải luỹ thừa của 2');
+});
+
+test('Qua máy chủ: trận phụ phân hạng (không nhận hoà, huỷ trận chính bỏ trận phụ) rồi giai đoạn sau nhận đội thắng trận phụ', async () => {
+  const org = await account();
+  const spec = { sport: 'esports', stages: [{ type: 'roundrobin', groups: 1, advance: 2, bestOf: 1, tbm: 'match', points: { w: 1, d: 0, l: 0 } }, { type: 'single', bestOf: 1, thirdPlace: false }] };
+  const { id } = await org.req({ t: 'otCreate', name: 'Trận phụ', spec, teams: ['A', 'B', 'C', 'D', 'E'] }, 'otCreated');
+  const t = ctx.app.hub.otGet(id);
+  org.send({ t: 'otStart', id });
+  await until(() => t.status === 'running');
+  const U = (n) => t.players.find((p) => p.name === n).uid;
+  // A 4 thắng; B, C mỗi đội 2 thắng (C thắng B); D, E mỗi đội 1 → đi tiếp 2: trận phụ C – B ở vạch đi tiếp
+  const beats = new Set([['A', 'B'], ['A', 'C'], ['A', 'D'], ['A', 'E'], ['B', 'D'], ['B', 'E'], ['C', 'B'], ['C', 'D'], ['E', 'C'], ['D', 'E']].map(([a, b]) => U(a) + '>' + U(b)));
+  const st = t.st[0];
+  const send = async (m, w) => { org.send({ t: 'otScore', id, match: m.id, sets: [w === m.a ? [1, 0] : [0, 1]] }); await until(() => m.done); };
+  const main = Object.values(st.matches).filter((m) => m.a !== '-' && m.b !== '-' && m.a && m.b);
+  for (const m of main) await send(m, beats.has(m.a + '>' + m.b) ? m.a : m.b);
+  const tb = st.matches[st.tbm && st.tbm[0]];
+  assert.ok(tb && !tb.done && t.stage === 0, 'trận phụ, chưa sang giai đoạn sau');
+  assert.ok((await org.req({ t: 'otScore', id, match: tb.id, sets: [[1, 1]] }, 'error')).code, 'trận phụ không nhận hoà');
+  // Huỷ một trận chính: trận phụ chưa đấu bị bỏ; nhập lại thì có lại trận phụ
+  const any = main[0];
+  org.send({ t: 'otUndo', id, match: any.id });
+  await until(() => !any.done);
+  assert.ok(!st.tbm[0] && !st.matches[tb.id]);
+  await send(any, beats.has(any.a + '>' + any.b) ? any.a : any.b);
+  const tb2 = st.matches[st.tbm[0]];
+  assert.deepStrictEqual([tb2.a, tb2.b], [U('C'), U('B')], 'C thắng đối đầu: đứng ô trên (chọn bên)');
+  await send(tb2, tb2.b);
+  await until(() => t.stage === 1);
+  assert.deepStrictEqual(t.st[1].entrants, [U('A'), U('B')], 'B thắng trận phụ: đi tiếp');
+  org.close();
+});
+
+test('Mẫu kiểu LoL MSI, LoL Worlds 2022 và LoL Worlds (bốc thăm theo thành tích) chạy trọn qua máy chủ', async () => {
+  for (const tid of ['lol_msi', 'lol_worlds22', 'lol_worlds']) {
+    const tpl = TP.byId(tid);
+    const org = await account();
+    const { id } = await org.req({ t: 'otCreate', name: 'Kiểu ' + tid, spec: TP.specOf(tpl, SPORTS), teams: TP.sampleTeams(tpl, 'Đội') }, 'otCreated', undefined, 15000);
+    const t = ctx.app.hub.otGet(id);
+    org.send({ t: 'otStart', id });
+    await until(() => t.status === 'running', 15000);
+    const seedOf = ctx.app.hub.otSeedOf(t);
+    for (let g = 0; t.status === 'running' && g < 80; g++) {
+      const st = t.st[t.stage];
+      for (const m of ST.playable(st)) {
+        const bo = ST.boOf(st, m), w = seedOf(m.a) < seedOf(m.b);
+        org.send({ t: 'otScore', id, match: m.id, sets: Array.from({ length: (bo + 1) / 2 }, () => (w ? [1, 0] : [0, 1])) });
+        await until(() => m.done || t.st[t.stage] !== st || t.status !== 'running');
+      }
+    }
+    assert.strictEqual(t.status, 'finished', tid);
+    assert.strictEqual(t.podium[0], t.players[0].uid, tid + ': hạt giống 1 vô địch');
+    if (tid === 'lol_worlds') {
+      const sw = t.st[1], ko = t.st[2], rec = ST.records(sw);
+      for (const id0 of ko.rounds[0]) { const m = ko.matches[id0]; if (rec[m.a].l === 0 || rec[m.b].l === 0) assert.strictEqual(Math.max(rec[m.a].l, rec[m.b].l), 2, 'tứ kết: 3–0 gặp 3–2'); }
+    }
+    if (tid === 'lol_msi') assert.deepStrictEqual(t.st.map((x) => x.entrants.length), [4, 8]);
+    org.close();
+  }
+});

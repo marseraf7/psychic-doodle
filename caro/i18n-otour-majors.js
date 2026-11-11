@@ -17,6 +17,12 @@
     ds_race_groups: 'chia {n} bảng cố định, mỗi bảng {m} trận; đi tiếp tính theo từng bảng', ds_tb_pubg: 'bằng điểm xét kiểu PUBG (tổng điểm hạng, trận gần nhất)',
     srv_ot_race_groups_few: 'Chia bảng cố định cần ít nhất {n} đội (mỗi bảng ít nhất 2 đội).',
     tpl_pgc: 'Kiểu PGC (sinh tồn PC)', tpl_pgc_d: '33 đội như giải vô địch sinh tồn PC 2025: đội đầu danh sách là đội đặc cách, vào thẳng chung kết. 32 đội còn lại chia 2 bảng cố định 16 đội, mỗi bảng 18 trận: hạng 1–5 mỗi bảng vào thẳng chung kết, hạng 6–13 đá vòng vớt (16 đội, 18 trận, lấy 5), hạng 14–16 bị loại. Chung kết 16 đội, 18 trận, chỉ tính điểm chung kết. Điểm hạng 10-6-5-4-3-2-1-1, mỗi lần hạ gục 1 điểm; bằng điểm xét kiểu PUBG.',
+    opt_tbm: 'Trận phụ khi bằng điểm ở vạch đi tiếp', tbm_off: 'Không – xét các chỉ số phụ', tbm_match: 'Đấu trận phụ (đối đầu chỉ để chọn bên)', tbm_h2h: 'Xét đối đầu trước, vẫn bằng thì đấu trận phụ',
+    tbm_round: 'Trận phụ phân hạng', ds_tbm_match: 'hai đội bằng điểm ở vạch đi tiếp đấu trận phụ', ds_tbm_h2h: 'hai đội bằng điểm ở vạch đi tiếp: xét đối đầu, vẫn bằng thì đấu trận phụ',
+    opt_draw_record: 'Bốc thăm theo thành tích vòng Thụy Sĩ (tốt nhất gặp kém nhất, còn lại ngẫu nhiên, tránh cùng khu vực)', ds_draw_record: 'bốc thăm nhánh theo thành tích vòng Thụy Sĩ',
+    esp_side_choice: 'Quyền chọn bên: {name} (ván 1: hạt giống cao; các ván sau: đội thua ván trước).',
+    tpl_lol_worlds22: 'Kiểu LoL Worlds 2022', tpl_lol_worlds22_d: '24 đội như Worlds 2022: 12 đội đá Play-In 2 bảng 6 đội vòng tròn Bo1, hai đội bằng điểm ở vạch đi tiếp thì đấu trận phụ; 2 đội đầu mỗi bảng vào vòng bảng chính cùng 12 đội vào thẳng: 4 bảng 4 đội vòng tròn 2 lượt Bo1 (có trận phụ). 2 đội đầu mỗi bảng vào vòng loại trực tiếp Bo5.',
+    tpl_lol_msi: 'Kiểu LoL MSI', tpl_lol_msi_d: '11 đội như MSI 2026: 4 đội đá Play-In nhánh thắng – thua Bo5, lấy 1 đội; 7 đội vào thẳng vòng nhánh thắng – thua 8 đội Bo5, chung kết một loạt. Cấm chọn kiểu Liên Minh Huyền Thoại, Fearless cứng trong từng loạt.',
   });
 
   X('en', {
@@ -30,6 +36,12 @@
     ds_race_groups: '{n} fixed groups, {m} matches each; qualifying per group', ds_tb_pubg: 'PUBG-style tiebreak (total placement points, last match)',
     srv_ot_race_groups_few: 'Fixed groups need at least {n} teams (at least 2 per group).',
     tpl_pgc: 'PGC style (PC battle royale)', tpl_pgc_d: '33 teams as at the 2025 PC battle royale championship: the first team on the list is a wildcard, straight into the final. The other 32 play in 2 fixed groups of 16, 18 matches each: places 1–5 of each group go straight to the final, 6–13 play a last stage (16 teams, 18 matches, top 5), 14–16 are out. Final: 16 teams, 18 matches, only final points count. Placement points 10-6-5-4-3-2-1-1, 1 point per kill; PUBG-style tiebreak.',
+    opt_tbm: 'Tiebreaker match on equal points at the cut-off', tbm_off: 'Off – use tiebreak criteria', tbm_match: 'Play a tiebreaker (head-to-head only decides sides)', tbm_h2h: 'Head-to-head first, then a tiebreaker if still level',
+    tbm_round: 'Tiebreaker match', ds_tbm_match: 'two teams level on points at the cut-off play a tiebreaker', ds_tbm_h2h: 'two teams level at the cut-off: head-to-head, then a tiebreaker if still level',
+    opt_draw_record: 'Draw by Swiss record (best faces worst, others random, no same-region pairs)', ds_draw_record: 'bracket drawn by Swiss record',
+    esp_side_choice: 'Side choice: {name} (game 1: higher seed; later games: loser of the previous game).',
+    tpl_lol_worlds22: 'LoL Worlds 2022 style', tpl_lol_worlds22_d: '24 teams as at Worlds 2022: 12 teams play a Play-In of 2 round-robin groups of 6 (Bo1), with a tiebreaker when two teams are level at the cut-off; the top 2 of each group join 12 seeded teams in the main group stage: 4 double round-robin groups of 4 (Bo1, tiebreakers). The top 2 of each group go to a Bo5 knockout.',
+    tpl_lol_msi: 'LoL MSI style', tpl_lol_msi_d: '11 teams as at MSI 2026: 4 teams play a double-elimination Play-In (Bo5) for 1 place; 7 teams go straight to an 8-team double-elimination bracket (Bo5, single-series final). League of Legends draft with hard Fearless in each series.',
   });
 
   X('ru', {
@@ -43,6 +55,12 @@
     ds_race_groups: '{n} постоянные группы по {m} матчей; проход по группам', ds_tb_pubg: 'при равенстве — как в PUBG (очки за места, последний матч)',
     srv_ot_race_groups_few: 'Для постоянных групп нужно не менее {n} команд (не менее 2 в группе).',
     tpl_pgc: 'Как PGC (королевская битва на ПК)', tpl_pgc_d: '33 команды, как на чемпионате по королевской битве на ПК 2025: первая команда списка — по приглашению, сразу в финал. Остальные 32 играют в 2 постоянных группах по 16, по 18 матчей: места 1–5 каждой группы — сразу в финал, 6–13 играют последний этап (16 команд, 18 матчей, проходят 5), 14–16 выбывают. Финал: 16 команд, 18 матчей, считаются только очки финала. Очки за места 10-6-5-4-3-2-1-1, 1 очко за убийство; при равенстве — как в PUBG.',
+    opt_tbm: 'Дополнительный матч при равенстве очков на границе выхода', tbm_off: 'Нет — по дополнительным показателям', tbm_match: 'Дополнительный матч (личная встреча — только выбор стороны)', tbm_h2h: 'Сначала личная встреча, при равенстве — дополнительный матч',
+    tbm_round: 'Дополнительный матч', ds_tbm_match: 'две команды с равными очками на границе выхода играют дополнительный матч', ds_tbm_h2h: 'две команды с равными очками на границе: личная встреча, при равенстве — дополнительный матч',
+    opt_draw_record: 'Жеребьёвка по результату швейцарского этапа (лучшие против худших, остальные случайно, без пар из одного региона)', ds_draw_record: 'сетка по жеребьёвке с учётом результатов швейцарского этапа',
+    esp_side_choice: 'Выбор стороны: {name} (1-я игра — более высокий номер посева; далее — проигравший предыдущую игру).',
+    tpl_lol_worlds22: 'Как LoL Worlds 2022', tpl_lol_worlds22_d: '24 команды, как на Worlds 2022: 12 команд играют Play-In в 2 круговых группах по 6 (Bo1), при равенстве очков на границе выхода — дополнительный матч; по 2 лучших из каждой группы присоединяются к 12 посеянным командам в основном групповом этапе: 4 группы по 4, два круга Bo1 (с дополнительными матчами). По 2 лучших из каждой группы выходят в плей-офф Bo5.',
+    tpl_lol_msi: 'Как LoL MSI', tpl_lol_msi_d: '11 команд, как на MSI 2026: 4 команды играют Play-In с двойным выбыванием (Bo5) за 1 место; 7 команд сразу попадают в сетку с двойным выбыванием на 8 команд (Bo5, финал — одна серия). Драфт как в League of Legends и жёсткий Fearless в каждой серии.',
   });
 
   X('zh', {
@@ -56,5 +74,11 @@
     ds_race_groups: '固定分为 {n} 组，每组 {m} 场；按组晋级', ds_tb_pubg: '积分相同按 PUBG 式比较（排名分、最近一场）',
     srv_ot_race_groups_few: '固定分组至少需要 {n} 队（每组至少 2 队）。',
     tpl_pgc: 'PGC 式（PC 大逃杀）', tpl_pgc_d: '33 队，与 2025 PC 大逃杀全球总决赛相同：名单第一队为外卡，直接进入决赛。其余 32 队分为 2 个固定小组，每组 16 队、18 场：每组第 1–5 名直接进入决赛，第 6–13 名进入最后阶段（16 队、18 场，取前 5），第 14–16 名淘汰。决赛 16 队、18 场，只计决赛积分。排名分 10-6-5-4-3-2-1-1，每次击杀 1 分；积分相同按 PUBG 式比较。',
+    opt_tbm: '晋级线同分时加赛', tbm_off: '不加赛——按附加排名规则', tbm_match: '进行加赛（交手记录只决定选边）', tbm_h2h: '先看交手记录，仍相同则加赛',
+    tbm_round: '排名加赛', ds_tbm_match: '晋级线上两队同分时进行加赛', ds_tbm_h2h: '晋级线上两队同分：先看交手记录，仍相同则加赛',
+    opt_draw_record: '按瑞士轮战绩抽签（最好对最差，其余随机，避免同赛区）', ds_draw_record: '按瑞士轮战绩抽签淘汰赛对阵',
+    esp_side_choice: '选边权：{name}（第 1 局：种子较高者；之后各局：上一局负方）。',
+    tpl_lol_worlds22: '英雄联盟 2022 全球总决赛式', tpl_lol_worlds22_d: '24 队，与 2022 全球总决赛相同：12 队进行入围赛，分 2 个 6 队小组单循环 BO1，晋级线上两队同分则加赛；每组前 2 名与 12 支直接晋级的队伍进入正赛小组赛：4 个 4 队小组双循环 BO1（有加赛）。每组前 2 名进入五局三胜淘汰赛。',
+    tpl_lol_msi: '英雄联盟季中冠军赛式', tpl_lol_msi_d: '11 队，与 2026 季中冠军赛相同：4 队进行双败入围赛（五局三胜），取 1 队；7 队直接进入 8 队双败淘汰赛（五局三胜，决赛一个系列赛）。采用英雄联盟禁选，每个系列赛内严格 Fearless。',
   });
 })();

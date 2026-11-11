@@ -29,6 +29,7 @@ const League = require('./stages-league.js');
 const Race = require('./stages-race.js');
 const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại kép 4 đội kiểu GSL
 const Kings = require('./stages-kings.js'); // giải offline: vòng tranh hạt giống + cơ hội cuối
+const TM = require('./stages-tiematch.js'); // giải offline: trận phụ phân hạng ở vòng tròn
 
 const MAX_BO = 25;
 const MAX_STAGES_OFFLINE = 4;
@@ -111,6 +112,10 @@ function normalizeStage(c, last, opts = {}) {
   // Thụy Sĩ theo thắng / thua, không phải loại trực tiếp)
   if (Number(c.bestOf) === 2 && GROUP_TYPES.includes(res.type) && !res.record) res.bestOf = 2;
   if (res.pairing === 'valve' && !res.record) res.pairing = 'dutch';
+  // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – không phải league phase / mùa giải)
+  if (res.type === 'roundrobin' && !last && !res.league && !res.season && TM.MODES.includes(c.tbm)) res.tbm = c.tbm;
+  // Bốc thăm nhánh theo thành tích Thụy Sĩ (stages-recdraw.js) – normalizeStages bỏ nếu giai đoạn trước không phải Thụy Sĩ thắng / thua
+  if (res.type === 'single' && c.draw === 'record' && !res.playoff) res.draw = 'record';
   return res;
 }
 
@@ -120,6 +125,7 @@ function normalizeStages(list, opts = {}) {
   const out = arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
   // Playoff kiểu Mỹ chỉ có nghĩa ngay sau một mùa giải (stages-playoff.js)
   out.forEach((c, i) => { if (c.playoff && !(i > 0 && out[i - 1].season)) delete c.playoff; });
+  out.forEach((c, i) => { if (c.draw && !(i > 0 && out[i - 1].type === 'swiss' && out[i - 1].record)) delete c.draw; });
   // Giải offline: đội hạt giống cao vào thẳng giai đoạn i ≥ 1 (LoL Worlds: 15 đội vào thẳng vòng Thụy Sĩ, 2 đội đá Play-In)
   out.forEach((c, i) => {
     const d = Math.floor(Number(arr[i] && arr[i].direct));
@@ -233,6 +239,7 @@ function recordResult(st, m, winner, opts = {}) {
       if (cur.every((id) => st.matches[id].done) && st.rounds.length < st.cfg.rounds && more) swissNextRound(st, opts.seedOf || ((u) => st.entrants.indexOf(u)), opts.isActive);
     }
   }
+  if (st.type === 'roundrobin' && st.cfg.tbm) TM.addTiebreaks(st, opts.seedOf); // bằng điểm ở vạch đi tiếp: thêm trận phụ
   st.done = Object.values(st.matches).every((x) => x.done);
   return st.done;
 }
@@ -302,7 +309,7 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  linked, splitAdvancers, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places,
+  linked, splitAdvancers, tieBeforeUndo: TM.beforeUndo, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places,
   twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
   tally, eliminated, isElim, real, tbValue, MAX_BO, MAX_STAGES_OFFLINE, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
 };

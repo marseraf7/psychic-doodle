@@ -5,6 +5,8 @@
  *   2. Tạo + bắt đầu: giai đoạn 1 là hạt giống 17–32, vòng 1 hạt giống 1 gặp 9 của giai đoạn (Đội 17 – Đội 25).
  *   3. Đợt 11 – mẫu kiểu PGC: sinh tồn chia 2 bảng cố định (mô tả bằng lời, ô chia bảng, hệ số phụ kiểu PUBG); trang giải
  *      có bảng xếp hạng từng bảng, trận 1 là "Bảng A · Chặng 1" chỉ có 16 đội của bảng A; lưu kết quả.
+ *   4. Đợt 12 – mẫu kiểu LoL Worlds 2022: ô "Trận phụ khi bằng điểm" ở vòng tròn giữa, mô tả bằng lời; mẫu kiểu LoL Worlds:
+ *      giai đoạn loại trực tiếp có ô "Bốc thăm theo thành tích vòng Thụy Sĩ" đang chọn.
  *   node caro/tests/e2e/otour-majors.e2e.js
  */
 'use strict';
@@ -53,5 +55,18 @@ const { setup, sleep } = require('./helpers.js');
   await boss.click('.race-form button.primary'); await sleep(900);
   ok(p.st[0].events[0].done && p.st[0].events[0].rows.length === 16, 'Lưu trận 1 bảng A');
   await shot(boss, 'ot-pgc.png');
+
+  // ---------- 4. Kiểu LoL Worlds 2022 / LoL Worlds: trận phụ phân hạng, bốc thăm theo thành tích Thụy Sĩ
+  await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
+  await boss.click('.tpl-card[data-id="lol_worlds22"]'); await sleep(500);
+  ok(await boss.inputValue('#otf-stages [data-i="0"][data-k="tbm"]') === 'match' && await boss.inputValue('#otf-stages [data-i="1"][data-k="tbm"]') === 'match'
+    && !(await boss.$('#otf-stages [data-i="2"][data-k="tbm"]')), 'Kiểu Worlds 2022: trận phụ ở 2 vòng bảng, không có ở giai đoạn cuối');
+  ok(/đấu trận phụ/.test(await boss.textContent('#otf-desc')), 'Mô tả: trận phụ khi bằng điểm');
+  await boss.selectOption('#otf-stages [data-i="0"][data-k="tbm"]', 'h2h'); await sleep(300);
+  ok(/xét đối đầu, vẫn bằng thì đấu trận phụ/.test(await boss.textContent('#otf-desc')), 'Đổi sang "đối đầu trước"');
+  await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
+  await boss.click('.tpl-card[data-id="lol_worlds"]'); await sleep(500);
+  ok(await boss.isChecked('#otf-stages [data-i="2"][data-k="drawRec"]') && /bốc thăm nhánh theo thành tích/.test(await boss.textContent('#otf-desc')), 'Kiểu LoL Worlds: bốc thăm theo thành tích vòng Thụy Sĩ');
+  await shot(boss, 'ot-lol-form.png');
   await finish();
 })();
