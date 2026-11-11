@@ -30,7 +30,7 @@ test('Lược đồ JSON khớp máy chủ: bộ môn, kiểu kết quả, tie-b
   assert.deepStrictEqual(p.sport.enum, Object.keys(SPORTS));
   assert.deepStrictEqual(p.result.enum, RESULTS);
   assert.deepStrictEqual(IO.TIEBREAKS, ST.TIEBREAKS, 'tie-break như stages-tiebreak.js');
-  assert.deepStrictEqual(p.stages.items.properties.type.enum, [...ST.TYPES, 'race', 'gsl']);
+  assert.deepStrictEqual(p.stages.items.properties.type.enum, [...ST.TYPES, 'race', 'gsl', 'kings']);
   // Mọi khoá mẫu giải dùng đều có trong lược đồ
   const keys = new Set(Object.keys(p.stages.items.properties));
   for (const tpl of TP.TEMPLATES) for (const c of TP.specOf(tpl, SPORTS).stages) for (const k of Object.keys(c)) assert.ok(keys.has(k), `${tpl.id}: khoá ${k} có trong lược đồ`);

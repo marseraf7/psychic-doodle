@@ -29,7 +29,7 @@
       ? `<td><b>${x.pts}</b>${x.head ? ` <small class="muted" title="${esc(T('br_head_tip'))}">(+${x.head})</small>` : ''}</td>${kill ? `<td>${x.kills || 0}</td>` : ''}<td>${x.wins}</td><td>${x.podiums}</td>`
       : `<td><b>${x.time != null ? esc(RU.fmtTime(x.time)) : '–'}</b></td><td>${esc(gap(x.gap))}</td><td>${esc(gap(x.gapPrev))}</td>`}</tr>`).join('');
     // Match point: ngưỡng điểm, đội đã đạt ngưỡng, đội thắng theo match point
-    const mp = v.mp ? `<p class="hint mp-note">${esc(v.mp.winner ? T('mp_won', { name: v.mp.winner }) : v.mp.at != null ? T('mp_note', { n: v.mp.at }) : T('mp_wait', { n: v.cfg.mp.after, p: v.cfg.mp.plus }))}</p>` : '';
+    const mp = v.mp ? `<p class="hint mp-note">${esc(v.mp.winner ? T('mp_won', { name: v.mp.winner }) : v.mp.at != null ? T('mp_note', { n: v.mp.at }) + (v.cfg.mp && v.cfg.mp.min > 1 ? ' ' + T('mp_min_note', { n: v.cfg.mp.min }) : '') : T('mp_wait', { n: v.cfg.mp.after, p: v.cfg.mp.plus }))}</p>` : '';
     // Chia 3 bảng xoay vòng: ghi các bảng
     const rot = v.cfg.rot ? `<p class="hint">${esc(T('br_rot_note'))} ${['A', 'B', 'C'].map((g, k) => `<b>${g}</b>: ${esc(v.entrants.filter((_, j) => RU.lobbyGroup(j) === k).map((p) => p.name).join(', '))}`).join(' · ')}</p>` : '';
     return `${mp}${rot}<div class="tscroll"><table class="stand"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;

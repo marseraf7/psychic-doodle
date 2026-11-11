@@ -37,7 +37,7 @@
         continue;
       }
       if (v.type === 'race') { for (const x of v.table) out.push([n, '', x.rank, x.name, x.races, x.wins || '', '', x.dnf || '', '', '', x.pts != null ? x.pts : '', x.time != null && RU ? RU.fmtTime(x.time) : '']); continue; }
-      const tabs = v.groups ? v.groups.map((g) => [g.name, g.table]) : v.table ? [['', v.table]] : [];
+      const tabs = v.groups ? v.groups.map((g) => [v.type === 'kings' && K.groupLabel ? K.groupLabel(v, g) : g.name, g.table]) : v.table ? [['', v.table]] : [];
       for (const [g, rows] of tabs) for (const x of rows || []) out.push([n, g, x.rank, x.name, x.mp, x.w, x.d, x.l, x.gw, x.gl, x.pts, '']);
     }
     return out;

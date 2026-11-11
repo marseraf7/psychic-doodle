@@ -32,11 +32,16 @@
   }
   /** Ai đi tiếp sau giai đoạn này (chỉ giai đoạn trước vòng cuối). */
   const advText = (c) => {
+    if (c.type === 'kings') return T('adv_kings'); // 3/4 số đội: thắng – thua nửa trên, thắng nửa dưới
     if (c.type === 'swiss' && c.record) return T('adv_record', { n: c.record.win }); // giải offline: đủ số thắng
     if (!c.advance) return '';
     const s = T(c.season ? 'adv_conf_n' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'adv_group_n' : 'adv_n', { n: c.advance });
     return c.bestNext ? s + ' ' + T('adv_best_next', { n: c.bestNext }) : s;
   };
+
+  /** Tên một bảng của giai đoạn: vòng tranh hạt giống (nửa trên / nửa dưới), miền (mùa giải kiểu Mỹ), bảng A, B… */
+  const groupLabel = (v, g) => (v.type === 'kings' ? T(g.name === 'low' ? 'kings_low' : 'kings_top')
+    : T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }));
 
   /** Mùa giải kiểu Mỹ: bảng xếp hạng từng bảng con (thứ hạng trong bảng con, theo thứ tự của bảng xếp hạng miền). */
   function divTables(key, g, cfg, table) {
@@ -201,6 +206,13 @@
         ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
     }
+    if (v.type === 'kings') { // giải offline: vòng tranh hạt giống + cơ hội cuối (máy chủ: stages-kings.js)
+      const tag = (x) => (x.pool ? `<span class="pill">${esc(T('kings_pool', { n: x.pool }))}</span>` : x.out ? `<span class="pill">${esc(T('gsl_out'))}</span>` : '');
+      return `<p class="hint">${esc(T('kings_note'))}</p>` + v.groups.map((g) => `<h5>${esc(groupLabel(v, g))}${g.name === 'low' && v.cfg.boLow ? ` · Bo${v.cfg.boLow}` : ''}</h5>
+        <div class="tscroll"><table class="stand gsl-tab kings-tab"><thead><tr><th></th><th>${esc(T('gsl_wl'))}</th><th></th></tr></thead><tbody>${g.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}${x.out ? ' dnf' : ''}">
+          <td class="nm">${esc(x.name)}</td><td><b>${x.w}–${x.l}</b></td><td>${tag(x)}</td></tr>`).join('')}</tbody></table></div>
+        <ul class="mlist">${g.rounds[0].map((m) => matchRow(m)).join('')}</ul>`).join('');
+    }
     if (v.type === 'gsl') { // giải offline: bảng đấu loại kép 4 đội (máy chủ: stages-gsl.js)
       // Lượt 1: mở màn; lượt 2: nửa đầu là trận nhánh thắng, nửa sau nhánh thua; lượt 3: trận quyết định
       const tagOf = (ri, mi, n) => (ri === 0 ? 'gsl_open' : ri === 2 ? 'gsl_dec' : mi < n / 2 ? 'gsl_win' : 'gsl_lose');
@@ -299,5 +311,5 @@
     }).join('');
   }
 
-  Object.assign(K, { stageName, advText, stagesHtml, fold, roundName, roundsOfGroup, preName });
+  Object.assign(K, { stageName, advText, groupLabel, stagesHtml, fold, roundName, roundsOfGroup, preName });
 })();

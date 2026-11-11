@@ -22,6 +22,7 @@ const { cleanPublicName } = require('./shared.js');
 
 const TABLE = [1000, 750, 500, 300, 200, 150, 100, 50];
 const MAX_CHILDREN = 30;
+const MAX_INIT_GAMES = 16; // số giải con tạo kèm một lần khi tạo giải tổng từ mẫu
 const MAX_TABLE = 64;
 const MAX_SCHED = 40;
 const MAX_KIDS_PER_DAY = 100; // giải con không tính hạn mức giải thường, nhưng vẫn có trần mỗi ngày
@@ -133,7 +134,7 @@ class OTourMulti {
 
   /** Tạo các giải con kèm theo khi tạo giải tổng từ mẫu: games = [{ name, spec, teams }] (bỏ qua mục sai cấu hình). */
   otMultiGames(parent, me, games) {
-    const list = (Array.isArray(games) ? games : []).slice(0, 12);
+    const list = (Array.isArray(games) ? games : []).slice(0, MAX_INIT_GAMES);
     if (!list.length) return;
     const commit = this.otMultiQuota(me, list.length);
     let made = 0;

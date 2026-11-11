@@ -79,6 +79,25 @@
         // Chiến thuật thời gian thực: 32 người, 4 bảng đấu loại kép 8 người lấy 4 → loại trực tiếp 16 người
         { key: 'rts', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: [] },
           stages: [{ type: 'gsl', size: 8, bestOf: 3 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+        // MOBA di động: 16 đội đá 4 bảng GSL Bo3 → nhất bảng tranh hạt giống (thắng vào nhóm 1, thua vào nhóm 2), nhì bảng
+        // đá cơ hội cuối Bo5 (thắng vào nhóm 2) → loại trực tiếp 8 đội Bo7 cùng 2 đội hạt giống cao vào thẳng
+        { key: 'moba_mobile', sport: 'esports', n: 18, esports: { draft: 'lol', fearless: 'off', stats: ['kills'], players: false },
+          stages: [{ type: 'gsl', bestOf: 3 }, { type: 'kings', bestOf: 3, boLow: 5 }, { type: 'single', bestOf: 7, thirdPlace: true, direct: 2 }] },
+        // Bóng đá ảo 1 đấu 1: 32 người, 8 bảng GSL một trận → loại trực tiếp 16 người một trận (hoà thì hiệp phụ / luân lưu)
+        { key: 'football_sim', sport: 'esports', result: 'score', n: 32,
+          stages: [{ type: 'gsl', bestOf: 1 }, { type: 'single', bestOf: 1, thirdPlace: true }] },
+        // Bắn súng góc nhìn thứ nhất: 4 bảng GSL Bo3 → loại trực tiếp Bo3, chung kết Bo5
+        { key: 'fps_gsl', sport: 'esports', n: 16, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+          stages: [{ type: 'gsl', bestOf: 3 }, { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: false }] },
+        // Đối kháng 2D: 16 người, 4 bảng GSL (thắng 3 ván) → loại trực tiếp thắng 5 ván, có trận tranh hạng ba
+        { key: 'fighting_gsl', sport: 'esports', n: 16, esports: { draft: 'off', fearless: 'off', stats: [] },
+          stages: [{ type: 'gsl', bestOf: 5 }, { type: 'single', bestOf: 9, thirdPlace: true }] },
+        // Đua xe ảo theo đội: 6 đội đua vòng cơ hội cuối lấy 2 → 6 đội (4 đội hạt giống vào thẳng) đua 4 chặng lấy 3 → chung kết
+        // tối đa 8 chặng: đạt 50 điểm rồi thắng một chặng thì vô địch, nhưng chỉ tính từ chặng 4
+        { key: 'simrace', sport: 'esports', n: 10, esports: { draft: 'off', fearless: 'off', stats: [] },
+          stages: [{ type: 'race', events: 3, score: 'points', table: [25, 20, 16, 13, 10, 8], advance: 2 },
+            { type: 'race', events: 4, score: 'points', table: [25, 20, 16, 13, 10, 8], advance: 3, direct: 4 },
+            { type: 'race', events: 8, score: 'points', table: [25, 20, 16], mp: { at: 50, min: 4 } }] },
         { key: 'chess', sport: 'chess', n: 16,
           stages: [{ type: 'gsl' }, { type: 'single', thirdPlace: true }] }] } },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,

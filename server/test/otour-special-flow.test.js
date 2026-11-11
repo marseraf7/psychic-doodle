@@ -86,13 +86,13 @@ for (const id of ['lol_worlds', 'americas_cup', 'tour_de_france', 'masters']) {
   });
 }
 
-test('Mẫu Esports World Cup: giải tổng + 9 giải con chạy trọn → bảng điểm câu lạc bộ', async () => {
+test('Mẫu Esports World Cup: giải tổng + 14 giải con chạy trọn → bảng điểm câu lạc bộ', async () => {
   const org = await account();
   const tpl = TP.byId('esports_world_cup');
   const games = tpl.multi.games.map((g) => ({ name: 'Game ' + g.key, spec: TP.specOf(g, SPORTS), teams: Array.from({ length: g.n }, (_, i) => 'CLB ' + (i + 1)) }));
   const { id } = await org.req({ t: 'otCreate', name: 'Cúp các câu lạc bộ', spec: TP.specOf(tpl, SPORTS), teams: [], multi: { table: tpl.multi.table, games } }, 'otCreated', undefined, 15000);
   const P = ctx.app.hub.otGet(id);
-  assert.strictEqual(P.multi.children.length, 9);
+  assert.strictEqual(P.multi.children.length, 14);
   for (const cid of P.multi.children) {
     const c = ctx.app.hub.otGet(cid);
     org.send({ t: 'otStart', id: cid });
@@ -103,8 +103,8 @@ test('Mẫu Esports World Cup: giải tổng + 9 giải con chạy trọn → b�
   }
   assert.strictEqual(P.status, 'finished');
   const v = await guestView(id);
-  // CLB 1 vô địch cả 9 game: 9 × 1000; CLB 2 về nhì cả 9: 9 × 750
-  assert.deepStrictEqual(v.multi.clubs.slice(0, 2).map((c) => [c.name, c.pts, c.wins]), [['CLB 1', 9000, 9], ['CLB 2', 6750, 0]]);
+  // CLB 1 vô địch cả 14 game: 14 × 1000; CLB 2 về nhì cả 14: 14 × 750
+  assert.deepStrictEqual(v.multi.clubs.slice(0, 2).map((c) => [c.name, c.pts, c.wins]), [['CLB 1', 14000, 14], ['CLB 2', 10500, 0]]);
   assert.ok(v.multi.children.every((c) => c.status === 'finished' && c.champ === 'CLB 1'));
   org.close();
 });

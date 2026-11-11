@@ -32,6 +32,13 @@
     ds_gsl8: 'các bảng đấu loại kép 8 người (Bo{bo}): 4 đội đi tiếp', ds_rot: '3 bảng xoay vòng, mỗi trận hai bảng đấu', ds_head: 'điểm thưởng mang sang {list}…',
     ds_bo2: 'loạt Bo2, hai ván hoà thì chia điểm',
     srv_ot_rot_few: 'Chia 3 bảng xoay vòng cần ít nhất {n} đội.',
+    fmt_kings: 'Vòng tranh hạt giống + cơ hội cuối', opt_kings_low: 'Bo của nửa dưới (cơ hội cuối)',
+    opt_kings_hint: 'Nửa trên (các đội đầu bảng) đấu cặp: cả hai đều đi tiếp, đội thắng vào nhóm hạt giống 1, đội thua vào nhóm 2. Nửa dưới đấu cặp: đội thắng vào nhóm 2, đội thua bị loại. Số đội phải chia hết cho 4.',
+    adv_kings: '3/4 số đội đi tiếp theo 2 nhóm hạt giống', kings_note: 'Nửa trên: thắng vào nhóm hạt giống 1, thua vào nhóm 2. Nửa dưới: thắng vào nhóm 2, thua bị loại.',
+    kings_top: 'Tranh hạt giống (nửa trên)', kings_low: 'Cơ hội cuối (nửa dưới)', kings_pool: 'Nhóm hạt giống {n}',
+    ds_kings: 'vòng tranh hạt giống (Bo{bo}): nửa trên thắng vào nhóm hạt giống 1, thua vào nhóm 2; nửa dưới thắng vào nhóm 2, thua bị loại', ds_kings_low: 'nửa dưới Bo{bo}',
+    srv_ot_kings_four: 'Vòng tranh hạt giống cần số đội chia hết cho 4 (đang có {n} đội ở giai đoạn này).', srv_ot_kings_many: 'Vòng tranh hạt giống có tối đa {n} đội.',
+    opt_mp_min: 'Chỉ tính match point từ trận thứ', mp_min_note: 'Match point chỉ tính từ trận {n}.', ds_mp_min: '(chỉ tính từ trận {n})',
   });
 
   X('en', {
@@ -59,6 +66,13 @@
     ds_gsl8: 'double-elimination groups of 8 (Bo{bo}): top 4 advance', ds_rot: '3 rotating lobbies, two play each match', ds_head: 'head-start points {list}…',
     ds_bo2: 'Bo2 series, a 1–1 result is a draw',
     srv_ot_rot_few: 'Rotating lobbies need at least {n} teams.',
+    fmt_kings: 'Seeding round + last chance', opt_kings_low: 'Bo for the lower half (last chance)',
+    opt_kings_hint: 'Upper half (group leaders) play in pairs: both advance, the winner to seeding pot 1 and the loser to pot 2. Lower half play in pairs: the winner goes to pot 2, the loser is out. The number of teams must be a multiple of 4.',
+    adv_kings: 'three quarters of the teams advance in 2 seeding pots', kings_note: 'Upper half: the winner goes to seeding pot 1, the loser to pot 2. Lower half: the winner goes to pot 2, the loser is out.',
+    kings_top: 'Seeding round (upper half)', kings_low: 'Last chance (lower half)', kings_pool: 'Seeding pot {n}',
+    ds_kings: 'seeding round (Bo{bo}): upper-half winners go to seeding pot 1, losers to pot 2; lower-half winners go to pot 2, losers are out', ds_kings_low: 'lower half Bo{bo}',
+    srv_ot_kings_four: 'A seeding round needs a multiple of 4 teams (this stage has {n}).', srv_ot_kings_many: 'A seeding round takes at most {n} teams.',
+    opt_mp_min: 'Match point counts from match', mp_min_note: 'Match point counts only from match {n}.', ds_mp_min: '(counted from match {n})',
   });
 
   X('ru', {
@@ -86,6 +100,13 @@
     ds_gsl8: 'группы по 8 с двойным выбыванием (Bo{bo}): четверо лучших проходят', ds_rot: '3 группы по очереди, в матче играют две', ds_head: 'стартовые очки {list}…',
     ds_bo2: 'серии Bo2, при 1:1 — ничья',
     srv_ot_rot_few: 'Для ротации трёх групп нужно не менее {n} команд.',
+    fmt_kings: 'Раунд посева + последний шанс', opt_kings_low: 'Bo нижней половины (последний шанс)',
+    opt_kings_hint: 'Верхняя половина (лидеры групп) играет парами: проходят оба, победитель — в корзину посева 1, проигравший — в корзину 2. Нижняя половина играет парами: победитель — в корзину 2, проигравший выбывает. Число команд должно делиться на 4.',
+    adv_kings: 'проходят три четверти команд в 2 корзинах посева', kings_note: 'Верхняя половина: победитель — в корзину посева 1, проигравший — в корзину 2. Нижняя половина: победитель — в корзину 2, проигравший выбывает.',
+    kings_top: 'Раунд посева (верхняя половина)', kings_low: 'Последний шанс (нижняя половина)', kings_pool: 'Корзина посева {n}',
+    ds_kings: 'раунд посева (Bo{bo}): победители верхней половины — в корзину 1, проигравшие — в корзину 2; победители нижней половины — в корзину 2, проигравшие выбывают', ds_kings_low: 'нижняя половина Bo{bo}',
+    srv_ot_kings_four: 'Для раунда посева число команд должно делиться на 4 (на этом этапе {n}).', srv_ot_kings_many: 'В раунде посева может быть не более {n} команд.',
+    opt_mp_min: 'Матч-пойнт считается с матча', mp_min_note: 'Матч-пойнт считается только с матча {n}.', ds_mp_min: '(считается с матча {n})',
   });
 
   X('zh', {
@@ -113,5 +134,12 @@
     ds_gsl8: '8 队双败小组（Bo{bo}）：前 4 名晋级', ds_rot: '3 个小组轮换，每场两组参赛', ds_head: '起步积分 {list}……',
     ds_bo2: 'Bo2 系列赛，1:1 为平局',
     srv_ot_rot_few: '3 组轮换至少需要 {n} 队。',
+    fmt_kings: '种子争夺赛 + 最后机会赛', opt_kings_low: '下半区（最后机会赛）Bo',
+    opt_kings_hint: '上半区（各组头名）两两对阵：双方都晋级，胜者进入种子档 1，负者进入种子档 2。下半区两两对阵：胜者进入种子档 2，负者淘汰。队伍数必须是 4 的倍数。',
+    adv_kings: '四分之三的队伍按 2 个种子档晋级', kings_note: '上半区：胜者进入种子档 1，负者进入种子档 2。下半区：胜者进入种子档 2，负者淘汰。',
+    kings_top: '种子争夺赛（上半区）', kings_low: '最后机会赛（下半区）', kings_pool: '种子档 {n}',
+    ds_kings: '种子争夺赛（Bo{bo}）：上半区胜者进入种子档 1，负者进入种子档 2；下半区胜者进入种子档 2，负者淘汰', ds_kings_low: '下半区 Bo{bo}',
+    srv_ot_kings_four: '种子争夺赛需要队伍数为 4 的倍数（本阶段有 {n} 队）。', srv_ot_kings_many: '种子争夺赛最多 {n} 队。',
+    opt_mp_min: '赛点从第几场开始计算', mp_min_note: '赛点从第 {n} 场开始计算。', ds_mp_min: '（从第 {n} 场起计算）',
   });
 })();

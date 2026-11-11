@@ -29,6 +29,8 @@
     race: () => ({ type: 'race', bestOf: 1, events: 1, score: 'points', table: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1], advance: 8 }),
     // Bảng đấu loại kép 4 đội kiểu GSL (chỉ giải offline): nhất và nhì mỗi bảng đi tiếp
     gsl: () => ({ type: 'gsl', bestOf: 1, advance: 2 }),
+    // Vòng tranh hạt giống + cơ hội cuối (chỉ giải offline, giai đoạn giữa): 3/4 số đội đi tiếp, không có ô số đi tiếp
+    kings: () => ({ type: 'kings', bestOf: 3 }),
   };
   // Xe đạp nhiều chặng (cách tính 'gt' – stages-gt.js): loại từng chặng
   const GT_KINDS = ['flat', 'hilly', 'mtn', 'itt'];
@@ -107,9 +109,10 @@
     const cards = st.map((c, i) => {
       const last = i === st.length - 1;
       // Giải offline: loại trực tiếp cũng được làm giai đoạn giữa (vòng loại đội thách đấu kiểu America's Cup)
-      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race'] : [])].map((x) => [x, T('fmt_' + x)]);
+      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race', ...(last ? [] : ['kings'])] : [])].map((x) => [x, T('fmt_' + x)]);
       const f = [field(T('format'), sel(i, 'type', types, c.type))];
       if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf, ctx.ext && (c.type === 'roundrobin' || c.type === 'swiss') && !c.record)));
+      if (c.type === 'kings') f.push(field(T('opt_kings_low'), boSel(i, 'boLow', c.boLow, c.bestOf)), `<small class="hint">${esc(T('opt_kings_hint'))}</small>`);
       if (c.type === 'gsl') f.push(field(T('opt_gsl_size'), sel(i, 'size', [[4, T('gsl_size4')], [8, T('gsl_size8')]], c.size === 8 ? 8 : 4)), field(T('opt_gsl_decider'), boSel(i, 'boDecider', c.boDecider, c.bestOf)), `<small class="hint">${esc(T('opt_gsl_hint'))}</small>`);
       // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
       if (c.type === 'race') {
@@ -139,7 +142,7 @@
           const mode = !c.mp ? 'none' : c.mp.at ? 'at' : 'after';
           f.push(field(T('opt_br_kill'), num(i, 'kill', c.kill || 0, 0, 10)),
             field(T('opt_mp'), sel(i, 'mpMode', [['none', T('mp_none')], ['at', T('mp_at')], ...((c.events || 1) > 1 ? [['after', T('mp_after')]] : [])], mode)));
-          if (mode === 'at') f.push(field(T('opt_mp_at'), num(i, 'mpAt', c.mp.at, 1, 100000)));
+          if (mode === 'at') f.push(field(T('opt_mp_at'), num(i, 'mpAt', c.mp.at, 1, 100000)), field(T('opt_mp_min'), num(i, 'mpMin', c.mp.min || 1, 1, c.events || 1)));
           if (mode === 'after') f.push(field(T('opt_mp_after'), num(i, 'mpAfter', c.mp.after, 1, Math.max(1, (c.events || 2) - 1))), field(T('opt_mp_plus'), num(i, 'mpPlus', c.mp.plus, 0, 1000)));
           if (mode !== 'none') f.push(`<small class="hint">${esc(T('opt_mp_hint'))}</small>`);
           // Chia 3 bảng xoay vòng (mỗi trận hai bảng đấu); điểm thưởng mang sang cho giai đoạn sau giai đoạn đầu
@@ -222,7 +225,7 @@
         }
       }
       // Thụy Sĩ theo số thắng / thua: ai đủ số thắng đều đi tiếp (không cần ô số người đi tiếp)
-      if (!last && !c.record && c.type !== 'gsl') f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
+      if (!last && !c.record && c.type !== 'gsl' && c.type !== 'kings') f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
       const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
       const extra = more.length ? `<div class="sc-more"><b>${esc(T('stage_more'))}</b><div class="sc-body">${more.join('')}</div></div>` : '';
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div>${extra}</div>`;
@@ -274,7 +277,8 @@
       setPlaces(c, [...set]);
     } else if (k === 'mpMode') { // match point: tắt / ngưỡng cố định / theo đội dẫn đầu sau N trận
       if (v === 'at') c.mp = { at: 50 }; else if (v === 'after') c.mp = { after: Math.max(1, Math.min((c.events || 2) - 1, Math.ceil((c.events || 2) * 2 / 3))), plus: 10 }; else delete c.mp;
-    } else if (k === 'mpAt') c.mp = { at: clamp(v) };
+    } else if (k === 'mpAt') c.mp = { ...c.mp, at: clamp(v) };
+    else if (k === 'mpMin') { c.mp = { at: 50, ...c.mp }; if (clamp(v) > 1) c.mp.min = clamp(v); else delete c.mp.min; }
     else if (k === 'mpAfter' || k === 'mpPlus') c.mp = { after: 1, plus: 10, ...c.mp, [k === 'mpAfter' ? 'after' : 'plus']: clamp(v) };
     else if (k === 'boSemi' || k === 'boFinal' || k === 'boDecider' || k === 'bestOf') c[k] = el.value === 'c' ? 9 : Number(el.value) || (k === 'bestOf' ? 1 : 0);
     else if (k === 'boSemiN' || k === 'boFinalN' || k === 'boDeciderN' || k === 'bestOfN') {
@@ -346,11 +350,12 @@
       stages.splice(Number(b.dataset.i), 1);
       const last = stages[stages.length - 1];
       if (last) delete last.advance; // giai đoạn cuối không có "đi tiếp"
+      if (last && last.type === 'kings') stages[stages.length - 1] = DEFAULT.single(); // vòng tranh hạt giống chỉ ở giữa
     } else return false;
     // Giai đoạn đứng trước phải là vòng tròn / Thụy Sĩ và có số người đi tiếp
     stages.forEach((c, i) => {
-      if (i < stages.length - 1 && !c.points && c.type !== 'race' && c.type !== 'gsl' && !((c.type === 'single' || c.type === 'double') && c.advance)) stages[i] = DEFAULT.roundrobin();
-      else if (i < stages.length - 1 && !c.advance) c.advance = DEFAULT[c.type]().advance;
+      if (i < stages.length - 1 && !c.points && c.type !== 'race' && c.type !== 'gsl' && c.type !== 'kings' && !((c.type === 'single' || c.type === 'double') && c.advance)) stages[i] = DEFAULT.roundrobin();
+      else if (i < stages.length - 1 && !c.advance && c.type !== 'kings') c.advance = DEFAULT[c.type]().advance;
     });
     dropPlayoff(stages);
     return true;
