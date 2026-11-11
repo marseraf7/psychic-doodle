@@ -230,8 +230,9 @@ function splitAdvancers(st, seedOf, min = 2) {
     };
     // Dải đầu (từ hạng 1), rồi nhóm đi tiếp giai đoạn kế, rồi các dải `after`
     const out = new Map(rts.filter((r) => !r.after).map((r) => [r, take(r.n)]));
-    const seeds = st.type === 'gsl' ? pool.slice(k, k + (st.cfg.advance || 0)).flat() : pool.slice(k, k + (st.cfg.advance || 0) * per);
-    k += st.type === 'gsl' ? (st.cfg.advance || 0) : seeds.length;
+    // Bảng GSL: số đội đi tiếp đã gồm các tầng chuyển thẳng – phần còn lại đi tiếp (không có dải `after`)
+    const seeds = st.type === 'gsl' ? pool.slice(k).flat() : pool.slice(k, k + (st.cfg.advance || 0) * per);
+    k += st.type === 'gsl' ? pool.length : seeds.length;
     for (const r of rts) if (r.after) out.set(r, take(r.n));
     const routes = rts.map((r) => ({ to: r.to, uids: out.get(r) }));
     return { seeds, groupOf, routes, skip: routes.filter((r) => r.to === st.index + 2).flatMap((r) => r.uids) };
