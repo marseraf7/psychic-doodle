@@ -59,7 +59,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb', 'tbm', 'rtTo'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb', 'tbm', 'rtTo', 'rtAfter'];
 
   // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
   const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
@@ -182,7 +182,7 @@
         const bySize = c.groupSize != null;
         f.push(field(T('gmode'), sel(i, 'gmode', [['count', T('gmode_count')], ['size', T('gmode_size')]], bySize ? 'size' : 'count')));
         f.push(bySize ? field(T('gmode_size'), num(i, 'groupSize', c.groupSize, 2, ctx.ext ? 64 : 16)) : field(T('opt_groups'), num(i, 'groups', c.groups, 1, 64)));
-        f.push(field(T('opt_meetings'), sel(i, 'meetings', [[1, T('meet_1')], [2, T('meet_2')], ...(adv ? [[3, T('meet_3')]] : [])], c.meetings)));
+        f.push(field(T('opt_meetings'), sel(i, 'meetings', [[1, T('meet_1')], [2, T('meet_2')], ...(adv ? [[3, T('meet_3')]] : []), ...(ctx.ext ? [[4, T('meet_4')]] : [])], c.meetings)));
       }
       if (c.type === 'roundrobin' && adv) more.push(field(T('opt_rankby'), sel(i, 'rankBy', RANK_BY.map((x) => [x, T('rank_' + x)]), c.rankBy || 'points')));
       // Giải offline: thêm các đội đứng ngay sau suất đi tiếp có thành tích tốt nhất (World Cup 2026: 8 đội hạng ba)
@@ -221,7 +221,7 @@
       if (ctx.ext && c.type === 'single' && prev && prev.type === 'swiss' && prev.record && !c.playoff) f.push(chk(i, 'drawRec', c.draw === 'record', T('opt_draw_record')));
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
       // Thụy Sĩ theo thắng / thua của giải offline: thêm kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó, cao gặp thấp)
-      if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')]] : [])], c.pairing || 'dutch')));
+      if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')], ['valve16', T('pair_valve16')], ['draw', T('pair_draw')]] : [])], c.pairing || 'dutch')));
       if (c.points) {
         f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
         if (adv) {

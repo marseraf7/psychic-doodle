@@ -73,6 +73,9 @@ function normalizeRace(c, last) {
     // trận một cặp bảng theo lịch vòng tròn (kiểu Rank Decision PGC 2021)
     const R = c.rot === true ? 3 : int(c.rot, 0, MAX_GROUPS, 0);
     if (R >= 3 && !(int(c.heat, 0, MAX_HEAT, 0) >= 2)) out.rot = R === 3 ? true : R;
+    // Đổi cặp bảng sau mỗi `rotBlock` trận (kiểu vòng bảng PGS: mỗi ngày 6 trận cùng hai bảng – A&B, B&C, C&A)
+    const rb = int(c.rotBlock, 1, MAX_EVENTS, 1);
+    if (out.rot && rb > 1) out.rotBlock = rb;
     // Chia bảng cố định (kiểu PGC): mỗi bảng đấu riêng – không đi cùng xoay vòng, match point
     const G = int(c.groups, 0, MAX_GROUPS, 0);
     if (G >= 2) { out.groups = G; delete out.rot; delete out.mp; }
@@ -148,7 +151,7 @@ const rowPts = (cfg, x) => (x.pts != null ? x.pts : (x.dnf ? 0 : cfg.table[x.ran
 
 /** Những người đấu chặng i khi chia 3 bảng xoay vòng (cfg.rot); không thì cả đoàn. */
 const lobby = (st, i) => (st.cfg.circuit ? CI.make(st, raceTable).lobby(i) : st.cfg.gate ? gateLobby(st, i) : st.cfg.groups ? RU.groupList(st.entrants, st.cfg.groups, i % st.cfg.groups)
-  : st.cfg.rot ? RU.lobbyOf(st.entrants, i, st.cfg.rot === true ? 3 : st.cfg.rot) : st.entrants);
+  : st.cfg.rot ? RU.lobbyOf(st.entrants, Math.floor(i / (st.cfg.rotBlock || 1)), st.cfg.rot === true ? 3 : st.cfg.rot) : st.entrants); // rotBlock: đổi cặp bảng sau mỗi `rotBlock` trận
 /** Cổng thắng trận: đội thắng các chặng trước chặng i (theo thứ tự chặng). */
 const gateWinners = (st, upto = Infinity) => st.events.filter((e) => e.done && e.i < upto).map((e) => (e.rows.find((x) => !x.dnf && x.rank === 1) || {}).uid).filter(Boolean);
 /** Cổng thắng trận: `seats` đội đầu hàng chờ (thứ tự hạt giống, bỏ đội đã thắng) đấu chặng i. */

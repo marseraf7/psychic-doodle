@@ -271,6 +271,27 @@ class OTourRun {
     this.otSave(t);
   }
 
+  /**
+   * Hạt giống 1 chọn đối thủ bán kết (cfg.pick – kiểu MSI): nhánh loại trực tiếp 4 đội chưa đấu trận nào; opp = hạt giống 3
+   * hoặc 4. Chọn hạt giống 3 thì dựng lại nhánh với hạt giống 3 và 4 đổi chỗ (1 gặp 3, 2 gặp 4). Chỉ chọn một lần.
+   */
+  on_otPick(conn, { id, opp }) {
+    const { t, me } = this.otManaged(conn, id);
+    if (t.status !== 'running') throw E('tour_not_running');
+    const st = t.st[t.stage], cfg = t.stages[t.stage];
+    if (!cfg.pick || st.type !== 'single' || st.entrants.length !== 4 || st.picked) throw E('ot_pick_bad');
+    if (Object.values(st.matches).some((m) => m.done)) throw E('ot_pick_bad');
+    const k = st.entrants.indexOf(String(opp));
+    if (k !== 2 && k !== 3) throw E('ot_pick_bad');
+    const seeds = k === 2 ? [st.entrants[0], st.entrants[1], st.entrants[3], st.entrants[2]] : [...st.entrants];
+    const next = ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t));
+    next.picked = st.entrants[k];
+    t.st[t.stage] = next;
+    this.otLog(t, me.id, 'pick', { n: k + 1 });
+    this.otSchedNext(t);
+    this.otSave(t);
+  }
+
   /** Huỷ kết quả (như giải Caro – tour-score.js): chỉ khi các trận nhận người thắng / thua của nó chưa có kết quả. */
   on_otUndo(conn, { id, match }) {
     const { t, me } = this.otManaged(conn, id);

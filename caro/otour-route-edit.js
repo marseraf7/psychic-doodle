@@ -36,8 +36,14 @@
       const rs = Array.isArray(c.routes) ? c.routes : [];
       const rows = rs.length < MAX_ROUTES ? [...rs, { n: 0, to: i + 2 }] : rs;
       const tg = targets(i, st);
-      out.push(`<div class="field route-list"><span>${esc(T('opt_routes'))}</span><small class="hint">${esc(T('opt_routes_hint'))}</small>${rows.map((r, j) => `<div class="route-row">${num(i, 'rtN', r.n, 0, 256, j)}<span>${esc(T('opt_route_to'))}</span><select data-i="${i}" data-k="rtTo" data-n="${j}">${tg.map((k) => `<option value="${k}" ${k === r.to ? 'selected' : ''}>${esc(T('stage_n', { n: k + 1 }))}</option>`).join('')}</select></div>`).join('')}</div>`);
+      out.push(`<div class="field route-list"><span>${esc(T('opt_routes'))}</span><small class="hint">${esc(T('opt_routes_hint'))}</small>${rows.map((r, j) => `<div class="route-row">${num(i, 'rtN', r.n, 0, 256, j)}<span>${esc(T('opt_route_to'))}</span><select data-i="${i}" data-k="rtTo" data-n="${j}">${tg.map((k) => `<option value="${k}" ${k === r.to ? 'selected' : ''}>${esc(T('stage_n', { n: k + 1 }))}</option>`).join('')}</select><select data-i="${i}" data-k="rtAfter" data-n="${j}" aria-label="${esc(T('opt_route_pos'))}"><option value="0">${esc(T('route_top'))}</option><option value="1" ${r.after ? 'selected' : ''}>${esc(T('route_after'))}</option></select></div>`).join('')}</div>`);
     }
+    // Đợt 16 – kiểu MSI: bảng ít đội gặp nhau nhiều lượt hơn; trận phụ cả ở hạng nhất; hạt giống 1 chọn đối thủ bán kết
+    if (c.type === 'roundrobin' && !c.league && !c.season && ((c.groups || 1) > 1 || c.groupSize)) {
+      out.push(`<label class="field inline"><span>${esc(T('opt_meet_small'))}</span><select data-i="${i}" data-k="meetSmall">${[0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${(c.meetSmall || 0) === x ? 'selected' : ''}>${esc(x ? T('meet_' + x) : T('meet_small_same'))}</option>`).join('')}</select></label>`);
+    }
+    if (c.type === 'roundrobin' && c.tbm) out.push(chk(i, 'tbmTop', !!c.tbmTop, T('opt_tbm_top')));
+    if (c.type === 'single' && !c.playoff && c.draw !== 'record') out.push(chk(i, 'pick', !!c.pick, T('opt_pick')));
     // Có đội được chuyển thẳng vào giai đoạn này: chọn đội vào thẳng đứng sau đội đi tiếp (hàng chờ Grand Survival)
     if (i > 0 && (c.direct || st.some((x, j) => j < i - 1 && ((x.routes || []).some((r) => r.to === i) || (x.skip && i === 2))))) out.push(chk(i, 'directLast', !!c.directLast, T('opt_direct_last')));
     return out;
@@ -45,7 +51,7 @@
 
   function race(i, c, st) {
     const out = [], last = i === st.length - 1;
-    if (c.rot) out.push(field(T('opt_br_rot_n'), num(i, 'rotN', c.rot === true ? 3 : c.rot, 3, 8)));
+    if (c.rot) out.push(field(T('opt_br_rot_n'), num(i, 'rotN', c.rot === true ? 3 : c.rot, 3, 8)), field(T('opt_rot_block'), num(i, 'rotBlock', c.rotBlock || 1, 1, 30)));
     // Hệ Circuit (kiểu PGC 2024): n vòng × số ngày, giữ `keep` đội mỗi ngày, các nhóm hạng cao vào muộn
     out.push(chk(i, 'ciOn', !!c.circuit, T('opt_circuit')));
     if (c.circuit) {
@@ -65,14 +71,15 @@
   function change(stages, i, k, el) {
     const c = stages[i];
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v)) || 0));
-    if (k === 'rtN' || k === 'rtTo') {
+    if (k === 'rtN' || k === 'rtTo' || k === 'rtAfter') {
       const j = Number(el.dataset.n), rs = [...(c.routes || [])];
       if (k === 'rtN') {
         const n = clamp(el.value, 0, 256);
         if (n > 0 && j < rs.length) rs[j] = { ...rs[j], n };
         else if (n > 0) rs.push({ n, to: i + 2 });
         else rs.splice(j, 1);
-      } else if (j < rs.length) rs[j] = { ...rs[j], to: Number(el.value) };
+      } else if (j < rs.length && k === 'rtTo') rs[j] = { ...rs[j], to: Number(el.value) };
+      else if (j < rs.length) { rs[j] = { ...rs[j] }; if (el.value === '1') rs[j].after = true; else delete rs[j].after; } // dải nằm sau nhóm đi tiếp
       if (rs.length) { c.routes = rs; delete c.skip; } else delete c.routes;
     } else if (k === 'rotN') { const g = clamp(el.value, 3, 8); c.rot = g === 3 ? true : g; }
     else if (k === 'gateOn') {
@@ -89,7 +96,9 @@
     } else if (k === 'ciLate') {
       const xs = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => clamp(x, 0, 64));
       c.circuit = { ...c.circuit, late: Array.from({ length: c.circuit.days - 1 }, (_, j) => (xs[j] != null ? xs[j] : 4)) };
-    } else if (k === 'carry' || k === 'directLast') { if (el.checked) c[k] = true; else delete c[k]; }
+    } else if (k === 'meetSmall') { const m = clamp(el.value, 0, 4); if (m) c.meetSmall = m; else delete c.meetSmall; }
+    else if (k === 'rotBlock') { const b = clamp(el.value, 1, 30); if (b > 1) c.rotBlock = b; else delete c.rotBlock; }
+    else if (k === 'carry' || k === 'directLast' || k === 'tbmTop' || k === 'pick') { if (el.checked) c[k] = true; else delete c[k]; }
     else return false;
     return true;
   }
@@ -107,6 +116,10 @@
       if (c.carry && !(i > 0 && c.type === 'race' && stages[i - 1].type === 'race' && !c.gate)) delete c.carry;
       if (c.directLast && i === 0) delete c.directLast;
       if (c.rot && c.type !== 'race') delete c.rot;
+      if (c.rotBlock && !c.rot) delete c.rotBlock;
+      if (c.tbmTop && !c.tbm) delete c.tbmTop;
+      if (c.pick && (c.type !== 'single' || c.playoff)) delete c.pick;
+      if (c.meetSmall && c.type !== 'roundrobin') delete c.meetSmall;
       if (c.circuit && (c.type !== 'race' || (c.score && c.score !== 'points'))) delete c.circuit;
     });
   }

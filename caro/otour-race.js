@@ -86,7 +86,7 @@
     // Lượt: người trong lượt; cổng thắng trận / hệ Circuit: phòng đấu máy chủ gửi; chia bảng: bảng của trận; xoay vòng: hai bảng đấu trận này
     const members = h != null ? heatUids(v, i)[h].map((u) => names.get(u) || { uid: u, name: '?' })
       : Array.isArray(ev.lobby) ? ev.lobby.map((u) => names.get(u) || { uid: u, name: '?' })
-        : v.cfg.groups ? RU.groupList(v.entrants, v.cfg.groups, i % v.cfg.groups) : rotG(v) ? RU.lobbyOf(v.entrants, i, rotG(v)) : v.entrants;
+        : v.cfg.groups ? RU.groupList(v.entrants, v.cfg.groups, i % v.cfg.groups) : rotG(v) ? RU.lobbyOf(v.entrants, Math.floor(i / (v.cfg.rotBlock || 1)), rotG(v)) : v.entrants;
     const rows = members.map((p) => {
       const x = d[p.uid] || {};
       return `<tr data-uid="${esc(p.uid)}"><td class="nm">${esc(p.name)}</td>
@@ -124,7 +124,7 @@
     const C = v.cfg.circuit, E = v.cfg.events || 1;
     const evs = v.events.map((ev) => {
       const G = v.cfg.groups; // chia bảng cố định: "Bảng A · trận 2"
-      const title = C ? `<b>${esc(ciDay(Math.floor(ev.i / E / C.days), Math.floor(ev.i / E) % C.days, C) + ' · ' + T('race_event_n', { n: (ev.i % E) + 1 }))}</b> ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}` : `<b>${esc(G ? T('group_name', { name: String.fromCharCode(65 + (ev.i % G)) }) + ' · ' + T('race_event_n', { n: Math.floor(ev.i / G) + 1 }) : T('race_event_n', { n: ev.i + 1 }))}</b>${rotG(v) ? ` <small class="muted">${esc(T('br_rot_ev', { g: rotPair(ev.i, rotG(v)) }))}</small>` : ''}${v.cfg.gate && ev.done && ev.rows[0] && !ev.rows[0].dnf ? ` <small class="pill">${esc(T('br_gate_win', { name: ev.rows[0].name }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
+      const title = C ? `<b>${esc(ciDay(Math.floor(ev.i / E / C.days), Math.floor(ev.i / E) % C.days, C) + ' · ' + T('race_event_n', { n: (ev.i % E) + 1 }))}</b> ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}` : `<b>${esc(G ? T('group_name', { name: String.fromCharCode(65 + (ev.i % G)) }) + ' · ' + T('race_event_n', { n: Math.floor(ev.i / G) + 1 }) : T('race_event_n', { n: ev.i + 1 }))}</b>${rotG(v) ? ` <small class="muted">${esc(T('br_rot_ev', { g: rotPair(Math.floor(ev.i / (v.cfg.rotBlock || 1)), rotG(v)) }))}</small>` : ''}${v.cfg.gate && ev.done && ev.rows[0] && !ev.rows[0].dnf ? ` <small class="pill">${esc(T('br_gate_win', { name: ev.rows[0].name }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
       const undo = (h) => (can ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}"${h != null ? ` data-heat="${h}"` : ''}>${esc(T(h != null ? 'race_undo_heat' : 'race_undo'))}</button></div>` : '');
       const body = () => (ev.heats ? heatsHtml(t, v, ev, can, undo)
         // Match point: nhập lần lượt, chỉ huỷ trận sau cùng

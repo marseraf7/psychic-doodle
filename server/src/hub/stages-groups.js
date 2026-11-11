@@ -81,9 +81,12 @@ function buildRoundRobin(st, seeds, plan, opts = {}) {
       base.push(pairs);
       arr.splice(1, 0, arr.pop()); // xoay vòng (giữ cố định người đầu)
     }
-    // Gặp nhau 2–3 lần: lượt về đổi bên đi trước, lượt thứ ba như lượt đi
+    // Gặp nhau 2–4 lần: các lượt chẵn đổi bên đi trước. meetSmall (giải offline, kiểu MSI 2021–2022): bảng ít đội hơn
+    // bảng đông nhất gặp nhau meetSmall lần (bảng 3 đội vòng tròn bốn lượt khi các bảng khác 4 đội hai lượt)
     const back = base.map((ps) => ps.map(([x, y]) => [y, x]));
-    const all = st.cfg.meetings === 3 ? [...base, ...back, ...base] : st.cfg.meetings === 2 ? [...base, ...back] : base;
+    const most = Math.max(...st.groups.map((x) => x.players.length));
+    const times = st.cfg.meetSmall && grp.players.length < most ? st.cfg.meetSmall : st.cfg.meetings || 1;
+    const all = Array.from({ length: times }, (_, k) => (k % 2 ? back : base)).flat();
     all.forEach((pairs, r) => {
       const ids = [];
       pairs.forEach(([x, y], i) => {
@@ -176,7 +179,7 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
   // Cặp cố định (giao hữu CLB: bàn 1 gặp bàn 1…) chỉ cho vòng đầu
   const score = Object.fromEntries(order.map((u) => [u, rec ? rec[u].w * 100 - rec[u].l : stats[u].pts]));
   // Kiểu CS Major (theo số thắng / thua): vòng 1 hạt giống i gặp i + n/2, sau đó theo độ khó – không ghép được thì như thường
-  const vp = rec && st.cfg.pairing === 'valve' && !(fixed && r === 0) ? Valve.valvePairs(st, rec, order, played) : null;
+  const vp = rec && ['valve', 'valve16', 'draw'].includes(st.cfg.pairing) && !(fixed && r === 0) ? Valve.valvePairs(st, rec, order, played) : null;
   const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : vp ? { pairs: vp, bye: null } : swissPairs(order, played, byes, st.cfg.pairing, score);
   const ids = [];
   pairs.forEach(([a, b], i) => {
@@ -209,7 +212,7 @@ function standings(st, seedOf) {
   if (st.type === 'swiss') {
     const t = rankList(st, st.entrants, seedOf);
     // Kiểu CS Major: thắng – thua, độ khó, hạt giống giai đoạn (đi tiếp + hạt giống giai đoạn sau)
-    if (st.cfg.record && st.cfg.pairing === 'valve') t.list = Valve.valveOrder(st, records(st), t.list);
+    if (st.cfg.record && (st.cfg.pairing === 'valve' || st.cfg.pairing === 'valve16')) t.list = Valve.valveOrder(st, records(st), t.list);
     return [t];
   }
   if (st.type === 'race') { // giải offline: hệ Race – chia bảng cố định thì mỗi bảng một bảng xếp hạng

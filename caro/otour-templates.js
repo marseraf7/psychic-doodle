@@ -87,6 +87,52 @@
     { id: 'pgc24', icon: '🪂', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
       stages: [{ type: 'race', events: 6, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', circuit: { n: 3, days: 3, keep: 12, late: [4, 4] }, advance: 16 },
         { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+    // LoL MSI 2018: 14 đội – Play-In vòng 1 (8 đội, 2 bảng vòng tròn 2 lượt Bo1, nhất bảng đi tiếp; trận phụ khi bằng điểm),
+    // vòng 2 (2 cặp Bo5 với 2 đội vào thẳng, thắng thì vào vòng bảng chính), vòng bảng chính 6 đội (4 đội vào thẳng) vòng tròn
+    // 2 lượt Bo1 – lấy 4, có trận phụ ở hạng nhất và vạch đi tiếp; bán kết – chung kết Bo5, nhất bảng chọn đối thủ bán kết
+    { id: 'msi18', icon: '🌸', sport: 'esports', n: 14, countries: ['KR', 'CN', 'EU', 'NA', 'TW', 'VN', 'CIS', 'JP', 'BR', 'TR', 'LA', 'OC', 'SEA', 'LA'],
+      esports: { draft: 'lol', fearless: 'off', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, bestOf: 1, advance: 1, tbm: 'match' },
+        { type: 'roundrobin', groupSize: 2, meetings: 1, bestOf: 5, advance: 1, direct: 2 },
+        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'match', tbmTop: true, direct: 4 },
+        { type: 'single', bestOf: 5, thirdPlace: false, pick: true }] },
+    // LoL MSI 2019: 13 đội – như 2018, nhưng 2 đội thua vòng 2 đấu thêm một loạt Bo5 tranh suất thứ ba; vòng bảng chính
+    // 6 đội (3 đội vào thẳng)
+    { id: 'msi19', icon: '🌸', sport: 'esports', n: 13, countries: ['CN', 'KR', 'EU', 'NA', 'TW', 'VN', 'CIS', 'TR', 'JP', 'BR', 'LA', 'OC', 'SEA'],
+      esports: { draft: 'lol', fearless: 'off', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, bestOf: 1, advance: 1, tbm: 'match' },
+        { type: 'roundrobin', groupSize: 2, meetings: 1, bestOf: 5, routes: [{ n: 1, to: 3 }], advance: 1, direct: 2 },
+        { type: 'roundrobin', groups: 1, meetings: 1, bestOf: 5, advance: 1 },
+        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'match', tbmTop: true, direct: 3 },
+        { type: 'single', bestOf: 5, thirdPlace: false, pick: true }] },
+    // LoL MSI 2021–2022: 11 đội – 3 bảng (bảng 3 đội vòng tròn 4 lượt, bảng 4 đội 2 lượt, Bo1), 2 đội đầu mỗi bảng vào
+    // Rumble 6 đội vòng tròn 2 lượt Bo1 lấy 4 (trận phụ ở hạng nhất và vạch đi tiếp); bán kết – chung kết Bo5, nhất Rumble
+    // chọn đối thủ bán kết
+    { id: 'msi21', icon: '🌸', sport: 'esports', n: 11, countries: ['CN', 'KR', 'EU', 'NA', 'TW', 'BR', 'JP', 'TR', 'LA', 'OC', 'CIS'],
+      esports: { draft: 'lol', fearless: 'off', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
+      stages: [{ type: 'roundrobin', groups: 3, meetings: 2, meetSmall: 4, bestOf: 1, advance: 2, tbm: 'match' },
+        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'match', tbmTop: true },
+        { type: 'single', bestOf: 5, thirdPlace: false, pick: true }] },
+    // PGS 2023: 24 đội – vòng bảng 3 bảng 8 đội xoay vòng theo ngày (A&B, B&C, C&A, mỗi ngày 6 trận): 16 đội đầu vào nhánh
+    // thắng, 8 đội cuối vào nhánh thua. Nhánh thắng (12 trận): 8 đội đầu vào thẳng chung kết, 8 đội sau vào nhánh thua.
+    // Nhánh thua (12 trận) lấy 8. Chung kết 16 đội, 18 trận
+    { id: 'pgs23', icon: '🪂', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 18, score: 'points', rot: true, rotBlock: 6, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 16, routes: [{ n: 8, to: 2, after: true }] },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 3 }], advance: 8 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 8 },
+        { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+    // PGS 2024: 24 đội – vòng bảng như 2023, 16 đội đầu vào chung kết 18 trận, 8 đội cuối bị loại
+    { id: 'pgs24', icon: '🪂', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 18, score: 'points', rot: true, rotBlock: 6, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 16 }, { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+    // Mùa giải PGS 2024 (giải tổng): 4 chặng PGS cùng thể thức 2024; điểm mùa giải theo hạng chung cuộc mỗi chặng
+    // 300-180-120-90-80-70-60-50-45-40-35-30-25-20-15-10 (hạng 17–24: 0)
+    { id: 'pgs_season', icon: '🪂', sport: 'esports', n: 24,
+      stages: [{ type: 'single', bestOf: 1, thirdPlace: false }],
+      multi: { table: [300, 180, 120, 90, 80, 70, 60, 50, 45, 40, 35, 30, 25, 20, 15, 10], games: [
+        { key: 'pgs_1', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] }, stages: [{ type: 'race', events: 18, score: 'points', rot: true, rotBlock: 6, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 16 }, { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+        { key: 'pgs_2', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] }, stages: [{ type: 'race', events: 18, score: 'points', rot: true, rotBlock: 6, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 16 }, { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+        { key: 'pgs_3', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] }, stages: [{ type: 'race', events: 18, score: 'points', rot: true, rotBlock: 6, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 16 }, { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+        { key: 'pgs_4', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] }, stages: [{ type: 'race', events: 18, score: 'points', rot: true, rotBlock: 6, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 16 }, { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] }] } },
     // America's Cup (thể thức 2024): đội đầu danh sách là đội giữ cúp – vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng
     // tròn 2 lượt (thắng 1 điểm), 4 đội đầu vào bán kết ai thắng 5 race trước (Bo9), chung kết đội thách đấu ai thắng 7
     // race trước (Bo13); đội thắng gặp đội giữ cúp trong trận tranh cúp Bo13. Mỗi race ghi bên vào sân + thời gian về đích.
