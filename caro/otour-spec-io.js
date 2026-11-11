@@ -31,7 +31,7 @@
         properties: { draft: { type: 'string', enum: ['lol', 'custom', 'off'] }, bans: int(0, 10), picks: int(1, 10), fearless: { type: 'string', enum: ['hard', 'soft', 'off'] },
           scope: { type: 'string', enum: ['series', 'stage'] }, stats: { type: 'array', maxItems: 8, items: { type: 'string' } }, players: { type: 'boolean' }, pool: { type: 'array', maxItems: 400, items: { type: 'string' } } } },
       stages: {
-        type: 'array', minItems: 1, maxItems: 3, description: 'Các giai đoạn; giai đoạn giữa: roundrobin / swiss / race hoặc single / double (đi tiếp theo thứ hạng chung cuộc, advance)',
+        type: 'array', minItems: 1, maxItems: 4, description: 'Các giai đoạn (tối đa 4); giai đoạn giữa: roundrobin / swiss / race hoặc single / double (đi tiếp theo thứ hạng chung cuộc, advance)',
         items: {
           type: 'object', required: ['type'],
           properties: {
@@ -59,7 +59,7 @@
             direct: int(0, 256, 'giai đoạn thứ 2 trở đi: số đội hạt giống cao nhất vào thẳng giai đoạn này (không đá các giai đoạn trước)'),
             region: { type: 'boolean', description: 'Thụy Sĩ: vòng 1 tránh hai đội cùng khu vực (cột quốc gia)' },
             bestNext: int(0, 32, 'thêm đội xếp ngay sau suất đi tiếp tốt nhất'),
-            rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent'] },
+            rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent', 'valve'], description: "'valve' (chỉ Thụy Sĩ theo thắng / thua): kiểu CS Major – vòng 1 hạt giống i gặp i + n/2, sau đó cùng thành tích, xếp theo độ khó (Buchholz) rồi hạt giống, cao gặp thấp" },
             record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo } },
             points: { type: 'object', properties: { w: int(0, 10), d: int(0, 10), l: int(0, 10), wx: int(0, 10), lx: int(0, 10), gw: int(0, 10), gt: int(0, 10), bye: int(0, 10) } },
             tiebreaks: { type: 'array', maxItems: TIEBREAKS.length, items: { type: 'string', enum: TIEBREAKS } },
@@ -105,6 +105,7 @@
     } else if (c.type === 'swiss') {
       x.push(c.record ? T('ds_swiss_rec', { w: c.record.win, l: c.record.lose }) : c.rounds ? T('ds_swiss', { n: c.rounds }) : T('ds_swiss_auto'));
       if (c.record && c.record.bo) x.push(T('ds_rec_bo', { bo: c.record.bo }));
+      if (c.record && c.pairing === 'valve') x.push(T('ds_valve'));
     } else if (c.type === 'race') {
       if (c.score === 'golf') { // golf đấu gậy
         const p = (c.par || []).reduce((a, b) => a + b, 0) || 72;

@@ -23,6 +23,15 @@
       esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
       stages: [{ type: 'roundrobin', groups: 1, meetings: 1, bestOf: 5, advance: 1 },
         { type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, region: true, direct: 15 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+    // CS Major (thể thức 2025–2026): 32 đội, 3 giai đoạn Thụy Sĩ 16 đội (thắng 3 đi tiếp, thua 3 bị loại; trận quyết định
+    // Bo3, còn lại Bo1 – giai đoạn 3 toàn Bo3), ghép cặp kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó). Hạt giống
+    // 17–32 đá giai đoạn 1; 9–16 vào thẳng giai đoạn 2, 1–8 vào thẳng giai đoạn 3. Playoff 8 đội Bo3, chung kết Bo5
+    { id: 'cs_major', icon: '🎯', sport: 'esports', n: 32,
+      esports: { draft: 'off', fearless: 'off', stats: ['rounds'], players: false },
+      stages: [{ type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, pairing: 'valve' },
+        { type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 }, pairing: 'valve', direct: 8 },
+        { type: 'swiss', bestOf: 3, record: { win: 3, lose: 3, bo: 3 }, pairing: 'valve', direct: 8 },
+        { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: false }] },
     // America's Cup (thể thức 2024): đội đầu danh sách là đội giữ cúp – vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng
     // tròn 2 lượt (thắng 1 điểm), 4 đội đầu vào bán kết ai thắng 5 race trước (Bo9), chung kết đội thách đấu ai thắng 7
     // race trước (Bo13); đội thắng gặp đội giữ cúp trong trận tranh cúp Bo13. Mỗi race ghi bên vào sân + thời gian về đích.

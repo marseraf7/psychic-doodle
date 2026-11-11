@@ -33,7 +33,7 @@ function normalizeSpec(o) {
   const preset = SPORTS[sport];
   const result = RESULTS.includes(o.result) ? o.result : preset.result;
   if (!Array.isArray(o.stages) || !o.stages.length) throw new SpecError('ot_spec_stages');
-  if (o.stages.length > 3) throw new SpecError('ot_spec_stages');
+  if (o.stages.length > ST.MAX_STAGES_OFFLINE) throw new SpecError('ot_spec_stages');
   const raw = o.stages.map((c) => {
     const x = { ...(c || {}) };
     if (x.bestOf == null) x.bestOf = preset.bestOf;
