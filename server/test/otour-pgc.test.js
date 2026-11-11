@@ -198,3 +198,73 @@ test('Mẫu kiểu PGC 2023 qua máy chủ: nhánh thua đấu trước, nhánh 
   for (const n of [1, 9]) assert.notStrictEqual(t.players.find((p) => p.uid === U(n)).out, 'not_advanced');
   org.close();
 });
+
+// ---------------------------------------------------------------- Đợt 15: hệ Circuit (kiểu PGC 2024)
+const CI = require('../src/hub/stages-circuit.js');
+
+test('Hệ Circuit: ngày 1 hạng 9–24, ngày 2 giữ 12 + hạng 5–8, Final giữ 12 + hạng 1–4; vòng sau theo kết quả vòng trước', () => {
+  const [c] = off([race({ events: 2, kill: 1, tb: 'pubg', circuit: { n: 2, days: 3, keep: 12, late: [4, 4] }, groups: 2, rot: true, advance: 16 }), race({})]);
+  assert.deepStrictEqual([c.circuit, c.groups, c.rot], [{ n: 2, days: 3, keep: 12, late: [4, 4] }, undefined, undefined]);
+  assert.deepStrictEqual(CI.daySizes(c, 24), [16, 16, 16]);
+  assert.strictEqual(Race.raceError(c, 24), null);
+  assert.deepStrictEqual(Race.raceError(c, 20), { code: 'ot_circuit_few', args: { n: 21 } });
+  const st = ST.buildStage(c, 0, uids(24), { seedOf });
+  assert.strictEqual(st.events.length, 12);
+  const lob = [];
+  // Mỗi trận: hạt giống thấp hơn về trước (đảo ngược) – để thứ tự các ngày khác thứ tự hạt giống
+  for (const ev of st.events) { const l = Race.lobby(st, ev.i); lob.push(l.map(seedOf)); play(st, ev.i, [...l].sort((a, b) => seedOf(b) - seedOf(a))); }
+  assert.deepStrictEqual(lob[0], Array.from({ length: 16 }, (_, k) => 9 + k), 'ngày 1: hạng 9–24');
+  assert.deepStrictEqual(lob[2].slice(12), [5, 6, 7, 8], 'ngày 2: thêm hạng 5–8');
+  assert.deepStrictEqual(lob[4].slice(12), [1, 2, 3, 4], 'Final: thêm hạng 1–4');
+  assert.deepStrictEqual(lob[2].slice(0, 12), [24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13], 'ngày 2: 12 đội đầu ngày 1');
+  // Vòng 2, ngày 1: hạng 9–24 của vòng 1 = hạng 9–16 Final, 4 đội dừng ở ngày 2, 4 đội dừng ở ngày 1
+  assert.deepStrictEqual(lob[6], [16, 15, 14, 13, 4, 3, 2, 1, 8, 7, 6, 5, 12, 11, 10, 9]);
+  assert.deepStrictEqual(lob[10].slice(12), [24, 23, 22, 21], 'vòng 2 Final: hạng 1–4 của vòng 1');
+  assert.ok(st.done);
+  // Chỉ điểm ngày Final cộng dồn: đội hạt giống 9–12 (dừng ở ngày 1 vòng 1, ngày 1 vòng 2 rồi …) có điểm 0 nếu chưa vào Final
+  const tb = Race.raceTable(st, seedOf);
+  const ptsOf = (n) => tb.stats['u' + (n - 1)].pts;
+  const finals = st.events.filter((e) => CI.isFinal(c, e.i));
+  const sum = (n) => finals.reduce((a, e) => a + (e.rows.filter((x) => x.uid === 'u' + (n - 1)).map((x) => Race.rowPts(c, x))[0] || 0), 0);
+  for (let n = 1; n <= 24; n++) assert.strictEqual(ptsOf(n), sum(n), 'đội ' + n);
+  assert.strictEqual(ST.splitAdvancers(st, seedOf).seeds.length, 16);
+});
+
+test('Hệ Circuit qua máy chủ (mẫu kiểu PGC 2024): nhập lần lượt, chỉ đội của ngày; 16 đội điểm Final cao nhất vào chung kết', async () => {
+  const tpl = TP.byId('pgc24');
+  const org = await account();
+  const { id } = await org.req({ t: 'otCreate', name: 'Kiểu PGC 2024', spec: TP.specOf(tpl, SPORTS), teams: TP.sampleTeams(tpl, 'Đội') }, 'otCreated', undefined, 15000);
+  const t = ctx.app.hub.otGet(id);
+  org.send({ t: 'otStart', id });
+  await until(() => t.status === 'running', 15000);
+  assert.deepStrictEqual([t.st[0].entrants.length, t.st[0].events.length], [24, 54]);
+  const U = (n) => t.players[n - 1].uid, so = ctx.app.hub.otSeedOf(t);
+  // Đội hạt giống 1 chưa đấu ngày 1; nhập trận 2 trước trận 1 cũng bị chặn
+  const bad = await org.req({ t: 'otRace', id, event: 0, rows: [{ uid: U(1), rank: 1 }] }, 'error');
+  assert.ok(bad.code);
+  const skip = await org.req({ t: 'otRace', id, event: 1, rows: Race.lobby(t.st[0], 1).map((uid, k) => ({ uid, rank: k + 1 })) }, 'error');
+  assert.strictEqual(skip.code, 'ot_gt_seq');
+  // Trang xem: trận kế tiếp có danh sách đội, bảng ngày đang đấu
+  let v = (await org.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && m.tour)).tour.stageViews[0];
+  assert.strictEqual(v.events[0].lobby.length, 16);
+  assert.deepStrictEqual(v.circuit.map((d) => [d.c, d.j]), [[0, 0]]);
+  for (let g = 0; t.status === 'running' && g < 100; g++) {
+    const st = t.st[t.stage], ev = st.events.find((e) => !e.done);
+    const rows = Race.lobby(st, ev.i).slice().sort((a, b) => so(a) - so(b)).map((uid, k) => ({ uid, rank: k + 1, kills: k % 3 }));
+    org.send({ t: 'otRace', id, event: ev.i, rows });
+    await until(() => ev.done, 8000);
+    if (t.stage === 0 && ev.i === 20) {
+      v = (await org.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && m.tour)).tour.stageViews[0];
+      assert.deepStrictEqual(v.circuit.map((d) => [d.c, d.j, d.final]), [[0, 0, false], [0, 1, false], [0, 2, true], [1, 0, false]]);
+      assert.strictEqual(v.circuit[0].table.filter((x) => x.adv).length, 12);
+    }
+  }
+  assert.strictEqual(t.status, 'finished');
+  assert.deepStrictEqual(t.st.map((st) => st.entrants.length), [24, 16]);
+  // Chung kết: đúng 16 đội có tổng điểm các ngày Final cao nhất; không mang điểm
+  const tb = Race.raceTable(t.st[0], so);
+  assert.deepStrictEqual(new Set(t.st[1].entrants), new Set(tb.list.slice(0, 16)));
+  assert.ok(!t.st[1].head || !Object.keys(t.st[1].head).length);
+  assert.strictEqual(t.podium[0], U(1));
+  org.close();
+});

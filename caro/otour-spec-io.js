@@ -44,6 +44,7 @@
             routes: { type: 'array', maxItems: 4, items: { type: 'object', properties: { n: int(1, 256), to: int(2, 5) }, required: ['n', 'to'] }, description: "Giai đoạn giữa (không phải loại trực tiếp), còn ≥ 2 giai đoạn sau: các dải hạng từ hạng 1 (chia bảng: mỗi bảng) vào thẳng giai đoạn `to` (chỉ số từ 0, ≥ chỉ số hiện tại + 2); các hạng sau đó: `advance` đội đi tiếp giai đoạn kế (có thể 0), còn lại bị loại. Kiểu nhánh thắng / nhánh thua song song của PGC 2022–2023" },
             directLast: { type: 'boolean', description: 'Đội được chuyển thẳng vào giai đoạn này đứng sau đội đi tiếp (hàng chờ của cổng thắng trận)' },
             gate: { type: 'object', properties: { seats: int(2, 200) }, description: "Race 'points', giai đoạn giữa: cổng thắng trận (Grand Survival PGC 2022) – mỗi trận `seats` đội, đội về nhất đi tiếp và rời phòng, đội kế tiếp trong hàng chờ vào thay; số đội đi tiếp = events" },
+            circuit: { type: 'object', properties: { n: int(1, 5), days: int(2, 4), keep: int(1, 200), late: { type: 'array', maxItems: 3, items: int(0, 64) } }, description: "Race 'points': hệ Circuit (PGC 2024) – n vòng × days ngày × events trận mỗi ngày; ngày 1: các đội từ hạng (tổng late) + 1 trở xuống của bảng đầu vòng (vòng 1: hạt giống); ngày sau: `keep` đội đầu ngày trước + late[j] đội hạng cao hơn (nhóm đầu bảng vào ngày cuối); chỉ điểm ngày cuối (Final) cộng dồn. Vd. 24 đội: { n: 3, days: 3, keep: 12, late: [4, 4] }" },
             carry: { type: 'boolean', description: "Race 'points' sau một giai đoạn race: mang nguyên điểm giai đoạn trước sang (Elimination PGC 2019)" },
             tbm: { type: 'string', enum: ['match', 'h2h'], description: "Vòng tròn chia bảng (giai đoạn giữa): trận phụ phân hạng khi đúng hai đội bằng điểm ở vạch đi tiếp – 'match': luôn đấu (đối đầu chỉ để chọn bên), 'h2h': chỉ khi đối đầu cũng bằng" },
             draw: { type: 'string', enum: ['record'], description: "Loại trực tiếp ngay sau Thụy Sĩ thắng / thua: bốc thăm theo thành tích (tốt nhất gặp kém nhất, còn lại ngẫu nhiên, tránh cùng khu vực)" },
@@ -138,6 +139,7 @@
       } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
       if (c.rot) x.push(c.rot === true || c.rot === 3 ? T('ds_rot') : T('ds_rot_n', { n: c.rot }));
       if (c.gate) x.push(T('ds_gate', { n: c.gate.seats }));
+      if (c.circuit) x.push(T('ds_circuit', { n: c.circuit.n, d: c.circuit.days, m: c.events || 1, k: c.circuit.keep, late: (c.circuit.late || []).join('-') }));
       if (c.carry) x.push(T('ds_carry'));
       if (c.groups) x.push(T('ds_race_groups', { n: c.groups, m: c.events || 1 }));
       if (c.tb === 'pubg' || c.tb === 'pubg_k') x.push(T('ds_tb_' + c.tb));

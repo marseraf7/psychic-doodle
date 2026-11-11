@@ -147,9 +147,9 @@
           if (mode === 'after') f.push(field(T('opt_mp_after'), num(i, 'mpAfter', c.mp.after, 1, Math.max(1, (c.events || 2) - 1))), field(T('opt_mp_plus'), num(i, 'mpPlus', c.mp.plus, 0, 1000)));
           if (mode !== 'none') f.push(`<small class="hint">${esc(T('opt_mp_hint'))}</small>`);
           // Chia 3 bảng xoay vòng (mỗi trận hai bảng đấu); điểm thưởng mang sang cho giai đoạn sau giai đoạn đầu
-          if (!c.heat && !c.groups && !c.gate) f.push(chk(i, 'rot', !!c.rot, T('opt_br_rot')));
+          if (!c.heat && !c.groups && !c.gate && !c.circuit) f.push(chk(i, 'rot', !!c.rot, T('opt_br_rot')));
           // Chia bảng cố định (kiểu PGC: mỗi bảng đấu riêng, xếp hạng / đi tiếp theo bảng); hệ số phụ kiểu PUBG
-          if (!c.heat && !c.rot && !c.gate) f.push(field(T('opt_br_groups'), num(i, 'groups', c.groups || 0, 0, 8)));
+          if (!c.heat && !c.rot && !c.gate && !c.circuit) f.push(field(T('opt_br_groups'), num(i, 'groups', c.groups || 0, 0, 8)));
           f.push(field(T('opt_br_tb'), sel(i, 'tb', [['countback', T('br_tb_countback')], ['pubg', T('br_tb_pubg')], ['pubg_k', T('br_tb_pubg_k')]], c.tb || 'countback')));
           if (ctx.ext && K.routeEdit) f.push(...K.routeEdit.race(i, c, st)); // xoay N bảng, cổng thắng trận, mang điểm (otour-route-edit.js)
           if (i > 0) f.push(`<label class="field"><span>${esc(T('opt_br_head'))}</span><input data-i="${i}" data-k="head" value="${esc((c.head || []).join(' '))}" inputmode="numeric"><small class="hint">${esc(T('opt_br_head_hint'))}</small></label>`);
@@ -263,7 +263,7 @@
       stages[i] = nc;
     } else if (k === 'score') { // đổi cách tính hệ Race: dọn tuỳ chọn không còn dùng
       c.score = v;
-      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head', 'groups', 'tb', 'gate', 'carry']) delete c[k2];
+      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head', 'groups', 'tb', 'gate', 'carry', 'circuit']) delete c[k2];
       if (v === 'gt') { Object.assign(c, { bonus: true, kinds: gtKinds(c) }); delete c.table; delete c.teams; delete c.heat; }
       else if (v === 'golf') { const g = golfStage(); Object.assign(c, { events: c.events > 1 ? c.events : 4, input: g.input, par: g.par, po: g.po }); if (c.events > 2) c.cut = { after: 2, top: 50 }; delete c.table; delete c.teams; delete c.heat; }
       else if (v === 'points' && !c.table) c.table = DEFAULT.race().table;

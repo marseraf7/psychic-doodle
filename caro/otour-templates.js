@@ -81,6 +81,12 @@
         { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 4 }], advance: 8 },
         { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 8 },
         { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+    // PGC 2024: 24 đội (8 đội đầu danh sách là hạt giống) – hệ Circuit 3 vòng × 3 ngày × 6 trận: ngày 1 hạng 9–24, ngày 2 giữ
+    // 12 đội + hạng 5–8, Circuit Final giữ 12 đội + hạng 1–4; vòng sau xếp theo kết quả vòng trước; chỉ điểm Circuit Final
+    // cộng dồn – 16 đội đầu vào chung kết 16 đội, 18 trận (không mang điểm)
+    { id: 'pgc24', icon: '🪂', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 6, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', circuit: { n: 3, days: 3, keep: 12, late: [4, 4] }, advance: 16 },
+        { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
     // America's Cup (thể thức 2024): đội đầu danh sách là đội giữ cúp – vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng
     // tròn 2 lượt (thắng 1 điểm), 4 đội đầu vào bán kết ai thắng 5 race trước (Bo9), chung kết đội thách đấu ai thắng 7
     // race trước (Bo13); đội thắng gặp đội giữ cúp trong trận tranh cúp Bo13. Mỗi race ghi bên vào sân + thời gian về đích.

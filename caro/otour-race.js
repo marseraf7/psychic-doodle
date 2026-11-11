@@ -46,9 +46,20 @@
     const tb = v.cfg.tb ? `<p class="hint">${esc(T(v.cfg.tb === 'pubg_k' ? 'br_tb_pubg_k_note' : 'br_tb_pubg_note'))}</p>` : '';
     const gate = v.cfg.gate ? `<p class="hint">${esc(T('br_gate_note', { n: v.cfg.gate.seats, k: v.cfg.events || 1 }))}</p>` : '';
     const carry = v.cfg.carry ? `<p class="hint">${esc(T('br_carry_note'))}</p>` : '';
+    if (v.circuit) return `${tb}${circuitHtml(v, tbl)}`;
     if (v.groups) return `${tb}<p class="hint">${esc(T('br_groups_note', { n: v.groups.length }))}</p>` + v.groups.map((g) => `<h5>${esc(T('group_name', { name: g.name }))}</h5>${tbl(g.table)}`).join('');
     return `${mp}${gate}${carry}${rot}${tb}${tbl(v.table)}`;
   }
+
+  /** Hệ Circuit: ghi chú, bảng cộng dồn các ngày Final, bảng từng ngày đã đấu (ngày mới nhất mở sẵn). */
+  function circuitHtml(v, tbl) {
+    const C = v.cfg.circuit;
+    const note = `<p class="hint">${esc(T('br_ci_note', { n: C.n, d: C.days, k: C.keep }))}</p>`;
+    const days = (v.circuit || []).map((d, x, all) => K.fold(`ci:${v.index}:${d.c}:${d.j}`, `<b>${esc(ciDay(d.c, d.j, C))}</b> ${d.done ? icon('check', 'ok') : ''}`,
+      () => tbl(d.table), x === all.length - 1)).reverse().join('');
+    return `${note}<h5>${esc(T('br_ci_bank'))}</h5>${tbl(v.table)}${days}`;
+  }
+  const ciDay = (c, j, C) => (j === C.days - 1 ? T('br_ci_final', { c: c + 1 }) : T('br_ci_day', { c: c + 1, j: j + 1 }));
 
   function teamsTable(v) {
     if (!v.teams || !v.teams.length) return '';
@@ -72,9 +83,9 @@
     const pts = v.cfg.score !== 'time', key = dkey(t, v, i) + (h != null ? ':h' + h : ''), d = S.draft[key] || {};
     const names = new Map(v.entrants.map((p) => [p.uid, p]));
     const ev = v.events[i] || {};
-    // Lượt: người trong lượt; cổng thắng trận: phòng đấu máy chủ gửi; chia bảng: bảng của trận; xoay vòng: hai bảng đấu trận này
+    // Lượt: người trong lượt; cổng thắng trận / hệ Circuit: phòng đấu máy chủ gửi; chia bảng: bảng của trận; xoay vòng: hai bảng đấu trận này
     const members = h != null ? heatUids(v, i)[h].map((u) => names.get(u) || { uid: u, name: '?' })
-      : v.cfg.gate && Array.isArray(ev.lobby) ? ev.lobby.map((u) => names.get(u) || { uid: u, name: '?' })
+      : Array.isArray(ev.lobby) ? ev.lobby.map((u) => names.get(u) || { uid: u, name: '?' })
         : v.cfg.groups ? RU.groupList(v.entrants, v.cfg.groups, i % v.cfg.groups) : rotG(v) ? RU.lobbyOf(v.entrants, i, rotG(v)) : v.entrants;
     const rows = members.map((p) => {
       const x = d[p.uid] || {};
@@ -109,10 +120,11 @@
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     const next = v.events.findIndex((e) => !e.done);
     const lastDone = v.events.map((e) => e.done).lastIndexOf(true);
-    const seq = !!(v.cfg.mp || v.cfg.gate); // match point / cổng thắng trận: nhập lần lượt
+    const seq = !!(v.cfg.mp || v.cfg.gate || v.cfg.circuit); // match point / cổng thắng trận / hệ Circuit: nhập lần lượt
+    const C = v.cfg.circuit, E = v.cfg.events || 1;
     const evs = v.events.map((ev) => {
       const G = v.cfg.groups; // chia bảng cố định: "Bảng A · trận 2"
-      const title = `<b>${esc(G ? T('group_name', { name: String.fromCharCode(65 + (ev.i % G)) }) + ' · ' + T('race_event_n', { n: Math.floor(ev.i / G) + 1 }) : T('race_event_n', { n: ev.i + 1 }))}</b>${rotG(v) ? ` <small class="muted">${esc(T('br_rot_ev', { g: rotPair(ev.i, rotG(v)) }))}</small>` : ''}${v.cfg.gate && ev.done && ev.rows[0] && !ev.rows[0].dnf ? ` <small class="pill">${esc(T('br_gate_win', { name: ev.rows[0].name }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
+      const title = C ? `<b>${esc(ciDay(Math.floor(ev.i / E / C.days), Math.floor(ev.i / E) % C.days, C) + ' · ' + T('race_event_n', { n: (ev.i % E) + 1 }))}</b> ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}` : `<b>${esc(G ? T('group_name', { name: String.fromCharCode(65 + (ev.i % G)) }) + ' · ' + T('race_event_n', { n: Math.floor(ev.i / G) + 1 }) : T('race_event_n', { n: ev.i + 1 }))}</b>${rotG(v) ? ` <small class="muted">${esc(T('br_rot_ev', { g: rotPair(ev.i, rotG(v)) }))}</small>` : ''}${v.cfg.gate && ev.done && ev.rows[0] && !ev.rows[0].dnf ? ` <small class="pill">${esc(T('br_gate_win', { name: ev.rows[0].name }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
       const undo = (h) => (can ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}"${h != null ? ` data-heat="${h}"` : ''}>${esc(T(h != null ? 'race_undo_heat' : 'race_undo'))}</button></div>` : '');
       const body = () => (ev.heats ? heatsHtml(t, v, ev, can, undo)
         // Match point: nhập lần lượt, chỉ huỷ trận sau cùng

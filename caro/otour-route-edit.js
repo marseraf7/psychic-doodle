@@ -3,10 +3,10 @@
  * (tour-stage-edit.js gọi qua móc; máy chủ: stages.js – routes, directLast; stages-race.js – gate, carry, rot N):
  *   K.routeEdit.html(i, c, st)        → mảng HTML: các dải hạng vào thẳng giai đoạn sau nữa (mỗi dải: số đội → giai đoạn),
  *                                       "đội vào thẳng xếp sau" (hàng chờ của cổng thắng trận)
- *   K.routeEdit.race(i, c, st)        → mảng HTML cho sinh tồn tính điểm: số bảng xoay vòng, cổng thắng trận (số chỗ mỗi
- *                                       trận), mang nguyên điểm giai đoạn trước
+ *   K.routeEdit.race(i, c, st)        → mảng HTML cho sinh tồn tính điểm: số bảng xoay vòng, hệ Circuit (số vòng, số ngày,
+ *                                       số đội giữ lại, nhóm vào muộn), cổng thắng trận (số chỗ mỗi trận), mang nguyên điểm
  *   K.routeEdit.change(stages, i, k, el) → true nếu đã xử lý ô k ('rtN', 'rtTo', 'rotN', 'gateOn', 'gateSeats', 'carry',
- *                                       'directLast')
+ *                                       'directLast', hệ Circuit: 'ciOn', 'ciN', 'ciDays', 'ciKeep', 'ciLate')
  *   K.routeEdit.clean(stages)         → bỏ tuỳ chọn không còn hợp lệ (sau mỗi thay đổi của form)
  *   K.routeEdit.shift(stages, at, d)  → thêm (d = 1, trước giai đoạn at) / bỏ (d = −1, giai đoạn at): dời đích các dải hạng
  *   K.routeEdit.flow(c)               → chữ ghi thêm ở dòng mũi tên ("8 đội vào thẳng giai đoạn 4")
@@ -46,6 +46,14 @@
   function race(i, c, st) {
     const out = [], last = i === st.length - 1;
     if (c.rot) out.push(field(T('opt_br_rot_n'), num(i, 'rotN', c.rot === true ? 3 : c.rot, 3, 8)));
+    // Hệ Circuit (kiểu PGC 2024): n vòng × số ngày, giữ `keep` đội mỗi ngày, các nhóm hạng cao vào muộn
+    out.push(chk(i, 'ciOn', !!c.circuit, T('opt_circuit')));
+    if (c.circuit) {
+      const C = c.circuit;
+      out.push(field(T('opt_ci_n'), num(i, 'ciN', C.n, 1, 5)), field(T('opt_ci_days'), num(i, 'ciDays', C.days, 2, 4)), field(T('opt_ci_keep'), num(i, 'ciKeep', C.keep, 1, 200)),
+        `<label class="field"><span>${esc(T('opt_ci_late'))}</span><input data-i="${i}" data-k="ciLate" value="${esc((C.late || []).join(' '))}" inputmode="numeric"><small class="hint">${esc(T('opt_ci_hint'))}</small></label>`);
+      return out;
+    }
     if (!last) {
       out.push(chk(i, 'gateOn', !!c.gate, T('opt_gate')));
       if (c.gate) out.push(field(T('opt_gate_seats'), num(i, 'gateSeats', c.gate.seats || 16, 2, MAX_SEATS)), `<small class="hint">${esc(T('opt_gate_hint'))}</small>`);
@@ -70,7 +78,18 @@
     else if (k === 'gateOn') {
       if (el.checked) { c.gate = { seats: 16 }; for (const x of ['groups', 'rot', 'mp', 'head', 'carry', 'heat', 'routes', 'skip']) delete c[x]; } else delete c.gate;
     } else if (k === 'gateSeats') c.gate = { seats: clamp(el.value, 2, MAX_SEATS) };
-    else if (k === 'carry' || k === 'directLast') { if (el.checked) c[k] = true; else delete c[k]; }
+    else if (k === 'ciOn') {
+      if (el.checked) { c.circuit = { n: 3, days: 3, keep: 12, late: [4, 4] }; for (const x of ['groups', 'rot', 'mp', 'head', 'carry', 'heat', 'gate']) delete c[x]; } else delete c.circuit;
+    } else if (k === 'ciN' || k === 'ciDays' || k === 'ciKeep') {
+      const C = { ...c.circuit };
+      if (k === 'ciN') C.n = clamp(el.value, 1, 5);
+      else if (k === 'ciKeep') C.keep = clamp(el.value, 1, 200);
+      else { C.days = clamp(el.value, 2, 4); C.late = Array.from({ length: C.days - 1 }, (_, j) => (C.late || [])[j] != null ? C.late[j] : 4); }
+      c.circuit = C;
+    } else if (k === 'ciLate') {
+      const xs = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => clamp(x, 0, 64));
+      c.circuit = { ...c.circuit, late: Array.from({ length: c.circuit.days - 1 }, (_, j) => (xs[j] != null ? xs[j] : 4)) };
+    } else if (k === 'carry' || k === 'directLast') { if (el.checked) c[k] = true; else delete c[k]; }
     else return false;
     return true;
   }
@@ -88,6 +107,7 @@
       if (c.carry && !(i > 0 && c.type === 'race' && stages[i - 1].type === 'race' && !c.gate)) delete c.carry;
       if (c.directLast && i === 0) delete c.directLast;
       if (c.rot && c.type !== 'race') delete c.rot;
+      if (c.circuit && (c.type !== 'race' || (c.score && c.score !== 'points'))) delete c.circuit;
     });
   }
 

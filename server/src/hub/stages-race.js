@@ -29,6 +29,7 @@
 const RU = require('../../../caro/otour-rules.js');
 const GT = require('./stages-gt.js'); // cách tính 'gt': xe đạp nhiều chặng, nhiều bảng xếp hạng
 const GOLF = require('./stages-golf.js'); // cách tính 'golf': golf đấu gậy (vòng, par, cắt, đấu phụ)
+const CI = require('./stages-circuit.js'); // hệ Circuit kiểu PGC 2024
 
 const SCORES = ['points', 'time', 'gt', 'golf'];
 const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
@@ -83,13 +84,14 @@ function normalizeRace(c, last) {
       out.gate = { seats: int(c.gate.seats != null ? c.gate.seats : c.gate, 2, MAX_RACE, 16) };
       for (const k of ['groups', 'rot', 'mp', 'head', 'carry']) delete out[k];
     }
+    CI.normalizeCircuit(c, out); // hệ Circuit (stages-circuit.js): nhiều vòng × nhiều ngày, chỉ điểm ngày Final cộng dồn
   }
   if (score === 'gt') GT.normalizeGt(c, out); // bảng đội luôn tính theo cột "Đội"; không chia lượt
   else if (score === 'golf') GOLF.normalizeGolf(c, out);
   else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
   // Chia lượt: không đi cùng 3 bảng xoay vòng, không đi cùng match point (mỗi lượt có một người về nhất)
-  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp && !out.groups && !out.gate) out.heat = heat;
+  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp && !out.groups && !out.gate && !out.circuit) out.heat = heat;
   if (!last) out.advance = out.gate ? out.events : int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
@@ -101,7 +103,7 @@ const heatsFor = (list, size, i) => RU.heatsOf(list, size, i).map((uids) => ({ u
 function buildRace(st) {
   const heat = st.cfg.heat && st.entrants.length > st.cfg.heat ? st.cfg.heat : 0;
   const G = st.cfg.groups || 0; // chia bảng cố định: mỗi bảng `events` trận, trận i thuộc bảng i % G
-  st.events = Array.from({ length: st.cfg.events * (G || 1) }, (_, i) => ({ i, done: false, rows: null, ...(G ? { g: i % G } : {}), ...(heat ? { heats: heatsFor(st.entrants, heat, i) } : {}) }));
+  st.events = Array.from({ length: CI.totalEvents(st.cfg) * (G || 1) }, (_, i) => ({ i, done: false, rows: null, ...(G ? { g: i % G } : {}), ...(heat ? { heats: heatsFor(st.entrants, heat, i) } : {}) }));
 }
 
 /**
@@ -145,7 +147,7 @@ function cleanEvent(st, rows, members = st.entrants, i = 0) {
 const rowPts = (cfg, x) => (x.pts != null ? x.pts : (x.dnf ? 0 : cfg.table[x.rank - 1] || 0) + (cfg.kill ? (x.kills || 0) * cfg.kill : 0));
 
 /** Những người đấu chặng i khi chia 3 bảng xoay vòng (cfg.rot); không thì cả đoàn. */
-const lobby = (st, i) => (st.cfg.gate ? gateLobby(st, i) : st.cfg.groups ? RU.groupList(st.entrants, st.cfg.groups, i % st.cfg.groups)
+const lobby = (st, i) => (st.cfg.circuit ? CI.make(st, raceTable).lobby(i) : st.cfg.gate ? gateLobby(st, i) : st.cfg.groups ? RU.groupList(st.entrants, st.cfg.groups, i % st.cfg.groups)
   : st.cfg.rot ? RU.lobbyOf(st.entrants, i, st.cfg.rot === true ? 3 : st.cfg.rot) : st.entrants);
 /** Cổng thắng trận: đội thắng các chặng trước chặng i (theo thứ tự chặng). */
 const gateWinners = (st, upto = Infinity) => st.events.filter((e) => e.done && e.i < upto).map((e) => (e.rows.find((x) => !x.dnf && x.rank === 1) || {}).uid).filter(Boolean);
@@ -226,7 +228,8 @@ function raceTable(st, seedOf, members = st.entrants) {
   const cfg = st.cfg, pts = cfg.score === 'points';
   // place: tổng điểm hạng (không tính hạ gục / sửa tay); last, lastPlace: điểm / điểm hạng của trận gần nhất đã đấu (kiểu PUBG)
   const stats = Object.fromEntries(members.map((u) => [u, { uid: u, pts: (pts && st.head && st.head[u]) || 0, time: 0, races: 0, fin: 0, dnf: 0, places: [], kills: 0, place: 0, last: 0, lastPlace: 0, lastKills: 0, best: 0, bestKills: 0 }]));
-  const done = st.events.filter((e) => e.done);
+  // Hệ Circuit: bảng chung chỉ cộng các ngày Final
+  const done = st.events.filter((e) => e.done && (!cfg.circuit || CI.isFinal(cfg, e.i)));
   const placePts = (x) => (x.dnf ? 0 : cfg.table[x.rank - 1] || 0);
   for (const ev of done) {
     for (const x of ev.rows) {
@@ -302,10 +305,11 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
       return r;
     });
   };
-  const nextGate = cfg.gate ? st.events.findIndex((e) => !e.done) : -1;
+  const nextGate = cfg.gate || cfg.circuit ? st.events.findIndex((e) => !e.done) : -1;
+  const ci = cfg.circuit ? CI.make(st, raceTable) : null;
   const events = st.events.map((ev) => {
     // Cổng thắng trận: máy chủ gửi danh sách đội của chặng kế tiếp (phụ thuộc kết quả trước – trình duyệt không tự tính)
-    if (!ev.done) return { i: ev.i, done: false, ...heatsOf(ev), ...(ev.i === nextGate ? { lobby: gateLobby(st, ev.i) } : {}) };
+    if (!ev.done) return { i: ev.i, done: false, ...heatsOf(ev), ...(ev.i === nextGate ? { lobby: ci ? ci.lobby(ev.i) : gateLobby(st, ev.i) } : {}) };
     return { i: ev.i, done: true, rows: rowsOf(ev), ...heatsOf(ev) };
   });
   const all = st.events.filter((e) => e.done).length;
@@ -332,6 +336,8 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
   const table = groups ? groups.flatMap((g) => g.table) : tableOf({ list, stats });
   const v = { index: i, type: 'race', cfg, done: st.done, events, table, entrants: st.entrants.map(side), ...(groups ? { groups } : {}) };
   if (cfg.mp && pts) v.mp = { at: mpAt, winner: st.mpWinner ? side(st.mpWinner).name : null };
+  // Hệ Circuit: bảng từng ngày đã bắt đầu (ngày thường: `keep` đội đầu đi tiếp ngày sau; ngày Final: điểm cộng dồn)
+  if (ci) v.circuit = CI.daysShown(st).map((d) => ({ ...d, table: (() => { const T = ci.dayFull(d.c, d.j); return tableOf(T).map((r) => ({ ...r, adv: !d.final && r.rank <= cfg.circuit.keep })); })() }));
   if (cfg.teams && pts) {
     const tm = new Map();
     for (const u of list) { const name = teamOf(u); if (name) tm.set(name, (tm.get(name) || 0) + stats[u].pts); }
@@ -344,6 +350,7 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
 const raceError = (cfg, n) => {
   const max = cfg.heat ? MAX_RACE_HEATS : MAX_RACE; // đoàn quá MAX_RACE người: phải chia lượt
   if (cfg.type === 'race' && cfg.groups && n < 2 * cfg.groups) return { code: 'ot_race_groups_few', args: { n: 2 * cfg.groups } }; // mỗi bảng ít nhất 2 đội
+  if (cfg.type === 'race' && cfg.circuit) { const e = CI.circuitError(cfg, n); if (e) return e; }
   if (cfg.type === 'race' && cfg.rot && n < 6) return { code: 'ot_rot_few', args: { n: 6 } }; // 3 bảng, mỗi bảng ít nhất 2 đội
   return cfg.type === 'race' && n > max ? { code: 'ot_race_many', args: { n: max } } : null;
 };

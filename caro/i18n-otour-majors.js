@@ -7,6 +7,21 @@
   const X = window.I18N.extend;
 
   X('vi', {
+    // Đợt 15: hệ Circuit kiểu PGC 2024
+    opt_circuit: 'Hệ Circuit: nhiều vòng × nhiều ngày, nhóm hạng cao vào muộn, chỉ điểm ngày Final cộng dồn',
+    opt_ci_n: 'Số vòng circuit',
+    opt_ci_days: 'Số ngày mỗi vòng',
+    opt_ci_keep: 'Số đội đầu đi tiếp ngày sau',
+    opt_ci_late: 'Số đội vào muộn từng ngày (từ ngày 2)',
+    opt_ci_hint: 'Ví dụ 4 4 với 24 đội: ngày 1 hạng 9–24, ngày 2 thêm hạng 5–8, ngày cuối (Final) thêm hạng 1–4. Số trận ở trên là số trận mỗi ngày.',
+    br_ci_note: 'Hệ Circuit: {n} vòng × {d} ngày. Mỗi ngày xếp theo điểm của ngày đó, {k} đội đầu đi tiếp ngày sau; nhóm hạng cao vào muộn. Vòng sau xếp theo kết quả vòng trước. Chỉ điểm ngày Final được cộng dồn.',
+    br_ci_bank: 'Bảng chung: cộng điểm các ngày Final',
+    br_ci_day: 'Circuit {c} · Ngày {j}',
+    br_ci_final: 'Circuit {c} · Final',
+    ds_circuit: 'hệ Circuit {n} vòng × {d} ngày × {m} trận: mỗi ngày giữ {k} đội đầu, nhóm hạng cao vào muộn ({late} đội), chỉ điểm ngày Final cộng dồn',
+    srv_ot_circuit_few: 'Hệ Circuit cần ít nhất {n} đội (mỗi ngày phải có đội bị loại).',
+    tpl_pgc24: 'Kiểu PGC 2024',
+    tpl_pgc24_d: '24 đội như PGC 2024 (8 đội đầu danh sách là hạt giống): hệ Circuit 3 vòng, mỗi vòng 3 ngày × 6 trận. Ngày 1: hạng 9–24; ngày 2: 12 đội đầu ngày 1 + hạng 5–8; Circuit Final: 12 đội đầu ngày 2 + hạng 1–4. Vòng sau xếp theo kết quả vòng trước. Chỉ điểm Circuit Final cộng dồn; 16 đội đầu vào chung kết 16 đội, 18 trận (không mang điểm).',
     // Đợt 14: dải hạng vào thẳng, cổng thắng trận, mang điểm, xoay N bảng, chỉ số phụ PUBG cũ, mẫu PGC 2019/2022/2023
     opt_routes: 'Chuyển thẳng theo dải hạng',
     opt_routes_hint: 'Tính từ hạng 1 (chia bảng: trong mỗi bảng), mỗi dải vào thẳng giai đoạn đã chọn; các hạng sau đó đi tiếp giai đoạn kế (ô số đội đi tiếp được để 0), còn lại bị loại. Nhập 0 để bỏ một dải.',
@@ -60,6 +75,21 @@
   });
 
   X('en', {
+    // Đợt 15: hệ Circuit kiểu PGC 2024
+    opt_circuit: 'Circuit system: several circuits × days, top seeds join late, only Final-day points count',
+    opt_ci_n: 'Circuits',
+    opt_ci_days: 'Days per circuit',
+    opt_ci_keep: 'Top teams kept for the next day',
+    opt_ci_late: 'Late entrants per day (from day 2)',
+    opt_ci_hint: 'E.g. 4 4 with 24 teams: day 1 places 9–24, day 2 adds 5–8, the last day (Final) adds 1–4. The match count above is per day.',
+    br_ci_note: 'Circuit system: {n} circuits × {d} days. Each day is ranked on that day\'s points and the top {k} go on to the next day; higher-ranked teams join later. Each circuit is seeded from the previous one. Only Final-day points are banked.',
+    br_ci_bank: 'Overall: points from the Final days',
+    br_ci_day: 'Circuit {c} · Day {j}',
+    br_ci_final: 'Circuit {c} · Final',
+    ds_circuit: 'circuit system {n} × {d} days × {m} matches: the top {k} stay each day, higher-ranked teams join late ({late}), only Final-day points are banked',
+    srv_ot_circuit_few: 'The circuit system needs at least {n} teams (every day must eliminate someone).',
+    tpl_pgc24: 'PGC 2024 style',
+    tpl_pgc24_d: '24 teams as at PGC 2024 (the first 8 listed are seeds): 3 circuits of 3 days × 6 matches. Day 1: places 9–24; day 2: the top 12 from day 1 plus places 5–8; Circuit Final: the top 12 from day 2 plus places 1–4. Each circuit is seeded from the previous one. Only Circuit Final points are banked; the top 16 reach a 16-team, 18-match final (no points carried).',
     // Đợt 14: dải hạng vào thẳng, cổng thắng trận, mang điểm, xoay N bảng, chỉ số phụ PUBG cũ, mẫu PGC 2019/2022/2023
     opt_routes: 'Send rank bands straight on',
     opt_routes_hint: 'Counting from 1st place (in groups: within each group), each band goes straight to the chosen stage; the following places advance to the next stage (the qualifier count may be 0) and the rest are out. Enter 0 to remove a band.',
@@ -113,6 +143,21 @@
   });
 
   X('ru', {
+    // Đợt 15: hệ Circuit kiểu PGC 2024
+    opt_circuit: 'Система Circuit: несколько кругов × дней, сильные входят позже, в зачёт идут только дни Final',
+    opt_ci_n: 'Число кругов',
+    opt_ci_days: 'Дней в круге',
+    opt_ci_keep: 'Сколько лучших проходят в следующий день',
+    opt_ci_late: 'Входят позже по дням (со 2-го дня)',
+    opt_ci_hint: 'Например, 4 4 при 24 командах: в 1-й день места 9–24, во 2-й добавляются 5–8, в последний (Final) — 1–4. Число матчей выше — за день.',
+    br_ci_note: 'Система Circuit: {n} кругов × {d} дня. Каждый день — своя таблица по очкам этого дня, {k} лучших проходят дальше; команды выше в рейтинге входят позже. Следующий круг — по итогам предыдущего. В зачёт идут только очки дней Final.',
+    br_ci_bank: 'Общий зачёт: очки дней Final',
+    br_ci_day: 'Circuit {c} · день {j}',
+    br_ci_final: 'Circuit {c} · Final',
+    ds_circuit: 'система Circuit {n} × {d} дня × {m} матчей: каждый день остаются {k} лучших, сильные входят позже ({late}), в зачёт идут только дни Final',
+    srv_ot_circuit_few: 'Для системы Circuit нужно не меньше {n} команд (каждый день кто-то должен выбывать).',
+    tpl_pgc24: 'Как PGC 2024',
+    tpl_pgc24_d: '24 команды, как на PGC 2024 (первые 8 в списке — сеяные): 3 круга по 3 дня × 6 матчей. День 1: места 9–24; день 2: 12 лучших дня 1 и места 5–8; Circuit Final: 12 лучших дня 2 и места 1–4. Следующий круг — по итогам предыдущего. В зачёт идут только очки Circuit Final; 16 лучших выходят в финал (16 команд, 18 матчей, очки не переносятся).',
     // Đợt 14: dải hạng vào thẳng, cổng thắng trận, mang điểm, xoay N bảng, chỉ số phụ PUBG cũ, mẫu PGC 2019/2022/2023
     opt_routes: 'Сразу дальше по диапазонам мест',
     opt_routes_hint: 'Считая с 1-го места (при группах — в каждой группе), каждый диапазон проходит сразу в выбранный этап; следующие места проходят в следующий этап (число прошедших может быть 0), остальные выбывают. Введите 0, чтобы убрать диапазон.',
@@ -166,6 +211,21 @@
   });
 
   X('zh', {
+    // Đợt 15: hệ Circuit kiểu PGC 2024
+    opt_circuit: '循环赛制（Circuit）：多轮 × 多天，种子较高者晚入场，只累计决赛日积分',
+    opt_ci_n: '轮数',
+    opt_ci_days: '每轮天数',
+    opt_ci_keep: '晋级下一天的队伍数',
+    opt_ci_late: '各天晚入场的队伍数（从第 2 天起）',
+    opt_ci_hint: '例如 24 队填 4 4：第 1 天为第 9–24 名，第 2 天加入第 5–8 名，最后一天（决赛日）加入第 1–4 名。上方场数为每天场数。',
+    br_ci_note: '循环赛制：{n} 轮 × {d} 天。每天按当天积分排名，前 {k} 名进入下一天；排名越高越晚入场。下一轮按上一轮结果排序。只累计决赛日积分。',
+    br_ci_bank: '总积分：决赛日积分累计',
+    br_ci_day: '第 {c} 轮 · 第 {j} 天',
+    br_ci_final: '第 {c} 轮 · 决赛日',
+    ds_circuit: '循环赛制 {n} 轮 × {d} 天 × {m} 场：每天保留前 {k} 名，排名较高者晚入场（{late}），只累计决赛日积分',
+    srv_ot_circuit_few: '循环赛制至少需要 {n} 支队伍（每天都要有队伍被淘汰）。',
+    tpl_pgc24: 'PGC 2024 式',
+    tpl_pgc24_d: '24 队，与 PGC 2024 相同（名单前 8 队为种子）：3 轮循环赛，每轮 3 天 × 6 场。第 1 天：第 9–24 名；第 2 天：第 1 天前 12 名加第 5–8 名；决赛日：第 2 天前 12 名加第 1–4 名。下一轮按上一轮结果排序。只累计决赛日积分；前 16 名进入 16 队、18 场的总决赛（不带入积分）。',
     // Đợt 14: dải hạng vào thẳng, cổng thắng trận, mang điểm, xoay N bảng, chỉ số phụ PUBG cũ, mẫu PGC 2019/2022/2023
     opt_routes: '按名次段直接晋级',
     opt_routes_hint: '从第 1 名起算（分组时按各组），每个名次段直接进入所选阶段；之后的名次晋级下一阶段（晋级数可为 0），其余淘汰。输入 0 可删除一个名次段。',

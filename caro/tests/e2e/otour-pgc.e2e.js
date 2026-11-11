@@ -5,6 +5,7 @@
  *   2. Tạo + chạy tới Grand Survival: trang giải có nhãn "Vào thẳng giai đoạn n", ghi chú cổng thắng trận, chỉ trận kế
  *      tiếp có khung nhập (16 đội), lưu xong có nhãn đội thắng trận và phòng đấu trận sau không còn đội đó.
  *   3. Mẫu kiểu PGC 2019: chỉ số phụ PUBG cũ, mang điểm, xoay vòng – đổi sang 4 bảng.
+ *   4. Đợt 15 – mẫu kiểu PGC 2024: hệ Circuit (form, mô tả, trang giải: tên trận theo vòng / ngày, đội của ngày 1).
  *   node caro/tests/e2e/otour-pgc.e2e.js
  */
 'use strict';
@@ -74,5 +75,27 @@ const Race = require('../../../server/src/hub/stages-race.js');
   await boss.fill(S(2, 'rotN'), '4'); await boss.press(S(2, 'rotN'), 'Tab'); await sleep(300);
   ok(/4 bảng xoay vòng/.test(await desc()), 'Đổi sang 4 bảng xoay vòng');
   await shot(boss, 'ot-pgc19-form.png');
+
+  // ---------- 4. Đợt 15 – mẫu kiểu PGC 2024: hệ Circuit
+  await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
+  await boss.click('.tpl-card[data-id="pgc24"]'); await sleep(500);
+  ok(await boss.isChecked(S(0, 'ciOn')) && await boss.inputValue(S(0, 'ciN')) === '3' && await boss.inputValue(S(0, 'ciKeep')) === '12' && await boss.inputValue(S(0, 'ciLate')) === '4 4'
+    && !(await boss.$(S(0, 'groups'))) && !(await boss.$(S(0, 'gateOn'))), 'PGC 2024: hệ Circuit 3 vòng, giữ 12, vào muộn 4 4; không có ô chia bảng / cổng thắng trận');
+  ok(/hệ Circuit 3 vòng × 3 ngày × 6 trận/.test(await desc()), 'Mô tả: hệ Circuit');
+  await boss.click('[data-act="otTplTeams"]'); await sleep(400);
+  await boss.click('#otf button.primary.wide'); await sleep(1200);
+  const cid = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
+  const ct = app.hub.otGet(cid);
+  await boss.evaluate(() => window.CaroTourKit.acts.otStart()); await sleep(1500);
+  ok(ct.status === 'running' && ct.st[0].events.length === 54, 'Bắt đầu: 54 trận (3 vòng × 3 ngày × 6)');
+  await boss.click('[data-act="otTab"][data-tab="stages"]'); await sleep(600);
+  const ctxt = await boss.textContent('.ot-tab');
+  ok(/Hệ Circuit: 3 vòng × 3 ngày/.test(ctxt) && /Circuit 1 · Ngày 1 · Chặng 1/.test(ctxt), 'Trang giải: ghi chú hệ Circuit, tên trận theo vòng / ngày');
+  const who = await boss.$$eval('.race-form tr[data-uid]', (trs) => trs.map((x) => x.dataset.uid));
+  ok(who.length === 16 && !who.includes(ct.players[0].uid), 'Ngày 1: 16 đội, chưa có hạt giống 1');
+  await boss.click('[data-act="otRaceFill"]'); await sleep(200);
+  await boss.click('.race-form button.primary'); await sleep(1000);
+  ok(ct.st[0].events[0].done && /Bảng chung: cộng điểm các ngày Final/.test(await boss.textContent('.ot-tab')), 'Lưu trận 1; bảng chung + bảng ngày');
+  await shot(boss, 'ot-pgc24.png');
   await finish();
 })();

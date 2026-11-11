@@ -159,8 +159,8 @@
     if (c.type === 'gsl') { const K = Number(c.size) === 8 ? 8 : 4, G = Math.floor(n / K), per = K === 8 ? 10 : 5; return { matches: per * G, maxMatches: per * G, waves: 3, advance: last ? null : (K / 2) * G, groups: G, groupSize: K }; }
     // Vòng tranh hạt giống + cơ hội cuối (giải offline – stages-kings.js): mỗi nửa cao gặp thấp, 3/4 số đội đi tiếp
     if (c.type === 'kings') { const m = Math.floor(n / 4) * 2; return { matches: m, maxMatches: m, waves: 1, advance: last ? null : Math.floor(n / 4) * 3 }; }
-    // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng
-    if (c.type === 'race') { const G = Number(c.groups) >= 2 ? Number(c.groups) : 1, ev = (Number(c.events) || 1) * G; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, (c.advance || 0) * G), ...(G > 1 ? { groups: G } : {}) }; }
+    // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng. Hệ Circuit: `events` trận × n vòng × days ngày
+    if (c.type === 'race') { const G = Number(c.groups) >= 2 ? Number(c.groups) : 1, ci = c.circuit ? (Number(c.circuit.n) || 1) * (Number(c.circuit.days) || 1) : 1, ev = (Number(c.events) || 1) * G * ci; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, (c.advance || 0) * G), ...(G > 1 ? { groups: G } : {}) }; }
     if (c.type === 'roundrobin' && c.season) {
       // Mùa giải kiểu Mỹ (caro/otour-season.js): số trận chính xác; lịch xếp tham lam dài hơn số trận mỗi đội ~5%
       const SS = typeof module !== 'undefined' && module.exports ? require('./otour-season.js') : global.CaroOTourSeason;
