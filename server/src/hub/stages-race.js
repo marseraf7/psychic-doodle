@@ -12,6 +12,10 @@
  * thành các lượt đều nhau (kiểu rắn theo hạt giống – sức các lượt cân bằng; từ chặng 2 xoay các hàng để gặp đối thủ
  * khác), nhập kết quả từng lượt; đủ các lượt thì chặng xong. 'time': gộp mọi lượt, xếp theo thời gian; 'points': điểm
  * theo hạng trong lượt (countback theo số lần nhất lượt…).
+ * Sinh tồn (battle royale – cách tính 'points'): cfg.kill = điểm mỗi lần hạ gục, cộng với điểm theo hạng (nhập thêm số hạ
+ * gục từng đội); cfg.mp = kết thúc kiểu "match point": đội đã đạt ngưỡng điểm mà thắng một trận thì vô địch ngay – ngưỡng
+ * cố định (mp.at) hoặc "điểm đội dẫn đầu sau `after` trận + `plus`" (kiểu Smash Rule); hết số trận mà chưa ai làm được thì
+ * xếp theo tổng điểm. Có match point thì nhập lần lượt, chỉ huỷ trận sau cùng (otour-race.js).
  * Trạng thái chặt chẽ: mỗi chặng chỉ có chưa nhập / đã nhập (huỷ được); không có bước điểm danh làm kẹt giải.
  * Hàm thuần, không phụ thuộc mạng; hub gọi từ stages.js (dựng, bảng xếp hạng, người đi tiếp) và otour-run.js (nhập kết quả).
  */
@@ -43,7 +47,14 @@ function cleanTable(x) {
 function normalizeRace(c, last) {
   const score = SCORES.includes(c.score) ? c.score : 'points';
   const out = { type: 'race', bestOf: 1, events: int(c.events, 1, MAX_EVENTS, 1), score };
-  if (score === 'points') out.table = cleanTable(c.table) || [...F1];
+  if (score === 'points') {
+    out.table = cleanTable(c.table) || [...F1];
+    const kill = int(c.kill, 0, 10, 0);
+    if (kill) out.kill = kill;
+    const mp = c.mp && typeof c.mp === 'object' ? c.mp : null;
+    if (mp && Number(mp.at) > 0) out.mp = { at: int(mp.at, 1, 100000, 50) };
+    else if (mp && Number(mp.after) > 0 && out.events > 1) out.mp = { after: int(mp.after, 1, out.events - 1, 1), plus: int(mp.plus, 0, 1000, 10) };
+  }
   if (score === 'gt') GT.normalizeGt(c, out); // bảng đội luôn tính theo cột "Đội"; không chia lượt
   else if (score === 'golf') GOLF.normalizeGolf(c, out);
   else if (c.teams === true) out.teams = true;
@@ -87,6 +98,7 @@ function cleanEvent(st, rows, members = st.entrants, i = 0) {
       }
     }
     if (pts && r.pts != null && r.pts !== '') x.pts = int(r.pts, -1000, 1000, 0); // điểm sửa tay (thưởng / phạt)
+    if (pts && st.cfg.kill) { const k = int(r.kills, 0, 200, 0); if (k) x.kills = k; } // số hạ gục (sinh tồn)
     out.push(x);
   }
   if (!out.some((x) => !x.dnf)) return { code: 'ot_race_empty' };
@@ -98,7 +110,23 @@ function cleanEvent(st, rows, members = st.entrants, i = 0) {
 }
 
 /** Điểm của một dòng (points): sửa tay nếu có, không thì theo bảng điểm; bỏ cuộc 0. */
-const rowPts = (cfg, x) => (x.pts != null ? x.pts : x.dnf ? 0 : cfg.table[x.rank - 1] || 0);
+const rowPts = (cfg, x) => (x.pts != null ? x.pts : (x.dnf ? 0 : cfg.table[x.rank - 1] || 0) + (cfg.kill ? (x.kills || 0) * cfg.kill : 0));
+
+/** Tổng điểm từng người qua các chặng đã nhập có số thứ tự < upto. */
+function totalsBefore(st, upto) {
+  const tot = {};
+  for (const ev of st.events) if (ev.done && ev.i < upto) for (const x of ev.rows) tot[x.uid] = (tot[x.uid] || 0) + rowPts(st.cfg, x);
+  return tot;
+}
+/** Ngưỡng match point hiện tại (null: chưa xác định – kiểu "sau `after` trận" mà chưa đấu đủ). */
+function mpThreshold(st) {
+  const mp = st.cfg.mp;
+  if (!mp) return null;
+  if (mp.at) return mp.at;
+  const ev = st.events[mp.after - 1];
+  if (!ev || !ev.done) return null;
+  return Math.max(0, ...Object.values(totalsBefore(st, mp.after))) + mp.plus;
+}
 
 /** Thứ tự một chặng: theo hạng / thời gian, bỏ cuộc xếp cuối. */
 function eventOrder(st, ev) {
@@ -110,9 +138,15 @@ function eventOrder(st, ev) {
 function recordEvent(st, i, rows) {
   if (st.cfg.score === 'golf') return GOLF.recordRound(st, i, rows); // vòng golf lưu được khi đang đánh dở
   const ev = st.events[i];
+  // Match point: đội thắng trận này đã đạt ngưỡng từ trước trận → vô địch, giai đoạn kết thúc ngay
+  const th = st.cfg.score === 'points' && st.cfg.mp && (st.cfg.mp.at || i >= st.cfg.mp.after) ? mpThreshold(st) : null;
+  if (th != null) {
+    const w = rows.find((x) => !x.dnf && x.rank === 1);
+    if (w && (totalsBefore(st, i)[w.uid] || 0) >= th) st.mpWinner = w.uid;
+  }
   ev.rows = rows;
   ev.done = true;
-  st.done = st.events.every((e) => e.done);
+  st.done = !!st.mpWinner || st.events.every((e) => e.done);
   return st.done;
 }
 
@@ -126,6 +160,7 @@ function recordHeat(st, i, h, rows) {
 
 function undoEvent(st, i) {
   delete st.playoff; // golf: kết quả đấu phụ không còn đúng
+  delete st.mpWinner; // match point: chưa ai thắng nữa
   Object.assign(st.events[i], { done: false, rows: null });
   for (const x of st.events[i].heats || []) Object.assign(x, { done: false, rows: null });
   st.done = false;
@@ -143,7 +178,7 @@ function raceTable(st, seedOf) {
   if (st.cfg.score === 'gt') { const C = GT.gtCalc(st, seedOf, null); return { list: C.gc, stats: C.stats }; }
   if (st.cfg.score === 'golf') { const C = GOLF.golfCalc(st, seedOf); return { list: C.order, stats: C.stats }; }
   const cfg = st.cfg, pts = cfg.score === 'points';
-  const stats = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, pts: 0, time: 0, races: 0, fin: 0, dnf: 0, places: [] }]));
+  const stats = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, pts: 0, time: 0, races: 0, fin: 0, dnf: 0, places: [], kills: 0 }]));
   const done = st.events.filter((e) => e.done);
   for (const ev of done) {
     for (const x of ev.rows) {
@@ -153,6 +188,7 @@ function raceTable(st, seedOf) {
       if (x.dnf) { s.dnf++; } else s.fin++;
       if (pts) {
         s.pts += rowPts(cfg, x);
+        s.kills += x.kills || 0;
         if (!x.dnf) s.places[x.rank - 1] = (s.places[x.rank - 1] || 0) + 1;
       } else if (!x.dnf) s.time += x.time;
     }
@@ -161,9 +197,11 @@ function raceTable(st, seedOf) {
   const cmp = pts
     ? (a, b) => {
       const x = stats[a], y = stats[b];
+      // Thắng theo match point, rồi tổng điểm, countback (nhiều lần về nhất hơn, rồi nhì…), số hạ gục
+      if (st.mpWinner && (a === st.mpWinner) !== (b === st.mpWinner)) return a === st.mpWinner ? -1 : 1; // thắng theo match point
       if (y.pts !== x.pts) return y.pts - x.pts;
-      // Countback: nhiều lần về nhất hơn, rồi nhì…
       for (let k = 0; k < Math.max(x.places.length, y.places.length); k++) if ((y.places[k] || 0) !== (x.places[k] || 0)) return (y.places[k] || 0) - (x.places[k] || 0);
+      if (y.kills !== x.kills) return y.kills - x.kills;
       return seedOf(a) - seedOf(b);
     }
     : (a, b) => {
@@ -196,7 +234,7 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
     let prev = null;
     return order.map((x) => {
       const r = { ...side(x.uid), dnf: x.dnf };
-      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; } else if (!x.dnf) {
+      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; if (x.kills) r.kills = x.kills; } else if (!x.dnf) {
         r.time = x.time; r.gap = lead != null ? x.time - lead : null; r.gapPrev = prev != null ? x.time - prev : null; prev = x.time;
       }
       return r;
@@ -209,11 +247,12 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
   const { list, stats } = raceTable(st, seedOf);
   const all = st.events.filter((e) => e.done).length;
   const lead = list.length ? stats[list[0]] : null;
+  const mpAt = pts ? mpThreshold(st) : null;
   let prev = null;
   const table = list.map((u, k) => {
     const s = stats[u];
     const r = { ...side(u), rank: k + 1, races: s.races, fin: s.fin, dnf: s.dnf, adv: k < adv };
-    if (pts) { r.pts = s.pts; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
+    if (pts) { r.pts = s.pts; if (cfg.kill) r.kills = s.kills; if (mpAt != null && s.pts >= mpAt) r.mp = true; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
       r.time = s.fin === all && all ? s.time : null;
       r.gap = r.time != null && lead && lead.fin === all ? s.time - lead.time : null;
       r.gapPrev = r.time != null && prev != null ? s.time - prev : null;
@@ -222,6 +261,7 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
     return r;
   });
   const v = { index: i, type: 'race', cfg, done: st.done, events, table, entrants: st.entrants.map(side) };
+  if (cfg.mp && pts) v.mp = { at: mpAt, winner: st.mpWinner ? side(st.mpWinner).name : null };
   if (cfg.teams && pts) {
     const tm = new Map();
     for (const u of list) { const name = teamOf(u); if (name) tm.set(name, (tm.get(name) || 0) + stats[u].pts); }
@@ -236,4 +276,4 @@ const raceError = (cfg, n) => {
   return cfg.type === 'race' && n > max ? { code: 'ot_race_many', args: { n: max } } : null;
 };
 
-module.exports = { SCORES, F1, MAX_EVENTS, MAX_RACE, MAX_RACE_HEATS, MAX_HEAT, cleanTable, normalizeRace, buildRace, heatsFor, cleanEvent, recordEvent, recordHeat, undoEvent, undoHeat, raceTable, raceView, raceError, eventOrder, rowPts };
+module.exports = { mpThreshold, totalsBefore, SCORES, F1, MAX_EVENTS, MAX_RACE, MAX_RACE_HEATS, MAX_HEAT, cleanTable, normalizeRace, buildRace, heatsFor, cleanEvent, recordEvent, recordHeat, undoEvent, undoHeat, raceTable, raceView, raceError, eventOrder, rowPts };

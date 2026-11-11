@@ -116,7 +116,7 @@ test('Mẫu Esports World Cup: mọi giải con trong mẫu chuẩn hoá đượ
   const { SPORTS } = require('../../caro/otour-sports.js');
   const Spec = require('../src/hub/otour-spec.js');
   const tpl = TP.byId('esports_world_cup');
-  assert.deepStrictEqual([tpl.multi.table, tpl.multi.games.map((g) => g.key)], [M.TABLE, ['moba', 'fps', 'br', 'fighting', 'chess']]);
+  assert.deepStrictEqual([tpl.multi.table, tpl.multi.games.map((g) => g.key)], [M.TABLE, ['moba', 'fps', 'br', 'br_mp', 'fighting', 'chess']]);
   for (const g of tpl.multi.games) {
     const spec = Spec.normalizeSpec(TP.specOf(g, SPORTS));
     assert.deepStrictEqual(spec.stages.map((c) => c.type), g.stages.map((c) => c.type), g.key);

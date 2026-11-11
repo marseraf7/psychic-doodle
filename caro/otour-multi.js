@@ -25,7 +25,7 @@
     if (!m.clubs.length) return `<p class="hint">${esc(T('multi_clubs_none'))}</p>`;
     const cols = kids.length <= 8 ? kids : []; // nhiều giải con quá thì bỏ các cột từng giải
     const head = ['#', T('multi_club'), T('race_pts'), T('multi_wins'), ...cols.map((c) => c.name)];
-    const rows = m.clubs.map((c) => `<tr><td>${c.rank}</td><td class="nm">${esc(c.name)}</td><td><b>${c.pts}</b></td><td>${c.wins}</td>${cols.map((k) => {
+    const rows = m.clubs.map((c) => `<tr class="${c.inel ? 'dnf' : ''}"><td>${c.inel ? '–' : c.rank}</td><td class="nm">${esc(c.name)}${c.inel ? ` <small class="pill">${esc(T('multi_inel', { n: m.minTop }))}</small>` : ''}</td><td><b>${c.pts}</b></td><td>${c.wins}</td>${cols.map((k) => {
       const r = c.res[k.id];
       return `<td>${r ? `${r.pts} <small class="muted">${esc(T('multi_place', { n: r.place }))}</small>` : ''}</td>`;
     }).join('')}</tr>`).join('');
@@ -45,13 +45,16 @@
     const m = t.multi;
     if (!m) return '';
     const sec = (title, body) => `<section class="ot-sec"><h4>${esc(title)}</h4>${body}</section>`;
-    let html = sec(T('multi_clubs'), `<p class="hint">${esc(T('multi_table_is', { table: m.table.join(' – ') }))}</p>${clubTable(t)}`);
+    const rules = [T('multi_table_is', { table: m.table.join(' – ') }), m.minTop > 1 ? T('multi_rule_min', { n: m.minTop }) : '', m.needWin ? T('multi_rule_win') : ''].filter(Boolean).join(' ');
+    let html = sec(T('multi_clubs'), `<p class="hint">${esc(rules)}</p>${clubTable(t)}`);
     let kids = childList(t);
     if (t.canManage) {
       kids += `${m.hidden ? `<p class="hint">${esc(T('multi_hidden', { n: m.hidden }))}</p>` : ''}<div class="row"><button type="button" class="primary" data-act="otMultiNew">${icon('plus')}${esc(T('multi_add'))}</button></div>
         ${K.fold('multi:cfg:' + t.id, esc(T('multi_manage')), () => `<label class="field"><span>${esc(T('multi_attach'))}</span><input id="multi-attach" placeholder="${esc(T('multi_attach_ph'))}"></label>
           <button type="button" class="ghost sm" data-act="otMultiAttach">${esc(T('multi_attach_btn'))}</button>
           <label class="field"><span>${esc(T('multi_table'))}</span><input id="multi-table" inputmode="numeric" value="${esc(m.table.join(' '))}"><small class="hint">${esc(T('multi_table_hint'))}</small></label>
+          <label class="field inline"><span>${esc(T('multi_min_top'))}</span><input id="multi-min" type="number" min="1" max="30" value="${m.minTop || 1}"></label>
+          <label class="check"><input type="checkbox" id="multi-win" ${m.needWin ? 'checked' : ''}> <span>${esc(T('multi_need_win'))}</span></label>
           <button type="button" class="ghost sm" data-act="otMultiCfg">${esc(T('multi_table_save'))}</button><p class="err" id="multi-err"></p>`, false)}`;
     }
     html += sec(`${T('multi_children')} (${m.children.length})`, kids);
@@ -69,7 +72,7 @@
     if (K.otForm && K.otForm.F.d) { K.otForm.F.d.parent = parent; render(true); }
   };
   K.acts.otMultiDetach = (b) => window.CaroConfirm.ask(T('multi_detach_confirm')).then((ok) => { if (ok) O.send({ t: 'otMultiDetach', id: D.ot.id, child: b.dataset.id }); });
-  K.acts.otMultiCfg = () => O.send({ t: 'otMultiCfg', id: D.ot.id, table: $('multi-table').value });
+  K.acts.otMultiCfg = () => O.send({ t: 'otMultiCfg', id: D.ot.id, table: $('multi-table').value, minTop: Number($('multi-min').value) || 1, needWin: $('multi-win').checked });
   K.acts.otMultiAttach = () => {
     // Nhận mã giải, link riêng hoặc cả đường dẫn ?o=…
     const raw = $('multi-attach').value.trim(), mt = /[?&]o=([^&#]+)/.exec(raw);
@@ -83,7 +86,7 @@
     const fm = K.otForm;
     if (!fm) return;
     fm.collect();
-    Object.assign(fm.F.d, { tpl: tpl.id, multi: { table: [...tpl.multi.table], off: {}, sample: true } });
+    Object.assign(fm.F.d, { tpl: tpl.id, multi: { table: [...tpl.multi.table], minTop: tpl.multi.minTop || 1, needWin: !!tpl.multi.needWin, off: {}, sample: true } });
     if (!fm.F.d.name.trim()) fm.F.d.name = T('tpl_' + tpl.id);
     render(true);
   };
@@ -98,6 +101,8 @@
       <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
       <fieldset><legend>${esc(T('multi_games'))}</legend><ul class="multi-games">${games}</ul><small class="hint">${esc(T('multi_games_hint'))}</small></fieldset>
       <label class="field"><span>${esc(T('multi_table'))}</span><input name="table" inputmode="numeric" value="${esc(mu.table.join(' '))}"><small class="hint">${esc(T('multi_table_hint'))}</small></label>
+      <label class="field inline"><span>${esc(T('multi_min_top'))}</span><input name="minTop" type="number" min="1" max="30" value="${mu.minTop || 1}"></label>
+      <label class="check"><input type="checkbox" name="needWin" ${mu.needWin ? 'checked' : ''}> <span>${esc(T('multi_need_win'))}</span></label>
       <label class="check"><input type="checkbox" name="sample" ${mu.sample ? 'checked' : ''}> <span>${esc(T('multi_sample'))}</span></label>
       <fieldset><legend>${esc(T('ot_access'))}</legend><div class="seg">${['public', 'link', 'private'].map((k) => `<label><input type="radio" name="access" value="${k}" ${d.access === k ? 'checked' : ''}> <span>${esc(T('ot_acc_' + k))}</span></label>`).join('')}</div></fieldset>
       <p class="err" id="otf-err"></p>
@@ -110,6 +115,8 @@
     const tpl = TP.byId(d.tpl);
     d.multi.table = String(f.elements.table.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.floor(Number(x)) || 0));
     d.multi.sample = f.elements.sample.checked;
+    d.multi.minTop = Math.max(1, Math.floor(Number(f.elements.minTop.value)) || 1);
+    d.multi.needWin = f.elements.needWin.checked;
     d.multi.off = Object.fromEntries(tpl.multi.games.filter((g) => !f.elements['g_' + g.key].checked).map((g) => [g.key, true]));
   }
   K.acts.otMultiOff = () => { const fm = K.otForm; if (!fm) return; Object.assign(fm.F.d, { tpl: null, multi: null }); render(true); };
@@ -128,7 +135,7 @@
       const games = tpl.multi.games.filter((g) => !d.multi.off[g.key]).map((g) => ({ name: T('ewc_g_' + g.key), spec: TP.specOf(g, SP.SPORTS),
         teams: d.multi.sample ? Array.from({ length: g.n }, (_, i) => `${T('multi_club_word')} ${i + 1}`) : [] }));
       O.send({ t: 'otCreate', name: d.name.trim(), slug: d.slug.trim().toLowerCase(), desc: d.desc, access: d.access,
-        spec: TP.specOf(tpl, SP.SPORTS), teams: [], multi: { table: d.multi.table, games } });
+        spec: TP.specOf(tpl, SP.SPORTS), teams: [], multi: { table: d.multi.table, minTop: d.multi.minTop, needWin: d.multi.needWin, games } });
     };
   });
   if (!O) return;

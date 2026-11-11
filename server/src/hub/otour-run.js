@@ -140,7 +140,9 @@ class OTourRun {
     }
     // Đội vào thẳng giai đoạn này (hạt giống cao hơn) đứng trước các đội đi tiếp
     const direct = (t.direct && t.direct[t.stage + 1]) || [];
-    const adv = ST.advancers(st, this.otSeedOf(t), direct.length ? 1 : 2);
+    const adv = ST.splitAdvancers(st, this.otSeedOf(t), direct.length ? 1 : 2);
+    // Các đội đầu vào thẳng giai đoạn sau nữa (cfg.skip): đứng sau đội hạt giống vào thẳng (nếu có), trước đội đi tiếp từ vòng vớt
+    if (adv.skip.length) t.direct = { ...(t.direct || {}), [t.stage + 2]: [...((t.direct && t.direct[t.stage + 2]) || []), ...adv.skip] };
     const { groupOf } = adv;
     const cfg = t.stages[t.stage + 1];
     const seeds = [...direct, ...adv.seeds.filter((u) => !direct.includes(u))];
@@ -197,7 +199,7 @@ class OTourRun {
     const { st, m } = this.otMatch(t, match);
     if (m.done) throw E('tour_match_done');
     // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua
-    const elim = ST.isElim(st.type) || !!st.cfg.record;
+    const elim = ST.linked(st.type) || !!st.cfg.record;
     let w;
     const bo = ST.boOf(st, m);
     if (t.result === 'score' && elim && bo > 1 && !ST.twoLeg(st, m)) {
@@ -260,7 +262,7 @@ class OTourRun {
     const { t, me } = this.otManaged(conn, id);
     const { st, m } = this.otMatch(t, match);
     if (!m.done || m.bye || m.split || PO.undoLocked(st, m)) throw E('tour_undo_locked');
-    if (ST.isElim(st.type)) {
+    if (ST.linked(st.type)) {
       const targets = [m.next, m.loserTo].filter(Boolean).map((r) => ({ r, x: st.matches[r.to] }));
       if (targets.some(({ x }) => x.done)) throw E('tour_undo_locked');
       const g2 = m.gf === 1 && st.gf[1] && st.matches[st.gf[1]];

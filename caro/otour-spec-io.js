@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
   const SP = typeof module !== 'undefined' && module.exports ? require('./otour-sports.js') : global.CaroOTourSports;
-  const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race'];
+  const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl'];
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
   const lv = { type: 'object', properties: { m: int(0, 30, 'số lần gặp mỗi đối thủ ở mức này'), x: int(0, 999, 'số đối thủ ở mức này gặp thêm 1 lần') } };
@@ -35,7 +35,10 @@
         items: {
           type: 'object', required: ['type'],
           properties: {
-            type: { type: 'string', enum: TYPES },
+            type: { type: 'string', enum: TYPES, description: "'gsl': bảng đấu loại kép 4 đội (mở màn, nhánh thắng, nhánh thua, quyết định) – số đội chia hết cho 4, nhất và nhì bảng đi tiếp" },
+            boDecider: bo, skip: int(0, 256, 'giải 3 giai đoạn, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
+            kill: int(0, 10, "Race 'points' (sinh tồn): điểm mỗi lần hạ gục, cộng với điểm theo hạng"),
+            mp: { type: 'object', description: "Race 'points': kết thúc kiểu match point – đội đã đạt ngưỡng mà thắng một trận thì vô địch; { at } ngưỡng cố định, hoặc { after, plus } = điểm đội dẫn đầu sau `after` trận + `plus`", properties: { at: int(1, 100000), after: int(1, 29), plus: int(0, 1000) } },
             bestOf: bo, advance: int(1, 200, 'số người đi tiếp (vòng tròn: mỗi bảng)'),
             thirdPlace: { type: 'boolean' }, places: { type: 'array', items: { type: 'integer' }, description: 'trận xếp hạng: 3 = hạng 3–4, 5 = 5–6…' },
             boSemi: bo, boFinal: bo, gf: { type: 'string', enum: ['2', '1', 'none'] }, split: { type: 'boolean' },
@@ -82,6 +85,9 @@
       if (c.path === 'groups') x.push(T('ds_path'));
       if (c.type === 'single' && c.playoff) x.push(...playoffText(c.playoff, T)); // playoff kiểu Mỹ
       if (c.type === 'single' && Array.isArray(c.boRounds) && c.boRounds.length) x.push(T('ds_bo_rounds', { list: c.boRounds.join(', ') }));
+    } else if (c.type === 'gsl') {
+      x.push(T('ds_gsl', { bo: c.bestOf || 1 }));
+      if (c.boDecider) x.push(T('ds_gsl_dec', { bo: c.boDecider }));
     } else if (c.type === 'roundrobin') {
       if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
       else if (c.season) x.push(seasonText(c.season, T));
@@ -103,6 +109,8 @@
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));
       } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
+      if (c.kill) x.push(T('ds_kill', { n: c.kill }));
+      if (c.mp) x.push(c.mp.at ? T('ds_mp_at', { n: c.mp.at }) : T('ds_mp_after', { n: c.mp.after, p: c.mp.plus }));
       if (c.teams) x.push(T('ds_teams'));
       if (c.heat >= 2) x.push(T('ds_heat', { n: c.heat }));
     }
@@ -111,7 +119,8 @@
     }
     if (!last) {
       if (c.type === 'swiss' && c.record) x.push(T('ds_adv_rec', { n: c.record.win }));
-      else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'roundrobin' && !c.league ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
+      else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
+      if (c.skip) x.push(T('ds_skip', { n: c.skip }));
     }
     if (c.direct) x.push(T('ds_direct', { n: c.direct })); // đội hạt giống cao vào thẳng giai đoạn này
     if (c.type === 'swiss' && c.region) x.push(T('ds_region'));

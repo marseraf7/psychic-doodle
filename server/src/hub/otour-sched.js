@@ -27,9 +27,9 @@ function stageItems(st, s) {
     if (!m || m.bye || m.skipped || m.a === ST.BYE || m.b === ST.BYE) return;
     out.push({ m, id, a: m.a, b: m.b, stage: s, lvl, seq });
   };
-  if (st.type === 'roundrobin') {
+  if (st.type === 'roundrobin' || st.type === 'gsl') { // bảng GSL: trận sau chờ kết quả lượt trước
     const R = Math.max(0, ...st.groups.map((g) => g.rounds.length));
-    for (let r = 0; r < R; r++) for (const g of st.groups) for (const id of g.rounds[r] || []) push(id, r, false);
+    for (let r = 0; r < R; r++) for (const g of st.groups) for (const id of g.rounds[r] || []) push(id, r, st.type === 'gsl');
   } else if (st.type === 'swiss') {
     (st.rounds || []).forEach((ids, r) => ids.forEach((id) => push(id, r, true)));
   } else if (st.type === 'single' || st.type === 'double') {

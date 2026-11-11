@@ -45,17 +45,28 @@
     // lạc bộ. Tên game chỉ ghi theo thể loại (không dùng tên / dữ liệu của game thật). stages: thể thức mặc định của một giải con
     { id: 'esports_world_cup', icon: '🌐', sport: 'esports', n: 16,
       stages: [{ type: 'single', bestOf: 3, thirdPlace: false }],
-      multi: { table: [1000, 750, 500, 300, 200, 200, 100, 100], games: [
+      // Bảng điểm theo hạng: 1000-750-500-300-200-150-100-50 (đồng hạng nhận điểm của hạng đó); câu lạc bộ phải có điểm ở ít
+      // nhất 2 game và vô địch ít nhất 1 game mới được xếp đầu
+      multi: { table: [1000, 750, 500, 300, 200, 150, 100, 50], minTop: 2, needWin: true, games: [
+        // MOBA / bắn súng đội: 4 bảng đấu loại kép 4 đội (GSL) → 8 đội loại trực tiếp
         { key: 'moba', sport: 'esports', n: 16, esports: { draft: 'lol', fearless: 'hard', scope: 'series', stats: ['kills', 'gold', 'towers'], players: false },
-          stages: [{ type: 'roundrobin', groupSize: 4, advance: 2, bestOf: 3 }, { type: 'single', bestOf: 5, thirdPlace: false }] },
+          stages: [{ type: 'gsl', bestOf: 1, boDecider: 3 }, { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: true }] },
         { key: 'fps', sport: 'esports', n: 16, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
           stages: [{ type: 'swiss', bestOf: 1, record: { win: 3, lose: 3, bo: 3 } }, { type: 'single', bestOf: 3, thirdPlace: false }] },
-        { key: 'br', sport: 'esports', n: 16, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
-          stages: [{ type: 'race', events: 12, score: 'points', table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 0, 0] }] },
+        // Sinh tồn có vòng vớt: 24 đội, 12 trận vòng bảng → 8 đội đầu vào thẳng chung kết, 16 đội còn lại đá vòng sinh tồn
+        // lấy 8 đội; chung kết 16 đội tối đa 18 trận, sau 12 trận đặt ngưỡng = điểm đội dẫn đầu + 10 (kiểu Smash Rule)
+        { key: 'br', sport: 'esports', n: 24, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+          stages: [{ type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, advance: 16, skip: 8 },
+            { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, advance: 8 },
+            { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, mp: { after: 12, plus: 10 } }] },
+        // Sinh tồn match point: 20 đội đấu 10 trận xếp hạt giống, chung kết: đạt 50 điểm rồi thắng một trận thì vô địch
+        { key: 'br_mp', sport: 'esports', n: 20, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+          stages: [{ type: 'race', events: 10, score: 'points', table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1], kill: 1, advance: 20 },
+            { type: 'race', events: 12, score: 'points', table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1], kill: 1, mp: { at: 50 } }] },
         { key: 'fighting', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: [] },
           stages: [{ type: 'double', bestOf: 3 }] },
         { key: 'chess', sport: 'chess', n: 16,
-          stages: [{ type: 'swiss', rounds: 5, advance: 8 }, { type: 'single', thirdPlace: false }] }] } },
+          stages: [{ type: 'gsl' }, { type: 'single', thirdPlace: true }] }] } },
     { id: 'f1', icon: '🏎️', sport: 'racing', n: 20,
       stages: [{ type: 'race', events: 24, score: 'points', teams: true }] },
     { id: 'time_trial', icon: '⏱️', sport: 'running', n: 30,
