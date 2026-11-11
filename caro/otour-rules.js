@@ -129,9 +129,22 @@
    * trận hai bảng cùng đấu, một bảng nghỉ (trận 1: A + B, trận 2: B + C, trận 3: A + C, rồi lặp lại) – sau mỗi 3 trận ai
    * cũng đấu 2 trận. Trả những người đấu trận i (theo thứ tự hạt giống). Dùng chung máy chủ + trình duyệt.
    */
-  function lobbyOf(list, i) {
+  function lobbyOf(list, i, G = 3) {
+    if (G > 3) { const [x, y] = rotPairs(G)[i % rotPairs(G).length]; return list.filter((u, j) => { const g = snakeGroup(j, G); return g === x || g === y; }); }
     const sit = (i + 2) % 3;
     return list.filter((u, j) => { const r = Math.floor(j / 3), c = j % 3; return (r % 2 ? 2 - c : c) !== sit; });
+  }
+  /**
+   * Xoay vòng G bảng (G ≥ 4 – kiểu Rank Decision PGC 2021: 4 bảng, mỗi trận 2 bảng): các cặp bảng theo lịch vòng tròn
+   * (G = 4: A–B, C–D, A–C, B–D, A–D, B–C), trận i đấu cặp thứ i % số cặp. G = 3 giữ cách cũ (lobbyOf).
+   */
+  function rotPairs(G) {
+    const ids = Array.from({ length: G % 2 ? G + 1 : G }, (_, k) => k), n = ids.length, out = [];
+    for (let r = 0; r < n - 1; r++) {
+      for (let k = 0; k < n / 2; k++) { const a = ids[k], b = ids[n - 1 - k]; if (a < G && b < G) out.push(a < b ? [a, b] : [b, a]); }
+      ids.splice(1, 0, ids.pop()); // xoay (giữ ids[0])
+    }
+    return out;
   }
   /** Bảng (0–2) của người thứ j theo hạt giống khi chia 3 bảng xoay vòng. */
   const lobbyGroup = (j) => { const r = Math.floor(j / 3), c = j % 3; return r % 2 ? 2 - c : c; };
@@ -141,7 +154,7 @@
   /** Người của bảng g khi chia G bảng cố định (sinh tồn kiểu PGC: mỗi trận chỉ một bảng đấu). */
   const groupList = (list, G, g) => list.filter((_, j) => snakeGroup(j, G) === g);
 
-  const api = { lobbyOf, lobbyGroup, snakeGroup, groupList, cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, fmtPar, MAX_TIME, heatsOf };
+  const api = { lobbyOf, lobbyGroup, rotPairs, snakeGroup, groupList, cleanSet, setError, setsError, need, decidingPlayed, MAX_POINT, parseTime, fmtTime, fmtGap, fmtPar, MAX_TIME, heatsOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroOTourRules = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -348,12 +348,13 @@ class Bracket {
   /** Một giai đoạn gửi cho client (stageViews). */
   stageView(t, st, i, seedOf, table) {
     const M = (id) => this.matchView(t, st.matches[id], st);
-    const adv = i === t.stages.length - 1 ? 0 : (st.cfg.advance || 0) + (st.cfg.skip || 0); // skip: vào thẳng giai đoạn sau nữa
+    // skip / routes: các dải hạng vào thẳng giai đoạn sau nữa cũng là đi tiếp
+    const adv = i === t.stages.length - 1 ? 0 : (st.cfg.advance || 0) + (st.cfg.skip || 0) + ST.routesOf(st).reduce((a, r) => a + r.n, 0);
     if (st.type === 'race') { // giải offline: hệ Race – các chặng + bảng chung + bảng đội (stages-race.js)
       const team = new Map((t.players || []).map((p) => [p.uid, p.team || '']));
       const young = new Set((t.players || []).filter((p) => p.young).map((p) => p.uid)); // tay đua trẻ (bảng áo trắng – 'gt')
       const rv = Race.raceView(st, i, adv, (u) => this.tourSide(t, u), seedOf, (u) => team.get(u) || '', (u) => young.has(u));
-      if (t.kind === 'otour' && st.cfg.skip) this.markAdvance(t, st, i, rv, seedOf); // đánh dấu đội vào thẳng giai đoạn sau nữa
+      if (t.kind === 'otour' && (st.cfg.skip || ST.routesOf(st).length)) this.markAdvance(t, st, i, rv, seedOf); // đánh dấu đội vào thẳng giai đoạn sau nữa
       return rv;
     }
     const v = { index: i, type: st.type, cfg: st.cfg, done: st.done };
@@ -395,13 +396,15 @@ class Bracket {
    */
   markAdvance(t, st, i, v, seedOf) {
     if (st.type === 'gsl' || st.type === 'kings') return; // bảng GSL / vòng tranh hạt giống tự đánh dấu theo trận
-    const sp = ST.splitAdvancers(st, seedOf), seeds = [...sp.skip, ...sp.seeds];
-    const going = new Set(seeds), skip = new Set(sp.skip);
+    const sp = ST.splitAdvancers(st, seedOf), seeds = sp.seeds;
+    // Dải hạng chuyển sang giai đoạn sau nữa: r.to = số thứ tự giai đoạn (1, 2…) để ghi "Vào thẳng giai đoạn n"
+    const toOf = new Map((sp.routes || []).flatMap((r) => r.uids.map((u) => [u, r.to + 1])));
+    const going = new Set([...seeds, ...toOf.keys()]);
     const next = t.stages[i + 1];
     let byes = 0;
     if (next && next.type === 'single' && seeds.length > 2) { let p = 2; while (p < seeds.length) p *= 2; byes = p - seeds.length; }
     const bye = new Set(seeds.slice(0, byes));
-    const mark = (rows) => { for (const r of rows || []) { r.adv = going.has(r.uid); if (bye.has(r.uid)) r.bye = true; if (skip.has(r.uid)) r.skip = true; } };
+    const mark = (rows) => { for (const r of rows || []) { r.adv = going.has(r.uid); if (bye.has(r.uid)) r.bye = true; if (toOf.has(r.uid)) { r.skip = true; r.to = toOf.get(r.uid); } } };
     if (v.groups) for (const g of v.groups) mark(g.table);
     mark(v.table);
     if (byes) v.byes = byes;

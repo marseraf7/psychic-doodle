@@ -53,6 +53,34 @@
       stages: [{ type: 'race', events: 18, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 8, skip: 5 },
         { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 5 },
         { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', direct: 1 }] },
+    // PGC 2019: 32 đội, 2 bảng cố định × 6 trận – 8 đội đầu mỗi bảng vào thẳng bán kết, 8 đội sau đá vòng loại (16 đội, 6 trận,
+    // mang nguyên điểm vòng bảng) lấy 8; bán kết 24 đội 3 bảng xoay vòng 18 trận lấy 16; chung kết 16 đội 12 trận. Bảng điểm
+    // SUPER 10-6-5-4-3-2-1-1 + 1 điểm mỗi hạ gục; bằng điểm xét hạ gục trước (kiểu PUBG cũ)
+    { id: 'pgc19', icon: '🪂', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 6, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k', routes: [{ n: 8, to: 2 }], advance: 8 },
+        { type: 'race', events: 6, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k', carry: true, advance: 8 },
+        { type: 'race', events: 18, score: 'points', rot: true, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k', advance: 16 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k' }] },
+    // PGC 2022: 32 đội – bảng (2 × 16, 15 trận): 8 đội đầu mỗi bảng vào nhánh thắng, 8 đội sau vào nhánh thua 1. Nhánh thua 1
+    // (10 trận): 8 đội đầu vào nhánh thua 2, hạng 9–15 vào Grand Survival, hạng 16 bị loại. Nhánh thắng (10 trận): 8 đội đầu
+    // vào thẳng chung kết, 8 đội sau vào nhánh thua 2. Nhánh thua 2 (10 trận): 4 đội đầu vào chung kết, 12 đội còn lại vào
+    // Grand Survival. Grand Survival (19 đội, mỗi trận 16 đội): 4 trận, đội về nhất mỗi trận vào chung kết. Chung kết 20 trận
+    { id: 'pgc22', icon: '🪂', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 15, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 2 }], advance: 8 },
+        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 3 }, { n: 7, to: 4 }], advance: 0 },
+        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 5 }], advance: 8 },
+        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 4, to: 5 }], advance: 12 },
+        { type: 'race', events: 4, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, gate: { seats: 16 }, directLast: true },
+        { type: 'race', events: 20, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+    // PGC 2023: 32 đội – bảng (2 × 16, 12 trận): 8 đội đầu mỗi bảng vào nhánh thắng, 8 đội sau vào nhánh thua. Nhánh thua
+    // (12 trận, đấu trước): 8 đội đầu vào Last Chance, 8 đội cuối bị loại. Nhánh thắng (12 trận): 8 đội đầu vào thẳng chung
+    // kết, 8 đội sau vào Last Chance. Last Chance (16 đội, 12 trận) lấy 8. Chung kết 16 đội 18 trận
+    { id: 'pgc23', icon: '🪂', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 12, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 2 }], advance: 8 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 3 }], advance: 0 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 4 }], advance: 8 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 8 },
+        { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
     // America's Cup (thể thức 2024): đội đầu danh sách là đội giữ cúp – vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng
     // tròn 2 lượt (thắng 1 điểm), 4 đội đầu vào bán kết ai thắng 5 race trước (Bo9), chung kết đội thách đấu ai thắng 7
     // race trước (Bo13); đội thắng gặp đội giữ cúp trong trận tranh cúp Bo13. Mỗi race ghi bên vào sân + thời gian về đích.

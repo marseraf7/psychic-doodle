@@ -11,7 +11,7 @@
   'use strict';
   const SP = typeof module !== 'undefined' && module.exports ? require('./otour-sports.js') : global.CaroOTourSports;
   const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings'];
-  const MAX_STAGES = 4; // giải offline tối đa 4 giai đoạn (như máy chủ – stages.js MAX_STAGES_OFFLINE)
+  const MAX_STAGES = 6; // giải offline tối đa 6 giai đoạn (như máy chủ – stages.js MAX_STAGES_OFFLINE)
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
   const lv = { type: 'object', properties: { m: int(0, 30, 'số lần gặp mỗi đối thủ ở mức này'), x: int(0, 999, 'số đối thủ ở mức này gặp thêm 1 lần') } };
@@ -32,7 +32,7 @@
         properties: { draft: { type: 'string', enum: ['lol', 'custom', 'off'] }, bans: int(0, 10), picks: int(1, 10), fearless: { type: 'string', enum: ['hard', 'soft', 'off'] },
           scope: { type: 'string', enum: ['series', 'stage'] }, stats: { type: 'array', maxItems: 8, items: { type: 'string' } }, players: { type: 'boolean' }, pool: { type: 'array', maxItems: 400, items: { type: 'string' } } } },
       stages: {
-        type: 'array', minItems: 1, maxItems: 4, description: 'Các giai đoạn (tối đa 4); giai đoạn giữa: roundrobin / swiss / race hoặc single / double (đi tiếp theo thứ hạng chung cuộc, advance)',
+        type: 'array', minItems: 1, maxItems: MAX_STAGES, description: 'Các giai đoạn (tối đa 6); giai đoạn giữa: roundrobin / swiss / race hoặc single / double (đi tiếp theo thứ hạng chung cuộc, advance)',
         items: {
           type: 'object', required: ['type'],
           properties: {
@@ -40,10 +40,14 @@
             size: { type: 'integer', enum: [4, 8], description: "'gsl': cỡ bảng – 4 đội (nhất, nhì đi tiếp) hoặc 8 đội (4 đội đi tiếp)" },
             head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
             groups: int(0, 8, "Race 'points': chia bảng cố định (2–8; kiểu PGC) – mỗi bảng đấu `events` trận của riêng mình, đi tiếp (advance) và vào thẳng giai đoạn 3 (skip) tính mỗi bảng"),
-            tb: { type: 'string', enum: ['countback', 'pubg'], description: "Race 'points': hệ số phụ khi bằng điểm – 'pubg': tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất" },
+            tb: { type: 'string', enum: ['countback', 'pubg', 'pubg_k'], description: "Race 'points': chỉ số phụ khi bằng điểm – 'pubg': tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất; 'pubg_k' (PUBG cũ): tổng hạ gục, điểm trận cao nhất, hạ gục trận đó, hạ gục rồi hạng trận gần nhất" },
+            routes: { type: 'array', maxItems: 4, items: { type: 'object', properties: { n: int(1, 256), to: int(2, 5) }, required: ['n', 'to'] }, description: "Giai đoạn giữa (không phải loại trực tiếp), còn ≥ 2 giai đoạn sau: các dải hạng từ hạng 1 (chia bảng: mỗi bảng) vào thẳng giai đoạn `to` (chỉ số từ 0, ≥ chỉ số hiện tại + 2); các hạng sau đó: `advance` đội đi tiếp giai đoạn kế (có thể 0), còn lại bị loại. Kiểu nhánh thắng / nhánh thua song song của PGC 2022–2023" },
+            directLast: { type: 'boolean', description: 'Đội được chuyển thẳng vào giai đoạn này đứng sau đội đi tiếp (hàng chờ của cổng thắng trận)' },
+            gate: { type: 'object', properties: { seats: int(2, 200) }, description: "Race 'points', giai đoạn giữa: cổng thắng trận (Grand Survival PGC 2022) – mỗi trận `seats` đội, đội về nhất đi tiếp và rời phòng, đội kế tiếp trong hàng chờ vào thay; số đội đi tiếp = events" },
+            carry: { type: 'boolean', description: "Race 'points' sau một giai đoạn race: mang nguyên điểm giai đoạn trước sang (Elimination PGC 2019)" },
             tbm: { type: 'string', enum: ['match', 'h2h'], description: "Vòng tròn chia bảng (giai đoạn giữa): trận phụ phân hạng khi đúng hai đội bằng điểm ở vạch đi tiếp – 'match': luôn đấu (đối đầu chỉ để chọn bên), 'h2h': chỉ khi đối đầu cũng bằng" },
             draw: { type: 'string', enum: ['record'], description: "Loại trực tiếp ngay sau Thụy Sĩ thắng / thua: bốc thăm theo thành tích (tốt nhất gặp kém nhất, còn lại ngẫu nhiên, tránh cùng khu vực)" },
-            rot: { type: 'boolean', description: "Race 'points': chia 3 bảng xoay vòng, mỗi trận hai bảng đấu, một bảng nghỉ" },
+            rot: { type: ['boolean', 'integer'], minimum: 3, maximum: 8, description: "Race 'points': chia bảng xoay vòng, mỗi trận hai bảng đấu – true: 3 bảng; 4–8: số bảng (các cặp bảng lần lượt gặp nhau)" },
             boDecider: bo, skip: int(0, 256, 'giải từ 3 giai đoạn trở lên, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
             kill: int(0, 10, "Race 'points' (sinh tồn): điểm mỗi lần hạ gục, cộng với điểm theo hạng"),
             mp: { type: 'object', description: "Race 'points': kết thúc kiểu match point – đội đã đạt ngưỡng mà thắng một trận thì vô địch; { at } ngưỡng cố định, hoặc { after, plus } = điểm đội dẫn đầu sau `after` trận + `plus`", properties: { at: int(1, 100000), min: int(1, 30), after: int(1, 29), plus: int(0, 1000) } },
@@ -84,7 +88,17 @@
   };
 
   /** Mô tả một giai đoạn (một câu). T(key, args) – hàm dịch. */
-  function stageText(c, T, last, result = 'score') {
+  const rng = (a, b) => (a === b ? String(a) : a + '–' + b);
+  /** Dải hạng vào thẳng giai đoạn sau nữa + dải đi tiếp giai đoạn kế (routes). i: chỉ số giai đoạn. */
+  function routeText(c, T, i) {
+    const g = c.type === 'gsl' || (c.type === 'roundrobin' && !c.league && ((c.groups || 1) > 1 || c.groupSize)) || (c.type === 'race' && c.groups) ? '_g' : '';
+    const x = [];
+    let a = 1;
+    for (const r of c.routes) { x.push(T('ds_route' + g, { r: rng(a, a + r.n - 1), k: r.to + 1 })); a += r.n; }
+    if (c.advance) x.push(T('ds_route_next' + g, { r: rng(a, a + c.advance - 1), k: i + 2 }));
+    return x;
+  }
+  function stageText(c, T, last, result = 'score', i = 0) {
     const x = [];
     if (c.type === 'single' || c.type === 'double') {
       x.push(T(c.type === 'single' ? 'ds_single' : 'ds_double', { bo: c.bestOf || 1 }));
@@ -122,9 +136,11 @@
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));
       } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
-      if (c.rot) x.push(T('ds_rot'));
+      if (c.rot) x.push(c.rot === true || c.rot === 3 ? T('ds_rot') : T('ds_rot_n', { n: c.rot }));
+      if (c.gate) x.push(T('ds_gate', { n: c.gate.seats }));
+      if (c.carry) x.push(T('ds_carry'));
       if (c.groups) x.push(T('ds_race_groups', { n: c.groups, m: c.events || 1 }));
-      if (c.tb === 'pubg') x.push(T('ds_tb_pubg'));
+      if (c.tb === 'pubg' || c.tb === 'pubg_k') x.push(T('ds_tb_' + c.tb));
       if (c.head) x.push(T('ds_head', { list: c.head.slice(0, 4).join('-') }));
       if (c.kill) x.push(T('ds_kill', { n: c.kill }));
       if (c.mp) x.push(c.mp.at ? T('ds_mp_at', { n: c.mp.at }) + (c.mp.min > 1 ? ' ' + T('ds_mp_min', { n: c.mp.min }) : '') : T('ds_mp_after', { n: c.mp.after, p: c.mp.plus }));
@@ -139,10 +155,12 @@
     }
     if (!last) {
       if (c.type === 'swiss' && c.record) x.push(T('ds_adv_rec', { n: c.record.win }));
+      else if (Array.isArray(c.routes) && c.routes.length) x.push(...routeText(c, T, i));
       else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
       if (c.skip) x.push(T('ds_skip', { n: c.skip }));
     }
     if (c.direct) x.push(T('ds_direct', { n: c.direct })); // đội hạt giống cao vào thẳng giai đoạn này
+    if (c.directLast) x.push(T('ds_direct_last'));
     if (c.type === 'swiss' && c.region) x.push(T('ds_region'));
     return x.join(', ');
   }
@@ -174,7 +192,7 @@
     const r = spec.result === 'sets' ? spec.set : null;
     if (r) out.push(T('ds_set', { to: r.to, by: r.by }) + (r.cap ? ' ' + T('ds_set_cap', { cap: r.cap }) : '') + (r.last ? ' ' + T('ds_set_last', { last: r.last }) : ''));
     const st = spec.stages || [];
-    st.forEach((c, i) => out.push(T('ds_stage', { n: i + 1, text: stageText(c, T, i === st.length - 1, spec.result || sp.result) })));
+    st.forEach((c, i) => out.push(T('ds_stage', { n: i + 1, text: stageText(c, T, i === st.length - 1, spec.result || sp.result, i) })));
     // Esports: cấm chọn / Fearless (otour-draft.js)
     const e = spec.esports;
     if (e) out.push(T('ds_esp', { draft: T('esp_dr_' + (e.draft || 'lol')), fl: T('esp_fl_' + (e.fearless || 'hard')) }));

@@ -219,7 +219,7 @@
       const many = v.groups.length > 4;
       return `<p class="hint">${esc(T(v.cfg.size === 8 ? 'gsl_note8' : 'gsl_note'))}</p>` + v.groups.map((g, gi) => {
         const inner = () => `<div class="tscroll"><table class="stand gsl-tab"><thead><tr><th>#</th><th></th><th>${esc(T('gsl_wl'))}</th><th></th></tr></thead><tbody>${g.table.map((x) => `<tr class="${x.adv ? 'adv' : ''}${x.out ? ' dnf' : ''}">
-          <td>${x.rank || ''}</td><td class="nm">${esc(x.name)}</td><td><b>${x.w}–${x.l}</b></td><td>${x.skip ? `<span class="pill">${esc(T('adv_skip_tag'))}</span>` : x.adv || x.out ? `<span class="pill">${esc(T(x.adv ? 'gsl_through' : 'gsl_out'))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`
+          <td>${x.rank || ''}</td><td class="nm">${esc(x.name)}</td><td><b>${x.w}–${x.l}</b></td><td>${x.skip ? `<span class="pill">${esc(K.skipTag ? K.skipTag(x) : T('adv_skip_tag'))}</span>` : x.adv || x.out ? `<span class="pill">${esc(T(x.adv ? 'gsl_through' : 'gsl_out'))}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>`
           + g.rounds.map((r, ri) => r.map((m, mi) => `<h6>${esc(T(tagOf(ri, mi, r.length)))}${m.bo ? ` · Bo${m.bo}` : ''}</h6><ul class="mlist">${matchRow(m)}</ul>`).join('')).join('');
         const name = esc(T('group_name', { name: g.name }));
         if (!many) return `<h5>${name}</h5>` + inner();
