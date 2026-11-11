@@ -104,6 +104,9 @@ function advancers(st, seedOf) {
 /** Bảng của từng bảng đấu cho người xem: thắng – thua, hạng (khi đã rõ), suất đi tiếp, vào thẳng giai đoạn 3 (skip). */
 function tables(st, side, seedOf, adv) {
   const K = sizeOf(st.cfg) / 2, skip = st.cfg.skip || 0;
+  // Chuyển đội theo dải thứ hạng (routes): tầng hạng r (1, 2…) → giai đoạn `to`; skip cũ = dải đầu sang giai đoạn sau nữa
+  const bands = [];
+  for (const r of Array.isArray(st.cfg.routes) && st.cfg.routes.length ? st.cfg.routes : skip ? [{ n: skip, to: st.index + 2 }] : []) for (let k = 0; k < r.n; k++) bands.push(r.to);
   return st.groups.map((grp) => {
     const pl = places(st, grp, seedOf);
     const rec = Object.fromEntries(grp.players.map((u) => [u, { w: 0, l: 0 }]));
@@ -115,7 +118,7 @@ function tables(st, side, seedOf, adv) {
     return [...grp.players].sort((a, b) => ((rank(a) || 99) - (rank(b) || 99)) || (rec[b].w - rec[a].w) || (rec[a].l - rec[b].l) || (seedOf(a) - seedOf(b)))
       .map((u) => {
         const r = rank(u);
-        return { ...side(u), w: rec[u].w, l: rec[u].l, rank: r, adv: !!adv && r != null && r <= K, out: r != null && r > K, ...(adv && skip && r != null && r <= skip ? { skip: true } : {}) };
+        return { ...side(u), w: rec[u].w, l: rec[u].l, rank: r, adv: !!adv && r != null && r <= K, out: r != null && r > K, ...(adv && r != null && bands[r - 1] != null ? { skip: true, to: bands[r - 1] + 1 } : {}) };
       });
   });
 }

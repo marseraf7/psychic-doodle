@@ -1,6 +1,6 @@
 /*
  * Kiểm thử trình duyệt – đợt 10: mẫu kiểu CS Major (4 giai đoạn: 3 giai đoạn Thụy Sĩ + playoff, ghép cặp kiểu CS Major).
- *   1. Thẻ mẫu → form có 4 giai đoạn, không còn nút thêm giai đoạn; mô tả bằng lời ghi ghép cặp kiểu CS Major;
+ *   1. Thẻ mẫu → form có 4 giai đoạn (còn nút thêm – giải offline tối đa 6); mô tả bằng lời ghi ghép cặp kiểu CS Major;
  *      giai đoạn Thụy Sĩ theo thắng / thua có lựa chọn "Kiểu CS Major".
  *   2. Tạo + bắt đầu: giai đoạn 1 là hạt giống 17–32, vòng 1 hạt giống 1 gặp 9 của giai đoạn (Đội 17 – Đội 25).
  *   3. Đợt 11 – mẫu kiểu PGC: sinh tồn chia 2 bảng cố định (mô tả bằng lời, ô chia bảng, hệ số phụ kiểu PUBG); trang giải
@@ -18,7 +18,7 @@ const { setup, sleep } = require('./helpers.js');
   const boss = await user('vi', 'ban_major', 1100);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
   await boss.click('.tpl-card[data-id="cs_major"]'); await sleep(500);
-  ok(await boss.$$eval('#otf-stages .stage-card', (xs) => xs.length) === 4 && !(await boss.$('#otf-stages [data-sact="add"]')), 'Mẫu kiểu CS Major: 4 giai đoạn, hết chỗ thêm giai đoạn');
+  ok(await boss.$$eval('#otf-stages .stage-card', (xs) => xs.length) === 4 && !!(await boss.$('#otf-stages [data-sact="add"]')), 'Mẫu kiểu CS Major: 4 giai đoạn, còn thêm được (tối đa 6)');
   ok(/ghép cặp kiểu CS Major/.test(await boss.textContent('#otf-desc')), 'Mô tả bằng lời: ghép cặp kiểu CS Major');
   ok(await boss.$$eval('#otf-stages [data-i="0"][data-k="pairing"] option', (os) => os.some((o) => o.value === 'valve' && o.selected)), 'Lựa chọn ghép cặp "Kiểu CS Major" đang chọn');
   await boss.click('[data-act="otTplTeams"]'); await sleep(400); // điền 32 đội mẫu

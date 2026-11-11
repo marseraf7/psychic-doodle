@@ -142,15 +142,17 @@ class OTourRun {
     // Đội vào thẳng giai đoạn này (hạt giống cao hơn) đứng trước các đội đi tiếp
     const direct = (t.direct && t.direct[t.stage + 1]) || [];
     const adv = ST.splitAdvancers(st, this.otSeedOf(t), direct.length ? 1 : 2);
-    // Các đội đầu vào thẳng giai đoạn sau nữa (cfg.skip): đứng sau đội hạt giống vào thẳng (nếu có), trước đội đi tiếp từ vòng vớt
-    if (adv.skip.length) t.direct = { ...(t.direct || {}), [t.stage + 2]: [...((t.direct && t.direct[t.stage + 2]) || []), ...adv.skip] };
+    // Các dải hạng chuyển sang giai đoạn sau nữa (cfg.routes / cfg.skip): đứng sau đội đã có trong danh sách vào thẳng giai đoạn đó
+    for (const r of adv.routes || []) if (r.uids.length) t.direct = { ...(t.direct || {}), [r.to]: [...((t.direct && t.direct[r.to]) || []), ...r.uids] };
     const { groupOf } = adv;
     const cfg = t.stages[t.stage + 1];
-    const seeds = [...direct, ...adv.seeds.filter((u) => !direct.includes(u))];
+    // directLast: đội vào thẳng xếp sau đội đi tiếp (hàng chờ Grand Survival PGC 2022: đội cuối nhánh thua 1 đứng chờ)
+    const fresh = adv.seeds.filter((u) => !direct.includes(u));
+    const seeds = cfg.directLast ? [...fresh, ...direct] : [...direct, ...fresh];
     // Playoff kiểu nhà nghề Mỹ sau mùa giải (stages-playoff.js): nhánh theo miền, nhất bảng con, play-in – ai đi tiếp
     // theo kế hoạch playoff (không theo số đội đi tiếp của mùa giải)
     const plan = cfg.playoff ? PO.playoffPlan(st, cfg, ST.standings(st, this.otSeedOf(t))) : null;
-    const going = new Set(plan ? plan.seeds : adv.seeds);
+    const going = new Set([...(plan ? plan.seeds : adv.seeds), ...(adv.routes || []).flatMap((r) => r.uids)]); // đội chuyển sang giai đoạn sau nữa cũng không bị loại
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) p.out = 'not_advanced'; }
     t.stage++;
     if (plan) {
@@ -167,6 +169,12 @@ class OTourRun {
     // Điểm thưởng mang sang (hệ Race – cfg.head, kiểu Points Rush): theo vị trí vào giai đoạn này (đội vào thẳng, rồi thứ
     // hạng ở giai đoạn trước)
     if (cfg.type === 'race' && cfg.head) t.st[t.stage].head = Object.fromEntries(seeds.map((u, k) => [u, cfg.head[k] || 0]).filter(([, p]) => p > 0));
+    // Mang nguyên điểm giai đoạn trước (cfg.carry – kiểu Elimination PGC 2019): điểm cộng sẵn = tổng điểm ở giai đoạn trước
+    if (cfg.type === 'race' && cfg.carry && st.type === 'race') {
+      const pts = {};
+      for (const tb of ST.standings(st, this.otSeedOf(t)) || []) for (const u of tb.list) pts[u] = tb.stats[u].pts || 0;
+      t.st[t.stage].head = Object.fromEntries(seeds.filter((u) => pts[u] > 0).map((u) => [u, pts[u]]));
+    }
     this.otSchedNext(t);
   }
 

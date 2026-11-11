@@ -248,6 +248,15 @@
         s.skip = tot; direct[i + 2] += tot;
         if (c.type === 'gsl') s.advance = Math.max(0, s.advance - tot); // bảng GSL: số đi tiếp cố định, đội vào thẳng tính trong đó
       }
+      // routes: các dải hạng đầu sang giai đoạn `to` (mỗi bảng với vòng tròn / bảng GSL / sinh tồn chia bảng)
+      for (const r of Array.isArray(c.routes) ? c.routes : []) {
+        if (!(r && r.n > 0 && r.to > i + 1 && r.to < list.length)) continue;
+        const per = c.type === 'roundrobin' || c.type === 'gsl' || c.type === 'race' ? s.groups || 1 : 1;
+        const tot = Math.min(r.n * per, Math.max(0, n));
+        direct[r.to] += tot;
+        s.routed = (s.routed || 0) + tot;
+        if (c.type === 'gsl') s.advance = Math.max(0, s.advance - tot); // bảng GSL: số đi tiếp cố định, phần chuyển đi tính trong đó
+      }
       if (!last) n = s.advance + direct[i + 1];
     });
     out.minutes = Math.round(out.minutes);

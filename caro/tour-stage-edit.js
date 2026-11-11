@@ -42,7 +42,7 @@
   const PAR72 = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4];
   const golfStage = () => ({ type: 'race', bestOf: 1, events: 4, score: 'golf', input: 'round', par: [...PAR72], cut: { after: 2, top: 50 }, po: [18, 10] });
   const MAX = 3; // giải Caro trực tuyến
-  const MAX_EXT = 4; // giải offline (CS Major: 3 giai đoạn Thụy Sĩ + playoff)
+  const MAX_EXT = 6; // giải offline (PGC 2022: bảng, 2 nhánh thua, nhánh thắng, Grand Survival, chung kết)
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
@@ -59,7 +59,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb', 'tbm'];
+  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb', 'tbm', 'rtTo'];
 
   // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
   const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
@@ -147,10 +147,11 @@
           if (mode === 'after') f.push(field(T('opt_mp_after'), num(i, 'mpAfter', c.mp.after, 1, Math.max(1, (c.events || 2) - 1))), field(T('opt_mp_plus'), num(i, 'mpPlus', c.mp.plus, 0, 1000)));
           if (mode !== 'none') f.push(`<small class="hint">${esc(T('opt_mp_hint'))}</small>`);
           // Chia 3 bảng xoay vòng (mỗi trận hai bảng đấu); điểm thưởng mang sang cho giai đoạn sau giai đoạn đầu
-          if (!c.heat && !c.groups) f.push(chk(i, 'rot', !!c.rot, T('opt_br_rot')));
+          if (!c.heat && !c.groups && !c.gate) f.push(chk(i, 'rot', !!c.rot, T('opt_br_rot')));
           // Chia bảng cố định (kiểu PGC: mỗi bảng đấu riêng, xếp hạng / đi tiếp theo bảng); hệ số phụ kiểu PUBG
-          if (!c.heat && !c.rot) f.push(field(T('opt_br_groups'), num(i, 'groups', c.groups || 0, 0, 8)));
-          f.push(field(T('opt_br_tb'), sel(i, 'tb', [['countback', T('br_tb_countback')], ['pubg', T('br_tb_pubg')]], c.tb === 'pubg' ? 'pubg' : 'countback')));
+          if (!c.heat && !c.rot && !c.gate) f.push(field(T('opt_br_groups'), num(i, 'groups', c.groups || 0, 0, 8)));
+          f.push(field(T('opt_br_tb'), sel(i, 'tb', [['countback', T('br_tb_countback')], ['pubg', T('br_tb_pubg')], ['pubg_k', T('br_tb_pubg_k')]], c.tb || 'countback')));
+          if (ctx.ext && K.routeEdit) f.push(...K.routeEdit.race(i, c, st)); // xoay N bảng, cổng thắng trận, mang điểm (otour-route-edit.js)
           if (i > 0) f.push(`<label class="field"><span>${esc(T('opt_br_head'))}</span><input data-i="${i}" data-k="head" value="${esc((c.head || []).join(' '))}" inputmode="numeric"><small class="hint">${esc(T('opt_br_head_hint'))}</small></label>`);
         }
       }
@@ -211,7 +212,8 @@
       // tránh hai đội cùng khu vực (cột quốc gia)
       if (ctx.ext && i > 0) f.push(field(T('opt_direct'), num(i, 'direct', c.direct || 0, 0, 256)));
       // 3 giai đoạn: các đội đầu của giai đoạn 1 vào thẳng giai đoạn 3, phần còn lại đá giai đoạn 2 (vòng vớt)
-      if (ctx.ext && i === 0 && st.length >= 3 && ['roundrobin', 'swiss', 'race', 'gsl'].includes(c.type) && !c.record) f.push(field(T(c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'opt_skip_group' : 'opt_skip'), num(i, 'skip', c.skip || 0, 0, c.type === 'gsl' ? (c.advance || 2) - 1 : 256)));
+      if (ctx.ext && i === 0 && st.length >= 3 && ['roundrobin', 'swiss', 'race', 'gsl'].includes(c.type) && !c.record && !c.routes) f.push(field(T(c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'opt_skip_group' : 'opt_skip'), num(i, 'skip', c.skip || 0, 0, c.type === 'gsl' ? (c.advance || 2) - 1 : 256)));
+      if (ctx.ext && K.routeEdit) f.push(...K.routeEdit.html(i, c, st)); // dải hạng vào thẳng giai đoạn sau nữa
       if (ctx.ext && c.type === 'swiss') f.push(chk(i, 'region', !!c.region, T('opt_region')));
       // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – kiểu LoL Worlds 2021–2022)
       if (ctx.ext && !last && c.type === 'roundrobin' && !c.league && !c.season) f.push(field(T('opt_tbm'), sel(i, 'tbm', [['off', T('tbm_off')], ['match', T('tbm_match')], ['h2h', T('tbm_h2h')]], c.tbm || 'off')));
@@ -234,13 +236,13 @@
         }
       }
       // Thụy Sĩ theo số thắng / thua: ai đủ số thắng đều đi tiếp (không cần ô số người đi tiếp)
-      if (!last && !c.record && c.type !== 'gsl' && c.type !== 'kings') f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, 1, 32)));
+      if (!last && !c.record && !c.gate && c.type !== 'gsl' && c.type !== 'kings') f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, c.routes ? 0 : 1, 32)));
       const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
       const extra = more.length ? `<div class="sc-more"><b>${esc(T('stage_more'))}</b><div class="sc-body">${more.join('')}</div></div>` : '';
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div>${extra}</div>`;
     });
     const arrows = [];
-    st.forEach((c, i) => { arrows.push(stageName(c)); if (i < st.length - 1) arrows.push(advText(c) + (st[i + 1].direct ? ' ' + T('adv_direct', { n: st[i + 1].direct }) : '') + (c.skip && i + 2 < st.length ? ' ' + T('adv_skip', { n: c.skip }) : '')); });
+    st.forEach((c, i) => { arrows.push(stageName(c)); if (i < st.length - 1) arrows.push(advText(c) + (st[i + 1].direct ? ' ' + T('adv_direct', { n: st[i + 1].direct }) : '') + (c.skip && i + 2 < st.length ? ' ' + T('adv_skip', { n: c.skip }) : '') + (c.routes && K.routeEdit ? ' ' + K.routeEdit.flow(c) : '')); });
     return `<p class="flow">${arrows.map((x, i) => (i % 2 ? `<span class="muted">→ ${esc(x)} →</span>` : `<b>${esc(x)}</b>`)).join(' ')}</p>
       ${cards.join('<div class="sc-arrow">↓</div>')}
       ${st.length < (ctx.ext ? MAX_EXT : MAX) ? `<button type="button" class="ghost sm" data-sact="add">${icon('plus')}${esc(T('stage_add'))}</button>` : ''}`;
@@ -261,7 +263,7 @@
       stages[i] = nc;
     } else if (k === 'score') { // đổi cách tính hệ Race: dọn tuỳ chọn không còn dùng
       c.score = v;
-      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head', 'groups', 'tb']) delete c[k2];
+      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head', 'groups', 'tb', 'gate', 'carry']) delete c[k2];
       if (v === 'gt') { Object.assign(c, { bonus: true, kinds: gtKinds(c) }); delete c.table; delete c.teams; delete c.heat; }
       else if (v === 'golf') { const g = golfStage(); Object.assign(c, { events: c.events > 1 ? c.events : 4, input: g.input, par: g.par, po: g.po }); if (c.events > 2) c.cut = { after: 2, top: 50 }; delete c.table; delete c.teams; delete c.heat; }
       else if (v === 'points' && !c.table) c.table = DEFAULT.race().table;
@@ -297,6 +299,7 @@
     }
     else if (K.seasonEdit && K.seasonEdit.change(c, k, el)) { /* mùa giải kiểu Mỹ (otour-season-edit.js) */ }
     else if (K.playoffEdit && K.playoffEdit.change(stages, i, k, el)) { /* playoff kiểu Mỹ (otour-playoff-edit.js) */ }
+    else if (K.routeEdit && K.routeEdit.change(stages, i, k, el)) { /* dải hạng, cổng thắng trận, mang điểm (otour-route-edit.js) */ }
     else if (k === 'league') {
       if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
     } else if (k === 'lgGames' || k === 'lgPots') c.league = { games: 8, pots: 4, ...c.league, [k === 'lgGames' ? 'games' : 'pots']: clamp(v) };
@@ -306,7 +309,7 @@
     else if (k === 'size') { if (v === 8) c.size = 8; else delete c.size; c.advance = (c.size || 4) / 2; if (c.skip) c.skip = Math.min(c.skip, c.advance - 1); }
     else if (k === 'tbm') { if (v === 'match' || v === 'h2h') c.tbm = v; else delete c.tbm; }
     else if (k === 'drawRec') { if (el.checked) c.draw = 'record'; else delete c.draw; }
-    else if (k === 'tb') { if (v === 'pubg') c.tb = 'pubg'; else delete c.tb; }
+    else if (k === 'tb') { if (v === 'pubg' || v === 'pubg_k') c.tb = v; else delete c.tb; }
     else if (k === 'groups' && c.type === 'race') { const g = clamp(v); if (g >= 2) { c.groups = g; delete c.rot; delete c.mp; delete c.heat; } else delete c.groups; }
     else if (k === 'head') { const h = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64); if (h.some((x) => x > 0)) c.head = h; else delete c.head; }
     else if (k === 'table') c.table = String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => Math.max(0, Math.min(1000, Math.floor(Number(x)) || 0))).slice(0, 64);
@@ -325,6 +328,7 @@
     // `skip` (vào thẳng giai đoạn 3) chỉ có nghĩa ở giai đoạn 1 của giải từ 3 giai đoạn trở lên
     stages.forEach((x, j) => { if (x.skip != null && !(x.skip > 0 && j === 0 && stages.length >= 3)) delete x.skip; });
     dropPlayoff(stages);
+    if (K.routeEdit) K.routeEdit.clean(stages);
     return true;
   }
 
@@ -359,8 +363,10 @@
       c.tiebreaks = tbs;
       return true;
     }
-    if (b.dataset.sact === 'add' && stages.length < max) stages.unshift(DEFAULT.roundrobin());
+    const RE = K.routeEdit;
+    if (b.dataset.sact === 'add' && stages.length < max) { stages.unshift(DEFAULT.roundrobin()); if (RE) RE.shift(stages, 0, 1); }
     else if (b.dataset.sact === 'del' && stages.length > 1) {
+      if (RE) RE.shift(stages, Number(b.dataset.i), -1); // dời đích các dải hạng trước khi bỏ giai đoạn
       stages.splice(Number(b.dataset.i), 1);
       const last = stages[stages.length - 1];
       if (last) delete last.advance; // giai đoạn cuối không có "đi tiếp"
@@ -372,6 +378,7 @@
       else if (i < stages.length - 1 && !c.advance && c.type !== 'kings') c.advance = DEFAULT[c.type]().advance;
     });
     dropPlayoff(stages);
+    if (RE) RE.clean(stages);
     return true;
   }
 

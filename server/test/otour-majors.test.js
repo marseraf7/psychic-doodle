@@ -1,7 +1,7 @@
 'use strict';
 // Đợt 10–12 – thể thức các giải Esports lớn. Đợt 10: ghép cặp Thụy Sĩ kiểu CS Major (stages-valve.js – theo luật công khai
 // của Valve: vòng 1 hạt giống i gặp i + n/2; sau đó cùng thành tích, theo độ khó rồi hạt giống giai đoạn, cao gặp thấp; nhóm
-// 6 đội theo bảng ưu tiên), giải offline tối đa 4 giai đoạn, mẫu kiểu CS Major (3 giai đoạn Thụy Sĩ + playoff).
+// 6 đội theo bảng ưu tiên), giải offline tối đa 6 giai đoạn, mẫu kiểu CS Major (3 giai đoạn Thụy Sĩ + playoff).
 const test = require('node:test');
 const assert = require('node:assert');
 const ST = require('../src/hub/stages.js');
@@ -16,13 +16,13 @@ const off = (list) => ST.normalizeStages(list, { offline: true });
 const mkSeeds = (n) => { const s = Array.from({ length: n }, (_, i) => 'u' + i); return { s, seedOf: (u) => s.indexOf(u) + 1 }; };
 const ids = (st, r) => st.rounds[r].map((id) => st.matches[id]).filter((m) => !m.bye).map((m) => m.a + '-' + m.b);
 
-test('Kiểu CS Major: chỉ Thụy Sĩ theo thắng / thua của giải offline; giải offline tối đa 4 giai đoạn, giải Caro 3', () => {
+test('Kiểu CS Major: chỉ Thụy Sĩ theo thắng / thua của giải offline; giải offline tối đa 6 giai đoạn, giải Caro 3', () => {
   assert.strictEqual(off([{ type: 'swiss', record: { win: 3, lose: 3 }, pairing: 'valve' }])[0].pairing, 'valve');
   assert.strictEqual(off([{ type: 'swiss', pairing: 'valve' }])[0].pairing, 'dutch', 'không theo thắng / thua');
   assert.strictEqual(ST.normalizeStages([{ type: 'swiss', record: { win: 3, lose: 3 }, pairing: 'valve' }])[0].pairing, 'dutch', 'giải Caro trực tuyến');
-  assert.strictEqual(off(Array.from({ length: 6 }, () => ({ type: 'swiss', record: { win: 3, lose: 3 } }))).length, 4);
+  assert.strictEqual(off(Array.from({ length: 8 }, () => ({ type: 'swiss', record: { win: 3, lose: 3 } }))).length, 6);
   assert.strictEqual(ST.normalizeStages(Array.from({ length: 6 }, () => ({ type: 'swiss' }))).length, 3);
-  assert.throws(() => Spec.normalizeSpec({ sport: 'esports', stages: Array.from({ length: 5 }, () => ({ type: 'single' })) }), (e) => e.code === 'ot_spec_stages');
+  assert.throws(() => Spec.normalizeSpec({ sport: 'esports', stages: Array.from({ length: 7 }, () => ({ type: 'single' })) }), (e) => e.code === 'ot_spec_stages');
   // Vào thẳng giai đoạn 3 (skip) chỉ từ giai đoạn 1
   const four = off([{ type: 'swiss', skip: 2 }, { type: 'swiss', skip: 2 }, { type: 'swiss' }, { type: 'single' }]);
   assert.deepStrictEqual(four.map((c) => c.skip || 0), [2, 0, 0, 0]);
@@ -291,11 +291,11 @@ test('Mẫu kiểu LoL MSI, LoL Worlds 2022 và LoL Worlds (bốc thăm theo th�
 });
 
 // ---------------------------------------------------------------- Đợt 13: soát lại đợt 10–12
-test('Nhập cấu hình JSON giải 4 giai đoạn (mẫu kiểu CS Major) và vòng tranh hạt giống: đọc lại được, 5 giai đoạn thì báo lỗi', () => {
+test('Nhập cấu hình JSON giải 4 giai đoạn (mẫu kiểu CS Major) và vòng tranh hạt giống: đọc lại được, 7 giai đoạn thì báo lỗi', () => {
   global.window = global.window || {};
   const IO = require('../../caro/otour-spec-io.js');
   const spec = TP.specOf(TP.byId('cs_major'), SPORTS);
   assert.strictEqual(IO.parseSpec(JSON.stringify(spec)).spec.stages.length, 4);
   assert.strictEqual(IO.parseSpec(JSON.stringify({ sport: 'esports', stages: [{ type: 'gsl' }, { type: 'kings' }, { type: 'single' }] })).spec.stages[1].type, 'kings');
-  assert.strictEqual(IO.parseSpec(JSON.stringify({ sport: 'esports', stages: Array.from({ length: 5 }, () => ({ type: 'single' })) })).error, 'srv_ot_spec_stages');
+  assert.strictEqual(IO.parseSpec(JSON.stringify({ sport: 'esports', stages: Array.from({ length: 7 }, () => ({ type: 'single' })) })).error, 'srv_ot_spec_stages');
 });
