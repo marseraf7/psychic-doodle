@@ -289,3 +289,13 @@ test('Mẫu kiểu LoL MSI, LoL Worlds 2022 và LoL Worlds (bốc thăm theo th�
     org.close();
   }
 });
+
+// ---------------------------------------------------------------- Đợt 13: soát lại đợt 10–12
+test('Nhập cấu hình JSON giải 4 giai đoạn (mẫu kiểu CS Major) và vòng tranh hạt giống: đọc lại được, 5 giai đoạn thì báo lỗi', () => {
+  global.window = global.window || {};
+  const IO = require('../../caro/otour-spec-io.js');
+  const spec = TP.specOf(TP.byId('cs_major'), SPORTS);
+  assert.strictEqual(IO.parseSpec(JSON.stringify(spec)).spec.stages.length, 4);
+  assert.strictEqual(IO.parseSpec(JSON.stringify({ sport: 'esports', stages: [{ type: 'gsl' }, { type: 'kings' }, { type: 'single' }] })).spec.stages[1].type, 'kings');
+  assert.strictEqual(IO.parseSpec(JSON.stringify({ sport: 'esports', stages: Array.from({ length: 5 }, () => ({ type: 'single' })) })).error, 'srv_ot_spec_stages');
+});

@@ -11,6 +11,7 @@
   'use strict';
   const SP = typeof module !== 'undefined' && module.exports ? require('./otour-sports.js') : global.CaroOTourSports;
   const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings'];
+  const MAX_STAGES = 4; // giải offline tối đa 4 giai đoạn (như máy chủ – stages.js MAX_STAGES_OFFLINE)
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
   const lv = { type: 'object', properties: { m: int(0, 30, 'số lần gặp mỗi đối thủ ở mức này'), x: int(0, 999, 'số đối thủ ở mức này gặp thêm 1 lần') } };
@@ -43,7 +44,7 @@
             tbm: { type: 'string', enum: ['match', 'h2h'], description: "Vòng tròn chia bảng (giai đoạn giữa): trận phụ phân hạng khi đúng hai đội bằng điểm ở vạch đi tiếp – 'match': luôn đấu (đối đầu chỉ để chọn bên), 'h2h': chỉ khi đối đầu cũng bằng" },
             draw: { type: 'string', enum: ['record'], description: "Loại trực tiếp ngay sau Thụy Sĩ thắng / thua: bốc thăm theo thành tích (tốt nhất gặp kém nhất, còn lại ngẫu nhiên, tránh cùng khu vực)" },
             rot: { type: 'boolean', description: "Race 'points': chia 3 bảng xoay vòng, mỗi trận hai bảng đấu, một bảng nghỉ" },
-            boDecider: bo, skip: int(0, 256, 'giải 3 giai đoạn, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
+            boDecider: bo, skip: int(0, 256, 'giải từ 3 giai đoạn trở lên, ở giai đoạn 1: số đội đầu vào thẳng giai đoạn 3 (vòng tròn: mỗi bảng); các đội đi tiếp còn lại đá giai đoạn 2'),
             kill: int(0, 10, "Race 'points' (sinh tồn): điểm mỗi lần hạ gục, cộng với điểm theo hạng"),
             mp: { type: 'object', description: "Race 'points': kết thúc kiểu match point – đội đã đạt ngưỡng mà thắng một trận thì vô địch; { at } ngưỡng cố định, hoặc { after, plus } = điểm đội dẫn đầu sau `after` trận + `plus`", properties: { at: int(1, 100000), min: int(1, 30), after: int(1, 29), plus: int(0, 1000) } },
             boLow: bo,
@@ -186,7 +187,7 @@
     try { o = JSON.parse(String(text || '')); } catch (e) { return { error: 'ds_err_json' }; }
     if (o && o.spec && typeof o.spec === 'object') o = o.spec;
     if (!o || typeof o !== 'object' || Array.isArray(o)) return { error: 'ds_err_shape' };
-    if (!Array.isArray(o.stages) || !o.stages.length || o.stages.length > 3) return { error: 'srv_ot_spec_stages' };
+    if (!Array.isArray(o.stages) || !o.stages.length || o.stages.length > MAX_STAGES) return { error: 'srv_ot_spec_stages' };
     if (o.stages.some((c) => !c || !TYPES.includes(c.type))) return { error: 'ds_err_type' };
     const spec = { sport: SP.SPORTS[o.sport] ? o.sport : 'other', stages: o.stages };
     if (SP.RESULTS.includes(o.result)) spec.result = o.result;
