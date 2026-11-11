@@ -173,7 +173,7 @@ const RD = require('../src/hub/stages-recdraw.js');
 /** Kết quả một trận vòng tròn theo danh sách "a>b". */
 const playRR = (st, beats, seedOf) => { for (const m of Object.values(st.matches)) if (!m.done) ST.recordResult(st, m, beats.has(m.a + '>' + m.b) ? m.a : m.b, { seedOf }); };
 
-test('Trận phụ phân hạng: đúng hai đội bằng điểm ở vạch đi tiếp; kiểu "đối đầu trước"; ba đội bằng điểm thì không; không tính điểm', () => {
+test('Trận phụ phân hạng: hai đội bằng điểm ở vạch đi tiếp; kiểu "đối đầu trước"; ba đội bằng điểm – bỏ trận thừa; không tính điểm', () => {
   assert.strictEqual(off([{ type: 'roundrobin', tbm: 'match' }, { type: 'single' }])[0].tbm, 'match');
   assert.strictEqual(off([{ type: 'roundrobin', tbm: 'match' }])[0].tbm, undefined, 'giai đoạn cuối: không có vạch đi tiếp');
   assert.strictEqual(off([{ type: 'roundrobin', tbm: 'x' }, { type: 'single' }])[0].tbm, undefined);
@@ -184,8 +184,8 @@ test('Trận phụ phân hạng: đúng hai đội bằng điểm ở vạch đi
   const mk = (tbm) => { const [c] = off([{ type: 'roundrobin', groups: 1, advance: 1, tbm, points: { w: 1, d: 0, l: 0 } }, { type: 'single' }]); return ST.buildStage(c, 0, s, { seedOf }); };
   let st = mk('match');
   playRR(st, beats, seedOf);
-  assert.ok(!st.done && st.tbm && st.tbm[0]);
-  const tb = st.matches[st.tbm[0]];
+  assert.ok(!st.done && st.tbx && st.tbx[0].length === 1);
+  const tb = st.matches[st.tbx[0][0]];
   assert.deepStrictEqual([tb.a, tb.b, tb.tag], ['u0', 'u1', 'tb'], 'đội xếp trên theo đối đầu đứng ô trên (chọn bên)');
   ST.recordResult(st, tb, 'u1', { seedOf });
   const tab = ST.standings(st, seedOf)[0];
@@ -193,18 +193,28 @@ test('Trận phụ phân hạng: đúng hai đội bằng điểm ở vạch đi
   assert.deepStrictEqual([tab.list.slice(0, 2), tab.stats.u1.pts, tab.stats.u1.mp], [['u1', 'u0'], 2, 3], 'thắng trận phụ xếp trên; trận phụ không tính điểm');
   st = mk('h2h');
   playRR(st, beats, seedOf);
-  assert.ok(st.done && !st.tbm, 'đối đầu khác nhau: không cần trận phụ');
+  assert.ok(st.done && !st.tbx, 'đối đầu khác nhau: không cần trận phụ');
   // Đi tiếp 2: u1 (2 thắng) rồi ba đội u0? — dựng ba đội bằng điểm ở vạch: u0 3 thắng, u1 u2 u3 mỗi đội 1 thắng
   const [c3] = off([{ type: 'roundrobin', groups: 1, advance: 2, tbm: 'match', points: { w: 1, d: 0, l: 0 } }, { type: 'single' }]);
   const st3 = ST.buildStage(c3, 0, s, { seedOf });
   playRR(st3, new Set(['u0>u1', 'u0>u2', 'u0>u3', 'u1>u2', 'u2>u3', 'u3>u1']), seedOf);
-  assert.ok(st3.done && !st3.tbm, 'ba đội bằng điểm: xếp theo chỉ số phụ');
+  // Ba đội bằng điểm ở hạng 2–4, một đội đi tiếp (thủ tục 3 đội của Riot): đội nhanh nhất được miễn, hai đội còn lại đấu, đội
+  // thắng gặp đội được miễn – trận thứ hai chỉ tạo khi trận đầu xong
+  assert.ok(!st3.done && st3.tbx && st3.tbx[0].length === 1);
+  const t3 = st3.matches[st3.tbx[0][0]], tied = ST.standings(st3, seedOf)[0].list.slice(1, 4);
+  assert.deepStrictEqual(new Set([t3.a, t3.b]), new Set(tied.slice(1)), 'hai đội xếp sau đấu trước (không có thời lượng: theo chỉ số phụ)');
+  ST.recordResult(st3, t3, t3.b, { seedOf });
+  const t4 = st3.matches[st3.tbx[0][1]];
+  assert.deepStrictEqual(new Set([t4.a, t4.b]), new Set([tied[0], t3.b]), 'đội thắng gặp đội được miễn');
+  ST.recordResult(st3, t4, t3.b, { seedOf });
+  const fin = ST.standings(st3, seedOf)[0].list;
+  assert.ok(st3.done && fin[1] === t3.b && fin[3] === t3.a, 'thắng hai trận phụ: hạng 2 – đi tiếp; thua trận đầu: hạng 4');
   // Huỷ trận chính: trận phụ chưa đấu bị bỏ; trận phụ đã đấu thì khoá
   st = mk('match');
   playRR(st, beats, seedOf);
   const main = Object.values(st.matches).find((m) => !m.tb);
   assert.strictEqual(ST.tieBeforeUndo(st, main), true);
-  assert.ok(!st.tbm[0] && !Object.values(st.matches).some((m) => m.tb) && st.groups[0].rounds.every((r) => r.every((id) => st.matches[id])));
+  assert.ok(!(st.tbx[0] || []).length && !Object.values(st.matches).some((m) => m.tb) && st.groups[0].rounds.every((r) => r.every((id) => st.matches[id])));
 });
 
 test('Bốc thăm nhánh theo thành tích Thụy Sĩ: 3–0 gặp 3–2, hai đội 3–0 ở hai nửa, tránh cùng khu vực', () => {
@@ -245,16 +255,16 @@ test('Qua máy chủ: trận phụ phân hạng (không nhận hoà, huỷ trậ
   const send = async (m, w) => { org.send({ t: 'otScore', id, match: m.id, sets: [w === m.a ? [1, 0] : [0, 1]] }); await until(() => m.done); };
   const main = Object.values(st.matches).filter((m) => m.a !== '-' && m.b !== '-' && m.a && m.b);
   for (const m of main) await send(m, beats.has(m.a + '>' + m.b) ? m.a : m.b);
-  const tb = st.matches[st.tbm && st.tbm[0]];
+  const tb = st.matches[st.tbx && st.tbx[0][0]];
   assert.ok(tb && !tb.done && t.stage === 0, 'trận phụ, chưa sang giai đoạn sau');
   assert.ok((await org.req({ t: 'otScore', id, match: tb.id, sets: [[1, 1]] }, 'error')).code, 'trận phụ không nhận hoà');
   // Huỷ một trận chính: trận phụ chưa đấu bị bỏ; nhập lại thì có lại trận phụ
   const any = main[0];
   org.send({ t: 'otUndo', id, match: any.id });
   await until(() => !any.done);
-  assert.ok(!st.tbm[0] && !st.matches[tb.id]);
+  assert.ok(!(st.tbx[0] || []).length && !st.matches[tb.id]);
   await send(any, beats.has(any.a + '>' + any.b) ? any.a : any.b);
-  const tb2 = st.matches[st.tbm[0]];
+  const tb2 = st.matches[st.tbx[0][0]];
   assert.deepStrictEqual([tb2.a, tb2.b], [U('C'), U('B')], 'C thắng đối đầu: đứng ô trên (chọn bên)');
   await send(tb2, tb2.b);
   await until(() => t.stage === 1);

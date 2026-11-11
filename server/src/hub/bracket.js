@@ -312,6 +312,7 @@ class Bracket {
       ...(m.aet ? { aet: true } : {}), // giải offline: có đá hiệp phụ
       ...(m.postponed ? { postponed: true } : {}), // giải offline: trận hoãn (otour-sched.js)
       ...(m.esp ? { esp: m.esp } : {}), // esports: chi tiết từng ván (otour-games.js)
+      ...(m.tb && m.side ? { tbSide: m.side } : {}), // trận phụ phân hạng: đội được chọn bên (stages-tiematch.js)
       ...(m.tag ? { tag: m.tag } : {}), // play-in (stages-playoff.js): 'pi_78' / 'pi_910' / 'pi_last' / 'pi_89'
       ...(ST.twoLeg(st, m) ? { legs: true } : {}), // giải offline: knock-out 2 lượt (sets = tỉ số từng lượt)
       // Giải offline (otour-league.js): giờ đấu, sân, sự kiện trong trận
@@ -370,7 +371,7 @@ class Bracket {
       if (st.pre) v.pre = st.pre.map(M); // play-in (playoff kiểu Mỹ – stages-playoff.js)
       if (st.seedLabel) v.seedLabel = st.seedLabel;
       // Hạt giống 1 chọn đối thủ bán kết (cfg.pick – kiểu MSI): mở khi chưa chọn và chưa có trận nào xong
-      if (st.cfg.pick && st.entrants.length === 4) v.pick = { open: !st.picked && !Object.values(st.matches).some((m) => m.done), picked: st.picked ? this.tourSide(t, st.picked) : null, top: this.tourSide(t, st.entrants[0]), opts: [2, 3].map((k) => this.tourSide(t, st.entrants[k])) };
+      if (st.cfg.pick && st.entrants.length === 4) v.pick = { open: !st.picked && !Object.values(st.matches).some((m) => m.done), picked: st.picked ? this.tourSide(t, st.picked) : null, late: !!st.pickLate, top: this.tourSide(t, st.entrants[0]), opts: [2, 3].map((k) => this.tourSide(t, st.entrants[k])) };
     } else if (st.type === 'gsl') { // giải offline: bảng đấu loại kép 4 đội (stages-gsl.js)
       const tabs = ST.gslTables(st, (u) => this.tourSide(t, u), seedOf, adv);
       v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: tabs[gi] }));

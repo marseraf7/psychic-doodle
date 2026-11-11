@@ -91,7 +91,7 @@ function normalizeStage(c, last, opts = {}) {
     // liền kề: 1–2, 3–4…, cách của bản trước – giải cũ không có trường này vẫn chạy như cũ)
     // Giải offline + Thụy Sĩ theo thắng / thua: 'valve' – kiểu CS Major (stages-valve.js; không có record thì thành 'dutch')
     // 'valve16' (vòng 1 kiểu 1 gặp 16, trước 11/2023), 'draw' (bốc thăm ngẫu nhiên cùng thành tích, kiểu 2017)
-    out.pairing = c.pairing === 'adjacent' || (['valve', 'valve16', 'draw'].includes(c.pairing) && opts.offline) ? c.pairing : 'dutch';
+    out.pairing = c.pairing === 'adjacent' || (['valve', 'valve16', 'draw', 'faceit'].includes(c.pairing) && opts.offline) ? c.pairing : 'dutch';
   }
   if (!isElim(type)) {
     const p = c.points || {};
@@ -115,10 +115,15 @@ function normalizeStage(c, last, opts = {}) {
   // Loạt Bo2 (vòng bảng Dota 2 ở các giải Esports): đúng 2 ván, 1–1 là hoà – chỉ vòng tròn / Thụy Sĩ tính điểm (không phải
   // Thụy Sĩ theo thắng / thua, không phải loại trực tiếp)
   if (Number(c.bestOf) === 2 && GROUP_TYPES.includes(res.type) && !res.record) res.bestOf = 2;
-  if (['valve', 'valve16', 'draw'].includes(res.pairing) && !res.record) res.pairing = 'dutch';
+  if (['valve', 'valve16', 'draw', 'faceit'].includes(res.pairing) && !res.record) res.pairing = 'dutch';
   // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – không phải league phase / mùa giải)
   if (res.type === 'roundrobin' && !last && !res.league && !res.season && TM.MODES.includes(c.tbm)) res.tbm = c.tbm;
   if (res.tbm && c.tbmTop === true) res.tbmTop = true; // thêm trận phụ khi hai đội bằng điểm ở hạng nhất (kiểu MSI)
+  // Các vạch hạng khác cần phân định bằng trận phụ (vạch L: giữa hạng L và L + 1; Rumble 2021: [1, 2])
+  if (res.tbm && Array.isArray(c.tbmLines)) {
+    const ls = [...new Set(c.tbmLines.map((x) => Math.floor(Number(x))))].filter((x) => x >= 1 && x <= 63).sort((a, b) => a - b).slice(0, TM.MAX_LINES);
+    if (ls.length) res.tbmLines = ls;
+  }
   // Bốc thăm nhánh theo thành tích Thụy Sĩ (stages-recdraw.js) – normalizeStages bỏ nếu giai đoạn trước không phải Thụy Sĩ thắng / thua
   if (res.type === 'single' && c.draw === 'record' && !res.playoff) res.draw = 'record';
   // Hạt giống 1 chọn đối thủ bán kết trong hạt giống 3 / 4 (kiểu MSI 2018–2022; nhánh 4 đội – otour-run.js on_otPick)
@@ -138,6 +143,9 @@ function normalizeStages(list, opts = {}) {
     const d = Math.floor(Number(arr[i] && arr[i].direct));
     if (i > 0 && opts.offline && d > 0 && !c.playoff) c.direct = Math.min(d, 256); // playoff kiểu Mỹ tự chọn đội từ mùa giải
     if (i > 0 && opts.offline && arr[i] && arr[i].directLast === true) c.directLast = true; // đội vào thẳng xếp sau đội đi tiếp
+    // Vòng tròn sau một giai đoạn: bốc thăm đội đi tiếp gặp đội vào thẳng (drawFresh – MSI 2018 Play-In vòng 2) / ghép theo thứ
+    // tự bảng (slotFresh – MSI 2019: nhất bảng A gặp đội vào thẳng thứ nhất)
+    if (i > 0 && opts.offline && c.type === 'roundrobin' && arr[i]) { if (arr[i].drawFresh === true) c.drawFresh = true; else if (arr[i].slotFresh === true) c.slotFresh = true; }
     // Giải offline 3 giai đoạn: `skip` đội đầu của giai đoạn 1 vào thẳng giai đoạn 3, các đội đi tiếp còn lại đá giai đoạn 2
     // (vòng vớt kiểu Survival Stage / Last Chance của các giải sinh tồn). Vòng tròn nhiều bảng: tính mỗi bảng.
     const sk = Math.floor(Number(arr[i] && arr[i].skip));

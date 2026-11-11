@@ -43,10 +43,11 @@
     const G = rotG(v);
     const rot = G ? `<p class="hint">${esc(T(G === 3 ? 'br_rot_note' : 'br_rotn_note', { n: G }))} ${Array.from({ length: G }, (_, k) => `<b>${LET[k]}</b>: ${esc(v.entrants.filter((_, j) => groupOfRot(j, G) === k).map((p) => p.name).join(', '))}`).join(' · ')}</p>` : '';
     // Hệ số phụ kiểu PUBG (mới / cũ); cổng thắng trận; mang điểm giai đoạn trước; chia bảng cố định: bảng từng bảng
-    const tb = v.cfg.tb ? `<p class="hint">${esc(T(v.cfg.tb === 'pubg_k' ? 'br_tb_pubg_k_note' : 'br_tb_pubg_note'))}</p>` : '';
+    const tb = v.cfg.tb ? `<p class="hint">${esc(T(v.cfg.tb === 'pubg_k' ? 'br_tb_pubg_k_note' : 'br_tb_pubg_note'))}${v.cfg.tb === 'pubg' && v.cfg.dmg ? ' ' + esc(T('br_tb_dmg_note')) : ''}</p>` : '';
     const gate = v.cfg.gate ? `<p class="hint">${esc(T('br_gate_note', { n: v.cfg.gate.seats, k: v.cfg.events || 1 }))}</p>` : '';
     const carry = v.cfg.carry ? `<p class="hint">${esc(T('br_carry_note'))}</p>` : '';
     if (v.circuit) return `${tb}${circuitHtml(v, tbl)}`;
+    if (v.weekly) return `${tb}${weeklyHtml(v, tbl)}`;
     if (v.groups) return `${tb}<p class="hint">${esc(T('br_groups_note', { n: v.groups.length }))}</p>` + v.groups.map((g) => `<h5>${esc(T('group_name', { name: g.name }))}</h5>${tbl(g.table)}`).join('');
     return `${mp}${gate}${carry}${rot}${tb}${tbl(v.table)}`;
   }
@@ -58,6 +59,22 @@
     const days = (v.circuit || []).map((d, x, all) => K.fold(`ci:${v.index}:${d.c}:${d.j}`, `<b>${esc(ciDay(d.c, d.j, C))}</b> ${d.done ? icon('check', 'ok') : ''}`,
       () => tbl(d.table), x === all.length - 1)).reverse().join('');
     return `${note}<h5>${esc(T('br_ci_bank'))}</h5>${tbl(v.table)}${days}`;
+  }
+  /** Vòng tuần (PGC 2021): ghi chú, bảng giai đoạn (đội nhất tuần, rồi điểm Weekly Finals cộng dồn), từng tuần. */
+  function weeklyHtml(v, tbl) {
+    const W = v.cfg.weekly;
+    const note = `<p class="hint">${esc(T('br_wk_note', { n: W.weeks, s: W.seats, f: W.final, b: W.bottom }))}</p>`;
+    const weeks = (v.weekly || []).map((x, k, all) => K.fold(`wk:${v.index}:${x.w}`, `<b>${esc(T('br_wk_week', { n: x.w + 1 }))}</b> ${x.done ? icon('check', 'ok') : ''}`, () =>
+      `<p class="hint">${esc(T('br_wk_winners'))} ${esc(x.winners.map((p) => p.name).join(', ') || '–')}</p><h6>${esc(T('br_wk_final'))}</h6>${tbl(x.final)}${x.bottom ? `<h6>${esc(T('br_wk_bottom'))}</h6>${tbl(x.bottom)}` : ''}`, k === all.length - 1)).reverse().join('');
+    return `${note}<h5>${esc(T('br_wk_overall'))}</h5>${tbl(v.table)}${weeks}`;
+  }
+  /** Trận i của vòng tuần: tuần w, loại, thứ tự k (như stages-weekly.js phase). */
+  function wkPhase(W, i) {
+    const per = W.seats + W.final + W.bottom;
+    let w = Math.min(W.weeks - 1, Math.floor(i / per));
+    while (w > 0 && i < w * per) w--;
+    const r = i - w * per;
+    return r < W.seats ? { w, kind: 'surv', k: r } : r < W.seats + W.final ? { w, kind: 'final', k: r - W.seats } : { w, kind: 'bottom', k: r - W.seats - W.final };
   }
   const ciDay = (c, j, C) => (j === C.days - 1 ? T('br_ci_final', { c: c + 1 }) : T('br_ci_day', { c: c + 1, j: j + 1 }));
 
@@ -93,6 +110,7 @@
         <td><input class="r-v" ${pts ? `type="number" min="1" max="${members.length}" inputmode="numeric" placeholder="${esc(T('race_rank'))}"` : `inputmode="decimal" placeholder="1:23.456"`} value="${esc(x.v || '')}"></td>
         <td><label class="check"><input type="checkbox" class="r-dnf" ${x.dnf ? 'checked' : ''}> <span>${esc(T('race_dnf'))}</span></label></td>
         ${pts && v.cfg.kill ? `<td><input class="r-k" type="number" min="0" max="200" inputmode="numeric" placeholder="${esc(T('br_kills'))}" value="${esc(x.k || '')}"></td>` : ''}
+        ${pts && v.cfg.dmg ? `<td><input class="r-d" type="number" min="0" max="1000000" inputmode="numeric" placeholder="${esc(T('br_dmg'))}" value="${esc(x.d || '')}"></td>` : ''}
         ${pts ? `<td><input class="r-pts" type="number" min="-1000" max="1000" placeholder="${esc(T('race_pts_auto'))}" value="${esc(x.pts || '')}"></td>` : ''}</tr>`;
     }).join('');
     return `<form class="race-form" data-key="${esc(key)}" data-ev="${i}"${h != null ? ` data-heat="${h}"` : ''}>
@@ -120,11 +138,12 @@
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     const next = v.events.findIndex((e) => !e.done);
     const lastDone = v.events.map((e) => e.done).lastIndexOf(true);
-    const seq = !!(v.cfg.mp || v.cfg.gate || v.cfg.circuit); // match point / cổng thắng trận / hệ Circuit: nhập lần lượt
+    const seq = !!(v.cfg.mp || v.cfg.gate || v.cfg.circuit || v.cfg.weekly); // match point / cổng thắng trận / Circuit / vòng tuần: nhập lần lượt
     const C = v.cfg.circuit, E = v.cfg.events || 1;
     const evs = v.events.map((ev) => {
       const G = v.cfg.groups; // chia bảng cố định: "Bảng A · trận 2"
-      const title = C ? `<b>${esc(ciDay(Math.floor(ev.i / E / C.days), Math.floor(ev.i / E) % C.days, C) + ' · ' + T('race_event_n', { n: (ev.i % E) + 1 }))}</b> ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}` : `<b>${esc(G ? T('group_name', { name: String.fromCharCode(65 + (ev.i % G)) }) + ' · ' + T('race_event_n', { n: Math.floor(ev.i / G) + 1 }) : T('race_event_n', { n: ev.i + 1 }))}</b>${rotG(v) ? ` <small class="muted">${esc(T('br_rot_ev', { g: rotPair(Math.floor(ev.i / (v.cfg.rotBlock || 1)), rotG(v)) }))}</small>` : ''}${v.cfg.gate && ev.done && ev.rows[0] && !ev.rows[0].dnf ? ` <small class="pill">${esc(T('br_gate_win', { name: ev.rows[0].name }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
+      const wp = v.cfg.weekly ? wkPhase(v.cfg.weekly, ev.i) : null;
+      const title = wp ? `<b>${esc(T('br_wk_week', { n: wp.w + 1 }) + ' · ' + T('br_wk_' + wp.kind) + ' · ' + T('race_event_n', { n: wp.k + 1 }))}</b>${wp.kind === 'surv' && ev.done && ev.rows[0] && !ev.rows[0].dnf ? ` <small class="pill">${esc(T('br_gate_win', { name: ev.rows[0].name }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}` : C ? `<b>${esc(ciDay(Math.floor(ev.i / E / C.days), Math.floor(ev.i / E) % C.days, C) + ' · ' + T('race_event_n', { n: (ev.i % E) + 1 }))}</b> ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}` : `<b>${esc(G ? T('group_name', { name: String.fromCharCode(65 + (ev.i % G)) }) + ' · ' + T('race_event_n', { n: Math.floor(ev.i / G) + 1 }) : T('race_event_n', { n: ev.i + 1 }))}</b>${rotG(v) ? ` <small class="muted">${esc(T('br_rot_ev', { g: rotPair(Math.floor(ev.i / (v.cfg.rotBlock || 1)), rotG(v)) }))}</small>` : ''}${v.cfg.gate && ev.done && ev.rows[0] && !ev.rows[0].dnf ? ` <small class="pill">${esc(T('br_gate_win', { name: ev.rows[0].name }))}</small>` : ''} ${ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('race_pending'))}</span>`}`;
       const undo = (h) => (can ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}"${h != null ? ` data-heat="${h}"` : ''}>${esc(T(h != null ? 'race_undo_heat' : 'race_undo'))}</button></div>` : '');
       const body = () => (ev.heats ? heatsHtml(t, v, ev, can, undo)
         // Match point: nhập lần lượt, chỉ huỷ trận sau cùng
@@ -141,8 +160,8 @@
     const d = {};
     form.querySelectorAll('tr[data-uid]').forEach((tr) => {
       const v = tr.querySelector('.r-v').value.trim(), dnf = tr.querySelector('.r-dnf').checked, p = tr.querySelector('.r-pts');
-      const k = tr.querySelector('.r-k');
-      d[tr.dataset.uid] = { v, dnf, pts: p ? p.value.trim() : '', k: k ? k.value.trim() : '' };
+      const k = tr.querySelector('.r-k'), dm = tr.querySelector('.r-d');
+      d[tr.dataset.uid] = { v, dnf, pts: p ? p.value.trim() : '', k: k ? k.value.trim() : '', d: dm ? dm.value.trim() : '' };
     });
     S.draft[form.dataset.key] = d;
     return d;
@@ -174,6 +193,7 @@
           else { r.time = RU.parseTime(x.v); if (r.time == null) return fail('srv_ot_race_time'); }
           if (pts && x.pts !== '') r.pts = Number(x.pts);
           if (pts && x.k) r.kills = Number(x.k);
+          if (pts && x.d) r.dmg = Number(x.d);
           rows.push(r);
         }
         if (!rows.some((r) => !r.dnf)) return fail('srv_ot_race_empty');

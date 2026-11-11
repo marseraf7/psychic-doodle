@@ -21,13 +21,14 @@ const ST = require('../../../server/src/hub/stages.js');
 
   // ---------- 1. Form mẫu kiểu MSI 2021–2022
   await tpl('msi21');
-  ok(await boss.inputValue(S(0, 'meetSmall')) === '4' && await boss.isChecked(S(1, 'tbmTop')) && await boss.isChecked(S(2, 'pick')), 'MSI 2021: bảng 3 đội 4 lượt, trận phụ hạng nhất, chọn đối thủ bán kết');
+  ok(await boss.inputValue(S(0, 'meetSmall')) === '4' && await boss.inputValue(S(1, 'tbmLines')) === '1 2' && await boss.isChecked(S(2, 'pick')), 'MSI 2021: bảng 3 đội 4 lượt, trận phụ ở vạch hạng 1 và 2, chọn đối thủ bán kết');
   const d = await desc();
-  ok(/bảng ít đội hơn gặp nhau 4 lượt/.test(d) && /có trận phụ khi bằng điểm ở hạng nhất/.test(d) && /hạt giống 1 chọn đối thủ bán kết/.test(d), 'Mô tả bằng lời');
+  ok(/bảng ít đội hơn gặp nhau 4 lượt/.test(d) && /trận phụ cả ở vạch hạng 1, 2/.test(d) && /hạt giống 1 chọn đối thủ bán kết/.test(d), 'Mô tả bằng lời');
   await shot(boss, 'ot-msi21-form.png');
 
   // ---------- 2. MSI 2018: chọn đối thủ bán kết
   await tpl('msi18');
+  ok(await boss.inputValue(S(1, 'freshMode')) === 'draw' && /bốc thăm đội đi tiếp gặp đội vào thẳng/.test(await desc()), 'MSI 2018: bốc thăm vòng 2 (đội đi tiếp gặp đội vào thẳng)');
   await boss.click('[data-act="otTplTeams"]'); await sleep(400);
   await boss.click('#otf button.primary.wide'); await sleep(1200);
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
@@ -58,6 +59,24 @@ const ST = require('../../../server/src/hub/stages.js');
   ok(/hạng 17–24 vào thẳng giai đoạn 3/.test(await desc()) && /hạng 1–16 đi tiếp giai đoạn 2/.test(await desc()), 'Mô tả: thứ tự dải hạng');
   await tpl('cs_major');
   const pairs = await boss.$$eval(`${S(0, 'pairing')} option`, (os) => os.map((o) => o.value));
-  ok(pairs.includes('valve16') && pairs.includes('draw'), 'Thụy Sĩ: có kiểu CS Major trước 11/2023 và kiểu 2017');
+  ok(pairs.includes('valve16') && pairs.includes('draw') && pairs.includes('faceit'), 'Thụy Sĩ: có kiểu CS Major trước 11/2023, kiểu 2017 và FACEIT 2018');
+
+  // ---------- 4. Đợt 18: PGC 2021 (vòng tuần), PGC 2022 (sát thương), xếp hạt giống tự động
+  await tpl('pgc21');
+  ok(await boss.isChecked(S(1, 'wkOn')) && await boss.inputValue(S(1, 'wkWeeks')) === '3' && await boss.inputValue(S(1, 'wkSit')) === '1' && /vòng tuần 3 tuần/.test(await desc()), 'PGC 2021: vòng tuần 3 tuần, hạng 32 nghỉ tuần 1');
+  await tpl('pgc22');
+  ok(await boss.isChecked(S(0, 'dmg')) && /tổng sát thương/.test(await desc()), 'PGC 2022: nhập tổng sát thương');
+  await tpl('cs_major');
+  await boss.click('[data-act="otTplTeams"]'); await sleep(400);
+  await boss.click('#otf button.primary.wide'); await sleep(1200);
+  const sid = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
+  const st2 = app.hub.otGet(sid);
+  await boss.click('[data-act="otTab"][data-tab="teams"]').catch(() => {}); await sleep(500);
+  await boss.$eval('details.ot-seedtool', (d) => { d.open = true; });
+  await boss.fill('#ot-seed-text', 'Đội 32: 2000\nĐội 31: 1990\nĐội XYZ: 5'); await sleep(100);
+  await boss.click('[data-act="otSeedApply"]'); await sleep(900);
+  ok(st2.players[0].name === 'Đội 32' && st2.players[1].name === 'Đội 31', 'Xếp hạt giống theo điểm xếp hạng: Đội 32 thành hạt giống 1');
+  ok(/Không tìm thấy đội: Đội XYZ/.test(await boss.textContent('body')), 'Báo tên đội không khớp');
+  await shot(boss, 'ot-seedtool.png');
   await finish();
 })();

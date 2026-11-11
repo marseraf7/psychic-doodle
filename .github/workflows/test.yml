@@ -95,7 +95,9 @@ jobs:
       # +15 giây gia hạn nước đầu, mục Xem, giao diện online; trang Cài đặt nâng cao khi tạo giải (tour-adv), giải offline (tour-offline), khu quản trị giải (tour-manage), đồng ban tổ chức (tour-staff), xem nhánh đấu + trang nhúng (tour-view), quản lý CLB (club-admin), chat + diễn đàn CLB (club-talk), Team Battle + giao hữu CLB (club-battle), dự đoán + bình chọn + mẫu giải (tour-fun)
       # (chỉ Chromium: luồng máy chủ / giao diện, không phụ thuộc trình duyệt)
       - name: Kiểm thử trình duyệt các bản sửa buổi kiểm thử 25/10
-        timeout-minutes: 15
+        # 30 phút: các bài thử giải offline nhiều giai đoạn (otour-pgc, otour-msi – chạy trọn vài giải 60–150 trận) làm cả vòng
+        # lặp vượt 15 phút
+        timeout-minutes: 30
         if: matrix.browser == 'chromium' && (success() || failure())
         run: |
           for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun tour-adv-more tour-opts tour-arrange rich-desc otour otour-race otour-tpl otour-league otour-io otour-lazy otour-page otour-embed otour-path otour-ai otour-sched otour-series otour-esports otour-cup otour-gt otour-golf otour-multi otour-formats otour-formats8 otour-formats9 otour-majors otour-pgc otour-msi; do

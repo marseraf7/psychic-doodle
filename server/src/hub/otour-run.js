@@ -147,7 +147,13 @@ class OTourRun {
     const { groupOf } = adv;
     const cfg = t.stages[t.stage + 1];
     // directLast: đội vào thẳng xếp sau đội đi tiếp (hàng chờ Grand Survival PGC 2022: đội cuối nhánh thua 1 đứng chờ)
-    const fresh = adv.seeds.filter((u) => !direct.includes(u));
+    let fresh = adv.seeds.filter((u) => !direct.includes(u));
+    // Vòng tròn có đội vào thẳng (MSI Play-In vòng 2): drawFresh – bốc thăm đội đi tiếp gặp đội vào thẳng (2018); slotFresh –
+    // đội đi tiếp theo thứ tự bảng (nhất bảng A gặp đội vào thẳng thứ nhất… – 2019). Chia bảng kiểu rắn nên đảo thứ tự để đội
+    // vào thẳng thứ i cùng bảng với đội đi tiếp thứ i khi mỗi bảng 2 đội
+    if (cfg.drawFresh) fresh = RD.shuffle(fresh);
+    else if (cfg.slotFresh) fresh = [...fresh].sort((a, b) => ((groupOf || {})[a] ?? 99) - ((groupOf || {})[b] ?? 99));
+    if ((cfg.drawFresh || cfg.slotFresh) && cfg.groupSize === 2 && direct.length === fresh.length) fresh.reverse();
     const seeds = cfg.directLast ? [...fresh, ...direct] : [...direct, ...fresh];
     // Playoff kiểu nhà nghề Mỹ sau mùa giải (stages-playoff.js): nhánh theo miền, nhất bảng con, play-in – ai đi tiếp
     // theo kế hoạch playoff (không theo số đội đi tiếp của mùa giải)
@@ -273,9 +279,11 @@ class OTourRun {
 
   /**
    * Hạt giống 1 chọn đối thủ bán kết (cfg.pick – kiểu MSI): nhánh loại trực tiếp 4 đội chưa đấu trận nào; opp = hạt giống 3
-   * hoặc 4. Chọn hạt giống 3 thì dựng lại nhánh với hạt giống 3 và 4 đổi chỗ (1 gặp 3, 2 gặp 4). Chỉ chọn một lần.
+   * hoặc 4. Chọn hạt giống 3 thì dựng lại nhánh với hạt giống 3 và 4 đổi chỗ (1 gặp 3, 2 gặp 4). late = true: bán kết của hạt
+   * giống 1 đấu sau (MSI 2022 – đội nhất chọn cả ngày đấu bán kết): đổi thứ tự hai trận vòng đầu (lịch đấu xếp theo thứ tự này).
+   * Chỉ chọn một lần.
    */
-  on_otPick(conn, { id, opp }) {
+  on_otPick(conn, { id, opp, late }) {
     const { t, me } = this.otManaged(conn, id);
     if (t.status !== 'running') throw E('tour_not_running');
     const st = t.st[t.stage], cfg = t.stages[t.stage];
@@ -286,8 +294,9 @@ class OTourRun {
     const seeds = k === 2 ? [st.entrants[0], st.entrants[1], st.entrants[3], st.entrants[2]] : [...st.entrants];
     const next = ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t));
     next.picked = st.entrants[k];
+    if (late === true) { next.rounds[0] = [...next.rounds[0]].reverse(); next.pickLate = true; }
     t.st[t.stage] = next;
-    this.otLog(t, me.id, 'pick', { n: k + 1 });
+    this.otLog(t, me.id, 'pick', { n: k + 1, late: late === true });
     this.otSchedNext(t);
     this.otSave(t);
   }

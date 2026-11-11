@@ -184,6 +184,7 @@
     if (t.canManage && t.status === 'draft') {
       html += `<section class="ot-sec mg-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)} <button type="button" class="ghost sm icon" data-act="otTeamDel" data-uid="${esc(p.uid)}" aria-label="${esc(T('ot_team_del'))}">${icon('close')}</button></li>`).join('')}</ol>
         <textarea id="ot-add" rows="3" placeholder="${esc(T('ot_teams_ph'))}"></textarea><button type="button" class="ghost sm" data-act="otTeamsAdd">${icon('plus')}${esc(T('ot_add_teams'))}</button></section>`;
+      if (K.seedToolHtml) html += K.seedToolHtml(t); // xếp hạt giống theo điểm xếp hạng / phiếu bầu (otour-seedtool.js)
     } else {
       html += `<section class="ot-sec"><h4>${esc(T('ot_teams'))} (${t.players.length})</h4><ol class="ot-teams">${t.players.map((p) => `<li>${esc(p.name)}${p.country ? ` <small class="muted">${esc(p.country)}</small>` : ''}${p.team ? ` <small class="muted">· ${esc(p.team)}</small>` : ''}${p.young ? ` <small class="pill gt-young">${esc(T('gt_young_tag'))}</small>` : ''}${p.exempt ? ` <small class="pill">${esc(T('ot_exempt_tag'))}</small>` : ''}</li>`).join('')}</ol></section>`;
     }

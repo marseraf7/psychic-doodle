@@ -10,11 +10,20 @@
   const { T, esc } = K;
   K.pickHtml = (t, v) => {
     const p = v.pick;
-    if (p.picked) return `<p class="hint">${esc(T('pick_done', { a: p.top.name, b: p.picked.name }))}</p>`;
+    if (p.picked) return `<p class="hint">${esc(T('pick_done', { a: p.top.name, b: p.picked.name }))} ${esc(T(p.late ? 'pick_day_late' : 'pick_day_first'))}</p>`;
     if (!p.open) return '';
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     if (!can) return `<p class="hint">${esc(T('pick_wait', { a: p.top.name }))}</p>`;
-    return `<div class="pick-row"><p class="hint">${esc(T('pick_ask', { a: p.top.name }))}</p><div class="row">${p.opts.map((o) => `<button type="button" class="ghost sm" data-act="otPick" data-uid="${esc(o.uid)}">${esc(o.name)}</button>`).join('')}</div></div>`;
+    // Chọn đối thủ + ngày đấu (bán kết của hạt giống 1 đấu trước / sau)
+    return `<div class="pick-row"><p class="hint">${esc(T('pick_ask', { a: p.top.name }))}</p>
+      <label class="field inline"><span>${esc(T('pick_day'))}</span><select id="pick-day"><option value="0">${esc(T('pick_day_first'))}</option><option value="1">${esc(T('pick_day_late'))}</option></select></label>
+      <div class="row">${p.opts.map((o) => `<button type="button" class="ghost sm" data-act="otPick" data-uid="${esc(o.uid)}">${esc(o.name)}</button>`).join('')}</div></div>`;
   };
-  if (K.O) K.acts.otPick = (b) => window.CaroConfirm.ask(T('pick_confirm', { b: b.textContent })).then((ok) => { if (ok) K.O.send({ t: 'otPick', id: K.D.ot.id, opp: b.dataset.uid }); });
+  if (K.O) {
+    K.acts.otPick = (b) => {
+      const d = document.getElementById('pick-day'), late = !!(d && d.value === '1');
+      return window.CaroConfirm.ask(T('pick_confirm', { b: b.textContent }) + ' ' + T(late ? 'pick_day_late' : 'pick_day_first'))
+        .then((ok) => { if (ok) K.O.send({ t: 'otPick', id: K.D.ot.id, opp: b.dataset.uid, late }); });
+    };
+  }
 })();

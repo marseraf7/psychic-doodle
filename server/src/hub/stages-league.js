@@ -61,6 +61,8 @@ function normalizeExtras(c, out, last, oddBo) {
   if (out.type === 'swiss' && c.record && typeof c.record === 'object') {
     const win = int(c.record.win, 1, 5, 3), lose = int(c.record.lose, 1, 5, 3);
     out.record = { win, lose, bo: oddBo(c.record.bo) || 0 };
+    // boLast (FACEIT 2018): Bo riêng chỉ cho trận mà cả hai đội đều đang ở thế thắng là đi tiếp, thua là bị loại (2–2)
+    if (out.record.bo && c.record.boLast === true) out.record.boLast = true;
     out.rounds = win + lose - 1;
     // Thứ hạng: ít trận thua hơn (3–0 > 3–1 > 3–2), rồi các hệ số đã chọn
     if (!out.tiebreaks.includes('losses')) out.tiebreaks = ['losses', ...out.tiebreaks].slice(0, 5);
@@ -217,7 +219,10 @@ function recordActive(st, rec = records(st)) {
 function recordBo(st, rec, a, b) {
   const { win, lose, bo } = st.cfg.record;
   if (!bo || b === BYE) return 0;
-  return [a, b].some((u) => rec[u] && (rec[u].w === win - 1 || rec[u].l === lose - 1)) ? bo : 0;
+  const decide = (u) => rec[u] && (rec[u].w === win - 1 || rec[u].l === lose - 1);
+  const last = (u) => rec[u] && rec[u].w === win - 1 && rec[u].l === lose - 1;
+  if (st.cfg.record.boLast) return last(a) && last(b) ? bo : 0;
+  return [a, b].some(decide) ? bo : 0;
 }
 
 // ------------------------------------------------------------ Knock-out 2 lượt

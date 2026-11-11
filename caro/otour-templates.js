@@ -61,26 +61,35 @@
         { type: 'race', events: 6, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k', carry: true, advance: 8 },
         { type: 'race', events: 18, score: 'points', rot: true, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k', advance: 16 },
         { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k' }] },
+    // PGC 2021: 32 đội – Rank Decision (4 bảng 8 đội, mỗi trận hai bảng, 6 trận mỗi cặp bảng, 36 trận) xếp hạt giống 1–32; vòng
+    // tuần 3 tuần (Weekly Survival 16 trận theo cổng thắng trận → Weekly Final 10 trận → Bottom 16 6 trận; hạng 32 nghỉ tuần 1):
+    // 3 đội nhất tuần + 9 đội điểm Weekly Finals cộng dồn cao nhất vào thẳng chung kết, 19 đội kế đá Grand Survival (4 trận, đội
+    // về nhất mỗi trận vào chung kết), đội cuối bị loại. Chung kết 16 đội 15 trận. Bằng điểm xét hạ gục trước (kiểu PUBG cũ)
+    { id: 'pgc21', icon: '🪂', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 36, score: 'points', rot: 4, rotBlock: 6, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k', advance: 32 },
+        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k', weekly: { weeks: 3, seats: 16, final: 10, bottom: 6, sit: 1 }, routes: [{ n: 12, to: 3 }], advance: 19 },
+        { type: 'race', events: 4, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, gate: { seats: 16 } },
+        { type: 'race', events: 15, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg_k' }] },
     // PGC 2022: 32 đội – bảng (2 × 16, 15 trận): 8 đội đầu mỗi bảng vào nhánh thắng, 8 đội sau vào nhánh thua 1. Nhánh thua 1
     // (10 trận): 8 đội đầu vào nhánh thua 2, hạng 9–15 vào Grand Survival, hạng 16 bị loại. Nhánh thắng (10 trận): 8 đội đầu
     // vào thẳng chung kết, 8 đội sau vào nhánh thua 2. Nhánh thua 2 (10 trận): 4 đội đầu vào chung kết, 12 đội còn lại vào
     // Grand Survival. Grand Survival (19 đội, mỗi trận 16 đội): 4 trận, đội về nhất mỗi trận vào chung kết. Chung kết 20 trận
     { id: 'pgc22', icon: '🪂', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
-      stages: [{ type: 'race', events: 15, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 2 }], advance: 8 },
-        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 3 }, { n: 7, to: 4 }], advance: 0 },
-        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 5 }], advance: 8 },
-        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 4, to: 5 }], advance: 12 },
+      stages: [{ type: 'race', events: 15, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, routes: [{ n: 8, to: 2 }], advance: 8 },
+        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, routes: [{ n: 8, to: 3 }, { n: 7, to: 4 }], advance: 0 },
+        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, routes: [{ n: 8, to: 5 }], advance: 8 },
+        { type: 'race', events: 10, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, routes: [{ n: 4, to: 5 }], advance: 12 },
         { type: 'race', events: 4, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, gate: { seats: 16 }, directLast: true },
-        { type: 'race', events: 20, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+        { type: 'race', events: 20, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true }] },
     // PGC 2023: 32 đội – bảng (2 × 16, 12 trận): 8 đội đầu mỗi bảng vào nhánh thắng, 8 đội sau vào nhánh thua. Nhánh thua
     // (12 trận, đấu trước): 8 đội đầu vào Last Chance, 8 đội cuối bị loại. Nhánh thắng (12 trận): 8 đội đầu vào thẳng chung
     // kết, 8 đội sau vào Last Chance. Last Chance (16 đội, 12 trận) lấy 8. Chung kết 16 đội 18 trận
     { id: 'pgc23', icon: '🪂', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
-      stages: [{ type: 'race', events: 12, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 2 }], advance: 8 },
-        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 3 }], advance: 0 },
-        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', routes: [{ n: 8, to: 4 }], advance: 8 },
-        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', advance: 8 },
-        { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg' }] },
+      stages: [{ type: 'race', events: 12, score: 'points', groups: 2, table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, routes: [{ n: 8, to: 2 }], advance: 8 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, routes: [{ n: 8, to: 3 }], advance: 0 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, routes: [{ n: 8, to: 4 }], advance: 8 },
+        { type: 'race', events: 12, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true, advance: 8 },
+        { type: 'race', events: 18, score: 'points', table: [10, 6, 5, 4, 3, 2, 1, 1], kill: 1, tb: 'pubg', dmg: true }] },
     // PGC 2024: 24 đội (8 đội đầu danh sách là hạt giống) – hệ Circuit 3 vòng × 3 ngày × 6 trận: ngày 1 hạng 9–24, ngày 2 giữ
     // 12 đội + hạng 5–8, Circuit Final giữ 12 đội + hạng 1–4; vòng sau xếp theo kết quả vòng trước; chỉ điểm Circuit Final
     // cộng dồn – 16 đội đầu vào chung kết 16 đội, 18 trận (không mang điểm)
@@ -92,26 +101,26 @@
     // 2 lượt Bo1 – lấy 4, có trận phụ ở hạng nhất và vạch đi tiếp; bán kết – chung kết Bo5, nhất bảng chọn đối thủ bán kết
     { id: 'msi18', icon: '🌸', sport: 'esports', n: 14, countries: ['KR', 'CN', 'EU', 'NA', 'TW', 'VN', 'CIS', 'JP', 'BR', 'TR', 'LA', 'OC', 'SEA', 'LA'],
       esports: { draft: 'lol', fearless: 'off', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
-      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, bestOf: 1, advance: 1, tbm: 'match' },
-        { type: 'roundrobin', groupSize: 2, meetings: 1, bestOf: 5, advance: 1, direct: 2 },
-        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'match', tbmTop: true, direct: 4 },
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, bestOf: 1, advance: 1, tbm: 'h2h' },
+        { type: 'roundrobin', groupSize: 2, meetings: 1, bestOf: 5, advance: 1, direct: 2, drawFresh: true },
+        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'h2h', tbmLines: [1], direct: 4 },
         { type: 'single', bestOf: 5, thirdPlace: false, pick: true }] },
     // LoL MSI 2019: 13 đội – như 2018, nhưng 2 đội thua vòng 2 đấu thêm một loạt Bo5 tranh suất thứ ba; vòng bảng chính
     // 6 đội (3 đội vào thẳng)
     { id: 'msi19', icon: '🌸', sport: 'esports', n: 13, countries: ['CN', 'KR', 'EU', 'NA', 'TW', 'VN', 'CIS', 'TR', 'JP', 'BR', 'LA', 'OC', 'SEA'],
       esports: { draft: 'lol', fearless: 'off', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
-      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, bestOf: 1, advance: 1, tbm: 'match' },
-        { type: 'roundrobin', groupSize: 2, meetings: 1, bestOf: 5, routes: [{ n: 1, to: 3 }], advance: 1, direct: 2 },
+      stages: [{ type: 'roundrobin', groups: 2, meetings: 2, bestOf: 1, advance: 1, tbm: 'h2h' },
+        { type: 'roundrobin', groupSize: 2, meetings: 1, bestOf: 5, routes: [{ n: 1, to: 3 }], advance: 1, direct: 2, slotFresh: true },
         { type: 'roundrobin', groups: 1, meetings: 1, bestOf: 5, advance: 1 },
-        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'match', tbmTop: true, direct: 3 },
+        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'h2h', tbmLines: [1], direct: 3 },
         { type: 'single', bestOf: 5, thirdPlace: false, pick: true }] },
     // LoL MSI 2021–2022: 11 đội – 3 bảng (bảng 3 đội vòng tròn 4 lượt, bảng 4 đội 2 lượt, Bo1), 2 đội đầu mỗi bảng vào
     // Rumble 6 đội vòng tròn 2 lượt Bo1 lấy 4 (trận phụ ở hạng nhất và vạch đi tiếp); bán kết – chung kết Bo5, nhất Rumble
     // chọn đối thủ bán kết
     { id: 'msi21', icon: '🌸', sport: 'esports', n: 11, countries: ['CN', 'KR', 'EU', 'NA', 'TW', 'BR', 'JP', 'TR', 'LA', 'OC', 'CIS'],
       esports: { draft: 'lol', fearless: 'off', stats: ['kills', 'gold', 'towers', 'dragons', 'barons'], players: false },
-      stages: [{ type: 'roundrobin', groups: 3, meetings: 2, meetSmall: 4, bestOf: 1, advance: 2, tbm: 'match' },
-        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'match', tbmTop: true },
+      stages: [{ type: 'roundrobin', groups: 3, meetings: 2, meetSmall: 4, bestOf: 1, advance: 2, tbm: 'h2h' },
+        { type: 'roundrobin', groups: 1, meetings: 2, bestOf: 1, advance: 4, tbm: 'h2h', tbmLines: [1, 2] },
         { type: 'single', bestOf: 5, thirdPlace: false, pick: true }] },
     // PGS 2023: 24 đội – vòng bảng 3 bảng 8 đội xoay vòng theo ngày (A&B, B&C, C&A, mỗi ngày 6 trận): 16 đội đầu vào nhánh
     // thắng, 8 đội cuối vào nhánh thua. Nhánh thắng (12 trận): 8 đội đầu vào thẳng chung kết, 8 đội sau vào nhánh thua.

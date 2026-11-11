@@ -20,6 +20,8 @@
   const MAX_ROUTES = 4; // như máy chủ (stages.js)
   const MAX_SEATS = 64; // như MAX_RACE của máy chủ
   const ELIM = ['single', 'double', 'kings'];
+  /** Vạch hạng thêm của trận phụ (tbmTop cũ = [1]). */
+  const tbmLinesOf = (c) => (Array.isArray(c.tbmLines) ? c.tbmLines : c.tbmTop ? [1] : []);
 
   const num = (i, k, v, min, max, n) => `<input type="number" data-i="${i}" data-k="${k}"${n != null ? ` data-n="${n}"` : ''} value="${v}" min="${min}" max="${max}">`;
   const chk = (i, k, v, label) => `<label class="check"><input type="checkbox" data-i="${i}" data-k="${k}" ${v ? 'checked' : ''}> <span>${esc(label)}</span></label>`;
@@ -42,8 +44,16 @@
     if (c.type === 'roundrobin' && !c.league && !c.season && ((c.groups || 1) > 1 || c.groupSize)) {
       out.push(`<label class="field inline"><span>${esc(T('opt_meet_small'))}</span><select data-i="${i}" data-k="meetSmall">${[0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${(c.meetSmall || 0) === x ? 'selected' : ''}>${esc(x ? T('meet_' + x) : T('meet_small_same'))}</option>`).join('')}</select></label>`);
     }
-    if (c.type === 'roundrobin' && c.tbm) out.push(chk(i, 'tbmTop', !!c.tbmTop, T('opt_tbm_top')));
+    // Các vạch hạng khác cũng phân định bằng trận phụ (vd. 1 – hạng nhất; Rumble 2021: 1 2); vạch đi tiếp luôn có
+    if (c.type === 'roundrobin' && c.tbm) out.push(`<label class="field"><span>${esc(T('opt_tbm_lines'))}</span><input data-i="${i}" data-k="tbmLines" value="${esc(tbmLinesOf(c).join(' '))}" inputmode="numeric" placeholder="1 2"><small class="hint">${esc(T('opt_tbm_lines_hint'))}</small></label>`);
     if (c.type === 'single' && !c.playoff && c.draw !== 'record') out.push(chk(i, 'pick', !!c.pick, T('opt_pick')));
+    // Vòng tròn sau giai đoạn trước, có đội vào thẳng: ghép đội đi tiếp với đội vào thẳng (MSI Play-In vòng 2)
+    if (i > 0 && c.type === 'roundrobin' && c.direct) {
+      const fm = c.drawFresh ? 'draw' : c.slotFresh ? 'slot' : 'seed';
+      out.push(`<label class="field inline"><span>${esc(T('opt_fresh'))}</span><select data-i="${i}" data-k="freshMode">${['seed', 'draw', 'slot'].map((x) => `<option value="${x}" ${fm === x ? 'selected' : ''}>${esc(T('fresh_' + x))}</option>`).join('')}</select></label>`);
+    }
+    // Thụy Sĩ thắng / thua: Bo riêng chỉ cho trận 2–2 (FACEIT 2018) thay vì mọi trận quyết định
+    if (c.type === 'swiss' && c.record && c.record.bo) out.push(chk(i, 'recBoLast', !!c.record.boLast, T('opt_rec_bo_last')));
     // Có đội được chuyển thẳng vào giai đoạn này: chọn đội vào thẳng đứng sau đội đi tiếp (hàng chờ Grand Survival)
     if (i > 0 && (c.direct || st.some((x, j) => j < i - 1 && ((x.routes || []).some((r) => r.to === i) || (x.skip && i === 2))))) out.push(chk(i, 'directLast', !!c.directLast, T('opt_direct_last')));
     return out;
@@ -53,6 +63,16 @@
     const out = [], last = i === st.length - 1;
     if (c.rot) out.push(field(T('opt_br_rot_n'), num(i, 'rotN', c.rot === true ? 3 : c.rot, 3, 8)), field(T('opt_rot_block'), num(i, 'rotBlock', c.rotBlock || 1, 1, 30)));
     // Hệ Circuit (kiểu PGC 2024): n vòng × số ngày, giữ `keep` đội mỗi ngày, các nhóm hạng cao vào muộn
+    // Vòng tuần (kiểu PGC 2021): Survival → Weekly Final → Bottom, lặp nhiều tuần
+    if (!c.circuit) {
+      out.push(chk(i, 'wkOn', !!c.weekly, T('opt_weekly')));
+      if (c.weekly) {
+        const W = c.weekly;
+        out.push(field(T('opt_wk_weeks'), num(i, 'wkWeeks', W.weeks, 1, 5)), field(T('opt_wk_seats'), num(i, 'wkSeats', W.seats, 2, 64)), field(T('opt_wk_final'), num(i, 'wkFinal', W.final, 1, 30)),
+          field(T('opt_wk_bottom'), num(i, 'wkBottom', W.bottom, 0, 30)), field(T('opt_wk_sit'), num(i, 'wkSit', W.sit || 0, 0, 8)), `<small class="hint">${esc(T('opt_wk_hint'))}</small>`);
+        return out;
+      }
+    }
     out.push(chk(i, 'ciOn', !!c.circuit, T('opt_circuit')));
     if (c.circuit) {
       const C = c.circuit;
@@ -65,6 +85,7 @@
       if (c.gate) out.push(field(T('opt_gate_seats'), num(i, 'gateSeats', c.gate.seats || 16, 2, MAX_SEATS)), `<small class="hint">${esc(T('opt_gate_hint'))}</small>`);
     }
     if (i > 0 && !c.gate && st[i - 1].type === 'race') out.push(chk(i, 'carry', !!c.carry, T('opt_carry')));
+    out.push(chk(i, 'dmg', !!c.dmg, T('opt_dmg'))); // nhập tổng sát thương (chỉ số phụ cuối kiểu PUBG 2022–2023)
     return out;
   }
 
@@ -87,6 +108,12 @@
     } else if (k === 'gateSeats') c.gate = { seats: clamp(el.value, 2, MAX_SEATS) };
     else if (k === 'ciOn') {
       if (el.checked) { c.circuit = { n: 3, days: 3, keep: 12, late: [4, 4] }; for (const x of ['groups', 'rot', 'mp', 'head', 'carry', 'heat', 'gate']) delete c[x]; } else delete c.circuit;
+    } else if (k === 'wkOn') {
+      if (el.checked) { c.weekly = { weeks: 3, seats: 16, final: 10, bottom: 6, sit: 0 }; for (const x of ['groups', 'rot', 'rotBlock', 'mp', 'head', 'carry', 'heat', 'gate', 'circuit']) delete c[x]; } else delete c.weekly;
+    } else if (/^wk(Weeks|Seats|Final|Bottom|Sit)$/.test(k)) {
+      const key = { wkWeeks: 'weeks', wkSeats: 'seats', wkFinal: 'final', wkBottom: 'bottom', wkSit: 'sit' }[k];
+      const lim = { weeks: [1, 5], seats: [2, 64], final: [1, 30], bottom: [0, 30], sit: [0, 8] }[key];
+      c.weekly = { ...c.weekly, [key]: clamp(el.value, lim[0], lim[1]) };
     } else if (k === 'ciN' || k === 'ciDays' || k === 'ciKeep') {
       const C = { ...c.circuit };
       if (k === 'ciN') C.n = clamp(el.value, 1, 5);
@@ -98,7 +125,13 @@
       c.circuit = { ...c.circuit, late: Array.from({ length: c.circuit.days - 1 }, (_, j) => (xs[j] != null ? xs[j] : 4)) };
     } else if (k === 'meetSmall') { const m = clamp(el.value, 0, 4); if (m) c.meetSmall = m; else delete c.meetSmall; }
     else if (k === 'rotBlock') { const b = clamp(el.value, 1, 30); if (b > 1) c.rotBlock = b; else delete c.rotBlock; }
-    else if (k === 'carry' || k === 'directLast' || k === 'tbmTop' || k === 'pick') { if (el.checked) c[k] = true; else delete c[k]; }
+    else if (k === 'freshMode') { delete c.drawFresh; delete c.slotFresh; if (el.value === 'draw') c.drawFresh = true; else if (el.value === 'slot') c.slotFresh = true; }
+    else if (k === 'recBoLast') { c.record = { ...c.record }; if (el.checked) c.record.boLast = true; else delete c.record.boLast; }
+    else if (k === 'tbmLines') {
+      const ls = [...new Set(String(el.value).split(/[\s,;]+/).filter(Boolean).map((x) => clamp(x, 1, 63)))].sort((a, b) => a - b).slice(0, 8);
+      delete c.tbmTop;
+      if (ls.length) c.tbmLines = ls; else delete c.tbmLines;
+    } else if (k === 'carry' || k === 'directLast' || k === 'tbmTop' || k === 'pick' || k === 'dmg') { if (el.checked) c[k] = true; else delete c[k]; }
     else return false;
     return true;
   }
@@ -118,9 +151,13 @@
       if (c.rot && c.type !== 'race') delete c.rot;
       if (c.rotBlock && !c.rot) delete c.rotBlock;
       if (c.tbmTop && !c.tbm) delete c.tbmTop;
+      if (c.tbmLines && !c.tbm) delete c.tbmLines;
       if (c.pick && (c.type !== 'single' || c.playoff)) delete c.pick;
       if (c.meetSmall && c.type !== 'roundrobin') delete c.meetSmall;
+      if ((c.drawFresh || c.slotFresh) && (c.type !== 'roundrobin' || !c.direct || i === 0)) { delete c.drawFresh; delete c.slotFresh; }
       if (c.circuit && (c.type !== 'race' || (c.score && c.score !== 'points'))) delete c.circuit;
+      if (c.dmg && (c.type !== 'race' || (c.score && c.score !== 'points'))) delete c.dmg;
+      if (c.weekly && (c.type !== 'race' || (c.score && c.score !== 'points') || c.circuit)) delete c.weekly;
     });
   }
 

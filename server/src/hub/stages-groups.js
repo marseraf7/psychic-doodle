@@ -179,7 +179,7 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
   // Cặp cố định (giao hữu CLB: bàn 1 gặp bàn 1…) chỉ cho vòng đầu
   const score = Object.fromEntries(order.map((u) => [u, rec ? rec[u].w * 100 - rec[u].l : stats[u].pts]));
   // Kiểu CS Major (theo số thắng / thua): vòng 1 hạt giống i gặp i + n/2, sau đó theo độ khó – không ghép được thì như thường
-  const vp = rec && ['valve', 'valve16', 'draw'].includes(st.cfg.pairing) && !(fixed && r === 0) ? Valve.valvePairs(st, rec, order, played) : null;
+  const vp = rec && ['valve', 'valve16', 'draw', 'faceit'].includes(st.cfg.pairing) && !(fixed && r === 0) ? Valve.valvePairs(st, rec, order, played) : null;
   const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : vp ? { pairs: vp, bye: null } : swissPairs(order, played, byes, st.cfg.pairing, score);
   const ids = [];
   pairs.forEach(([a, b], i) => {
@@ -213,6 +213,8 @@ function standings(st, seedOf) {
     const t = rankList(st, st.entrants, seedOf);
     // Kiểu CS Major: thắng – thua, độ khó, hạt giống giai đoạn (đi tiếp + hạt giống giai đoạn sau)
     if (st.cfg.record && (st.cfg.pairing === 'valve' || st.cfg.pairing === 'valve16')) t.list = Valve.valveOrder(st, records(st), t.list);
+    // FACEIT 2018: xếp hạng giai đoạn (và hạt giống nhánh playoff) theo thắng – thua rồi Buchholz chỉ tính số thắng của đối thủ
+    else if (st.cfg.record && st.cfg.pairing === 'faceit') { const R = records(st); t.list = [...t.list].sort((a, b) => R[b].w - R[a].w || R[a].l - R[b].l || Valve.buchholzW(st, R, b) - Valve.buchholzW(st, R, a) || t.list.indexOf(a) - t.list.indexOf(b)); }
     return [t];
   }
   if (st.type === 'race') { // giải offline: hệ Race – chia bảng cố định thì mỗi bảng một bảng xếp hạng
