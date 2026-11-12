@@ -10,7 +10,7 @@
   const { T, esc } = K;
   K.pickHtml = (t, v) => {
     const p = v.pick;
-    if (p.picked) return `<p class="hint">${esc(T('pick_done', { a: p.top.name, b: p.picked.name }))} ${esc(T(p.late ? 'pick_day_late' : 'pick_day_first'))}</p>`;
+    if (p.picked) return `<p class="hint">${esc(T('pick_done', { a: p.top.name, b: p.picked.name }))} ${esc(T('pick_day_note', { when: T(p.late ? 'pick_day_late' : 'pick_day_first') }))}</p>`;
     if (!p.open) return '';
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     if (!can) return `<p class="hint">${esc(T('pick_wait', { a: p.top.name }))}</p>`;
@@ -22,7 +22,7 @@
   if (K.O) {
     K.acts.otPick = (b) => {
       const d = document.getElementById('pick-day'), late = !!(d && d.value === '1');
-      return window.CaroConfirm.ask(T('pick_confirm', { b: b.textContent }) + ' ' + T(late ? 'pick_day_late' : 'pick_day_first'))
+      return window.CaroConfirm.ask(T('pick_confirm', { b: b.textContent }) + ' ' + T('pick_day_note', { when: T(late ? 'pick_day_late' : 'pick_day_first') }))
         .then((ok) => { if (ok) K.O.send({ t: 'otPick', id: K.D.ot.id, opp: b.dataset.uid, late }); });
     };
   }

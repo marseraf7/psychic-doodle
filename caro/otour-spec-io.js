@@ -109,6 +109,12 @@
     for (const r of c.routes) if (r.after) { x.push(T('ds_route' + g, { r: rng(a, a + r.n - 1), k: r.to + 1 })); a += r.n; } // dải sau nhóm đi tiếp
     return x;
   }
+  /** Tổng số trận của giai đoạn đua: vòng tuần / hệ Circuit tính cả các tuần, các ngày (như máy chủ). */
+  function raceTotal(c) {
+    const W = c.weekly, C = c.circuit, e = c.events || 1;
+    if (W) return W.weeks * (W.seats + W.final) + (W.weeks - 1) * W.bottom;
+    return C ? e * C.n * C.days : e;
+  }
   function stageText(c, T, last, result = 'score', i = 0) {
     const x = [];
     if (c.type === 'single' || c.type === 'double') {
@@ -146,7 +152,7 @@
         const n = (k) => (c.kinds || []).filter((x) => x === k).length;
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));
-      } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
+      } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: raceTotal(c), top: (c.table || []).slice(0, 3).join('-') }));
       if (c.rot) x.push(c.rot === true || c.rot === 3 ? T('ds_rot') : T('ds_rot_n', { n: c.rot }));
       if (c.gate) x.push(T('ds_gate', { n: c.gate.seats }));
       if (c.circuit) x.push(T('ds_circuit', { n: c.circuit.n, d: c.circuit.days, m: c.events || 1, k: c.circuit.keep, late: (c.circuit.late || []).join('-') }));

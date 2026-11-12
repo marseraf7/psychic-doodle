@@ -54,7 +54,8 @@ function cleanTable(x) {
 /** Chuẩn hoá cấu hình giai đoạn race (stages.js gọi khi giải offline). */
 function normalizeRace(c, last) {
   const score = SCORES.includes(c.score) ? c.score : 'points';
-  const out = { type: 'race', bestOf: 1, events: int(c.events, 1, MAX_EVENTS, 1), score };
+  // Xe đạp nhiều chặng / golf: tối đa 30 chặng / vòng như trước; cách tính điểm / thời gian: tới MAX_EVENTS
+  const out = { type: 'race', bestOf: 1, events: int(c.events, 1, score === 'gt' || score === 'golf' ? 30 : MAX_EVENTS, 1), score };
   if (score === 'points') {
     out.table = cleanTable(c.table) || [...F1];
     const kill = int(c.kill, 0, 10, 0);
@@ -312,7 +313,7 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
     let prev = null;
     return order.map((x) => {
       const r = { ...side(x.uid), dnf: x.dnf };
-      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; if (x.kills) r.kills = x.kills; } else if (!x.dnf) {
+      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; if (x.kills) r.kills = x.kills; if (x.dmg) r.dmg = x.dmg; } else if (!x.dnf) {
         r.time = x.time; r.gap = lead != null ? x.time - lead : null; r.gapPrev = prev != null ? x.time - prev : null; prev = x.time;
       }
       return r;
@@ -334,7 +335,7 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
     return list.map((u, k) => {
       const s = stats[u];
       const r = { ...side(u), rank: k + 1, races: s.races, fin: s.fin, dnf: s.dnf, adv: k < adv };
-      if (pts) { r.pts = s.pts; if (st.head && st.head[u]) r.head = st.head[u]; if (cfg.kill) r.kills = s.kills; if (mpAt != null && s.pts >= mpAt) r.mp = true; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
+      if (pts) { r.pts = s.pts; if (st.head && st.head[u]) r.head = st.head[u]; if (cfg.kill) r.kills = s.kills; if (cfg.dmg) r.dmg = s.dmg; if (mpAt != null && s.pts >= mpAt) r.mp = true; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
         r.time = s.fin === all && all ? s.time : null;
         r.gap = r.time != null && lead && lead.fin === all ? s.time - lead.time : null;
         r.gapPrev = r.time != null && prev != null ? s.time - prev : null;

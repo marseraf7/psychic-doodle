@@ -118,7 +118,9 @@
       // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
       if (c.type === 'race') {
         if (c.score !== 'gt' && c.score !== 'golf') f.push(field(T('opt_race_heat'), num(i, 'heat', c.heat || 0, 0, 64))); // chia lượt cho đoàn đông (0 = không chia)
-        f.push(field(T('opt_race_events'), num(i, 'events', c.events, 1, 60)),
+        // Vòng tuần tự có số trận (Survival / Weekly Final / Bottom) – không dùng ô số chặng; xe đạp / golf tối đa 30
+        if (!c.weekly) f.push(field(T('opt_race_events'), num(i, 'events', c.events, 1, c.score === 'gt' || c.score === 'golf' ? 30 : 60)));
+        f.push(
           field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')], ['gt', T('race_gt')], ['golf', T('race_golf')]], c.score || 'points')));
         if (c.score === 'golf') { // cách nhập, par từng lỗ, cắt sau vòng N
           const parTxt = (c.par || PAR72).join(' ');
