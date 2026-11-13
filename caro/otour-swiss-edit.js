@@ -25,6 +25,9 @@
       f.push(field(T('opt_koth_rounds'), num(i, 'kothRounds', c.koth.rounds || 2, 1, 5)), chk(i, 'gibOn', !!c.gibson, T('opt_gibson')));
       if (c.gibson) f.push(field(T('opt_gib_spots'), num(i, 'gibSpots', c.gibson.spots || 2, 1, 8)), field(T('opt_gib_swing'), num(i, 'gibSwing', c.gibson.swing != null ? c.gibson.swing : 1000, 0, 100000)), `<small class="hint">${esc(T('opt_gibson_hint'))}</small>`);
     }
+    // Pod kiểu Magic: The Gathering – ghép cặp trong pod, đổi pod theo bảng xếp hạng sau mỗi N vòng
+    f.push(chk(i, 'podOn', !!c.pod, T('opt_pod')));
+    if (c.pod) f.push(field(T('opt_pod_size'), num(i, 'podSize', c.pod.size || 8, 4, 16)), field(T('opt_pod_rounds'), num(i, 'podRounds', c.pod.rounds || 3, 1, 5)), `<small class="hint">${esc(T('opt_pod_hint'))}</small>`);
     if (!last) {
       f.push(chk(i, 'cutOn', c.advanceMode === 'record', T('opt_cut_losses')));
       if (c.advanceMode === 'record') f.push(field(T('opt_cut_max'), num(i, 'cutLosses', c.cutLosses != null ? c.cutLosses : 2, 0, 10)), `<small class="hint">${esc(T('opt_cut_hint'))}</small>`);
@@ -44,6 +47,9 @@
     else if (k === 'gibSwing') c.gibson = { spots: 2, ...c.gibson, swing: n(0, 100000) };
     else if (k === 'cutOn') { if (el.checked) { c.advanceMode = 'record'; c.cutLosses = 2; } else { delete c.advanceMode; delete c.cutLosses; } }
     else if (k === 'cutLosses') c.cutLosses = n(0, 10);
+    else if (k === 'podOn') { if (el.checked) c.pod = { size: 8, rounds: 3 }; else delete c.pod; }
+    else if (k === 'podSize') c.pod = { rounds: 3, ...c.pod, size: n(4, 16) };
+    else if (k === 'podRounds') c.pod = { size: 8, ...c.pod, rounds: n(1, 5) };
     else return false;
     return true;
   }

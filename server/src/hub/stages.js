@@ -26,6 +26,7 @@ const { seedOrder, resolveElim, buildSingle, buildDouble, elimSize, checkSlots, 
 const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers: groupAdvancers, swissMaxRounds } = require('./stages-groups.js');
 const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB, rankList } = require('./stages-tiebreak.js');
 const SPL = require('./stages-splits.js'); // giải offline: chặng mùa giải có playoff riêng (kiểu Overwatch League)
+const BR = require('../../../caro/otour-bridge.js'); // bridge đồng đội: số ván mỗi trận, thang VP
 const League = require('./stages-league.js');
 const Race = require('./stages-race.js');
 const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại kép 4 đội kiểu GSL
@@ -130,6 +131,7 @@ function normalizeStage(c, last, opts = {}) {
   const lad = ['single', 'roundrobin', 'swiss'].includes(res.type) && !res.record && LAD.normalize(c.matchLadder);
   if (lad) { res.matchLadder = lad; if (c.ladderKeep === true) res.ladderKeep = true; }
   SPL.normalize(c, res); // chặng có playoff riêng
+  BR.normalizeCfg(c, res); // bridge đồng đội: điểm từng ván → IMP → VP
   // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – không phải league phase / mùa giải)
   if (res.type === 'roundrobin' && !last && !res.league && !res.season && TM.MODES.includes(c.tbm)) res.tbm = c.tbm;
   if (res.tbm && c.tbmTop === true) res.tbmTop = true; // thêm trận phụ khi hai đội bằng điểm ở hạng nhất (kiểu MSI)
@@ -152,7 +154,7 @@ function normalizeStages(list, opts = {}) {
   const out = arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
   // Playoff kiểu Mỹ chỉ có nghĩa ngay sau một mùa giải (stages-playoff.js)
   out.forEach((c, i) => { if (c.playoff && !(i > 0 && out[i - 1].season)) delete c.playoff; });
-  out.forEach((c, i) => { if (c.draw && !(i > 0 && out[i - 1].type === 'swiss' && out[i - 1].record)) delete c.draw; });
+  out.forEach((c, i) => { if (c.draw && !(i > 0 && out[i - 1].type === 'swiss' && out[i - 1].record)) delete c.draw; if (c.type === 'roundrobin' && c.split && !SPL.splitOk(c, i)) delete c.split; });
   // Giải offline: đội hạt giống cao vào thẳng giai đoạn i ≥ 1 (LoL Worlds: 15 đội vào thẳng vòng Thụy Sĩ, 2 đội đá Play-In)
   out.forEach((c, i) => {
     const d = Math.floor(Number(arr[i] && arr[i].direct));
@@ -304,7 +306,7 @@ function playable(st) {
  */
 function recordResult(st, m, winner, opts = {}) {
   if (m.done) return st.done;
-  if (linked(st.type)) { resolveElim(st, m, winner, winner === m.a ? m.b : m.a); REP.update(st); } // xong hai bán kết: sinh nhánh vớt
+  if (linked(st.type)) { resolveElim(st, m, winner, winner === m.a ? m.b : m.a); REP.update(st); if (Kinds.get(st.type) && Kinds.get(st.type).after) Kinds.get(st.type).after(st, m); } // nhánh vớt; vòng sau (knock)
   else if (m.sp != null) SPL.record(st, m, winner); // playoff chặng: như loại trực tiếp
   else {
     m.done = true;
@@ -355,7 +357,7 @@ function podium(st, seedOf) {
     return [last.winner, last.loser, lbFinal && lbFinal.loser].filter(real);
   }
   const tables = standings(st, seedOf);
-  if (tables.length === 1) return tables[0].list.slice(0, 3);
+  if (tables.length === 1 || SPL.isSplit(st.cfg)) return tables.flatMap((x) => x.list).slice(0, 3); // The Split: nhóm trên xếp trên nhóm dưới
   // Nhiều bảng ở vòng cuối: nhất các bảng xếp theo thành tích
   return groupAdvancers({ ...st, cfg: { ...st.cfg, advance: 1 } }, seedOf).seeds.slice(0, 3);
 }

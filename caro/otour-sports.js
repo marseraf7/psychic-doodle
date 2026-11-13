@@ -34,6 +34,14 @@
     golf: { icon: '⛳', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'stroke_play' },
     running: { icon: '🏃', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
     swimming: { icon: '🏊', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
+    // Trượt băng tốc độ (mass start – stages-massstart.js), trượt tuyết / biathlon (Sprint → Pursuit – stages-pursuit.js)
+    skating: { icon: '⛸️', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'massstart' },
+    // Đợt 25: bridge đồng đội (điểm từng ván → IMP → VP – điểm trận là VP), poker có bounty, snooker, game bài sưu tầm (pod)
+    bridge: { icon: '🃏', result: 'score', points: { w: 0, d: 0, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'bridge_teams' },
+    poker: { icon: '♠️', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'poker_pko' },
+    snooker: { icon: '🎱', result: 'score', points: { w: 2, d: 0, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'snooker_shootout' },
+    tcg: { icon: '🎴', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['oppWinPct', 'oppOppWinPct'], bestOf: 3, preset: 'mtg_gp' },
+    skiing: { icon: '⛷️', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'biathlon_pursuit' },
     // Darts (kiểu PDC): mỗi "set" là số leg hai bên thắng – đua tới 3 leg; set quyết định phải hơn 2 leg, 5–5 đấu leg quyết định
     darts: { icon: '🎯', result: 'sets', points: { w: 2, d: 0, l: 0 }, tiebreaks: ['wins', 'gdiff'], bestOf: 5, set: { to: 3, by: 1, cap: 0, last: 0, race: true, lastBy: 2, lastCap: 6 } },
     // Quần vợt đồng đội (kiểu Davis Cup): mỗi "set" là một rubber Bo3 (tỉ số set của rubber), trận = 3 rubber, đấu cả rubber

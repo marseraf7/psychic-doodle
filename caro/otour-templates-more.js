@@ -97,6 +97,39 @@
     { id: 'algs_pro', icon: '🪂', sport: 'esports', n: 20, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
       stages: [{ type: 'race', events: 6, score: 'points', kill: true, table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1], legendBan: true,
         poi: { order: 'seed', maps: [{ name: 'Map 1', pois: Array.from({ length: 20 }, (_, k) => 'POI ' + (k + 1)) }] } }] },
+    // Đợt 24. Golf chấm điểm Modified Stableford (kiểu Barracuda Championship): albatross +8, eagle +5, birdie +2, par 0,
+    // bogey −1, double bogey trở lên −3; 4 vòng, cắt sau vòng 2 (top 70 + đồng hạng); nhập từng lỗ
+    { id: 'barracuda', icon: '⛳', sport: 'golf', n: 90,
+      stages: [{ type: 'race', events: 4, score: 'golf', scoring: 'modified', input: 'hole', cut: { after: 2, top: 70 } }] },
+    // Omnium xe đạp lòng chảo: Scratch, Tempo, Loại dần, Points race (mang điểm 3 đua đầu; mỗi vòng hơn / kém ±20)
+    { id: 'omnium', icon: '🚴', sport: 'cycling', n: 20, stages: [{ type: 'race', score: 'omnium' }] },
+    // Mass start trượt băng tốc độ: 2 bán kết (mỗi lượt 18 người, 8 người đầu vào chung kết), 16 vòng, điểm giữa đua ở vòng 4,
+    // 8, 12 (3-2-1), về đích 60-40-20-10-6-3
+    { id: 'massstart', icon: '⛸️', sport: 'skating', n: 36,
+      stages: [{ type: 'race', score: 'massstart', massStart: { semis: true, heat: 18, adv: 8 } }] },
+    // Biathlon: Sprint tính giờ → 60 người đầu đuổi bắt (xuất phát chậm đúng số giây thua; thua quá 4 phút xuất phát đồng loạt)
+    { id: 'biathlon_pursuit', icon: '⛷️', sport: 'skiing', n: 80,
+      stages: [{ type: 'race', events: 1, score: 'time', advance: 60 }, { type: 'race', score: 'pursuit', pursuit: { wave: 240 } }] },
+    // Kiểu giải Scotland: 12 đội vòng tròn 3 lượt (33 trận), rồi tách nhóm trên / dưới 6 đội đấu thêm 5 trận (mang nguyên thành
+    // tích – tổng 38 trận); đội nhóm dưới không lên trên được dù nhiều điểm hơn
+    { id: 'scottish_split', icon: '🏴', sport: 'football', n: 12,
+      stages: [{ type: 'roundrobin', meetings: 3, advance: 12 }, { type: 'roundrobin', split: { top: 6 } }] },
+    // Đợt 25. Kiểu BLAST Bounty: 32 đội loại trực tiếp dựng từng vòng, đội nồi dưới chọn đối thủ ở nồi trên; bounty khởi đầu theo
+    // hạt giống (1–4: 60.000 … 13–16: 15.000, 17–32: 0 – tổng 500.000), thắng lấy 50% bounty đội thua, chung kết lấy trọn
+    { id: 'blast_bounty', icon: '💰', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'knock', mode: 'bounty', bestOf: 3 }] },
+    // Kiểu Snooker Shoot Out: 64 người, mỗi trận 1 frame, bốc thăm lại sau mỗi vòng
+    { id: 'snooker_shootout', icon: '🎱', sport: 'snooker', n: 64, stages: [{ type: 'knock', mode: 'shootout' }] },
+    // Poker PKO / Mystery bounty (chỉ điểm thưởng, không tiền thật)
+    { id: 'poker_pko', icon: '♠️', sport: 'poker', n: 60, stages: [{ type: 'race', score: 'poker', poker: { type: 'pko', start: 100, pocket: 50 } }] },
+    { id: 'poker_mystery', icon: '✉️', sport: 'poker', n: 60, stages: [{ type: 'race', score: 'poker', poker: { type: 'mystery', act: 9 } }] },
+    // Backyard Ultra: mỗi giờ một yard 6,706 km, người cuối cùng phải chạy thêm một yard một mình
+    { id: 'backyard_ultra', icon: '🏃', sport: 'running', n: 30, stages: [{ type: 'race', score: 'backyard' }] },
+    // Bridge đồng đội: 10 đội vòng tròn, mỗi trận 16 ván, IMP → VP thang 20 (WBF)
+    { id: 'bridge_teams', icon: '🃏', sport: 'bridge', n: 10, stages: [{ type: 'roundrobin', boards: 16 }] },
+    // Game bài sưu tầm kiểu Grand Prix: 64 người, Thụy Sĩ 6 vòng trong pod 8 người (đổi pod sau 3 vòng), Top 8 loại trực tiếp
+    { id: 'mtg_gp', icon: '🎴', sport: 'tcg', n: 64,
+      stages: [{ type: 'swiss', rounds: 6, pod: { size: 8, rounds: 3 }, advance: 8, bestOf: 3 }, { type: 'single', bestOf: 3 }] },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MORE;
   else global.CaroOTourTplMore = MORE;

@@ -55,6 +55,13 @@
     // Thụy Sĩ thắng / thua: Bo riêng chỉ cho trận 2–2 (FACEIT 2018) thay vì mọi trận quyết định
     if (c.type === 'swiss' && c.record && c.record.bo) out.push(chk(i, 'recBoLast', !!c.record.boLast, T('opt_rec_bo_last')));
     // Đợt 23 – kiểu BLAST Groups: bảng GSL không loại ai (mọi hạng đều có đích); đích ra ngoài giải của đội không đi tiếp
+    // The Split (kiểu giải Scotland): vòng tròn sau một vòng tròn – chia nhóm trên / dưới theo hạng, mang nguyên thành tích
+    if (c.type === 'roundrobin' && i > 0 && !c.league && !c.season) {
+      out.push(chk(i, 'splitOn', !!c.split, T('opt_split')));
+      if (c.split) out.push(field(T('opt_split_top'), num(i, 'splitTop', c.split.top || 6, 2, 64)), `<small class="hint">${esc(T('opt_split_hint'))}</small>`);
+    }
+    // Bridge đồng đội: số ván mỗi trận (nhập điểm từng ván → IMP → VP – caro/otour-bridge.js)
+    if (['roundrobin', 'swiss', 'single'].includes(c.type) && !c.record) out.push(field(T('opt_boards'), num(i, 'brBoards', c.boards || 0, 0, 64)), ...(c.boards ? [`<small class="hint">${esc(T('opt_boards_hint'))}</small>`] : []));
     if (c.type === 'gsl' && i < st.length - 1) out.push(chk(i, 'gslKeep', c.eliminates === false || !!c.keepAll, T('opt_gsl_keep')));
     if (i < st.length - 1) out.push(`<label class="field inline"><span>${esc(T('opt_exit'))}</span><input data-i="${i}" data-k="exitLabel" maxlength="40" value="${esc(c.exit || '')}" placeholder="${esc(T('opt_exit_ph'))}"></label>`);
     // Có đội được chuyển thẳng vào giai đoạn này: chọn đội vào thẳng đứng sau đội đi tiếp (hàng chờ Grand Survival)
@@ -97,6 +104,9 @@
     const c = stages[i];
     if (k === 'gslKeep') { if (el.checked) c.eliminates = false; else { delete c.eliminates; delete c.keepAll; } c.advance = (c.size === 8 ? 8 : 4) / (el.checked ? 1 : 2); return true; }
     if (K.lobbyEdit && K.lobbyEdit.change(c, k, el)) return true;
+    if (k === 'brBoards') { const b = Math.max(0, Math.min(64, Math.floor(Number(el.value)) || 0)); if (b) { c.boards = b; c.bestOf = 1; } else { delete c.boards; delete c.vpTable; } return true; }
+    if (k === 'splitOn') { if (el.checked) { c.split = { top: 6 }; c.groups = 2; delete c.groupSize; } else { delete c.split; c.groups = 1; } return true; }
+    if (k === 'splitTop' && c.split) { c.split = { top: Math.max(2, Math.min(64, Math.floor(Number(el.value)) || 6)) }; return true; }
     if (k === 'exitLabel') { const v = String(el.value || '').replace(/[<>]/g, '').trim().slice(0, 40); if (v) c.exit = v; else delete c.exit; return true; }
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v)) || 0));
     if (k === 'rtN' || k === 'rtTo' || k === 'rtAfter') {

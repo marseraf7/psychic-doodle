@@ -13,12 +13,14 @@
  *   selfMark: true                  → tự đánh dấu đội đi tiếp (bracket.js không đánh dấu thêm)
  *   midOnly: true                   → chỉ làm giai đoạn giữa (ở cuối thì thành loại trực tiếp)
  *   sched: 'groups' | 'rounds'      → cách lấy trận khi xếp lịch (st.groups[].rounds / st.rounds)
+ *   after?(st, m) / beforeUndo?(st, m) → sau khi ghi kết quả (dựng vòng sau) / trước khi huỷ (false = khoá)
  */
 'use strict';
 const Gsl = require('./stages-gsl.js');
 const Kings = require('./stages-kings.js');
 const Graph = require('./stages-graph.js');
 const Pools = require('./stages-pools.js');
+const Knock = require('./stages-knock.js');
 
 const groupsView = (tables) => (st, { M, side, seedOf, adv }) => {
   const tabs = tables(st, side, seedOf, adv);
@@ -46,6 +48,7 @@ const KINDS = {
   },
   graph: { ...Graph, sched: 'rounds' },
   pools: Pools, // pool loại kép xếp tầng (kiểu EVO)
+  knock: Knock, // loại trực tiếp dựng từng vòng: bốc thăm lại (Snooker Shoot Out), chọn đối thủ + sổ bounty (BLAST Bounty)
 };
 
 /** Loại giai đoạn trong registry (null nếu là loại cũ: single, double, roundrobin, swiss, race). */

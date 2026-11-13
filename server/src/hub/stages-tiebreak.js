@@ -53,6 +53,8 @@ function tally(st, only, ctx) {
   const gw = p.gw || 0, gt = p.gt || 0, bye = p.bye == null ? p.w : p.bye;
   const s = {};
   for (const uid of only || st.entrants) s[uid] = { uid, mp: 0, w: 0, d: 0, l: 0, gw: 0, gl: 0, gt: 0, pts: 0, opps: [], beat: [], drew: [], byes: 0, rs: [], bpg: 0, pw: 0, pl: 0 };
+  // The Split: thành tích giai đoạn trước mang sang nguyên (st.carry – stages-splits.js)
+  if (st.carry) for (const uid of Object.keys(s)) for (const [k, v] of Object.entries(st.carry[uid] || {})) s[uid][k] += v;
   for (const m of Object.values(st.matches)) {
     if (!m.done || m.tb || m.sp != null) continue; // trận phụ phân hạng (stages-tiematch.js), playoff chặng (stages-splits.js) không tính điểm
     if (m.bye) { // miễn đấu (Thụy Sĩ): tính như thắng, điểm riêng
@@ -70,6 +72,7 @@ function tally(st, only, ctx) {
       x.gl += m.wins[op] || 0;
       x.gt += ties;
       x.pts += (m.wins[me] || 0) * gw + ties * gt;
+      if (m.vp) x.pts += m.vp[me === m.a ? 0 : 1]; // bridge: điểm thắng (VP) theo thang 20
       // Điểm trong từng set (giải offline): ô của mình là cột 0 nếu mình là m.a
       if (Array.isArray(m.sets)) for (const st2 of m.sets) { x.pw += st2[me === m.a ? 0 : 1] || 0; x.pl += st2[me === m.a ? 1 : 0] || 0; }
       // Ván đi sau: ván đầu do m.first đi trước, các ván sau trong trận đổi bên (bracket.js)

@@ -10,7 +10,9 @@ const Race = require('./stages-race.js');
 const GOLF = require('./stages-golf.js');
 const LOB = require('./stages-race-lobby.js'); // draft POI (ALGS)
 // Nhập lần lượt (người bỏ cuộc / bị cắt rời các chặng, vòng sau): xe đạp nhiều chặng, golf
-const SEQ = ['gt', 'golf'];
+const PLUG = require('./stages-race-plug.js');
+const KN = require('./stages-knock.js'); // loại trực tiếp dựng từng vòng (chọn đối thủ kiểu BLAST Bounty)
+const SEQ = ['gt', ...PLUG.NAMES.filter((x) => PLUG.get(x).seq)]; // nhập / huỷ lần lượt từng chặng
 
 class OTourRace {
   /** Giai đoạn race hiện tại và chặng thứ `event` (lỗi nếu không có). */
@@ -57,6 +59,18 @@ class OTourRace {
     const st = t.st[t.stage];
     if (!st || st.type !== 'race' || !st.cfg.poi) throw E('ot_poi_bad');
     const bad = LOB.setPoi(st, Math.floor(Number(map)), String(team || ''), poi == null ? null : String(poi));
+    if (bad) throw E(bad);
+    st.v = (st.v || 0) + 1;
+    this.otSave(t);
+  }
+
+  /** Chọn đối thủ (giai đoạn 'knock' kiểu BLAST Bounty): đội nồi dưới `picker` chọn đội nồi trên `target` của vòng hiện tại. */
+  on_otKnockPick(conn, { id, picker, target }) {
+    const { t } = this.otManaged(conn, id);
+    if (t.status !== 'running') throw E('tour_not_running');
+    const st = t.st[t.stage];
+    if (!st || st.type !== 'knock') throw E('bad_message');
+    const bad = KN.pick(st, String(picker || ''), String(target || ''));
     if (bad) throw E(bad);
     st.v = (st.v || 0) + 1;
     this.otSave(t);

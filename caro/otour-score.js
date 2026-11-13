@@ -78,6 +78,7 @@
     const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
     let body;
     // Thang ván (FIDE World Cup, Norway Chess, Armageddon đấu giá – otour-ladder-ui.js): nhập từng ván theo cấp
+    if (v.cfg && v.cfg.boards && K.bridgeForm) return `<div class="score-panel"><form id="ots" class="score-form" data-bridge="1">${head}${K.bridgeForm(t, m, v)}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>${extra(t, m)}</div>`; // bridge (otour-bridge-ui.js)
     if (v.cfg && v.cfg.matchLadder && K.ladderForm) return `<div class="score-panel"><form id="ots" class="score-form" data-lad="1">${head}${K.ladderForm(t, m, v)}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>${extra(t, m)}</div>`;
     if (t.result === 'winner') {
       body = `<div class="row">${[m.a, m.b].map((p) => `<button type="button" class="ghost" data-act="otWin" data-uid="${esc(p.uid)}">${esc(T('score_win_for', { name: p.name }))}</button>`).join('')}
@@ -150,6 +151,7 @@
     f.onsubmit = (e) => {
       e.preventDefault();
       const err = (k) => { $('ots-err').textContent = T(k); };
+      if (f.dataset.bridge && K.bridgeRead) { const b = K.bridgeRead(f); if (!b) return err('ot_need_score'); O.send({ t: 'otScore', id: t.id, match: S.match, boards: b }); return; }
       if (f.dataset.lad && K.ladderRead) { const g = K.ladderRead(f); if (!g.length) return err('ot_need_score'); O.send({ t: 'otScore', id: t.id, match: S.match, ladder: g }); return; }
       if (t.result === 'sets') {
         readSets();

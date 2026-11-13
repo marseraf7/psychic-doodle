@@ -80,7 +80,7 @@
   const preName = (m) => T(m && m.tag ? m.tag : 'pi_title');
   /** Giải đấu Offline kiểu tỉ số: sau hiệp phụ, tỉ số luân lưu (kiểu set đã ghi luân lưu trong setsText). */
   const otTags = (m) => [...(m.sets ? [] : [m.aet ? esc(T('ot_aet_tag')) : '', m.extra ? esc(T('ot_pen_tag', { s: m.extra.join('-') })) : ''].filter(Boolean)),
-    ...(K.otMatchTags ? K.otMatchTags(m) : []), ...(m.lad && K.ladderTag && K.ladderTag(m) ? [esc(K.ladderTag(m))] : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js); cấp quyết định của thang ván
+    ...(K.otMatchTags ? K.otMatchTags(m) : []), ...(m.lad && K.ladderTag && K.ladderTag(m) ? [esc(K.ladderTag(m))] : []), ...(m.vp ? [esc(T('br_vp_tag', { a: m.vp[0].toFixed(2), b: m.vp[1].toFixed(2) }))] : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js); cấp quyết định của thang ván
   /** Nút của trận: ảnh chia sẻ kết quả (trận đã xong, có hai người thật), đính kèm (tour-match-extra.js). */
   function matchTools(m) {
     const out = [];
@@ -248,7 +248,9 @@
         const inner = () => table(g.table, v.cfg) + divTables(key + ':d' + gi, g, v.cfg, table) + (rounds ? roundsList(key + ':g' + gi, rounds, (i) => (rounds[i].some((m) => m.tag === 'tb') ? T('tbm_round') : [label(t, v.index, i, T('r_round', { n: i + 1 })), slot(t, v.index, i)].filter(Boolean).join(' · ')), !v.done && cur >= 0 && !many)
           : K.embed ? `<p class="hint">${esc(T('ot_group_embed'))}</p>` // trang nhúng: không tải được các trận của bảng (giải rất nhiều bảng)
             : `<p class="hint">${esc(T('ot_group_loading'))}</p>${K.otGroupNeed ? (K.otGroupNeed(t, v.index, gi), '') : ''}`);
-        const name = esc(T(v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }));
+        // The Split: nhóm trên / nhóm dưới kèm dải hạng khoá (đội nhóm dưới không lên trên được dù nhiều điểm hơn)
+        const top = v.cfg.split ? v.groups[0].table.length : 0;
+        const name = esc(v.cfg.split ? T(gi ? 'split_bottom' : 'split_top', { a: gi ? top + 1 : 1, b: gi ? top + g.table.length : top }) : T(v.cfg.season ? 'conf_name' : 'group_name', { name: g.name }));
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
         return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? icon('star', 'star') : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);
