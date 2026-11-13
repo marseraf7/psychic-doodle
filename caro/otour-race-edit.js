@@ -84,6 +84,7 @@
       return true;
     },
     change(c, k, el, clamp) {
+      if (c.type !== 'race') return false; // khoá trùng tên ở loại khác (vd. cutOn của Thụy Sĩ cắt theo số thua)
       const v = el.value;
       if (k === 'input') { c.input = v === 'hole' ? 'hole' : 'round'; return true; }
       if (k === 'par') { // par từng lỗ: 1–18 số, mỗi số 3–6
