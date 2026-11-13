@@ -72,6 +72,7 @@ function tally(st, only, ctx) {
       x.gl += m.wins[op] || 0;
       x.gt += ties;
       x.pts += (m.wins[me] || 0) * gw + ties * gt;
+      if (m.vp) x.pts += m.vp[me === m.a ? 0 : 1]; // bridge: điểm thắng (VP) theo thang 20
       // Điểm trong từng set (giải offline): ô của mình là cột 0 nếu mình là m.a
       if (Array.isArray(m.sets)) for (const st2 of m.sets) { x.pw += st2[me === m.a ? 0 : 1] || 0; x.pl += st2[me === m.a ? 1 : 0] || 0; }
       // Ván đi sau: ván đầu do m.first đi trước, các ván sau trong trận đổi bên (bracket.js)

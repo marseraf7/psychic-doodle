@@ -116,6 +116,7 @@ function buildRace(st) {
   const heat = st.cfg.heat && st.entrants.length > st.cfg.heat ? st.cfg.heat : 0;
   const G = st.cfg.groups || 0; // chia bảng cố định: mỗi bảng `events` trận, trận i thuộc bảng i % G
   st.events = Array.from({ length: (st.cfg.weekly ? WK.totalEvents(st.cfg) : CI.totalEvents(st.cfg)) * (G || 1) }, (_, i) => ({ i, done: false, rows: null, ...(G ? { g: i % G } : {}), ...(heat ? { heats: heatsFor(st.entrants, heat, i) } : {}) }));
+  if (PLUG.get(st.cfg.score) && PLUG.get(st.cfg.score).build) PLUG.get(st.cfg.score).build(st);
 }
 
 /**
@@ -226,6 +227,7 @@ function recordHeat(st, i, h, rows) {
 }
 
 function undoEvent(st, i) {
+  if (PLUG.get(st.cfg.score) && PLUG.get(st.cfg.score).undo) return PLUG.get(st.cfg.score).undo(st, i); // chặng tự thêm (Backyard, poker)
   delete st.playoff; // golf: kết quả đấu phụ không còn đúng
   delete st.mpWinner; // match point: chưa ai thắng nữa
   Object.assign(st.events[i], { done: false, rows: null });

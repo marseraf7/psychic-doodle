@@ -21,7 +21,7 @@
   /** Số bảng vòng tròn (như groupCount ở stages-groups.js). */
   const MAX_BIG = 64; // bảng lớn của giải offline (stages-league.js)
   /** Số chặng của giai đoạn race: omnium 4 đua con, mass start (bán kết + chung kết), pursuit 1 (như máy chủ). */
-  const evOf = (c) => (c.score === 'omnium' ? 4 : c.score === 'massstart' ? (c.massStart && c.massStart.semis ? 2 : 1) : c.score === 'pursuit' ? 1 : Number(c.events) || 1);
+  const evOf = (c) => (c.score === 'omnium' ? 4 : c.score === 'massstart' ? (c.massStart && c.massStart.semis ? 2 : 1) : ['pursuit', 'backyard'].includes(c.score) ? 1 : c.score === 'poker' ? 1 : Number(c.events) || 1);
   function groupCount(c, n) {
     if (c.league) return 1;
     if (c.season) return c.season.confs || 1;
@@ -175,6 +175,8 @@
       const m = x ? x.matches : 0;
       return { matches: m, maxMatches: m, waves: x ? x.waves : 0, advance: last ? null : Math.min(n, Math.max(1, Number(c.advance) || 1)), ...(x ? {} : { bad: true }) };
     }
+    // Loại trực tiếp dựng từng vòng (stages-knock.js): n − 1 trận, ⌈log₂ n⌉ vòng
+    if (c.type === 'knock') { const m = Math.max(0, n - 1); return { matches: m, maxMatches: m, waves: Math.ceil(Math.log2(Math.max(2, n))), advance: last ? null : Math.max(1, Number(c.advance) || 1) }; }
     // Pool loại kép xếp tầng (kiểu EVO – server/src/hub/stages-pools.js): mỗi pool đấu tới khi còn `out` người mỗi phía
     if (c.type === 'pools') {
       const pool = [8, 16, 32].includes(Number(c.pool)) ? Number(c.pool) : 16, out = Math.max(1, Number(c.out) || 2), P = Math.max(1, Math.ceil(n / pool));

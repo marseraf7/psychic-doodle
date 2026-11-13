@@ -114,6 +114,22 @@
     // tích – tổng 38 trận); đội nhóm dưới không lên trên được dù nhiều điểm hơn
     { id: 'scottish_split', icon: '🏴', sport: 'football', n: 12,
       stages: [{ type: 'roundrobin', meetings: 3, advance: 12 }, { type: 'roundrobin', split: { top: 6 } }] },
+    // Đợt 25. Kiểu BLAST Bounty: 32 đội loại trực tiếp dựng từng vòng, đội nồi dưới chọn đối thủ ở nồi trên; bounty khởi đầu theo
+    // hạt giống (1–4: 60.000 … 13–16: 15.000, 17–32: 0 – tổng 500.000), thắng lấy 50% bounty đội thua, chung kết lấy trọn
+    { id: 'blast_bounty', icon: '💰', sport: 'esports', n: 32, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'knock', mode: 'bounty', bestOf: 3 }] },
+    // Kiểu Snooker Shoot Out: 64 người, mỗi trận 1 frame, bốc thăm lại sau mỗi vòng
+    { id: 'snooker_shootout', icon: '🎱', sport: 'snooker', n: 64, stages: [{ type: 'knock', mode: 'shootout' }] },
+    // Poker PKO / Mystery bounty (chỉ điểm thưởng, không tiền thật)
+    { id: 'poker_pko', icon: '♠️', sport: 'poker', n: 60, stages: [{ type: 'race', score: 'poker', poker: { type: 'pko', start: 100, pocket: 50 } }] },
+    { id: 'poker_mystery', icon: '✉️', sport: 'poker', n: 60, stages: [{ type: 'race', score: 'poker', poker: { type: 'mystery', act: 9 } }] },
+    // Backyard Ultra: mỗi giờ một yard 6,706 km, người cuối cùng phải chạy thêm một yard một mình
+    { id: 'backyard_ultra', icon: '🏃', sport: 'running', n: 30, stages: [{ type: 'race', score: 'backyard' }] },
+    // Bridge đồng đội: 10 đội vòng tròn, mỗi trận 16 ván, IMP → VP thang 20 (WBF)
+    { id: 'bridge_teams', icon: '🃏', sport: 'bridge', n: 10, stages: [{ type: 'roundrobin', boards: 16 }] },
+    // Game bài sưu tầm kiểu Grand Prix: 64 người, Thụy Sĩ 6 vòng trong pod 8 người (đổi pod sau 3 vòng), Top 8 loại trực tiếp
+    { id: 'mtg_gp', icon: '🎴', sport: 'tcg', n: 64,
+      stages: [{ type: 'swiss', rounds: 6, pod: { size: 8, rounds: 3 }, advance: 8, bestOf: 3 }, { type: 'single', bestOf: 3 }] },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MORE;
   else global.CaroOTourTplMore = MORE;

@@ -314,6 +314,7 @@ class Bracket {
       ...(m.esp ? { esp: m.esp } : {}), // esports: chi tiết từng ván (otour-games.js)
       ...(m.tb && m.side ? { tbSide: m.side } : {}), // trận phụ phân hạng: đội được chọn bên (stages-tiematch.js)
       ...(m.lad ? { lad: m.lad } : {}), // thang ván (caro/otour-ladder.js)
+      ...(m.vp ? { vp: m.vp } : {}), // bridge: điểm thắng (VP) – caro/otour-bridge.js
       ...(m.sp != null ? { sp: m.sp } : {}), // playoff chặng (stages-splits.js)
       // Giá thầu Armageddon: chỉ lộ khi đủ hai giá
       ...(m.bids ? { bids: m.bids[0] != null && m.bids[1] != null ? m.bids : m.bids.map((x) => (x != null ? true : null)) } : {}), ...(m.rebid ? { rebid: m.rebid } : {}),

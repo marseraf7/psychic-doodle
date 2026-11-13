@@ -35,6 +35,8 @@ function normalizeSwiss(c, out) {
     const v = Array.isArray(c.baku && c.baku.virtual) ? c.baku.virtual : BAKU;
     out.baku = { virtual: v.slice(0, 6).map((x) => ({ from: int(x && x.from, 1, MAX_ROUNDS, 1), to: int(x && x.to, 1, MAX_ROUNDS, 1), pts: Math.max(0, Math.min(10, Math.round(Number(x && x.pts) * 2) / 2 || 0)) })).filter((x) => x.pts > 0 && x.to >= x.from) };
   }
+  // Pod kiểu Magic: The Gathering (draft): chia pod `size` người, mỗi pod ghép `rounds` vòng trong nội bộ rồi chia lại pod
+  if (c.pod && Number(c.pod.size) >= 4) out.pod = { size: int(c.pod.size, 4, 16, 8), rounds: int(c.pod.rounds, 1, 5, 3) };
   if (c.koth && Number(c.koth.rounds) > 0) {
     out.koth = { rounds: int(c.koth.rounds, 1, 5, 2) };
     if (c.gibson && Number(c.gibson.spots) > 0) out.gibson = { spots: int(c.gibson.spots, 1, 8, 2), swing: int(c.gibson.swing, 0, 100000, 1000) };
@@ -145,6 +147,7 @@ function gibsonSplit(list, S, left, win, g) {
  */
 function pair(st, r, ctx) {
   const cfg = st.cfg, mode = modeOf(cfg, r);
+  if (cfg.pod) return podPair(st, r, ctx);
   if (mode === 'monrad' || mode === 'danish' || mode === 'koth') {
     const { list, stats } = ctx.standings();
     const active = list.filter((u) => ctx.order.includes(u));
@@ -181,7 +184,36 @@ function pair(st, r, ctx) {
   return { ...swissPairs(ctx.order, ctx.played, ctx.byes, mode === 'adjacent' ? 'adjacent' : 'dutch', ctx.score), tags: {} };
 }
 
+/**
+ * Chia pod: `size` người một pod theo thứ tự (vòng đầu: hạt giống; sau đó: bảng xếp hạng – pod 1 là nhóm dẫn đầu); pod cuối
+ * thiếu (< 6 người) gộp vào pod trước. Đổi pod mỗi cfg.pod.rounds vòng; ghép cặp chỉ trong pod (ưu tiên hơn "không gặp lại").
+ */
+function makePods(list, size) {
+  const pods = [];
+  for (let k = 0; k < list.length; k += size) pods.push(list.slice(k, k + size));
+  if (pods.length > 1 && pods[pods.length - 1].length < Math.min(6, size)) pods[pods.length - 2].push(...pods.pop());
+  return pods;
+}
+function podPair(st, r, ctx) {
+  const P = st.cfg.pod, block = Math.floor(r / P.rounds);
+  if (!st.pods || st.podBlock !== block) {
+    const base = block === 0 ? st.entrants : ctx.standings().list;
+    st.pods = makePods(base.filter((u) => ctx.order.includes(u)), P.size);
+    st.podBlock = block;
+    (st.podHist = st.podHist || [])[block] = st.pods.map((p) => [...p]);
+  }
+  const pairs = [];
+  let bye = null;
+  for (const pod of st.pods) {
+    const order = ctx.order.filter((u) => pod.includes(u));
+    const res = swissPairs(order, ctx.played, ctx.byes, 'dutch', ctx.score);
+    pairs.push(...res.pairs);
+    if (res.bye) bye = bye || res.bye;
+  }
+  return { pairs, bye, tags: {} };
+}
+
 /** Người đi tiếp theo thành tích (cắt X-2): mọi người thua ≤ cutLosses trận, theo bảng xếp hạng. */
 const recordCut = (list, stats, cutLosses) => list.filter((u) => real(u) && stats[u] && stats[u].l <= cutLosses);
 
-module.exports = { MODES, NEW, BAKU, normalizeSwiss, modeOf, bakuPoints, candidates, swissPairs, straight, gibsonSplit, pair, recordCut };
+module.exports = { makePods, MODES, NEW, BAKU, normalizeSwiss, modeOf, bakuPoints, candidates, swissPairs, straight, gibsonSplit, pair, recordCut };

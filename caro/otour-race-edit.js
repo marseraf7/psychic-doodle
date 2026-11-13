@@ -4,7 +4,8 @@
  *              theo chỉ số khó từng lỗ (máy chủ: stages-golf.js, stages-golf-stable.js);
  *   omnium   – 4 đua con, bảng điểm theo hạng, điểm mỗi vòng hơn / kém (stages-omnium.js);
  *   massstart – số vòng, các vòng có điểm giữa đua, điểm giữa đua / về đích, bán kết (stages-massstart.js);
- *   pursuit  – xuất phát theo khoảng thua giai đoạn trước, mốc xuất phát đồng loạt (stages-pursuit.js).
+ *   pursuit  – xuất phát theo khoảng thua giai đoạn trước, mốc xuất phát đồng loạt (stages-pursuit.js);
+ *   backyard – độ dài và thời gian mỗi yard (stages-backyard.js); poker – PKO / Mystery, bounty, phong bì (stages-poker.js).
  * K.raceEdit = { scores, keys, html(i, c, st, ctx), change(c, k, el, clamp), init(c, score) }.
  * Nạp sau tour-stage-edit.js.
  */
@@ -68,19 +69,34 @@
     return [`<small class="hint">${esc(T(i > 0 ? 'pu_note' : 'pu_first'))}</small>`, field(T('opt_pu_wave'), num(i, 'puWave', (c.pursuit || {}).wave != null ? c.pursuit.wave : 240, 0, 3600))];
   }
 
-  const HTML = { golf, omnium, massstart: mass, pursuit };
+  function backyard(i, c) {
+    const B = c.backyard || {};
+    return [`<small class="hint">${esc(T('by_note'))}</small>`, field(T('opt_by_m'), num(i, 'byM', B.m || 6706, 100, 100000)), field(T('opt_by_min'), num(i, 'byMin', B.min || 60, 10, 180))];
+  }
+
+  function poker(i, c) {
+    const P = c.poker || {}, f = [field(T('opt_pk_type'), sel(i, 'pkType', [['pko', T('pk_type_pko')], ['mystery', T('pk_type_mystery')]], P.type || 'pko'))];
+    if ((P.type || 'pko') === 'pko') f.push(field(T('opt_pk_start'), num(i, 'pkStart', P.start != null ? P.start : 100, 0, 1000000)), field(T('opt_pk_pocket'), num(i, 'pkPocket', P.pocket != null ? P.pocket : 50, 0, 100)));
+    else f.push(field(T('opt_pk_act'), num(i, 'pkAct', P.act || 9, 2, 10000)), text(i, 'pkEnv', (P.envelopes || [1000, 500, 200, 200, 100, 100, 100, 50, 50, 50]).join(' '), T('opt_pk_env'), T('opt_pk_env_hint')));
+    f.push(`<small class="hint">${esc(T('pk_token_note'))}</small>`);
+    return f;
+  }
+
+  const HTML = { golf, omnium, massstart: mass, pursuit, backyard, poker };
 
   K.raceEdit = {
-    scores: ['omnium', 'massstart', 'pursuit'],
-    keys: ['scoring', 'points', 'handicap', 'omnium', 'massStart', 'pursuit'],
+    scores: ['omnium', 'massstart', 'pursuit', 'backyard', 'poker'],
+    keys: ['scoring', 'points', 'handicap', 'omnium', 'massStart', 'pursuit', 'backyard', 'poker'],
     html: (i, c) => (HTML[c.score] ? HTML[c.score](i, c) : []),
     /** Giá trị mặc định khi chọn cách tính mới. Trả true nếu đã xử lý. */
     init(c, v) {
-      if (!['omnium', 'massstart', 'pursuit'].includes(v)) return false;
+      if (!['omnium', 'massstart', 'pursuit', 'backyard', 'poker'].includes(v)) return false;
       for (const k of ['table', 'teams', 'heat']) delete c[k];
       if (v === 'omnium') Object.assign(c, { events: 4, omnium: { rank: [...OMN_RANK], lap: 20, sprint: [5, 3, 2, 1] } });
       if (v === 'massstart') Object.assign(c, { events: 1, massStart: { laps: 16, sprints: [4, 8, 12], mid: [3, 2, 1], final: [60, 40, 20, 10, 6, 3] } });
       if (v === 'pursuit') Object.assign(c, { events: 1, pursuit: { wave: 240 } });
+      if (v === 'backyard') Object.assign(c, { events: 1, backyard: { m: 6706, min: 60 } });
+      if (v === 'poker') Object.assign(c, { events: 1, poker: { type: 'pko', start: 100, pocket: 50 } });
       return true;
     },
     change(c, k, el, clamp) {
@@ -113,6 +129,10 @@
       if (k === 'msMid' || k === 'msFinal') { const r = nums(v, 0, k === 'msMid' ? 20 : 200, k === 'msMid' ? 6 : 12); if (r.length) c.massStart = { ...M, [k === 'msMid' ? 'mid' : 'final']: r }; return true; }
       if (k === 'msSemis') { c.massStart = { ...M }; if (el.checked) Object.assign(c.massStart, { semis: true, heat: 24, adv: 8 }); else { delete c.massStart.semis; delete c.massStart.heat; delete c.massStart.adv; } c.events = el.checked ? 2 : 1; return true; }
       if (k === 'msHeat' || k === 'msAdv') { c.massStart = { ...M, [k === 'msHeat' ? 'heat' : 'adv']: clamp(Number(v)) }; return true; }
+      if (k === 'byM' || k === 'byMin') { c.backyard = { m: 6706, min: 60, ...c.backyard, [k === 'byM' ? 'm' : 'min']: clamp(Number(v)) }; return true; }
+      if (k === 'pkType') { c.poker = v === 'mystery' ? { type: 'mystery', act: 9, envelopes: [1000, 500, 200, 200, 100, 100, 100, 50, 50, 50] } : { type: 'pko', start: 100, pocket: 50 }; return true; }
+      if (k === 'pkStart' || k === 'pkPocket' || k === 'pkAct') { c.poker = { ...c.poker, [{ pkStart: 'start', pkPocket: 'pocket', pkAct: 'act' }[k]]: clamp(Number(v)) }; return true; }
+      if (k === 'pkEnv') { const e = nums(v, 0, 10000000, 200); if (e.length) c.poker = { ...c.poker, envelopes: e }; return true; }
       if (k === 'puWave') { c.pursuit = { wave: Math.max(0, Math.min(3600, Math.floor(Number(v)) || 0)) }; return true; }
       return false;
     },

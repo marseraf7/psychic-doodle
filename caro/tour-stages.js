@@ -80,7 +80,7 @@
   const preName = (m) => T(m && m.tag ? m.tag : 'pi_title');
   /** Giải đấu Offline kiểu tỉ số: sau hiệp phụ, tỉ số luân lưu (kiểu set đã ghi luân lưu trong setsText). */
   const otTags = (m) => [...(m.sets ? [] : [m.aet ? esc(T('ot_aet_tag')) : '', m.extra ? esc(T('ot_pen_tag', { s: m.extra.join('-') })) : ''].filter(Boolean)),
-    ...(K.otMatchTags ? K.otMatchTags(m) : []), ...(m.lad && K.ladderTag && K.ladderTag(m) ? [esc(K.ladderTag(m))] : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js); cấp quyết định của thang ván
+    ...(K.otMatchTags ? K.otMatchTags(m) : []), ...(m.lad && K.ladderTag && K.ladderTag(m) ? [esc(K.ladderTag(m))] : []), ...(m.vp ? [esc(T('br_vp_tag', { a: m.vp[0].toFixed(2), b: m.vp[1].toFixed(2) }))] : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js); cấp quyết định của thang ván
   /** Nút của trận: ảnh chia sẻ kết quả (trận đã xong, có hai người thật), đính kèm (tour-match-extra.js). */
   function matchTools(m) {
     const out = [];
