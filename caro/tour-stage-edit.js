@@ -46,7 +46,7 @@
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
-    'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct'];
+    'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'oppWinPct', 'oppOppWinPct'];
   const BO_OPTS = [1, 3, 5, 7];
   const MAX_BO = 25; // như máy chủ (stages.js)
   const PLACE_CHIPS = 64; // chọn từng cặp hạng tới hạng 64; sau đó một ô "tất cả các hạng sau"
@@ -226,7 +226,8 @@
       if (ctx.ext && c.type === 'single' && last && !c.playoff && K.repEdit) f.push(...K.repEdit.html(i, c)); // vòng vớt kiểu Olympic
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
       // Thụy Sĩ theo thắng / thua của giải offline: thêm kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó, cao gặp thấp)
-      if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')], ['valve16', T('pair_valve16')], ['draw', T('pair_draw')], ['faceit', T('pair_faceit')]] : [])], c.pairing || 'dutch')));
+      if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')], ['valve16', T('pair_valve16')], ['draw', T('pair_draw')], ['faceit', T('pair_faceit')]] : []), ...(ctx.ext && !c.record ? [['monrad', T('pair_monrad')], ['danish', T('pair_danish')], ['baku', T('pair_baku')]] : [])], c.pairing || 'dutch')));
+      if (ctx.ext && c.type === 'swiss' && !c.record && K.swissEdit) f.push(...K.swissEdit.html(i, c, last)); // King of the Hill, Gibson, cắt theo số thua (otour-swiss-edit.js)
       if (c.points) {
         f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
         if (adv) {
@@ -241,7 +242,7 @@
         }
       }
       // Thụy Sĩ theo số thắng / thua: ai đủ số thắng đều đi tiếp (không cần ô số người đi tiếp)
-      if (!last && !c.record && !c.gate && c.type !== 'gsl' && c.type !== 'kings') f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, c.routes ? 0 : 1, 32)));
+      if (!last && !c.record && !c.gate && !c.advanceMode && c.type !== 'gsl' && c.type !== 'kings') f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, c.routes ? 0 : 1, 32)));
       const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
       const extra = more.length ? `<div class="sc-more"><b>${esc(T('stage_more'))}</b><div class="sc-body">${more.join('')}</div></div>` : '';
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div>${extra}</div>`;
@@ -307,6 +308,7 @@
     else if (K.routeEdit && K.routeEdit.change(stages, i, k, el)) { /* dải hạng, cổng thắng trận, mang điểm (otour-route-edit.js) */ }
     else if (K.kindOf && K.kindOf(c.type) && K.kindOf(c.type).change(stages, i, k, el)) { /* nhánh đồ thị… (registry) */ }
     else if (K.repEdit && K.repEdit.change(c, k, el)) { /* vòng vớt kiểu Olympic (otour-graph-ui.js) */ }
+    else if (K.swissEdit && K.swissEdit.change(c, k, el)) { /* Thụy Sĩ: King of the Hill, Gibson, cắt theo số thua */ }
     else if (k === 'league') {
       if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
     } else if (k === 'lgGames' || k === 'lgPots') c.league = { games: 8, pots: 4, ...c.league, [k === 'lgGames' ? 'games' : 'pots']: clamp(v) };

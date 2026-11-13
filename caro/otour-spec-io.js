@@ -12,7 +12,7 @@
   const SP = typeof module !== 'undefined' && module.exports ? require('./otour-sports.js') : global.CaroOTourSports;
   const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings', 'graph'];
   const MAX_STAGES = 6; // giải offline tối đa 6 giai đoạn (như máy chủ – stages.js MAX_STAGES_OFFLINE)
-  const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
+  const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses', 'oppWinPct', 'oppOppWinPct'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
   const lv = { type: 'object', properties: { m: int(0, 30, 'số lần gặp mỗi đối thủ ở mức này'), x: int(0, 999, 'số đối thủ ở mức này gặp thêm 1 lần') } };
     const bo = { type: 'integer', enum: Array.from({ length: 13 }, (_, i) => 2 * i + 1), description: 'Best of N (lẻ, 1–25)' };
@@ -40,6 +40,12 @@
             shape: { type: 'string', enum: ['page', 'afl8', 'afl10', 'gauntlet', 'hybrid', 'compass8'], description: "'graph' (nhánh đồ thị, mỗi trận thắng đi một nơi, thua đi một nơi): 'page' – Page playoff 4 đội; 'afl8' / 'afl10' – Final Eight / Final Ten kiểu AFL (8 / 10 đội); 'gauntlet' – thang leo bậc 3–8 đội (hạt giống thấp nhất leo dần tới gặp hạt giống 1); 'hybrid' – loại kép lai kiểu RLCS 8 đội (hạt giống 1–4 hai mạng); 'compass8' – Compass draw 8 người (ai cũng đấu 3 trận)" },
             ladder: { type: 'array', maxItems: 7, items: { type: 'object', properties: { bo: int(1, 25, 'Bo của bậc, tính cả trận tặng (được chẵn)'), start: { type: 'array', maxItems: 2, items: int(0, 3), description: '[trận tặng hạt giống cao, trận tặng hạt giống thấp]' }, tie: { type: 'boolean', description: 'hoà loạt thì hạt giống cao đi tiếp; trận hoà vẫn tính là đã đấu' } } }, description: "'graph' + 'gauntlet': từng bậc, bậc 1 là trận của hai hạt giống thấp nhất (KBO Wild Card: { bo: 3, start: [1, 0], tie: true })" },
             rep: { type: 'object', properties: { from: { type: 'string', enum: ['qf', 'r16', 'r32'] }, mode: { type: 'string', enum: ['finalist', 'half'] } }, description: "'single' ở cuối: vòng vớt kiểu Olympic – xong hai bán kết thì người thua trước finalist ('finalist') hoặc mọi người thua ở nửa nhánh đó ('half', kiểu IJF) từ vòng `from` đấu vớt theo thang, người thắng mỗi phía tranh huy chương đồng với người thua bán kết phía kia (hai huy chương đồng)" },
+            pairingByRound: { type: 'array', maxItems: 15, items: { type: ['string', 'null'], enum: ['dutch', 'adjacent', 'monrad', 'danish', 'baku', null] }, description: 'Thụy Sĩ thường: cách ghép từng vòng (null = như pairing; vd. vòng cuối danish)' },
+            baku: { type: 'object', properties: { virtual: { type: 'array', maxItems: 6, items: { type: 'object', properties: { from: int(1, 15), to: int(1, 15), pts: { type: 'number', minimum: 0, maximum: 10 } } } } }, description: "pairing 'baku': lịch điểm ảo cho nửa trên (mặc định giải 9 vòng FIDE C.04.7: [{ from: 1, to: 3, pts: 1 }, { from: 4, to: 5, pts: 0.5 }]) – chỉ dùng để ghép cặp, không vào bảng xếp hạng / chỉ số phụ" },
+            koth: { type: 'object', properties: { rounds: int(1, 5) }, description: 'Thụy Sĩ thường: King of the Hill – `rounds` vòng cuối ghép thẳng 1–2, 3–4 theo bảng xếp hạng (cho gặp lại; kiểu Scrabble)' },
+            gibson: { type: 'object', properties: { spots: int(1, 8), swing: int(0, 100000) }, description: 'Có koth: Gibsonization – người trong top `spots` đã chắc suất (kể cả thua hết các trận còn lại với chênh lệch −swing mỗi trận, người đuổi theo thắng hết với +swing) được ghép với người cao nhất đã hết cơ hội' },
+            advanceMode: { type: 'string', enum: ['record'], description: "Thụy Sĩ thường (giai đoạn giữa): 'record' – cắt theo số thua (kiểu Pokémon VGC X-2): mọi người thua ≤ cutLosses trận đi tiếp, số người đi tiếp do kết quả quyết định; nhánh sau miễn đấu cho hạt giống cao" },
+            cutLosses: int(0, 10, 'advanceMode record: số trận thua tối đa để đi tiếp (VGC: 2)'),
             size: { type: 'integer', enum: [4, 8], description: "'gsl': cỡ bảng – 4 đội (nhất, nhì đi tiếp) hoặc 8 đội (4 đội đi tiếp)" },
             head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
             groups: int(0, 8, "Race 'points': chia bảng cố định (2–8; kiểu PGC) – mỗi bảng đấu `events` trận của riêng mình, đi tiếp (advance) và vào thẳng giai đoạn 3 (skip) tính mỗi bảng"),
@@ -81,7 +87,7 @@
             direct: int(0, 256, 'giai đoạn thứ 2 trở đi: số đội hạt giống cao nhất vào thẳng giai đoạn này (không đá các giai đoạn trước)'),
             region: { type: 'boolean', description: 'Thụy Sĩ: vòng 1 tránh hai đội cùng khu vực (cột quốc gia)' },
             bestNext: int(0, 32, 'thêm đội xếp ngay sau suất đi tiếp tốt nhất'),
-            rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent', 'valve', 'valve16', 'draw', 'faceit'], description: "Chỉ Thụy Sĩ theo thắng / thua: 'faceit' – kiểu FACEIT 2018 (vòng 1–2 như 'draw', vòng 3–5 xếp hạt giống trong nhóm theo Buchholz = tổng số thắng của các đối thủ đã gặp, cao gặp thấp); 'valve' – kiểu CS Major (vòng 1 hạt giống i gặp i + n/2, sau đó cùng thành tích, xếp theo độ khó (Buchholz) rồi hạt giống, cao gặp thấp); 'valve16' – như trên nhưng vòng 1 gập đôi (1 gặp 16 – luật trước 11/2023); 'draw' – kiểu 2017: vòng 1 nhóm hạt giống 1 bốc gặp nhóm 4, 2 gặp 3, sau đó bốc thăm ngẫu nhiên trong cùng thành tích" },
+            rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent', 'valve', 'valve16', 'draw', 'faceit', 'monrad', 'danish', 'baku'], description: "Thụy Sĩ thường (giải offline): 'monrad' – ghép thẳng 1–2, 3–4 theo bảng xếp hạng, tránh gặp lại; 'danish' – như Monrad nhưng cho gặp lại; 'baku' – tăng tốc Baku (nửa trên theo hạt giống được cộng điểm ảo chỉ để ghép cặp, xem baku). Chỉ Thụy Sĩ theo thắng / thua: 'faceit' – kiểu FACEIT 2018 (vòng 1–2 như 'draw', vòng 3–5 xếp hạt giống trong nhóm theo Buchholz = tổng số thắng của các đối thủ đã gặp, cao gặp thấp); 'valve' – kiểu CS Major (vòng 1 hạt giống i gặp i + n/2, sau đó cùng thành tích, xếp theo độ khó (Buchholz) rồi hạt giống, cao gặp thấp); 'valve16' – như trên nhưng vòng 1 gập đôi (1 gặp 16 – luật trước 11/2023); 'draw' – kiểu 2017: vòng 1 nhóm hạt giống 1 bốc gặp nhóm 4, 2 gặp 3, sau đó bốc thăm ngẫu nhiên trong cùng thành tích" },
             record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo, boLast: { type: 'boolean', description: 'Bo riêng chỉ cho trận mà cả hai đội đều ở thế thắng là đi tiếp, thua là bị loại (FACEIT 2018: vòng 5, 2–2)' } } },
             points: { type: 'object', properties: { w: int(0, 10), d: int(0, 10), l: int(0, 10), wx: int(0, 10), lx: int(0, 10), gw: int(0, 10), gt: int(0, 10), bye: int(0, 10) } },
             tiebreaks: { type: 'array', maxItems: TIEBREAKS.length, items: { type: 'string', enum: TIEBREAKS } },
@@ -153,6 +159,11 @@
       x.push(c.record ? T('ds_swiss_rec', { w: c.record.win, l: c.record.lose }) : c.rounds ? T('ds_swiss', { n: c.rounds }) : T('ds_swiss_auto'));
       if (c.record && c.record.bo) x.push(T(c.record.boLast ? 'ds_rec_bo_last' : 'ds_rec_bo', { bo: c.record.bo }));
       if (c.record && ['valve', 'valve16', 'draw', 'faceit'].includes(c.pairing)) x.push(T('ds_' + c.pairing));
+      if (!c.record && ['monrad', 'danish', 'baku'].includes(c.pairing)) x.push(T('ds_pair_' + c.pairing));
+      if ((c.pairingByRound || []).includes('danish') && c.pairing !== 'danish') x.push(T('ds_danish_by_round', { list: c.pairingByRound.map((m, r) => (m === 'danish' ? r + 1 : 0)).filter(Boolean).join(', ') }));
+      if (c.koth) x.push(T('ds_koth', { n: c.koth.rounds }));
+      if (c.koth && c.gibson) x.push(T('ds_gibson', { n: c.gibson.spots, s: c.gibson.swing }));
+      if (c.advanceMode === 'record') x.push(T('ds_cut_losses', { n: c.cutLosses != null ? c.cutLosses : 2 }));
     } else if (c.type === 'race') {
       if (c.score === 'golf') { // golf đấu gậy
         const p = (c.par || []).reduce((a, b) => a + b, 0) || 72;
@@ -191,6 +202,7 @@
     }
     if (!last) {
       if (c.type === 'swiss' && c.record) x.push(T('ds_adv_rec', { n: c.record.win }));
+      else if (c.type === 'swiss' && c.advanceMode === 'record') { /* cắt theo số thua: đã ghi ở trên */ }
       else if (Array.isArray(c.routes) && c.routes.length) x.push(...routeText(c, T, i));
       else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
       if (c.skip) x.push(T('ds_skip', { n: c.skip }));

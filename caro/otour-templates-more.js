@@ -36,6 +36,24 @@
     // vòng vớt, người thắng vòng vớt mỗi phía tranh huy chương đồng với người thua bán kết phía kia – hai huy chương đồng
     { id: 'judo_rep', icon: '🥋', sport: 'other', result: 'winner', n: 32,
       stages: [{ type: 'single', bestOf: 1, rep: { from: 'r16', mode: 'finalist' } }] },
+    // Đợt 21 – Thụy Sĩ. Kiểu Pokémon VGC: ngày 1 Thụy Sĩ 7 vòng, thua ≤ 2 trận vào ngày 2 (thành tích làm lại từ 0); ngày 2
+    // Thụy Sĩ 6 vòng, thua ≤ 2 trận vào loại trực tiếp (số người do kết quả, hạt giống cao được miễn đấu); xếp theo tỉ lệ
+    // thắng của đối thủ
+    { id: 'vgc_worlds', icon: '🎮', sport: 'esports', n: 64, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'swiss', bestOf: 3, rounds: 7, advanceMode: 'record', cutLosses: 2, tiebreaks: ['oppWinPct', 'oppOppWinPct'] },
+        { type: 'swiss', bestOf: 3, rounds: 6, advanceMode: 'record', cutLosses: 2, tiebreaks: ['oppWinPct', 'oppOppWinPct'] },
+        { type: 'single', bestOf: 3, thirdPlace: false }] },
+    // Giải cờ mở đông người: Thụy Sĩ 9 vòng tăng tốc Baku (nửa trên +1 điểm ảo vòng 1–3, +0,5 vòng 4–5 – chỉ để ghép cặp)
+    { id: 'baku_open', icon: '♟️', sport: 'chess', n: 64,
+      stages: [{ type: 'swiss', rounds: 9, pairing: 'baku' }] },
+    // Giải cờ câu lạc bộ kiểu Bắc Âu: Monrad 7 vòng, vòng cuối Danish (hạng 1 gặp hạng 2 dù đã gặp nhau)
+    { id: 'monrad_club', icon: '♟️', sport: 'chess', n: 20,
+      stages: [{ type: 'swiss', rounds: 7, pairing: 'monrad', pairingByRound: [null, null, null, null, null, null, 'danish'] }] },
+    // Scrabble: Thụy Sĩ 10 vòng tính chênh lệch điểm (spread), 2 vòng cuối King of the Hill + Gibsonization cho 2 suất chung
+    // kết; chung kết Bo5 giữa hai người đầu bảng
+    { id: 'scrabble_koth', icon: '🔤', sport: 'other', result: 'score', n: 16,
+      stages: [{ type: 'swiss', bestOf: 1, rounds: 10, koth: { rounds: 2 }, gibson: { spots: 2, swing: 1000 }, advance: 2, points: { w: 2, d: 1, l: 0 }, tiebreaks: ['gdiff'] },
+        { type: 'single', bestOf: 5, thirdPlace: false }] },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MORE;
   else global.CaroOTourTplMore = MORE;

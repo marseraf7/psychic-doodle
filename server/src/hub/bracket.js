@@ -385,6 +385,8 @@ class Bracket {
       v.rounds = st.rounds.map((r) => r.map(M));
       v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định
       v.totalRounds = st.cfg.rounds;
+      if (st.pp) v.pp = { r: st.pp.r, v: st.pp.v }; // tăng tốc Baku: điểm ảo của vòng mới nhất (stages-pairing.js)
+      if (st.gib) v.gib = Object.keys(st.gib).map((u) => this.tourSide(t, u).name); // người đã chắc suất được cách ly
     }
     if (t.kind === 'otour' && adv) this.markAdvance(t, st, i, v, seedOf);
     return v;

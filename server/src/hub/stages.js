@@ -31,6 +31,7 @@ const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại 
 const Kings = require('./stages-kings.js'); // giải offline: vòng tranh hạt giống + cơ hội cuối
 const Kinds = require('./stages-kinds.js'); // giải offline: registry các loại giai đoạn tự chứa (GSL, kings, nhánh đồ thị…)
 const TM = require('./stages-tiematch.js'); // giải offline: trận phụ phân hạng ở vòng tròn
+const Pair = require('./stages-pairing.js'); // giải offline: các cách ghép cặp Thụy Sĩ
 const REP = require('./stages-repechage.js'); // giải offline: vòng vớt kiểu Olympic trên loại trực tiếp cuối
 
 const MAX_BO = 25;
@@ -118,6 +119,7 @@ function normalizeStage(c, last, opts = {}) {
   // Thụy Sĩ theo thắng / thua, không phải loại trực tiếp)
   if (Number(c.bestOf) === 2 && GROUP_TYPES.includes(res.type) && !res.record) res.bestOf = 2;
   if (['valve', 'valve16', 'draw', 'faceit'].includes(res.pairing) && !res.record) res.pairing = 'dutch';
+  Pair.normalizeSwiss(c, res); // Monrad / Danish / Baku, King of the Hill + Gibsonization, cắt theo số thua (stages-pairing.js)
   // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – không phải league phase / mùa giải)
   if (res.type === 'roundrobin' && !last && !res.league && !res.season && TM.MODES.includes(c.tbm)) res.tbm = c.tbm;
   if (res.tbm && c.tbmTop === true) res.tbmTop = true; // thêm trận phụ khi hai đội bằng điểm ở hạng nhất (kiểu MSI)

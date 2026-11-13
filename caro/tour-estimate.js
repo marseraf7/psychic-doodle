@@ -205,6 +205,14 @@
     // Thụy Sĩ: 0 vòng = tự động ⌈log₂ n⌉; số vòng bị giới hạn khi ít người
     const rounds = Math.min(c.rounds || Math.max(1, Math.ceil(Math.log2(n))), swissMax(n));
     const matches = rounds * Math.floor(n / 2);
+    // Cắt theo số thua (kiểu VGC X-2 – stages-pairing.js): số người qua chỉ biết khi xong; ước tính bằng kỳ vọng khi mỗi trận
+    // thắng / thua 50–50 (số thua ~ nhị thức(rounds, ½))
+    if (c.advanceMode === 'record' && !last) {
+      const X = Math.max(0, Number(c.cutLosses) || 0);
+      let p = 0, comb = 1;
+      for (let k = 0; k <= Math.min(X, rounds); k++) { p += comb / 2 ** rounds; comb = (comb * (rounds - k)) / (k + 1); }
+      return { matches, maxMatches: matches, waves: rounds, rounds, advance: Math.max(2, Math.min(n, Math.round(n * p))), cut: true };
+    }
     return { matches, maxMatches: matches, waves: rounds, rounds, advance: last ? null : Math.min(c.advance || 0, n) };
   }
 

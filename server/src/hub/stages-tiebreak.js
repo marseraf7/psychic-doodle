@@ -16,7 +16,7 @@ const { extend } = require('./stages-tb-calc.js');
 
 const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
 const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
-  'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
+  'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses', 'oppWinPct', 'oppOppWinPct'];
 const MAX_TB = TIEBREAKS.length; // chọn bao nhiêu cũng được, mỗi tiêu chí một lần
 // Mặc định giữ đúng cách xếp của bản trước: vòng tròn đối đầu → hiệu số → số ván thắng; Thụy Sĩ Buchholz → SB → số trận thắng
 const DEFAULT_TB = { roundrobin: ['h2h', 'gdiff', 'gwins'], swiss: ['bh', 'sb', 'wins'] };

@@ -261,7 +261,7 @@
     const rlabel = (i) => [label(t, v.index, i, T('swiss_round', { n: i + 1, m: v.totalRounds })), slot(t, v.index, i)].filter(Boolean).join(' · ');
     // Vòng mới nhất hiện sẵn; các vòng trước nằm trong khối riêng (chỉ dựng khi mở)
     const older = rounds.slice(1);
-    return capped + table(v.table, v.cfg)
+    return capped + (K.swissNote ? K.swissNote(v) : '') + table(v.table, v.cfg) // điểm ảo Baku, Gibsonization, cắt theo số thua (otour-swiss-edit.js)
       + fold(key + ':r', esc(T('matches')), () => roundsHtml(rounds.slice(0, 1), rlabel)
         + (older.length ? fold(key + ':ro', esc(T('earlier_rounds', { n: older.length })), () => roundsHtml(older, rlabel), false) : ''), !v.done)
       + rulesNote({ ...v.cfg, byes: v.byes }, false);
