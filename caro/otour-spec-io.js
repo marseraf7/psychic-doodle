@@ -106,13 +106,20 @@
             points: { type: 'object', properties: { w: int(0, 10), d: int(0, 10), l: int(0, 10), wx: int(0, 10), lx: int(0, 10), gw: int(0, 10), gt: int(0, 10), bye: int(0, 10) } },
             tiebreaks: { type: 'array', maxItems: TIEBREAKS.length, items: { type: 'string', enum: TIEBREAKS } },
             rankBy: { type: 'string', enum: ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'] },
-            events: int(1, 60, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt', 'golf'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội), 'golf' golf đấu gậy (events = số vòng)" },
+            events: int(1, 60, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt', 'golf', 'omnium', 'massstart', 'pursuit'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội), 'golf' golf đấu gậy (events = số vòng), 'omnium' omnium xe đạp lòng chảo (4 đua con), 'massstart' xuất phát đồng loạt kiểu trượt băng (điểm giữa đua + về đích), 'pursuit' đuổi bắt sau giai đoạn tính giờ (xuất phát theo khoảng thua)" },
             kinds: { type: 'array', maxItems: 30, items: { type: 'string', enum: ['flat', 'hilly', 'mtn', 'itt'] }, description: "'gt': loại từng chặng – đồng bằng / đồi / núi / tính giờ cá nhân" },
             bonus: { type: 'boolean', description: "'gt': giây thưởng về đích top 3 (10-6-4)" },
             par: { type: 'array', maxItems: 18, items: int(3, 6), description: "'golf': par từng lỗ (mặc định 18 lỗ par 72)" },
             input: { type: 'string', enum: ['round', 'hole'], description: "'golf': nhập tổng gậy mỗi vòng hoặc từng lỗ" },
             cut: { type: 'object', description: "'golf': sau vòng after chỉ top người đầu và đồng hạng đánh tiếp", properties: { after: int(1, 29), top: int(1, 512) } },
             po: { type: 'array', maxItems: 18, items: int(1, 18), description: "'golf': thứ tự lỗ đấu phụ đột tử" },
+            scoring: { type: 'string', enum: ['stableford', 'modified'], description: "'golf': chấm điểm Stableford (chuẩn: albatross 5 … double bogey 0) / Modified (+8, +5, +2, 0, −1, −3) – nhiều điểm xếp trên; bắt buộc nhập từng lỗ" },
+            points: { type: 'object', description: "'golf' Stableford: điểm 6 mức { alb, eagle, birdie, par, bogey, dbl } (−20…20)" },
+            handicap: { type: 'object', properties: { si: { type: 'array', items: int(1, 18), description: 'chỉ số khó từng lỗ (hoán vị 1..số lỗ)' } }, description: "'golf' Stableford: bật handicap – mỗi dòng nhập có hcp 0–54, được trừ gậy ở các lỗ khó nhất trước" },
+            omnium: { type: 'object', properties: { rank: { type: 'array', maxItems: 40, items: int(0, 100), description: 'điểm theo hạng ở 3 đua đầu (phải đủ cho mọi người)' }, lap: int(1, 50, 'điểm mỗi vòng hơn / kém ở points race'), sprint: { type: 'array', maxItems: 6, items: int(0, 20) } }, description: "'omnium': Scratch, Tempo, Loại dần, Points race" },
+            massStart: { type: 'object', properties: { laps: int(4, 40), sprints: { type: 'array', items: int(1, 39) }, mid: { type: 'array', maxItems: 6, items: int(0, 20) }, final: { type: 'array', maxItems: 12, items: int(0, 200) }, semis: { type: 'boolean' }, heat: int(6, 24), adv: int(2, 16) }, description: "'massstart': số vòng, vòng có điểm giữa đua, điểm giữa đua (3-2-1), điểm về đích (60-40-20-10-6-3), bán kết (mỗi lượt tối đa heat người, adv người đầu vào chung kết)" },
+            pursuit: { type: 'object', properties: { wave: int(0, 3600, 'thua quá số giây này thì xuất phát đồng loạt (0 = không)') }, description: "'pursuit': giai đoạn sau giai đoạn race 'time'" },
+            split: { type: 'object', properties: { top: int(2, 64) }, description: "Vòng tròn ở giai đoạn sau một vòng tròn (The Split, kiểu giải Scotland): `top` đội đầu vào nhóm trên, còn lại nhóm dưới; mang nguyên thành tích; nhóm trên luôn xếp trên nhóm dưới" },
             table: { type: 'array', maxItems: 64, items: int(0, 1000), description: 'hệ Race: điểm theo hạng' }, teams: { type: 'boolean', description: 'hệ Race: bảng đội' },
           },
         },
@@ -166,7 +173,8 @@
     } else if (c.type === 'pools') { // pool loại kép xếp tầng (kiểu EVO)
       x.push(T('ds_pools', { pool: c.pool || 16, out: c.out || 2, bo: c.bestOf || 1 }));
     } else if (c.type === 'roundrobin') {
-      if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
+      if (c.split) x.push(T('ds_split', { n: c.split.top }));
+      else if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
       else if (c.season) x.push(seasonText(c.season, T));
       else {
         x.push(c.groupSize ? T('ds_group_size', { n: c.groupSize }) : (c.groups || 1) > 1 ? T('ds_groups', { n: c.groups }) : T('ds_rr'));
@@ -187,6 +195,18 @@
         x.push(T('ds_golf', { n: c.events || 1, h: (c.par || []).length || 18, p }));
         if (c.cut) x.push(T('ds_golf_cut', { r: c.cut.after, n: c.cut.top }));
         if (c.input === 'hole') x.push(T('ds_golf_hole'));
+        // Stableford: bảng điểm 6 mức (thiếu thì theo bảng mặc định như máy chủ – stages-golf-stable.js)
+        const sf = { stableford: [5, 4, 3, 2, 1, 0], modified: [8, 5, 2, 0, -1, -3] }[c.scoring];
+        if (sf) x.push(T('ds_golf_sf_' + c.scoring, { list: ['alb', 'eagle', 'birdie', 'par', 'bogey', 'dbl'].map((k, j) => ((c.points || {})[k] != null ? c.points[k] : sf[j])).join(' / ') }) + (c.handicap ? ' ' + T('ds_golf_hcp') : ''));
+      } else if (c.score === 'omnium') {
+        const O = c.omnium || {};
+        x.push(T('ds_omnium', { top: (O.rank || [40, 38, 36]).slice(0, 3).join('-'), lap: O.lap || 20 }));
+      } else if (c.score === 'massstart') {
+        const M = c.massStart || {};
+        x.push(T('ds_ms', { laps: M.laps || 16, s: (M.sprints || [4, 8, 12]).join(', '), mid: (M.mid || [3, 2, 1]).join('-'), fin: (M.final || [60, 40, 20, 10, 6, 3]).join('-') }));
+        if (M.semis) x.push(T('ds_ms_semis', { n: M.heat || 24, k: M.adv || 8 }));
+      } else if (c.score === 'pursuit') {
+        x.push(T((c.pursuit || {}).wave === 0 ? 'ds_pursuit_nowave' : 'ds_pursuit', { w: (c.pursuit || {}).wave != null ? c.pursuit.wave : 240 }));
       } else if (c.score === 'gt') { // xe đạp nhiều chặng: số chặng theo loại
         const n = (k) => (c.kinds || []).filter((x) => x === k).length;
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));

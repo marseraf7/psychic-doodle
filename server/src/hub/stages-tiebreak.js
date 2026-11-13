@@ -53,6 +53,8 @@ function tally(st, only, ctx) {
   const gw = p.gw || 0, gt = p.gt || 0, bye = p.bye == null ? p.w : p.bye;
   const s = {};
   for (const uid of only || st.entrants) s[uid] = { uid, mp: 0, w: 0, d: 0, l: 0, gw: 0, gl: 0, gt: 0, pts: 0, opps: [], beat: [], drew: [], byes: 0, rs: [], bpg: 0, pw: 0, pl: 0 };
+  // The Split: thành tích giai đoạn trước mang sang nguyên (st.carry – stages-splits.js)
+  if (st.carry) for (const uid of Object.keys(s)) for (const [k, v] of Object.entries(st.carry[uid] || {})) s[uid][k] += v;
   for (const m of Object.values(st.matches)) {
     if (!m.done || m.tb || m.sp != null) continue; // trận phụ phân hạng (stages-tiematch.js), playoff chặng (stages-splits.js) không tính điểm
     if (m.bye) { // miễn đấu (Thụy Sĩ): tính như thắng, điểm riêng

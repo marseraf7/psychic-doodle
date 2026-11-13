@@ -29,11 +29,11 @@
 const LOB = require('./stages-race-lobby.js'); // xếp lại lượt (TFT), cấm Legend (ALGS)
 const RU = require('../../../caro/otour-rules.js');
 const GT = require('./stages-gt.js'); // cách tính 'gt': xe đạp nhiều chặng, nhiều bảng xếp hạng
-const GOLF = require('./stages-golf.js'); // cách tính 'golf': golf đấu gậy (vòng, par, cắt, đấu phụ)
+const PLUG = require('./stages-race-plug.js'); // cách tính tự chứa: golf, omnium, mass start (registry)
 const CI = require('./stages-circuit.js'); // hệ Circuit kiểu PGC 2024
 const WK = require('./stages-weekly.js'); // vòng tuần kiểu PGC 2021
 
-const SCORES = ['points', 'time', 'gt', 'golf'];
+const SCORES = ['points', 'time', 'gt', ...PLUG.NAMES];
 const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const MAX_EVENTS = 60; // Rank Decision PGC 2021: 36 trận
 const MAX_RACE = 200; // tối đa người / đội trong một giai đoạn race (không chia lượt)
@@ -56,7 +56,8 @@ function cleanTable(x) {
 function normalizeRace(c, last) {
   const score = SCORES.includes(c.score) ? c.score : 'points';
   // Xe đạp nhiều chặng / golf: tối đa 30 chặng / vòng như trước; cách tính điểm / thời gian: tới MAX_EVENTS
-  const out = { type: 'race', bestOf: 1, events: int(c.events, 1, score === 'gt' || score === 'golf' ? 30 : MAX_EVENTS, 1), score };
+  const P = PLUG.get(score);
+  const out = { type: 'race', bestOf: 1, events: int(c.events, 1, score === 'gt' ? 30 : P ? P.maxEvents : MAX_EVENTS, 1), score };
   if (score === 'points') {
     out.table = cleanTable(c.table) || [...F1];
     const kill = int(c.kill, 0, 10, 0);
@@ -95,11 +96,11 @@ function normalizeRace(c, last) {
     if (!out.circuit) WK.normalizeWeekly(c, out); // vòng tuần (stages-weekly.js): Survival → Weekly Final → Bottom, lặp nhiều tuần
   }
   if (score === 'gt') GT.normalizeGt(c, out); // bảng đội luôn tính theo cột "Đội"; không chia lượt
-  else if (score === 'golf') GOLF.normalizeGolf(c, out);
+  else if (P) P.normalize(c, out);
   else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
   // Chia lượt: không đi cùng 3 bảng xoay vòng, không đi cùng match point (mỗi lượt có một người về nhất)
-  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp && !out.groups && !out.gate && !out.circuit && !out.weekly) out.heat = heat;
+  if (heat >= 2 && score !== 'gt' && !P && !out.rot && !out.mp && !out.groups && !out.gate && !out.circuit && !out.weekly) out.heat = heat;
   // Xếp lại các lượt (lobby) theo bảng điểm sau mỗi `reseed` trận (kiểu TFT Checkmate: lobby 8 người, đổi sau mỗi 2 game)
   if (out.heat && score === 'points' && Number(c.reseed) >= 1) out.reseed = int(c.reseed, 1, 10, 2);
   LOB.normalizeAlgs(c, out); // draft POI, cấm Legend (kiểu ALGS)
@@ -123,7 +124,7 @@ function buildRace(st) {
  */
 function cleanEvent(st, rows, members = st.entrants, i = 0) {
   if (st.cfg.score === 'gt') return GT.cleanGtEvent(st, i, rows);
-  if (st.cfg.score === 'golf') return GOLF.cleanRound(st, i, rows);
+  if (PLUG.get(st.cfg.score)) return PLUG.get(st.cfg.score).clean(st, i, rows, members);
   if (!Array.isArray(rows) || rows.length > members.length) return { code: 'tour_score_bad' };
   const inStage = new Set(members), seen = new Set(), out = [];
   const pts = st.cfg.score === 'points';
@@ -199,7 +200,7 @@ function eventOrder(st, ev) {
 
 /** Ghi kết quả chặng i. Trả true nếu cả giai đoạn đã xong. */
 function recordEvent(st, i, rows) {
-  if (st.cfg.score === 'golf') return GOLF.recordRound(st, i, rows); // vòng golf lưu được khi đang đánh dở
+  if (PLUG.get(st.cfg.score) && PLUG.get(st.cfg.score).record) return PLUG.get(st.cfg.score).record(st, i, rows);
   const ev = st.events[i];
   // Match point: đội thắng trận này đã đạt ngưỡng từ trước trận → vô địch, giai đoạn kết thúc ngay
   const mp = st.cfg.mp;
@@ -242,7 +243,7 @@ function undoHeat(st, i, h) {
 /** Bảng xếp hạng chung: { list, stats } (cùng hình dạng bảng điểm vòng tròn để dùng chung người đi tiếp / bục trao giải). */
 function raceTable(st, seedOf, members = st.entrants) {
   if (st.cfg.score === 'gt') { const C = GT.gtCalc(st, seedOf, null); return { list: C.gc, stats: C.stats }; }
-  if (st.cfg.score === 'golf') { const C = GOLF.golfCalc(st, seedOf); return { list: C.order, stats: C.stats }; }
+  if (PLUG.get(st.cfg.score)) return PLUG.get(st.cfg.score).table(st, seedOf);
   const cfg = st.cfg, pts = cfg.score === 'points';
   // place: tổng điểm hạng (không tính hạ gục / sửa tay); last, lastPlace: điểm / điểm hạng của trận gần nhất đã đấu (kiểu PUBG)
   const stats = Object.fromEntries(members.map((u) => [u, { uid: u, pts: (pts && st.head && st.head[u]) || 0, time: 0, races: 0, fin: 0, dnf: 0, places: [], kills: 0, place: 0, last: 0, lastPlace: 0, lastKills: 0, best: 0, bestKills: 0, dmg: 0 }]));
@@ -311,7 +312,7 @@ function raceTable(st, seedOf, members = st.entrants) {
  */
 function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => false) {
   if (st.cfg.score === 'gt') return GT.gtView(st, i, adv, side, seedOf, teamOf, youngOf);
-  if (st.cfg.score === 'golf') return GOLF.golfView(st, i, adv, side, seedOf);
+  if (PLUG.get(st.cfg.score)) return PLUG.get(st.cfg.score).view(st, i, adv, side, seedOf);
   const cfg = st.cfg, pts = cfg.score === 'points';
   // Chia lượt: từng lượt – chỉ trạng thái + kết quả; người trong lượt trình duyệt tự tính (RU.heatsOf, cùng thứ tự entrants)
   // – không gửi lại danh sách mọi lượt của mọi chặng mỗi lần cập nhật (đoàn 512 người × 30 chặng ≈ 200 KB)
@@ -388,6 +389,7 @@ const raceError = (cfg, n) => {
   if (cfg.type === 'race' && cfg.groups && n < 2 * cfg.groups) return { code: 'ot_race_groups_few', args: { n: 2 * cfg.groups } }; // mỗi bảng ít nhất 2 đội
   if (cfg.type === 'race' && cfg.circuit) { const e = CI.circuitError(cfg, n); if (e) return e; }
   if (cfg.type === 'race' && cfg.weekly) { const e = WK.weeklyError(cfg, n); if (e) return e; }
+  if (cfg.type === 'race' && PLUG.get(cfg.score) && PLUG.get(cfg.score).error) { const e = PLUG.get(cfg.score).error(cfg, n); if (e) return e; }
   if (cfg.type === 'race' && cfg.rot && n < 6) return { code: 'ot_rot_few', args: { n: 6 } }; // 3 bảng, mỗi bảng ít nhất 2 đội
   return cfg.type === 'race' && n > max ? { code: 'ot_race_many', args: { n: max } } : null;
 };

@@ -13,6 +13,7 @@
  * mới kết thúc. Hàm thuần; stages-race.js gọi khi cfg.score === 'golf'.
  */
 'use strict';
+const SF = require('./stages-golf-stable.js'); // chấm điểm Stableford (cfg.scoring)
 
 const PAR72 = [4, 5, 4, 3, 4, 3, 4, 5, 4, 4, 4, 3, 5, 4, 5, 3, 4, 4]; // sân par 72 mẫu (2 nửa 36)
 const PO = [18, 10]; // lỗ đấu phụ mẫu
@@ -31,6 +32,7 @@ function normalizeGolf(c, out) {
   if (c.cut && out.events > 1) out.cut = { after: int(c.cut.after, 1, out.events - 1, Math.min(2, out.events - 1)), top: int(c.cut.top, 1, MAX_TOP, 50) };
   const po = Array.isArray(c.po) ? c.po.map((x) => int(x, 1, out.par.length, 0)).filter(Boolean).slice(0, 18) : [];
   out.po = po.length ? po : PO.filter((h) => h <= out.par.length);
+  SF.normalizeStable(c, out);
   return out;
 }
 
@@ -40,7 +42,7 @@ function scoreOf(cfg, x) {
   if (cfg.input === 'hole') {
     let strokes = 0, par = 0, played = 0;
     (x.h || []).forEach((s, k) => { if (s != null) { strokes += s; par += cfg.par[k]; played++; } });
-    return played ? { strokes, played, toPar: strokes - par, done: played === cfg.par.length } : null;
+    return played ? { strokes, played, toPar: strokes - par, done: played === cfg.par.length, ...(cfg.scoring ? { pts: SF.roundPoints(cfg, x) } : {}) } : null;
   }
   return x.s != null ? { strokes: x.s, played: cfg.par.length, toPar: x.s - parTotal(cfg), done: true } : null;
 }
@@ -51,7 +53,9 @@ function scoreOf(cfg, x) {
  */
 function golfCalc(st, seedOf) {
   const cfg = st.cfg;
-  const S = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, rounds: [], strokes: 0, toPar: 0, wd: null, cut: false, played: 0 }]));
+  const S = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, rounds: [], strokes: 0, toPar: 0, pts: 0, wd: null, cut: false, played: 0 }]));
+  // Khoá xếp hạng (nhỏ xếp trên): số gậy so với par; Stableford: điểm (nhiều xếp trên)
+  const key = cfg.scoring ? (s) => -s.pts : (s) => s.toPar;
   let cutDone = false, cutLine = null;
   for (const ev of st.events) {
     if (!ev.rows) continue;
@@ -62,14 +66,14 @@ function golfCalc(st, seedOf) {
       if (x && x.wd) { s.wd = ev.i; continue; }
       const sc = scoreOf(cfg, x);
       s.rounds[ev.i] = sc;
-      if (sc) { s.strokes += sc.strokes; s.toPar += sc.toPar; s.played += sc.played; }
+      if (sc) { s.strokes += sc.strokes; s.toPar += sc.toPar; s.played += sc.played; s.pts += sc.pts || 0; }
     }
     // Cắt sau vòng cfg.cut.after (khi vòng đó xong): top N + đồng hạng theo số gậy so với par cộng dồn
     if (cfg.cut && ev.done && ev.i === cfg.cut.after - 1) {
-      const alive = st.entrants.filter((u) => S[u].wd == null).sort((a, b) => S[a].toPar - S[b].toPar);
+      const alive = st.entrants.filter((u) => S[u].wd == null).sort((a, b) => key(S[a]) - key(S[b]));
       if (alive.length > cfg.cut.top) {
-        cutLine = S[alive[cfg.cut.top - 1]].toPar;
-        for (const u of alive) if (S[u].toPar > cutLine) S[u].cut = true;
+        cutLine = key(S[alive[cfg.cut.top - 1]]);
+        for (const u of alive) if (key(S[u]) > cutLine) S[u].cut = true;
       }
       cutDone = true;
     }
@@ -78,14 +82,15 @@ function golfCalc(st, seedOf) {
   const grp = (s) => (s.wd != null ? 2 : s.cut ? 1 : 0);
   const order = [...st.entrants].sort((a, b) => {
     const x = S[a], y = S[b];
-    return (grp(x) - grp(y)) || (x.wd != null && y.wd != null ? y.wd - x.wd : 0) || (x.toPar - y.toPar) || (y.played - x.played) || (seedOf(a) - seedOf(b));
+    return (grp(x) - grp(y)) || (x.wd != null && y.wd != null ? y.wd - x.wd : 0) || (key(x) - key(y)) || (y.played - x.played) || (seedOf(a) - seedOf(b));
   });
   const active = order.filter((u) => grp(S[u]) === 0 && S[u].played);
   let leaders = [];
-  if (all && active.length) leaders = active.filter((u) => S[u].toPar === S[active[0]].toPar);
+  if (all && active.length) leaders = active.filter((u) => key(S[u]) === key(S[active[0]]));
   // Đã có người thắng đấu phụ: lên đầu bảng
   if (st.playoff && leaders.includes(st.playoff.winner)) { order.splice(order.indexOf(st.playoff.winner), 1); order.unshift(st.playoff.winner); }
-  return { stats: S, order, active, leaders, cutDone, cutLine, all };
+  // Vạch cắt gửi trình duyệt: số gậy so với par, hoặc điểm (Stableford)
+  return { stats: S, order, active, leaders, cutDone, cutLine: cutLine != null && cfg.scoring ? -cutLine : cutLine, all, key };
 }
 
 /** Người còn thi đấu ở vòng i (chưa rút lui ở vòng trước, không bị cắt). */
@@ -113,7 +118,8 @@ function cleanRound(st, i, rows) {
       const h = Array.from({ length: H }, (_, k) => (r.h[k] == null || r.h[k] === '' ? null : Math.floor(Number(r.h[k]))));
       if (h.some((s) => s != null && !(s >= 1 && s <= MAX_HOLE))) return { code: 'ot_golf_bad' };
       if (h.every((s) => s == null)) continue; // dòng trống = chưa đánh
-      out.push({ uid, h });
+      const hcp = SF.cleanHcp(cfg, r.hcp);
+      out.push({ uid, h, ...(hcp != null ? { hcp } : {}) });
     } else {
       if (r.s == null || r.s === '') continue;
       const s = Math.floor(Number(r.s));
@@ -156,14 +162,15 @@ function golfView(st, i, adv, side, seedOf) {
   let prevPar = null, pos = 0;
   const table = C.order.map((u, k) => {
     const s = S[u], on = s.wd == null && !s.cut;
-    if (on && (s.toPar !== prevPar || (champ && k === 1))) { pos = k + 1; prevPar = s.toPar; }
+    if (on && (C.key(s) !== prevPar || (champ && k === 1))) { pos = k + 1; prevPar = C.key(s); }
     const r = { ...side(u), rank: on ? pos : k + 1, toPar: s.played ? s.toPar : null, total: s.played ? s.strokes : null,
       rounds: st.events.map((e) => (s.rounds[e.i] ? s.rounds[e.i].strokes : null)), adv: on && k < adv, time: null };
     if (on) {
-      r.tie = u !== champ && C.order.some((v, j) => j !== k && v !== champ && S[v].wd == null && !S[v].cut && S[v].played && S[v].toPar === s.toPar);
+      r.tie = u !== champ && C.order.some((v, j) => j !== k && v !== champ && S[v].wd == null && !S[v].cut && S[v].played && C.key(S[v]) === C.key(s));
       const cur = curIdx >= 0 ? s.rounds[curIdx] : null;
-      if (cur) { r.today = cur.toPar; r.thru = cur.done ? 'F' : cur.played; }
+      if (cur) { r.today = cur.toPar; r.thru = cur.done ? 'F' : cur.played; if (cfg.scoring) r.todayPts = cur.pts; }
     }
+    if (cfg.scoring && s.played) { r.pts = s.pts; r.roundPts = st.events.map((e) => (s.rounds[e.i] ? s.rounds[e.i].pts : null)); }
     if (s.cut) r.cut = true;
     if (s.wd != null) r.wd = s.wd + 1;
     return r;

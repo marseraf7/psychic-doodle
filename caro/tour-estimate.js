@@ -20,6 +20,8 @@
   const log2up = (n) => { let k = 0; while ((1 << k) < n) k++; return k; };
   /** Số bảng vòng tròn (như groupCount ở stages-groups.js). */
   const MAX_BIG = 64; // bảng lớn của giải offline (stages-league.js)
+  /** Số chặng của giai đoạn race: omnium 4 đua con, mass start (bán kết + chung kết), pursuit 1 (như máy chủ). */
+  const evOf = (c) => (c.score === 'omnium' ? 4 : c.score === 'massstart' ? (c.massStart && c.massStart.semis ? 2 : 1) : c.score === 'pursuit' ? 1 : Number(c.events) || 1);
   function groupCount(c, n) {
     if (c.league) return 1;
     if (c.season) return c.season.confs || 1;
@@ -190,7 +192,7 @@
     // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng. Hệ Circuit: `events` trận × n vòng × days ngày
     // Vòng tuần (PGC 2021): mỗi tuần seats trận Survival + final trận Weekly Final + bottom trận Bottom (trừ tuần cuối)
     const weeklyEvents = (W) => { const w = Number(W.weeks) || 3, s = Number(W.seats) || 16, f = Number(W.final) || 10, b = W.bottom != null ? Number(W.bottom) : 6; return w * (s + f) + (w - 1) * b; };
-    if (c.type === 'race') { const G = Number(c.groups) >= 2 ? Number(c.groups) : 1, ci = c.circuit ? (Number(c.circuit.n) || 1) * (Number(c.circuit.days) || 1) : 1, wk = c.weekly ? weeklyEvents(c.weekly) : 0, ev = wk || (Number(c.events) || 1) * G * ci; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, (c.advance || 0) * G), ...(G > 1 ? { groups: G } : {}) }; }
+    if (c.type === 'race') { const G = Number(c.groups) >= 2 ? Number(c.groups) : 1, ci = c.circuit ? (Number(c.circuit.n) || 1) * (Number(c.circuit.days) || 1) : 1, wk = c.weekly ? weeklyEvents(c.weekly) : 0, ev = wk || evOf(c) * G * ci; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, (c.advance || 0) * G), ...(G > 1 ? { groups: G } : {}) }; }
     if (c.type === 'roundrobin' && c.season) {
       // Mùa giải kiểu Mỹ (caro/otour-season.js): số trận chính xác; lịch xếp tham lam dài hơn số trận mỗi đội ~5%
       const SS = typeof module !== 'undefined' && module.exports ? require('./otour-season.js') : global.CaroOTourSeason;
@@ -205,7 +207,9 @@
       return { matches, maxMatches: matches, waves: g + 1, advance: last ? null : Math.min(n, (c.advance || 0) + (c.bestNext || 0)), groups: 1, groupSize: n };
     }
     if (c.type === 'roundrobin') {
-      const G = groupCount(c, n), sizes = groupSizes(n, G), meet = [2, 3, 4].includes(Number(c.meetings)) ? Number(c.meetings) : 1;
+      // The Split (cfg.split – stages-splits.js): nhóm trên `top` đội, nhóm dưới phần còn lại
+      const top = c.split ? Math.max(2, Math.min(Number(c.split.top) || 6, n - 2)) : 0;
+      const G = c.split ? 2 : groupCount(c, n), sizes = c.split ? [top, n - top] : groupSizes(n, G), meet = [2, 3, 4].includes(Number(c.meetings)) ? Number(c.meetings) : 1;
       const big = sizes[0];
       // meetSmall: bảng ít đội hơn bảng đông nhất gặp nhau meetSmall lần (kiểu MSI 2021–2022)
       const mOf = (s) => (Number(c.meetSmall) >= 1 && s < big ? Number(c.meetSmall) : meet);

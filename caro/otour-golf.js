@@ -23,14 +23,15 @@
   /** Bảng dẫn đầu. */
   function board(v) {
     const n = v.events.length, g = v.golf || {};
-    const head = ['#', '', T('golf_topar'), T('golf_today'), T('golf_thru'), ...v.events.map((e) => T('golf_r_n', { n: e.i + 1 })), T('golf_total')];
+    const sf = !!v.cfg.scoring; // Stableford: cột điểm đứng trước, "hôm nay" là điểm vòng đang đánh
+    const head = ['#', '', ...(sf ? [T('golf_pts')] : []), T('golf_topar'), T('golf_today'), T('golf_thru'), ...v.events.map((e) => T('golf_r_n', { n: e.i + 1 })), T('golf_total')];
     let cutShown = false;
     const rows = v.table.map((x) => {
       let line = '';
-      if (!cutShown && (x.cut || x.wd) && g.cutDone) { cutShown = true; if (g.cutLine != null) line = `<tr class="golf-cut"><td colspan="${6 + n}">${esc(T('golf_cut_line', { p: par(g.cutLine) }))}</td></tr>`; }
+      if (!cutShown && (x.cut || x.wd) && g.cutDone) { cutShown = true; if (g.cutLine != null) line = `<tr class="golf-cut"><td colspan="${6 + n + (sf ? 1 : 0)}">${esc(sf ? T('golf_cut_line_pts', { p: g.cutLine }) : T('golf_cut_line', { p: par(g.cutLine) }))}</td></tr>`; }
       const pos = x.wd ? T('golf_wd') : x.cut ? T('golf_mc') : x.toPar == null ? '' : (x.tie ? 'T' : '') + x.rank; // chưa đánh: chưa có hạng
       return `${line}<tr class="${x.adv ? 'adv' : ''}${x.cut || x.wd ? ' dnf' : ''}"><td>${esc(pos)}</td><td class="nm">${esc(x.name)}${x.po ? ` <small class="pill">${esc(T('golf_po_tag'))}</small>` : ''}</td>
-        <td><b class="golf-par ${esc(parCls(x.toPar))}">${esc(par(x.toPar))}</b></td><td>${x.today != null ? esc(par(x.today)) : ''}</td><td>${x.thru != null ? esc(String(x.thru)) : ''}</td>
+        ${sf ? `<td><b>${x.pts != null ? x.pts : ''}</b></td>` : ''}<td>${sf ? esc(par(x.toPar)) : `<b class="golf-par ${esc(parCls(x.toPar))}">${esc(par(x.toPar))}</b>`}</td><td>${sf ? (x.todayPts != null ? esc(String(x.todayPts)) : '') : x.today != null ? esc(par(x.today)) : ''}</td><td>${x.thru != null ? esc(String(x.thru)) : ''}</td>
         ${x.rounds.map((s) => `<td>${s != null ? s : ''}</td>`).join('')}<td>${x.total != null ? x.total : ''}</td></tr>`;
     }).join('');
     return `<div class="tscroll"><table class="stand golf-board"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
@@ -67,7 +68,7 @@
   /** Giá trị đã lưu của vòng (để sửa tiếp khi vòng đang dở). */
   function saved(v, i) {
     const out = {};
-    for (const x of (v.events[i] && v.events[i].rows) || []) out[x.uid] = { s: x.s != null ? String(x.s) : '', h: (x.h || []).map((s) => (s == null ? '' : String(s))), wd: !!x.wd };
+    for (const x of (v.events[i] && v.events[i].rows) || []) out[x.uid] = { s: x.s != null ? String(x.s) : '', h: (x.h || []).map((s) => (s == null ? '' : String(s))), wd: !!x.wd, hcp: x.hcp != null ? String(x.hcp) : '' };
     return out;
   }
 
@@ -80,10 +81,11 @@
       const cells = hole
         ? Array.from({ length: n }, (_, k) => `<td><input class="g-h" data-k="${k}" type="number" min="1" max="20" inputmode="numeric" aria-label="${esc(T('golf_hole_n', { n: k + 1 }))}" value="${esc((x.h || [])[k] || '')}"></td>`).join('')
         : `<td><input class="g-s" type="number" min="${n}" max="${n * 20}" inputmode="numeric" placeholder="${esc(T('golf_strokes'))}" value="${esc(x.s || '')}"></td>`;
-      return `<tr data-uid="${esc(p.uid)}" data-name="${esc(p.name.toLowerCase())}"><td class="nm">${esc(p.name)}</td>${cells}
+      const hc = v.cfg.handicap ? `<td><input class="g-hcp" type="number" min="0" max="54" inputmode="numeric" aria-label="${esc(T('golf_hcp'))}" value="${esc(x.hcp || '')}"></td>` : ''; // handicap (Stableford)
+      return `<tr data-uid="${esc(p.uid)}" data-name="${esc(p.name.toLowerCase())}"><td class="nm">${esc(p.name)}</td>${hc}${cells}
         <td><label class="check"><input type="checkbox" class="g-wd" ${x.wd ? 'checked' : ''}> <span>${esc(T('golf_wd'))}</span></label></td></tr>`;
     }).join('');
-    const head = hole ? `<thead><tr><th></th>${v.cfg.par.map((p, k) => `<th title="${esc(T('golf_par'))} ${p}">${k + 1}<br><small class="muted">${p}</small></th>`).join('')}<th></th></tr></thead>` : '';
+    const head = hole ? `<thead><tr><th></th>${v.cfg.handicap ? `<th>${esc(T('golf_hcp'))}</th>` : ''}${v.cfg.par.map((p, k) => `<th title="${esc(T('golf_par'))} ${p}">${k + 1}<br><small class="muted">${p}</small></th>`).join('')}<th></th></tr></thead>` : '';
     return `<form class="golf-form" data-key="${esc(key)}" data-ev="${i}">
       <p class="hint">${esc(T(hole ? 'golf_form_hint_hole' : 'golf_form_hint_round'))}</p>
       <details class="gt-paste"><summary>${esc(T('golf_paste'))}</summary><p class="hint">${esc(T(hole ? 'golf_paste_hint_hole' : 'golf_paste_hint'))}</p>
@@ -98,7 +100,7 @@
     const cur = v.events.findIndex((e) => !e.done);
     const last = v.events.map((e) => e.done || !!e.rows).lastIndexOf(true);
     const g = v.golf || {};
-    const info = [`${T('golf_par_total', { p: g.par })}`, v.cfg.cut ? T('golf_cut_rule', { r: v.cfg.cut.after, n: v.cfg.cut.top }) : '', g.low ? T('golf_low', { name: g.low.name, s: g.low.strokes, r: g.low.round }) : '']
+    const info = [`${T('golf_par_total', { p: g.par })}`, v.cfg.scoring ? T('golf_sc_' + v.cfg.scoring) : '', v.cfg.cut ? T('golf_cut_rule', { r: v.cfg.cut.after, n: v.cfg.cut.top }) : '', g.low ? T('golf_low', { name: g.low.name, s: g.low.strokes, r: g.low.round }) : '']
       .filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join(' · ');
     const rounds = v.events.map((ev) => {
       const state = ev.done ? icon('check', 'ok') : ev.rows ? `<span class="pill">${esc(T('golf_live'))}</span>` : `<span class="muted">${esc(T('race_pending'))}</span>`;
@@ -114,7 +116,8 @@
     const d = {};
     form.querySelectorAll('tr[data-uid]').forEach((tr) => {
       const s = tr.querySelector('.g-s');
-      d[tr.dataset.uid] = { s: s ? s.value.trim() : '', h: [...tr.querySelectorAll('.g-h')].map((x) => x.value.trim()), wd: tr.querySelector('.g-wd').checked };
+      const hc = tr.querySelector('.g-hcp');
+      d[tr.dataset.uid] = { s: s ? s.value.trim() : '', h: [...tr.querySelectorAll('.g-h')].map((x) => x.value.trim()), wd: tr.querySelector('.g-wd').checked, hcp: hc ? hc.value.trim() : '' };
     });
     S.draft[form.dataset.key] = d;
     const p = form.querySelector('.g-paste');
@@ -129,7 +132,7 @@
       if (x.wd) { rows.push({ uid, wd: true }); continue; }
       if (hole) {
         if (!x.h.some((s) => s !== '')) continue;
-        rows.push({ uid, h: x.h.map((s) => (s === '' ? null : Number(s))) });
+        rows.push({ uid, h: x.h.map((s) => (s === '' ? null : Number(s))), ...(x.hcp ? { hcp: Number(x.hcp) } : {}) });
       } else if (x.s !== '') rows.push({ uid, s: Number(x.s) });
     }
     return rows;

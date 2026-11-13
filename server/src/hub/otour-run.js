@@ -23,6 +23,7 @@ const PO = require('./stages-playoff.js');
 const RD = require('./stages-recdraw.js'); // bốc thăm nhánh theo thành tích Thụy Sĩ
 const GR = require('../../../caro/otour-graph.js'); // loạt có trận tặng sẵn (nhánh đồ thị)
 const LAD = require('../../../caro/otour-ladder.js'); // thang ván của trận (FIDE World Cup, Norway Chess, Armageddon đấu giá)
+const PUR = require('./stages-pursuit.js'); // đuổi bắt: xuất phát theo khoảng thua giai đoạn trước
 
 const MAX_POINT = 999;
 const pair = (x) => {
@@ -174,7 +175,9 @@ class OTourRun {
     // Bốc thăm theo thành tích Thụy Sĩ (cfg.draw – stages-recdraw.js): chỉ khi không có đội vào thẳng; không được thì như thường
     const country = new Map(t.players.map((p) => [p.uid, p.country || '']));
     const slots = (cfg.draw === 'record' && !direct.length ? RD.recordDraw(st, seeds, (u) => country.get(u) || '') : null) || this.otPathSlots(t, st, cfg, seeds, groupOf);
-    t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
+    t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}), ...(ST.SPL.isSplit(cfg) ? { groups: ST.SPL.splitGroups(cfg, seeds) } : {}) })));
+    if (ST.SPL.isSplit(cfg)) t.st[t.stage].carry = ST.SPL.carryFrom(ST.standings(st, this.otSeedOf(t))); // The Split: mang nguyên thành tích
+    if (cfg.type === 'race' && cfg.score === 'pursuit') t.st[t.stage].gaps = PUR.gapsFrom(ST.standings(st, this.otSeedOf(t)), seeds); // xuất phát theo khoảng thua
     if (adv.oneLife && adv.oneLife.length && cfg.type === 'double') t.st[t.stage].oneLife = adv.oneLife.filter((u) => seeds.includes(u)); // suất phía thua của pool (EVO)
     // Điểm thưởng mang sang (hệ Race – cfg.head, kiểu Points Rush): theo vị trí vào giai đoạn này (đội vào thẳng, rồi thứ
     // hạng ở giai đoạn trước)

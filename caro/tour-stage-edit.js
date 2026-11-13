@@ -123,16 +123,8 @@
         // Vòng tuần tự có số trận (Survival / Weekly Final / Bottom) – không dùng ô số chặng; xe đạp / golf tối đa 30
         if (!c.weekly) f.push(field(T('opt_race_events'), num(i, 'events', c.events, 1, c.score === 'gt' || c.score === 'golf' ? 30 : 60)));
         f.push(
-          field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')], ['gt', T('race_gt')], ['golf', T('race_golf')]], c.score || 'points')));
-        if (c.score === 'golf') { // cách nhập, par từng lỗ, cắt sau vòng N
-          const parTxt = (c.par || PAR72).join(' ');
-          f.push(field(T('opt_golf_input'), sel(i, 'input', [['round', T('golf_input_round')], ['hole', T('golf_input_hole')]], c.input || 'round')),
-            `<label class="field"><span>${esc(T('opt_golf_par', { n: (c.par || PAR72).length, p: (c.par || PAR72).reduce((a, b) => a + b, 0) }))}</span><input data-i="${i}" data-k="par" value="${esc(parTxt)}" inputmode="numeric"><small class="hint">${esc(T('opt_golf_par_hint'))}</small></label>`);
-          if ((c.events || 1) > 1) {
-            f.push(chk(i, 'cutOn', !!c.cut, T('opt_golf_cut')));
-            if (c.cut) f.push(field(T('opt_golf_cut_after'), num(i, 'cutAfter', c.cut.after, 1, (c.events || 2) - 1)), field(T('opt_golf_cut_top'), num(i, 'cutTop', c.cut.top, 1, 512)));
-          }
-        }
+          field(T('opt_race_score'), sel(i, 'score', [['points', T('race_points')], ['time', T('race_time')], ['gt', T('race_gt')], ['golf', T('race_golf')], ...(K.raceEdit ? K.raceEdit.scores.map((x) => [x, T('race_' + x)]) : [])], c.score || 'points')));
+        if (K.raceEdit) f.push(...K.raceEdit.html(i, c, st, ctx)); // golf (par, cắt, Stableford), omnium, mass start… (otour-race-edit.js)
         if (c.score === 'gt') { // loại từng chặng + giây thưởng về đích
           const kinds = GT_KINDS.map((x) => [x, T('gt_kind_' + x)]);
           f.push(`<div class="field gt-kinds"><span>${esc(T('opt_gt_kinds'))}</span><small class="hint">${esc(T('opt_gt_kinds_hint'))}</small><div class="gt-kind-grid">${
@@ -270,17 +262,12 @@
       stages[i] = nc;
     } else if (k === 'score') { // đổi cách tính hệ Race: dọn tuỳ chọn không còn dùng
       c.score = v;
-      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head', 'groups', 'tb', 'gate', 'carry', 'circuit', 'dmg', 'weekly']) delete c[k2];
+      for (const k2 of ['kinds', 'bonus', 'par', 'input', 'cut', 'po', 'kill', 'mp', 'rot', 'head', 'groups', 'tb', 'gate', 'carry', 'circuit', 'dmg', 'weekly', ...(K.raceEdit ? K.raceEdit.keys : [])]) delete c[k2];
       if (v === 'gt') { Object.assign(c, { bonus: true, kinds: gtKinds(c) }); delete c.table; delete c.teams; delete c.heat; }
       else if (v === 'golf') { const g = golfStage(); Object.assign(c, { events: c.events > 1 ? c.events : 4, input: g.input, par: g.par, po: g.po }); if (c.events > 2) c.cut = { after: 2, top: 50 }; delete c.table; delete c.teams; delete c.heat; }
+      else if (K.raceEdit && K.raceEdit.init(c, v)) { /* cách tính mới: giá trị mặc định (otour-race-edit.js) */ }
       else if (v === 'points' && !c.table) c.table = DEFAULT.race().table;
-    } else if (k === 'par') { // par từng lỗ: 1–18 số, mỗi số 3–6
-      const p = String(el.value).split(/[\s,;]+/).filter(Boolean).slice(0, 18).map((x) => Math.max(3, Math.min(6, Math.floor(Number(x)) || 4)));
-      c.par = p.length ? p : [...PAR72];
-      c.po = (c.po || [18, 10]).filter((h) => h <= c.par.length);
-      if (!c.po.length) c.po = [c.par.length];
-    } else if (k === 'cutOn') { if (el.checked) c.cut = { after: Math.min(2, (c.events || 2) - 1), top: 50 }; else delete c.cut; }
-    else if (k === 'cutAfter' || k === 'cutTop') c.cut = { after: 2, top: 50, ...c.cut, [k === 'cutAfter' ? 'after' : 'top']: clamp(v) };
+    } else if (K.raceEdit && K.raceEdit.change(c, k, el, clamp)) { /* golf, omnium, mass start… (otour-race-edit.js) */ }
     else if (k === 'kind') { c.kinds = gtKinds(c); if (GT_KINDS.includes(v)) c.kinds[Number(el.dataset.n)] = v; }
     else if (k === 'gmode') {
       if (v === 'size') { delete c.groups; c.groupSize = 4; } else { delete c.groupSize; c.groups = 2; }

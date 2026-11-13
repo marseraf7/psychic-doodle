@@ -138,6 +138,7 @@
   K.raceHtml = (t, v) => {
     if (v.cfg.score === 'gt' && K.gtHtml) return K.gtHtml(t, v); // xe đạp nhiều chặng (otour-gt.js)
     if (v.cfg.score === 'golf' && K.golfHtml) return K.golfHtml(t, v); // golf đấu gậy (otour-golf.js)
+    if ((v.omnium || v.mass || v.pursuit) && K.racePlugHtml) return K.racePlugHtml(t, v); // omnium, mass start, pursuit (otour-race-plug.js)
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     const next = v.events.findIndex((e) => !e.done);
     const lastDone = v.events.map((e) => e.done).lastIndexOf(true);

@@ -22,6 +22,33 @@ function normalize(c, out) {
   const bo = Math.floor(Number(x.bo));
   out.splits = { n: int(x.n, 2, 6, 4), take: int(x.take, 2, 16, 4), bo: bo >= 1 && bo <= 25 && bo % 2 ? bo : 3 };
 }
+function normalizeAll(c, out) { normalize(c, out); normalizeSplit(c, out); }
+
+/**
+ * The Split (kiểu giải Scotland – cfg.split = { top } trên vòng tròn ở giai đoạn sau một vòng tròn): đội đi tiếp chia theo hạng
+ * giai đoạn trước – `top` đội đầu vào nhóm trên, còn lại nhóm dưới, mỗi nhóm vòng tròn `meetings` lượt; điểm và thành tích
+ * giai đoạn trước mang sang nguyên (st.carry – stages-tiebreak.js tally); xếp hạng chung: nhóm trên luôn trên nhóm dưới
+ * (đội 7 nhiều điểm hơn đội 6 vẫn xếp 7).
+ */
+function normalizeSplit(c, out) {
+  const x = c.split;
+  if (!x || typeof x !== 'object' || out.type !== 'roundrobin' || out.league || out.season) return;
+  out.split = { top: int(x.top, 2, 64, 6) };
+  delete out.groupSize;
+  out.groups = 2;
+}
+/** Chỉ có nghĩa ở giai đoạn sau giai đoạn đầu. */
+const splitOk = (c, i) => i > 0 && c.type === 'roundrobin';
+/** Vòng tròn có chia đôi (khác `split` boolean của loại kép – nửa dưới hạt giống bắt đầu ở nhánh thua). */
+const isSplit = (cfg) => !!(cfg && cfg.type === 'roundrobin' && cfg.split && typeof cfg.split === 'object');
+/** Hai nhóm theo hạng: [top đội đầu, phần còn lại]. */
+const splitGroups = (cfg, seeds) => [seeds.slice(0, Math.min(cfg.split.top, seeds.length - 2)), seeds.slice(Math.min(cfg.split.top, seeds.length - 2))];
+/** Thành tích mang sang từ bảng giai đoạn trước (vòng tròn / Thụy Sĩ): { uid: { mp, w, d, l, gw, gl, pts } }. */
+function carryFrom(tables) {
+  const out = {};
+  for (const tb of tables || []) for (const u of tb.list) { const s = tb.stats[u] || {}; out[u] = { mp: s.mp || 0, w: s.w || 0, d: s.d || 0, l: s.l || 0, gw: s.gw || 0, gl: s.gl || 0, pts: s.pts || 0 }; }
+  return out;
+}
 
 /** Chặng của vòng r khi lịch có R vòng. */
 const blockOf = (cfg, r, R) => Math.min(cfg.splits.n - 1, Math.floor((r * cfg.splits.n) / Math.max(1, R)));
@@ -88,4 +115,4 @@ function view(st, M) {
 /** Số trận playoff các chặng (ước tính): mỗi chặng take − 1 trận. */
 const extraMatches = (cfg) => (cfg.splits ? cfg.splits.n * (Math.min(cfg.splits.take, 16) - 1) : 0);
 
-module.exports = { normalize, blockOf, update, record, beforeUndo, view, extraMatches };
+module.exports = { normalize: normalizeAll, blockOf, update, record, beforeUndo, view, extraMatches , splitOk, isSplit, splitGroups, carryFrom };

@@ -152,7 +152,7 @@ function normalizeStages(list, opts = {}) {
   const out = arr.map((c, i) => normalizeStage(c, i === arr.length - 1, opts));
   // Playoff kiểu Mỹ chỉ có nghĩa ngay sau một mùa giải (stages-playoff.js)
   out.forEach((c, i) => { if (c.playoff && !(i > 0 && out[i - 1].season)) delete c.playoff; });
-  out.forEach((c, i) => { if (c.draw && !(i > 0 && out[i - 1].type === 'swiss' && out[i - 1].record)) delete c.draw; });
+  out.forEach((c, i) => { if (c.draw && !(i > 0 && out[i - 1].type === 'swiss' && out[i - 1].record)) delete c.draw; if (c.type === 'roundrobin' && c.split && !SPL.splitOk(c, i)) delete c.split; });
   // Giải offline: đội hạt giống cao vào thẳng giai đoạn i ≥ 1 (LoL Worlds: 15 đội vào thẳng vòng Thụy Sĩ, 2 đội đá Play-In)
   out.forEach((c, i) => {
     const d = Math.floor(Number(arr[i] && arr[i].direct));
@@ -355,7 +355,7 @@ function podium(st, seedOf) {
     return [last.winner, last.loser, lbFinal && lbFinal.loser].filter(real);
   }
   const tables = standings(st, seedOf);
-  if (tables.length === 1) return tables[0].list.slice(0, 3);
+  if (tables.length === 1 || SPL.isSplit(st.cfg)) return tables.flatMap((x) => x.list).slice(0, 3); // The Split: nhóm trên xếp trên nhóm dưới
   // Nhiều bảng ở vòng cuối: nhất các bảng xếp theo thành tích
   return groupAdvancers({ ...st, cfg: { ...st.cfg, advance: 1 } }, seedOf).seeds.slice(0, 3);
 }

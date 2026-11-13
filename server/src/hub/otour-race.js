@@ -10,7 +10,8 @@ const Race = require('./stages-race.js');
 const GOLF = require('./stages-golf.js');
 const LOB = require('./stages-race-lobby.js'); // draft POI (ALGS)
 // Nhập lần lượt (người bỏ cuộc / bị cắt rời các chặng, vòng sau): xe đạp nhiều chặng, golf
-const SEQ = ['gt', 'golf'];
+const PLUG = require('./stages-race-plug.js');
+const SEQ = ['gt', ...PLUG.NAMES.filter((x) => PLUG.get(x).seq)]; // nhập / huỷ lần lượt từng chặng
 
 class OTourRace {
   /** Giai đoạn race hiện tại và chặng thứ `event` (lỗi nếu không có). */

@@ -97,6 +97,23 @@
     { id: 'algs_pro', icon: '🪂', sport: 'esports', n: 20, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
       stages: [{ type: 'race', events: 6, score: 'points', kill: true, table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1], legendBan: true,
         poi: { order: 'seed', maps: [{ name: 'Map 1', pois: Array.from({ length: 20 }, (_, k) => 'POI ' + (k + 1)) }] } }] },
+    // Đợt 24. Golf chấm điểm Modified Stableford (kiểu Barracuda Championship): albatross +8, eagle +5, birdie +2, par 0,
+    // bogey −1, double bogey trở lên −3; 4 vòng, cắt sau vòng 2 (top 70 + đồng hạng); nhập từng lỗ
+    { id: 'barracuda', icon: '⛳', sport: 'golf', n: 90,
+      stages: [{ type: 'race', events: 4, score: 'golf', scoring: 'modified', input: 'hole', cut: { after: 2, top: 70 } }] },
+    // Omnium xe đạp lòng chảo: Scratch, Tempo, Loại dần, Points race (mang điểm 3 đua đầu; mỗi vòng hơn / kém ±20)
+    { id: 'omnium', icon: '🚴', sport: 'cycling', n: 20, stages: [{ type: 'race', score: 'omnium' }] },
+    // Mass start trượt băng tốc độ: 2 bán kết (mỗi lượt 18 người, 8 người đầu vào chung kết), 16 vòng, điểm giữa đua ở vòng 4,
+    // 8, 12 (3-2-1), về đích 60-40-20-10-6-3
+    { id: 'massstart', icon: '⛸️', sport: 'skating', n: 36,
+      stages: [{ type: 'race', score: 'massstart', massStart: { semis: true, heat: 18, adv: 8 } }] },
+    // Biathlon: Sprint tính giờ → 60 người đầu đuổi bắt (xuất phát chậm đúng số giây thua; thua quá 4 phút xuất phát đồng loạt)
+    { id: 'biathlon_pursuit', icon: '⛷️', sport: 'skiing', n: 80,
+      stages: [{ type: 'race', events: 1, score: 'time', advance: 60 }, { type: 'race', score: 'pursuit', pursuit: { wave: 240 } }] },
+    // Kiểu giải Scotland: 12 đội vòng tròn 3 lượt (33 trận), rồi tách nhóm trên / dưới 6 đội đấu thêm 5 trận (mang nguyên thành
+    // tích – tổng 38 trận); đội nhóm dưới không lên trên được dù nhiều điểm hơn
+    { id: 'scottish_split', icon: '🏴', sport: 'football', n: 12,
+      stages: [{ type: 'roundrobin', meetings: 3, advance: 12 }, { type: 'roundrobin', split: { top: 6 } }] },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MORE;
   else global.CaroOTourTplMore = MORE;
