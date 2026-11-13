@@ -5,6 +5,7 @@
  *   – Chỉ còn đúng 1 người hoàn thành yard: người đó phải chạy thêm 1 yard một mình – hoàn thành thì vô địch, không thì không
  *     có nhà vô địch (mọi người còn lại đều DNF).
  *   – Cả yard không ai hoàn thành: không có nhà vô địch.
+ * Assist: người dừng ở yard mà chỉ còn nhà vô địch về kịp (người "đưa" nhà vô địch tới yard một mình) – chỉ có khi có nhà vô địch.
  * Thứ hạng: vô địch, rồi số yard hoàn thành (nhiều xếp trên); bằng nhau theo hạt giống (cùng hạng hiển thị như nhau).
  * st.backyard = { status: 'running' | 'champion' | 'none', winner }. Nhập / huỷ lần lượt từng yard. Đăng ký vào stages-race-plug.js.
  */
@@ -22,7 +23,7 @@ function normalize(c, out) {
 /** Số yard hoàn thành của từng người + người còn chạy trước yard i. */
 function calc(st, seedOf = () => 0) {
   const yards = Object.fromEntries(st.entrants.map((u) => [u, 0]));
-  let alive = [...st.entrants], status = 'running', winner = null;
+  let alive = [...st.entrants], status = 'running', winner = null, last = [];
   for (const ev of st.events) {
     if (!ev.done) break;
     const fin = new Set(ev.rows.filter((x) => x.done).map((x) => x.uid));
@@ -30,10 +31,11 @@ function calc(st, seedOf = () => 0) {
     for (const u of next) yards[u]++;
     if (alive.length === 1) { status = next.length ? 'champion' : 'none'; winner = next.length ? next[0] : null; alive = []; break; } // yard chạy một mình
     if (!next.length) { status = 'none'; alive = []; break; } // cả yard không ai về kịp
+    if (next.length === 1) last = alive.filter((u) => u !== next[0]); // dừng cùng yard cuối có nhiều người
     alive = next;
   }
   const order = [...st.entrants].sort((a, b) => (b === winner) - (a === winner) || yards[b] - yards[a] || seedOf(a) - seedOf(b));
-  return { yards, alive, status, winner, order };
+  return { yards, alive, status, winner, order, assist: status === 'champion' ? last : [] };
 }
 
 function clean(st, i, rows) {
@@ -78,7 +80,7 @@ function view(st, i, adv, side, seedOf) {
   const rows = C.order.map((u, k) => {
     const key = u === C.winner ? -1 : C.yards[u];
     if (key !== prev) { pos = k + 1; prev = key; }
-    return { ...side(u), rank: pos, yards: C.yards[u], km: Math.round(C.yards[u] * Y.m / 10) / 100, ...(alive.has(u) ? { alive: true } : {}), ...(u === C.winner ? { champ: true } : {}), adv: k < adv };
+    return { ...side(u), rank: pos, yards: C.yards[u], km: Math.round(C.yards[u] * Y.m / 10) / 100, ...(alive.has(u) ? { alive: true } : {}), ...(u === C.winner ? { champ: true } : {}), ...(C.assist.includes(u) ? { assist: true } : {}), adv: k < adv };
   });
   const events = st.events.map((e) => ({ i: e.i, done: e.done, ...(e.rows ? { rows: e.rows } : {}) }));
   return { index: i, type: 'race', cfg: st.cfg, done: st.done, events, table: rows, backyard: { status: C.status, alive: C.alive.map(side), solo: C.alive.length === 1 }, entrants: st.entrants.map(side) };

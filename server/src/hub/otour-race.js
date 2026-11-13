@@ -11,6 +11,7 @@ const GOLF = require('./stages-golf.js');
 const LOB = require('./stages-race-lobby.js'); // draft POI (ALGS)
 // Nhập lần lượt (người bỏ cuộc / bị cắt rời các chặng, vòng sau): xe đạp nhiều chặng, golf
 const PLUG = require('./stages-race-plug.js');
+const ST = require('./stages.js');
 const KN = require('./stages-knock.js'); // loại trực tiếp dựng từng vòng (chọn đối thủ kiểu BLAST Bounty)
 const SEQ = ['gt', ...PLUG.NAMES.filter((x) => PLUG.get(x).seq)]; // nhập / huỷ lần lượt từng chặng
 
@@ -72,6 +73,18 @@ class OTourRace {
     if (!st || st.type !== 'knock') throw E('bad_message');
     const bad = KN.pick(st, String(picker || ''), String(target || ''));
     if (bad) throw E(bad);
+    st.v = (st.v || 0) + 1;
+    this.otSave(t);
+  }
+
+  /** Draft kiểu Magic: ban tổ chức nộp danh sách bài của một người cho phiên draft hiện tại (chỉ lưu số lá – stages-draft.js). */
+  on_otDeck(conn, { id, uid, list }) {
+    const { t } = this.otManaged(conn, id);
+    if (t.status !== 'running') throw E('tour_not_running');
+    const st = t.st[t.stage];
+    if (!st || typeof list !== 'string' || list.length > 20000) throw E('bad_message');
+    const bad = ST.DRF.submitDeck(st, String(uid || ''), list);
+    if (bad) throw typeof bad === 'string' ? E(bad) : E(bad.code, bad.args);
     st.v = (st.v || 0) + 1;
     this.otSave(t);
   }

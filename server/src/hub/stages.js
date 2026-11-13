@@ -27,6 +27,7 @@ const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNex
 const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB, rankList } = require('./stages-tiebreak.js');
 const SPL = require('./stages-splits.js'); // giải offline: chặng mùa giải có playoff riêng (kiểu Overwatch League)
 const BR = require('../../../caro/otour-bridge.js'); // bridge đồng đội: số ván mỗi trận, thang VP
+const DRF = require('./stages-draft.js'); // draft kiểu Magic: ghế pod, chiều chuyền gói, danh sách bài
 const League = require('./stages-league.js');
 const Race = require('./stages-race.js');
 const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại kép 4 đội kiểu GSL
@@ -131,7 +132,7 @@ function normalizeStage(c, last, opts = {}) {
   const lad = ['single', 'roundrobin', 'swiss'].includes(res.type) && !res.record && LAD.normalize(c.matchLadder);
   if (lad) { res.matchLadder = lad; if (c.ladderKeep === true) res.ladderKeep = true; }
   SPL.normalize(c, res); // chặng có playoff riêng
-  BR.normalizeCfg(c, res); // bridge đồng đội: điểm từng ván → IMP → VP
+  BR.normalizeCfg(c, res); DRF.normalize(c, res); // bridge đồng đội (IMP → VP); draft kiểu Magic
   // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – không phải league phase / mùa giải)
   if (res.type === 'roundrobin' && !last && !res.league && !res.season && TM.MODES.includes(c.tbm)) res.tbm = c.tbm;
   if (res.tbm && c.tbmTop === true) res.tbmTop = true; // thêm trận phụ khi hai đội bằng điểm ở hạng nhất (kiểu MSI)
@@ -392,7 +393,7 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  linked, splitAdvancers, routesOf, tieBeforeUndo: TM.beforeUndo, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places, Kinds, REP, SPL,
+  linked, splitAdvancers, routesOf, tieBeforeUndo: TM.beforeUndo, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places, Kinds, REP, SPL, DRF,
   twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
   tally, eliminated, isElim, real, tbValue, MAX_BO, MAX_STAGES_OFFLINE, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
 };

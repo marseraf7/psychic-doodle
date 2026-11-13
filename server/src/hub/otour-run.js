@@ -127,6 +127,7 @@ class OTourRun {
     const dp = ST.directPlan(t.stages, teams.map((p) => p.uid));
     t.direct = Object.keys(dp.direct).length ? dp.direct : null;
     t.st = [ST.buildStage(t.stages[0], 0, dp.first, this.otBuildOpts(t))];
+    ST.DRF.seatStage(t.st[0]); // loại trực tiếp có draft: bốc ghế
     t.stage = 0;
     t.status = 'running';
     t.startedAt = Date.now();
@@ -177,8 +178,9 @@ class OTourRun {
     const country = new Map(t.players.map((p) => [p.uid, p.country || '']));
     const slots = (cfg.draw === 'record' && !direct.length ? RD.recordDraw(st, seeds, (u) => country.get(u) || '') : null) || this.otPathSlots(t, st, cfg, seeds, groupOf);
     t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}), ...(ST.SPL.isSplit(cfg) ? { groups: ST.SPL.splitGroups(cfg, seeds) } : {}) })));
+    ST.DRF.seatStage(t.st[t.stage]); // Top 8 draft lại: bốc ghế
     if (ST.SPL.isSplit(cfg)) t.st[t.stage].carry = ST.SPL.carryFrom(ST.standings(st, this.otSeedOf(t))); // The Split: mang nguyên thành tích
-    if (cfg.type === 'race' && cfg.score === 'pursuit') t.st[t.stage].gaps = PUR.gapsFrom(ST.standings(st, this.otSeedOf(t)), seeds); // xuất phát theo khoảng thua
+    if (cfg.type === 'race' && cfg.score === 'pursuit') PUR.attachGaps(t.st[t.stage], ST.standings(st, this.otSeedOf(t)), seeds); // xuất phát theo khoảng thua
     if (adv.oneLife && adv.oneLife.length && cfg.type === 'double') t.st[t.stage].oneLife = adv.oneLife.filter((u) => seeds.includes(u)); // suất phía thua của pool (EVO)
     // Điểm thưởng mang sang (hệ Race – cfg.head, kiểu Points Rush): theo vị trí vào giai đoạn này (đội vào thẳng, rồi thứ
     // hạng ở giai đoạn trước)
@@ -226,6 +228,7 @@ class OTourRun {
     const { t, me } = this.otManaged(conn, id);
     const { st, m } = this.otMatch(t, match);
     if (m.done) throw E('tour_match_done');
+    if (ST.DRF.deckMissing(st, m)) throw E('ot_deck_missing'); // draft: chưa nộp danh sách bài
     // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua
     const elim = ST.linked(st.type) || !!st.cfg.record || !!m.tb || m.sp != null; // trận phụ phân hạng, playoff chặng: không có hoà
     let w;

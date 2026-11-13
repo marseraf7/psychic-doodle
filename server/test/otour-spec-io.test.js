@@ -30,6 +30,7 @@ require('../../caro/i18n-otour-chess.js');
 require('../../caro/i18n-otour-esports2.js');
 require('../../caro/i18n-otour-race2.js');
 require('../../caro/i18n-otour-niche.js');
+require('../../caro/i18n-otour-extra.js');
 delete global.window;
 const missing = new Set();
 const T = (lang) => (k, a = {}) => { const s = D[lang][k]; if (s == null) { missing.add(lang + ':' + k); return k; } return s.replace(/\{(\w+)\}/g, (_, x) => (a[x] != null ? a[x] : '')); };

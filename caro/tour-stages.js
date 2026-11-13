@@ -315,7 +315,7 @@
       const v = views[i];
       const info = [stageName(c), c.type === 'race' ? '' : 'Bo' + c.bestOf, advText(c)].filter(Boolean).join(' · ');
       const pv = !v && i === 0 && t.preview;
-      const body = v ? stageBody(t, v) : pv ? fold(t.id + ':pv0', esc(T('pv_title')), () => previewHtml(t, t.preview), true)
+      const body = v ? (v.draft && K.mtgHtml ? K.mtgHtml(t, v) : '') + stageBody(t, v) : pv ? fold(t.id + ':pv0', esc(T('pv_title')), () => previewHtml(t, t.preview), true)
         : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>${pathPreview(t, i)}`;
       if (!multi) return `<h4>${esc(info)}</h4>${body}`;
       const title = `<b>${esc(T('stage_n', { n: i + 1 }))}</b> <span class="muted">${esc(info)}</span>${v && v.done ? icon('check', 'ok') : ''}`;

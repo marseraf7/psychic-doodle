@@ -1,7 +1,9 @@
 /*
  * Hệ Race – cách tính 'pursuit' (đuổi bắt kiểu biathlon / Gundersen – chỉ mô phỏng thể thức). Giai đoạn sau một giai đoạn race
  * tính thời gian (Sprint): người đi tiếp xuất phát chậm đúng số giây thua người nhất Sprint (st.gaps – otour-run.js gán khi dựng
- * giai đoạn); người thua quá cfg.pursuit.wave giây xuất phát cùng lúc ở mốc wave (đúng bằng wave thì vẫn xuất phát theo giây).
+ * giai đoạn); sau giai đoạn nhảy cầu (stages-skijump.js – Nordic combined): mỗi điểm thua đổi ra cfg.pursuit.perPoint giây
+ * (Gundersen cá nhân: 1 điểm = 4 giây). Người thua quá cfg.pursuit.wave giây xuất phát cùng lúc ở mốc wave (đúng bằng wave thì
+ * vẫn xuất phát theo giây).
  * Xếp hạng: thứ tự qua vạch đích (rank) – thời gian thuần và số vòng phạt chỉ để hiển thị; bỏ cuộc xếp sau người về đích, không
  * xuất phát (không có dòng) xếp cuối. Một chặng duy nhất. Đăng ký vào registry stages-race-plug.js.
  */
@@ -13,15 +15,34 @@ const MAX_TIME = 24 * 3600 * 1000;
 function normalize(c, out) {
   const p = c.pursuit && typeof c.pursuit === 'object' ? c.pursuit : {};
   out.events = 1;
-  out.pursuit = { wave: int(p.wave, 0, 3600, 240) }; // 0 = không xuất phát đồng loạt
+  const pp = Math.round(Number(p.perPoint) * 100) / 100;
+  out.pursuit = { wave: int(p.wave, 0, 3600, 240), perPoint: pp >= 0.1 && pp <= 60 ? pp : 4 }; // wave 0 = không xuất phát đồng loạt
 }
 
-/** Khoảng thua (ms) từ bảng giai đoạn trước tính thời gian: người nhanh nhất trong danh sách là 0. */
-function gapsFrom(tables, seeds) {
+/**
+ * Khoảng thua (ms) từ bảng giai đoạn trước: tính thời gian – người nhanh nhất là 0; nhảy cầu – (điểm cao nhất − điểm của mình) ×
+ * perPoint giây (người không có điểm xuất phát sau cùng, cùng khoảng thua lớn nhất).
+ */
+function gapsFrom(tables, seeds, cfg) {
+  const jump = {};
+  for (const tb of tables || []) for (const u of tb.list) { const s = tb.stats[u]; if (s && s.jump != null) jump[u] = s.jump; }
+  if (Object.keys(jump).length) {
+    const per = ((cfg && cfg.pursuit && cfg.pursuit.perPoint) || 4) * 1000;
+    const best = Math.max(...seeds.filter((u) => jump[u] != null).map((u) => jump[u]));
+    const g = Object.fromEntries(seeds.filter((u) => jump[u] != null).map((u) => [u, Math.round((best - jump[u]) * per)]));
+    const worst = Math.max(0, ...Object.values(g));
+    return Object.fromEntries(seeds.map((u) => [u, g[u] != null ? g[u] : worst]));
+  }
   const time = {};
   for (const tb of tables || []) for (const u of tb.list) { const s = tb.stats[u]; if (s && s.time > 0 && s.fin > 0) time[u] = s.time; }
   const best = Math.min(...seeds.filter((u) => time[u] != null).map((u) => time[u]));
   return Number.isFinite(best) ? Object.fromEntries(seeds.map((u) => [u, time[u] != null ? time[u] - best : 0])) : {};
+}
+
+/** Gán khoảng thua cho giai đoạn đuổi bắt vừa dựng (st.gapsBy: 'jump' – từ điểm nhảy cầu, 'time' – từ thời gian). */
+function attachGaps(st, tables, seeds) {
+  st.gaps = gapsFrom(tables, seeds, st.cfg);
+  st.gapsBy = (tables || []).some((tb) => tb.list.some((u) => tb.stats[u] && tb.stats[u].jump != null)) ? 'jump' : 'time';
 }
 
 /** Danh sách xuất phát: [{ uid, gap (ms), start (ms sau phát súng đầu), wave }] theo khoảng thua. */
@@ -80,7 +101,7 @@ function view(st, i, adv, side, seedOf) {
     return { ...side(u), rank: k + 1, gap: s.gap, ...(s.time ? { time: s.time } : {}), ...(s.pen ? { pen: s.pen } : {}), ...(s.dnf ? { dnf: true } : {}), ...(done && !s.rank && !s.dnf ? { dns: true } : {}), adv: k < adv };
   });
   const events = st.events.map((e) => ({ i: e.i, done: e.done, ...(e.rows ? { rows: e.rows } : {}) }));
-  return { index: i, type: 'race', cfg: st.cfg, done: st.done, events, table: rows, pursuit: { start: startList(st).map((x) => ({ ...x, ...side(x.uid) })) }, entrants: st.entrants.map(side) };
+  return { index: i, type: 'race', cfg: st.cfg, done: st.done, events, table: rows, pursuit: { start: startList(st).map((x) => ({ ...x, ...side(x.uid) })), ...(st.gapsBy === 'jump' ? { byJump: true } : {}) }, entrants: st.entrants.map(side) };
 }
 
-module.exports = { normalize, gapsFrom, startList, clean, record, calc, plug: { normalize, clean, record, table, view } };
+module.exports = { normalize, gapsFrom, attachGaps, startList, clean, record, calc, plug: { normalize, clean, record, table, view } };

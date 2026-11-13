@@ -170,8 +170,8 @@ test('Pod: ghép cặp trong pod 8 người, đổi pod theo bảng xếp hạng
   assert.notDeepStrictEqual(st.podHist[0], st.podHist[1]);
 });
 
-test('Các mẫu đợt 25 chạy trọn qua máy chủ (BLAST Bounty, Shoot Out, poker, Backyard, bridge, MTG)', async () => {
-  for (const tid of ['blast_bounty', 'snooker_shootout', 'mtg_gp']) {
+test('Các mẫu đợt 25 chạy trọn qua máy chủ (BLAST Bounty, Shoot Out, poker, Backyard, bridge)', async () => {
+  for (const tid of ['blast_bounty', 'snooker_shootout']) { // mtg_gp (bắt buộc nộp danh sách bài) chạy ở otour-extra.test.js
     const { org, t, id, so } = await startTpl(tid);
     await playAllServer(org, t, id, so);
     assert.strictEqual(t.status, 'finished', tid);

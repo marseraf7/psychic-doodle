@@ -5,7 +5,8 @@
  *   omnium   – 4 đua con, bảng điểm theo hạng, điểm mỗi vòng hơn / kém (stages-omnium.js);
  *   massstart – số vòng, các vòng có điểm giữa đua, điểm giữa đua / về đích, bán kết (stages-massstart.js);
  *   pursuit  – xuất phát theo khoảng thua giai đoạn trước, mốc xuất phát đồng loạt (stages-pursuit.js);
- *   backyard – độ dài và thời gian mỗi yard (stages-backyard.js); poker – PKO / Mystery, bounty, phong bì (stages-poker.js).
+ *   backyard – độ dài và thời gian mỗi yard (stages-backyard.js); poker – PKO / Mystery, bounty, phong bì (stages-poker.js);
+ *   skijump  – nhảy cầu tính điểm (Nordic combined – stages-skijump.js); đuổi bắt sau đó đổi điểm thua ra giây (perPoint).
  * K.raceEdit = { scores, keys, html(i, c, st, ctx), change(c, k, el, clamp), init(c, score) }.
  * Nạp sau tour-stage-edit.js.
  */
@@ -66,8 +67,12 @@
   }
 
   function pursuit(i, c) {
-    return [`<small class="hint">${esc(T(i > 0 ? 'pu_note' : 'pu_first'))}</small>`, field(T('opt_pu_wave'), num(i, 'puWave', (c.pursuit || {}).wave != null ? c.pursuit.wave : 240, 0, 3600))];
+    const P = c.pursuit || {};
+    return [`<small class="hint">${esc(T(i > 0 ? 'pu_note' : 'pu_first'))}</small>`, field(T('opt_pu_wave'), num(i, 'puWave', P.wave != null ? P.wave : 240, 0, 3600)),
+      field(T('opt_pu_per'), `<input type="number" data-i="${i}" data-k="puPer" value="${P.perPoint != null ? P.perPoint : 4}" min="0.1" max="60" step="0.01">`), `<small class="hint">${esc(T('opt_pu_per_hint'))}</small>`];
   }
+
+  const skijump = () => [`<small class="hint">${esc(T('sj_note'))}</small>`];
 
   function backyard(i, c) {
     const B = c.backyard || {};
@@ -82,19 +87,20 @@
     return f;
   }
 
-  const HTML = { golf, omnium, massstart: mass, pursuit, backyard, poker };
+  const HTML = { golf, omnium, massstart: mass, pursuit, backyard, poker, skijump };
 
   K.raceEdit = {
-    scores: ['omnium', 'massstart', 'pursuit', 'backyard', 'poker'],
+    scores: ['omnium', 'massstart', 'skijump', 'pursuit', 'backyard', 'poker'],
     keys: ['scoring', 'points', 'handicap', 'omnium', 'massStart', 'pursuit', 'backyard', 'poker'],
     html: (i, c) => (HTML[c.score] ? HTML[c.score](i, c) : []),
     /** Giá trị mặc định khi chọn cách tính mới. Trả true nếu đã xử lý. */
     init(c, v) {
-      if (!['omnium', 'massstart', 'pursuit', 'backyard', 'poker'].includes(v)) return false;
+      if (!['omnium', 'massstart', 'skijump', 'pursuit', 'backyard', 'poker'].includes(v)) return false;
       for (const k of ['table', 'teams', 'heat']) delete c[k];
       if (v === 'omnium') Object.assign(c, { events: 4, omnium: { rank: [...OMN_RANK], lap: 20, sprint: [5, 3, 2, 1] } });
       if (v === 'massstart') Object.assign(c, { events: 1, massStart: { laps: 16, sprints: [4, 8, 12], mid: [3, 2, 1], final: [60, 40, 20, 10, 6, 3] } });
-      if (v === 'pursuit') Object.assign(c, { events: 1, pursuit: { wave: 240 } });
+      if (v === 'pursuit') Object.assign(c, { events: 1, pursuit: { wave: 240, perPoint: 4 } });
+      if (v === 'skijump') Object.assign(c, { events: 1 });
       if (v === 'backyard') Object.assign(c, { events: 1, backyard: { m: 6706, min: 60 } });
       if (v === 'poker') Object.assign(c, { events: 1, poker: { type: 'pko', start: 100, pocket: 50 } });
       return true;
@@ -133,7 +139,8 @@
       if (k === 'pkType') { c.poker = v === 'mystery' ? { type: 'mystery', act: 9, envelopes: [1000, 500, 200, 200, 100, 100, 100, 50, 50, 50] } : { type: 'pko', start: 100, pocket: 50 }; return true; }
       if (k === 'pkStart' || k === 'pkPocket' || k === 'pkAct') { c.poker = { ...c.poker, [{ pkStart: 'start', pkPocket: 'pocket', pkAct: 'act' }[k]]: clamp(Number(v)) }; return true; }
       if (k === 'pkEnv') { const e = nums(v, 0, 10000000, 200); if (e.length) c.poker = { ...c.poker, envelopes: e }; return true; }
-      if (k === 'puWave') { c.pursuit = { wave: Math.max(0, Math.min(3600, Math.floor(Number(v)) || 0)) }; return true; }
+      if (k === 'puWave') { c.pursuit = { perPoint: 4, ...c.pursuit, wave: Math.max(0, Math.min(3600, Math.floor(Number(v)) || 0)) }; return true; }
+      if (k === 'puPer') { const p = Math.round(Number(v) * 100) / 100; c.pursuit = { wave: 240, ...c.pursuit, perPoint: p >= 0.1 && p <= 60 ? p : 4 }; return true; }
       return false;
     },
   };
