@@ -9,6 +9,7 @@ const ST = require('../src/hub/stages.js');
 const Race = require('../src/hub/stages-race.js');
 const SF = require('../src/hub/stages-golf-stable.js');
 const MS = require('../src/hub/stages-massstart.js');
+const OMN = require('../src/hub/stages-omnium.js');
 const PUR = require('../src/hub/stages-pursuit.js');
 const E = require('../../caro/tour-estimate.js');
 const TP = require('../../caro/otour-templates.js');
@@ -54,8 +55,9 @@ test('Stableford: cắt sau vòng 2 theo điểm (top + đồng hạng)', () => 
 test('Omnium: 4 đua con, điểm theo hạng + sprint + vòng (có thể âm); bảng điểm thiếu thì báo lỗi; nhập lần lượt', () => {
   const [c] = off([{ type: 'race', score: 'omnium', events: 9 }]);
   assert.strictEqual(c.events, 4);
-  assert.strictEqual(Race.raceError(c, 21).code, 'ot_omnium_ranks');
-  assert.strictEqual(Race.raceError(c, 20), null);
+  // Như UCI: hạng 1–20 theo bảng 40 … 2, hạng 21 trở xuống 1 điểm (Giải vô địch thế giới 24 người) – không giới hạn số người
+  assert.strictEqual(Race.raceError(c, 24), null);
+  assert.deepStrictEqual([1, 20, 21, 24].map((k) => OMN.rankPts(c, k)), [40, 2, 1, 1]);
   const st = ST.buildStage(c, 0, ids(4), {});
   for (let i = 0; i < 3; i++) rec(st, i, ids(4).map((uid, k) => ({ uid, rank: k + 1 })));
   // Points race: u3 hơn 1 vòng + 10 điểm sprint vượt lên; u0 kém 3 vòng → âm
@@ -64,6 +66,10 @@ test('Omnium: 4 đua con, điểm theo hạng + sprint + vòng (có thể âm); 
   assert.deepStrictEqual(v.table.map((x) => [x.name, x.total]), [['u3', 132], ['u1', 119], ['u0', 60], ['u2', 108]].sort((a, b) => b[1] - a[1]));
   assert.ok(v.omnium && st.done);
   assert.strictEqual(v.table.find((x) => x.name === 'u0').parts[3], -60);
+  // Bỏ cuộc (DNF) ở 3 đua đầu: không có hạng, 0 điểm đua đó (như bảng kết quả UCI)
+  const sd = ST.buildStage(c, 0, ids(3), {});
+  rec(sd, 0, [{ uid: 'u0', rank: 1 }, { uid: 'u1', rank: 2 }, { uid: 'u2', dnf: true }]);
+  assert.deepStrictEqual(Race.raceView(sd, 0, 0, side, seedOf).table.map((x) => [x.name, x.parts[0]]), [['u0', 40], ['u1', 38], ['u2', 0]]);
   // Trùng hạng bị từ chối
   const st2 = ST.buildStage(c, 0, ids(3), {});
   assert.strictEqual(Race.cleanEvent(st2, [{ uid: 'u0', rank: 1 }, { uid: 'u1', rank: 1 }], st2.entrants, 0).code, 'ot_race_rank');

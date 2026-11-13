@@ -5,7 +5,7 @@
  *   - Chênh lệch mỗi ván (bàn 1 − bàn 2) đổi ra IMP theo bảng IMP chuẩn của WBF (tối đa 24 IMP / ván).
  *   - Tổng IMP hai đội đổi ra điểm thắng (VP) thang 20 theo công thức liên tục WBF 2013: B = 15 × √số ván,
  *     VP thắng = 10 + 10 × (1 − τ^(3·chênh/B)) / (1 − τ³), τ = (√5 − 1) / 2, tối đa 20, làm tròn 2 chữ số; đội thua = 20 − VP thắng
- *     (hoà IMP 10–10, tổng luôn 20,00). Ban tổ chức có thể dán thang VP riêng (vpTable: [[chênh IMP tối thiểu, VP thắng]…]).
+ *     (hoà IMP 10–10, tổng luôn 20,00), rồi chỉnh để mức tăng mỗi IMP không lớn dần như bảng WBF (scaleOf). Ban tổ chức có thể dán thang VP riêng (vpTable: [[chênh IMP tối thiểu, VP thắng]…]).
  */
 (function (root) {
   'use strict';
@@ -22,11 +22,32 @@
     return Math.sign(d) * k;
   }
 
+  /**
+   * Thang VP WBF của trận `boards` ván (×100, chỉ số = chênh IMP, phần tử cuối = 2000): làm tròn công thức tới 0,01 rồi chỉnh
+   * cho mức tăng mỗi IMP không bao giờ lớn hơn mức tăng của IMP trước (thang "lồi" – nâng 0,01 ở chỗ vi phạm, lặp tới khi hết).
+   * Khớp đủ 172 / 172 ô bảng chính thức "WBF Continuous VP Scale" (12, 14, 16 ván); chỉ làm tròn thì lệch 13 ô.
+   */
+  const SCALES = new Map();
+  function scaleOf(boards) {
+    const b = Math.max(1, Math.min(MAX_BOARDS, Math.floor(boards) || 1));
+    if (SCALES.has(b)) return SCALES.get(b);
+    const B = 15 * Math.sqrt(b), v = [];
+    for (let m = 0; m < 1000; m++) {
+      v[m] = Math.min(2000, Math.round((10 + (10 * (1 - Math.pow(TAU, (3 * m) / B))) / (1 - Math.pow(TAU, 3))) * 100));
+      if (v[m] === 2000) break;
+    }
+    for (let pass = 0, ch = true; ch && pass < 100; pass++) {
+      ch = false;
+      for (let m = 1; m + 1 < v.length; m++) if (v[m + 1] - v[m] > v[m] - v[m - 1]) { v[m]++; ch = true; }
+    }
+    SCALES.set(b, v);
+    return v;
+  }
+
   /** VP (×100, số nguyên) của đội thắng với chênh m IMP (m ≥ 0) trong trận `boards` ván. */
   function vpWbf(m, boards) {
-    const B = 15 * Math.sqrt(Math.max(1, boards));
-    const v = 10 + (10 * (1 - Math.pow(TAU, (3 * m) / B))) / (1 - Math.pow(TAU, 3));
-    return Math.min(2000, Math.round(v * 100));
+    const v = scaleOf(boards);
+    return v[Math.min(Math.max(0, Math.floor(m)), v.length - 1)];
   }
 
   /** VP (×100) theo thang riêng: hàng cuối có chênh tối thiểu ≤ m. */

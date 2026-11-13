@@ -95,12 +95,11 @@ jobs:
       # +15 giây gia hạn nước đầu, mục Xem, giao diện online; trang Cài đặt nâng cao khi tạo giải (tour-adv), giải offline (tour-offline), khu quản trị giải (tour-manage), đồng ban tổ chức (tour-staff), xem nhánh đấu + trang nhúng (tour-view), quản lý CLB (club-admin), chat + diễn đàn CLB (club-talk), Team Battle + giao hữu CLB (club-battle), dự đoán + bình chọn + mẫu giải (tour-fun)
       # (chỉ Chromium: luồng máy chủ / giao diện, không phụ thuộc trình duyệt)
       - name: Kiểm thử trình duyệt các bản sửa buổi kiểm thử 25/10
-        # 30 phút: các bài thử giải offline nhiều giai đoạn (otour-pgc, otour-msi – chạy trọn vài giải 60–150 trận) làm cả vòng
-        # lặp vượt 15 phút
-        timeout-minutes: 30
+        # Các bài thử giải offline (otour-*) chạy song song ở job otour-e2e bên dưới
+        timeout-minutes: 20
         if: matrix.browser == 'chromium' && (success() || failure())
         run: |
-          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun tour-adv-more tour-opts tour-arrange rich-desc otour otour-race otour-tpl otour-league otour-io otour-lazy otour-page otour-embed otour-path otour-ai otour-sched otour-series otour-esports otour-cup otour-gt otour-golf otour-multi otour-formats otour-formats8 otour-formats9 otour-majors otour-pgc otour-msi otour-graph otour-swiss2 otour-chess otour-esports2 otour-race2 otour-niche otour-extra; do
+          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun tour-adv-more tour-opts tour-arrange rich-desc; do
             E2E_BROWSER=chromium E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/$t.e2e.js || exit 1
           done
       # Mở / tải lại khi mạng chậm: Trang chủ hiện sẵn từ HTML, service worker lấy file từ bộ nhớ đệm trước (boot.e2e.js)
@@ -112,4 +111,31 @@ jobs:
         if: always()
         with:
           name: boat-rapfi-e2e-${{ matrix.browser }}
+          path: ${{ runner.temp }}/shots
+
+  # Giải đấu Offline (otour-*.e2e.js – chỉ Chromium: luồng máy chủ / giao diện): tách khỏi rapfi-e2e để chạy song song – vòng lặp
+  # chiếm phần lớn ~17 phút của vòng lặp chung trước đây (11/2026: 30 bộ, chạy trọn vài giải 60–150 trận), tăng theo mỗi đợt mới
+  otour-e2e:
+    runs-on: ubuntu-24.04 # như rapfi-e2e: Playwright 1.56.1 chưa cài được trình duyệt trên 26.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: server
+      - name: Cài Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Kiểm thử trình duyệt giải đấu Offline
+        timeout-minutes: 30
+        run: |
+          for t in otour otour-race otour-tpl otour-league otour-io otour-lazy otour-page otour-embed otour-path otour-ai otour-sched otour-series otour-esports otour-cup otour-gt otour-golf otour-multi otour-formats otour-formats8 otour-formats9 otour-majors otour-pgc otour-msi otour-graph otour-swiss2 otour-chess otour-esports2 otour-race2 otour-niche otour-extra; do
+            E2E_BROWSER=chromium E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/$t.e2e.js || exit 1
+          done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: otour-e2e
           path: ${{ runner.temp }}/shots

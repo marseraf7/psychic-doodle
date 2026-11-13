@@ -133,3 +133,22 @@ test('Áp bản vá trên trang: trận vòng vớt và playoff chặng được
   const v = t.stageViews[0];
   assert.deepStrictEqual([v.rep[0].rounds[0][0].done, v.rep[0].rounds[1][0].done, v.splits[0].rounds[0][0].done], [true, true, true]);
 });
+
+test('Bridge: thang VP khớp bảng chính thức "WBF Continuous VP Scale" (làm tròn rồi chỉnh để mức tăng mỗi IMP không lớn dần)', () => {
+  const BR = require('../../caro/otour-bridge.js');
+  // Một số ô của bảng chính thức (12 / 14 / 16 ván) – công thức chỉ làm tròn lệch 0,01 ở các ô có dấu *
+  const cells = [[16, 1, 1031], [16, 14, 1375], [16, 27, 1626], [16, 38, 1785], [16, 49, 1907], [16, 59, 1993], [16, 60, 2000],
+    [14, 8, 1244], [14, 36, 1791], [14, 56, 1999], [14, 57, 2000], [12, 1, 1036], [12, 42, 1902], [12, 52, 2000]];
+  for (const [b, m, want] of cells) assert.strictEqual(BR.vpWbf(m, b), want, `${b} ván, chênh ${m} IMP`);
+  // Mọi số ván: tăng dần, mức tăng không lớn dần, chạm 20,00 rồi giữ nguyên
+  for (let b = 1; b <= BR.MAX_BOARDS; b++) {
+    let prev = 1000, step = Infinity;
+    for (let m = 1; m < 400; m++) {
+      const v = BR.vpWbf(m, b);
+      assert.ok(v >= prev && v - prev <= step && v <= 2000, `${b} ván, ${m} IMP`);
+      if (v < 2000) step = v - prev;
+      prev = v;
+    }
+    assert.strictEqual(prev, 2000);
+  }
+});
