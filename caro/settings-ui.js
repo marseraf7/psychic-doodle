@@ -45,7 +45,20 @@
     page.querySelector('.pg-body').scrollTo?.(0, 0);
     if (id === 'look') { if (window.CaroBarPos) form.barPos.value = window.CaroBarPos.saved(); drawPreview(); }
     if (id === 'matchui' && window.CaroMatchUI) window.CaroMatchUI.sync();
-    if (id === 'root') values();
+    if (id === 'root') { values(); showVersion(); }
+  }
+
+  /**
+   * Phiên bản giao diện (tên bộ nhớ đệm trong sw.js, vd. "caro-v197") ở cuối trang Cài đặt – người kiểm thử ghi kèm khi báo
+   * lỗi (kiểm thử 12/11/2026: không thấy số phiên bản ở đâu). Không có Service Worker / bộ nhớ đệm thì để trống.
+   */
+  function showVersion() {
+    const el = $('app-ver');
+    if (!el || !window.caches) return;
+    caches.keys().then((keys) => {
+      const v = keys.filter((k) => /^caro-v\d+$/.test(k)).sort((a, b) => Number(b.slice(6)) - Number(a.slice(6)))[0];
+      el.textContent = v ? T('app_version', { v: v.slice(5) }) : '';
+    }).catch(() => {});
   }
 
   form.addEventListener('click', (e) => {

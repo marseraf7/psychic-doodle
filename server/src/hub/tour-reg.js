@@ -18,7 +18,7 @@ const MAX_QUEUE = 1000;
 const MAX_BULK = 512;
 const CHECKIN_MIN = [10, 15, 30, 60, 120, 1440, 2880]; // mở điểm danh trước giờ đấu (phút) – như Challonge 15 phút → 2 ngày
 /** Tên đã làm sạch (≤ 40 ký tự), hoặc '' nếu không dùng được (cleanPublicName báo lỗi tên phản cảm). */
-const safeName = (x) => { try { return cleanPublicName(x).slice(0, 40); } catch (e) { return ''; } };
+const safeName = (x) => { try { return cleanPublicName(x, 40); } catch (e) { return ''; } };
 const int = (v, lo, hi) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? Math.max(lo, Math.min(hi, n)) : null; };
 
 /** Chuẩn hoá phần đăng ký của giải (dữ liệu client gửi khi tạo giải). */

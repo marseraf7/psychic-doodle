@@ -33,10 +33,11 @@
   }
 
   function childList(t) {
-    const m = t.multi;
-    if (!m.children.length) return `<p class="hint">${esc(T('multi_children_none'))}</p>`;
-    return `<ul class="multi-kids">${m.children.map((c) => `<li><button type="button" class="ghost multi-kid" data-act="otOpenSeason" data-id="${esc(c.id)}">
-      <span class="ti">${sportIcon(c.sport)}</span><b>${esc(c.name)}</b><span class="pill ${esc(c.status)}">${esc(T('ot_st_' + c.status))}</span>
+    // Giải con riêng tư dưới giải tổng công khai: chỉ người quản lý thấy (multiPriv – máy chủ otMine), kèm nhãn "Riêng tư"
+    const list = [...t.multi.children, ...(t.multiPriv || [])];
+    if (!list.length) return `<p class="hint">${esc(T('multi_children_none'))}</p>`;
+    return `<ul class="multi-kids">${list.map((c) => `<li><button type="button" class="ghost multi-kid" data-act="otOpenSeason" data-id="${esc(c.id)}">
+      <span class="ti">${sportIcon(c.sport)}</span><b>${esc(c.name)}</b><span class="pill ${esc(c.status)}">${esc(T('ot_st_' + c.status))}</span>${c.priv ? `<span class="pill">${esc(T('ot_acc_private'))}</span>` : ''}
       <small class="muted">${esc(T('ot_n_teams', { n: c.n }))}${c.champ ? ' · ' + esc(T('multi_champ', { name: c.champ })) : ''}</small></button>
       ${t.canManage ? `<button type="button" class="ghost sm icon" data-act="otMultiDetach" data-id="${esc(c.id)}" aria-label="${esc(T('multi_detach'))}" title="${esc(T('multi_detach'))}">${icon('close')}</button>` : ''}</li>`).join('')}</ul>`;
   }
@@ -49,7 +50,7 @@
     let html = sec(T('multi_clubs'), `<p class="hint">${esc(rules)}</p>${clubTable(t)}`);
     let kids = childList(t);
     if (t.canManage) {
-      kids += `${m.hidden ? `<p class="hint">${esc(T('multi_hidden', { n: m.hidden }))}</p>` : ''}<div class="row"><button type="button" class="primary" data-act="otMultiNew">${icon('plus')}${esc(T('multi_add'))}</button></div>
+      kids += `${m.hidden && !(t.multiPriv || []).length ? `<p class="hint">${esc(T('multi_hidden', { n: m.hidden }))}</p>` : ''}<div class="row"><button type="button" class="primary" data-act="otMultiNew">${icon('plus')}${esc(T('multi_add'))}</button></div>
         ${K.fold('multi:cfg:' + t.id, esc(T('multi_manage')), () => `<label class="field"><span>${esc(T('multi_attach'))}</span><input id="multi-attach" placeholder="${esc(T('multi_attach_ph'))}"></label>
           <button type="button" class="ghost sm" data-act="otMultiAttach">${esc(T('multi_attach_btn'))}</button>
           <label class="field"><span>${esc(T('multi_table'))}</span><input id="multi-table" inputmode="numeric" value="${esc(m.table.join(' '))}"><small class="hint">${esc(T('multi_table_hint'))}</small></label>
@@ -57,7 +58,7 @@
           <label class="check"><input type="checkbox" id="multi-win" ${m.needWin ? 'checked' : ''}> <span>${esc(T('multi_need_win'))}</span></label>
           <button type="button" class="ghost sm" data-act="otMultiCfg">${esc(T('multi_table_save'))}</button><p class="err" id="multi-err"></p>`, false)}`;
     }
-    html += sec(`${T('multi_children')} (${m.children.length})`, kids);
+    html += sec(`${T('multi_children')} (${m.children.length + (t.multiPriv || []).length})`, kids);
     if (m.sched.length) {
       html += sec(T('multi_sched'), `<ul class="multi-sched">${m.sched.map((x) => `<li><small class="muted">${esc(when(x.when))}${x.venue ? ' · ' + esc(x.venue) : ''}</small>
         <b>${esc(x.a)}</b> – <b>${esc(x.b)}</b> <button type="button" class="ghost sm" data-act="otOpenSeason" data-id="${esc(x.id)}">${esc(x.game)}</button></li>`).join('')}</ul>`);

@@ -34,7 +34,9 @@
     const dmg = pts && v.cfg.dmg; // cột tổng sát thương (chỉ số phụ cuối)
     const head = pts ? `<th>#</th><th></th><th>${esc(T('race_pts'))}</th>${kill ? `<th>${esc(T('br_kills'))}</th>` : ''}${dmg ? `<th>${esc(T('br_dmg'))}</th>` : ''}<th>${esc(T('race_wins'))}</th><th>${esc(T('race_podiums'))}</th>`
       : `<th>#</th><th></th><th>${esc(T('race_total'))}</th><th>${esc(T('race_gap'))}</th><th>${esc(T('race_gap_prev'))}</th>`;
-    const rowsOf = (list) => list.map((x) => `<tr class="${x.adv ? 'adv' : ''}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.dnf ? ` <small class="muted">${esc(T('race_dnf_n', { n: x.dnf }))}</small>` : ''}${x.skip ? ` <small class="pill">${esc(K.skipTag(x))}</small>` : ''}${x.mp && !(v.mp && v.mp.winner) ? ` <small class="pill mp">${esc(T('mp_tag'))}</small>` : ''}</td>${pts
+    // Đội đi tiếp giai đoạn kế: có nhãn như đội chuyển thẳng (lỗi N2 – bảng GĐ4 PGC 2023 chỉ tô xanh, không có chữ)
+    const nextN = v.index + 1 < ((D.ot && D.ot.stages) || []).length ? v.index + 2 : 0;
+    const rowsOf = (list) => list.map((x) => `<tr class="${x.adv ? 'adv' : ''}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.dnf ? ` <small class="muted">${esc(T('race_dnf_n', { n: x.dnf }))}</small>` : ''}${x.skip ? ` <small class="pill">${esc(K.skipTag(x))}</small>` : x.adv && nextN ? ` <small class="pill">${esc(T('adv_next_tag', { n: nextN }))}</small>` : ''}${x.mp && !(v.mp && v.mp.winner) ? ` <small class="pill mp">${esc(T('mp_tag'))}</small>` : ''}</td>${pts
       ? `<td><b>${x.pts}</b>${x.head ? ` <small class="muted" title="${esc(T('br_head_tip'))}">(+${x.head})</small>` : ''}</td>${kill ? `<td>${x.kills || 0}</td>` : ''}${dmg ? `<td>${x.dmg || 0}</td>` : ''}<td>${x.wins}</td><td>${x.podiums}</td>`
       : `<td><b>${x.time != null ? esc(RU.fmtTime(x.time)) : '–'}</b></td><td>${esc(gap(x.gap))}</td><td>${esc(gap(x.gapPrev))}</td>`}</tr>`).join('');
     const tbl = (list) => `<div class="tscroll"><table class="stand"><thead><tr>${head}</tr></thead><tbody>${rowsOf(list)}</tbody></table></div>`;

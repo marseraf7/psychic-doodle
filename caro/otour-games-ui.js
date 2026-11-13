@@ -194,7 +194,7 @@
         <div class="row"><label class="field inline"><span>${esc(T('esp_bans'))}</span><input type="number" name="bans" min="0" max="10" value="${c.bans}"></label>
           <label class="field inline"><span>${esc(T('esp_picks'))}</span><input type="number" name="picks" min="1" max="10" value="${c.picks}"></label></div>
         <label class="field inline"><span>${esc(T('esp_sides'))}</span>${sel('sides', [['br', T('esp_blue') + ' / ' + T('esp_red')], ['ps', T('esp_port') + ' / ' + T('esp_stbd')]], c.sides)}</label>
-        <label class="field inline"><span>${esc(T('esp_fearless'))}</span>${sel('fearless', [['hard', T('esp_fl_hard')], ['soft', T('esp_fl_soft')], ['off', T('esp_fl_off')]], c.fearless)}</label>
+        <label class="field inline"><span>${esc(T('esp_fearless'))}</span>${sel('fearless', [['hard', T('esp_fl_hard_s')], ['soft', T('esp_fl_soft_s')], ['off', T('esp_fl_off')]], c.fearless)}<small class="hint">${esc(T('esp_fl_hard'))}<br>${esc(T('esp_fl_soft'))}</small></label>
         <label class="field inline"><span>${esc(T('esp_scope'))}</span>${sel('scope', [['series', T('esp_sc_series')], ['stage', T('esp_sc_stage')]], c.scope)}</label>
         <div class="field"><span>${esc(T('esp_cfg_stats'))}</span><div class="chips">${DR.STATS.map((k) => `<label class="chip"><input type="checkbox" name="stat" value="${k}" ${c.stats.includes(k) ? 'checked' : ''}><span>${esc(T('esp_st_' + k))}</span></label>`).join('')}</div></div>
         <label class="field"><span>${esc(T('esp_cfg_custom'))}</span><input name="custom" maxlength="200" value="${esc(custom.join(', '))}"></label>

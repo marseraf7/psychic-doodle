@@ -131,7 +131,7 @@ class Clubs {
 
   on_clubCreate(conn, { name, desc, intro, icon, join }) {
     const me = this.requireUser(conn);
-    name = cleanPublicName(name).slice(0, 40);
+    name = cleanPublicName(name, 40);
     if (name.length < 3) throw E('club_name_short');
     const owned = [...this.clubs.values()].filter((c) => c.owner === me.id && c.status !== 'rejected');
     if (owned.length >= MAX_OWNED_CLUBS) throw E('club_limit', { n: MAX_OWNED_CLUBS });

@@ -312,7 +312,8 @@ button.icon svg.ico.i-in, .sm.icon svg.ico.i-in { margin: 0; vertical-align: -0.
 .bracket.zoomed .b-match { font-size: calc(var(--fs-sm) * var(--bz)); }
 .bracket.zoomed .b-col > h5 { font-size: calc(var(--fs-xs) * var(--bz)); }
 .bracket.zoomed .b-match small { font-size: calc(var(--fs-2xs) * var(--bz)); }
-table.stand td.form { display: flex; gap: 2px; justify-content: center; }
+/* Dải phong độ: ô vẫn là ô bảng (display mặc định) – đặt flex lên ô làm ô rơi khỏi lưới bảng, kẻ ngang dừng ở cột trước (lỗi L2) */
+table.stand td.form .fm-strip { display: inline-flex; gap: 2px; vertical-align: middle; }
 .fm { display: inline-grid; place-items: center; width: 1.45em; height: 1.45em; border-radius: 4px; font-style: normal; font-size: var(--fs-2xs); font-weight: var(--fw-bold); color: #fff; }
 .fm.W { background: #2f9a4c; }
 .fm.D { background: #8a8577; }
@@ -398,7 +399,9 @@ table.stand td.form { display: flex; gap: 2px; justify-content: center; }
 .gt-holders li { display: flex; align-items: center; gap: 4px; }
 .gt-kind { font-size: var(--fs-sm); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); }
 .gt-kind.k-mtn { border-color: #c0392b; } .gt-kind.k-itt { border-color: #2c7be5; } .gt-kind.k-hilly { border-color: #b8860b; }
-.gt-kind-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 4px; }
+/* Loại từng chặng: mỗi ô rộng theo lựa chọn dài nhất ("Tính giờ cá nhân" không bị cắt – lỗi L6), xuống hàng khi hết chỗ */
+.gt-kind-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.tour-body .gt-kind-sel select { width: auto; }
 .gt-kind-sel { display: flex; align-items: center; gap: 4px; } .gt-kind-sel small { min-width: 1.6em; text-align: right; }
 .gt-in input { width: 6em; } .gt-in input.g-rank { width: 4.5em; } .gt-in input.g-time { width: 8em; }
 .gt-form { display: flex; flex-direction: column; gap: 6px; }
@@ -442,6 +445,7 @@ tr.golf-cut td { text-align: center; font-size: var(--fs-sm); color: var(--muted
 .ot-evs { list-style: none; padding: 0; margin: 0; }
 .ot-evs li { display: flex; gap: 6px; align-items: center; }
 .ot-regs li, .ot-roster { margin: 4px 0; }
+.ot-roster > button { margin-left: 10px; } /* không dính sát chữ "n cầu thủ" (lỗi L5) */
 .ot-roster ol { margin: 4px 0 6px; padding-left: 1.6em; }
 #ot-print { display: none; }
 @media print {
@@ -462,6 +466,9 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* gi�
 /* Giải đấu Offline – trang riêng (shell.js – #page-otour), kiểu Challonge / MyLeague: nội dung giữa trang, tab trên cùng */
 .otp-body { padding-left: max(12px, calc((100% - 1080px) / 2)); padding-right: max(12px, calc((100% - 1080px) / 2)); }
 .otp .pg-right .ghost.sm { white-space: nowrap; }
+/* Thanh tab dính ở đầu khung cuộn: mọi lần tự cuộn (mở khung nhập tỉ số, đặt con trỏ vào ô, sau khi lưu chặng) chừa đủ chỗ
+   cho thanh tab – không để thanh tab che hàng đầu khung nhập / nút "Huỷ kết quả chặng" (lỗi L1, kiểm thử 12–13/11/2026) */
+.otp-body, #tour-body { scroll-padding-top: 64px; }
 .ot-tabs { position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 0; background: var(--bg); border-bottom: 1px solid var(--line, #8883); }
 .ot-tabs::-webkit-scrollbar { display: none; }
 .ot-tabs button { flex: none; padding: 8px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-weight: var(--fw-medium); cursor: pointer; }
@@ -470,6 +477,7 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* gi�
 .ot-sec { background: var(--panel); border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .ot-sec > h4 { margin: 0; }
 .ot-img-row { flex-wrap: wrap; gap: 6px; align-items: center; }
+.ot-img-row select { flex: 1 1 100%; min-width: 0; } /* tên giai đoạn dài: hộp chọn chiếm cả hàng, không bị hai nút ép hẹp (lỗi L7) */
 .ot-img-row button .ico { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
 @media (min-width: 900px) {
   .otp-body .ot-tab[data-tab="overview"] { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
@@ -482,6 +490,7 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* gi�
 .ot-warn ul { margin: 4px 0 0; padding-left: 18px; color: var(--text); }
 .ot-susp-m { margin: 0 0 6px; }
 .ot-disc { flex-wrap: wrap; gap: 8px; align-items: center; }
+.ot-disc > .field { flex: 1 1 160px; } /* nhãn dài ("Bị treo 1 trận khi đủ … thẻ vàng") không bị bóp thành cột 40px trên điện thoại */
 .ot-path { columns: 2; column-gap: 24px; margin: 4px 0 8px; padding-left: 26px; font-size: var(--fs-sm); }
 .race-heat { border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 6px; }
 .race-heat h6 { margin: 0 0 4px; }

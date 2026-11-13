@@ -168,7 +168,8 @@
   }
   /** Tiêu đề hộp thoại; iconName: biểu tượng đặt trước (tuỳ chọn). */
   function setTitle(key, text, iconName) {
-    $(isFull(V.page) ? 'otp-title' : 'tour-title').innerHTML = (iconName ? icon(iconName) : '') + esc(text != null ? text : T(key));
+    // Chữ đặt trong <span class="ellip">: tiêu đề trang là khung flex – "…" chỉ hiện trên phần tử con, không hiện trên khung flex
+    $(isFull(V.page) ? 'otp-title' : 'tour-title').innerHTML = (iconName ? icon(iconName) : '') + `<span class="ellip">${esc(text != null ? text : T(key))}</span>`;
   }
   function tick() {
     document.querySelectorAll('#tour-body .cd').forEach((el) => {
@@ -317,6 +318,7 @@
       };
     });
     for (const f of K.binders) f(body);
+    if (window.CaroFit) window.CaroFit.fit(body); // ô nhập không cắt chữ gợi ý (fit-input.js)
     if (window.CaroDt) window.CaroDt.bind(body); // ô ngày giờ 29/10/2026 · 09:00 (dt-field.js)
   }
 

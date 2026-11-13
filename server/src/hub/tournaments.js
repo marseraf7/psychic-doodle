@@ -223,7 +223,7 @@ class Tournaments {
    * Trả các trường cấu hình (không gồm người chơi, trạng thái…).
    */
   tourFields(me, o, now = Date.now(), keepClub = null) {
-    const name = cleanPublicName(o.name).slice(0, 60);
+    const name = cleanPublicName(o.name, 60);
     if (name.length < 3) throw E('tour_name_short');
     const format = FORMATS.includes(o.format) ? o.format : 'arena';
     // Đồng hồ tổng (thay cho thời gian mỗi nước) và luật khai cuộc; giải luôn có giới hạn thời gian

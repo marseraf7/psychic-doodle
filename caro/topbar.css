@@ -149,7 +149,7 @@
 
 /* ============================ Cài đặt nhanh ============================ */
 .qs {
-  position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 290px; padding: 6px;
+  position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: min(330px, calc(100vw - 16px)); padding: 6px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
   text-transform: none; letter-spacing: 0; max-height: calc(100vh - 80px); overflow-y: auto;
 }
@@ -164,7 +164,8 @@
 .qs-row > .ico { width: 19px; height: 19px; flex: none; color: var(--muted); }
 .qs-row > .ico:last-child { width: 16px; height: 16px; }
 .qs-t { flex: 1; min-width: 0; }
-.qs-v { color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; max-width: 45%; overflow: hidden; text-overflow: ellipsis; }
+/* Giá trị dài ("Giấy (theo giao diện)"): xuống dòng, canh phải – không cắt (lỗi E3) */
+.qs-v { color: var(--muted); font-size: var(--fs-xs); max-width: 55%; text-align: right; overflow-wrap: anywhere; }
 .qs-head { font-weight: var(--fw-semibold); border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; margin-bottom: 4px; }
 .qs-opt.on { color: var(--accent); font-weight: var(--fw-semibold); }
 .qs-opt.on > .ico { color: var(--accent); }

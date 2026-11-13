@@ -12,6 +12,9 @@
 - **Không dùng `confirm()` / `prompt()` / `alert()` gốc** của trình duyệt trong `caro/` (bị chặn / tự đóng trong Zalo,
   Messenger…). Luôn dùng hộp trong app: `await window.CaroConfirm.ask(…)` (Đồng ý / Huỷ), `CaroConfirm.prompt(…, giá trị)`
   (hỏi chữ, Huỷ = null), `CaroConfirm.info(…)` (thông báo). Unit test `server/test/no-native-dialogs.test.js` báo đỏ nếu lỡ dùng.
+- **Chuẩn giao diện**: viết / sửa HTML, CSS, chuỗi giao diện thì theo skill `.claude/skills/chuan-giao-dien/SKILL.md`
+  (`docs/chuan-giao-dien.md`: chữ cắt có "…", nút không đè chữ, thanh dính không che, đủ biến `{x}`, kiểm ở 390px).
+  Bài thử: `server/test/css-rules.test.js`, `server/test/i18n-vars.test.js`, `caro/tests/e2e/otour-ui.e2e.js` (0 lỗi).
 - Văn bản người dùng tự viết (mô tả giải / CLB, giới thiệu bản thân…): dùng trình soạn có định dạng `CaroRich.editor`
   và hiện bằng `CaroRich.render` (`caro/rich-text.js`) – không tự chèn HTML.
 - Đổi file trong `caro/` thì tăng `CACHE` trong `caro/sw.js`; thêm file thì thêm vào `FILES`.

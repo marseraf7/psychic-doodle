@@ -28,7 +28,7 @@ class TourTpl {
 
   on_tourTplSave(conn, { name, data }) {
     const me = this.requireUser(conn);
-    name = cleanPublicName(name).slice(0, 40);
+    name = cleanPublicName(name, 40);
     if (name.length < 2) throw E('tour_tpl_name');
     let json;
     try { json = JSON.stringify(data); } catch (e) { throw E('bad_message'); }

@@ -19,7 +19,7 @@
   const randSlug = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join('');
   const linkBase = (q = 't') => (window.CARO_SERVER || location.origin).replace(/\/+$/, '').replace(/^https?:\/\//, '') + '/?' + q + '=';
   /** Ô URL riêng kiểu Challonge (tiền tố địa chỉ + mã sửa được + nút đổi mã ngẫu nhiên) – dùng cả ở giải offline (otour.js, q = 'o'). */
-  const slugField = (slug, q = 't') => `<div class="field slug-field"><span>${esc(T('adv_url'))}</span><div class="slug-row"><span class="slug-pre">${esc(linkBase(q))}</span>
+  const slugField = (slug, q = 't') => `<div class="field slug-field"><span>${esc(T('adv_url'))}</span><div class="slug-row"><span class="slug-pre"><span class="ellip">${esc(linkBase(q))}</span></span>
       <input name="slug" maxlength="20" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(slug || '')}" aria-label="${esc(T('adv_url'))}">
       <button type="button" class="ghost sm icon" data-act="slugShuffle" title="${esc(T('adv_url_shuffle'))}" aria-label="${esc(T('adv_url_shuffle'))}">${icon('retry')}</button></div>
       <small class="hint">${esc(T('adv_url_hint'))}</small></div>`;

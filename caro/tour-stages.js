@@ -170,7 +170,7 @@
     const form = rows.some((x) => x.form); // dải phong độ (máy chủ cũ không gửi: ẩn cột)
     const head = `<tr><th>#</th><th class="l">${esc(T('col_player'))}</th><th>${esc(T('col_mp'))}</th><th>${esc(T('col_wdl'))}</th><th>${esc(T('col_diff'))}</th><th>${esc(T('col_pts'))}</th>${cols.map((c) => `<th title="${esc(T('tb_' + c.k))}">${esc(T('tbc_' + c.k))}</th>`).join('')}${form ? `<th title="${esc(T('col_form_t'))}">${esc(T('col_form'))}</th>` : ''}</tr>`;
     const body = rows.map((x) => `<tr class="${x.adv ? 'adv' : ''} ${x.bye ? 'bye' : ''} ${x.uid === uidMe() ? 'me' : ''}"><td>${x.rank}</td><td class="l">${esc(x.name)}</td><td>${x.mp}</td><td>${x.w}-${x.d}-${x.l}</td>
-      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td><td><b>${x.pts}</b></td>${cols.map((c) => `<td>${fmt(val(x, c))}</td>`).join('')}${form ? `<td class="form">${formHtml(x.form)}</td>` : ''}</tr>`).join('');
+      <td>${x.gw - x.gl > 0 ? '+' : ''}${x.gw - x.gl}</td><td><b>${x.pts}</b></td>${cols.map((c) => `<td>${fmt(val(x, c))}</td>`).join('')}${form ? `<td class="form"><span class="fm-strip">${formHtml(x.form)}</span></td>` : ''}</tr>`).join('');
     return `<div class="tscroll"><table class="stand"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
   }
   /** Quy tắc xếp hạng lấy đúng từ cấu hình: "Xếp theo: điểm → đối đầu → hiệu số ván → hạt giống". */
@@ -214,7 +214,7 @@
       // Split: nửa dưới hạt giống bắt đầu ở nhánh thua nên nhánh thắng bắt đầu từ vòng 2
       return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}${v.oneLife ? `<p class="hint">${esc(T('pools_one_life', { list: v.oneLife.join(', ') }))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r, 'wb_final')), (r) => slot(t, v.index, r), key + ':w')}
         ${v.lrounds && v.lrounds.length ? `<h5 class="br-h">${esc(T('lb'))}</h5>${bracketCols(v.lrounds, (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })), null, key + ':l')}` : ''}
-        ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
+        ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><p class="hint">${esc(T('gf_from'))}${(v.gf || []).length > 1 ? ' ' + esc(T('gf_reset_if')) : ''}</p><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;
     }
     if (v.type === 'kings') { // giải offline: vòng tranh hạt giống + cơ hội cuối (máy chủ: stages-kings.js)
@@ -305,6 +305,22 @@
     return `<h5>${esc(T('ot_path_preview'))}</h5><ol class="ot-path">${list.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>`;
   }
 
+  /**
+   * Cấu hình giai đoạn i "theo thực tế" để HIỂN THỊ (tiêu đề, xem trước bằng lời): Thụy Sĩ ít người đấu ít vòng hơn cấu hình
+   * (máy chủ – swissMaxRounds), số đội đi tiếp không vượt số đội của giai đoạn (lỗi L3 / L4 – kiểm thử 12/11/2026). Không đổi
+   * cấu hình lưu trên máy chủ.
+   */
+  const swissMax = (n) => (n <= 4 ? Math.max(1, n % 2 ? n : n - 1) : Math.ceil(n / 2));
+  function effStage(t, i) {
+    const c = (t.stages || [])[i] || {}, v = (t.stageViews || [])[i];
+    const n = v ? (v.table ? v.table.length : v.groups ? v.groups.reduce((a, g) => a + (g.table || []).length, 0) : 0) : i === 0 ? (t.players || []).length : 0;
+    const x = { ...c };
+    if (c.type === 'swiss' && !c.record && c.rounds) x.rounds = v && v.totalRounds ? Math.min(c.rounds, v.totalRounds) : n >= 2 ? Math.min(c.rounds, swissMax(n)) : c.rounds;
+    if (c.advance && n >= 2 && !c.groups && !c.groupSize && c.advance > n) x.advance = n;
+    return x;
+  }
+  const effSpec = (t) => ({ ...t, stages: (t.stages || []).map((c, i) => effStage(t, i)) });
+
   /** Tất cả giai đoạn của giải (giai đoạn chưa tới thì chỉ ghi cấu hình; giai đoạn đầu trước giờ đấu: nhánh xem trước). */
   function stagesHtml(t) {
     cur = t;
@@ -312,8 +328,8 @@
     const views = t.stageViews || [];
     const multi = cfgs.length > 1;
     return cfgs.map((c, i) => {
-      const v = views[i];
-      const info = [stageName(c), c.type === 'race' ? '' : 'Bo' + c.bestOf, advText(c)].filter(Boolean).join(' · ');
+      const v = views[i], e = effStage(t, i); // số vòng / số đội đi tiếp theo thực tế
+      const info = [stageName(e), c.type === 'race' ? '' : 'Bo' + c.bestOf, advText(e)].filter(Boolean).join(' · ');
       const pv = !v && i === 0 && t.preview;
       const body = v ? (v.draft && K.mtgHtml ? K.mtgHtml(t, v) : '') + stageBody(t, v) : pv ? fold(t.id + ':pv0', esc(T('pv_title')), () => previewHtml(t, t.preview), true)
         : `<p class="hint">${esc(T(i === 0 ? 'stage_draw_at_start' : 'stage_wait'))}</p>${pathPreview(t, i)}`;
@@ -324,5 +340,5 @@
     }).join('');
   }
 
-  Object.assign(K, { stageName, advText, groupLabel, stagesHtml, fold, roundName, roundsOfGroup, preName, matchBox, bracketCols, kindOf, setCur: (t) => { cur = t; } });
+  Object.assign(K, { stageName, advText, effStage, effSpec, groupLabel, stagesHtml, fold, roundName, roundsOfGroup, preName, matchBox, bracketCols, kindOf, setCur: (t) => { cur = t; } });
 })();

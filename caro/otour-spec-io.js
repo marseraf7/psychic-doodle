@@ -138,13 +138,16 @@
   /** Mô tả một giai đoạn (một câu). T(key, args) – hàm dịch. */
   const rng = (a, b) => (a === b ? String(a) : a + '–' + b);
   /** Dải hạng vào thẳng giai đoạn sau nữa + dải đi tiếp giai đoạn kế (routes). i: chỉ số giai đoạn. */
-  function routeText(c, T, i) {
+  function routeText(c, T, i, size) {
     const g = c.type === 'gsl' || (c.type === 'roundrobin' && !c.league && ((c.groups || 1) > 1 || c.groupSize)) || (c.type === 'race' && c.groups) ? '_g' : '';
     const x = [];
     let a = 1;
     for (const r of c.routes) if (!r.after) { x.push(T('ds_route' + g, { r: rng(a, a + r.n - 1), k: r.to + 1 })); a += r.n; }
     if (c.advance) { x.push(T('ds_route_next' + g, { r: rng(a, a + c.advance - 1), k: i + 2 })); a += c.advance; }
     for (const r of c.routes) if (r.after) { x.push(T('ds_route' + g, { r: rng(a, a + r.n - 1), k: r.to + 1 })); a += r.n; } // dải sau nhóm đi tiếp
+    // Các hạng sau mọi dải: bị loại – ghi rõ để người tổ chức khỏi thắc mắc (kiểm thử 14/11: PGC 2023 GĐ2 hạng 9–16)
+    // size: số người mỗi bảng của giai đoạn (biết được khi biết số đội – stageSizes); không biết thì không ghi
+    if (c.eliminates !== false && size && a <= size) x.push(T('ds_route_out' + g, { a }));
     return x;
   }
   /** Tổng số trận của giai đoạn đua: vòng tuần / hệ Circuit tính cả các tuần, các ngày (như máy chủ). */
@@ -153,7 +156,7 @@
     if (W) return W.weeks * (W.seats + W.final) + (W.weeks - 1) * W.bottom;
     return C ? e * C.n * C.days : e;
   }
-  function stageText(c, T, last, result = 'score', i = 0) {
+  function stageText(c, T, last, result = 'score', i = 0, size = 0) {
     const x = [];
     if (c.type === 'single' || c.type === 'double') {
       x.push(T(c.type === 'single' ? 'ds_single' : 'ds_double', { bo: c.bestOf || 1 }));
@@ -269,7 +272,7 @@
     if (!last) {
       if (c.type === 'swiss' && c.record) x.push(T('ds_adv_rec', { n: c.record.win }));
       else if (c.type === 'swiss' && c.advanceMode === 'record') { /* cắt theo số thua: đã ghi ở trên */ }
-      else if (Array.isArray(c.routes) && c.routes.length) x.push(...routeText(c, T, i));
+      else if (Array.isArray(c.routes) && c.routes.length) x.push(...routeText(c, T, i, size));
       else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
       if (c.skip) x.push(T('ds_skip', { n: c.skip }));
       if (c.exit) x.push(T('ds_exit', { x: c.exit }));
@@ -302,6 +305,27 @@
     return T(se.divs > 1 ? 'ds_season_div' : 'ds_season', { c: se.confs, d: se.divs }) + ': ' + parts.join(', ');
   }
 
+  /**
+   * Số người mỗi bảng của từng giai đoạn, suy từ số đội (spec.n / players) qua các dải đi tiếp (advance) và vào thẳng (routes):
+   * chỉ dùng để ghi "từ hạng … bị loại" khi chắc chắn còn người bị loại. Không suy được (thể thức khác) → 0.
+   */
+  function stageSizes(spec) {
+    const st = spec.stages || [];
+    const n0 = spec.n || (Array.isArray(spec.players) ? spec.players.filter((p) => !p.withdrawn).length : 0);
+    const into = st.map(() => 0);
+    into[0] = n0;
+    let known = !!n0;
+    return st.map((c, i) => {
+      const G = (c.type === 'race' && c.groups) || 1, total = known ? into[i] : 0;
+      if (!known || !(c.type === 'race' && Array.isArray(c.routes))) known = false; // chỉ suy qua giai đoạn race có dải
+      else {
+        if (i + 1 < st.length) into[i + 1] += (c.advance || 0) * G;
+        for (const r of c.routes) if (r.to < st.length) into[r.to] += r.n * G;
+      }
+      return total ? Math.floor(total / G) : 0;
+    });
+  }
+
   function describeSpec(spec, T) {
     const sp = SP.SPORTS[spec.sport] || SP.SPORTS.other;
     const out = [T('ds_sport', { icon: sp.icon, sport: T('sport_' + (SP.SPORTS[spec.sport] ? spec.sport : 'other')), result: T('otres_' + (spec.result || sp.result)) })];
@@ -310,7 +334,8 @@
     else if (r && r.race) out.push(T('ds_set_race', { to: r.to }) + (r.lastBy ? ' ' + T('ds_set_last_by', { by: r.lastBy, cap: (r.lastCap || 1) - 1 }) : '')); // darts
     else if (r) out.push(T('ds_set', { to: r.to, by: r.by }) + (r.cap ? ' ' + T('ds_set_cap', { cap: r.cap }) : '') + (r.last ? ' ' + T('ds_set_last', { last: r.last }) : ''));
     const st = spec.stages || [];
-    st.forEach((c, i) => out.push(T('ds_stage', { n: i + 1, text: stageText(c, T, i === st.length - 1, spec.result || sp.result, i) })));
+    const sizes = stageSizes(spec);
+    st.forEach((c, i) => out.push(T('ds_stage', { n: i + 1, text: stageText(c, T, i === st.length - 1, spec.result || sp.result, i, sizes[i]) })));
     // Esports: cấm chọn / Fearless (otour-draft.js)
     const e = spec.esports;
     if (e) out.push(T('ds_esp', { draft: T('esp_dr_' + (e.draft || 'lol')), fl: T('esp_fl_' + (e.fearless || 'hard')) }));
