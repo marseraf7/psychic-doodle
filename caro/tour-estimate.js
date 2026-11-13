@@ -164,7 +164,7 @@
     // Hệ Race (giải offline): mỗi chặng cả đoàn thi một lần
     // Bảng đấu loại kép 4 đội kiểu GSL (giải offline): mỗi bảng 5 trận trong 3 lượt, nhất và nhì bảng đi tiếp
     // (bảng 8 đội: 10 trận, 4 đội đi tiếp)
-    if (c.type === 'gsl') { const K = Number(c.size) === 8 ? 8 : 4, G = Math.floor(n / K), per = K === 8 ? 10 : 5; return { matches: per * G, maxMatches: per * G, waves: 3, advance: last ? null : (K / 2) * G, groups: G, groupSize: K }; }
+    if (c.type === 'gsl') { const K = Number(c.size) === 8 ? 8 : 4, G = Math.floor(n / K), per = K === 8 ? 10 : 5; return { matches: per * G, maxMatches: per * G, waves: 3, advance: last ? null : (c.keepAll || c.eliminates === false ? K : K / 2) * G, groups: G, groupSize: K }; }
     // Vòng tranh hạt giống + cơ hội cuối (giải offline – stages-kings.js): mỗi nửa cao gặp thấp, 3/4 số đội đi tiếp
     // Nhánh đồ thị (Page, AFL, thang leo bậc, loại kép lai, Compass – caro/otour-graph.js): số trận theo khuôn
     if (c.type === 'graph') {
@@ -172,6 +172,19 @@
       const x = GR ? GR.count(c.shape, n, c) : null;
       const m = x ? x.matches : 0;
       return { matches: m, maxMatches: m, waves: x ? x.waves : 0, advance: last ? null : Math.min(n, Math.max(1, Number(c.advance) || 1)), ...(x ? {} : { bad: true }) };
+    }
+    // Pool loại kép xếp tầng (kiểu EVO – server/src/hub/stages-pools.js): mỗi pool đấu tới khi còn `out` người mỗi phía
+    if (c.type === 'pools') {
+      const pool = [8, 16, 32].includes(Number(c.pool)) ? Number(c.pool) : 16, out = Math.max(1, Number(c.out) || 2), P = Math.max(1, Math.ceil(n / pool));
+      let m = 0, w = 0;
+      for (let g = 0; g < P; g++) {
+        const s = Math.ceil((n - g) / P), size = pow2(Math.max(4, s)), rw = Math.log2(size / out) - 1;
+        for (let r = 0; r <= rw; r++) m += size >> (r + 1);
+        for (let j = 0; j <= 2 * rw - 1; j++) m += (size / 4) / 2 ** Math.floor(j / 2);
+        m -= size - s;
+        w = Math.max(w, 2 * rw + 1);
+      }
+      return { matches: Math.max(0, m), maxMatches: Math.max(0, m), waves: w, advance: last ? null : Math.min(n, 2 * out * P) };
     }
     if (c.type === 'kings') { const m = Math.floor(n / 4) * 2; return { matches: m, maxMatches: m, waves: 1, advance: last ? null : Math.floor(n / 4) * 3 }; }
     // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng. Hệ Circuit: `events` trận × n vòng × days ngày

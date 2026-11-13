@@ -23,6 +23,8 @@ const SIZES = [4, 8];
 const MAX_GROUPS = 64;
 const groupName = (g) => (g < 26 ? String.fromCharCode(65 + g) : String(g + 1));
 const sizeOf = (cfg) => (cfg.size === 8 ? 8 : 4);
+/** Số hạng đi tiếp mỗi bảng: nửa bảng; không loại ai (keepAll – kiểu BLAST Groups: mọi hạng đều có đích) thì cả bảng. */
+const keepOf = (cfg) => (cfg.keepAll ? sizeOf(cfg) : sizeOf(cfg) / 2);
 
 /** Chuẩn hoá cấu hình (stages.js gọi khi giải offline). boDecider: Bo riêng cho trận quyết định (0 = như các trận khác). */
 function normalizeGsl(c, last, oddBo) {
@@ -30,7 +32,9 @@ function normalizeGsl(c, last, oddBo) {
   if (Number(c.size) === 8) out.size = 8;
   const bd = oddBo(c.boDecider);
   if (bd && bd !== out.bestOf) out.boDecider = bd;
-  if (!last) out.advance = sizeOf(out) / 2; // nửa bảng đi tiếp
+  // Không loại ai (kiểu BLAST Premier Groups): mọi hạng trong bảng đều có đích – dải hạng (routes) và phần đi tiếp
+  if (c.eliminates === false && !last) out.keepAll = true;
+  if (!last) out.advance = keepOf(out); // nửa bảng đi tiếp (không loại ai: cả bảng)
   return out;
 }
 
@@ -94,7 +98,7 @@ function places(st, grp, seedOf = () => 0) {
  * gặp sớm. tiers: các tầng (dùng cho cfg.skip – nhất bảng vào thẳng giai đoạn 3).
  */
 function advancers(st, seedOf) {
-  const K = sizeOf(st.cfg) / 2, groupOf = {}, tiers = Array.from({ length: K }, () => []);
+  const K = keepOf(st.cfg), groupOf = {}, tiers = Array.from({ length: K }, () => []);
   st.groups.forEach((grp, g) => places(st, grp, seedOf).slice(0, K).forEach((u, k) => { if (u) { tiers[k].push(u); groupOf[u] = g; } }));
   const by = (x, y) => seedOf(x) - seedOf(y);
   tiers.forEach((t) => t.sort(by));
@@ -103,7 +107,7 @@ function advancers(st, seedOf) {
 
 /** Bảng của từng bảng đấu cho người xem: thắng – thua, hạng (khi đã rõ), suất đi tiếp, vào thẳng giai đoạn 3 (skip). */
 function tables(st, side, seedOf, adv) {
-  const K = sizeOf(st.cfg) / 2, skip = st.cfg.skip || 0;
+  const K = keepOf(st.cfg), skip = st.cfg.skip || 0;
   // Chuyển đội theo dải thứ hạng (routes): tầng hạng r (1, 2…) → giai đoạn `to`; skip cũ = dải đầu sang giai đoạn sau nữa
   const bands = [];
   for (const r of Array.isArray(st.cfg.routes) && st.cfg.routes.length ? st.cfg.routes : skip ? [{ n: skip, to: st.index + 2 }] : []) for (let k = 0; k < r.n; k++) bands.push(r.to);
@@ -123,4 +127,4 @@ function tables(st, side, seedOf, adv) {
   });
 }
 
-module.exports = { SIZES, sizeOf, normalizeGsl, gslError, buildGsl, places, advancers, tables };
+module.exports = { SIZES, sizeOf, keepOf, normalizeGsl, gslError, buildGsl, places, advancers, tables };

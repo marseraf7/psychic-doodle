@@ -8,6 +8,7 @@
 const { E } = require('../msg.js');
 const Race = require('./stages-race.js');
 const GOLF = require('./stages-golf.js');
+const LOB = require('./stages-race-lobby.js'); // draft POI (ALGS)
 // Nhập lần lượt (người bỏ cuộc / bị cắt rời các chặng, vòng sau): xe đạp nhiều chặng, golf
 const SEQ = ['gt', 'golf'];
 
@@ -49,6 +50,18 @@ class OTourRace {
   }
 
   /** Huỷ kết quả một chặng; chặng chia lượt: gửi kèm heat để huỷ riêng lượt đó. */
+  /** Draft POI (kiểu ALGS – cfg.poi): ban tổ chức gán điểm hạ cánh của một đội trên một bản đồ; mỗi POI chỉ một đội. */
+  on_otPoi(conn, { id, map, team, poi }) {
+    const { t } = this.otManaged(conn, id);
+    if (t.status !== 'running') throw E('tour_not_running');
+    const st = t.st[t.stage];
+    if (!st || st.type !== 'race' || !st.cfg.poi) throw E('ot_poi_bad');
+    const bad = LOB.setPoi(st, Math.floor(Number(map)), String(team || ''), poi == null ? null : String(poi));
+    if (bad) throw E(bad);
+    st.v = (st.v || 0) + 1;
+    this.otSave(t);
+  }
+
   on_otRaceUndo(conn, { id, event, heat }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, i } = this.otRaceEvent(t, event);

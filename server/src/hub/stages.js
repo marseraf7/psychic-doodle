@@ -158,6 +158,9 @@ function normalizeStages(list, opts = {}) {
     const d = Math.floor(Number(arr[i] && arr[i].direct));
     if (i > 0 && opts.offline && d > 0 && !c.playoff) c.direct = Math.min(d, 256); // playoff kiểu Mỹ tự chọn đội từ mùa giải
     if (i > 0 && opts.offline && arr[i] && arr[i].directLast === true) c.directLast = true; // đội vào thẳng xếp sau đội đi tiếp
+    // Đích ra ngoài giải của đội không đi tiếp (kiểu BLAST: "Showdown khu vực") – trạng thái "Ra: …" thay cho "bị loại"
+    const ex = opts.offline && i < out.length - 1 && arr[i] && typeof arr[i].exit === 'string' ? arr[i].exit.replace(/[<>]/g, '').trim().slice(0, 40) : '';
+    if (ex) c.exit = ex;
     // Vòng tròn sau một giai đoạn: bốc thăm đội đi tiếp gặp đội vào thẳng (drawFresh – MSI 2018 Play-In vòng 2) / ghép theo thứ
     // tự bảng (slotFresh – MSI 2019: nhất bảng A gặp đội vào thẳng thứ nhất)
     if (i > 0 && opts.offline && c.type === 'roundrobin' && arr[i]) { if (arr[i].drawFresh === true) c.drawFresh = true; else if (arr[i].slotFresh === true) c.slotFresh = true; }
@@ -381,7 +384,8 @@ function eliminated(st, uid) {
   if (!isElim(st.type)) return false;
   const mine = Object.values(st.matches).filter((m) => m.a === uid || m.b === uid);
   if (mine.some((m) => !m.done)) return false;
-  return mine.some((m) => m.done && m.loser === uid && !m.loserTo) || (st.type === 'double' && mine.some((m) => m.lb && m.loser === uid));
+  return mine.some((m) => m.done && m.loser === uid && !m.loserTo) || (st.type === 'double' && mine.some((m) => m.lb && m.loser === uid))
+    || !!(st.oneLife && st.oneLife.includes(uid) && mine.some((m) => m.done && !m.lb && m.loser === uid)); // mang 1 trận thua từ pool (EVO)
 }
 
 module.exports = {

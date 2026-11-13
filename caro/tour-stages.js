@@ -212,7 +212,7 @@
     if (v.type === 'double') {
       const gf = (v.gf || []).filter((m) => !m.skipped);
       // Split: nửa dưới hạt giống bắt đầu ở nhánh thua nên nhánh thắng bắt đầu từ vòng 2
-      return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r, 'wb_final')), (r) => slot(t, v.index, r), key + ':w')}
+      return `${v.split ? `<p class="hint">${esc(T('split_note'))}</p>` : ''}${v.oneLife ? `<p class="hint">${esc(T('pools_one_life', { list: v.oneLife.join(', ') }))}</p>` : ''}<h5 class="br-h">${esc(T('wb'))}</h5>${bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r, 'wb_final')), (r) => slot(t, v.index, r), key + ':w')}
         ${v.lrounds && v.lrounds.length ? `<h5 class="br-h">${esc(T('lb'))}</h5>${bracketCols(v.lrounds, (r) => (r === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: r + 1 })), null, key + ':l')}` : ''}
         ${gf.length ? `<h5 class="br-h">${esc(T('gf'))}</h5><div class="bracket">${gf.map((m, i) => `<div class="b-col">${gf.length > 1 ? `<h5>${esc(i ? T('gf_reset') : T('r_round', { n: 1 }))}</h5>` : ''}${matchBox(m)}</div>`).join('')}</div>`
           : `<p class="hint">${esc(T('no_gf_note'))}</p>`}`;

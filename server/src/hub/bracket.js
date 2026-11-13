@@ -374,6 +374,7 @@ class Bracket {
       if (st.gf) v.gf = st.gf.map(M);
       if (st.pre) v.pre = st.pre.map(M); // play-in (playoff kiểu Mỹ – stages-playoff.js)
       if (st.seedLabel) v.seedLabel = st.seedLabel;
+      if (st.oneLife && st.oneLife.length) v.oneLife = st.oneLife.map((u) => this.tourSide(t, u).name); // mang 1 trận thua từ pool (EVO)
       // Vòng vớt kiểu Olympic (stages-repechage.js): hai nhánh vớt + bảng hạng (hai huy chương đồng)
       if (st.rep) { v.rep = ST.REP.view(st, M).map((s) => ({ ...s, fin: this.tourSide(t, s.fin), direct: s.direct ? this.tourSide(t, s.direct) : null })); v.table = ST.REP.places(st).map((x) => ({ ...this.tourSide(t, x.uid), place: x.place })); }
       // Hạt giống 1 chọn đối thủ bán kết (cfg.pick – kiểu MSI): mở khi chưa chọn và chưa có trận nào xong

@@ -11,7 +11,7 @@
   const K = window.CaroTourKit;
   if (!K) return;
   const { T, esc } = K;
-  const SHAPES = ['page', 'afl8', 'afl10', 'gauntlet', 'hybrid', 'compass8'];
+  const SHAPES = ['page', 'afl8', 'afl10', 'gauntlet', 'hybrid', 'compass8', 'cross9'];
   const BOS = [1, 3, 5, 7];
   const MAX_STEPS = 7;
 
@@ -35,7 +35,7 @@
     const colName = (r) => ((v.colNames || [])[r] ? T(v.colNames[r]) : T('r_round', { n: r + 1 }));
     const box = (m) => `<div class="gr-m"><small class="muted">${esc(T(m.tag))}${m.bo ? ` · Bo${m.bo}` : ''}${m.start ? ` · ${esc(T('gr_start', { a: m.start[0], b: m.start[1] }))}` : ''}${m.tie ? ` · ${esc(T('gr_tie'))}` : ''}</small>${K.matchBox(m)}<small class="hint">${esc(toText(m.to))}</small></div>`;
     const grid = `<div class="b-wrap"><div class="bracket gr-bracket">${cols.map((col, r) => `<div class="b-col"><h5>${esc(colName(r))}</h5>${col.map(box).join('')}</div>`).join('')}</div></div>`;
-    const rows = (v.table || []).map((x) => `<tr class="${x.uid && K.me && K.me() && x.uid === K.me().uid ? 'me' : ''}"><td>${x.place}</td><td class="l">${esc(x.name)}</td></tr>`).join('');
+    const rows = (v.table || []).map((x) => `<tr class="${x.uid && K.me && K.me() && x.uid === K.me().uid ? 'me' : ''}"><td>${x.place}</td><td class="l">${esc(x.name)}${x.exit ? ` <span class="pill">${esc(T('gr_exit', { x: x.exit }))}</span>` : ''}</td></tr>`).join('');
     const tab = rows ? `<h5>${esc(T('gr_places'))}</h5><div class="tscroll"><table class="stand gr-tab"><thead><tr><th>#</th><th class="l">${esc(T('col_player'))}</th></tr></thead><tbody>${rows}</tbody></table></div>` : '';
     return `<p class="hint">${esc(T('gr_note_' + v.shape))}</p>${grid}${tab}`;
   }
