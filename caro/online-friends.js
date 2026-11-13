@@ -80,9 +80,11 @@
         ${f.outgoing.length ? `<p class="hint">${esc(T('pending_friends', { names: f.outgoing.map((p) => p.name).join(', ') }))}</p>` : ''}`;
       attachSearch();
       // M-F6: khôi phục bản nháp ô thêm bạn đã lưu ở đầu hàm (nếu có)
-      if (draft && draft.v) {
+      // Chữ và focus khôi phục riêng: ô còn trống mà đang focus (vừa bấm vào, chưa gõ) cũng phải giữ con trỏ – nếu không,
+      // chữ gõ ngay sau lần vẽ lại rơi vào ô cũ đã bị gỡ (lỗi chập chờn CI 13/11/2026)
+      if (draft && (draft.v || draft.f)) {
         const inp = $('add-friend').u;
-        inp.value = draft.v;
+        if (draft.v) inp.value = draft.v;
         if (draft.f) { inp.focus(); try { inp.setSelectionRange(draft.s, draft.e); } catch (err) { /* ô không hỗ trợ chọn vùng */ } }
       }
       $('add-friend').onsubmit = (e) => {

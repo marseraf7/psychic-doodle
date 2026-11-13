@@ -141,6 +141,22 @@ const { setup, gotoRetry } = require('./helpers');
   ok(await until(a, () => !document.querySelector('#add-friend input[name="u"]').dataset.mark), 'panel bạn bè đã vẽ lại theo cập nhật mới');
   ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ ô thêm bạn còn nguyên khi vẽ lại lúc đang focus');
   ok(await a.evaluate(() => document.activeElement === document.querySelector('#add-friend input[name="u"]')), 'M-F6: ô thêm bạn đang focus vẫn giữ focus sau khi vẽ lại');
+  // Vừa bấm vào ô thêm bạn CÒN TRỐNG thì có cập nhật bạn bè (panel vẽ lại): con trỏ vẫn ở ô, gõ tiếp không rơi chữ
+  // (lỗi chập chờn CI 13/11/2026: trước đây chỉ khôi phục focus khi ô đã có chữ)
+  const d = await user('vi', 'fc_moi2', 1280);
+  await a.fill('#add-friend input[name="u"]', '');
+  await a.focus('#add-friend input[name="u"]');
+  await a.evaluate(() => { document.querySelector('#add-friend input[name="u"]').dataset.mark = 'cu'; });
+  await a.evaluate(() => window.CaroOnline.send({ t: 'friendAdd', username: 'fc_moi2' }));
+  ok(await until(a, () => !document.querySelector('#add-friend input[name="u"]').dataset.mark), 'panel bạn bè vẽ lại lúc ô trống đang focus');
+  ok(await a.evaluate(() => document.activeElement === document.querySelector('#add-friend input[name="u"]')), 'M-F6: ô thêm bạn trống đang focus vẫn giữ focus sau khi vẽ lại');
+  await a.keyboard.type('ab');
+  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'ab'), 'M-F6: gõ tiếp sau khi vẽ lại không mất chữ');
+  // Dọn: xoá chữ, đóng hộp gợi ý kỳ thủ (không để nó che các bước sau)
+  await a.fill('#add-friend input[name="u"]', '');
+  await a.keyboard.press('Escape');
+  await a.evaluate(() => document.activeElement && document.activeElement.blur());
+  await d.context().close();
 
   // ---------------------------------------------------------------- 4. Điện thoại: hộp chat toàn màn hình
   // Dưới 900px thanh tab nằm ở đáy (shell.css): nút bong bóng phải nằm trên thanh tab, kể cả máy tính bảng dọc 700–899px
