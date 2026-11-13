@@ -27,9 +27,12 @@ function stageItems(st, s) {
     if (!m || m.bye || m.skipped || m.a === ST.BYE || m.b === ST.BYE) return;
     out.push({ m, id, a: m.a, b: m.b, stage: s, lvl, seq });
   };
-  if (st.type === 'roundrobin' || st.type === 'gsl' || st.type === 'kings') { // bảng GSL: trận sau chờ kết quả lượt trước
+  const kind = ST.Kinds.get(st.type); // loại giai đoạn trong registry (stages-kinds.js)
+  if (st.type === 'roundrobin' || (kind && kind.sched === 'groups')) { // bảng GSL: trận sau chờ kết quả lượt trước
     const R = Math.max(0, ...st.groups.map((g) => g.rounds.length));
-    for (let r = 0; r < R; r++) for (const g of st.groups) for (const id of g.rounds[r] || []) push(id, r, st.type === 'gsl');
+    for (let r = 0; r < R; r++) for (const g of st.groups) for (const id of g.rounds[r] || []) push(id, r, !!(kind && kind.seqGroups));
+  } else if (kind && kind.sched === 'rounds') { // nhánh đồ thị: mỗi cột một mức, trận sau chờ trận trước
+    (st.rounds || []).forEach((ids, r) => ids.forEach((id) => push(id, r, true)));
   } else if (st.type === 'swiss') {
     (st.rounds || []).forEach((ids, r) => ids.forEach((id) => push(id, r, true)));
   } else if (st.type === 'single' || st.type === 'double') {
@@ -43,6 +46,8 @@ function stageItems(st, s) {
     (st.gf || []).forEach((id, i) => push(id, last + 1 + i, true)); // trận đấu thêm (reset) sau chung kết tổng
     if (st.third) push(st.third, main((st.rounds || []).length - 1), true);
     for (const p of st.places || []) p.rounds.forEach((ids) => ids.forEach((id) => push(id, last, true)));
+    // Vòng vớt kiểu Olympic: sau bán kết, trước chung kết theo thứ tự thang
+    for (const s of (st.rep && st.rep.sides) || []) [...s.ids, ...(s.bronze ? [s.bronze] : [])].forEach((id, j) => push(id, last + j, true));
   }
   return out.sort((x, y) => x.lvl - y.lvl); // xếp theo mức (sort ổn định: giữ thứ tự trong cùng mức)
 }

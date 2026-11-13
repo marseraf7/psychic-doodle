@@ -29,7 +29,9 @@ const League = require('./stages-league.js');
 const Race = require('./stages-race.js');
 const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại kép 4 đội kiểu GSL
 const Kings = require('./stages-kings.js'); // giải offline: vòng tranh hạt giống + cơ hội cuối
+const Kinds = require('./stages-kinds.js'); // giải offline: registry các loại giai đoạn tự chứa (GSL, kings, nhánh đồ thị…)
 const TM = require('./stages-tiematch.js'); // giải offline: trận phụ phân hạng ở vòng tròn
+const REP = require('./stages-repechage.js'); // giải offline: vòng vớt kiểu Olympic trên loại trực tiếp cuối
 
 const MAX_BO = 25;
 const MAX_STAGES_OFFLINE = 6; // giải offline: tới 6 giai đoạn (PGC 2022: bảng → nhánh thua 1 → nhánh thắng → nhánh thua 2 → Grand Survival → chung kết)
@@ -48,9 +50,9 @@ function normalizeStage(c, last, opts = {}) {
   c = c || {};
   let type = TYPES.includes(c.type) ? c.type : 'single';
   if (opts.offline && c.type === 'race') return Race.normalizeRace(c, last); // giải offline: hệ Race (stages-race.js)
-  if (opts.offline && c.type === 'gsl') return Gsl.normalizeGsl(c, last, oddBo); // giải offline: bảng GSL (stages-gsl.js)
-  // Vòng tranh hạt giống + cơ hội cuối (stages-kings.js): chỉ làm giai đoạn giữa – ở cuối thì thành loại trực tiếp
-  if (opts.offline && c.type === 'kings') return last ? normalizeStage({ ...c, type: 'single' }, last, opts) : Kings.normalizeKings(c, oddBo);
+  // Giải offline: loại giai đoạn trong registry (stages-kinds.js) – midOnly (vòng tranh hạt giống): ở cuối thì thành loại trực tiếp
+  const kind = opts.offline ? Kinds.get(c.type) : null;
+  if (kind) return kind.midOnly && last ? normalizeStage({ ...c, type: 'single' }, last, opts) : kind.normalize(c, last, { oddBo });
   // Giai đoạn giữa: vòng tròn / Thụy Sĩ; giải offline cho thêm loại trực tiếp (vòng loại đội thách đấu kiểu America's Cup)
   if (!last && !GROUP_TYPES.includes(type) && !(opts.offline && isElim(type))) type = 'roundrobin';
   const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
@@ -128,6 +130,7 @@ function normalizeStage(c, last, opts = {}) {
   if (res.type === 'single' && c.draw === 'record' && !res.playoff) res.draw = 'record';
   // Hạt giống 1 chọn đối thủ bán kết trong hạt giống 3 / 4 (kiểu MSI 2018–2022; nhánh 4 đội – otour-run.js on_otPick)
   if (opts.offline && res.type === 'single' && c.pick === true && !res.playoff && !res.draw) res.pick = true;
+  if (res.type === 'single' && last && !res.playoff && !res.pick && !res.legs) REP.normalize(c, res); // vòng vớt kiểu Olympic (cfg.rep)
   return res;
 }
 
@@ -150,11 +153,11 @@ function normalizeStages(list, opts = {}) {
     // (vòng vớt kiểu Survival Stage / Last Chance của các giải sinh tồn). Vòng tròn nhiều bảng: tính mỗi bảng.
     const sk = Math.floor(Number(arr[i] && arr[i].skip));
     // Bảng GSL: chỉ đội nhất bảng (bảng 8: tối đa 3 đội đầu) – phải còn đội đá giai đoạn 2
-    if (opts.offline && sk > 0 && i === 0 && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings' && !out[i + 2].playoff) c.skip = c.type === 'gsl' ? Math.min(sk, c.advance - 1) : Math.min(sk, 256);
+    if (opts.offline && sk > 0 && i === 0 && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings' && c.type !== 'graph' && !out[i + 2].playoff) c.skip = c.type === 'gsl' ? Math.min(sk, c.advance - 1) : Math.min(sk, 256);
     // Chuyển đội theo dải thứ hạng (routes – nhánh song song kiểu PGC 2022 / 2023): các dải hạng đầu lần lượt sang giai đoạn
     // `to` (≥ i + 2, vd. nhất – tám mỗi bảng vào thẳng nhánh thắng), phần `advance` sau đó sang giai đoạn i + 1 (có thể 0)
     const rt = arr[i] && Array.isArray(arr[i].routes) ? arr[i].routes : null;
-    if (opts.offline && rt && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings') {
+    if (opts.offline && rt && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings' && c.type !== 'graph') {
       // after: dải nằm sau nhóm đi tiếp (vd. vòng bảng PGS 2023: 16 đội đầu đi tiếp nhánh thắng, 8 đội cuối vào thẳng nhánh thua)
       const r = rt.slice(0, MAX_ROUTES).map((x) => ({ n: Math.min(256, Math.floor(Number(x && x.n)) || 0), to: Math.floor(Number(x && x.to)), ...(x && x.after === true ? { after: true } : {}) }))
         .filter((x) => x.n > 0 && x.to >= i + 2 && x.to < out.length && !out[x.to].playoff);
@@ -194,8 +197,7 @@ function buildStage(cfg, index, seeds, opts = {}) {
   else if (cfg.type === 'double') buildDouble(st, seeds, opts.groupOf, opts.placeBy, opts.slots);
   else if (cfg.type === 'roundrobin') buildRoundRobin(st, seeds, opts.groups, opts); // opts.countryOf: league phase
   else if (cfg.type === 'race') Race.buildRace(st); // giải offline: các chặng đua
-  else if (cfg.type === 'gsl') Gsl.buildGsl(st, seeds); // giải offline: bảng đấu loại kép 4 đội
-  else if (cfg.type === 'kings') Kings.buildKings(st, seeds); // giải offline: vòng tranh hạt giống + cơ hội cuối
+  else if (Kinds.get(cfg.type)) Kinds.get(cfg.type).build(st, seeds, opts); // giải offline: GSL, kings, nhánh đồ thị… (stages-kinds.js)
   else {
     st.rounds = [];
     const want = cfg.rounds || swissAutoRounds(seeds.length);
@@ -209,7 +211,7 @@ function buildStage(cfg, index, seeds, opts = {}) {
  * Các trận nối sẵn tới trận sau (người thắng / thua tự chuyển): loại trực tiếp, nhánh thắng – thua, bảng GSL. Không có hoà.
  * Vòng tranh hạt giống (kings) không nối tới trận nào nhưng cũng không có hoà, huỷ kết quả như loại trực tiếp.
  */
-const linked = (type) => isElim(type) || type === 'gsl' || type === 'kings';
+const linked = (type) => isElim(type) || !!(Kinds.get(type) && Kinds.get(type).linked);
 
 /**
  * Số đội đầu của giai đoạn vào thẳng giai đoạn sau nữa (cfg.skip): tách danh sách đi tiếp thành { skip, next }.
@@ -287,7 +289,7 @@ function playable(st) {
  */
 function recordResult(st, m, winner, opts = {}) {
   if (m.done) return st.done;
-  if (linked(st.type)) resolveElim(st, m, winner, winner === m.a ? m.b : m.a);
+  if (linked(st.type)) { resolveElim(st, m, winner, winner === m.a ? m.b : m.a); REP.update(st); } // xong hai bán kết: sinh nhánh vớt
   else {
     m.done = true;
     m.winner = winner;
@@ -307,15 +309,16 @@ function recordResult(st, m, winner, opts = {}) {
 /** Thứ hạng cuối của vòng cuối: [nhất, nhì, ba…] (mã người chơi). */
 /** Người đi tiếp: vòng tròn / Thụy Sĩ / Race theo bảng xếp hạng; loại trực tiếp (giải offline) theo thứ hạng chung cuộc. */
 function advancers(st, seedOf, min = 2) {
-  if (st.type === 'gsl') return Gsl.advancers(st, seedOf);
-  if (st.type === 'kings') return Kings.advancers(st, seedOf);
+  const kind = Kinds.get(st.type);
+  if (kind) return kind.advancers(st, seedOf);
   if (isElim(st.type)) return { seeds: podium(st, seedOf).slice(0, Math.max(1, st.cfg.advance || 1)), groupOf: {} };
   return groupAdvancers(st, seedOf, min);
 }
 
 function podium(st, seedOf) {
-  if (st.type === 'gsl') return Gsl.advancers(st, seedOf).seeds.slice(0, 3);
-  if (st.type === 'kings') return Kings.advancers(st, seedOf).seeds.slice(0, 3);
+  const kind = Kinds.get(st.type);
+  if (kind) return kind.podium(st, seedOf);
+  if (st.type === 'single' && st.cfg.rep) return REP.podium(st); // vòng vớt: hai huy chương đồng
   if (st.type === 'single') {
     const final = st.matches[st.rounds[st.rounds.length - 1][0]];
     const out = [final.winner, final.loser];
@@ -369,7 +372,7 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  linked, splitAdvancers, routesOf, tieBeforeUndo: TM.beforeUndo, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places,
+  linked, splitAdvancers, routesOf, tieBeforeUndo: TM.beforeUndo, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places, Kinds, REP,
   twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
   tally, eliminated, isElim, real, tbValue, MAX_BO, MAX_STAGES_OFFLINE, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
 };

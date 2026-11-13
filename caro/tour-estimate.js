@@ -81,7 +81,15 @@
     const want = placeWanted(c);
     if (size >= 4 && (c.placement || (c.places || []).some((p) => p > 3))) {
       for (let r = 0; r < losers.length - 1; r++) placeBracket(losers[r], (size >> (r + 1)) + 1, want, out);
-    } else if ((Array.isArray(c.places) ? c.places.includes(3) : c.thirdPlace !== false) && size >= 4) play(losers[losers.length - 2][0], losers[losers.length - 2][1], out);
+    } else if (!c.rep && (Array.isArray(c.places) ? c.places.includes(3) : c.thirdPlace !== false) && size >= 4) play(losers[losers.length - 2][0], losers[losers.length - 2][1], out);
+    // Vòng vớt kiểu Olympic (server/src/hub/stages-repechage.js – extraMatches): mỗi phía p người vớt → p trận (thang + tranh đồng)
+    if (c.rep && size >= 8) {
+      const R = Math.round(Math.log2(size)), from = Math.max(0, R - ({ qf: 3, r16: 4, r32: 5 }[c.rep.from] || 3));
+      let p = 0;
+      for (let r = from; r < R - 2; r++) p += c.rep.mode === 'half' ? (size >> (r + 1)) / 2 : 1;
+      const x = 2 * Math.max(1, p);
+      return { matches: out.m + x, maxMatches: out.m + x, waves: out.w + Math.max(1, p), advance: null };
+    }
     return { matches: out.m, maxMatches: out.m, waves: out.w, advance: null };
   }
   /**
@@ -158,6 +166,13 @@
     // (bảng 8 đội: 10 trận, 4 đội đi tiếp)
     if (c.type === 'gsl') { const K = Number(c.size) === 8 ? 8 : 4, G = Math.floor(n / K), per = K === 8 ? 10 : 5; return { matches: per * G, maxMatches: per * G, waves: 3, advance: last ? null : (K / 2) * G, groups: G, groupSize: K }; }
     // Vòng tranh hạt giống + cơ hội cuối (giải offline – stages-kings.js): mỗi nửa cao gặp thấp, 3/4 số đội đi tiếp
+    // Nhánh đồ thị (Page, AFL, thang leo bậc, loại kép lai, Compass – caro/otour-graph.js): số trận theo khuôn
+    if (c.type === 'graph') {
+      const GR = typeof module !== 'undefined' && module.exports ? require('./otour-graph.js') : global.CaroOTourGraph;
+      const x = GR ? GR.count(c.shape, n, c) : null;
+      const m = x ? x.matches : 0;
+      return { matches: m, maxMatches: m, waves: x ? x.waves : 0, advance: last ? null : Math.min(n, Math.max(1, Number(c.advance) || 1)), ...(x ? {} : { bad: true }) };
+    }
     if (c.type === 'kings') { const m = Math.floor(n / 4) * 2; return { matches: m, maxMatches: m, waves: 1, advance: last ? null : Math.floor(n / 4) * 3 }; }
     // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng. Hệ Circuit: `events` trận × n vòng × days ngày
     // Vòng tuần (PGC 2021): mỗi tuần seats trận Survival + final trận Weekly Final + bottom trận Bottom (trừ tuần cuối)

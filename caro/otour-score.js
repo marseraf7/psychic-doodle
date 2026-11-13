@@ -32,11 +32,13 @@
   // giờ / sân / sự kiện sau khi giải kết thúc (otour-league.js)
   const canOpen = (t) => t && t.status !== 'draft';
   // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua (kiểu LoL)
-  const elimType = (v) => v.type === 'single' || v.type === 'double' || !!(v.cfg && v.cfg.record);
+  // (bảng GSL, vòng tranh hạt giống, nhánh đồ thị cũng không có hoà – máy chủ: stages-kinds.js)
+  const elimType = (v) => ['single', 'double', 'gsl', 'kings', 'graph'].includes(v.type) || !!(v.cfg && v.cfg.record);
   const boOf = (m, v) => m.bo || (v.cfg && v.cfg.bestOf) || 1;
   // Ô luân lưu: loại trực tiếp (hoà phải có) hoặc vòng tròn có điểm thắng / thua sát (khúc côn cầu: hoà → luân lưu)
   // Kiểu tỉ số + loại trực tiếp + Bo > 1 (không phải 2 lượt): nhập cả loạt trận (otour-run.js)
-  const series = (m, v) => elimType(v) && boOf(m, v) > 1 && !m.legs;
+  // Loạt có trận tặng sẵn / hoà loạt (thang leo bậc kiểu KBO / NPB – otour-graph.js): luôn nhập từng trận
+  const series = (m, v) => elimType(v) && (boOf(m, v) > 1 || !!m.start || !!m.tie) && !m.legs;
   const penOn = (v) => elimType(v) || !!(v.cfg && v.cfg.points && v.cfg.points.wx != null);
   /** Câu nhắc luật set: "Bo3 · mỗi set tới 21 điểm, cách 2 · chạm 30 là thắng" (+ " · set quyết định tới 15"). */
   function ruleText(r, bo) {
@@ -92,7 +94,8 @@
       const bo = boOf(m, v);
       const del = (i) => (S.sets.length > 1 ? `<button type="button" class="ghost sm icon" data-act="otSetDel" data-i="${i}" aria-label="${esc(T('score_set_del'))}">${icon('close')}</button>` : '');
       const num = (i, side, k, val, max) => `<input type="number" min="0" max="${max}" inputmode="numeric" data-${k}="${i}" data-side="${side}" value="${esc(val)}">`;
-      body = `<p class="hint">${esc(T('ot_series_rule', { bo }))} ${esc(T('ot_series_pen'))}</p><div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T('ot_game_n', { n: i + 1 }))}</span>
+      const gift = m.start || m.tie ? ` ${T('gr_series_hint', { a: (m.start || [0])[0], need: Math.floor(bo / 2) + 1 })}${m.tie ? ' ' + T('gr_series_tie') : ''}` : '';
+      body = `<p class="hint">${esc(T('ot_series_rule', { bo }))}${esc(gift)} ${esc(T(m.tie ? 'gr_series_draw' : 'ot_series_pen'))}</p><div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T('ot_game_n', { n: i + 1 }))}</span>
         ${num(i, 0, 'set', s[0], 999)}<span>–</span>${num(i, 1, 'set', s[1], 999)}<span class="muted sm">${esc(T('ot_pen'))}</span>${num(i, 0, 'pen', (S.pens[i] || [])[0] || '', 99)}<span>–</span>${num(i, 1, 'pen', (S.pens[i] || [])[1] || '', 99)}${del(i)}</div>`).join('')}</div>
         ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T('ot_game_add'))}</button>` : ''}`;
     } else {
