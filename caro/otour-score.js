@@ -33,16 +33,18 @@
   const canOpen = (t) => t && t.status !== 'draft';
   // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua (kiểu LoL)
   // (bảng GSL, vòng tranh hạt giống, nhánh đồ thị cũng không có hoà – máy chủ: stages-kinds.js)
-  const elimType = (v) => ['single', 'double', 'gsl', 'kings', 'graph'].includes(v.type) || !!(v.cfg && v.cfg.record);
+  const elimType = (v, m) => ['single', 'double', 'gsl', 'kings', 'graph'].includes(v.type) || !!(v.cfg && v.cfg.record) || !!(m && m.sp != null);
   const boOf = (m, v) => m.bo || (v.cfg && v.cfg.bestOf) || 1;
   // Ô luân lưu: loại trực tiếp (hoà phải có) hoặc vòng tròn có điểm thắng / thua sát (khúc côn cầu: hoà → luân lưu)
   // Kiểu tỉ số + loại trực tiếp + Bo > 1 (không phải 2 lượt): nhập cả loạt trận (otour-run.js)
   // Loạt có trận tặng sẵn / hoà loạt (thang leo bậc kiểu KBO / NPB – otour-graph.js): luôn nhập từng trận
-  const series = (m, v) => elimType(v) && (boOf(m, v) > 1 || !!m.start || !!m.tie) && !m.legs;
+  const series = (m, v) => elimType(v, m) && (boOf(m, v) > 1 || !!m.start || !!m.tie) && !m.legs;
   const penOn = (v) => elimType(v) || !!(v.cfg && v.cfg.points && v.cfg.points.wx != null);
   /** Câu nhắc luật set: "Bo3 · mỗi set tới 21 điểm, cách 2 · chạm 30 là thắng" (+ " · set quyết định tới 15"). */
   function ruleText(r, bo) {
     if (!r) return T('ot_set_free', { bo });
+    if (r.rubber) return T('ot_rubber_rule', { bo, rb: r.rubber }) + (r.dead ? ' ' + T('ot_rubber_dead_note') : ''); // trận đồng đội: mỗi dòng một rubber
+    if (r.race) return T('ot_set_race', { to: r.to, bo }) + (r.lastBy ? ' ' + T('ot_set_last_by', { by: r.lastBy, cap: (r.lastCap || 1) - 1 }) : ''); // darts: set > leg
     return T('ot_set_rule', { to: r.to, by: r.by, bo }) + (r.cap ? T('ot_set_cap', { cap: r.cap }) : '') + (r.last ? T('ot_set_last', { last: r.last }) : '');
   }
   K.otRuleText = ruleText;
@@ -75,6 +77,8 @@
     }
     const sp = SP.SPORTS[t.sport] || SP.SPORTS.other;
     let body;
+    // Thang ván (FIDE World Cup, Norway Chess, Armageddon đấu giá – otour-ladder-ui.js): nhập từng ván theo cấp
+    if (v.cfg && v.cfg.matchLadder && K.ladderForm) return `<div class="score-panel"><form id="ots" class="score-form" data-lad="1">${head}${K.ladderForm(t, m, v)}<p class="err" id="ots-err"></p><div class="row"><button class="primary">${esc(T('score_save'))}</button></div></form>${extra(t, m)}</div>`;
     if (t.result === 'winner') {
       body = `<div class="row">${[m.a, m.b].map((p) => `<button type="button" class="ghost" data-act="otWin" data-uid="${esc(p.uid)}">${esc(T('score_win_for', { name: p.name }))}</button>`).join('')}
         ${elimType(v) ? '' : `<button type="button" class="ghost" data-act="otWin" data-uid="">${esc(T('draw'))}</button>`}</div>`;
@@ -88,7 +92,7 @@
       const del = (i) => (S.sets.length > 1 ? `<button type="button" class="ghost sm icon" data-act="otSetDel" data-i="${i}" aria-label="${esc(T('score_set_del'))}">${icon('close')}</button>` : '');
       body = `${rule}<div class="sets" id="ots-sets">${S.sets.map((s, i) => `<div class="set-row"><span class="muted">${esc(T(games ? 'ot_game_n' : 'score_set_n', { n: i + 1 }))}</span>
         <input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="0" value="${esc(s[0])}"><span>–</span><input type="number" min="0" max="999" inputmode="numeric" data-set="${i}" data-side="1" value="${esc(s[1])}">${del(i)}</div>`).join('')}</div>
-        ${S.sets.length < bo ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T(games ? 'ot_game_add' : 'score_set_add'))}</button>` : ''}`;
+        ${S.sets.length < bo + (v.cfg && v.cfg.decider && m.sp == null ? 1 : 0) ? `<button type="button" class="ghost sm" data-act="otSetAdd">${icon('plus')}${esc(T(games ? 'ot_game_add' : 'score_set_add'))}</button>` : ''}`;
     } else if (series(m, v)) {
       // Loạt Bo ở loại trực tiếp với kiểu tỉ số (vd. vòng 1 playoff MLS Bo3): mỗi dòng một trận, hoà thì nhập luân lưu
       const bo = boOf(m, v);
@@ -119,6 +123,7 @@
   K.acts.otSetAdd = () => { readSets(); if (S.sets.length < 25) { S.sets.push(['', '']); S.pens.push(['', '']); } render(true); };
   K.acts.otSetDel = (b) => { readSets(); if (S.sets.length > 1) { S.sets.splice(Number(b.dataset.i), 1); S.pens.splice(Number(b.dataset.i), 1); } render(true); };
   K.acts.otWin = (b) => O.send({ t: 'otScore', id: D.ot.id, match: S.match, ...(b.dataset.uid ? { winner: b.dataset.uid } : { draw: true }) });
+  K.acts.otBidSave = () => { const f = $('ots'); if (f && K.ladderBids) K.ladderBids(D.ot, S.match, f); }; // giá thầu Armageddon (otour-ladder-ui.js)
   K.acts.otUndo = () => window.CaroConfirm.ask(T('score_undo_confirm')).then((ok) => { if (ok) O.send({ t: 'otUndo', id: D.ot.id, match: S.match }); });
 
   K.binders.push((body) => {
@@ -145,6 +150,7 @@
     f.onsubmit = (e) => {
       e.preventDefault();
       const err = (k) => { $('ots-err').textContent = T(k); };
+      if (f.dataset.lad && K.ladderRead) { const g = K.ladderRead(f); if (!g.length) return err('ot_need_score'); O.send({ t: 'otScore', id: t.id, match: S.match, ladder: g }); return; }
       if (t.result === 'sets') {
         readSets();
         const sets = S.sets.filter((s) => s[0] !== '' || s[1] !== '');
@@ -152,7 +158,9 @@
         const list = sets.map((s) => s.map(Number));
         // Kiểm luật set ngay (máy chủ kiểm lại): báo đúng set sai
         const x = find(t, S.match);
-        const bad = x && RU.setsError(t.set || null, list, boOf(x.m, x.v));
+        // Đủ số ván (kiểu OWL): kiểm từng ván; thêm ván quyết định khi hoà thì để máy chủ kiểm
+        const fx = x && x.v.cfg && x.v.cfg.fixed && x.m.sp == null, dec = fx && x.v.cfg.decider && list.length === boOf(x.m, x.v) + 1;
+        const bad = x && !dec && RU.setsError(t.set || null, list, boOf(x.m, x.v), !!fx);
         if (bad) { $('ots-err').textContent = T('srv_' + bad.code, bad.args); return; }
         O.send({ t: 'otScore', id: t.id, match: S.match, sets: list });
         return;

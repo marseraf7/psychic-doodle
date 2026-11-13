@@ -22,6 +22,7 @@ const PATH = require('../../../caro/otour-path.js');
 const PO = require('./stages-playoff.js');
 const RD = require('./stages-recdraw.js'); // bốc thăm nhánh theo thành tích Thụy Sĩ
 const GR = require('../../../caro/otour-graph.js'); // loạt có trận tặng sẵn (nhánh đồ thị)
+const LAD = require('../../../caro/otour-ladder.js'); // thang ván của trận (FIDE World Cup, Norway Chess, Armageddon đấu giá)
 
 const MAX_POINT = 999;
 const pair = (x) => {
@@ -215,15 +216,22 @@ class OTourRun {
    * Nhập kết quả: score [a, b] (+ pen [a, b] khi hoà ở loại trực tiếp) | sets [[a, b], …] | winner (mã đội) / draw.
    * Trận đã có kết quả thì phải huỷ trước (on_otUndo) – tránh nhập đè nhầm.
    */
-  on_otScore(conn, { id, match, score, legs, pen, pens, aet, sets, winner, draw }) {
+  on_otScore(conn, { id, match, score, legs, pen, pens, aet, sets, winner, draw, ladder }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, m } = this.otMatch(t, match);
     if (m.done) throw E('tour_match_done');
     // Không có hoà: loại trực tiếp, Thụy Sĩ theo số thắng / thua
-    const elim = ST.linked(st.type) || !!st.cfg.record || !!m.tb; // trận phụ phân hạng: không có hoà
+    const elim = ST.linked(st.type) || !!st.cfg.record || !!m.tb || m.sp != null; // trận phụ phân hạng, playoff chặng: không có hoà
     let w;
     const bo = ST.boOf(st, m);
-    if (t.result === 'score' && (m.start || m.tie)) {
+    if (st.cfg.matchLadder) {
+      // Thang ván (caro/otour-ladder.js): ladder = [[cấp, kết quả 1 / 0 / −1], …] theo thứ tự đấu; giá thầu nhập trước (otBid)
+      const games = (Array.isArray(ladder) ? ladder : []).slice(0, 40).map((x) => ({ lv: Math.floor(Number(x && x[0])), r: Math.sign(Number(x && x[1])) }));
+      const r = LAD.evaluate(st.cfg.matchLadder, games, m.bids, !st.cfg.ladderKeep);
+      if (r.error) throw E(r.error, r.args || {});
+      w = r.winner === 'a' ? m.a : m.b;
+      Object.assign(m, { lad: { g: games.map((x) => [x.lv, x.r]), at: r.at, tc: st.cfg.matchLadder[r.at].tc, levels: r.levels }, score: null, sets: null, pens: null, extra: null, legs: false, aet: false, ext: r.at > 0, wins: { [m.a]: r.pts[0], [m.b]: r.pts[1] } });
+    } else if (t.result === 'score' && (m.start || m.tie)) {
       // Loạt có trận thắng tặng sẵn / hoà loạt (thang leo bậc kiểu KBO / NPB – caro/otour-graph.js): sets = tỉ số từng trận;
       // trận hoà vẫn tính là đã đấu (m.tie), không cần luân lưu
       const list = Array.isArray(sets) && sets.length <= bo ? sets.map(pair) : [];
@@ -264,10 +272,20 @@ class OTourRun {
       if (w === null && elim) throw E('ot_need_pen');
       const shootout = w !== null && s[0] === s[1];
       Object.assign(m, { score: s, extra: shootout ? p : null, sets: ls, legs: !!ls, aet: aet === true, ext: aet === true || shootout, wins: { [m.a]: s[0], [m.b]: s[1] } });
+    } else if (t.result === 'sets' && st.cfg.decider && m.sp == null && Array.isArray(sets) && sets.length === bo + 1) {
+      // Đủ số ván + ván quyết định (kiểu OWL: 4 map, 2–2 thì map 5): đội thắng map 5 thắng trận; hiệu số map chỉ tính 4 map đầu
+      const list = sets.map(pair);
+      if (list.some((x) => !x) || Rules.setsError(t.set || null, list.slice(0, bo), bo, true)) throw E('tour_score_bad');
+      const { ka, kb } = matchScore(list.slice(0, bo), 'sets');
+      const last = list[bo];
+      if (ka !== kb) throw E('ot_sets_after', { n: bo + 1, bo });
+      if (last[0] === last[1]) throw E('tour_score_tie');
+      w = last[0] > last[1] ? m.a : m.b;
+      Object.assign(m, { sets: list, extra: null, ext: true, wins: { [m.a]: ka, [m.b]: kb } });
     } else if (t.result === 'sets') {
       const list = Array.isArray(sets) && sets.length <= ST.MAX_BO ? sets.map(pair) : [];
       if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
-      const bad = Rules.setsError(t.set || null, list, bo);
+      const bad = Rules.setsError(t.set || null, list, bo, !!st.cfg.fixed && m.sp == null); // playoff chặng: Bo thường
       if (bad) throw E(bad.code, bad.args);
       const { ka, kb } = matchScore(list, 'sets');
       w = ka > kb ? m.a : kb > ka ? m.b : null;
@@ -313,6 +331,24 @@ class OTourRun {
     this.otSave(t);
   }
 
+  /**
+   * Giá thầu Armageddon đấu giá (thang ván có cấp bid): side 'a' / 'b', sec – số giây chấp nhận để cầm Đen. Người xem chỉ
+   * thấy "đã nộp" cho tới khi đủ hai giá (bracket.js). Trận đã có kết quả thì không sửa giá; bằng giá + ra giá lại: xoá cả hai.
+   */
+  on_otBid(conn, { id, match, side, sec }) {
+    const { t } = this.otManaged(conn, id);
+    const { st, m } = this.otMatch(t, match);
+    const l = (st.cfg.matchLadder || []).find((x) => x.bid);
+    if (!l || m.done || !['a', 'b'].includes(side)) throw E('ot_bid_bad');
+    const v = Math.floor(Number(sec));
+    const bad = LAD.bidError(l, v);
+    if (bad) throw E(bad.error, bad.args);
+    m.bids = side === 'a' ? [v, (m.bids || [])[1] ?? null] : [(m.bids || [])[0] ?? null, v];
+    if (m.bids[0] != null && m.bids[1] != null && LAD.bidBlack(l, m.bids) === null) { m.rebid = (m.rebid || 0) + 1; m.bids = null; } // bằng giá: ra giá lại
+    st.v = (st.v || 0) + 1;
+    this.otSave(t);
+  }
+
   /** Huỷ kết quả (như giải Caro – tour-score.js): chỉ khi các trận nhận người thắng / thua của nó chưa có kết quả. */
   on_otUndo(conn, { id, match }) {
     const { t, me } = this.otManaged(conn, id);
@@ -327,8 +363,8 @@ class OTourRun {
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
       if (!ST.REP.beforeUndo(st, m)) throw E('tour_undo_locked'); // bán kết: nhánh vớt đã có kết quả
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    else if (st.type === 'roundrobin' && !ST.tieBeforeUndo(st, m)) throw E('tour_undo_locked'); // trận phụ đã đấu: huỷ trận phụ trước
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, pens: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false });
+    else if (st.type === 'roundrobin' && (!ST.SPL.beforeUndo(st, m) || (m.sp == null && !ST.tieBeforeUndo(st, m)))) throw E('tour_undo_locked'); // trận phụ / playoff chặng đã đấu: huỷ chúng trước
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, pens: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false, lad: null });
     st.done = false;
     st.v = (st.v || 0) + 1;
     this.otLog(t, me.id, 'undo', { match: m.id });

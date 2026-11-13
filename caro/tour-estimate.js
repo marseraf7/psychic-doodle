@@ -196,7 +196,9 @@
       const big = sizes[0];
       // meetSmall: bảng ít đội hơn bảng đông nhất gặp nhau meetSmall lần (kiểu MSI 2021–2022)
       const mOf = (s) => (Number(c.meetSmall) >= 1 && s < big ? Number(c.meetSmall) : meet);
-      const matches = sizes.reduce((t, s) => t + mOf(s) * (s * (s - 1)) / 2, 0);
+      // + playoff từng chặng (cfg.splits – kiểu OWL, server/src/hub/stages-splits.js): mỗi chặng take − 1 trận
+      const sp = c.splits && G === 1 ? (Number(c.splits.n) || 4) * Math.max(0, Math.min(16, Number(c.splits.take) || 4) - 1) : 0;
+      const matches = sizes.reduce((t, s) => t + mOf(s) * (s * (s - 1)) / 2, 0) + sp;
       // + các đội đứng ngay sau suất đi tiếp tốt nhất (bestNext – mỗi bảng tối đa một đội)
       const adv = last ? null : sizes.reduce((t, s) => t + Math.min(c.advance || 0, s), 0) + Math.min(c.bestNext || 0, sizes.filter((s) => s > (c.advance || 0)).length);
       return { matches, maxMatches: matches, waves: meet * (big % 2 ? big : big - 1), advance: adv, groups: G, groupSize: big };

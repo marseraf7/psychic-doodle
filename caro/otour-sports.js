@@ -34,6 +34,11 @@
     golf: { icon: '⛳', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'stroke_play' },
     running: { icon: '🏃', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
     swimming: { icon: '🏊', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, preset: 'time_trial' },
+    // Darts (kiểu PDC): mỗi "set" là số leg hai bên thắng – đua tới 3 leg; set quyết định phải hơn 2 leg, 5–5 đấu leg quyết định
+    darts: { icon: '🎯', result: 'sets', points: { w: 2, d: 0, l: 0 }, tiebreaks: ['wins', 'gdiff'], bestOf: 5, set: { to: 3, by: 1, cap: 0, last: 0, race: true, lastBy: 2, lastCap: 6 } },
+    // Quần vợt đồng đội (kiểu Davis Cup): mỗi "set" là một rubber Bo3 (tỉ số set của rubber), trận = 3 rubber, đấu cả rubber
+    // không còn ý nghĩa; xếp hạng: số trận thắng → tỉ lệ rubber → tỉ lệ set
+    tennis_team: { icon: '🎾', result: 'sets', points: { w: 1, d: 0, l: 0 }, tiebreaks: ['wins', 'gpct', 'ppct'], bestOf: 3, set: { to: 1, by: 1, cap: 0, last: 0, rubber: 3, dead: true } },
     chess: { icon: '♟️', result: 'winner', points: { w: 2, d: 1, l: 0 }, tiebreaks: ['bh1', 'bh', 'sb'], bestOf: 1 },
     other: { icon: '🏆', result: 'score', points: { w: 3, d: 1, l: 0 }, tiebreaks: ['h2h', 'gdiff', 'gwins'], bestOf: 1, extra: 'aet' },
   };

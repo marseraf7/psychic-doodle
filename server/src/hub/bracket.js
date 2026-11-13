@@ -313,6 +313,10 @@ class Bracket {
       ...(m.postponed ? { postponed: true } : {}), // giải offline: trận hoãn (otour-sched.js)
       ...(m.esp ? { esp: m.esp } : {}), // esports: chi tiết từng ván (otour-games.js)
       ...(m.tb && m.side ? { tbSide: m.side } : {}), // trận phụ phân hạng: đội được chọn bên (stages-tiematch.js)
+      ...(m.lad ? { lad: m.lad } : {}), // thang ván (caro/otour-ladder.js)
+      ...(m.sp != null ? { sp: m.sp } : {}), // playoff chặng (stages-splits.js)
+      // Giá thầu Armageddon: chỉ lộ khi đủ hai giá
+      ...(m.bids ? { bids: m.bids[0] != null && m.bids[1] != null ? m.bids : m.bids.map((x) => (x != null ? true : null)) } : {}), ...(m.rebid ? { rebid: m.rebid } : {}),
       ...(m.tag ? { tag: m.tag } : {}), // play-in (stages-playoff.js): 'pi_78' / 'pi_910' / 'pi_last' / 'pi_89'
       ...(ST.twoLeg(st, m) ? { legs: true } : {}), // giải offline: knock-out 2 lượt (sets = tỉ số từng lượt)
       // Giải offline (otour-league.js): giờ đấu, sân, sự kiện trong trận
@@ -381,6 +385,7 @@ class Bracket {
       v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)),
         ...(g.divs ? { divs: g.divs } : {}) })); // mùa giải: bảng con (mã người chơi) để vẽ bảng xếp hạng theo bảng con
       if (st.season) v.season = st.season;
+      if (st.sp) v.splits = ST.SPL.view(st, M).map((x) => ({ ...x, champ: x.champ ? this.tourSide(t, x.champ) : null })); // playoff từng chặng (kiểu OWL)
     } else {
       v.rounds = st.rounds.map((r) => r.map(M));
       v.table = table(ST.standings(st, seedOf)[0], adv, this.formStrip(st), normalizeTiebreaks(st.cfg.tiebreaks, st.type)); // giải cũ chưa lưu danh sách: mặc định

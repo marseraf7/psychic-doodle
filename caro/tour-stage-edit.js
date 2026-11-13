@@ -46,7 +46,7 @@
   const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
   // Như máy chủ (stages-tiebreak.js): thứ tự trong ô chọn
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
-    'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'oppWinPct', 'oppOppWinPct'];
+    'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'oppWinPct', 'oppOppWinPct', 'h2hMap'];
   const BO_OPTS = [1, 3, 5, 7];
   const MAX_BO = 25; // như máy chủ (stages.js)
   const PLACE_CHIPS = 64; // chọn từng cặp hạng tới hạng 64; sau đó một ô "tất cả các hạng sau"
@@ -228,12 +228,13 @@
       // Thụy Sĩ theo thắng / thua của giải offline: thêm kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó, cao gặp thấp)
       if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')], ['valve16', T('pair_valve16')], ['draw', T('pair_draw')], ['faceit', T('pair_faceit')]] : []), ...(ctx.ext && !c.record ? [['monrad', T('pair_monrad')], ['danish', T('pair_danish')], ['baku', T('pair_baku')]] : [])], c.pairing || 'dutch')));
       if (ctx.ext && c.type === 'swiss' && !c.record && K.swissEdit) f.push(...K.swissEdit.html(i, c, last)); // King of the Hill, Gibson, cắt theo số thua (otour-swiss-edit.js)
+      if (ctx.ext && ['single', 'roundrobin', 'swiss'].includes(c.type) && !c.record && K.ladderEdit) more.push(...K.ladderEdit.html(i, c)); // thang ván (otour-ladder-ui.js)
       if (c.points) {
         f.push(`<div class="field inline"><span>${esc(T('opt_points'))}</span><span class="pts3">${num(i, 'pw', c.points.w, 0, 10)}${num(i, 'pd', c.points.d, 0, 10)}${num(i, 'pl', c.points.l, 0, 10)}</span></div>`);
         if (adv) {
           more.push(`<div class="field inline"><span>${esc(T('opt_pts_game'))}</span><span class="pts3">${num(i, 'pgw', c.points.gw || 0, 0, 10)}${num(i, 'pgt', c.points.gt || 0, 0, 10)}</span></div>`);
           // Giải offline: điểm thắng / thua ở set quyết định / sau hiệp phụ – luân lưu (bóng chuyền 3–2, khúc côn cầu)
-          if (ctx.ext) more.push(`<div class="field inline"><span>${esc(T('opt_pts_ext'))}</span><span class="pts3">${num(i, 'pwx', c.points.wx != null ? c.points.wx : c.points.w, 0, 10)}${num(i, 'plx', c.points.lx != null ? c.points.lx : c.points.l, 0, 10)}</span></div>`);
+          if (ctx.ext) more.push(`<div class="field inline"><span>${esc(T('opt_pts_ext'))}</span><span class="pts3">${num(i, 'pwx', c.points.wx != null ? c.points.wx : c.points.w, 0, 10).replace('>', ' step="0.5">')}${num(i, 'plx', c.points.lx != null ? c.points.lx : c.points.l, 0, 10).replace('>', ' step="0.5">')}</span></div>`);
           if (c.type === 'swiss') more.push(field(T('opt_pts_bye'), num(i, 'pbye', c.points.bye != null ? c.points.bye : c.points.w, 0, 10)));
           more.push(tbList(i, c));
           // Trận không đấu (miễn đấu, thắng / thua do vắng mặt): theo FIDE / như bản cũ
@@ -309,6 +310,7 @@
     else if (K.kindOf && K.kindOf(c.type) && K.kindOf(c.type).change(stages, i, k, el)) { /* nhánh đồ thị… (registry) */ }
     else if (K.repEdit && K.repEdit.change(c, k, el)) { /* vòng vớt kiểu Olympic (otour-graph-ui.js) */ }
     else if (K.swissEdit && K.swissEdit.change(c, k, el)) { /* Thụy Sĩ: King of the Hill, Gibson, cắt theo số thua */ }
+    else if (K.ladderEdit && K.ladderEdit.change(c, k, el)) { /* thang ván */ }
     else if (k === 'league') {
       if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
     } else if (k === 'lgGames' || k === 'lgPots') c.league = { games: 8, pots: 4, ...c.league, [k === 'lgGames' ? 'games' : 'pots']: clamp(v) };
@@ -328,7 +330,8 @@
       const tbs = tbsOf(c);
       if (!tbChoices(c).includes(v) || tbs.includes(v)) return false;
       c.tiebreaks = [...tbs, v];
-    } else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye', 'pwx', 'plx'].includes(k)) c.points[k.slice(1)] = clamp(v);
+    } else if (k === 'pwx' || k === 'plx') c.points[k.slice(1)] = Math.max(0, Math.min(10, Math.round(v * 2) / 2 || 0)); // nửa điểm (Norway Chess 1,5 / 1)
+    else if (k[0] === 'p' && ['pw', 'pd', 'pl', 'pgw', 'pgt', 'pbye'].includes(k)) c.points[k.slice(1)] = clamp(v);
     else if (el.tagName === 'SELECT') c[k] = v;
     else if (Number.isFinite(v)) c[k] = clamp(v);
     if (k === 'events' && c.mp && c.mp.after) { if (c.events < 2) delete c.mp; else c.mp.after = Math.min(c.mp.after, c.events - 1); }
