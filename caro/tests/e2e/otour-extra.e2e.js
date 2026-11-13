@@ -7,7 +7,7 @@
  *   node caro/tests/e2e/otour-extra.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, exportText } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8852;
@@ -26,6 +26,12 @@ const { setup, sleep } = require('./helpers.js');
     return app.hub.otGet(id);
   };
 
+  // Xuất PDF / CSV (helpers.js – exportText): đủ cột, không có ô 'undefined' / 'NaN'
+  const exportOk = async (label, want) => {
+    const x = await exportText(boss);
+    ok(!/undefined|NaN/.test(x.pdf + x.csv) && want.test(x.pdf), label + ': xuất PDF / CSV đủ cột, không có ô undefined');
+  };
+
   // ---------- 1. Nordic combined
   await tpl('nordic_combined');
   ok(await boss.inputValue(S(0, 'score')) === 'skijump' && await boss.inputValue(S(1, 'score')) === 'pursuit' && await boss.inputValue(S(1, 'puPer')) === '4', 'Nordic combined: nhảy cầu → đuổi bắt, 1 điểm = 4 giây');
@@ -38,6 +44,7 @@ const { setup, sleep } = require('./helpers.js');
   ok(nc.st[0].done && nc.stage === 1 && nc.st[1].gapsBy === 'jump', 'Xong nhảy cầu, sang đuổi bắt theo điểm');
   ok(/mỗi điểm thua nhảy cầu = 4 giây/.test(await tab()), 'Trang đuổi bắt ghi cách đổi điểm');
   await shot(boss, 'ot-extra-nordic.png');
+  await exportOk('Nordic combined', /\+\d/);
 
   // ---------- 2. MTG draft
   await tpl('mtg_gp');
@@ -53,6 +60,7 @@ const { setup, sleep } = require('./helpers.js');
   ok(mt.st[0].drafts[0].decks[uid] && mt.st[0].drafts[0].decks[uid].n === 40, 'Nộp danh sách bài → máy chủ lưu số lá');
   ok(/40 lá/.test(await tab()), 'Trang hiện số lá');
   await shot(boss, 'ot-extra-mtg.png');
+  await exportOk('MTG', /./);
 
   // ---------- 3. Backyard Ultra – assist (nhập qua giao diện: vòng 1 cả đoàn về kịp, vòng 2 chỉ người đầu, vòng 3 chạy một mình)
   await tpl('backyard_ultra');
@@ -67,5 +75,6 @@ const { setup, sleep } = require('./helpers.js');
   const t3 = await tab();
   ok(/Vô địch:/.test(t3) && (await boss.$$('.pill[title]')).length === 29 && /assist/.test(t3), 'Backyard: 29 người dừng ở vòng 2 được ghi assist');
   await shot(boss, 'ot-extra-backyard.png');
+  await exportOk('Backyard', /km/);
   await finish();
 })();

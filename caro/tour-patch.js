@@ -43,6 +43,8 @@
         if (v.third && upd.has(v.third.id)) v.third = upd.get(v.third.id);
         if (v.groups) for (const g of v.groups) if (g.rounds) g.rounds = fixRounds(g.rounds); // rounds null: bảng tải lười (giải offline)
         if (v.places) for (const p of v.places) p.rounds = fixRounds(p.rounds); // trận xếp hạng
+        // Giải offline: nhánh vớt kiểu Olympic, playoff từng chặng (cùng các đường trận máy chủ gom ở tourpush.js – stageParts)
+        for (const x of [...(v.rep || []), ...(v.splits || [])]) x.rounds = fixRounds(x.rounds);
       }
       for (const tb of s.tables || []) {
         const holder = tb.key === 't' ? v : v.groups && v.groups[Number(tb.key.slice(1))];

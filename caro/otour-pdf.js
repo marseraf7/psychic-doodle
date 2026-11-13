@@ -56,10 +56,14 @@
   const h2 = (s) => block(70, (g, y, f) => { text(s, 34, 800, C.head)(g, y, f); g.fillStyle = C.head; g.fillRect(M, y + 14, W - 2 * M, 3); }, 120);
   const h3 = (s) => block(52, text(s, 28, 700, C.ink), 90);
 
-  /** Bảng xếp hạng: [{ t: tiêu đề cột, x, align }], các dòng. */
-  function table(rows, race, time) {
+  /**
+   * Bảng xếp hạng: [{ t: tiêu đề cột, x, align }], các dòng. spec (race có cách tính riêng – raceSpec): { cols: [2 tiêu đề],
+   * cells(r) → [2 ô] }. Dòng chỉ có hạng (nhánh đồ thị, knock, vòng vớt: { place }) → chỉ cột hạng + tên.
+   */
+  function table(rows, race, time, spec) {
     const golf = time === 'golf'; // golf: so với par + tổng gậy
-    const cols = race ? (golf ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('golf_topar'), W - M - 220, 'right'], [T('golf_total'), W - M - 8, 'right']] : time ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('race_total'), W - M - 220, 'right'], [T('race_gap'), W - M - 8, 'right']]
+    const placeOnly = !race && rows.length > 0 && rows.every((r) => r.place != null && r.mp == null);
+    const cols = placeOnly ? [['#', M + 8, 'left'], ['', M + 64, 'left']] : spec ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [spec.cols[0], W - M - 220, 'right'], [spec.cols[1], W - M - 8, 'right']] : race ? (golf ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('golf_topar'), W - M - 220, 'right'], [T('golf_total'), W - M - 8, 'right']] : time ? [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('race_total'), W - M - 220, 'right'], [T('race_gap'), W - M - 8, 'right']]
       : [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('race_wins'), W - M - 220, 'right'], [T('race_pts'), W - M - 8, 'right']])
       : [['#', M + 8, 'left'], ['', M + 64, 'left'], [T('col_mp'), W - M - 470, 'right'], [T('col_wdl'), W - M - 320, 'right'], [T('col_diff'), W - M - 170, 'right'], [T('col_pts'), W - M - 8, 'right']];
     const nameW = (race ? W - M - 220 - 160 : W - M - 470 - 90) - (M + 64);
@@ -71,14 +75,29 @@
     rows.forEach((r, i) => out.push(block(42, (g, y, f) => {
       if (r.adv) { g.fillStyle = '#e3f3e8'; g.fillRect(M, y - 30, W - 2 * M, 40); } else if (i % 2) { g.fillStyle = C.band; g.fillRect(M, y - 30, W - 2 * M, 40); }
       g.fillStyle = C.ink; g.font = `${i < 3 ? 700 : 500} 25px ${f}`;
-      g.textAlign = 'left'; g.fillText(golf && (r.cut || r.wd) ? T(r.wd ? 'golf_wd' : 'golf_mc') : (golf && r.tie ? 'T' : '') + String(r.rank || i + 1), M + 8, y); g.fillText(fit(g, r.name, nameW), M + 64, y);
+      g.textAlign = 'left'; g.fillText(golf && (r.cut || r.wd) ? T(r.wd ? 'golf_wd' : 'golf_mc') : (golf && r.tie ? 'T' : '') + String(placeOnly ? r.place : r.rank || i + 1), M + 8, y); g.fillText(fit(g, r.name, nameW), M + 64, y);
       g.textAlign = 'right';
-      const cells = race ? (golf ? [RU ? RU.fmtPar(r.toPar) : '', r.total != null ? r.total : ''] : time ? [r.time != null && RU ? RU.fmtTime(r.time) : '–', r.gap && RU ? RU.fmtGap(r.gap) : ''] : [r.wins || 0, r.pts != null ? r.pts : ''])
+      const cells = placeOnly ? [] : spec ? spec.cells(r).map((x) => (x == null ? '' : x)) : race ? (golf ? [RU ? RU.fmtPar(r.toPar) : '', r.total != null ? r.total : ''] : time ? [r.time != null && RU ? RU.fmtTime(r.time) : '–', r.gap && RU ? RU.fmtGap(r.gap) : ''] : [r.wins || 0, r.pts != null ? r.pts : ''])
         : [r.mp, `${r.w}-${r.d}-${r.l}`, (r.gw - r.gl > 0 ? '+' : '') + (r.gw - r.gl), r.pts];
       cells.forEach((v, k) => { if (k === cells.length - 1) g.font = `800 25px ${f}`; g.fillText(String(v), cols[k + 2][1], y); });
     })));
     out.push(block(18, () => {}));
     return out;
+  }
+
+  /** Hai cột cuối của bảng race có cách tính riêng (omnium, nhảy cầu, mass start, đuổi bắt, Backyard, poker); null = cách cũ. */
+  function raceSpec(cfg) {
+    const out = (r) => (r.dsq ? T('ms_dsq') : r.dnf ? T('pl_dnf') : r.dns ? T('pl_dns') : null);
+    const tm = (ms) => (ms && RU ? RU.fmtTime(ms) : '');
+    switch (cfg.score) {
+      case 'omnium': return { cols: [T('om_sp'), T('col_pts')], cells: (r) => [r.parts && r.parts[3] != null ? r.sp : '', r.total] };
+      case 'skijump': return { cols: ['', T('col_pts')], cells: (r) => ['', out(r) || (r.total != null ? r.total.toFixed(1) : '')] };
+      case 'massstart': return { cols: [T('ms_fin'), T('col_pts')], cells: (r) => [r.fin || out(r) || '', r.pts] };
+      case 'pursuit': return { cols: [T('pu_gap'), T('pu_time')], cells: (r) => [r.gap ? '+' + tm(r.gap) : '0', out(r) || tm(r.time)] };
+      case 'backyard': return { cols: [T('by_yards'), 'km'], cells: (r) => [r.yards, r.km] };
+      case 'poker': return { cols: [T('pk_kos'), T('pk_bank')], cells: (r) => [r.kos, r.bank] };
+      default: return null;
+    }
   }
 
   /** Một trận: "Đội A   2–1   Đội B" (+ dòng nhỏ: từng set, luân lưu, giờ – sân). */
@@ -112,7 +131,7 @@
   function stage(t, v) {
     const cfg = v.cfg || (t.stages || [])[v.index] || {};
     const out = [h2((t.stageViews.length > 1 ? T('stage_n', { n: v.index + 1 }) + ' · ' : '') + (K.stageName ? K.stageName(cfg) : ''))];
-    if (v.type === 'race') return out.concat(table(v.table || [], true, cfg.score === 'golf' ? 'golf' : cfg.score === 'time' || cfg.score === 'gt'));
+    if (v.type === 'race') return out.concat(table(v.table || [], true, cfg.score === 'golf' ? 'golf' : cfg.score === 'time' || cfg.score === 'gt', raceSpec(cfg)));
     if (v.groups) {
       v.groups.forEach((g, gi) => {
         if (v.groups.length > 1) out.push(h3(K.groupLabel ? K.groupLabel(v, g) : T(v.cfg && v.cfg.season ? 'conf_name' : 'group_name', { name: g.name })));
@@ -120,6 +139,8 @@
         const rs = K.roundsOfGroup ? K.roundsOfGroup(t, v, gi) : g.rounds;
         if (rs) out.push(...rounds(rs, (i) => lbl(t, v, i, T('r_round', { n: i + 1 }))));
       });
+      // Playoff từng chặng của vòng tròn (kiểu OWL – stages-splits.js)
+      for (const s of v.splits || []) out.push(h3(`${T('splits_title')} · ${s.b + 1}`), ...rounds(s.rounds, (i) => (i === s.rounds.length - 1 ? T('r_final') : T('r_round', { n: i + 1 }))));
       return out;
     }
     if (v.table) out.push(...table(v.table, false)); // Thụy Sĩ / league phase
@@ -133,6 +154,8 @@
     if (v.lrounds && v.lrounds.length) out.push(h3(T('lb')), ...rounds(v.lrounds, (i) => (i === v.lrounds.length - 1 ? T('lb_final') : T('r_round', { n: i + 1 }))));
     const gf = (v.gf || []).filter((m) => !m.skipped && real(m));
     if (gf.length) out.push(h3(T('gf')), ...gf.map(match));
+    // Vòng vớt kiểu Olympic (mỗi phía một thang + trận tranh đồng); playoff từng chặng (kiểu OWL)
+    for (const s of v.rep || []) out.push(h3(T('rep_side', { name: s.fin ? s.fin.name : '' })), ...rounds(s.rounds, (i) => (i === s.rounds.length - 1 ? T('rep_bronze') : T('rep_round', { n: i + 1 }))));
     return out;
   }
 

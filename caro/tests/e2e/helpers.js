@@ -146,4 +146,19 @@ async function play(w, l) {
   }
 }
 
-module.exports = { setup, play, roomOf, sleep, gotoRetry };
+/**
+ * Xuất PDF / CSV của giải offline đang mở trên trang: vẽ mọi khối PDF lên bút giả (chỉ ghi lại chữ) và lấy các dòng CSV.
+ * Trả { pdf, csv } (chuỗi) để kiểm không có ô 'undefined' / 'NaN'.
+ */
+async function exportText(page) {
+  return page.evaluate(() => {
+    const t = window.CaroTourKit.D.ot, out = [];
+    const own = { fillText: (s) => out.push(String(s)), measureText: (s) => ({ width: String(s).length * 10 }) };
+    const g = new Proxy({}, { get: (_, k) => own[k] || (() => {}), set: () => true }); // các lệnh vẽ khác: bỏ qua
+    for (const pg of window.CaroOTourPdf.layout(t).pages) for (const x of pg) x.b.draw(g, x.y, 'sans-serif');
+    const X = window.CaroOTourExport;
+    return { pdf: out.join('|'), csv: [...X.tableRows(t), ...X.matchRows(t)].map((r) => r.join(',')).join('\n') };
+  });
+}
+
+module.exports = { setup, play, roomOf, sleep, gotoRetry, exportText };

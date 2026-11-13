@@ -103,6 +103,14 @@ function beforeUndo(st, m) {
   return true;
 }
 
+/** Khoá huỷ (không sửa gì): như beforeUndo nhưng chỉ trả true khi bị khoá. */
+function undoLocked(st, m) {
+  if (!st.sp) return false;
+  if (m.sp != null) { const x = m.next && st.matches[m.next.to]; return !!(x && x.done); }
+  const p = st.sp[blockOf(st.cfg, m.round, roundsOf(st))];
+  return !!p && p.rounds.flat().some((id) => st.matches[id].done && !st.matches[id].bye);
+}
+
 /** Phần gửi trình duyệt: mỗi chặng đã dựng một nhánh, kèm nhà vô địch chặng. */
 function view(st, M) {
   if (!st.sp) return null;
@@ -115,4 +123,4 @@ function view(st, M) {
 /** Số trận playoff các chặng (ước tính): mỗi chặng take − 1 trận. */
 const extraMatches = (cfg) => (cfg.splits ? cfg.splits.n * (Math.min(cfg.splits.take, 16) - 1) : 0);
 
-module.exports = { normalize: normalizeAll, blockOf, update, record, beforeUndo, view, extraMatches , splitOk, isSplit, splitGroups, carryFrom };
+module.exports = { normalize: normalizeAll, blockOf, update, record, beforeUndo, undoLocked, view, extraMatches , splitOk, isSplit, splitGroups, carryFrom };

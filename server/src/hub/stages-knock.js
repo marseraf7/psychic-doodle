@@ -38,6 +38,9 @@ function newRound(st) {
   const alive = st.alive;
   if (alive.length < 2) return;
   const r = st.rounds.length, ids = [];
+  // Trạng thái trước khi bốc / ghép vòng r: huỷ vòng này thì trả lại – bốc lại vẫn đúng chuỗi từ hạt giống ban đầu (rng0)
+  (st.rngAt = st.rngAt || [])[r] = st.rng;
+  (st.seedAt = st.seedAt || [])[r] = st.seedNow ? { ...st.seedNow } : null;
   let pairs = [], bye = null;
   if (st.cfg.mode === 'shootout') {
     const pool = [...alive];
@@ -111,7 +114,10 @@ function beforeUndo(st, m) {
   st.byes.pop();
   st.draws.pop();
   st.alive = [...st.rounds[r].map((id) => st.matches[id]).filter((x) => x !== m).map((x) => x.winner), m.a, m.b, ...(st.byes[r] ? [st.byes[r]] : [])].filter(Boolean);
-  if (st.seedNow) for (const x of st.rounds[r].map((id) => st.matches[id])) delete st.seedNow[x.winner];
+  // Trả hạt giống hiện tại (bounty 'inherit') và bộ bốc thăm về lúc trước khi dựng vòng vừa xoá
+  // (hạt giống: như lúc trước khi vòng r có kết quả – after() tính lại cho cả vòng khi vòng r xong lần nữa)
+  if (st.seedAt && st.seedAt[r] !== undefined) { if (st.seedAt[r]) st.seedNow = { ...st.seedAt[r] }; else delete st.seedNow; st.seedAt.length = last; }
+  if (st.rngAt && st.rngAt[last] != null) { st.rng = st.rngAt[last]; st.rngAt.length = last; }
   return true;
 }
 

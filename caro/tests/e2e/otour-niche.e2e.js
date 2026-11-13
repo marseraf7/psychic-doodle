@@ -9,7 +9,7 @@
  *   node caro/tests/e2e/otour-niche.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, exportText } = require('./helpers.js');
 const ST = require('../../../server/src/hub/stages.js');
 
 (async () => {
@@ -40,6 +40,8 @@ const ST = require('../../../server/src/hub/stages.js');
   await boss.selectOption(`select[data-kn-picker="${m0.b}"]`, target); await sleep(800);
   ok(m0.a === target, 'Chọn đối thủ → máy chủ đổi cặp');
   await shot(boss, 'ot-niche-bounty.png');
+  const bx = await exportText(boss); // xuất PDF / CSV loại trực tiếp dựng từng vòng
+  ok(!/undefined|NaN/.test(bx.pdf + bx.csv), 'Xuất PDF / CSV knock: không có ô undefined');
 
   // ---------- 2. Shoot Out
   await tpl('snooker_shootout');

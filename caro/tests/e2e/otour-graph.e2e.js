@@ -8,7 +8,7 @@
  *   node caro/tests/e2e/otour-graph.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, exportText } = require('./helpers.js');
 const ST = require('../../../server/src/hub/stages.js');
 
 (async () => {
@@ -105,5 +105,7 @@ const ST = require('../../../server/src/hub/stages.js');
   const pl = await boss.$$eval('.gr-tab tbody tr', (rs) => rs.map((r) => r.firstElementChild.textContent));
   ok(j.status === 'finished' && pl.filter((x) => x === '3').length === 2, 'Đấu hết: bảng hạng có hai hạng 3');
   await shot(boss, 'ot-graph-judo.png');
+  const jx = await exportText(boss); // xuất PDF / CSV: bảng hạng (không có cột thống kê), trận vòng vớt
+  ok(!/undefined|NaN/.test(jx.pdf + jx.csv) && /Tranh huy chương đồng/.test(jx.pdf) && (jx.csv.match(/\n1,,1,/g) || []).length === 1, 'Xuất PDF / CSV: bảng hạng + nhánh vớt, không có ô undefined');
   await finish();
 })();

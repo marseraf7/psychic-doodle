@@ -241,4 +241,13 @@ function beforeUndo(st, m) {
   return true;
 }
 
-module.exports = { MODES, MAX_LINES, h2hWins, victoryTimes, addTiebreaks, applyTiebreak, beforeUndo, plan, linesOf };
+/** Khoá huỷ (không sửa gì): như beforeUndo nhưng chỉ trả true khi bị khoá. */
+function undoLocked(st, m) {
+  if (m.group == null) return false;
+  const gi = m.group;
+  if (isLegacy(st, gi)) return !m.tb && ['tbm', 'tbt'].some((key) => { const id = st[key] && st[key][gi]; return id != null && st.matches[id] && st.matches[id].done; });
+  const ids = (st.tbx && st.tbx[gi]) || [];
+  return (m.tb ? ids.slice(ids.indexOf(m.id) + 1) : ids).some((id) => st.matches[id] && st.matches[id].done);
+}
+
+module.exports = { MODES, MAX_LINES, undoLocked, h2hWins, victoryTimes, addTiebreaks, applyTiebreak, beforeUndo, plan, linesOf };

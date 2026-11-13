@@ -52,7 +52,6 @@ class OTourRace {
     this.otSave(t);
   }
 
-  /** Huỷ kết quả một chặng; chặng chia lượt: gửi kèm heat để huỷ riêng lượt đó. */
   /** Draft POI (kiểu ALGS – cfg.poi): ban tổ chức gán điểm hạ cánh của một đội trên một bản đồ; mỗi POI chỉ một đội. */
   on_otPoi(conn, { id, map, team, poi }) {
     const { t } = this.otManaged(conn, id);
@@ -89,6 +88,7 @@ class OTourRace {
     this.otSave(t);
   }
 
+  /** Huỷ kết quả một chặng; chặng chia lượt: gửi kèm heat để huỷ riêng lượt đó. */
   on_otRaceUndo(conn, { id, event, heat }) {
     const { t, me } = this.otManaged(conn, id);
     const { st, i } = this.otRaceEvent(t, event);

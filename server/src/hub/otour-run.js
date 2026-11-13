@@ -23,8 +23,8 @@ const PO = require('./stages-playoff.js');
 const RD = require('./stages-recdraw.js'); // bốc thăm nhánh theo thành tích Thụy Sĩ
 const GR = require('../../../caro/otour-graph.js'); // loạt có trận tặng sẵn (nhánh đồ thị)
 const LAD = require('../../../caro/otour-ladder.js'); // thang ván của trận (FIDE World Cup, Norway Chess, Armageddon đấu giá)
-const PUR = require('./stages-pursuit.js');
-const BR = require('../../../caro/otour-bridge.js'); // bridge đồng đội: IMP → VP // đuổi bắt: xuất phát theo khoảng thua giai đoạn trước
+const PUR = require('./stages-pursuit.js'); // đuổi bắt: xuất phát theo khoảng thua giai đoạn trước
+const BR = require('../../../caro/otour-bridge.js'); // bridge đồng đội: IMP → VP
 
 const MAX_POINT = 999;
 const pair = (x) => {
@@ -363,30 +363,6 @@ class OTourRun {
     m.bids = side === 'a' ? [v, (m.bids || [])[1] ?? null] : [(m.bids || [])[0] ?? null, v];
     if (m.bids[0] != null && m.bids[1] != null && LAD.bidBlack(l, m.bids) === null) { m.rebid = (m.rebid || 0) + 1; m.bids = null; } // bằng giá: ra giá lại
     st.v = (st.v || 0) + 1;
-    this.otSave(t);
-  }
-
-  /** Huỷ kết quả (như giải Caro – tour-score.js): chỉ khi các trận nhận người thắng / thua của nó chưa có kết quả. */
-  on_otUndo(conn, { id, match }) {
-    const { t, me } = this.otManaged(conn, id);
-    const { st, m } = this.otMatch(t, match);
-    if (!m.done || m.bye || m.split || PO.undoLocked(st, m)) throw E('tour_undo_locked');
-    if (ST.linked(st.type)) {
-      const targets = [m.next, m.loserTo].filter(Boolean).map((r) => ({ r, x: st.matches[r.to] }));
-      if (targets.some(({ x }) => x.done)) throw E('tour_undo_locked');
-      const g2 = m.gf === 1 && st.gf[1] && st.matches[st.gf[1]];
-      if (g2 && g2.done && !g2.skipped) throw E('tour_undo_locked');
-      for (const { r, x } of targets) x[r.slot] = null;
-      if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
-      if (!ST.REP.beforeUndo(st, m)) throw E('tour_undo_locked'); // bán kết: nhánh vớt đã có kết quả
-      const kd = ST.Kinds.get(st.type);
-      if (kd && kd.beforeUndo && !kd.beforeUndo(st, m)) throw E('tour_undo_locked'); // dựng từng vòng: vòng sau đã đấu
-    } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    else if (st.type === 'roundrobin' && (!ST.SPL.beforeUndo(st, m) || (m.sp == null && !ST.tieBeforeUndo(st, m)))) throw E('tour_undo_locked'); // trận phụ / playoff chặng đã đấu: huỷ chúng trước
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, pens: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false, lad: null, vp: null, boards: null });
-    st.done = false;
-    st.v = (st.v || 0) + 1;
-    this.otLog(t, me.id, 'undo', { match: m.id });
     this.otSave(t);
   }
 }
