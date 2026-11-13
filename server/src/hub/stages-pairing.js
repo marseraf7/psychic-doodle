@@ -207,17 +207,23 @@ function podPair(st, r, ctx) {
   // Vòng đầu phiên draft: ghép người ngồi đối diện bàn (ghế 1 gặp ghế 5 ở pod 8 người)
   if (st.cfg.draft && st.cfg.draft.cross && r % P.rounds === 0 && st.drafts && st.drafts[block]) {
     const out = st.drafts[block].pods.map((p) => DRF.crossPairs(p.filter((u) => ctx.order.includes(u))));
-    return { pairs: out.flatMap((x) => x.pairs), bye: (out.find((x) => x.bye) || {}).bye || null, tags: {} };
+    const { pairs: extra, bye } = spare(out.map((x) => x.bye), ctx);
+    return { pairs: [...out.flatMap((x) => x.pairs), ...extra], bye, tags: {} };
   }
-  const pairs = [];
-  let bye = null;
-  for (const pod of st.pods) {
-    const order = ctx.order.filter((u) => pod.includes(u));
-    const res = swissPairs(order, ctx.played, ctx.byes, 'dutch', ctx.score);
-    pairs.push(...res.pairs);
-    if (res.bye) bye = bye || res.bye;
-  }
-  return { pairs, bye, tags: {} };
+  const res = st.pods.map((pod) => swissPairs(ctx.order.filter((u) => pod.includes(u)), ctx.played, ctx.byes, 'dutch', ctx.score));
+  const { pairs: extra, bye } = spare(res.map((x) => x.bye), ctx);
+  return { pairs: [...res.flatMap((x) => x.pairs), ...extra], bye, tags: {} };
+}
+
+/**
+ * Người lẻ của từng pod (có người rút nên nhiều pod cùng lẻ): ghép họ với nhau theo thứ tự xếp hạng, chỉ người còn lại cuối
+ * cùng (nếu lẻ) được miễn đấu – không ai bị bỏ sót khỏi vòng.
+ */
+function spare(byes, ctx) {
+  const left = byes.filter(Boolean).sort((a, b) => ctx.order.indexOf(a) - ctx.order.indexOf(b));
+  if (left.length < 2) return { pairs: [], bye: left[0] || null };
+  const res = swissPairs(left, ctx.played, ctx.byes, 'adjacent', null);
+  return { pairs: res.pairs, bye: res.bye };
 }
 
 /** Người đi tiếp theo thành tích (cắt X-2): mọi người thua ≤ cutLosses trận, theo bảng xếp hạng. */

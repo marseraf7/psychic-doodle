@@ -36,19 +36,22 @@
         for (const x of v.table) out.push([n, '', x.wd ? T('golf_wd') : x.cut ? T('golf_mc') : x.rank, x.name, (x.rounds || []).filter((r) => r != null).length, '', '', '', '', '', x.total != null ? x.total : '', x.toPar != null && RU ? RU.fmtPar(x.toPar) : '']);
         continue;
       }
-      if (v.type === 'race') { for (const x of v.table) out.push([n, '', x.rank, x.name, x.races, x.wins || '', '', x.dnf || '', '', '', x.pts != null ? x.pts : '', x.time != null && RU ? RU.fmtTime(x.time) : '']); continue; }
+      // Race: cột điểm theo cách tính (điểm / tổng omnium, nhảy cầu / số vòng Backyard / tiền thưởng poker)
+      const score = (x) => [x.pts, x.total, x.bank, x.yards].find((y) => y != null);
+      if (v.type === 'race') { for (const x of v.table) out.push([n, '', x.rank, x.name, x.races, x.wins || '', '', x.dnf || '', '', '', score(x) != null ? score(x) : '', x.time != null && RU ? RU.fmtTime(x.time) : '']); continue; }
       const tabs = v.groups ? v.groups.map((g) => [v.type === 'kings' && K.groupLabel ? K.groupLabel(v, g) : g.name, g.table]) : v.table ? [['', v.table]] : [];
-      for (const [g, rows] of tabs) for (const x of rows || []) out.push([n, g, x.rank, x.name, x.mp, x.w, x.d, x.l, x.gw, x.gl, x.pts, '']);
+      // Bảng chỉ có hạng (nhánh đồ thị, knock, vòng vớt): cột # là hạng, các cột thống kê để trống
+      for (const [g, rows] of tabs) for (const x of rows || []) out.push(x.mp == null && x.place != null ? [n, g, x.place, x.name, '', '', '', '', '', '', '', ''] : [n, g, x.rank, x.name, x.mp, x.w, x.d, x.l, x.gw, x.gl, x.pts, '']);
     }
     return out;
   }
 
-  /** Kết quả từng trận (trận đã có đủ hai bên). */
+  /** Kết quả từng trận (trận đã có đủ hai bên; gồm trận vòng vớt, playoff chặng). */
   function matchRows(t) {
     const out = [[T('ot_x_stage'), T('ot_x_round'), T('ot_x_home'), T('ot_x_away'), T('ot_score'), T('ot_x_detail'), T('ot_pen'), T('ot_when'), T('ot_venue')]];
     for (const v of t.stageViews || []) {
       const all = [...(v.rounds || []).flat(), ...(v.lrounds || []).flat(), ...(v.pre || []), ...(v.gf || []), ...(v.third ? [v.third] : []),
-        ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())].filter((m) => m && m.a && m.b && !m.a.bye && !m.b.bye);
+        ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.rep || []).flatMap((x) => x.rounds.flat()), ...(v.splits || []).flatMap((x) => x.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())].filter((m) => m && m.a && m.b && !m.a.bye && !m.b.bye);
       for (const m of all) {
         out.push([v.index + 1, m.round + 1, m.a.name, m.b.name, m.done ? `${m.wa}-${m.wb}` : '', m.sets ? m.sets.map((s, i) => s.join('-') + (m.pens && m.pens[i] ? ` (${m.pens[i].join('-')})` : '')).join(' ') : '',
           m.extra ? m.extra.join('-') : '', m.when ? localTime(m.when) : '', m.venue || '']);

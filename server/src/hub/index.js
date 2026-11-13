@@ -51,6 +51,7 @@ const { TourImg } = require('./tour-img.js');
 const { TourArrange } = require('./tour-arrange.js');
 const { OTour } = require('./otour.js');
 const { OTourRun } = require('./otour-run.js');
+const { OTourUndo } = require('./otour-undo.js'); // huỷ kết quả trận giải offline (kiểm khoá trước, sửa sau)
 const { OTourRace } = require('./otour-race.js');
 const { OTourLeague } = require('./otour-league.js');
 const { OTourSched } = require('./otour-sched.js');
@@ -64,6 +65,7 @@ const { Tournaments } = require('./tournaments.js');
 const { TourRun } = require('./tour-run.js');
 const { Arena } = require('./arena.js');
 const { Bracket } = require('./bracket.js');
+const { BracketMark } = require('./bracket-mark.js'); // trình bày riêng giải offline (vòng vớt, pool, đánh dấu đi tiếp)
 const { TourReg } = require('./tour-reg.js');
 const { TourScore } = require('./tour-score.js');
 const { TourManage } = require('./tour-manage.js');
@@ -79,7 +81,7 @@ const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

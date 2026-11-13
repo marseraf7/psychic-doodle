@@ -11,7 +11,7 @@
  *     người khác xếp theo vòng bị loại như loại trực tiếp thường.
  * st.rep = { sides: [{ fin, pool: [uid], ids: [trận vớt], bronze: id | null, direct: uid | null }] }. Trận vớt nối next như
  * nhánh loại trực tiếp (resolveElim / huỷ kết quả dùng chung). Huỷ kết quả bán kết khi chưa trận vớt nào có kết quả: bỏ nhánh
- * vớt, sinh lại khi bán kết xong lần nữa.
+ * vớt, sinh lại khi bán kết xong lần nữa (huỷ chung kết không ảnh hưởng nhánh vớt).
  */
 'use strict';
 const { real, newMatch } = require('./stages-base.js');
@@ -86,12 +86,19 @@ function update(st) {
 
 /** Huỷ kết quả trận m (nhánh chính): false nếu bị khoá; bán kết bị huỷ thì bỏ nhánh vớt (chưa trận vớt nào có kết quả). */
 function beforeUndo(st, m) {
-  if (!st.rep || m.rep != null) return true;
+  // Chỉ bán kết sinh ra nhánh vớt: huỷ chung kết (hay trận vớt) không đụng tới nhánh vớt
+  if (!st.rep || m.rep != null || m.round !== sfRound(st)) return true;
   const ids = st.rep.sides.flatMap((s) => [...s.ids, ...(s.bronze ? [s.bronze] : [])]);
   if (ids.some((id) => st.matches[id].done)) return false;
   for (const id of ids) delete st.matches[id];
   st.rep = null;
   return true;
+}
+
+/** Khoá huỷ (không sửa gì): bán kết mà nhánh vớt đã có trận có kết quả. */
+function undoLocked(st, m) {
+  if (!st.rep || m.rep != null || m.round !== sfRound(st)) return false;
+  return st.rep.sides.some((s) => [...s.ids, ...(s.bronze ? [s.bronze] : [])].some((id) => st.matches[id].done));
 }
 
 /** Thứ hạng chung cuộc khi có vòng vớt: [{ uid, place }]. */
@@ -130,4 +137,4 @@ function extraMatches(cfg, size) {
   return 2 * Math.max(1, p);
 }
 
-module.exports = { FROM, MODES, normalize, error, update, beforeUndo, places, podium, view, extraMatches };
+module.exports = { FROM, MODES, normalize, error, update, beforeUndo, undoLocked, places, podium, view, extraMatches };
