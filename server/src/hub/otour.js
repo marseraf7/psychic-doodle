@@ -100,7 +100,7 @@ class OTour {
   // ------------------------------------------------------------ Tạo / sửa / xoá
   /** Các trường chung khi tạo và sửa (tên, mô tả có định dạng, link riêng, ai xem được). */
   otFields(o, id = null) {
-    const name = cleanPublicName(o.name).slice(0, 60);
+    const name = cleanPublicName(o.name, 60);
     if (name.length < 3) throw E('tour_name_short');
     const slug = String(o.slug || '').trim().toLowerCase();
     if (slug && !SLUG_RE.test(slug)) throw E('tour_slug_bad');
@@ -235,7 +235,9 @@ class OTour {
   }
 
   otMine(t, uid) {
-    return { canManage: this.otCanManage(t, uid), log: this.otCanManage(t, uid) ? (t.log || []).slice(-50).reverse() : null, now: Date.now(), ...this.otRegMine(t, uid) };
+    const manage = this.otCanManage(t, uid);
+    return { canManage: manage, log: manage ? (t.log || []).slice(-50).reverse() : null, now: Date.now(), ...this.otRegMine(t, uid),
+      ...(manage && t.multi ? { multiPriv: this.otMultiPrivate(t) } : {}) }; // giải con riêng tư: chỉ người quản lý thấy (otour-multi.js)
   }
 
   /** Gom cập nhật rồi gửi: người mới mở trang nhận bản đầy đủ, còn lại nhận bản vá (như giải Caro). */

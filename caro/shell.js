@@ -28,7 +28,12 @@
   let last = 'home'; // trang xem gần nhất (để nút ‹ trên bàn cờ quay về)
   let visible = !shell.hidden; // index.html hiện sẵn khung (Trang chủ) để mạng chậm không thấy bàn cờ trống
 
-  const emit = (id) => window.dispatchEvent(new CustomEvent('caro:page', { detail: { id } }));
+  const emit = (id) => {
+    // Vào một trang: bỏ thông báo cũ của bàn cờ trong vùng đọc màn hình (#sr-live – lỗi E2 / N5)
+    const sr = id && document.getElementById('sr-live');
+    if (sr) sr.textContent = '';
+    window.dispatchEvent(new CustomEvent('caro:page', { detail: { id } }));
+  };
 
   /** Đóng hộp thoại "đã chuyển thành trang" của trang id (nếu đang mở). */
   function closeProxy(id) {

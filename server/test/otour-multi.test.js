@@ -86,6 +86,16 @@ test('Giải tổng qua máy chủ: giải con không tính hạn mức, điểm
   c2.access = 'private';
   v = (await get(id));
   assert.deepStrictEqual([v.multi.clubs.map((c) => [c.name, c.pts]), v.multi.hidden], [[['Alpha', 10], ['Beta', 1], ['Gamma', 0]], 1]);
+  // N6 (kiểm thử 12/11/2026): người quản lý vẫn thấy giải con riêng tư trong danh sách để mở; người khác không thấy
+  const mineOf = async (cl) => (await cl.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && m.tour)).mine || {};
+  assert.deepStrictEqual((await mineOf(org)).multiPriv.map((x) => [x.id, x.priv]), [[id2, true]]);
+  assert.strictEqual((await mineOf(other)).multiPriv, undefined);
+  // Giải tổng cũng riêng tư (mẫu tạo giải con theo chế độ giải tổng): giải con riêng tư cùng chủ hiện và cộng điểm như thường
+  P.access = 'private';
+  v = (await get(id));
+  assert.deepStrictEqual([v.multi.children.length, v.multi.hidden, v.multi.clubs.map((c) => [c.name, c.pts])], [12, 0, [['Alpha', 11], ['Beta', 11], ['Gamma', 0]]]);
+  assert.deepStrictEqual((await mineOf(org)).multiPriv, []);
+  P.access = 'public';
   c2.access = 'public';
   // Gỡ giải con chưa đấu: thành giải thường, tính vào hạn mức 10 giải đang chạy (giải tổng 1 + 9) → lần gỡ thứ 10 bị chặn
   const drafts = P.multi.children.filter((x) => x !== c1.id && x !== id2);

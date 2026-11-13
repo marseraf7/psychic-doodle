@@ -206,7 +206,7 @@
       if (t.multi) return html + (K.otMultiHtml ? K.otMultiHtml(t) : ''); // trang tổng: bảng điểm câu lạc bộ, giải con, lịch gộp
       if (L().reg) html += L().reg(t);
       // Cấu hình thể thức (trước khi bắt đầu) – bằng lời
-      if (window.CaroOTourSpecIO) html += `<section class="ot-sec ot-desc"><h4>${esc(T('ot_desc_title'))}</h4><ul>${window.CaroOTourSpecIO.describeSpec(t, T).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`;
+      if (window.CaroOTourSpecIO) html += `<section class="ot-sec ot-desc"><h4>${esc(T('ot_desc_title'))}</h4><ul>${window.CaroOTourSpecIO.describeSpec(K.effSpec ? K.effSpec(t) : t, T).map((x) => `<li>${esc(x)}</li>`).join('')}</ul></section>`;
       return html;
     },
     stages: (t) => (K.otScoreHtml ? K.otScoreHtml(t) : '') + K.stagesHtml(t), // khung nhập kết quả (otour-score.js) + nhánh / bảng

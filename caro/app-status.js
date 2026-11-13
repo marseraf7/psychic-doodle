@@ -47,7 +47,9 @@
       cueMine = show;
       const n = o ? o.room.moves.length : state.board.moves.length;
       const key = over ? 'end' + n : mine ? 'turn' + n : '';
-      if (key && key !== cueKey) $('sr-live').textContent = $('turn').textContent.replace(/\s+/g, ' ').trim();
+      // Chỉ đọc lượt / kết quả khi bàn cờ đang hiện – đang ở một trang (trang giải, trang chủ…) thì thông báo cũ của bàn cờ
+      // không được nằm lại trong vùng đọc màn hình (lỗi E2 / N5: "Lượt X (bạn)", "X thắng!" ở cuối trang giải)
+      if (key && key !== cueKey && !document.body.classList.contains('shell-on')) $('sr-live').textContent = $('turn').textContent.replace(/\s+/g, ' ').trim();
       cueKey = key;
     }
 

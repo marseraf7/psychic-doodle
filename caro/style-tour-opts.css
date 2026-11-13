@@ -39,7 +39,9 @@
 /* ---- URL riêng */
 .slug-row { display: flex; align-items: stretch; border: 1px solid var(--field-border); border-radius: 10px; overflow: hidden; background: var(--panel); }
 .slug-pre { display: flex; align-items: center; padding: 0 10px; background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted);
-  font-size: var(--fs-sm); white-space: nowrap; max-width: 55%; overflow: hidden; text-overflow: ellipsis; }
+  font-size: var(--fs-sm); white-space: nowrap; max-width: 55%; overflow: hidden; }
+/* Tên miền dài: "…" ở span con – text-overflow không có tác dụng trên khung flex (docs/chuan-giao-dien.md) */
+.slug-pre > .ellip { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .slug-row input { flex: 1; min-width: 0; border: 0; border-radius: 0; }
 .slug-row .icon { border-radius: 0; }
 

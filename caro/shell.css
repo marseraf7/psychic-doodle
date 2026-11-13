@@ -26,16 +26,20 @@ body.shell-on .invites { bottom: calc(var(--tabbar-h) + 12px + env(safe-area-ins
 .page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .page[hidden] { display: none; }
 .pg-head {
-  flex: none; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center;
+  /* Cột hai bên tối thiểu 48px, nới theo nút (vd. "Giải đấu" ở trang giải offline) – cột cố định 48px thì nút tràn đè lên tên
+     trang (kiểm thử 13/11/2026); cột giữa minmax(0, …) để tên dài cắt có "…" thay vì đẩy tràn */
+  flex: none; display: grid; grid-template-columns: minmax(48px, auto) minmax(0, 1fr) minmax(48px, auto); align-items: center;
   min-height: 56px; padding: env(safe-area-inset-top) 8px 0;
 }
 .pg-title {
   grid-column: 2; margin: 0; text-align: center;
   font-size: var(--fs-md); font-weight: var(--fw-medium); letter-spacing: 0;
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; overflow: hidden; /* "…" đặt ở span.ellip bên trong – text-overflow không có tác dụng trên khung flex */
 }
-.pg-title svg.ico { width: 1.1em; height: 1.1em; }
+.pg-title svg.ico { width: 1.1em; height: 1.1em; flex: none; }
+/* Chữ dài trong tiêu đề trang (khung flex): cắt có "…" ở phần tử con – text-overflow không có tác dụng trên khung flex; trong hộp thoại (#tour-title) span.ellip là chữ thường, xuống dòng như cũ */
+.pg-title > .ellip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-logo { width: 26px; height: 26px; border-radius: 7px; }
 .pg-back { grid-column: 1; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text); }
 .pg-back .ico { width: 24px; height: 24px; }

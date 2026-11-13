@@ -62,13 +62,16 @@ const cleanRich = (s, max) => mask(String(s || '').replace(/\r\n?/g, '\n').repla
 /** Bỏ đánh dấu của văn bản có định dạng (dòng tóm tắt ở danh sách): giữ chữ, gộp thành một dòng. */
 const plainRich = (s, max) => String(s || '').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/^:::.*$|^(-{3,}|\*{3,})$/gm, '')
   .replace(/^\s*(#{2,3}|>|[-•]|\d{1,3}[.)])\s+/gm, '').replace(/\*\*|~~|\*/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
-/** Tên người chơi / CLB / giải: có từ tục thì báo lỗi bad_name. */
-function cleanPublicName(s) {
-  const n = cleanName(s);
+/**
+ * Tên người chơi / CLB / giải: có từ tục thì báo lỗi bad_name. max: độ dài tối đa của nơi gọi (mặc định 24 – tên người chơi);
+ * tên giải / CLB truyền max riêng – trước đây luôn cắt ở 24 ký tự rồi mới cắt theo max nên tên giải dài bị mất phần cuối.
+ */
+function cleanPublicName(s, max = 24) {
+  const n = cleanName(s, max);
   if (n && isOffensiveName(n)) throw require('../msg.js').E('bad_name');
   return n;
 }
-const cleanName = (s) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24);
+const cleanName = (s, max = 24) => String(s || '').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
 const userPid = (uid) => 'u_' + uid;
 const uidOf = (pid) => (pid && pid.startsWith('u_') ? pid.slice(2) : null);
 

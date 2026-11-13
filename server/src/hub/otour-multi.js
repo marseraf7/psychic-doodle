@@ -166,7 +166,7 @@ class OTourMulti {
     const commit = this.otMultiQuota(me, list.length);
     let made = 0;
     for (const g of list) {
-      const name = cleanPublicName(g && g.name).slice(0, 60);
+      const name = cleanPublicName(g && g.name, 60);
       let spec;
       try { spec = Spec.normalizeSpec(g.spec); } catch (e) { continue; }
       if (name.length < 3 || parent.multi.children.length >= MAX_CHILDREN) continue;
@@ -239,7 +239,7 @@ class OTourMulti {
   /** Phần giải tổng gửi cho người xem: bảng điểm câu lạc bộ, các giải con, lịch gộp. */
   otMultiView(t) {
     const table = t.multi.table;
-    const kids = t.multi.children.map((id) => this.otGet(id)).filter((c) => c && c.parent === t.id && c.access !== 'private');
+    const kids = t.multi.children.map((id) => this.otGet(id)).filter((c) => c && c.parent === t.id && this.otMultiShown(t, c));
     const clubs = new Map();
     const sched = [];
     const children = kids.map((c) => {
@@ -279,6 +279,21 @@ class OTourMulti {
     const list = all.slice(0, 200).map((c, i) => ({ rank: i + 1, name: c.name, pts: c.pts, wins: c.cnt[0] || 0, res: c.res, ...(ok(c) ? {} : { inel: true }) }));
     sched.sort((a, b) => a.when - b.when);
     return { table, minTop, needWin, children, clubs: list, sched: sched.slice(0, MAX_SCHED), hidden: t.multi.children.length - kids.length, max: MAX_CHILDREN };
+  }
+
+  /**
+   * Giải con hiện ở trang giải tổng (cả bảng điểm câu lạc bộ) cho mọi người xem giải tổng: giải con không riêng tư, hoặc giải
+   * tổng cũng riêng tư mà cùng chủ (người xem được giải tổng riêng tư là chủ / người được mời – giải con tạo từ mẫu theo đúng
+   * chế độ của giải tổng). Lỗi gốc N6 (12/11/2026): giải tổng riêng tư tạo từ mẫu hiện "0 giải con", không mở được giải nào.
+   */
+  otMultiShown(t, c) {
+    return c.access !== 'private' || (t.access === 'private' && c.owner === t.owner);
+  }
+
+  /** Giải con riêng tư còn bị ẩn (giải tổng công khai): chỉ người quản lý thấy trong danh sách để mở / đổi chế độ. */
+  otMultiPrivate(t) {
+    return t.multi.children.map((id) => this.otGet(id)).filter((c) => c && c.parent === t.id && !this.otMultiShown(t, c))
+      .slice(0, MAX_CHILDREN).map((c) => ({ id: c.id, slug: c.slug || null, name: c.name, sport: c.sport, status: c.status, n: c.players.length, priv: true }));
   }
 
   /** Liên kết về giải tổng cho trang giải con. */
