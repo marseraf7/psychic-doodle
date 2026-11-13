@@ -106,7 +106,7 @@
             points: { type: 'object', properties: { w: int(0, 10), d: int(0, 10), l: int(0, 10), wx: int(0, 10), lx: int(0, 10), gw: int(0, 10), gt: int(0, 10), bye: int(0, 10) } },
             tiebreaks: { type: 'array', maxItems: TIEBREAKS.length, items: { type: 'string', enum: TIEBREAKS } },
             rankBy: { type: 'string', enum: ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'] },
-            events: int(1, 60, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt', 'golf', 'omnium', 'massstart', 'pursuit', 'backyard', 'poker'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội), 'golf' golf đấu gậy (events = số vòng), 'omnium' omnium xe đạp lòng chảo (4 đua con), 'massstart' xuất phát đồng loạt kiểu trượt băng (điểm giữa đua + về đích), 'pursuit' đuổi bắt sau giai đoạn tính giờ (xuất phát theo khoảng thua), 'backyard' Backyard Ultra (mỗi giờ một yard), 'poker' poker có bounty (mỗi chặng một lần loại người)" },
+            events: int(1, 60, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt', 'golf', 'omnium', 'massstart', 'skijump', 'pursuit', 'backyard', 'poker'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội), 'golf' golf đấu gậy (events = số vòng), 'omnium' omnium xe đạp lòng chảo (4 đua con), 'massstart' xuất phát đồng loạt kiểu trượt băng (điểm giữa đua + về đích), 'skijump' nhảy cầu tính điểm (Nordic combined – events = số lượt nhảy, 1–4), 'pursuit' đuổi bắt sau giai đoạn tính giờ / nhảy cầu (xuất phát theo khoảng thua), 'backyard' Backyard Ultra (mỗi giờ một yard), 'poker' poker có bounty (mỗi chặng một lần loại người)" },
             kinds: { type: 'array', maxItems: 30, items: { type: 'string', enum: ['flat', 'hilly', 'mtn', 'itt'] }, description: "'gt': loại từng chặng – đồng bằng / đồi / núi / tính giờ cá nhân" },
             bonus: { type: 'boolean', description: "'gt': giây thưởng về đích top 3 (10-6-4)" },
             par: { type: 'array', maxItems: 18, items: int(3, 6), description: "'golf': par từng lỗ (mặc định 18 lỗ par 72)" },
@@ -118,7 +118,8 @@
             handicap: { type: 'object', properties: { si: { type: 'array', items: int(1, 18), description: 'chỉ số khó từng lỗ (hoán vị 1..số lỗ)' } }, description: "'golf' Stableford: bật handicap – mỗi dòng nhập có hcp 0–54, được trừ gậy ở các lỗ khó nhất trước" },
             omnium: { type: 'object', properties: { rank: { type: 'array', maxItems: 40, items: int(0, 100), description: 'điểm theo hạng ở 3 đua đầu (phải đủ cho mọi người)' }, lap: int(1, 50, 'điểm mỗi vòng hơn / kém ở points race'), sprint: { type: 'array', maxItems: 6, items: int(0, 20) } }, description: "'omnium': Scratch, Tempo, Loại dần, Points race" },
             massStart: { type: 'object', properties: { laps: int(4, 40), sprints: { type: 'array', items: int(1, 39) }, mid: { type: 'array', maxItems: 6, items: int(0, 20) }, final: { type: 'array', maxItems: 12, items: int(0, 200) }, semis: { type: 'boolean' }, heat: int(6, 24), adv: int(2, 16) }, description: "'massstart': số vòng, vòng có điểm giữa đua, điểm giữa đua (3-2-1), điểm về đích (60-40-20-10-6-3), bán kết (mỗi lượt tối đa heat người, adv người đầu vào chung kết)" },
-            pursuit: { type: 'object', properties: { wave: int(0, 3600, 'thua quá số giây này thì xuất phát đồng loạt (0 = không)') }, description: "'pursuit': giai đoạn sau giai đoạn race 'time'" },
+            pursuit: { type: 'object', properties: { wave: int(0, 3600, 'thua quá số giây này thì xuất phát đồng loạt (0 = không)'), perPoint: { type: 'number', minimum: 0.1, maximum: 60, description: "sau 'skijump': số giây cho mỗi điểm thua (Gundersen cá nhân: 4)" } }, description: "'pursuit': giai đoạn sau giai đoạn race 'time' hoặc 'skijump'" },
+            draft: { type: 'object', properties: { packs: int(1, 5), pass: { type: 'array', items: { type: 'string', enum: ['left', 'right'] } }, decklist: { type: 'boolean' }, min: int(1, 250), cross: { type: 'boolean' } }, description: "Draft kiểu Magic (Thụy Sĩ có pod: mỗi khối vòng một phiên draft; loại trực tiếp: Top 8 draft lại): bốc ghế, chiều chuyền gói, bắt buộc nộp danh sách bài (chỉ đếm số lá), vòng đầu ghép đối diện bàn" },
             backyard: { type: 'object', properties: { m: int(100, 100000, 'độ dài mỗi yard (mét)'), min: int(10, 180, 'phút mỗi yard') }, description: "'backyard': người cuối cùng phải chạy thêm một yard một mình mới vô địch (không thì không có nhà vô địch)" },
             poker: { type: 'object', properties: { type: { type: 'string', enum: ['pko', 'mystery'] }, start: int(0, 1000000), pocket: int(0, 100), act: int(2, 10000), envelopes: { type: 'array', maxItems: 200, items: int(0, 10000000) } }, description: "'poker' (chỉ điểm thưởng): PKO – loại người nhận ngay pocket% bounty, phần còn lại cộng vào bounty mình; Mystery – còn `act` người thì mỗi lần loại rút một phong bì" },
             mode: { type: 'string', enum: ['shootout', 'bounty'], description: "'knock' (loại trực tiếp dựng từng vòng): 'shootout' bốc thăm lại mỗi vòng (Snooker Shoot Out), 'bounty' chọn đối thủ + sổ tiền thưởng (BLAST Bounty)" },
@@ -219,8 +220,10 @@
       } else if (c.score === 'poker') {
         const P = c.poker || {};
         x.push(P.type === 'mystery' ? T('ds_pk_mystery', { n: P.act || 9 }) : T('ds_pk_pko', { s: P.start != null ? P.start : 100, p: P.pocket != null ? P.pocket : 50 }));
+      } else if (c.score === 'skijump') {
+        x.push(T('ds_skijump', { n: c.events || 1 }));
       } else if (c.score === 'pursuit') {
-        x.push(T((c.pursuit || {}).wave === 0 ? 'ds_pursuit_nowave' : 'ds_pursuit', { w: (c.pursuit || {}).wave != null ? c.pursuit.wave : 240 }));
+        x.push(T((c.pursuit || {}).wave === 0 ? 'ds_pursuit_nowave' : 'ds_pursuit', { w: (c.pursuit || {}).wave != null ? c.pursuit.wave : 240 }), T('ds_pu_per', { s: (c.pursuit || {}).perPoint || 4 }));
       } else if (c.score === 'gt') { // xe đạp nhiều chặng: số chặng theo loại
         const n = (k) => (c.kinds || []).filter((x) => x === k).length;
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));
@@ -246,6 +249,7 @@
     if (c.bestOf === 2 && (c.type === 'roundrobin' || c.type === 'swiss')) x.push(T('ds_bo2'));
     if (c.boards) x.push(T('ds_bridge', { n: c.boards }));
     if (c.pod) x.push(T('ds_pod', { n: c.pod.size, k: c.pod.rounds }));
+    if (c.draft) x.push(T(c.type === 'single' ? 'ds_mtg_top' : 'ds_mtg', { n: c.draft.packs || 3 }) + (c.draft.decklist ? ' ' + T('ds_mtg_deck') : ''));
     if (c.splits) x.push(T('ds_splits', { n: c.splits.n, k: c.splits.take, bo: c.splits.bo }));
     if (c.fixed) x.push(T(c.decider ? 'ds_fixed_dec' : 'ds_fixed', { n: c.bestOf })); // đủ số ván (kiểu OWL)
     if (Array.isArray(c.matchLadder) && c.matchLadder.length) { // thang ván (otour-ladder.js)

@@ -21,7 +21,7 @@
   /** Số bảng vòng tròn (như groupCount ở stages-groups.js). */
   const MAX_BIG = 64; // bảng lớn của giải offline (stages-league.js)
   /** Số chặng của giai đoạn race: omnium 4 đua con, mass start (bán kết + chung kết), pursuit 1 (như máy chủ). */
-  const evOf = (c) => (c.score === 'omnium' ? 4 : c.score === 'massstart' ? (c.massStart && c.massStart.semis ? 2 : 1) : ['pursuit', 'backyard'].includes(c.score) ? 1 : c.score === 'poker' ? 1 : Number(c.events) || 1);
+  const evOf = (c) => (c.score === 'omnium' ? 4 : c.score === 'massstart' ? (c.massStart && c.massStart.semis ? 2 : 1) : ['pursuit', 'backyard'].includes(c.score) ? 1 : c.score === 'poker' ? 1 : c.score === 'skijump' ? Math.max(1, Math.min(4, Number(c.events) || 1)) : Number(c.events) || 1);
   function groupCount(c, n) {
     if (c.league) return 1;
     if (c.season) return c.season.confs || 1;

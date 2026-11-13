@@ -395,6 +395,7 @@ class Bracket {
       if (st.pp) v.pp = { r: st.pp.r, v: st.pp.v }; // tăng tốc Baku: điểm ảo của vòng mới nhất (stages-pairing.js)
       if (st.gib) v.gib = Object.keys(st.gib).map((u) => this.tourSide(t, u).name); // người đã chắc suất được cách ly
     }
+    if (st.cfg.draft && st.drafts) v.draft = ST.DRF.view(st, (u) => this.tourSide(t, u)); // draft kiểu Magic: ghế, danh sách bài
     if (t.kind === 'otour' && adv) this.markAdvance(t, st, i, v, seedOf);
     return v;
   }

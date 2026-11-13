@@ -127,9 +127,13 @@
     { id: 'backyard_ultra', icon: '🏃', sport: 'running', n: 30, stages: [{ type: 'race', score: 'backyard' }] },
     // Bridge đồng đội: 10 đội vòng tròn, mỗi trận 16 ván, IMP → VP thang 20 (WBF)
     { id: 'bridge_teams', icon: '🃏', sport: 'bridge', n: 10, stages: [{ type: 'roundrobin', boards: 16 }] },
-    // Game bài sưu tầm kiểu Grand Prix: 64 người, Thụy Sĩ 6 vòng trong pod 8 người (đổi pod sau 3 vòng), Top 8 loại trực tiếp
+    // Game bài sưu tầm kiểu Grand Prix: 64 người, Thụy Sĩ 6 vòng trong pod 8 người – mỗi pod một phiên draft 3 gói (bốc ghế, vòng đầu
+    // ghép đối diện bàn, bắt buộc nộp danh sách bài), đổi pod sau 3 vòng; Top 8 draft lại rồi loại trực tiếp
     { id: 'mtg_gp', icon: '🎴', sport: 'tcg', n: 64,
-      stages: [{ type: 'swiss', rounds: 6, pod: { size: 8, rounds: 3 }, advance: 8, bestOf: 3 }, { type: 'single', bestOf: 3 }] },
+      stages: [{ type: 'swiss', rounds: 6, pod: { size: 8, rounds: 3 }, draft: { packs: 3, decklist: true }, advance: 8, bestOf: 3 }, { type: 'single', bestOf: 3, draft: { packs: 3 } }] },
+    // Nordic combined kiểu Gundersen: nhảy cầu tính điểm → 10 km đuổi bắt, mỗi điểm thua = 4 giây (không xuất phát đồng loạt)
+    { id: 'nordic_combined', icon: '⛷️', sport: 'skiing', n: 50,
+      stages: [{ type: 'race', score: 'skijump', events: 1, advance: 50 }, { type: 'race', score: 'pursuit', pursuit: { wave: 0, perPoint: 4 } }] },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MORE;
   else global.CaroOTourTplMore = MORE;

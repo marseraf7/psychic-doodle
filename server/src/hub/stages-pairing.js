@@ -18,6 +18,7 @@
  */
 'use strict';
 const { real } = require('./stages-base.js');
+const DRF = require('./stages-draft.js'); // draft kiểu Magic: bốc ghế, ghép đối diện bàn
 
 const MODES = ['dutch', 'adjacent', 'monrad', 'danish', 'baku'];
 const NEW = ['monrad', 'danish', 'baku']; // chỉ giải offline
@@ -201,6 +202,12 @@ function podPair(st, r, ctx) {
     st.pods = makePods(base.filter((u) => ctx.order.includes(u)), P.size);
     st.podBlock = block;
     (st.podHist = st.podHist || [])[block] = st.pods.map((p) => [...p]);
+    if (st.cfg.draft) DRF.seat(st, block, st.pods); // mỗi khối vòng là một phiên draft: bốc ghế
+  }
+  // Vòng đầu phiên draft: ghép người ngồi đối diện bàn (ghế 1 gặp ghế 5 ở pod 8 người)
+  if (st.cfg.draft && st.cfg.draft.cross && r % P.rounds === 0 && st.drafts && st.drafts[block]) {
+    const out = st.drafts[block].pods.map((p) => DRF.crossPairs(p.filter((u) => ctx.order.includes(u))));
+    return { pairs: out.flatMap((x) => x.pairs), bye: (out.find((x) => x.bye) || {}).bye || null, tags: {} };
   }
   const pairs = [];
   let bye = null;

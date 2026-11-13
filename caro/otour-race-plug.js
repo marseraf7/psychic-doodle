@@ -4,7 +4,8 @@
  *               số vòng hơn / kém);
  *   massstart – bán kết (các lượt) + chung kết: nhập thứ tự về đích + tổng điểm giữa đua, bỏ cuộc / truất quyền;
  *   pursuit   – danh sách xuất phát theo khoảng thua (mốc xuất phát đồng loạt), nhập thứ tự qua vạch + thời gian thuần, vòng phạt.
- * K.racePlugHtml(t, v) – otour-race.js gọi khi v.omnium / v.mass / v.pursuit. Nạp sau otour-race.js.
+ *   skijump   – nhảy cầu (phần đầu Nordic combined): mỗi lượt nhập điểm từng người, xếp theo tổng điểm.
+ * K.racePlugHtml(t, v) – otour-race.js gọi khi v.omnium / v.mass / v.pursuit / v.jump. Nạp sau otour-race.js.
  */
 (function () {
   'use strict';
@@ -22,6 +23,9 @@
     if (v.omnium) {
       head = ['#', '', ...[0, 1, 2, 3].map((k) => T('om_ev_' + k)), T('om_sp'), T('om_lap'), T('col_pts')];
       row = (x) => [x.parts.map((p) => (p == null ? '' : sgn(p))).join('</td><td>'), x.parts[3] == null ? '' : x.sp, x.parts[3] == null ? '' : sgn(x.lap), `<b>${x.total}</b>`];
+    } else if (v.jump) {
+      head = ['#', '', ...v.events.map((e) => T('sj_round_n', { n: e.i + 1 })), T('col_pts')];
+      row = (x) => [...x.jumps.map((p) => (p == null ? '' : p.toFixed(1))), x.dsq ? esc(T('ms_dsq')) : x.dnf ? esc(T('pl_dnf')) : x.total != null ? `<b>${x.total.toFixed(1)}</b>` : ''];
     } else if (v.mass) {
       head = ['#', '', T('ms_fin'), T('ms_semi'), T('col_pts')];
       row = (x) => [x.fin ? x.fin : x.dsq ? T('ms_dsq') : x.dnf ? T('pl_dnf') : '', x.semi ? T('ms_semi_n', { n: x.heat + 1, k: x.semi }) : '', `<b>${x.pts}</b>`];
@@ -52,31 +56,32 @@
     };
     const cols = last ? [T('om_sp'), T('om_lap')] : v.mass ? [T('ms_ip')] : v.pursuit ? [T('pu_time'), T('pu_pen')] : [];
     const st = (p) => { const x = by.get(p.uid) || {}; return x.dsq ? 'dsq' : x.dnf ? 'dnf' : ''; };
-    const stSel = (p) => `<select class="p-st"><option value="">—</option><option value="dnf" ${st(p) === 'dnf' ? 'selected' : ''}>${esc(T('pl_dnf'))}</option>${v.mass ? `<option value="dsq" ${st(p) === 'dsq' ? 'selected' : ''}>${esc(T('ms_dsq'))}</option>` : ''}</select>`;
-    const tables = groupsOf(v, ev).map((g, gi, all) => `${all.length > 1 ? `<h6>${esc(T('ms_heat_n', { n: gi + 1 }))}</h6>` : ''}<div class="tscroll"><table class="stand race-in"><thead><tr><th></th>${v.pursuit ? `<th>${esc(T('pu_start'))}</th>` : ''}<th>${esc(T('pl_rank'))}</th>${cols.map((c) => `<th>${esc(c)}</th>`).join('')}<th></th></tr></thead><tbody>${
-      g.map((p) => `<tr data-uid="${esc(p.uid)}"><td class="nm">${esc(p.name)}</td>${v.pursuit ? `<td>${esc(gapTxt(p.start))}${p.wave ? ` <small class="pill">${esc(T('pu_wave'))}</small>` : ''}</td>` : ''}<td><input class="p-rank" type="number" min="1" max="99" value="${(by.get(p.uid) || {}).rank || ''}" aria-label="${esc(T('pl_rank'))}"></td>${extra(p)}<td>${stSel(p)}</td></tr>`).join('')}</tbody></table></div>`).join('');
-    return `<form class="plug-form" data-key="${esc(key)}" data-ev="${ev.i}"><p class="hint">${esc(T(v.mass ? 'ms_form_hint' : v.pursuit ? 'pu_form_hint' : last ? 'om_form_hint_pr' : 'om_form_hint'))}</p>${tables}
+    const stSel = (p) => `<select class="p-st"><option value="">—</option><option value="dnf" ${st(p) === 'dnf' ? 'selected' : ''}>${esc(T('pl_dnf'))}</option>${v.mass || v.jump ? `<option value="dsq" ${st(p) === 'dsq' ? 'selected' : ''}>${esc(T('ms_dsq'))}</option>` : ''}</select>`;
+    const tables = groupsOf(v, ev).map((g, gi, all) => `${all.length > 1 ? `<h6>${esc(T('ms_heat_n', { n: gi + 1 }))}</h6>` : ''}<div class="tscroll"><table class="stand race-in"><thead><tr><th></th>${v.pursuit ? `<th>${esc(T('pu_start'))}</th>` : ''}<th>${esc(T(v.jump ? 'sj_pts' : 'pl_rank'))}</th>${cols.map((c) => `<th>${esc(c)}</th>`).join('')}<th></th></tr></thead><tbody>${
+      g.map((p) => `<tr data-uid="${esc(p.uid)}"><td class="nm">${esc(p.name)}</td>${v.pursuit ? `<td>${esc(gapTxt(p.start))}${p.wave ? ` <small class="pill">${esc(T('pu_wave'))}</small>` : ''}</td>` : ''}<td>${v.jump ? `<input class="p-pts" type="number" step="0.1" min="0" max="300" inputmode="decimal" value="${(by.get(p.uid) || {}).pts != null ? by.get(p.uid).pts : ''}" aria-label="${esc(T('sj_pts'))}">` : `<input class="p-rank" type="number" min="1" max="99" value="${(by.get(p.uid) || {}).rank || ''}" aria-label="${esc(T('pl_rank'))}">`}</td>${extra(p)}<td>${stSel(p)}</td></tr>`).join('')}</tbody></table></div>`).join('');
+    return `<form class="plug-form" data-key="${esc(key)}" data-ev="${ev.i}"><p class="hint">${esc(T(v.jump ? 'sj_form_hint' : v.mass ? 'ms_form_hint' : v.pursuit ? 'pu_form_hint' : last ? 'om_form_hint_pr' : 'om_form_hint'))}</p>${tables}
       <p class="err">${esc(S.err[key] || '')}</p><div class="row"><button class="primary">${esc(T('race_save'))}</button></div></form>`;
   }
 
   /** Kết quả đã nhập của cuộc đua (theo thứ tự). */
   function result(v, ev) {
     const name = (u) => ((v.entrants || []).find((p) => p.uid === u) || {}).name || '?';
-    const list = v.mass && ev.res ? ev.res : [...(ev.rows || [])].sort((a, b) => (!!a.dnf - !!b.dnf) || (a.rank || 0) - (b.rank || 0));
+    const list = v.mass && ev.res ? ev.res : v.jump ? [...(ev.rows || [])].sort((a, b) => (b.pts != null ? b.pts : -1) - (a.pts != null ? a.pts : -1)) : [...(ev.rows || [])].sort((a, b) => (!!a.dnf - !!b.dnf) || (a.rank || 0) - (b.rank || 0));
     return `<ol class="plug-res">${list.map((x) => `<li>${esc(name(x.uid))}${x.dnf ? ` <small class="muted">${esc(T('pl_dnf'))}</small>` : ''}${x.dsq ? ` <small class="muted">${esc(T('ms_dsq'))}</small>` : ''}${x.pts != null ? ` · ${x.pts}` : ''}</li>`).join('')}</ol>`;
   }
 
   function info(v) {
     const c = v.cfg;
     if (v.omnium) return T('om_info', { lap: c.omnium.lap, sp: c.omnium.sprint.join('-') });
+    if (v.jump) return T('sj_info', { n: v.events.length });
     if (v.mass) return T('ms_info', { laps: c.massStart.laps, s: c.massStart.sprints.join(', '), mid: c.massStart.mid.join('-'), fin: c.massStart.final.join('-') });
-    return T(c.pursuit.wave ? 'pu_info' : 'pu_info_nowave', { w: c.pursuit.wave });
+    return T(c.pursuit.wave ? 'pu_info' : 'pu_info_nowave', { w: c.pursuit.wave }) + (v.pursuit.byJump ? ' · ' + T('pu_info_jump', { s: c.pursuit.perPoint }) : '');
   }
 
   K.racePlugHtml = (t, v) => {
     const can = t.canManage && t.status === 'running' && v.index === (t.stage || 0);
     const cur = v.events.findIndex((e) => !e.done), lastDone = v.events.map((e) => e.done).lastIndexOf(true);
-    const name = (i) => (v.omnium ? T('om_ev_' + i) : v.mass ? T(v.cfg.massStart.semis && i === 0 ? 'ms_semis' : 'ms_final') : T('pu_race'));
+    const name = (i) => (v.omnium ? T('om_ev_' + i) : v.jump ? T('sj_round_n', { n: i + 1 }) : v.mass ? T(v.cfg.massStart.semis && i === 0 ? 'ms_semis' : 'ms_final') : T('pu_race'));
     const races = v.events.map((ev) => {
       const state = ev.done ? icon('check', 'ok') : `<span class="muted">${esc(T('pl_pending'))}</span>`;
       const undo = can && ev.i === lastDone ? `<div class="row"><button type="button" class="ghost sm danger" data-act="otRaceUndo" data-ev="${ev.i}">${esc(T('pl_undo'))}</button></div>` : '';
@@ -90,9 +95,10 @@
   function rowsOf(f) {
     const rows = [];
     f.querySelectorAll('tr[data-uid]').forEach((tr) => {
-      const q = (c) => tr.querySelector(c), stv = q('.p-st').value, rank = q('.p-rank').value.trim();
+      const q = (c) => tr.querySelector(c), stv = q('.p-st').value;
+      const rank = q('.p-rank') ? q('.p-rank').value.trim() : '', pts = q('.p-pts') ? q('.p-pts').value.trim() : '';
       const x = { uid: tr.dataset.uid };
-      if (stv === 'dnf') x.dnf = true; else if (stv === 'dsq') x.dsq = true; else if (rank) x.rank = Number(rank); else return; // trống = không xuất phát
+      if (stv === 'dnf') x.dnf = true; else if (stv === 'dsq') x.dsq = true; else if (pts) x.pts = Number(pts); else if (rank) x.rank = Number(rank); else return; // trống = không xuất phát / không nhảy
       if (q('.p-sp')) { x.sp = Number(q('.p-sp').value) || 0; x.lap = Number(q('.p-lap').value) || 0; }
       if (q('.p-ip') && q('.p-ip').value) x.ip = Number(q('.p-ip').value);
       if (q('.p-time') && q('.p-time').value.trim()) { const ms = RU.parseTime(q('.p-time').value.trim()); if (ms) x.time = ms; }

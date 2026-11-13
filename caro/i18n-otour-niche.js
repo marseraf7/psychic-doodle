@@ -122,7 +122,7 @@
     tpl_bridge_teams: 'Bridge đồng đội (IMP → VP)',
     tpl_bridge_teams_d: '10 đội vòng tròn, mỗi trận 16 ván; điểm từng ván đổi ra IMP rồi VP thang 20.',
     tpl_mtg_gp: 'Kiểu Grand Prix game bài sưu tầm',
-    tpl_mtg_gp_d: '64 người, Thụy Sĩ 6 vòng trong pod 8 người (đổi pod sau 3 vòng), Top 8 loại trực tiếp Bo3.',
+    tpl_mtg_gp_d: '64 người, Thụy Sĩ 6 vòng trong pod 8 người – mỗi pod một phiên draft 3 gói (bốc ghế, vòng đầu ghép đối diện bàn, phải nộp danh sách bài), đổi pod sau 3 vòng; Top 8 draft lại rồi loại trực tiếp Bo3.',
   });
 
   X('en', {
@@ -234,7 +234,7 @@
     tpl_bridge_teams: 'Team bridge (IMP → VP)',
     tpl_bridge_teams_d: '10 teams in a round robin, 16 boards per match; board scores become IMPs, then 20-point VPs.',
     tpl_mtg_gp: 'Trading card Grand Prix style',
-    tpl_mtg_gp_d: '64 players, 6 Swiss rounds within pods of 8 (pods redrawn after 3 rounds), Top 8 knockout Bo3.',
+    tpl_mtg_gp_d: '64 players, 6 Swiss rounds within pods of 8 – each pod is a 3-pack draft (seating, first round across the table, decklists required), pods redrawn after 3 rounds; the Top 8 draft again, then a Bo3 knockout.',
   });
 
   X('ru', {
@@ -346,7 +346,7 @@
     tpl_bridge_teams: 'Командный бридж (IMP → VP)',
     tpl_bridge_teams_d: '10 команд в круговом турнире, 16 сдач в матче; результаты сдач переводятся в IMP, затем в VP по 20-балльной шкале.',
     tpl_mtg_gp: 'Как на Гран-при по коллекционным карточным играм',
-    tpl_mtg_gp_d: '64 игрока, 6 туров по швейцарской системе внутри подов по 8 (поды переформируются после 3 туров), Top 8 на выбывание Bo3.',
+    tpl_mtg_gp_d: '64 игрока, 6 туров по швейцарской системе внутри подов по 8 — каждый под проводит драфт из 3 бустеров (рассадка, первый тур напротив, деклисты обязательны), поды переформируются после 3 туров; Top 8 проводят новый драфт, затем игры на выбывание Bo3.',
   });
 
   X('zh', {
@@ -458,6 +458,6 @@
     tpl_bridge_teams: '桥牌团体赛（IMP → VP）',
     tpl_bridge_teams_d: '10 队单循环，每场 16 副；每副得分换算为 IMP，再换算为 20 分制 VP。',
     tpl_mtg_gp: '集换式卡牌大奖赛式',
-    tpl_mtg_gp_d: '64 人，在 8 人 pod 内进行 6 轮瑞士制（3 轮后重新分 pod），前 8 名 Bo3 淘汰赛。',
+    tpl_mtg_gp_d: '64 人，在 8 人 pod 内进行 6 轮瑞士制——每个 pod 为一次 3 包轮抽（排座，首轮与对面配对，须交牌表），3 轮后重新分 pod；前 8 名重新轮抽后进行 Bo3 淘汰赛。',
   });
 })();

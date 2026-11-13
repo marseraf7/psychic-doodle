@@ -19,7 +19,7 @@
   function backyard(t, v, can) {
     const B = v.backyard, Y = v.cfg.backyard;
     const status = B.status === 'champion' ? T('by_champ', { name: (v.table.find((x) => x.champ) || {}).name || '?' }) : B.status === 'none' ? T('by_none') : T('by_running', { n: B.alive.length });
-    const rows = v.table.map((x) => `<tr class="${x.champ ? 'adv' : x.alive ? '' : 'dnf'}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.alive ? ` <span class="pill">${esc(T('by_alive'))}</span>` : ''}</td><td>${x.yards}</td><td>${x.km}</td></tr>`).join('');
+    const rows = v.table.map((x) => `<tr class="${x.champ ? 'adv' : x.alive ? '' : 'dnf'}"><td>${x.rank}</td><td class="nm">${esc(x.name)}${x.alive ? ` <span class="pill">${esc(T('by_alive'))}</span>` : ''}${x.assist ? ` <span class="pill" title="${esc(T('by_assist_hint'))}">${esc(T('by_assist'))}</span>` : ''}</td><td>${x.yards}</td><td>${x.km}</td></tr>`).join('');
     const cur = v.events.find((e) => !e.done), last = [...v.events].reverse().find((e) => e.done);
     let form = '';
     if (can && cur && B.status === 'running') {

@@ -60,6 +60,8 @@
       out.push(chk(i, 'splitOn', !!c.split, T('opt_split')));
       if (c.split) out.push(field(T('opt_split_top'), num(i, 'splitTop', c.split.top || 6, 2, 64)), `<small class="hint">${esc(T('opt_split_hint'))}</small>`);
     }
+    // Loại trực tiếp có draft (Top 8 draft lại – stages-draft.js)
+    if (c.type === 'single' && K.mtgEdit) out.push(...K.mtgEdit(i, c, false));
     // Bridge đồng đội: số ván mỗi trận (nhập điểm từng ván → IMP → VP – caro/otour-bridge.js)
     if (['roundrobin', 'swiss', 'single'].includes(c.type) && !c.record) out.push(field(T('opt_boards'), num(i, 'brBoards', c.boards || 0, 0, 64)), ...(c.boards ? [`<small class="hint">${esc(T('opt_boards_hint'))}</small>`] : []));
     if (c.type === 'gsl' && i < st.length - 1) out.push(chk(i, 'gslKeep', c.eliminates === false || !!c.keepAll, T('opt_gsl_keep')));
@@ -104,6 +106,7 @@
     const c = stages[i];
     if (k === 'gslKeep') { if (el.checked) c.eliminates = false; else { delete c.eliminates; delete c.keepAll; } c.advance = (c.size === 8 ? 8 : 4) / (el.checked ? 1 : 2); return true; }
     if (K.lobbyEdit && K.lobbyEdit.change(c, k, el)) return true;
+    if (K.mtgChange && K.mtgChange(c, k, el)) return true;
     if (k === 'brBoards') { const b = Math.max(0, Math.min(64, Math.floor(Number(el.value)) || 0)); if (b) { c.boards = b; c.bestOf = 1; } else { delete c.boards; delete c.vpTable; } return true; }
     if (k === 'splitOn') { if (el.checked) { c.split = { top: 6 }; c.groups = 2; delete c.groupSize; } else { delete c.split; c.groups = 1; } return true; }
     if (k === 'splitTop' && c.split) { c.split = { top: Math.max(2, Math.min(64, Math.floor(Number(el.value)) || 6)) }; return true; }

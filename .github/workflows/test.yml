@@ -100,7 +100,7 @@ jobs:
         timeout-minutes: 30
         if: matrix.browser == 'chromium' && (success() || failure())
         run: |
-          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun tour-adv-more tour-opts tour-arrange rich-desc otour otour-race otour-tpl otour-league otour-io otour-lazy otour-page otour-embed otour-path otour-ai otour-sched otour-series otour-esports otour-cup otour-gt otour-golf otour-multi otour-formats otour-formats8 otour-formats9 otour-majors otour-pgc otour-msi otour-graph otour-swiss2 otour-chess otour-esports2 otour-race2 otour-niche; do
+          for t in confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun tour-adv-more tour-opts tour-arrange rich-desc otour otour-race otour-tpl otour-league otour-io otour-lazy otour-page otour-embed otour-path otour-ai otour-sched otour-series otour-esports otour-cup otour-gt otour-golf otour-multi otour-formats otour-formats8 otour-formats9 otour-majors otour-pgc otour-msi otour-graph otour-swiss2 otour-chess otour-esports2 otour-race2 otour-niche otour-extra; do
             E2E_BROWSER=chromium E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/$t.e2e.js || exit 1
           done
       # Mở / tải lại khi mạng chậm: Trang chủ hiện sẵn từ HTML, service worker lấy file từ bộ nhớ đệm trước (boot.e2e.js)

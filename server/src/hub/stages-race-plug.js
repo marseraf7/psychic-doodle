@@ -16,6 +16,7 @@ const MS = require('./stages-massstart.js');
 const PUR = require('./stages-pursuit.js');
 const BY = require('./stages-backyard.js');
 const PK = require('./stages-poker.js');
+const SJ = require('./stages-skijump.js');
 
 const PLUGS = {
   golf: {
@@ -28,6 +29,7 @@ const PLUGS = {
   },
   omnium: { ...OMN.plug, maxEvents: 4, seq: true }, // omnium xe đạp lòng chảo (4 đua con)
   massstart: { ...MS.plug, maxEvents: 2, seq: true }, // mass start trượt băng tốc độ (bán kết + chung kết)
+  skijump: { ...SJ.plug, maxEvents: 4, seq: true }, // nhảy cầu tính điểm (Nordic combined – phần nhảy)
   pursuit: { ...PUR.plug, maxEvents: 1, seq: true }, // đuổi bắt kiểu biathlon / Gundersen (xuất phát theo khoảng thua)
   backyard: { ...BY.plug, maxEvents: 1, seq: true }, // Backyard Ultra: mỗi giờ một yard, chặng sau tự thêm
   poker: { ...PK.plug, maxEvents: 1, seq: true }, // poker có bounty (PKO / Mystery): mỗi chặng một lần loại người
