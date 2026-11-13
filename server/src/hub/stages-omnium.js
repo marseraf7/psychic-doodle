@@ -1,7 +1,8 @@
 /*
  * Hệ Race – cách tính 'omnium' (omnium xe đạp lòng chảo – chỉ mô phỏng thể thức). Bốn đua con là 4 chặng:
  *   0 Scratch, 1 Tempo, 2 Loại dần (elimination) – ban tổ chức nhập thứ hạng về đích; điểm theo bảng cfg.omnium.rank
- *     (mặc định 40, 38, 36… giảm 2 – ban tổ chức phải điền đủ cho mọi người; bỏ cuộc (DNF) xếp cuối đua đó);
+ *     (mặc định như UCI: 40, 38, 36… giảm 2 tới hạng 20 được 2 điểm), hạng sau cùng bảng được cfg.omnium.rest (mặc định 1 –
+ *     hạng 21 trở xuống ở Giải vô địch thế giới 2023 / 2024 đều 1 điểm); bỏ cuộc (DNF) không có hạng, 0 điểm đua đó;
  *   3 Points race – mỗi người mang điểm 3 đua đầu vào; nhập tổng điểm sprint (mốc giữa đua 5-3-2-1, mốc cuối gấp đôi),
  *     số vòng hơn (+lap điểm mỗi vòng) / kém (−lap) và thứ tự qua vạch cuối. Điểm có thể âm.
  * Xếp hạng: tổng điểm (nhiều xếp trên); bằng điểm → thứ tự qua vạch ở points race; bỏ cuộc points race xếp sau người về đích.
@@ -11,7 +12,7 @@
 
 const EVENTS = 4;
 const MAX_RANKS = 40;
-const DEF_RANK = Array.from({ length: 20 }, (_, k) => 40 - 2 * k); // 40, 38 … 2 (chưa xác minh hạng sâu – ban tổ chức sửa)
+const DEF_RANK = Array.from({ length: 20 }, (_, k) => 40 - 2 * k); // 40, 38 … 2 (hạng 20); hạng 21 trở xuống: rest (1)
 const int = (v, lo, hi, def) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
 
 function normalize(c, out) {
@@ -20,14 +21,11 @@ function normalize(c, out) {
   const rank = src && src.length ? src.slice(0, MAX_RANKS).map((x) => int(x, 0, 100, 0)) : [...DEF_RANK];
   const sprint = Array.isArray(o.sprint) && o.sprint.length ? o.sprint.slice(0, 6).map((x) => int(x, 0, 20, 0)) : [5, 3, 2, 1];
   out.events = EVENTS;
-  out.omnium = { rank, lap: int(o.lap, 1, 50, 20), sprint, every: int(o.every, 1, 50, 10), laps: int(o.laps, 10, 400, 100), double: o.double !== false };
+  out.omnium = { rank, rest: int(o.rest, 0, 100, 1), lap: int(o.lap, 1, 50, 20), sprint, every: int(o.every, 1, 50, 10), laps: int(o.laps, 10, 400, 100), double: o.double !== false };
 }
 
-/** Bảng điểm hạng phải đủ cho mọi người. */
-const error = (cfg, n) => (cfg.omnium && n > cfg.omnium.rank.length ? { code: 'ot_omnium_ranks', args: { n } } : null);
-
-/** Điểm theo hạng về đích (DNF: hạng cuối = số người xuất phát). */
-const rankPts = (cfg, rank) => cfg.omnium.rank[rank - 1] || 0;
+/** Điểm theo hạng về đích: theo bảng, hạng sau cùng bảng được `rest` (giải cũ lưu trước khi có `rest`: 1). */
+const rankPts = (cfg, rank) => (rank <= cfg.omnium.rank.length ? cfg.omnium.rank[rank - 1] || 0 : cfg.omnium.rest != null ? cfg.omnium.rest : 1);
 
 /** Kiểm kết quả đua con i. rows: 0–2 [{ uid, rank | dnf }]; 3 [{ uid, sp, lap, rank | dnf }]. */
 function clean(st, i, rows, members = st.entrants) {
@@ -68,11 +66,10 @@ function calc(st, seedOf) {
   const S = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, parts: [null, null, null, null], sp: 0, lap: 0, total: 0, fin: null, dnf: false }]));
   for (const ev of st.events) {
     if (!ev.done || !ev.rows) continue;
-    const last = ev.rows.length; // DNF xếp cuối đua đó
     for (const x of ev.rows) {
       const s = S[x.uid];
       if (!s) continue;
-      if (ev.i < EVENTS - 1) { s.parts[ev.i] = rankPts(cfg, x.dnf ? last : x.rank); s.total += s.parts[ev.i]; continue; }
+      if (ev.i < EVENTS - 1) { s.parts[ev.i] = x.dnf ? 0 : rankPts(cfg, x.rank); s.total += s.parts[ev.i]; continue; } // DNF: 0 điểm
       s.sp = x.sp || 0; s.lap = x.lap || 0;
       s.parts[3] = s.sp + s.lap * O.lap;
       s.total += s.parts[3];
@@ -99,4 +96,4 @@ function view(st, i, adv, side, seedOf) {
   return { index: i, type: 'race', cfg: st.cfg, done: st.done, events, table: rows, omnium: true, entrants: st.entrants.map(side) };
 }
 
-module.exports = { EVENTS, DEF_RANK, normalize, error, clean, record, calc, rankPts, plug: { normalize, error, clean, record, table, view } };
+module.exports = { EVENTS, DEF_RANK, normalize, clean, record, calc, rankPts, plug: { normalize, clean, record, table, view } };
