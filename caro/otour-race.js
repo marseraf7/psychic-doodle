@@ -102,7 +102,7 @@
     const names = new Map(v.entrants.map((p) => [p.uid, p]));
     const ev = v.events[i] || {};
     // Lượt: người trong lượt; cổng thắng trận / hệ Circuit: phòng đấu máy chủ gửi; chia bảng: bảng của trận; xoay vòng: hai bảng đấu trận này
-    const members = h != null ? heatUids(v, i)[h].map((u) => names.get(u) || { uid: u, name: '?' })
+    const members = h != null ? heatUids(v, i, (v.events || []).find((e) => e.i === i))[h].map((u) => names.get(u) || { uid: u, name: '?' })
       : Array.isArray(ev.lobby) ? ev.lobby.map((u) => names.get(u) || { uid: u, name: '?' })
         : v.cfg.groups ? RU.groupList(v.entrants, v.cfg.groups, i % v.cfg.groups) : rotG(v) ? RU.lobbyOf(v.entrants, Math.floor(i / (v.cfg.rotBlock || 1)), rotG(v)) : v.entrants;
     const rows = members.map((p) => {
@@ -112,6 +112,7 @@
         <td><label class="check"><input type="checkbox" class="r-dnf" ${x.dnf ? 'checked' : ''}> <span>${esc(T('race_dnf'))}</span></label></td>
         ${pts && v.cfg.kill ? `<td><input class="r-k" type="number" min="0" max="200" inputmode="numeric" placeholder="${esc(T('br_kills'))}" value="${esc(x.k || '')}"></td>` : ''}
         ${pts && v.cfg.dmg ? `<td><input class="r-d" type="number" min="0" max="1000000" inputmode="numeric" placeholder="${esc(T('br_dmg'))}" value="${esc(x.d || '')}"></td>` : ''}
+        ${pts && v.cfg.legendBan ? `<td><input class="r-pick" maxlength="30" placeholder="${esc(T('algs_pick'))}" value="${esc(x.pick || '')}" list="algs-legends"></td>` : ''}
         ${pts ? `<td><input class="r-pts" type="number" min="-1000" max="1000" placeholder="${esc(T('race_pts_auto'))}" value="${esc(x.pts || '')}"></td>` : ''}</tr>`;
     }).join('');
     return `<form class="race-form" data-key="${esc(key)}" data-ev="${i}"${h != null ? ` data-heat="${h}"` : ''}>
@@ -123,10 +124,11 @@
 
   /** Chặng chia lượt: kết quả gộp (khi đủ các lượt) + từng lượt (người trong lượt, khung nhập hoặc kết quả). */
   /** Người trong từng lượt của chặng i – tự tính như máy chủ (RU.heatsOf, cùng thứ tự entrants); máy chủ không gửi danh sách. */
-  const heatUids = (v, i) => RU.heatsOf(v.entrants.map((p) => p.uid), v.cfg.heat, i);
+  // Xếp lại lượt theo bảng điểm (cfg.reseed – kiểu TFT): máy chủ gửi sẵn danh sách từng lượt
+  const heatUids = (v, i, ev) => (ev && ev.heats && ev.heats[0] && ev.heats[0].uids ? ev.heats.map((x) => x.uids) : RU.heatsOf(v.entrants.map((p) => p.uid), v.cfg.heat, i));
   function heatsHtml(t, v, ev, can, undo) {
     const names = new Map(v.entrants.map((p) => [p.uid, p.name]));
-    const hs = heatUids(v, ev.i);
+    const hs = heatUids(v, ev.i, ev);
     const all = ev.done ? `<h6>${esc(T('race_heats_all'))}</h6>${eventResult(v, ev)}` : '';
     return all + ev.heats.map((x) => `<div class="race-heat"><h6>${esc(T('race_heat_n', { n: x.h + 1 }))} ${x.done ? icon('check', 'ok') : `<small class="muted">${esc(T('race_heat_size', { n: (hs[x.h] || []).length }))}</small>`}</h6>${
       x.done ? eventResult(v, x) + undo(x.h) : can ? eventForm(t, v, ev.i, x.h)
@@ -152,7 +154,7 @@
       // Mở sẵn: ban tổ chức – chặng cần nhập tiếp; người xem – chặng vừa có kết quả
       return K.fold(`${t.id}:r${v.index}:${ev.i}`, title, body, can ? ev.i === next : ev.i === lastDone);
     }).join('');
-    return `${standings(v)}${teamsTable(v)}${evs}`;
+    return `${standings(v)}${teamsTable(v)}${K.algsHtml ? K.algsHtml(t, v, can) : ''}${evs}`; // draft POI, Legend bị cấm (otour-algs-ui.js)
   };
 
   // ------------------------------------------------------------ Thao tác
@@ -161,8 +163,8 @@
     const d = {};
     form.querySelectorAll('tr[data-uid]').forEach((tr) => {
       const v = tr.querySelector('.r-v').value.trim(), dnf = tr.querySelector('.r-dnf').checked, p = tr.querySelector('.r-pts');
-      const k = tr.querySelector('.r-k'), dm = tr.querySelector('.r-d');
-      d[tr.dataset.uid] = { v, dnf, pts: p ? p.value.trim() : '', k: k ? k.value.trim() : '', d: dm ? dm.value.trim() : '' };
+      const k = tr.querySelector('.r-k'), dm = tr.querySelector('.r-d'), pk = tr.querySelector('.r-pick');
+      d[tr.dataset.uid] = { v, dnf, pts: p ? p.value.trim() : '', k: k ? k.value.trim() : '', d: dm ? dm.value.trim() : '', pick: pk ? pk.value.trim() : '' };
     });
     S.draft[form.dataset.key] = d;
     return d;
@@ -195,6 +197,7 @@
           if (pts && x.pts !== '') r.pts = Number(x.pts);
           if (pts && x.k) r.kills = Number(x.k);
           if (pts && x.d) r.dmg = Number(x.d);
+          if (pts && x.pick) r.pick = x.pick; // Legend của đội (ALGS)
           rows.push(r);
         }
         if (!rows.some((r) => !r.dnf)) return fail('srv_ot_race_empty');

@@ -54,6 +54,9 @@
     }
     // Thụy Sĩ thắng / thua: Bo riêng chỉ cho trận 2–2 (FACEIT 2018) thay vì mọi trận quyết định
     if (c.type === 'swiss' && c.record && c.record.bo) out.push(chk(i, 'recBoLast', !!c.record.boLast, T('opt_rec_bo_last')));
+    // Đợt 23 – kiểu BLAST Groups: bảng GSL không loại ai (mọi hạng đều có đích); đích ra ngoài giải của đội không đi tiếp
+    if (c.type === 'gsl' && i < st.length - 1) out.push(chk(i, 'gslKeep', c.eliminates === false || !!c.keepAll, T('opt_gsl_keep')));
+    if (i < st.length - 1) out.push(`<label class="field inline"><span>${esc(T('opt_exit'))}</span><input data-i="${i}" data-k="exitLabel" maxlength="40" value="${esc(c.exit || '')}" placeholder="${esc(T('opt_exit_ph'))}"></label>`);
     // Có đội được chuyển thẳng vào giai đoạn này: chọn đội vào thẳng đứng sau đội đi tiếp (hàng chờ Grand Survival)
     if (i > 0 && (c.direct || st.some((x, j) => j < i - 1 && ((x.routes || []).some((r) => r.to === i) || (x.skip && i === 2))))) out.push(chk(i, 'directLast', !!c.directLast, T('opt_direct_last')));
     return out;
@@ -86,11 +89,15 @@
     }
     if (i > 0 && !c.gate && st[i - 1].type === 'race') out.push(chk(i, 'carry', !!c.carry, T('opt_carry')));
     out.push(chk(i, 'dmg', !!c.dmg, T('opt_dmg'))); // nhập tổng sát thương (chỉ số phụ cuối kiểu PUBG 2022–2023)
+    if (K.lobbyEdit) out.push(...K.lobbyEdit.html(i, c)); // xếp lại lobby, cấm Legend, draft POI (otour-algs-ui.js)
     return out;
   }
 
   function change(stages, i, k, el) {
     const c = stages[i];
+    if (k === 'gslKeep') { if (el.checked) c.eliminates = false; else { delete c.eliminates; delete c.keepAll; } c.advance = (c.size === 8 ? 8 : 4) / (el.checked ? 1 : 2); return true; }
+    if (K.lobbyEdit && K.lobbyEdit.change(c, k, el)) return true;
+    if (k === 'exitLabel') { const v = String(el.value || '').replace(/[<>]/g, '').trim().slice(0, 40); if (v) c.exit = v; else delete c.exit; return true; }
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.floor(Number(v)) || 0));
     if (k === 'rtN' || k === 'rtTo' || k === 'rtAfter') {
       const j = Number(el.dataset.n), rs = [...(c.routes || [])];
@@ -158,6 +165,7 @@
       if (c.circuit && (c.type !== 'race' || (c.score && c.score !== 'points'))) delete c.circuit;
       if (c.dmg && (c.type !== 'race' || (c.score && c.score !== 'points'))) delete c.dmg;
       if (c.weekly && (c.type !== 'race' || (c.score && c.score !== 'points') || c.circuit)) delete c.weekly;
+      if (K.lobbyEdit) K.lobbyEdit.clean(c);
     });
   }
 

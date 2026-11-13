@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
   const SP = typeof module !== 'undefined' && module.exports ? require('./otour-sports.js') : global.CaroOTourSports;
-  const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings', 'graph'];
+  const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings', 'graph', 'pools'];
   const MAX_STAGES = 6; // giải offline tối đa 6 giai đoạn (như máy chủ – stages.js MAX_STAGES_OFFLINE)
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses', 'oppWinPct', 'oppOppWinPct', 'h2hMap'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
@@ -43,6 +43,13 @@
             ladder: { type: 'array', maxItems: 7, items: { type: 'object', properties: { bo: int(1, 25, 'Bo của bậc, tính cả trận tặng (được chẵn)'), start: { type: 'array', maxItems: 2, items: int(0, 3), description: '[trận tặng hạt giống cao, trận tặng hạt giống thấp]' }, tie: { type: 'boolean', description: 'hoà loạt thì hạt giống cao đi tiếp; trận hoà vẫn tính là đã đấu' } } }, description: "'graph' + 'gauntlet': từng bậc, bậc 1 là trận của hai hạt giống thấp nhất (KBO Wild Card: { bo: 3, start: [1, 0], tie: true })" },
             matchLadder: { type: 'array', maxItems: 6, items: { type: 'object', properties: { games: int(1, 4), tc: { type: 'string', enum: ['classical', 'rapid', 'blitz', 'armageddon'] }, base: int(0, 36000), inc: int(0, 36000), arm: { type: 'boolean' }, white: int(0, 36000), black: int(0, 36000), bid: { type: 'boolean' }, minBid: int(0, 36000), maxBid: int(0, 36000), tieBid: { type: 'string', enum: ['rebid', 'higherSeed'] } } }, description: 'Thang ván của trận (loại trực tiếp / vòng tròn / Thụy Sĩ thường): các cấp lần lượt, cấp sau chỉ đấu khi cấp trước hoà (FIDE World Cup: 2 tiêu chuẩn → 2 rapid 25+10 → 2 rapid 10+10 → 2 blitz 5+3 → Armageddon; arm: 1 ván, hoà thì Đen thắng; bid: hai bên ra giá thời gian để cầm Đen, giá thấp hơn cầm Đen). Trận phân thắng sau cấp đầu được tính điểm thắng / thua sát (points.wx / lx – Norway Chess 1,5 / 1)' },
             rep: { type: 'object', properties: { from: { type: 'string', enum: ['qf', 'r16', 'r32'] }, mode: { type: 'string', enum: ['finalist', 'half'] } }, description: "'single' ở cuối: vòng vớt kiểu Olympic – xong hai bán kết thì người thua trước finalist ('finalist') hoặc mọi người thua ở nửa nhánh đó ('half', kiểu IJF) từ vòng `from` đấu vớt theo thang, người thắng mỗi phía tranh huy chương đồng với người thua bán kết phía kia (hai huy chương đồng)" },
+            eliminates: { type: 'boolean', description: "'gsl' giai đoạn giữa: false = không loại ai, mọi hạng trong bảng đều có đích (dải routes + phần đi tiếp – kiểu BLAST Groups)" },
+            exit: { type: 'string', maxLength: 40, description: 'Giai đoạn giữa: nhãn đích ra ngoài giải của đội không đi tiếp (vd. "Showdown") – hiện "Ra: …" thay cho bị loại' },
+            pool: { type: 'integer', enum: [8, 16, 32], description: "'pools' (chỉ giai đoạn giữa): cỡ mỗi pool loại kép – người chơi chia kiểu rắn vào các pool" },
+            out: int(1, 8, "'pools': số suất mỗi phía mỗi pool (lũy thừa 2, ≤ cỡ / 4) – suất nhánh thua mang 1 trận thua sang nhánh thắng – thua giai đoạn sau (thua thêm là bị loại)"),
+            reseed: int(1, 10, "Race 'points' có heat: xếp lại các lượt (lobby) theo bảng điểm sau mỗi N trận (TFT: 2)"),
+            poi: { type: 'object', properties: { order: { type: 'string', enum: ['seed', 'snake'] }, maps: { type: 'array', maxItems: 4, items: { type: 'object', properties: { name: { type: 'string' }, pois: { type: 'array', maxItems: 40, items: { type: 'string' } } } } } }, description: "Race 'points': draft điểm hạ cánh độc quyền theo bản đồ (ALGS) – mỗi POI chỉ một đội, thứ tự chọn theo bảng điểm" },
+            legendBan: { type: 'boolean', description: "Race 'points': ghi Legend của mỗi đội mỗi trận; Legend được chọn nhiều nhất bị cấm khỏi các trận sau (ALGS)" },
             ladderKeep: { type: 'boolean', description: 'Có matchLadder: ô trên cầm Trắng ván 1 mọi cấp (Norway Chess: giữ màu ván tiêu chuẩn cho Armageddon)' },
             splits: { type: 'object', properties: { n: int(2, 6), take: int(2, 16), bo: int(1, 25) }, description: 'Vòng tròn một bảng: chia lịch thành n chặng, xong mỗi chặng thì `take` đội đầu (xếp theo các trận của chặng) đấu playoff Bo `bo` – không tính vào bảng xếp hạng mùa giải (kiểu Overwatch League)' },
             fixed: { type: 'boolean', description: 'Vòng tròn / Thụy Sĩ thường, bestOf 4: luôn đấu đủ 4 ván (kiểu Overwatch League)' },
@@ -155,6 +162,9 @@
     } else if (c.type === 'gsl') {
       x.push(T(c.size === 8 ? 'ds_gsl8' : 'ds_gsl', { bo: c.bestOf || 1 }));
       if (c.boDecider) x.push(T('ds_gsl_dec', { bo: c.boDecider }));
+      if (c.eliminates === false) x.push(T('ds_gsl_keep'));
+    } else if (c.type === 'pools') { // pool loại kép xếp tầng (kiểu EVO)
+      x.push(T('ds_pools', { pool: c.pool || 16, out: c.out || 2, bo: c.bestOf || 1 }));
     } else if (c.type === 'roundrobin') {
       if (c.league) x.push(T('ds_league', { games: c.league.games, pots: c.league.pots }));
       else if (c.season) x.push(seasonText(c.season, T));
@@ -195,6 +205,9 @@
       if (c.mp) x.push(c.mp.at ? T('ds_mp_at', { n: c.mp.at }) + (c.mp.min > 1 ? ' ' + T('ds_mp_min', { n: c.mp.min }) : '') : T('ds_mp_after', { n: c.mp.after, p: c.mp.plus }));
       if (c.teams) x.push(T('ds_teams'));
       if (c.heat >= 2) x.push(T('ds_heat', { n: c.heat }));
+      if (c.reseed && c.heat >= 2) x.push(T('ds_reseed', { n: c.reseed }));
+      if (c.poi && Array.isArray(c.poi.maps) && c.poi.maps.length) x.push(T('ds_poi', { n: c.poi.maps.length }));
+      if (c.legendBan) x.push(T('ds_legend_ban'));
     }
     if (c.bestOf === 2 && (c.type === 'roundrobin' || c.type === 'swiss')) x.push(T('ds_bo2'));
     if (c.splits) x.push(T('ds_splits', { n: c.splits.n, k: c.splits.take, bo: c.splits.bo }));
@@ -219,6 +232,7 @@
       else if (Array.isArray(c.routes) && c.routes.length) x.push(...routeText(c, T, i));
       else if (c.advance) x.push(T(c.season ? 'ds_adv_conf' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'ds_adv_group' : 'ds_adv', { n: c.advance }) + (c.bestNext ? ' ' + T('ds_best_next', { n: c.bestNext }) : ''));
       if (c.skip) x.push(T('ds_skip', { n: c.skip }));
+      if (c.exit) x.push(T('ds_exit', { x: c.exit }));
     }
     if (c.direct) x.push(T('ds_direct', { n: c.direct })); // đội hạt giống cao vào thẳng giai đoạn này
     if (c.directLast) x.push(T('ds_direct_last'));

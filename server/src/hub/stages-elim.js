@@ -51,7 +51,8 @@ function resolveElim(st, m, winner, loser, events = []) {
     return events;
   }
   place(st, m.next, winner, events);
-  place(st, m.loserTo, loser, events);
+  // Người mang 1 trận thua từ pool trước (st.oneLife – stages-pools.js): thua ở nhánh thắng là bị loại luôn
+  place(st, m.loserTo, st.oneLife && !m.lb && st.oneLife.includes(loser) ? BYE : loser, events);
   return events;
 }
 

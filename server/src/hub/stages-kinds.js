@@ -18,6 +18,7 @@
 const Gsl = require('./stages-gsl.js');
 const Kings = require('./stages-kings.js');
 const Graph = require('./stages-graph.js');
+const Pools = require('./stages-pools.js');
 
 const groupsView = (tables) => (st, { M, side, seedOf, adv }) => {
   const tabs = tables(st, side, seedOf, adv);
@@ -44,6 +45,7 @@ const KINDS = {
     linked: true, selfMark: true, midOnly: true, sched: 'groups',
   },
   graph: { ...Graph, sched: 'rounds' },
+  pools: Pools, // pool loại kép xếp tầng (kiểu EVO)
 };
 
 /** Loại giai đoạn trong registry (null nếu là loại cũ: single, double, roundrobin, swiss, race). */

@@ -41,8 +41,10 @@ function error(cfg, n) {
   return G.make(cfg.shape, n, cfg) ? null : { code: 'ot_graph_size', args: { n: (G.SIZES[cfg.shape] || []).join(' / ') } };
 }
 
-function build(st, seeds) {
+function build(st, seeds, opts = {}) {
   const g = G.make(st.cfg.shape, seeds.length, st.cfg);
+  // Gauntlet chéo bảng: xếp lại theo bảng của giai đoạn trước (hạng 2 bảng A, B, C; hạng 3…; hạng 4…) để cặp chéo đúng bảng
+  if (st.cfg.shape === 'cross9' && opts.groupOf) seeds = crossOrder(seeds, opts.groupOf);
   if (!g) throw new Error('graph size');
   const id = (k) => `${st.key}x${k}`;
   const ref = (s) => (s ? { to: id(s.split('.')[0]), slot: s.split('.')[1] } : null);
@@ -63,6 +65,13 @@ function build(st, seeds) {
     st.cols[d.col].push(m.id);
   });
   st.rounds = st.cols; // cùng hình dạng nhánh loại trực tiếp (bản vá gửi trình duyệt, xếp lịch)
+}
+
+/** 9 đội theo tầng (3 đội mỗi tầng, theo hạt giống): trong mỗi tầng xếp theo bảng (0, 1, 2) của giai đoạn trước. */
+function crossOrder(seeds, groupOf) {
+  const out = [];
+  for (let k = 0; k < 3; k++) out.push(...seeds.slice(3 * k, 3 * k + 3).sort((a, b) => (groupOf[a] ?? 9) - (groupOf[b] ?? 9)));
+  return out;
 }
 
 /** Thứ hạng hiện có: [{ uid, place }] theo hạng rồi hạt giống (người còn đang đấu không có hạng). */
@@ -88,7 +97,9 @@ function view(st, { M, side, seedOf }) {
     const m = st.matches[id], v = M(id);
     return { ...v, gk: m.gk, to: { win: tagOf(m.next), lose: tagOf(m.loserTo), wp: m.wp || 0, lp: m.lp || 0 }, ...(m.start ? { start: m.start } : {}), ...(m.tie ? { tie: true } : {}) };
   }));
-  const table = places(st, seedOf).map((x) => ({ ...side(x.uid), place: x.place }));
+  // Đội không đi tiếp ở giai đoạn giữa có nhãn đích ra ngoài giải (cfg.exit) khi đã có hạng
+  const adv = st.cfg.advance || 0;
+  const table = places(st, seedOf).map((x, k) => ({ ...side(x.uid), place: x.place, ...(st.cfg.exit && adv && k >= adv ? { exit: st.cfg.exit } : {}) }));
   return { rounds, table, shape: st.cfg.shape, colNames: st.colNames || [] };
 }
 

@@ -207,7 +207,7 @@ class OTour {
       id: t.id, kind: 'otour', name: t.name, desc: t.desc, slug: t.slug, access: t.access, status: t.status, sport: t.sport, result: t.result, set: t.set || null,
       owner: this.store.users.get(t.owner)?.name || '?', created: t.created, startedAt: t.startedAt || null, finishedAt: t.finishedAt || null,
       stages: t.stages, stage: t.stage || 0, format: 'bracket', offline: true, hideSeeds: false, showStandings: true, roundLabels: true, shareImages: true,
-      players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null, ...(p.country ? { country: p.country } : {}), ...(p.team ? { team: p.team } : {}), ...(p.young ? { young: true } : {}),
+      players: t.players.map((p) => ({ uid: p.uid, name: p.name, seed: p.seed || null, withdrawn: !!p.withdrawn, out: p.out || null, ...(p.exit ? { exit: p.exit } : {}), ...(p.country ? { country: p.country } : {}), ...(p.team ? { team: p.team } : {}), ...(p.young ? { young: true } : {}),
         ...(p.roster && p.roster.length ? { roster: p.roster } : {}), ...(p.home ? { home: p.home } : {}), ...(p.exempt ? { exempt: true } : {}) })), // đội hình (otour-league.js), sân nhà (otour-sched.js)
       // Giai đoạn đã xong không đổi nữa: dựng một lần (otMemo) – giải nhiều bảng không phải dựng lại mỗi kết quả
       // Vòng tròn nhiều bảng: chỉ bảng xếp hạng, các trận tải khi người xem mở bảng (otour-lazy.js)

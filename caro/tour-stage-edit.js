@@ -59,7 +59,7 @@
   const tbsOf = (c) => (Array.isArray(c.tiebreaks) ? c.tiebreaks : DEFAULT_TB[c.type] || []);
   const gfOf = (c) => c.gf || (c.reset === false ? '1' : '2');
   // Ô chọn có giá trị chữ (còn lại là số)
-  const STRING_KEYS = ['rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb', 'tbm', 'rtTo', 'rtAfter', 'tbmLines', 'freshMode'];
+  const STRING_KEYS = ['exitLabel', 'rankBy', 'gf', 'tbAdd', 'gmode', 'type', 'pairing', 'unplayed', 'score', 'table', 'kind', 'input', 'par', 'mpMode', 'head', 'tb', 'tbm', 'rtTo', 'rtAfter', 'tbmLines', 'freshMode'];
 
   // Tiêu chí chọn được: Koya chỉ ở vòng tròn; số trận thua chỉ ở Thụy Sĩ theo số thắng / thua (như máy chủ)
   const tbChoices = (c) => [...TIEBREAKS.filter((x) => x !== 'koya' || c.type === 'roundrobin'), ...(c.record ? ['losses'] : [])];
@@ -111,7 +111,7 @@
       const last = i === st.length - 1;
       // Giải offline: loại trực tiếp cũng được làm giai đoạn giữa (vòng loại đội thách đấu kiểu America's Cup)
       // Loại trong registry phía trình duyệt (K.kinds – nhánh đồ thị…): chỉ giải offline
-      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race', ...(last ? [] : ['kings']), ...Object.keys(K.kinds || {})] : [])].map((x) => [x, T('fmt_' + x)]);
+      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race', ...(last ? [] : ['kings']), ...Object.keys(K.kinds || {}).filter((x) => !(last && K.kinds[x].mid))] : [])].map((x) => [x, T('fmt_' + x)]);
       const f = [field(T('format'), sel(i, 'type', types, c.type))];
       if (K.kindOf && K.kindOf(c.type)) f.push(...K.kindOf(c.type).edit(i, c, st, last)); // nhánh đồ thị… (registry)
       else if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf, ctx.ext && (c.type === 'roundrobin' || c.type === 'swiss') && !c.record)));
@@ -382,7 +382,7 @@
       stages.splice(Number(b.dataset.i), 1);
       const last = stages[stages.length - 1];
       if (last) delete last.advance; // giai đoạn cuối không có "đi tiếp"
-      if (last && last.type === 'kings') stages[stages.length - 1] = DEFAULT.single(); // vòng tranh hạt giống chỉ ở giữa
+      if (last && (last.type === 'kings' || (K.kindOf && K.kindOf(last.type) && K.kindOf(last.type).mid))) stages[stages.length - 1] = DEFAULT.single(); // chỉ ở giữa: vòng tranh hạt giống, pool
     } else return false;
     // Giai đoạn đứng trước phải là vòng tròn / Thụy Sĩ và có số người đi tiếp
     stages.forEach((c, i) => {

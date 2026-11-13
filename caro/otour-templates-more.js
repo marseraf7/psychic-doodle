@@ -74,6 +74,29 @@
     { id: 'owl_season', icon: '🎮', sport: 'esports', n: 12, esports: { draft: 'off', fearless: 'off', stats: [] },
       stages: [{ type: 'roundrobin', groups: 1, meetings: 2, bestOf: 4, fixed: true, decider: true, advance: 6, points: { w: 1, d: 0, l: 0 }, tiebreaks: ['gdiff', 'h2hMap', 'h2h'], splits: { n: 4, take: 3, bo: 5 } },
         { type: 'single', bestOf: 5, boFinal: 7, thirdPlace: false }] },
+    // Đợt 23. Kiểu BLAST Premier Groups: 12 đội, 3 bảng GSL không loại ai – nhất bảng vào thẳng Finals; hạng 2–4 đá gauntlet chéo
+    // bảng (hạng 3 bảng này gặp hạng 4 bảng kia, đội thắng gặp hạng 2), 3 đội thắng vào Finals, còn lại ra Showdown
+    { id: 'blast_groups', icon: '💥', sport: 'esports', n: 12, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'gsl', bestOf: 3, eliminates: false, routes: [{ n: 1, to: 2 }] },
+        { type: 'graph', shape: 'cross9', bestOf: 3, advance: 3, exit: 'Showdown' },
+        { type: 'single', bestOf: 3, boFinal: 5, thirdPlace: false }] },
+    // Kiểu EVO: 64 người chia 4 pool loại kép 16 người, mỗi pool 2 suất nhánh thắng + 2 suất nhánh thua → Top 16 loại kép
+    // (người ra từ nhánh thua mang 1 trận thua), chung kết tổng có trận đấu thêm
+    { id: 'evo_pools', icon: '🥊', sport: 'esports', n: 64, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'pools', pool: 16, out: 2, bestOf: 3 }, { type: 'double', bestOf: 5, gf: '2' }] },
+    // Kiểu TFT: 40 người, lobby 8 người xếp lại theo bảng điểm sau mỗi 2 game; cắt 40 → 32 → 24 → 16 → 8 (mang điểm); chung
+    // kết 8 người "Checkmate": đạt 20 điểm rồi thắng một game thì vô địch (tối đa 12 game)
+    { id: 'tft_crown', icon: '♟️', sport: 'esports', n: 40, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'race', events: 6, score: 'points', table: [8, 7, 6, 5, 4, 3, 2, 1], heat: 8, reseed: 2, advance: 32 },
+        { type: 'race', events: 6, score: 'points', table: [8, 7, 6, 5, 4, 3, 2, 1], heat: 8, reseed: 2, advance: 24, carry: true },
+        { type: 'race', events: 6, score: 'points', table: [8, 7, 6, 5, 4, 3, 2, 1], heat: 8, reseed: 2, advance: 16, carry: true },
+        { type: 'race', events: 6, score: 'points', table: [8, 7, 6, 5, 4, 3, 2, 1], heat: 8, reseed: 2, advance: 8, carry: true },
+        { type: 'race', events: 12, score: 'points', table: [8, 7, 6, 5, 4, 3, 2, 1], mp: { at: 20 } }] },
+    // Kiểu ALGS: 20 đội sinh tồn 6 trận (điểm hạng + hạ gục), draft điểm hạ cánh độc quyền trên bản đồ, Legend được chọn nhiều
+    // nhất mỗi trận bị cấm khỏi các trận sau (tên bản đồ / POI chỉ là ví dụ – ban tổ chức tự dán)
+    { id: 'algs_pro', icon: '🪂', sport: 'esports', n: 20, esports: { draft: 'off', fearless: 'off', stats: ['kills'] },
+      stages: [{ type: 'race', events: 6, score: 'points', kill: true, table: [12, 9, 7, 5, 4, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1], legendBan: true,
+        poi: { order: 'seed', maps: [{ name: 'Map 1', pois: Array.from({ length: 20 }, (_, k) => 'POI ' + (k + 1)) }] } }] },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MORE;
   else global.CaroOTourTplMore = MORE;

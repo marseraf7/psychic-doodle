@@ -26,6 +26,7 @@
  */
 'use strict';
 
+const LOB = require('./stages-race-lobby.js'); // xếp lại lượt (TFT), cấm Legend (ALGS)
 const RU = require('../../../caro/otour-rules.js');
 const GT = require('./stages-gt.js'); // cách tính 'gt': xe đạp nhiều chặng, nhiều bảng xếp hạng
 const GOLF = require('./stages-golf.js'); // cách tính 'golf': golf đấu gậy (vòng, par, cắt, đấu phụ)
@@ -99,6 +100,9 @@ function normalizeRace(c, last) {
   const heat = int(c.heat, 0, MAX_HEAT, 0);
   // Chia lượt: không đi cùng 3 bảng xoay vòng, không đi cùng match point (mỗi lượt có một người về nhất)
   if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp && !out.groups && !out.gate && !out.circuit && !out.weekly) out.heat = heat;
+  // Xếp lại các lượt (lobby) theo bảng điểm sau mỗi `reseed` trận (kiểu TFT Checkmate: lobby 8 người, đổi sau mỗi 2 game)
+  if (out.heat && score === 'points' && Number(c.reseed) >= 1) out.reseed = int(c.reseed, 1, 10, 2);
+  LOB.normalizeAlgs(c, out); // draft POI, cấm Legend (kiểu ALGS)
   if (!last) out.advance = out.gate ? out.events : int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
@@ -140,9 +144,12 @@ function cleanEvent(st, rows, members = st.entrants, i = 0) {
     if (pts && r.pts != null && r.pts !== '') x.pts = int(r.pts, -1000, 1000, 0); // điểm sửa tay (thưởng / phạt)
     if (pts && st.cfg.kill) { const k = int(r.kills, 0, 200, 0); if (k) x.kills = k; } // số hạ gục (sinh tồn)
     if (pts && st.cfg.dmg) { const d = int(r.dmg, 0, 1000000, 0); if (d) x.dmg = d; } // tổng sát thương (chỉ số phụ)
+    if (pts && st.cfg.legendBan && r.pick) { const p = String(r.pick).replace(/[<>|]/g, '').trim().slice(0, 30); if (p) x.pick = p; } // Legend của đội (ALGS)
     out.push(x);
   }
   if (!out.some((x) => !x.dnf)) return { code: 'ot_race_empty' };
+  const lb = LOB.pickError(st, i, out); // Legend đã bị cấm (ALGS)
+  if (lb) return lb;
   // cổng thắng trận / Survival của vòng tuần: phải có đội về nhất
   if ((st.cfg.gate || (st.cfg.weekly && WK.isSurv(st.cfg, i))) && !out.some((x) => !x.dnf && x.rank === 1)) return { code: 'ot_gate_winner' };
   if (pts) { // hạng không trùng
@@ -204,8 +211,10 @@ function recordEvent(st, i, rows) {
   ev.rows = rows;
   ev.done = true;
   st.done = !!st.mpWinner || st.events.every((e) => e.done);
+  if (st.cfg.reseed && ev.heats) LOB.reseedAfter(st, i, raceTable, heatsFor); // xếp lại lượt theo bảng điểm (stages-race-lobby.js)
   return st.done;
 }
+
 
 /** Ghi kết quả lượt h của chặng i; đủ các lượt thì chặng xong (rows = gộp mọi lượt). Trả true nếu cả giai đoạn đã xong. */
 function recordHeat(st, i, h, rows) {
@@ -306,14 +315,15 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
   const cfg = st.cfg, pts = cfg.score === 'points';
   // Chia lượt: từng lượt – chỉ trạng thái + kết quả; người trong lượt trình duyệt tự tính (RU.heatsOf, cùng thứ tự entrants)
   // – không gửi lại danh sách mọi lượt của mọi chặng mỗi lần cập nhật (đoàn 512 người × 30 chặng ≈ 200 KB)
-  const heatsOf = (ev) => (ev.heats ? { heats: ev.heats.map((x, h) => ({ h, done: x.done, ...(x.done ? { rows: rowsOf(x) } : {}) })) } : {});
+  // Xếp lại lượt theo bảng điểm (cfg.reseed): trình duyệt không tự tính được → gửi danh sách người từng lượt
+  const heatsOf = (ev) => (ev.heats ? { heats: ev.heats.map((x, h) => ({ h, done: x.done, ...(x.done ? { rows: rowsOf(x) } : {}), ...(cfg.reseed ? { uids: x.uids } : {}) })) } : {});
   const rowsOf = (ev) => {
     const order = eventOrder(st, ev);
     const lead = order[0] && !order[0].dnf ? order[0].time : null;
     let prev = null;
     return order.map((x) => {
       const r = { ...side(x.uid), dnf: x.dnf };
-      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; if (x.kills) r.kills = x.kills; if (x.dmg) r.dmg = x.dmg; } else if (!x.dnf) {
+      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; if (x.kills) r.kills = x.kills; if (x.dmg) r.dmg = x.dmg; if (x.pick) r.pick = x.pick; } else if (!x.dnf) {
         r.time = x.time; r.gap = lead != null ? x.time - lead : null; r.gapPrev = prev != null ? x.time - prev : null; prev = x.time;
       }
       return r;
@@ -350,6 +360,9 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
   const table = groups ? groups.flatMap((g) => g.table) : tableOf({ list, stats });
   const v = { index: i, type: 'race', cfg, done: st.done, events, table, entrants: st.entrants.map(side), ...(groups ? { groups } : {}) };
   if (cfg.mp && pts) v.mp = { at: mpAt, winner: st.mpWinner ? side(st.mpWinner).name : null };
+  // ALGS: draft POI từng bản đồ (thứ tự theo bảng điểm hiện tại) và Legend bị cấm (suy từ các trận đã đấu)
+  if (cfg.poi) v.poi = cfg.poi.maps.map((m, k) => ({ name: m.name, pois: m.pois, order: LOB.poiOrder(st, list, k).map(side), picks: Object.entries((st.poi || {})[k] || {}).map(([u, p]) => ({ ...side(u), poi: p })) }));
+  if (cfg.legendBan) v.bans = LOB.bansBefore(st, st.events.length).map((b) => ({ ...b, ev: b.ev + 1 }));
   // Hệ Circuit: bảng từng ngày đã bắt đầu (ngày thường: `keep` đội đầu đi tiếp ngày sau; ngày Final: điểm cộng dồn)
   // Vòng tuần: từng tuần đã bắt đầu – đội thắng Survival, bảng Weekly Final, bảng Bottom
   if (cfg.weekly) {

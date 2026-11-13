@@ -13,14 +13,17 @@
  *   hybrid    – loại kép lai kiểu RLCS (8 đội): hạt giống 1–4 có hai mạng, 5–8 một mạng tới Final Four loại thẳng. 9 trận.
  *   compass8  – Compass draw 8 người: thắng vòng 1 sang Đông, thua sang Tây; vòng 2 thua Đông sang Bắc, thua Tây sang Nam;
  *               bốn chung kết Đông / Bắc / Tây / Nam. Ai cũng đấu đủ 3 trận; 12 trận; hạng Đ 1–2, B 3–4, T 5–6, N 7–8.
+ *   cross9    – gauntlet chéo bảng kiểu BLAST Premier Groups (9 đội: hạng 2, 3, 4 của 3 bảng – hạt giống 1–3 là hạng 2 bảng
+ *               A, B, C; 4–6 hạng 3; 7–9 hạng 4): hạng 3 bảng này gặp hạng 4 bảng kế tiếp, đội thắng gặp hạng 2 của bảng còn
+ *               lại; 3 đội thắng vòng 2 đi tiếp (cùng hạng 1), thua vòng 2 hạng 4, thua vòng 1 hạng 7. 6 trận.
  * make(shape, n, cfg) → { cols: [khoá tên cột], ms: [{ k, col, a, b, win, lose, wp, lp, tag, bo?, start?, tie? }] } hoặc
  * null nếu số đội không hợp khuôn. a / b: hạt giống (1…n) đặt sẵn; win / lose: 'k.a' / 'k.b' (trận và ô nhận người thắng /
  * thua); wp / lp: hạng của người thắng / thua khi không đi tiếp (đồng hạng: cùng số).
  */
 (function (global) {
   'use strict';
-  const SHAPES = ['page', 'afl8', 'afl10', 'gauntlet', 'hybrid', 'compass8'];
-  const SIZES = { page: [4], afl8: [8], afl10: [10], hybrid: [8], compass8: [8], gauntlet: [3, 4, 5, 6, 7, 8] };
+  const SHAPES = ['page', 'afl8', 'afl10', 'gauntlet', 'hybrid', 'compass8', 'cross9'];
+  const SIZES = { page: [4], afl8: [8], afl10: [10], hybrid: [8], compass8: [8], gauntlet: [3, 4, 5, 6, 7, 8], cross9: [9] };
   const MAX_GAUNTLET = 8;
 
   const M = (k, col, tag, x) => ({ k, col, tag, a: null, b: null, win: null, lose: null, wp: 0, lp: 0, ...x });
@@ -106,6 +109,14 @@
     ] };
   }
 
+  function cross9() {
+    // Bảng g = 0, 1, 2: hạng 2 = hạt giống g + 1, hạng 3 = g + 4, hạng 4 = g + 7
+    const ms = [];
+    for (let g = 0; g < 3; g++) ms.push(M('c' + g, 0, 'cr_r1', { a: g + 4, b: ((g + 1) % 3) + 7, win: `d${g}.b`, lp: 7 }));
+    for (let g = 0; g < 3; g++) ms.push(M('d' + g, 1, 'cr_r2', { a: ((g + 2) % 3) + 1, wp: 1, lp: 4 }));
+    return { cols: ['cr_r1', 'cr_r2'], ms };
+  }
+
   /** Khuôn của giai đoạn với n đội (null nếu khuôn không nhận số đội này). */
   function make(shape, n, cfg) {
     if (!SHAPES.includes(shape) || !(SIZES[shape] || []).includes(n)) return null;
@@ -114,6 +125,7 @@
     if (shape === 'afl10') return afl10();
     if (shape === 'hybrid') return hybrid();
     if (shape === 'compass8') return compass8();
+    if (shape === 'cross9') return cross9();
     return gauntlet(n, cfg);
   }
 

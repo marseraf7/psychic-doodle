@@ -161,7 +161,8 @@ class OTourRun {
     // theo kế hoạch playoff (không theo số đội đi tiếp của mùa giải)
     const plan = cfg.playoff ? PO.playoffPlan(st, cfg, ST.standings(st, this.otSeedOf(t))) : null;
     const going = new Set([...(plan ? plan.seeds : adv.seeds), ...(adv.routes || []).flatMap((r) => r.uids)]); // đội chuyển sang giai đoạn sau nữa cũng không bị loại
-    for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) p.out = 'not_advanced'; }
+    // Không đi tiếp: "không vào vòng sau", hoặc đích ra ngoài giải nếu giai đoạn có nhãn (cfg.exit – kiểu BLAST Showdown)
+    for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) { p.out = st.cfg.exit ? 'exit' : 'not_advanced'; if (st.cfg.exit) p.exit = st.cfg.exit; } }
     t.stage++;
     if (plan) {
       const next = ST.buildStage(cfg, t.stage, plan.seeds, this.otBuildOpts(t, { groupOf, slots: plan.slots }));
@@ -174,6 +175,7 @@ class OTourRun {
     const country = new Map(t.players.map((p) => [p.uid, p.country || '']));
     const slots = (cfg.draw === 'record' && !direct.length ? RD.recordDraw(st, seeds, (u) => country.get(u) || '') : null) || this.otPathSlots(t, st, cfg, seeds, groupOf);
     t.st.push(ST.buildStage(cfg, t.stage, seeds, this.otBuildOpts(t, { groupOf, ...(slots ? { slots } : {}) })));
+    if (adv.oneLife && adv.oneLife.length && cfg.type === 'double') t.st[t.stage].oneLife = adv.oneLife.filter((u) => seeds.includes(u)); // suất phía thua của pool (EVO)
     // Điểm thưởng mang sang (hệ Race – cfg.head, kiểu Points Rush): theo vị trí vào giai đoạn này (đội vào thẳng, rồi thứ
     // hạng ở giai đoạn trước)
     if (cfg.type === 'race' && cfg.head) t.st[t.stage].head = Object.fromEntries(seeds.map((u, k) => [u, cfg.head[k] || 0]).filter(([, p]) => p > 0));
