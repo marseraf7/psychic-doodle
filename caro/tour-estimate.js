@@ -159,8 +159,10 @@
     if (c.type === 'gsl') { const K = Number(c.size) === 8 ? 8 : 4, G = Math.floor(n / K), per = K === 8 ? 10 : 5; return { matches: per * G, maxMatches: per * G, waves: 3, advance: last ? null : (K / 2) * G, groups: G, groupSize: K }; }
     // Vòng tranh hạt giống + cơ hội cuối (giải offline – stages-kings.js): mỗi nửa cao gặp thấp, 3/4 số đội đi tiếp
     if (c.type === 'kings') { const m = Math.floor(n / 4) * 2; return { matches: m, maxMatches: m, waves: 1, advance: last ? null : Math.floor(n / 4) * 3 }; }
-    // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng
-    if (c.type === 'race') { const G = Number(c.groups) >= 2 ? Number(c.groups) : 1, ev = (Number(c.events) || 1) * G; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, (c.advance || 0) * G), ...(G > 1 ? { groups: G } : {}) }; }
+    // Chia bảng cố định (sinh tồn kiểu PGC): mỗi bảng `events` trận; đi tiếp mỗi bảng. Hệ Circuit: `events` trận × n vòng × days ngày
+    // Vòng tuần (PGC 2021): mỗi tuần seats trận Survival + final trận Weekly Final + bottom trận Bottom (trừ tuần cuối)
+    const weeklyEvents = (W) => { const w = Number(W.weeks) || 3, s = Number(W.seats) || 16, f = Number(W.final) || 10, b = W.bottom != null ? Number(W.bottom) : 6; return w * (s + f) + (w - 1) * b; };
+    if (c.type === 'race') { const G = Number(c.groups) >= 2 ? Number(c.groups) : 1, ci = c.circuit ? (Number(c.circuit.n) || 1) * (Number(c.circuit.days) || 1) : 1, wk = c.weekly ? weeklyEvents(c.weekly) : 0, ev = wk || (Number(c.events) || 1) * G * ci; return { matches: ev, maxMatches: ev, waves: ev, advance: last ? null : Math.min(n, (c.advance || 0) * G), ...(G > 1 ? { groups: G } : {}) }; }
     if (c.type === 'roundrobin' && c.season) {
       // Mùa giải kiểu Mỹ (caro/otour-season.js): số trận chính xác; lịch xếp tham lam dài hơn số trận mỗi đội ~5%
       const SS = typeof module !== 'undefined' && module.exports ? require('./otour-season.js') : global.CaroOTourSeason;
@@ -175,9 +177,11 @@
       return { matches, maxMatches: matches, waves: g + 1, advance: last ? null : Math.min(n, (c.advance || 0) + (c.bestNext || 0)), groups: 1, groupSize: n };
     }
     if (c.type === 'roundrobin') {
-      const G = groupCount(c, n), sizes = groupSizes(n, G), meet = [2, 3].includes(Number(c.meetings)) ? Number(c.meetings) : 1;
+      const G = groupCount(c, n), sizes = groupSizes(n, G), meet = [2, 3, 4].includes(Number(c.meetings)) ? Number(c.meetings) : 1;
       const big = sizes[0];
-      const matches = meet * sizes.reduce((t, s) => t + (s * (s - 1)) / 2, 0);
+      // meetSmall: bảng ít đội hơn bảng đông nhất gặp nhau meetSmall lần (kiểu MSI 2021–2022)
+      const mOf = (s) => (Number(c.meetSmall) >= 1 && s < big ? Number(c.meetSmall) : meet);
+      const matches = sizes.reduce((t, s) => t + mOf(s) * (s * (s - 1)) / 2, 0);
       // + các đội đứng ngay sau suất đi tiếp tốt nhất (bestNext – mỗi bảng tối đa một đội)
       const adv = last ? null : sizes.reduce((t, s) => t + Math.min(c.advance || 0, s), 0) + Math.min(c.bestNext || 0, sizes.filter((s) => s > (c.advance || 0)).length);
       return { matches, maxMatches: matches, waves: meet * (big % 2 ? big : big - 1), advance: adv, groups: G, groupSize: big };

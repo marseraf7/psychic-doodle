@@ -188,6 +188,7 @@
         html += `<h5 class="br-h">${esc(T('pi_title'))}</h5><p class="hint">${esc(T(v.pre.some((m) => m.tag === 'pi_last') ? 'pi_hint_nba' : 'pi_hint_one'))}</p><div class="bracket pi">${cols.map((c, i) => `<div class="b-col"><h5>${esc(T(i ? 'pi_last' : 'pi_title'))}</h5>${c.map(matchBox).join('')}</div>`).join('')}</div>`
           + `<h5 class="br-h">${esc(T('pi_main'))}</h5>`;
       }
+      if (v.pick && K.pickHtml) html += K.pickHtml(t, v); // hạt giống 1 chọn đối thủ bán kết (otour-pick.js)
       html += bracketCols(v.rounds, (r) => label(t, v.index, r, roundName(v.rounds.length, r)), (r) => slot(t, v.index, r), key + ':m');
       if (v.third) html += `<h5>${esc(T('third_place'))}</h5><div class="bracket"><div class="b-col">${matchBox(v.third)}</div></div>`;
       // Trận xếp hạng các vị trí sau (5–8, 9–16…): mỗi nhánh một khối thu gọn

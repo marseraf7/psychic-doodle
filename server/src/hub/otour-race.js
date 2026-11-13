@@ -37,7 +37,7 @@ class OTourRace {
     const h = this.otRaceHeat(st, i, heat);
     if (h != null && st.events[i].heats[h].done) throw E('tour_match_done');
     // Xe đạp nhiều chặng / golf: nhập lần lượt từng chặng / vòng (người bỏ cuộc, bị cắt rời các chặng / vòng sau)
-    if ((SEQ.includes(st.cfg.score) || st.cfg.mp || st.cfg.gate) && st.events.some((e) => e.i < i && !e.done)) throw E('ot_gt_seq'); // match point cũng nhập lần lượt
+    if ((SEQ.includes(st.cfg.score) || st.cfg.mp || st.cfg.gate || st.cfg.circuit || st.cfg.weekly) && st.events.some((e) => e.i < i && !e.done)) throw E('ot_gt_seq'); // match point cũng nhập lần lượt
     const r = Race.cleanEvent(st, rows, h != null ? st.events[i].heats[h].uids : Race.lobby(st, i), i); // chỉ đội của chặng: rot – hai bảng đấu trận này; groups – bảng của chặng; gate – hàng chờ
     if (r.code) throw E(r.code, r.args || {});
     if (h != null) Race.recordHeat(st, i, h, r.rows);
@@ -55,7 +55,7 @@ class OTourRace {
     const h = heat == null ? null : this.otRaceHeat(st, i, heat);
     const ev = st.events[i];
     // 'gt' / 'golf': chỉ huỷ chặng / vòng nhập sau cùng (huỷ ở giữa làm sai danh sách bỏ cuộc / bị cắt của phần sau)
-    if ((SEQ.includes(st.cfg.score) || st.cfg.mp || st.cfg.gate) && st.events.some((e) => e.i > i && (e.done || e.rows))) throw E('ot_gt_undo_last');
+    if ((SEQ.includes(st.cfg.score) || st.cfg.mp || st.cfg.gate || st.cfg.circuit || st.cfg.weekly) && st.events.some((e) => e.i > i && (e.done || e.rows))) throw E('ot_gt_undo_last');
     if (h != null) {
       if (!ev.heats[h].done) throw E('tour_undo_locked');
       Race.undoHeat(st, i, h);

@@ -41,9 +41,19 @@
             head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
             groups: int(0, 8, "Race 'points': chia bảng cố định (2–8; kiểu PGC) – mỗi bảng đấu `events` trận của riêng mình, đi tiếp (advance) và vào thẳng giai đoạn 3 (skip) tính mỗi bảng"),
             tb: { type: 'string', enum: ['countback', 'pubg', 'pubg_k'], description: "Race 'points': chỉ số phụ khi bằng điểm – 'pubg': tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất; 'pubg_k' (PUBG cũ): tổng hạ gục, điểm trận cao nhất, hạ gục trận đó, hạ gục rồi hạng trận gần nhất" },
-            routes: { type: 'array', maxItems: 4, items: { type: 'object', properties: { n: int(1, 256), to: int(2, 5) }, required: ['n', 'to'] }, description: "Giai đoạn giữa (không phải loại trực tiếp), còn ≥ 2 giai đoạn sau: các dải hạng từ hạng 1 (chia bảng: mỗi bảng) vào thẳng giai đoạn `to` (chỉ số từ 0, ≥ chỉ số hiện tại + 2); các hạng sau đó: `advance` đội đi tiếp giai đoạn kế (có thể 0), còn lại bị loại. Kiểu nhánh thắng / nhánh thua song song của PGC 2022–2023" },
+            routes: { type: 'array', maxItems: 4, items: { type: 'object', properties: { n: int(1, 256), to: int(2, 5), after: { type: 'boolean', description: 'dải nằm sau nhóm `advance` đi tiếp (vd. 8 đội cuối vòng bảng vào thẳng nhánh thua)' } }, required: ['n', 'to'] }, description: "Giai đoạn giữa (không phải loại trực tiếp), còn ≥ 2 giai đoạn sau: các dải hạng từ hạng 1 (chia bảng: mỗi bảng) vào thẳng giai đoạn `to` (chỉ số từ 0, ≥ chỉ số hiện tại + 2); các hạng sau đó: `advance` đội đi tiếp giai đoạn kế (có thể 0), còn lại bị loại. Kiểu nhánh thắng / nhánh thua song song của PGC 2022–2023" },
             directLast: { type: 'boolean', description: 'Đội được chuyển thẳng vào giai đoạn này đứng sau đội đi tiếp (hàng chờ của cổng thắng trận)' },
             gate: { type: 'object', properties: { seats: int(2, 200) }, description: "Race 'points', giai đoạn giữa: cổng thắng trận (Grand Survival PGC 2022) – mỗi trận `seats` đội, đội về nhất đi tiếp và rời phòng, đội kế tiếp trong hàng chờ vào thay; số đội đi tiếp = events" },
+            circuit: { type: 'object', properties: { n: int(1, 5), days: int(2, 4), keep: int(1, 200), late: { type: 'array', maxItems: 3, items: int(0, 64) } }, description: "Race 'points': hệ Circuit (PGC 2024) – n vòng × days ngày × events trận mỗi ngày; ngày 1: các đội từ hạng (tổng late) + 1 trở xuống của bảng đầu vòng (vòng 1: hạt giống); ngày sau: `keep` đội đầu ngày trước + late[j] đội hạng cao hơn (nhóm đầu bảng vào ngày cuối); chỉ điểm ngày cuối (Final) cộng dồn. Vd. 24 đội: { n: 3, days: 3, keep: 12, late: [4, 4] }" },
+            meetSmall: int(1, 4, "Vòng tròn chia bảng: bảng ít đội hơn bảng đông nhất gặp nhau meetSmall lượt (MSI 2021: bảng 3 đội 4 lượt, bảng 4 đội 2 lượt)"),
+            tbmTop: { type: 'boolean', description: 'Có tbm: thêm trận phụ khi bằng điểm ở hạng nhất (cách ghi cũ – như tbmLines: [1])' },
+            tbmLines: { type: 'array', maxItems: 8, items: int(1, 63), description: 'Có tbm: các vạch hạng khác cũng phân định bằng trận phụ (vạch L giữa hạng L và L + 1; MSI: [1]; Rumble 2021: [1, 2]). Thủ tục Riot: hoà 2 đội một trận; 3 đội: nhanh nhất được miễn, hai đội còn lại đấu, đội thắng gặp đội được miễn; 4 đội: hai trận Bo1 theo tổng thời gian thắng; bỏ trận thừa' },
+            pick: { type: 'boolean', description: 'Loại trực tiếp 4 đội: hạt giống 1 chọn đối thủ bán kết trong hạt giống 3 / 4 (kiểu MSI)' },
+            rotBlock: int(1, 30, "Race có rot: đổi cặp bảng sau mỗi rotBlock trận (vòng bảng PGS: 6 – mỗi ngày A&B, B&C, C&A)"),
+            dmg: { type: 'boolean', description: "Race 'points': nhập tổng sát thương từng đội mỗi trận; với tb 'pubg' là chỉ số phụ cuối (PUBG 2022–2023)" },
+            drawFresh: { type: 'boolean', description: 'Vòng tròn có đội vào thẳng (direct): bốc thăm các đội đi tiếp gặp đội vào thẳng (MSI 2018 Play-In vòng 2)' },
+            slotFresh: { type: 'boolean', description: 'Vòng tròn có đội vào thẳng: đội đi tiếp theo thứ tự bảng gặp đội vào thẳng theo hạt giống (MSI 2019: nhất bảng A gặp đội vào thẳng thứ nhất)' },
+            weekly: { type: 'object', properties: { weeks: int(1, 5), seats: int(2, 64), final: int(1, 30), bottom: int(0, 30), sit: int(0, 8) }, description: "Race 'points': vòng tuần (PGC 2021) – mỗi tuần: Weekly Survival (cổng thắng trận không tính điểm, phòng `seats` đội, đủ `seats` đội thắng khác nhau) → Weekly Final (`final` trận) → Bottom (`bottom` trận xếp lại hàng chờ, không có ở tuần cuối); `sit` hạt giống cuối nghỉ tuần 1. Bảng giai đoạn: đội nhất các tuần, rồi điểm Weekly Finals cộng dồn. Vd. { weeks: 3, seats: 16, final: 10, bottom: 6, sit: 1 } + routes [{ n: 12, to: … }]" },
             carry: { type: 'boolean', description: "Race 'points' sau một giai đoạn race: mang nguyên điểm giai đoạn trước sang (Elimination PGC 2019)" },
             tbm: { type: 'string', enum: ['match', 'h2h'], description: "Vòng tròn chia bảng (giai đoạn giữa): trận phụ phân hạng khi đúng hai đội bằng điểm ở vạch đi tiếp – 'match': luôn đấu (đối đầu chỉ để chọn bên), 'h2h': chỉ khi đối đầu cũng bằng" },
             draw: { type: 'string', enum: ['record'], description: "Loại trực tiếp ngay sau Thụy Sĩ thắng / thua: bốc thăm theo thành tích (tốt nhất gặp kém nhất, còn lại ngẫu nhiên, tránh cùng khu vực)" },
@@ -58,7 +68,7 @@
             legs: { type: 'boolean', description: 'loại trực tiếp 2 lượt (tổng tỉ số)' }, legsFinal: { type: 'boolean' },
             heat: int(0, 64, 'Race: tối đa số người mỗi lượt (đoàn đông hơn thì chia lượt), 0 = không chia'),
             path: { type: 'string', enum: ['groups'], description: 'loại trực tiếp sau vòng bảng: nhánh cố định theo vị trí trong bảng (1A–2B, kiểu World Cup 2026)' },
-            groups: int(1, 64), groupSize: int(2, 64), meetings: { type: 'integer', enum: [1, 2, 3] },
+            groups: int(1, 64), groupSize: int(2, 64), meetings: { type: 'integer', enum: [1, 2, 3, 4] },
             league: { type: 'object', description: 'league phase kiểu Champions League', properties: { games: int(1, 20), pots: int(1, 8) } },
             season: { type: 'object', description: 'mùa giải kiểu nhà nghề Mỹ: confs miền × divs bảng con (đội chia theo thứ tự danh sách); div / conf / inter = gặp đội cùng bảng con / cùng miền khác bảng con / khác miền: m lần mỗi đối thủ + x đối thủ gặp thêm 1 lần',
               properties: { confs: int(1, 8), divs: int(1, 8), div: lv, conf: lv, inter: lv } },
@@ -68,12 +78,12 @@
             direct: int(0, 256, 'giai đoạn thứ 2 trở đi: số đội hạt giống cao nhất vào thẳng giai đoạn này (không đá các giai đoạn trước)'),
             region: { type: 'boolean', description: 'Thụy Sĩ: vòng 1 tránh hai đội cùng khu vực (cột quốc gia)' },
             bestNext: int(0, 32, 'thêm đội xếp ngay sau suất đi tiếp tốt nhất'),
-            rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent', 'valve'], description: "'valve' (chỉ Thụy Sĩ theo thắng / thua): kiểu CS Major – vòng 1 hạt giống i gặp i + n/2, sau đó cùng thành tích, xếp theo độ khó (Buchholz) rồi hạt giống, cao gặp thấp" },
-            record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo } },
+            rounds: int(0, 15, 'Thụy Sĩ: số vòng, 0 = tự động'), pairing: { type: 'string', enum: ['dutch', 'adjacent', 'valve', 'valve16', 'draw', 'faceit'], description: "Chỉ Thụy Sĩ theo thắng / thua: 'faceit' – kiểu FACEIT 2018 (vòng 1–2 như 'draw', vòng 3–5 xếp hạt giống trong nhóm theo Buchholz = tổng số thắng của các đối thủ đã gặp, cao gặp thấp); 'valve' – kiểu CS Major (vòng 1 hạt giống i gặp i + n/2, sau đó cùng thành tích, xếp theo độ khó (Buchholz) rồi hạt giống, cao gặp thấp); 'valve16' – như trên nhưng vòng 1 gập đôi (1 gặp 16 – luật trước 11/2023); 'draw' – kiểu 2017: vòng 1 nhóm hạt giống 1 bốc gặp nhóm 4, 2 gặp 3, sau đó bốc thăm ngẫu nhiên trong cùng thành tích" },
+            record: { type: 'object', description: 'Thụy Sĩ theo số thắng / thua', properties: { win: int(1, 5), lose: int(1, 5), bo, boLast: { type: 'boolean', description: 'Bo riêng chỉ cho trận mà cả hai đội đều ở thế thắng là đi tiếp, thua là bị loại (FACEIT 2018: vòng 5, 2–2)' } } },
             points: { type: 'object', properties: { w: int(0, 10), d: int(0, 10), l: int(0, 10), wx: int(0, 10), lx: int(0, 10), gw: int(0, 10), gt: int(0, 10), bye: int(0, 10) } },
             tiebreaks: { type: 'array', maxItems: TIEBREAKS.length, items: { type: 'string', enum: TIEBREAKS } },
             rankBy: { type: 'string', enum: ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'] },
-            events: int(1, 30, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt', 'golf'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội), 'golf' golf đấu gậy (events = số vòng)" },
+            events: int(1, 60, 'hệ Race: số chặng'), score: { type: 'string', enum: ['points', 'time', 'gt', 'golf'], description: "'points' điểm theo hạng, 'time' cộng thời gian, 'gt' xe đạp nhiều chặng (tổng thời gian, điểm, leo núi, trẻ, đồng đội), 'golf' golf đấu gậy (events = số vòng)" },
             kinds: { type: 'array', maxItems: 30, items: { type: 'string', enum: ['flat', 'hilly', 'mtn', 'itt'] }, description: "'gt': loại từng chặng – đồng bằng / đồi / núi / tính giờ cá nhân" },
             bonus: { type: 'boolean', description: "'gt': giây thưởng về đích top 3 (10-6-4)" },
             par: { type: 'array', maxItems: 18, items: int(3, 6), description: "'golf': par từng lỗ (mặc định 18 lỗ par 72)" },
@@ -94,9 +104,16 @@
     const g = c.type === 'gsl' || (c.type === 'roundrobin' && !c.league && ((c.groups || 1) > 1 || c.groupSize)) || (c.type === 'race' && c.groups) ? '_g' : '';
     const x = [];
     let a = 1;
-    for (const r of c.routes) { x.push(T('ds_route' + g, { r: rng(a, a + r.n - 1), k: r.to + 1 })); a += r.n; }
-    if (c.advance) x.push(T('ds_route_next' + g, { r: rng(a, a + c.advance - 1), k: i + 2 }));
+    for (const r of c.routes) if (!r.after) { x.push(T('ds_route' + g, { r: rng(a, a + r.n - 1), k: r.to + 1 })); a += r.n; }
+    if (c.advance) { x.push(T('ds_route_next' + g, { r: rng(a, a + c.advance - 1), k: i + 2 })); a += c.advance; }
+    for (const r of c.routes) if (r.after) { x.push(T('ds_route' + g, { r: rng(a, a + r.n - 1), k: r.to + 1 })); a += r.n; } // dải sau nhóm đi tiếp
     return x;
+  }
+  /** Tổng số trận của giai đoạn đua: vòng tuần / hệ Circuit tính cả các tuần, các ngày (như máy chủ). */
+  function raceTotal(c) {
+    const W = c.weekly, C = c.circuit, e = c.events || 1;
+    if (W) return W.weeks * (W.seats + W.final) + (W.weeks - 1) * W.bottom;
+    return C ? e * C.n * C.days : e;
   }
   function stageText(c, T, last, result = 'score', i = 0) {
     const x = [];
@@ -119,12 +136,12 @@
       else if (c.season) x.push(seasonText(c.season, T));
       else {
         x.push(c.groupSize ? T('ds_group_size', { n: c.groupSize }) : (c.groups || 1) > 1 ? T('ds_groups', { n: c.groups }) : T('ds_rr'));
-        if (c.meetings === 2) x.push(T('ds_home_away')); else if (c.meetings === 3) x.push(T('ds_meet3'));
+        if (c.meetings === 2) x.push(T('ds_home_away')); else if (c.meetings === 3) x.push(T('ds_meet3')); else if (c.meetings === 4) x.push(T('ds_meet4'));
       }
     } else if (c.type === 'swiss') {
       x.push(c.record ? T('ds_swiss_rec', { w: c.record.win, l: c.record.lose }) : c.rounds ? T('ds_swiss', { n: c.rounds }) : T('ds_swiss_auto'));
-      if (c.record && c.record.bo) x.push(T('ds_rec_bo', { bo: c.record.bo }));
-      if (c.record && c.pairing === 'valve') x.push(T('ds_valve'));
+      if (c.record && c.record.bo) x.push(T(c.record.boLast ? 'ds_rec_bo_last' : 'ds_rec_bo', { bo: c.record.bo }));
+      if (c.record && ['valve', 'valve16', 'draw', 'faceit'].includes(c.pairing)) x.push(T('ds_' + c.pairing));
     } else if (c.type === 'race') {
       if (c.score === 'golf') { // golf đấu gậy
         const p = (c.par || []).reduce((a, b) => a + b, 0) || 72;
@@ -135,10 +152,13 @@
         const n = (k) => (c.kinds || []).filter((x) => x === k).length;
         x.push(T('ds_gt', { n: c.events || 1, f: n('flat'), h: n('hilly'), m: n('mtn'), t: n('itt') }));
         if (c.bonus !== false) x.push(T('ds_gt_bonus'));
-      } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: c.events || 1, top: (c.table || []).slice(0, 3).join('-') }));
+      } else x.push(c.score === 'time' ? T('ds_time', { n: c.events || 1 }) : T('ds_race', { n: raceTotal(c), top: (c.table || []).slice(0, 3).join('-') }));
       if (c.rot) x.push(c.rot === true || c.rot === 3 ? T('ds_rot') : T('ds_rot_n', { n: c.rot }));
       if (c.gate) x.push(T('ds_gate', { n: c.gate.seats }));
+      if (c.circuit) x.push(T('ds_circuit', { n: c.circuit.n, d: c.circuit.days, m: c.events || 1, k: c.circuit.keep, late: (c.circuit.late || []).join('-') }));
       if (c.carry) x.push(T('ds_carry'));
+      if (c.dmg) x.push(T('ds_dmg'));
+      if (c.weekly) x.push(T('ds_weekly', { n: c.weekly.weeks, s: c.weekly.seats, f: c.weekly.final, b: c.weekly.bottom }) + (c.weekly.sit ? ' ' + T('ds_wk_sit', { n: c.weekly.sit }) : ''));
       if (c.groups) x.push(T('ds_race_groups', { n: c.groups, m: c.events || 1 }));
       if (c.tb === 'pubg' || c.tb === 'pubg_k') x.push(T('ds_tb_' + c.tb));
       if (c.head) x.push(T('ds_head', { list: c.head.slice(0, 4).join('-') }));
@@ -150,6 +170,11 @@
     if (c.bestOf === 2 && (c.type === 'roundrobin' || c.type === 'swiss')) x.push(T('ds_bo2'));
     if (c.tbm) x.push(T(c.tbm === 'h2h' ? 'ds_tbm_h2h' : 'ds_tbm_match'));
     if (c.draw === 'record') x.push(T('ds_draw_record'));
+    if (c.tbmLines && c.tbmLines.length) x.push(T('ds_tbm_lines', { list: c.tbmLines.join(', ') }));
+    else if (c.tbmTop) x.push(T('ds_tbm_top'));
+    if (c.meetSmall) x.push(T('ds_meet_small', { n: c.meetSmall }));
+    if (c.pick) x.push(T('ds_pick'));
+    if (c.rotBlock > 1) x.push(T('ds_rot_block', { n: c.rotBlock }));
     if (c.points && (c.type === 'roundrobin' || c.type === 'swiss')) {
       x.push(T('ds_points', { w: c.points.w, d: c.points.d, l: c.points.l }) + (c.points.wx != null ? ' ' + T('ds_points_x', { wx: c.points.wx, lx: c.points.lx }) : ''));
     }
@@ -161,6 +186,7 @@
     }
     if (c.direct) x.push(T('ds_direct', { n: c.direct })); // đội hạt giống cao vào thẳng giai đoạn này
     if (c.directLast) x.push(T('ds_direct_last'));
+    if (c.drawFresh) x.push(T('ds_fresh_draw')); else if (c.slotFresh) x.push(T('ds_fresh_slot'));
     if (c.type === 'swiss' && c.region) x.push(T('ds_region'));
     return x.join(', ');
   }

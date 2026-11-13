@@ -22,6 +22,8 @@ require('../../caro/i18n-otour-next.js');
 require('../../caro/i18n-otour-multi.js');
 require('../../caro/i18n-otour-formats.js');
 require('../../caro/i18n-otour-majors.js');
+require('../../caro/i18n-otour-msi.js');
+require('../../caro/i18n-otour-ties.js');
 delete global.window;
 const missing = new Set();
 const T = (lang) => (k, a = {}) => { const s = D[lang][k]; if (s == null) { missing.add(lang + ':' + k); return k; } return s.replace(/\{(\w+)\}/g, (_, x) => (a[x] != null ? a[x] : '')); };

@@ -80,7 +80,9 @@ function normalizeStage(c, last, opts = {}) {
     // Chia bảng theo số bảng, hoặc (như Challonge) theo số người mỗi bảng
     if (c.groupSize != null && c.groupSize !== '') out.groupSize = int(c.groupSize, 2, MAX_GROUP, 4);
     else out.groups = int(c.groups, 1, MAX_GROUPS, 1);
-    out.meetings = [2, 3].includes(Number(c.meetings)) ? Number(c.meetings) : 1;
+    out.meetings = [2, 3].includes(Number(c.meetings)) || (opts.offline && Number(c.meetings) === 4) ? Number(c.meetings) : 1; // 4 lượt: giải offline
+    // Bảng ít đội hơn gặp nhau nhiều lượt hơn (kiểu MSI 2021–2022: bảng 3 đội vòng tròn bốn lượt)
+    if (opts.offline && [1, 2, 3, 4].includes(Number(c.meetSmall)) && Number(c.meetSmall) !== out.meetings) out.meetSmall = Number(c.meetSmall);
     out.rankBy = RANK_BY.includes(c.rankBy) ? c.rankBy : 'points';
   }
   if (type === 'swiss') {
@@ -88,7 +90,8 @@ function normalizeStage(c, last, opts = {}) {
     // Xếp cặp: 'dutch' (chuẩn FIDE: trong mỗi nhóm điểm, nửa trên gặp nửa dưới – 1 gặp n/2+1…) / 'adjacent' (gặp người
     // liền kề: 1–2, 3–4…, cách của bản trước – giải cũ không có trường này vẫn chạy như cũ)
     // Giải offline + Thụy Sĩ theo thắng / thua: 'valve' – kiểu CS Major (stages-valve.js; không có record thì thành 'dutch')
-    out.pairing = c.pairing === 'adjacent' || (c.pairing === 'valve' && opts.offline) ? c.pairing : 'dutch';
+    // 'valve16' (vòng 1 kiểu 1 gặp 16, trước 11/2023), 'draw' (bốc thăm ngẫu nhiên cùng thành tích, kiểu 2017)
+    out.pairing = c.pairing === 'adjacent' || (['valve', 'valve16', 'draw', 'faceit'].includes(c.pairing) && opts.offline) ? c.pairing : 'dutch';
   }
   if (!isElim(type)) {
     const p = c.points || {};
@@ -112,11 +115,19 @@ function normalizeStage(c, last, opts = {}) {
   // Loạt Bo2 (vòng bảng Dota 2 ở các giải Esports): đúng 2 ván, 1–1 là hoà – chỉ vòng tròn / Thụy Sĩ tính điểm (không phải
   // Thụy Sĩ theo thắng / thua, không phải loại trực tiếp)
   if (Number(c.bestOf) === 2 && GROUP_TYPES.includes(res.type) && !res.record) res.bestOf = 2;
-  if (res.pairing === 'valve' && !res.record) res.pairing = 'dutch';
+  if (['valve', 'valve16', 'draw', 'faceit'].includes(res.pairing) && !res.record) res.pairing = 'dutch';
   // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – không phải league phase / mùa giải)
   if (res.type === 'roundrobin' && !last && !res.league && !res.season && TM.MODES.includes(c.tbm)) res.tbm = c.tbm;
+  if (res.tbm && c.tbmTop === true) res.tbmTop = true; // thêm trận phụ khi hai đội bằng điểm ở hạng nhất (kiểu MSI)
+  // Các vạch hạng khác cần phân định bằng trận phụ (vạch L: giữa hạng L và L + 1; Rumble 2021: [1, 2])
+  if (res.tbm && Array.isArray(c.tbmLines)) {
+    const ls = [...new Set(c.tbmLines.map((x) => Math.floor(Number(x))))].filter((x) => x >= 1 && x <= 63).sort((a, b) => a - b).slice(0, TM.MAX_LINES);
+    if (ls.length) res.tbmLines = ls;
+  }
   // Bốc thăm nhánh theo thành tích Thụy Sĩ (stages-recdraw.js) – normalizeStages bỏ nếu giai đoạn trước không phải Thụy Sĩ thắng / thua
   if (res.type === 'single' && c.draw === 'record' && !res.playoff) res.draw = 'record';
+  // Hạt giống 1 chọn đối thủ bán kết trong hạt giống 3 / 4 (kiểu MSI 2018–2022; nhánh 4 đội – otour-run.js on_otPick)
+  if (opts.offline && res.type === 'single' && c.pick === true && !res.playoff && !res.draw) res.pick = true;
   return res;
 }
 
@@ -132,6 +143,9 @@ function normalizeStages(list, opts = {}) {
     const d = Math.floor(Number(arr[i] && arr[i].direct));
     if (i > 0 && opts.offline && d > 0 && !c.playoff) c.direct = Math.min(d, 256); // playoff kiểu Mỹ tự chọn đội từ mùa giải
     if (i > 0 && opts.offline && arr[i] && arr[i].directLast === true) c.directLast = true; // đội vào thẳng xếp sau đội đi tiếp
+    // Vòng tròn sau một giai đoạn: bốc thăm đội đi tiếp gặp đội vào thẳng (drawFresh – MSI 2018 Play-In vòng 2) / ghép theo thứ
+    // tự bảng (slotFresh – MSI 2019: nhất bảng A gặp đội vào thẳng thứ nhất)
+    if (i > 0 && opts.offline && c.type === 'roundrobin' && arr[i]) { if (arr[i].drawFresh === true) c.drawFresh = true; else if (arr[i].slotFresh === true) c.slotFresh = true; }
     // Giải offline 3 giai đoạn: `skip` đội đầu của giai đoạn 1 vào thẳng giai đoạn 3, các đội đi tiếp còn lại đá giai đoạn 2
     // (vòng vớt kiểu Survival Stage / Last Chance của các giải sinh tồn). Vòng tròn nhiều bảng: tính mỗi bảng.
     const sk = Math.floor(Number(arr[i] && arr[i].skip));
@@ -141,7 +155,8 @@ function normalizeStages(list, opts = {}) {
     // `to` (≥ i + 2, vd. nhất – tám mỗi bảng vào thẳng nhánh thắng), phần `advance` sau đó sang giai đoạn i + 1 (có thể 0)
     const rt = arr[i] && Array.isArray(arr[i].routes) ? arr[i].routes : null;
     if (opts.offline && rt && i + 2 < out.length && !isElim(c.type) && c.type !== 'kings') {
-      const r = rt.slice(0, MAX_ROUTES).map((x) => ({ n: Math.min(256, Math.floor(Number(x && x.n)) || 0), to: Math.floor(Number(x && x.to)) }))
+      // after: dải nằm sau nhóm đi tiếp (vd. vòng bảng PGS 2023: 16 đội đầu đi tiếp nhánh thắng, 8 đội cuối vào thẳng nhánh thua)
+      const r = rt.slice(0, MAX_ROUTES).map((x) => ({ n: Math.min(256, Math.floor(Number(x && x.n)) || 0), to: Math.floor(Number(x && x.to)), ...(x && x.after === true ? { after: true } : {}) }))
         .filter((x) => x.n > 0 && x.to >= i + 2 && x.to < out.length && !out[x.to].playoff);
       if (r.length) {
         c.routes = r;
@@ -221,8 +236,13 @@ function splitAdvancers(st, seedOf, min = 2) {
       if (st.type === 'gsl') { const x = pool.slice(k, k + n).flat(); k += n; return x; }
       const x = pool.slice(k, k + n * per); k += x.length; return x;
     };
-    const routes = rts.map((r) => ({ to: r.to, uids: take(r.n) }));
-    const seeds = st.type === 'gsl' ? pool.slice(k).flat() : pool.slice(k);
+    // Dải đầu (từ hạng 1), rồi nhóm đi tiếp giai đoạn kế, rồi các dải `after`
+    const out = new Map(rts.filter((r) => !r.after).map((r) => [r, take(r.n)]));
+    // Bảng GSL: số đội đi tiếp đã gồm các tầng chuyển thẳng – phần còn lại đi tiếp (không có dải `after`)
+    const seeds = st.type === 'gsl' ? pool.slice(k).flat() : pool.slice(k, k + (st.cfg.advance || 0) * per);
+    k += st.type === 'gsl' ? pool.length : seeds.length;
+    for (const r of rts) if (r.after) out.set(r, take(r.n));
+    const routes = rts.map((r) => ({ to: r.to, uids: out.get(r) }));
     return { seeds, groupOf, routes, skip: routes.filter((r) => r.to === st.index + 2).flatMap((r) => r.uids) };
   }
   const sk = st.cfg.skip || 0;

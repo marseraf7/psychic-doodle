@@ -29,10 +29,12 @@
 const RU = require('../../../caro/otour-rules.js');
 const GT = require('./stages-gt.js'); // cách tính 'gt': xe đạp nhiều chặng, nhiều bảng xếp hạng
 const GOLF = require('./stages-golf.js'); // cách tính 'golf': golf đấu gậy (vòng, par, cắt, đấu phụ)
+const CI = require('./stages-circuit.js'); // hệ Circuit kiểu PGC 2024
+const WK = require('./stages-weekly.js'); // vòng tuần kiểu PGC 2021
 
 const SCORES = ['points', 'time', 'gt', 'golf'];
 const F1 = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
-const MAX_EVENTS = 30;
+const MAX_EVENTS = 60; // Rank Decision PGC 2021: 36 trận
 const MAX_RACE = 200; // tối đa người / đội trong một giai đoạn race (không chia lượt)
 const MAX_RACE_HEATS = 512; // có chia lượt (bằng số đội tối đa của giải – otour-spec.js)
 const MAX_HEAT = 64; // tối đa người mỗi lượt
@@ -52,7 +54,8 @@ function cleanTable(x) {
 /** Chuẩn hoá cấu hình giai đoạn race (stages.js gọi khi giải offline). */
 function normalizeRace(c, last) {
   const score = SCORES.includes(c.score) ? c.score : 'points';
-  const out = { type: 'race', bestOf: 1, events: int(c.events, 1, MAX_EVENTS, 1), score };
+  // Xe đạp nhiều chặng / golf: tối đa 30 chặng / vòng như trước; cách tính điểm / thời gian: tới MAX_EVENTS
+  const out = { type: 'race', bestOf: 1, events: int(c.events, 1, score === 'gt' || score === 'golf' ? 30 : MAX_EVENTS, 1), score };
   if (score === 'points') {
     out.table = cleanTable(c.table) || [...F1];
     const kill = int(c.kill, 0, 10, 0);
@@ -72,10 +75,14 @@ function normalizeRace(c, last) {
     // trận một cặp bảng theo lịch vòng tròn (kiểu Rank Decision PGC 2021)
     const R = c.rot === true ? 3 : int(c.rot, 0, MAX_GROUPS, 0);
     if (R >= 3 && !(int(c.heat, 0, MAX_HEAT, 0) >= 2)) out.rot = R === 3 ? true : R;
+    // Đổi cặp bảng sau mỗi `rotBlock` trận (kiểu vòng bảng PGS: mỗi ngày 6 trận cùng hai bảng – A&B, B&C, C&A)
+    const rb = int(c.rotBlock, 1, MAX_EVENTS, 1);
+    if (out.rot && rb > 1) out.rotBlock = rb;
     // Chia bảng cố định (kiểu PGC): mỗi bảng đấu riêng – không đi cùng xoay vòng, match point
     const G = int(c.groups, 0, MAX_GROUPS, 0);
     if (G >= 2) { out.groups = G; delete out.rot; delete out.mp; }
     if (c.tb === 'pubg' || c.tb === 'pubg_k') out.tb = c.tb; // hệ số phụ kiểu PUBG (2022+) / kiểu PUBG cũ – hạ gục trước (2019, 2021)
+    if (c.dmg === true) out.dmg = true; // nhập tổng sát thương từng đội mỗi trận – chỉ số phụ cuối của PUBG 2022–2023
     if (c.carry === true) out.carry = true; // mang nguyên điểm giai đoạn trước sang (kiểu Elimination PGC 2019)
     // Cổng thắng trận (kiểu Grand Survival PGC 2021 / 2022): mỗi trận `seats` đội đầu hàng chờ đấu, đội về nhất đi tiếp và rời
     // phòng, đội kế tiếp trong hàng chờ vào thay; mỗi trận một suất – số suất = số trận. Không phải giai đoạn cuối
@@ -83,13 +90,15 @@ function normalizeRace(c, last) {
       out.gate = { seats: int(c.gate.seats != null ? c.gate.seats : c.gate, 2, MAX_RACE, 16) };
       for (const k of ['groups', 'rot', 'mp', 'head', 'carry']) delete out[k];
     }
+    CI.normalizeCircuit(c, out); // hệ Circuit (stages-circuit.js): nhiều vòng × nhiều ngày, chỉ điểm ngày Final cộng dồn
+    if (!out.circuit) WK.normalizeWeekly(c, out); // vòng tuần (stages-weekly.js): Survival → Weekly Final → Bottom, lặp nhiều tuần
   }
   if (score === 'gt') GT.normalizeGt(c, out); // bảng đội luôn tính theo cột "Đội"; không chia lượt
   else if (score === 'golf') GOLF.normalizeGolf(c, out);
   else if (c.teams === true) out.teams = true;
   const heat = int(c.heat, 0, MAX_HEAT, 0);
   // Chia lượt: không đi cùng 3 bảng xoay vòng, không đi cùng match point (mỗi lượt có một người về nhất)
-  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp && !out.groups && !out.gate) out.heat = heat;
+  if (heat >= 2 && score !== 'gt' && score !== 'golf' && !out.rot && !out.mp && !out.groups && !out.gate && !out.circuit && !out.weekly) out.heat = heat;
   if (!last) out.advance = out.gate ? out.events : int(c.advance, 1, MAX_RACE_HEATS, 8);
   return out;
 }
@@ -101,7 +110,7 @@ const heatsFor = (list, size, i) => RU.heatsOf(list, size, i).map((uids) => ({ u
 function buildRace(st) {
   const heat = st.cfg.heat && st.entrants.length > st.cfg.heat ? st.cfg.heat : 0;
   const G = st.cfg.groups || 0; // chia bảng cố định: mỗi bảng `events` trận, trận i thuộc bảng i % G
-  st.events = Array.from({ length: st.cfg.events * (G || 1) }, (_, i) => ({ i, done: false, rows: null, ...(G ? { g: i % G } : {}), ...(heat ? { heats: heatsFor(st.entrants, heat, i) } : {}) }));
+  st.events = Array.from({ length: (st.cfg.weekly ? WK.totalEvents(st.cfg) : CI.totalEvents(st.cfg)) * (G || 1) }, (_, i) => ({ i, done: false, rows: null, ...(G ? { g: i % G } : {}), ...(heat ? { heats: heatsFor(st.entrants, heat, i) } : {}) }));
 }
 
 /**
@@ -130,10 +139,12 @@ function cleanEvent(st, rows, members = st.entrants, i = 0) {
     }
     if (pts && r.pts != null && r.pts !== '') x.pts = int(r.pts, -1000, 1000, 0); // điểm sửa tay (thưởng / phạt)
     if (pts && st.cfg.kill) { const k = int(r.kills, 0, 200, 0); if (k) x.kills = k; } // số hạ gục (sinh tồn)
+    if (pts && st.cfg.dmg) { const d = int(r.dmg, 0, 1000000, 0); if (d) x.dmg = d; } // tổng sát thương (chỉ số phụ)
     out.push(x);
   }
   if (!out.some((x) => !x.dnf)) return { code: 'ot_race_empty' };
-  if (st.cfg.gate && !out.some((x) => !x.dnf && x.rank === 1)) return { code: 'ot_gate_winner' }; // cổng thắng trận: phải có đội về nhất
+  // cổng thắng trận / Survival của vòng tuần: phải có đội về nhất
+  if ((st.cfg.gate || (st.cfg.weekly && WK.isSurv(st.cfg, i))) && !out.some((x) => !x.dnf && x.rank === 1)) return { code: 'ot_gate_winner' };
   if (pts) { // hạng không trùng
     const ranks = out.filter((x) => !x.dnf).map((x) => x.rank);
     if (new Set(ranks).size !== ranks.length) return { code: 'ot_race_rank_dup' };
@@ -145,8 +156,8 @@ function cleanEvent(st, rows, members = st.entrants, i = 0) {
 const rowPts = (cfg, x) => (x.pts != null ? x.pts : (x.dnf ? 0 : cfg.table[x.rank - 1] || 0) + (cfg.kill ? (x.kills || 0) * cfg.kill : 0));
 
 /** Những người đấu chặng i khi chia 3 bảng xoay vòng (cfg.rot); không thì cả đoàn. */
-const lobby = (st, i) => (st.cfg.gate ? gateLobby(st, i) : st.cfg.groups ? RU.groupList(st.entrants, st.cfg.groups, i % st.cfg.groups)
-  : st.cfg.rot ? RU.lobbyOf(st.entrants, i, st.cfg.rot === true ? 3 : st.cfg.rot) : st.entrants);
+const lobby = (st, i) => (st.cfg.weekly ? WK.make(st, raceTable).lobby(i) : st.cfg.circuit ? CI.make(st, raceTable).lobby(i) : st.cfg.gate ? gateLobby(st, i) : st.cfg.groups ? RU.groupList(st.entrants, st.cfg.groups, i % st.cfg.groups)
+  : st.cfg.rot ? RU.lobbyOf(st.entrants, Math.floor(i / (st.cfg.rotBlock || 1)), st.cfg.rot === true ? 3 : st.cfg.rot) : st.entrants); // rotBlock: đổi cặp bảng sau mỗi `rotBlock` trận
 /** Cổng thắng trận: đội thắng các chặng trước chặng i (theo thứ tự chặng). */
 const gateWinners = (st, upto = Infinity) => st.events.filter((e) => e.done && e.i < upto).map((e) => (e.rows.find((x) => !x.dnf && x.rank === 1) || {}).uid).filter(Boolean);
 /** Cổng thắng trận: `seats` đội đầu hàng chờ (thứ tự hạt giống, bỏ đội đã thắng) đấu chặng i. */
@@ -225,8 +236,10 @@ function raceTable(st, seedOf, members = st.entrants) {
   if (st.cfg.score === 'golf') { const C = GOLF.golfCalc(st, seedOf); return { list: C.order, stats: C.stats }; }
   const cfg = st.cfg, pts = cfg.score === 'points';
   // place: tổng điểm hạng (không tính hạ gục / sửa tay); last, lastPlace: điểm / điểm hạng của trận gần nhất đã đấu (kiểu PUBG)
-  const stats = Object.fromEntries(members.map((u) => [u, { uid: u, pts: (pts && st.head && st.head[u]) || 0, time: 0, races: 0, fin: 0, dnf: 0, places: [], kills: 0, place: 0, last: 0, lastPlace: 0, lastKills: 0, best: 0, bestKills: 0 }]));
-  const done = st.events.filter((e) => e.done);
+  const stats = Object.fromEntries(members.map((u) => [u, { uid: u, pts: (pts && st.head && st.head[u]) || 0, time: 0, races: 0, fin: 0, dnf: 0, places: [], kills: 0, place: 0, last: 0, lastPlace: 0, lastKills: 0, best: 0, bestKills: 0, dmg: 0 }]));
+  // Hệ Circuit: bảng chung chỉ cộng các ngày Final
+  // Vòng tuần: bảng chung chỉ cộng các Weekly Final
+  const done = st.events.filter((e) => e.done && (!cfg.circuit || CI.isFinal(cfg, e.i)) && (!cfg.weekly || WK.isFinal(cfg, e.i)));
   const placePts = (x) => (x.dnf ? 0 : cfg.table[x.rank - 1] || 0);
   for (const ev of done) {
     for (const x of ev.rows) {
@@ -237,6 +250,7 @@ function raceTable(st, seedOf, members = st.entrants) {
       if (pts) {
         s.pts += rowPts(cfg, x);
         s.kills += x.kills || 0;
+        s.dmg += x.dmg || 0;
         s.place += placePts(x);
         s.last = rowPts(cfg, x); // các chặng duyệt theo thứ tự: dòng sau cùng là trận gần nhất
         s.lastPlace = placePts(x);
@@ -255,7 +269,8 @@ function raceTable(st, seedOf, members = st.entrants) {
       if (st.mpWinner && (a === st.mpWinner) !== (b === st.mpWinner)) return a === st.mpWinner ? -1 : 1; // thắng theo match point
       if (y.pts !== x.pts) return y.pts - x.pts;
       // Kiểu PUBG: tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất
-      if (cfg.tb === 'pubg') for (const k of ['place', 'last', 'lastPlace']) if (y[k] !== x[k]) return y[k] - x[k];
+      // Kiểu PUBG (2022–2023): tổng điểm hạng, điểm trận gần nhất, điểm hạng trận gần nhất, rồi tổng sát thương (khi nhập)
+      if (cfg.tb === 'pubg') for (const k of ['place', 'last', 'lastPlace', ...(cfg.dmg ? ['dmg'] : [])]) if (y[k] !== x[k]) return y[k] - x[k];
       // Kiểu PUBG cũ (2019, 2021): tổng hạ gục, điểm trận cao nhất, hạ gục trong trận đó, hạ gục trận gần nhất, điểm hạng trận gần nhất
       if (cfg.tb === 'pubg_k') for (const k of ['kills', 'best', 'bestKills', 'lastKills', 'lastPlace']) if (y[k] !== x[k]) return y[k] - x[k];
       for (let k = 0; k < Math.max(x.places.length, y.places.length); k++) if ((y.places[k] || 0) !== (x.places[k] || 0)) return (y.places[k] || 0) - (x.places[k] || 0);
@@ -275,6 +290,8 @@ function raceTable(st, seedOf, members = st.entrants) {
     const won = gateWinners(st), wset = new Set(won);
     return { list: [...won.filter((u) => members.includes(u)), ...members.filter((u) => !wset.has(u)).sort((a, b) => seedOf(a) - seedOf(b))], stats };
   }
+  // Vòng tuần: đội nhất các tuần đứng đầu, rồi điểm Weekly Finals cộng dồn (stages-weekly.js)
+  if (cfg.weekly) { const all = WK.make(st, raceTable).overall([...members].sort(cmp)); return { list: all.filter((u) => members.includes(u)), stats }; }
   return { list: [...members].sort(cmp), stats };
 }
 
@@ -296,16 +313,17 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
     let prev = null;
     return order.map((x) => {
       const r = { ...side(x.uid), dnf: x.dnf };
-      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; if (x.kills) r.kills = x.kills; } else if (!x.dnf) {
+      if (pts) { r.rank = x.dnf ? null : x.rank; r.pts = rowPts(cfg, x); if (x.pts != null) r.manual = true; if (x.kills) r.kills = x.kills; if (x.dmg) r.dmg = x.dmg; } else if (!x.dnf) {
         r.time = x.time; r.gap = lead != null ? x.time - lead : null; r.gapPrev = prev != null ? x.time - prev : null; prev = x.time;
       }
       return r;
     });
   };
-  const nextGate = cfg.gate ? st.events.findIndex((e) => !e.done) : -1;
+  const nextGate = cfg.gate || cfg.circuit || cfg.weekly ? st.events.findIndex((e) => !e.done) : -1;
+  const ci = cfg.circuit ? CI.make(st, raceTable) : null;
   const events = st.events.map((ev) => {
     // Cổng thắng trận: máy chủ gửi danh sách đội của chặng kế tiếp (phụ thuộc kết quả trước – trình duyệt không tự tính)
-    if (!ev.done) return { i: ev.i, done: false, ...heatsOf(ev), ...(ev.i === nextGate ? { lobby: gateLobby(st, ev.i) } : {}) };
+    if (!ev.done) return { i: ev.i, done: false, ...heatsOf(ev), ...(ev.i === nextGate ? { lobby: lobby(st, ev.i) } : {}) };
     return { i: ev.i, done: true, rows: rowsOf(ev), ...heatsOf(ev) };
   });
   const all = st.events.filter((e) => e.done).length;
@@ -317,7 +335,7 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
     return list.map((u, k) => {
       const s = stats[u];
       const r = { ...side(u), rank: k + 1, races: s.races, fin: s.fin, dnf: s.dnf, adv: k < adv };
-      if (pts) { r.pts = s.pts; if (st.head && st.head[u]) r.head = st.head[u]; if (cfg.kill) r.kills = s.kills; if (mpAt != null && s.pts >= mpAt) r.mp = true; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
+      if (pts) { r.pts = s.pts; if (st.head && st.head[u]) r.head = st.head[u]; if (cfg.kill) r.kills = s.kills; if (cfg.dmg) r.dmg = s.dmg; if (mpAt != null && s.pts >= mpAt) r.mp = true; r.wins = s.places[0] || 0; r.podiums = (s.places[0] || 0) + (s.places[1] || 0) + (s.places[2] || 0); } else {
         r.time = s.fin === all && all ? s.time : null;
         r.gap = r.time != null && lead && lead.fin === all ? s.time - lead.time : null;
         r.gapPrev = r.time != null && prev != null ? s.time - prev : null;
@@ -332,6 +350,17 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
   const table = groups ? groups.flatMap((g) => g.table) : tableOf({ list, stats });
   const v = { index: i, type: 'race', cfg, done: st.done, events, table, entrants: st.entrants.map(side), ...(groups ? { groups } : {}) };
   if (cfg.mp && pts) v.mp = { at: mpAt, winner: st.mpWinner ? side(st.mpWinner).name : null };
+  // Hệ Circuit: bảng từng ngày đã bắt đầu (ngày thường: `keep` đội đầu đi tiếp ngày sau; ngày Final: điểm cộng dồn)
+  // Vòng tuần: từng tuần đã bắt đầu – đội thắng Survival, bảng Weekly Final, bảng Bottom
+  if (cfg.weekly) {
+    const wk = WK.make(st, raceTable), seedOf2 = (u) => st.entrants.indexOf(u) + 1;
+    const evsOf = (w, kind) => st.events.filter((e) => { const p = WK.phase(cfg, e.i); return p.w === w && p.kind === kind; });
+    const subTable = (w, kind, members) => raceTable({ ...st, cfg: { ...cfg, weekly: undefined }, head: null, events: evsOf(w, kind) }, seedOf2, members);
+    v.weekly = WK.weeksShown(st).map(({ w, done }) => ({ w, done, winners: wk.survWinners(w).map(side),
+      final: tableOf(subTable(w, 'final', wk.finalists(w))).map((r) => ({ ...r, adv: false })),
+      ...(w < cfg.weekly.weeks - 1 ? { bottom: tableOf(subTable(w, 'bottom', wk.bottomMembers(w))).map((r) => ({ ...r, adv: false })) } : {}) }));
+  }
+  if (ci) v.circuit = CI.daysShown(st).map((d) => ({ ...d, table: (() => { const T = ci.dayFull(d.c, d.j); return tableOf(T).map((r) => ({ ...r, adv: !d.final && r.rank <= cfg.circuit.keep })); })() }));
   if (cfg.teams && pts) {
     const tm = new Map();
     for (const u of list) { const name = teamOf(u); if (name) tm.set(name, (tm.get(name) || 0) + stats[u].pts); }
@@ -344,6 +373,8 @@ function raceView(st, i, adv, side, seedOf, teamOf = () => '', youngOf = () => f
 const raceError = (cfg, n) => {
   const max = cfg.heat ? MAX_RACE_HEATS : MAX_RACE; // đoàn quá MAX_RACE người: phải chia lượt
   if (cfg.type === 'race' && cfg.groups && n < 2 * cfg.groups) return { code: 'ot_race_groups_few', args: { n: 2 * cfg.groups } }; // mỗi bảng ít nhất 2 đội
+  if (cfg.type === 'race' && cfg.circuit) { const e = CI.circuitError(cfg, n); if (e) return e; }
+  if (cfg.type === 'race' && cfg.weekly) { const e = WK.weeklyError(cfg, n); if (e) return e; }
   if (cfg.type === 'race' && cfg.rot && n < 6) return { code: 'ot_rot_few', args: { n: 6 } }; // 3 bảng, mỗi bảng ít nhất 2 đội
   return cfg.type === 'race' && n > max ? { code: 'ot_race_many', args: { n: max } } : null;
 };

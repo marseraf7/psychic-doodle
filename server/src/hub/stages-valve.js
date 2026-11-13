@@ -11,6 +11,9 @@
  * Nhóm số lẻ (số đội không chẵn) – không ghép kiểu này được: trả null để stages-groups.js ghép như thường.
  */
 'use strict';
+const crypto = require('crypto');
+const rnd = (n) => crypto.randomInt(n);
+function shuffle(a, r = rnd) { const x = [...a]; for (let i = x.length - 1; i > 0; i--) { const j = r(i + 1); [x[i], x[j]] = [x[j], x[i]]; } return x; }
 const { real } = require('./stages-base.js');
 
 // Bảng ưu tiên cho nhóm 6 đội (chỉ số 1–6 theo thứ tự trong nhóm)
@@ -72,15 +75,21 @@ function pairGroup(group, played) {
  * Các cặp của vòng mới (r = số vòng đã có). pool: người còn thi đấu; played: tập cặp đã gặp ("a|b"). Trả mảng cặp, hoặc null
  * nếu không ghép kiểu này được (số người lẻ / nhóm lẻ).
  */
-function valvePairs(st, rec, pool, played) {
+function valvePairs(st, rec, pool, played, r = rnd) {
   if (pool.length % 2) return null;
   const seed = stageSeed(st);
+  const mode = (st.cfg && st.cfg.pairing) || 'valve';
+  if (mode === 'draw' || (mode === 'faceit' && st.rounds.length < 2)) return drawPairs(st, rec, pool, played, r); // FACEIT 2018: vòng 1–2 như cũ
   if (st.rounds.length === 0) {
     const list = [...pool].sort((a, b) => seed(a) - seed(b)), h = list.length / 2;
+    // 'valve16' (luật trước 11/2023): hạt giống 1 gặp 16, 2 gặp 15… (gập đôi); 'valve': 1 gặp 9, 2 gặp 10…
+    if (mode === 'valve16') return list.slice(0, h).map((u, i) => [u, list[list.length - 1 - i]]);
     return list.slice(0, h).map((u, i) => [u, list[i + h]]);
   }
   const groups = new Map();
-  for (const u of valveOrder(st, rec, pool)) {
+  // FACEIT 2018 (vòng 3–5): hạt giống trong nhóm theo Buchholz chỉ tính số thắng của các đối thủ đã gặp (cao trước), rồi hạt giống
+  const order = mode === 'faceit' ? [...pool].sort((a, b) => buchholzW(st, rec, b) - buchholzW(st, rec, a) || seed(a) - seed(b)) : valveOrder(st, rec, pool);
+  for (const u of order) {
     const k = rec[u].w + ':' + rec[u].l;
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k).push(u);
@@ -95,4 +104,54 @@ function valvePairs(st, rec, pool, played) {
   return out;
 }
 
-module.exports = { SIX, difficulty, valveOrder, valvePairs, stageSeed };
+/**
+ * 'draw' – kiểu Major 2017 (ELEAGUE Atlanta; chỉ mô phỏng): vòng 1 chia 4 nhóm hạt giống, nhóm 1 bốc thăm gặp nhóm 4, nhóm 2
+ * gặp nhóm 3 (số đội không chia hết cho 4: nửa trên bốc gặp nửa dưới); các vòng sau bốc thăm ngẫu nhiên trong cùng thành
+ * tích, tránh gặp lại (thử nhiều lần; hết cách thì cho gặp lại).
+ */
+function drawPairs(st, rec, pool, played, r = rnd) {
+  const seed = stageSeed(st);
+  if (st.rounds.length === 0) {
+    const list = [...pool].sort((a, b) => seed(a) - seed(b)), n = list.length;
+    if (n % 4 === 0) {
+      const q = n / 4, P = (k) => shuffle(list.slice(k * q, k * q + q), r);
+      const p1 = P(0), p2 = P(1), p3 = P(2), p4 = P(3);
+      return [...p1.map((u, i) => [u, p4[i]]), ...p2.map((u, i) => [u, p3[i]])];
+    }
+    const h = n / 2, low = shuffle(list.slice(h), r);
+    return list.slice(0, h).map((u, i) => [u, low[i]]);
+  }
+  const groups = new Map();
+  for (const u of [...pool].sort((a, b) => seed(a) - seed(b))) {
+    const k = rec[u].w + ':' + rec[u].l;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(u);
+  }
+  const key = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+  const out = [];
+  for (const g of groups.values()) {
+    if (g.length % 2) return null;
+    let best = null, bestBad = Infinity;
+    for (let k = 0; k < 200 && bestBad > 0; k++) {
+      const x = shuffle(g, r), pairs = [];
+      for (let i = 0; i < x.length; i += 2) pairs.push([x[i], x[i + 1]]);
+      const bad = pairs.filter(([a, b]) => played.has(key(a, b))).length;
+      if (bad < bestBad) { best = pairs; bestBad = bad; }
+    }
+    out.push(...best);
+  }
+  return out;
+}
+
+/** Buchholz kiểu FACEIT 2018: tổng số trận thắng hiện tại của các đối thủ đã gặp. */
+function buchholzW(st, rec, u) {
+  let s = 0;
+  for (const m of Object.values(st.matches)) {
+    if (!m.done || m.bye || (m.a !== u && m.b !== u)) continue;
+    const o = m.a === u ? m.b : m.a;
+    if (rec[o]) s += rec[o].w;
+  }
+  return s;
+}
+
+module.exports = { SIX, difficulty, valveOrder, valvePairs, drawPairs, buchholzW, stageSeed };
