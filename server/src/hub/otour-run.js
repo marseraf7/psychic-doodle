@@ -21,6 +21,7 @@ const Rules = require('../../../caro/otour-rules.js');
 const PATH = require('../../../caro/otour-path.js');
 const PO = require('./stages-playoff.js');
 const RD = require('./stages-recdraw.js'); // bốc thăm nhánh theo thành tích Thụy Sĩ
+const GR = require('../../../caro/otour-graph.js'); // loạt có trận tặng sẵn (nhánh đồ thị)
 
 const MAX_POINT = 999;
 const pair = (x) => {
@@ -222,7 +223,18 @@ class OTourRun {
     const elim = ST.linked(st.type) || !!st.cfg.record || !!m.tb; // trận phụ phân hạng: không có hoà
     let w;
     const bo = ST.boOf(st, m);
-    if (t.result === 'score' && elim && bo > 1 && !ST.twoLeg(st, m)) {
+    if (t.result === 'score' && (m.start || m.tie)) {
+      // Loạt có trận thắng tặng sẵn / hoà loạt (thang leo bậc kiểu KBO / NPB – caro/otour-graph.js): sets = tỉ số từng trận;
+      // trận hoà vẫn tính là đã đấu (m.tie), không cần luân lưu
+      const list = Array.isArray(sets) && sets.length <= bo ? sets.map(pair) : [];
+      if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
+      if (!m.tie && list.some(([x, y]) => x === y)) throw E('ot_need_pen');
+      const r = GR.series(list.map(([x, y]) => Math.sign(x - y)), bo, m.start, m.tie);
+      if (r.error) throw E(r.error, { n: r.played, bo });
+      if (!r.done) throw E('ot_series_short', { k: r.need, bo }); // số thắng cần tính cả trận tặng
+      w = r.winner === 'a' ? m.a : m.b;
+      Object.assign(m, { score: [r.ka, r.kb], sets: list, pens: null, extra: null, legs: false, aet: false, ext: false, wins: { [m.a]: r.ka, [m.b]: r.kb } });
+    } else if (t.result === 'score' && elim && bo > 1 && !ST.twoLeg(st, m)) {
       // Loạt Bo ở loại trực tiếp (vd. vòng 1 playoff MLS Bo3): sets = tỉ số từng trận, trận hoà thì pens[i] = luân lưu
       const list = Array.isArray(sets) && sets.length <= bo ? sets.map(pair) : [];
       if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
@@ -313,6 +325,7 @@ class OTourRun {
       if (g2 && g2.done && !g2.skipped) throw E('tour_undo_locked');
       for (const { r, x } of targets) x[r.slot] = null;
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
+      if (!ST.REP.beforeUndo(st, m)) throw E('tour_undo_locked'); // bán kết: nhánh vớt đã có kết quả
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
     else if (st.type === 'roundrobin' && !ST.tieBeforeUndo(st, m)) throw E('tour_undo_locked'); // trận phụ đã đấu: huỷ trận phụ trước
     Object.assign(m, { done: false, winner: null, loser: null, wins: {}, score: null, sets: null, pens: null, legs: false, extra: null, aet: false, ext: false, quick: false, double: false });

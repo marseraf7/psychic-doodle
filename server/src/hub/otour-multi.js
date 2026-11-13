@@ -50,6 +50,7 @@ function finalPlaces(t, seedOf) {
   if (t.status !== 'finished' || !st) return [];
   const out = [], seen = new Set();
   const put = (uids, place) => { for (const u of uids) if (real(u) && !seen.has(u)) { seen.add(u); out.push({ uid: u, place }); } };
+  if (st.type === 'single' && st.cfg.rep) { ST.REP.places(st).forEach((x) => put([x.uid], x.place)); return out; } // vòng vớt: hai hạng 3
   if (st.type === 'single' || st.type === 'double') {
     const pod = t.podium && t.podium.length ? t.podium : ST.podium(st, seedOf);
     // Không có trận tranh hạng ba (loại trực tiếp): hai đội thua bán kết đồng hạng 3
@@ -62,6 +63,9 @@ function finalPlaces(t, seedOf) {
     }
     return out;
   }
+  // Loại giai đoạn có bảng hạng riêng (nhánh đồ thị – stages-kinds.js): hạng theo khuôn, đồng hạng giữ nguyên
+  const kind = ST.Kinds.get(st.type);
+  if (kind && kind.places) { kind.places(st, seedOf).forEach((x) => put([x.uid], x.place)); return out; }
   // Bảng GSL ở giai đoạn cuối: một bảng thì theo thứ hạng trong bảng; nhiều bảng thì bục trao giải, rồi các đội cùng
   // thứ hạng trong bảng đồng hạng (nhì các bảng, ba các bảng…)
   if (st.type === 'gsl') {

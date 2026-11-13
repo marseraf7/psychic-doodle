@@ -10,7 +10,7 @@
 (function (global) {
   'use strict';
   const SP = typeof module !== 'undefined' && module.exports ? require('./otour-sports.js') : global.CaroOTourSports;
-  const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings'];
+  const TYPES = ['single', 'double', 'roundrobin', 'swiss', 'race', 'gsl', 'kings', 'graph'];
   const MAX_STAGES = 6; // giải offline tối đa 6 giai đoạn (như máy chủ – stages.js MAX_STAGES_OFFLINE)
   const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro', 'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
   const int = (min, max, d) => ({ type: 'integer', minimum: min, maximum: max, ...(d ? { description: d } : {}) });
@@ -37,6 +37,9 @@
           type: 'object', required: ['type'],
           properties: {
             type: { type: 'string', enum: TYPES, description: "'gsl': bảng đấu loại kép 4 đội (mở màn, nhánh thắng, nhánh thua, quyết định) – số đội chia hết cho 4, nhất và nhì bảng đi tiếp; 'kings' (chỉ giai đoạn giữa): vòng tranh hạt giống + cơ hội cuối – nửa trên cao gặp thấp, thắng vào nhóm hạt giống 1, thua vào nhóm 2; nửa dưới thắng vào nhóm 2, thua bị loại (3/4 số đội đi tiếp, số đội chia hết cho 4)" },
+            shape: { type: 'string', enum: ['page', 'afl8', 'afl10', 'gauntlet', 'hybrid', 'compass8'], description: "'graph' (nhánh đồ thị, mỗi trận thắng đi một nơi, thua đi một nơi): 'page' – Page playoff 4 đội; 'afl8' / 'afl10' – Final Eight / Final Ten kiểu AFL (8 / 10 đội); 'gauntlet' – thang leo bậc 3–8 đội (hạt giống thấp nhất leo dần tới gặp hạt giống 1); 'hybrid' – loại kép lai kiểu RLCS 8 đội (hạt giống 1–4 hai mạng); 'compass8' – Compass draw 8 người (ai cũng đấu 3 trận)" },
+            ladder: { type: 'array', maxItems: 7, items: { type: 'object', properties: { bo: int(1, 25, 'Bo của bậc, tính cả trận tặng (được chẵn)'), start: { type: 'array', maxItems: 2, items: int(0, 3), description: '[trận tặng hạt giống cao, trận tặng hạt giống thấp]' }, tie: { type: 'boolean', description: 'hoà loạt thì hạt giống cao đi tiếp; trận hoà vẫn tính là đã đấu' } } }, description: "'graph' + 'gauntlet': từng bậc, bậc 1 là trận của hai hạt giống thấp nhất (KBO Wild Card: { bo: 3, start: [1, 0], tie: true })" },
+            rep: { type: 'object', properties: { from: { type: 'string', enum: ['qf', 'r16', 'r32'] }, mode: { type: 'string', enum: ['finalist', 'half'] } }, description: "'single' ở cuối: vòng vớt kiểu Olympic – xong hai bán kết thì người thua trước finalist ('finalist') hoặc mọi người thua ở nửa nhánh đó ('half', kiểu IJF) từ vòng `from` đấu vớt theo thang, người thắng mỗi phía tranh huy chương đồng với người thua bán kết phía kia (hai huy chương đồng)" },
             size: { type: 'integer', enum: [4, 8], description: "'gsl': cỡ bảng – 4 đội (nhất, nhì đi tiếp) hoặc 8 đội (4 đội đi tiếp)" },
             head: { type: 'array', maxItems: 64, items: int(0, 1000), description: "Race 'points' ở giai đoạn sau: điểm cộng sẵn theo vị trí vào giai đoạn (kiểu Points Rush)" },
             groups: int(0, 8, "Race 'points': chia bảng cố định (2–8; kiểu PGC) – mỗi bảng đấu `events` trận của riêng mình, đi tiếp (advance) và vào thẳng giai đoạn 3 (skip) tính mỗi bảng"),
@@ -125,6 +128,14 @@
       if (c.path === 'groups') x.push(T('ds_path'));
       if (c.type === 'single' && c.playoff) x.push(...playoffText(c.playoff, T)); // playoff kiểu Mỹ
       if (c.type === 'single' && Array.isArray(c.boRounds) && c.boRounds.length) x.push(T('ds_bo_rounds', { list: c.boRounds.join(', ') }));
+      if (c.type === 'single' && c.rep) x.push(T('ds_rep_' + (c.rep.mode || 'finalist'), { from: T({ r16: 'rep_r16', r32: 'rep_r32' }[c.rep.from] || 'r_quarter') }));
+    } else if (c.type === 'graph') { // nhánh đồ thị (otour-graph.js)
+      x.push(T('ds_graph', { name: T('fmt_graph_' + (c.shape || 'page')) }));
+      (c.ladder || []).forEach((y, j) => {
+        if (!y) return;
+        const p = [y.bo ? T('ds_graph_ladder', { n: j + 1, bo: y.bo }) : '', y.start && y.start[0] ? T('ds_graph_gift', { a: y.start[0] }) : '', y.tie ? T('ds_graph_tie') : ''].filter(Boolean);
+        if (p.length) x.push(p.join(', '));
+      });
     } else if (c.type === 'kings') {
       x.push(T('ds_kings', { bo: c.bestOf || 3 }));
       if (c.boLow) x.push(T('ds_kings_low', { bo: c.boLow }));

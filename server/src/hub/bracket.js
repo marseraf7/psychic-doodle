@@ -370,14 +370,12 @@ class Bracket {
       if (st.gf) v.gf = st.gf.map(M);
       if (st.pre) v.pre = st.pre.map(M); // play-in (playoff kiểu Mỹ – stages-playoff.js)
       if (st.seedLabel) v.seedLabel = st.seedLabel;
+      // Vòng vớt kiểu Olympic (stages-repechage.js): hai nhánh vớt + bảng hạng (hai huy chương đồng)
+      if (st.rep) { v.rep = ST.REP.view(st, M).map((s) => ({ ...s, fin: this.tourSide(t, s.fin), direct: s.direct ? this.tourSide(t, s.direct) : null })); v.table = ST.REP.places(st).map((x) => ({ ...this.tourSide(t, x.uid), place: x.place })); }
       // Hạt giống 1 chọn đối thủ bán kết (cfg.pick – kiểu MSI): mở khi chưa chọn và chưa có trận nào xong
       if (st.cfg.pick && st.entrants.length === 4) v.pick = { open: !st.picked && !Object.values(st.matches).some((m) => m.done), picked: st.picked ? this.tourSide(t, st.picked) : null, late: !!st.pickLate, top: this.tourSide(t, st.entrants[0]), opts: [2, 3].map((k) => this.tourSide(t, st.entrants[k])) };
-    } else if (st.type === 'gsl') { // giải offline: bảng đấu loại kép 4 đội (stages-gsl.js)
-      const tabs = ST.gslTables(st, (u) => this.tourSide(t, u), seedOf, adv);
-      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: tabs[gi] }));
-    } else if (st.type === 'kings') { // giải offline: vòng tranh hạt giống + cơ hội cuối (stages-kings.js)
-      const tabs = ST.kingsTables(st, (u) => this.tourSide(t, u), seedOf);
-      v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: tabs[gi] }));
+    } else if (ST.Kinds.get(st.type)) { // giải offline: bảng GSL, vòng tranh hạt giống, nhánh đồ thị… (stages-kinds.js)
+      Object.assign(v, ST.Kinds.get(st.type).view(st, { M, side: (u) => this.tourSide(t, u), seedOf, adv }));
     } else if (st.type === 'roundrobin') {
       const tabs = ST.standings(st, seedOf), form = this.formStrip(st);
       v.groups = st.groups.map((g, gi) => ({ name: g.name, rounds: g.rounds.map((r) => r.map(M)), table: table(tabs[gi], adv, form, normalizeTiebreaks(st.cfg.tiebreaks, st.type)),
@@ -398,7 +396,7 @@ class Bracket {
    * hạng 1–8 vào thẳng vòng 1/8). Giải Caro giữ cách đánh dấu cũ (top N mỗi bảng).
    */
   markAdvance(t, st, i, v, seedOf) {
-    if (st.type === 'gsl' || st.type === 'kings') return; // bảng GSL / vòng tranh hạt giống tự đánh dấu theo trận
+    if (ST.Kinds.get(st.type) && ST.Kinds.get(st.type).selfMark) return; // bảng GSL / vòng tranh hạt giống / nhánh đồ thị tự đánh dấu theo trận
     const sp = ST.splitAdvancers(st, seedOf), seeds = sp.seeds;
     // Dải hạng chuyển sang giai đoạn sau nữa: r.to = số thứ tự giai đoạn (1, 2…) để ghi "Vào thẳng giai đoạn n"
     const toOf = new Map((sp.routes || []).flatMap((r) => r.uids.map((u) => [u, r.to + 1])));

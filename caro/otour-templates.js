@@ -255,6 +255,8 @@
     { id: 'volleyball_league', icon: '🏐', sport: 'volleyball', n: 8,
       stages: [{ type: 'roundrobin', groups: 1, advance: 4 }, { type: 'single', thirdPlace: true }] },
   ];
+  // Phần thêm (otour-templates-more.js – nhánh đồ thị…): Node require, trình duyệt nạp trước file này
+  TEMPLATES.push(...(typeof module !== 'undefined' && module.exports ? require('./otour-templates-more.js') : global.CaroOTourTplMore || []));
   const byId = (id) => TEMPLATES.find((x) => x.id === id) || null;
 
   /**

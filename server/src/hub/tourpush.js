@@ -25,7 +25,7 @@ function stageParts(v) {
     if (Array.isArray(x)) x.forEach(walk);
     else if (isMatch(x)) matches.set(x.id, x);
   };
-  walk([v.rounds, v.lrounds, v.gf, v.pre, v.third, (v.groups || []).map((g) => g.rounds), (v.places || []).map((p) => p.rounds)]);
+  walk([v.rounds, v.lrounds, v.gf, v.pre, v.third, (v.groups || []).map((g) => g.rounds), (v.places || []).map((p) => p.rounds), (v.rep || []).map((p) => p.rounds)]);
   const tables = v.table ? [{ key: 't', rows: v.table }] : (v.groups || []).map((g, i) => ({ key: 'g' + i, rows: g.table }));
   // Thụy Sĩ: khung không tính các vòng (base) + mã trận từng vòng – vòng mới chỉ gửi thêm các vòng đó (diffParts)
   const swiss = v.type === 'swiss' && Array.isArray(v.rounds);

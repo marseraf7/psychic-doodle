@@ -144,3 +144,8 @@ s.chip-x { opacity: .7; }
 .gold-svg .gc-red { fill: color-mix(in srgb, var(--esp-red, #e2584a) 45%, transparent); }
 .gold-svg .gc-line { fill: none; stroke: var(--text); stroke-width: 1.5; }
 .gold-svg .gc-axis { stroke: var(--muted); stroke-dasharray: 3 3; }
+
+/* Giải offline – nhánh đồ thị (otour-graph-ui.js): mỗi trận kèm tên trận và đường đi thắng / thua */
+.gr-bracket .gr-m { margin-bottom: 10px; max-width: 200px; }
+.gr-bracket .gr-m > small { display: block; font-size: 0.78em; line-height: 1.35; }
+.gr-ladder table.mini td, .gr-ladder table.mini th { padding: 2px 6px; }

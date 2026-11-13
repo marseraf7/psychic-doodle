@@ -110,9 +110,11 @@
     const cards = st.map((c, i) => {
       const last = i === st.length - 1;
       // Giải offline: loại trực tiếp cũng được làm giai đoạn giữa (vòng loại đội thách đấu kiểu America's Cup)
-      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race', ...(last ? [] : ['kings'])] : [])].map((x) => [x, T('fmt_' + x)]);
+      // Loại trong registry phía trình duyệt (K.kinds – nhánh đồ thị…): chỉ giải offline
+      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race', ...(last ? [] : ['kings']), ...Object.keys(K.kinds || {})] : [])].map((x) => [x, T('fmt_' + x)]);
       const f = [field(T('format'), sel(i, 'type', types, c.type))];
-      if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf, ctx.ext && (c.type === 'roundrobin' || c.type === 'swiss') && !c.record)));
+      if (K.kindOf && K.kindOf(c.type)) f.push(...K.kindOf(c.type).edit(i, c, st, last)); // nhánh đồ thị… (registry)
+      else if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf, ctx.ext && (c.type === 'roundrobin' || c.type === 'swiss') && !c.record)));
       if (c.type === 'kings') f.push(field(T('opt_kings_low'), boSel(i, 'boLow', c.boLow, c.bestOf)), `<small class="hint">${esc(T('opt_kings_hint'))}</small>`);
       if (c.type === 'gsl') f.push(field(T('opt_gsl_size'), sel(i, 'size', [[4, T('gsl_size4')], [8, T('gsl_size8')]], c.size === 8 ? 8 : 4)), field(T('opt_gsl_decider'), boSel(i, 'boDecider', c.boDecider, c.bestOf)), `<small class="hint">${esc(T('opt_gsl_hint'))}</small>`);
       // Hệ Race: số chặng, cách tính (điểm theo hạng / thời gian), bảng điểm theo hạng, bảng xếp hạng đội
@@ -221,6 +223,7 @@
       if (ctx.ext && !last && c.type === 'roundrobin' && !c.league && !c.season) f.push(field(T('opt_tbm'), sel(i, 'tbm', [['off', T('tbm_off')], ['match', T('tbm_match')], ['h2h', T('tbm_h2h')]], c.tbm || 'off')));
       // Bốc thăm nhánh theo thành tích Thụy Sĩ thắng / thua (kiểu tứ kết LoL Worlds)
       if (ctx.ext && c.type === 'single' && prev && prev.type === 'swiss' && prev.record && !c.playoff) f.push(chk(i, 'drawRec', c.draw === 'record', T('opt_draw_record')));
+      if (ctx.ext && c.type === 'single' && last && !c.playoff && K.repEdit) f.push(...K.repEdit.html(i, c)); // vòng vớt kiểu Olympic
       // Thụy Sĩ: cách xếp cặp (Hà Lan – chuẩn FIDE / liền kề – như bản cũ)
       // Thụy Sĩ theo thắng / thua của giải offline: thêm kiểu CS Major (vòng 1: 1 gặp 9…, sau đó theo độ khó, cao gặp thấp)
       if (adv && c.type === 'swiss') more.push(field(T('opt_pairing'), sel(i, 'pairing', [['dutch', T('pair_dutch')], ['adjacent', T('pair_adjacent')], ...(ctx.ext && c.record ? [['valve', T('pair_valve')], ['valve16', T('pair_valve16')], ['draw', T('pair_draw')], ['faceit', T('pair_faceit')]] : [])], c.pairing || 'dutch')));
@@ -258,7 +261,7 @@
     const v = STRING_KEYS.includes(k) ? el.value : Number(el.value);
     const clamp = (n) => Math.max(Number(el.min), Math.min(Number(el.max), Math.floor(n) || 0));
     if (k === 'type') {
-      const nc = DEFAULT[v]();
+      const nc = DEFAULT[v] ? DEFAULT[v]() : K.kindOf && K.kindOf(v) ? K.kindOf(v).def() : DEFAULT.single();
       nc.bestOf = c.bestOf;
       if (i === stages.length - 1) delete nc.advance; // giai đoạn cuối không có "đi tiếp"
       else if (nc.advance == null) nc.advance = 1; // loại trực tiếp làm giai đoạn giữa: mặc định vô địch nhánh đi tiếp
@@ -302,6 +305,8 @@
     else if (K.seasonEdit && K.seasonEdit.change(c, k, el)) { /* mùa giải kiểu Mỹ (otour-season-edit.js) */ }
     else if (K.playoffEdit && K.playoffEdit.change(stages, i, k, el)) { /* playoff kiểu Mỹ (otour-playoff-edit.js) */ }
     else if (K.routeEdit && K.routeEdit.change(stages, i, k, el)) { /* dải hạng, cổng thắng trận, mang điểm (otour-route-edit.js) */ }
+    else if (K.kindOf && K.kindOf(c.type) && K.kindOf(c.type).change(stages, i, k, el)) { /* nhánh đồ thị… (registry) */ }
+    else if (K.repEdit && K.repEdit.change(c, k, el)) { /* vòng vớt kiểu Olympic (otour-graph-ui.js) */ }
     else if (k === 'league') {
       if (el.checked) { c.league = { games: 8, pots: 4 }; delete c.groupSize; c.groups = 1; c.meetings = 1; } else delete c.league;
     } else if (k === 'lgGames' || k === 'lgPots') c.league = { games: 8, pots: 4, ...c.league, [k === 'lgGames' ? 'games' : 'pots']: clamp(v) };
@@ -376,8 +381,8 @@
     } else return false;
     // Giai đoạn đứng trước phải là vòng tròn / Thụy Sĩ và có số người đi tiếp
     stages.forEach((c, i) => {
-      if (i < stages.length - 1 && !c.points && c.type !== 'race' && c.type !== 'gsl' && c.type !== 'kings' && !((c.type === 'single' || c.type === 'double') && c.advance)) stages[i] = DEFAULT.roundrobin();
-      else if (i < stages.length - 1 && !c.advance && c.type !== 'kings') c.advance = DEFAULT[c.type]().advance;
+      if (i < stages.length - 1 && !c.points && c.type !== 'race' && c.type !== 'gsl' && c.type !== 'kings' && !((c.type === 'single' || c.type === 'double' || (K.kindOf && K.kindOf(c.type))) && c.advance)) stages[i] = DEFAULT.roundrobin();
+      else if (i < stages.length - 1 && !c.advance && c.type !== 'kings') c.advance = DEFAULT[c.type] ? DEFAULT[c.type]().advance : 1;
     });
     dropPlayoff(stages);
     if (RE) RE.clean(stages);

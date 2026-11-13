@@ -10,10 +10,17 @@
   const K = window.CaroTourKit;
   if (!K) return;
   const { T, esc, D, me, icon } = K;
+  /**
+   * Registry phía trình duyệt của các loại giai đoạn tự chứa (giải offline – máy chủ: server/src/hub/stages-kinds.js). Mỗi
+   * module đăng ký K.kinds[type] = { name(c), adv?(c), html(t, v), def(), edit(i, c, st), change(stages, i, k, el), mid? }.
+   */
+  K.kinds = K.kinds || {};
+  const kindOf = (type) => (Object.prototype.hasOwnProperty.call(K.kinds, type) ? K.kinds[type] : null);
 
   /** Tên ngắn của một giai đoạn: "Vòng tròn (4 bảng)", "Thụy Sĩ (5 vòng)"… */
   function stageName(c) {
     const x = [];
+    if (kindOf(c.type)) return kindOf(c.type).name(c); // nhánh đồ thị… (registry)
     if (c.type === 'roundrobin' && c.league) return T('fmt_league', { n: c.league.games }); // giải offline: league phase
     if (c.type === 'roundrobin' && c.season) return T(c.season.divs > 1 ? 'fmt_season_div' : 'fmt_season', { c: c.season.confs, d: c.season.divs }); // mùa giải kiểu Mỹ
     if (c.type === 'single' && c.playoff) return T(c.playoff.mode === 'div' ? 'fmt_playoff_div' : 'fmt_playoff', { n: c.playoff.per || 8 }) + (c.playoff.playin && c.playoff.playin !== 'none' ? ` (${T('tag_playin')})` : ''); // playoff kiểu Mỹ
@@ -33,6 +40,7 @@
   /** Ai đi tiếp sau giai đoạn này (chỉ giai đoạn trước vòng cuối). */
   const advText = (c) => {
     if (c.type === 'kings') return T('adv_kings'); // 3/4 số đội: thắng – thua nửa trên, thắng nửa dưới
+    if (kindOf(c.type) && kindOf(c.type).adv) return kindOf(c.type).adv(c);
     if (c.type === 'swiss' && c.record) return T('adv_record', { n: c.record.win }); // giải offline: đủ số thắng
     if (!c.advance) return '';
     const s = T(c.season ? 'adv_conf_n' : c.type === 'gsl' || (c.type === 'roundrobin' && !c.league) ? 'adv_group_n' : 'adv_n', { n: c.advance });
@@ -176,6 +184,7 @@
   function stageBody(t, v) {
     cur = t;
     if (v.type === 'race') return K.raceHtml ? K.raceHtml(t, v) : ''; // giải offline: hệ Race (otour-race.js)
+    if (kindOf(v.type)) return kindOf(v.type).html(t, v); // nhánh đồ thị… (registry)
     const key = t.id + ':' + v.index;
     // Tắt "Hiện bảng xếp hạng" (tab Khác): người xem không thấy bảng điểm vòng tròn / Thụy Sĩ, vẫn thấy các trận
     const table = (rows, cfg) => (t.showStandings === false && !t.canManage ? '' : standTable(rows, cfg));
@@ -197,6 +206,7 @@
           () => bracketCols(p.rounds, (r) => (p.rounds[r].length === 1 ? T('place_final', { a: p.base, b: p.base + 1 }) : T('r_round', { n: r + 1 })), null, key + ':p' + p.base), false)).join('');
       }
       seedLab = null;
+      if (v.rep && K.repHtml) html += K.repHtml(t, v); // vòng vớt kiểu Olympic (otour-graph-ui.js)
       return html;
     }
     if (v.type === 'double') {
@@ -312,5 +322,5 @@
     }).join('');
   }
 
-  Object.assign(K, { stageName, advText, groupLabel, stagesHtml, fold, roundName, roundsOfGroup, preName });
+  Object.assign(K, { stageName, advText, groupLabel, stagesHtml, fold, roundName, roundsOfGroup, preName, matchBox, bracketCols, kindOf, setCur: (t) => { cur = t; } });
 })();
