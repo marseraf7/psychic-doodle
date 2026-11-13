@@ -79,6 +79,14 @@ const LONG = 'Giải giao hữu mùa đông các câu lạc bộ phía Bắc m�
     }
   }
   ok(L1 >= 3, `L1: đã thử mở khung nhập ở ${L1} giải`);
+  // Danh sách giải (thẻ có tên dài – E1 cũng gặp ở thẻ danh sách): rộng và hẹp
+  for (const w of [1920, 390]) {
+    await boss.setViewportSize({ width: w, height: w > 500 ? 998 : 844 });
+    await boss.evaluate(() => window.CaroOTour.list()); await sleep(1200);
+    ok(await boss.evaluate((s) => document.body.textContent.includes(s), LONG.slice(0, 40)), `danh sách giải có giải tên dài @${w}`);
+    const n = report(`list @${w}`, await audit(boss));
+    if (n) await shot(boss, `ui-list-${w}.png`);
+  }
   if (all.length) console.log(all.join('\n'));
   ok(all.length === 0, `Soát giao diện: ${all.length} lỗi hiển thị`);
   await finish();

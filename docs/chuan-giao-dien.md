@@ -22,6 +22,7 @@ Tài liệu này rút ra từ đợt kiểm thử 12–13/11/2026 (danh sách l�
 | Cột lưới chứa nút không cố định bề rộng nhỏ hơn nút: dùng `minmax(48px, auto)` thay `48px`; cột chữ dùng `minmax(0, 1fr)` để chữ dài cắt có "…" thay vì tràn | Thanh tiêu đề trang giải trên điện thoại: nút "Giải đấu" (76px) tràn khỏi cột 48px, đè tên giải | `ui-audit.js` → `overlap` (khác khối – dò bằng `elementsFromPoint`) |
 | Khung cuộn có thanh dính (`position: sticky`) phải có `scroll-padding-top` ≥ chiều cao thanh – `scrollIntoView` / `focus()` mới không đưa ô nhập xuống dưới thanh | L1: thanh tab giải che khung nhập kết quả, nút "Huỷ kết quả chặng", bục vinh danh | `css-rules.test.js` (luật 3), `otour-ui.e2e.js` (`coverAt` sau khi mở trận) |
 | Không đổi `display` của ô bảng (`td`, `th`) sang flex / grid – ô rời khỏi lưới bảng. Bọc nội dung ô trong `<span>` inline-flex | L2: cột "Phong độ" lệch khỏi bảng | `css-rules.test.js` (luật 2) |
+| Khối có ô nhập vẽ lại theo cập nhật từ máy chủ (danh sách bạn bè, bảng giải…) phải giữ **chữ và con trỏ riêng rẽ** – ô còn trống mà đang được bấm vào cũng giữ focus, nếu không chữ gõ ngay sau đó rơi mất | Ô thêm bạn mất chữ khi bạn bè đổi trạng thái (chập chờn CI 13/11) | `friends-chat.e2e.js` (M-F6) |
 
 ## 3. Không lộ chuỗi mẫu, không đọc thông báo cũ
 

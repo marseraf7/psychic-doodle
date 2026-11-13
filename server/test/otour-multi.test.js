@@ -95,6 +95,9 @@ test('Giải tổng qua máy chủ: giải con không tính hạn mức, điểm
   v = (await get(id));
   assert.deepStrictEqual([v.multi.children.length, v.multi.hidden, v.multi.clubs.map((c) => [c.name, c.pts])], [12, 0, [['Alpha', 11], ['Beta', 11], ['Gamma', 0]]]);
   assert.deepStrictEqual((await mineOf(org)).multiPriv, []);
+  // Trang giải con riêng tư có liên kết về giải tổng riêng tư; giải con công khai thì không lộ giải tổng riêng tư
+  assert.strictEqual((await get(id2)).parent.id, id);
+  assert.strictEqual((await get(c1.id)).parent, null);
   P.access = 'public';
   c2.access = 'public';
   // Gỡ giải con chưa đấu: thành giải thường, tính vào hạn mức 10 giải đang chạy (giải tổng 1 + 9) → lần gỡ thứ 10 bị chặn

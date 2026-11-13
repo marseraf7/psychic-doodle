@@ -299,7 +299,9 @@ class OTourMulti {
   /** Liên kết về giải tổng cho trang giải con. */
   otParentView(t) {
     const p = t.parent && this.otGet(t.parent);
-    return p && p.multi && p.access !== 'private' ? { id: p.id, slug: p.slug || null, name: p.name } : null;
+    // Giải tổng riêng tư: vẫn hiện liên kết ở giải con riêng tư cùng chủ (ai xem được giải con đó cũng là chủ / người được mời
+    // – như otMultiShown); lỗi gốc N6 lớp 3: trang giải con không có đường về giải tổng riêng tư
+    return p && p.multi && (p.access !== 'private' || (t.access === 'private' && t.owner === p.owner)) ? { id: p.id, slug: p.slug || null, name: p.name } : null;
   }
 }
 
