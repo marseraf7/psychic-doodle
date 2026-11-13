@@ -106,7 +106,7 @@
     // Luật set: đọc các ô khi đang bật (bật / tắt xử lý ở sự kiện change)
     if (F.d.set && f.elements.set_to) {
       const v = (k) => Math.floor(Number(f.elements['set_' + k].value)) || 0;
-      F.d.set = { to: v('to'), by: v('by'), cap: v('cap'), last: v('last') };
+      F.d.set = { ...F.d.set, to: v('to'), by: v('by'), cap: v('cap'), last: v('last') }; // giữ race / lastBy / rubber (darts, Davis Cup)
     }
   }
   function showEst(f) {

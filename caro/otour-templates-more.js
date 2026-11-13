@@ -36,6 +36,44 @@
     // vòng vớt, người thắng vòng vớt mỗi phía tranh huy chương đồng với người thua bán kết phía kia – hai huy chương đồng
     { id: 'judo_rep', icon: '🥋', sport: 'other', result: 'winner', n: 32,
       stages: [{ type: 'single', bestOf: 1, rep: { from: 'r16', mode: 'finalist' } }] },
+    // Đợt 21 – Thụy Sĩ. Kiểu Pokémon VGC: ngày 1 Thụy Sĩ 7 vòng, thua ≤ 2 trận vào ngày 2 (thành tích làm lại từ 0); ngày 2
+    // Thụy Sĩ 6 vòng, thua ≤ 2 trận vào loại trực tiếp (số người do kết quả, hạt giống cao được miễn đấu); xếp theo tỉ lệ
+    // thắng của đối thủ
+    { id: 'vgc_worlds', icon: '🎮', sport: 'esports', n: 64, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'swiss', bestOf: 3, rounds: 7, advanceMode: 'record', cutLosses: 2, tiebreaks: ['oppWinPct', 'oppOppWinPct'] },
+        { type: 'swiss', bestOf: 3, rounds: 6, advanceMode: 'record', cutLosses: 2, tiebreaks: ['oppWinPct', 'oppOppWinPct'] },
+        { type: 'single', bestOf: 3, thirdPlace: false }] },
+    // Giải cờ mở đông người: Thụy Sĩ 9 vòng tăng tốc Baku (nửa trên +1 điểm ảo vòng 1–3, +0,5 vòng 4–5 – chỉ để ghép cặp)
+    { id: 'baku_open', icon: '♟️', sport: 'chess', n: 64,
+      stages: [{ type: 'swiss', rounds: 9, pairing: 'baku' }] },
+    // Giải cờ câu lạc bộ kiểu Bắc Âu: Monrad 7 vòng, vòng cuối Danish (hạng 1 gặp hạng 2 dù đã gặp nhau)
+    { id: 'monrad_club', icon: '♟️', sport: 'chess', n: 20,
+      stages: [{ type: 'swiss', rounds: 7, pairing: 'monrad', pairingByRound: [null, null, null, null, null, null, 'danish'] }] },
+    // Scrabble: Thụy Sĩ 10 vòng tính chênh lệch điểm (spread), 2 vòng cuối King of the Hill + Gibsonization cho 2 suất chung
+    // kết; chung kết Bo5 giữa hai người đầu bảng
+    { id: 'scrabble_koth', icon: '🔤', sport: 'other', result: 'score', n: 16,
+      stages: [{ type: 'swiss', bestOf: 1, rounds: 10, koth: { rounds: 2 }, gibson: { spots: 2, swing: 1000 }, advance: 2, points: { w: 2, d: 1, l: 0 }, tiebreaks: ['gdiff'] },
+        { type: 'single', bestOf: 5, thirdPlace: false }] },
+    // Đợt 22. Darts kiểu PDC: 64 người loại trực tiếp, số set cần thắng theo vòng 3, 4, 4, 5, 6, 7 (Bo 5, 7, 7, 9, 11, 13)
+    { id: 'pdc_worlds', icon: '🎯', sport: 'darts', n: 64,
+      stages: [{ type: 'single', bestOf: 5, boRounds: [5, 7, 7, 9, 11, 13], thirdPlace: false }] },
+    // Cờ vua kiểu FIDE World Cup: loại trực tiếp, mỗi cặp một thang ván (tiêu chuẩn → rapid → blitz → Armageddon)
+    { id: 'fide_world_cup', icon: '♟️', sport: 'chess', n: 64,
+      stages: [{ type: 'single', bestOf: 1, thirdPlace: false, matchLadder: [{ games: 2, tc: 'classical' }, { games: 2, tc: 'rapid', base: 1500, inc: 10 }, { games: 2, tc: 'rapid', base: 600, inc: 10 }, { games: 2, tc: 'blitz', base: 300, inc: 3 }, { games: 1, tc: 'armageddon', arm: true, white: 300, black: 240 }] }] },
+    // Kiểu Norway Chess: 6 kỳ thủ vòng tròn 2 lượt; thắng tiêu chuẩn 3, hoà thì Armageddon 1,5 / 1
+    { id: 'norway_chess', icon: '♟️', sport: 'chess', n: 6,
+      stages: [{ type: 'roundrobin', groups: 1, meetings: 2, points: { w: 3, d: 0, l: 0, wx: 1.5, lx: 1 }, tiebreaks: ['wins', 'h2h'], ladderKeep: true,
+        matchLadder: [{ games: 1, tc: 'classical' }, { games: 1, tc: 'armageddon', arm: true, white: 600, black: 420, inc: 1 }] }] },
+    // Armageddon đấu giá: 8 kỳ thủ loại trực tiếp, 2 tiêu chuẩn + 2 rapid, hoà thì ra giá thời gian để cầm Đen
+    { id: 'bid_final', icon: '♟️', sport: 'chess', n: 8,
+      stages: [{ type: 'single', bestOf: 1, thirdPlace: false, matchLadder: [{ games: 2, tc: 'classical' }, { games: 2, tc: 'rapid', base: 600, inc: 5 }, { games: 1, tc: 'armageddon', arm: true, bid: true, white: 300, minBid: 60, maxBid: 300, tieBid: 'rebid' }] }] },
+    // Quần vợt đồng đội kiểu Davis Cup Finals: 6 bảng 3 đội, nhất bảng + 2 nhì tốt nhất vào tứ kết; mỗi trận 3 rubber Bo3 set
+    { id: 'davis_finals', icon: '🎾', sport: 'tennis_team', n: 18,
+      stages: [{ type: 'roundrobin', groupSize: 3, advance: 1, bestNext: 2, bestOf: 3 }, { type: 'single', bestOf: 3, thirdPlace: false }] },
+    // Kiểu Overwatch League: 12 đội vòng tròn 2 lượt, đủ 4 map + map 5 quyết định; xếp theo trận thắng, hiệu số map, map đối đầu
+    { id: 'owl_season', icon: '🎮', sport: 'esports', n: 12, esports: { draft: 'off', fearless: 'off', stats: [] },
+      stages: [{ type: 'roundrobin', groups: 1, meetings: 2, bestOf: 4, fixed: true, decider: true, advance: 6, points: { w: 1, d: 0, l: 0 }, tiebreaks: ['gdiff', 'h2hMap', 'h2h'], splits: { n: 4, take: 3, bo: 5 } },
+        { type: 'single', bestOf: 5, boFinal: 7, thirdPlace: false }] },
   ];
   if (typeof module !== 'undefined' && module.exports) module.exports = MORE;
   else global.CaroOTourTplMore = MORE;

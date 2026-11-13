@@ -8,6 +8,8 @@ const { BYE, MAX_GROUP, MAX_GROUPS, real, newMatch } = require('./stages-base.js
 const { tally, rankList, crossCompare } = require('./stages-tiebreak.js');
 const { MAX_BIG, buildLeague, records, recordActive, recordBo, bestNextTier } = require('./stages-league.js');
 const Valve = require('./stages-valve.js'); // giải offline: ghép cặp Thụy Sĩ kiểu CS Major
+const Pair = require('./stages-pairing.js'); // ghép cặp Thụy Sĩ: Hà Lan, Monrad, Danish, Baku, King of the Hill + Gibsonization
+const { swissPairs } = Pair;
 const { raceTable, groupMembers } = require('./stages-race.js');
 const TM = require('./stages-tiematch.js'); // giải offline: trận phụ phân hạng ở vòng tròn
 /** So hai đội ở cùng thứ hạng của các bảng sinh tồn: tổng điểm, số lần về nhất, nhì…, số hạ gục, hạt giống. */
@@ -101,64 +103,7 @@ function buildRoundRobin(st, seeds, plan, opts = {}) {
   });
 }
 
-// ------------------------------------------------------------ Thụy Sĩ
-/**
- * Thứ tự đối thủ nên thử cho người đứng đầu a (rest[0]). 'dutch' (FIDE): trong nhóm cùng điểm với a, chia nửa trên /
- * nửa dưới và ưu tiên người đầu nửa dưới (8 người: 1–5, 2–6, 3–7, 4–8), rồi lần lượt xa dần; sau đó các nhóm điểm thấp
- * hơn (người "trôi" xuống). Không có điểm (score) hoặc 'adjacent': theo thứ tự (1–2, 3–4…).
- */
-function candidates(rest, score, mode) {
-  const others = rest.slice(1);
-  if (mode !== 'dutch' || !score) return others.map((_, i) => i);
-  const top = score[rest[0]];
-  let g = 1; // số người cùng điểm với a (kể cả a)
-  while (g < rest.length && score[rest[g]] === top) g++;
-  const half = Math.max(1, Math.floor(g / 2)); // vị trí trong rest của người đầu nửa dưới
-  const order = [];
-  for (let j = half; j < g; j++) order.push(j - 1);
-  for (let j = half - 1; j >= 1; j--) order.push(j - 1);
-  for (let j = g; j < rest.length; j++) order.push(j - 1);
-  return order;
-}
-
-/**
- * Ghép một vòng Thụy Sĩ: cùng điểm gặp nhau, không gặp lại; số lẻ thì người thấp nhất chưa được miễn đấu được miễn.
- * mode 'dutch' + score (uid → điểm): nửa trên gặp nửa dưới trong mỗi nhóm điểm (candidates).
- */
-function swissPairs(order, played, byes, mode, score) {
-  const list = [...order];
-  let bye = null;
-  if (list.length % 2) {
-    for (let i = list.length - 1; i >= 0; i--) if (!byes[list[i]]) { bye = list[i]; break; }
-    if (bye === null) bye = list[list.length - 1];
-    list.splice(list.indexOf(bye), 1);
-  }
-  const key = (x, y) => (x < y ? x + '|' + y : y + '|' + x);
-  // Giới hạn số bước tìm (mô phỏng 30–36 người, 15 vòng: cần tới ~10⁶ bước, chậm nhất ~0,1 giây)
-  let budget = 1000000;
-  // Ghép từ trên xuống, ưu tiên người gần điểm nhất; allow = số cặp gặp lại còn được phép
-  const dfs = (rest, allow) => {
-    if (!rest.length) return [];
-    if (--budget < 0) return null;
-    const [a, ...others] = rest;
-    for (const i of candidates(rest, score, mode)) {
-      const again = played.has(key(a, others[i]));
-      if (again && !allow) continue;
-      const sub = dfs(others.filter((_, j) => j !== i), allow - (again ? 1 : 0));
-      if (sub) return [[a, others[i]], ...sub];
-    }
-    return null;
-  };
-  let pairs = dfs(list, 0);
-  // Không tránh được gặp lại: cho phép ít cặp gặp lại nhất có thể (1, 2, …)
-  for (let allow = 1; !pairs && allow <= list.length / 2; allow++) { budget = 20000; pairs = dfs(list, allow); }
-  if (!pairs) { // hết thời gian tìm: ghép lần lượt theo thứ hạng
-    pairs = [];
-    for (let i = 0; i + 1 < list.length; i += 2) pairs.push([list[i], list[i + 1]]);
-  }
-  return { pairs, bye };
-}
-
+// ------------------------------------------------------------ Thụy Sĩ (ghép cặp: stages-pairing.js)
 function swissNextRound(st, seedOf, isActive = () => true, fixed = null, countryOf = null) {
   const r = st.rounds.length;
   const stats = tally(st);
@@ -180,7 +125,8 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
   const score = Object.fromEntries(order.map((u) => [u, rec ? rec[u].w * 100 - rec[u].l : stats[u].pts]));
   // Kiểu CS Major (theo số thắng / thua): vòng 1 hạt giống i gặp i + n/2, sau đó theo độ khó – không ghép được thì như thường
   const vp = rec && ['valve', 'valve16', 'draw', 'faceit'].includes(st.cfg.pairing) && !(fixed && r === 0) ? Valve.valvePairs(st, rec, order, played) : null;
-  const { pairs, bye } = fixed && r === 0 ? { pairs: fixed, bye: null } : vp ? { pairs: vp, bye: null } : swissPairs(order, played, byes, st.cfg.pairing, score);
+  const ctx = { order, played, byes, score, seedIndex: seedOf, standings: () => rankList(st, st.entrants, seedOf) };
+  const { pairs, bye, tags = {} } = fixed && r === 0 ? { pairs: fixed, bye: null } : vp ? { pairs: vp, bye: null } : Pair.pair(st, r, ctx);
   const ids = [];
   pairs.forEach(([a, b], i) => {
     const m = newMatch(`${st.key}s${r}m${i}`, r);
@@ -188,6 +134,7 @@ function swissNextRound(st, seedOf, isActive = () => true, fixed = null, country
     m.b = b;
     const bo = rec ? recordBo(st, rec, a, b) : 0; // trận quyết định đi tiếp / bị loại: Bo riêng
     if (bo) m.bo = bo;
+    if (tags[a + '|' + b]) m.tag = tags[a + '|' + b]; // cặp cách ly (Gibsonization)
     st.matches[m.id] = m;
     ids.push(m.id);
   });
@@ -238,6 +185,8 @@ function advancers(st, seedOf, min = 2) {
     const seeds = tables[0].list.filter((u) => rec[u].w >= win);
     return { seeds: seeds.length >= min ? seeds : tables[0].list.slice(0, 2), groupOf };
   }
+  // Cắt theo thành tích (kiểu VGC X-2): mọi người thua ≤ cutLosses trận – số người đi tiếp do kết quả quyết định
+  if (st.type === 'swiss' && st.cfg.advanceMode === 'record') { const seeds = Pair.recordCut(tables[0].list, tables[0].stats, st.cfg.cutLosses); return { seeds: seeds.length >= min ? seeds : tables[0].list.slice(0, 2), groupOf }; }
   if (st.type === 'swiss' || (st.type === 'race' && !st.cfg.groups)) return { seeds: tables[0].list.slice(0, Math.max(2, k)), groupOf };
   const tiers = [];
   tables.forEach((t, g) => t.list.slice(0, k).forEach((uid, pos) => { (tiers[pos] = tiers[pos] || []).push({ uid, s: t.stats[uid] }); groupOf[uid] = g; }));

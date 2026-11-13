@@ -196,7 +196,9 @@
       const big = sizes[0];
       // meetSmall: bảng ít đội hơn bảng đông nhất gặp nhau meetSmall lần (kiểu MSI 2021–2022)
       const mOf = (s) => (Number(c.meetSmall) >= 1 && s < big ? Number(c.meetSmall) : meet);
-      const matches = sizes.reduce((t, s) => t + mOf(s) * (s * (s - 1)) / 2, 0);
+      // + playoff từng chặng (cfg.splits – kiểu OWL, server/src/hub/stages-splits.js): mỗi chặng take − 1 trận
+      const sp = c.splits && G === 1 ? (Number(c.splits.n) || 4) * Math.max(0, Math.min(16, Number(c.splits.take) || 4) - 1) : 0;
+      const matches = sizes.reduce((t, s) => t + mOf(s) * (s * (s - 1)) / 2, 0) + sp;
       // + các đội đứng ngay sau suất đi tiếp tốt nhất (bestNext – mỗi bảng tối đa một đội)
       const adv = last ? null : sizes.reduce((t, s) => t + Math.min(c.advance || 0, s), 0) + Math.min(c.bestNext || 0, sizes.filter((s) => s > (c.advance || 0)).length);
       return { matches, maxMatches: matches, waves: meet * (big % 2 ? big : big - 1), advance: adv, groups: G, groupSize: big };
@@ -205,6 +207,14 @@
     // Thụy Sĩ: 0 vòng = tự động ⌈log₂ n⌉; số vòng bị giới hạn khi ít người
     const rounds = Math.min(c.rounds || Math.max(1, Math.ceil(Math.log2(n))), swissMax(n));
     const matches = rounds * Math.floor(n / 2);
+    // Cắt theo số thua (kiểu VGC X-2 – stages-pairing.js): số người qua chỉ biết khi xong; ước tính bằng kỳ vọng khi mỗi trận
+    // thắng / thua 50–50 (số thua ~ nhị thức(rounds, ½))
+    if (c.advanceMode === 'record' && !last) {
+      const X = Math.max(0, Number(c.cutLosses) || 0);
+      let p = 0, comb = 1;
+      for (let k = 0; k <= Math.min(X, rounds); k++) { p += comb / 2 ** rounds; comb = (comb * (rounds - k)) / (k + 1); }
+      return { matches, maxMatches: matches, waves: rounds, rounds, advance: Math.max(2, Math.min(n, Math.round(n * p))), cut: true };
+    }
     return { matches, maxMatches: matches, waves: rounds, rounds, advance: last ? null : Math.min(c.advance || 0, n) };
   }
 

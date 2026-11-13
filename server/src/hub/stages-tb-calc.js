@@ -12,6 +12,8 @@
  *   aro / aroc1  Elo trung bình của đối thủ (Cut-1: bỏ đối thủ Elo thấp nhất)
  *   tpr        Elo thành tích (Elo trung bình đối thủ + dp theo bảng FIDE B.02)
  *   apro       Trung bình Elo thành tích của các đối thủ
+ *   oppWinPct / oppOppWinPct  Tỉ lệ thắng trung bình của các đối thủ / của đối thủ của đối thủ (kiểu Pokémon VGC: mỗi đối
+ *              thủ tính tỉ lệ thắng các trận đã đấu thật – hoà nửa trận, không tính miễn đấu – và tối thiểu 25%)
  * Trận không đấu (miễn đấu, thắng / thua do vắng mặt, vắng cả hai, vòng không được ghép) – cfg.unplayed:
  *   'fide': theo Điều 16 của quy chế FIDE: khi tính hệ số cho người khác, mọi trận không đấu của một người được coi
  *           như hoà; còn trận không đấu của chính mình được tính như gặp một "đối thủ ảo" có số điểm bằng điểm của mình,
@@ -99,10 +101,18 @@ function extend(st, s, ctx = {}) {
     const played = x.rs.filter((e) => e.played && rating(e.o) > 0);
     x.tpr = played.length ? Math.round(x.aro + dp(sum(played.map((e) => e.f)) / played.length)) : 0;
   }
+  // Tỉ lệ thắng của một người (trận đấu thật; tối thiểu 25% như luật xếp hạng của Pokémon / Magic)
+  const winPct = (x) => { const g = x.rs.filter((e) => e.played); return Math.max(0.25, g.length ? sum(g.map((e) => e.f)) / g.length : 0); };
+  const wp = new Map(all.map((x) => [x.uid, winPct(x)]));
   for (const x of all) {
     const opps = x.rs.filter((e) => e.played && s[e.o]).map((e) => s[e.o]);
     x.aob = Math.round(avg(opps.map((o) => o.bh)) * 100) / 100;
     x.apro = Math.round(avg(opps.map((o) => o.tpr).filter((v) => v > 0)));
+    x.oppWinPct = Math.round(avg(opps.map((o) => wp.get(o.uid))) * 10000) / 100; // phần trăm, 2 chữ số
+  }
+  for (const x of all) {
+    const opps = x.rs.filter((e) => e.played && s[e.o]).map((e) => s[e.o]);
+    x.oppOppWinPct = Math.round(avg(opps.map((o) => o.oppWinPct)) * 100) / 100;
   }
   return s;
 }

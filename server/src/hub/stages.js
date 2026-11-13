@@ -24,13 +24,16 @@
 const { TYPES, GROUP_TYPES, BYE, MAX_GROUP, MAX_GROUPS, isElim, real } = require('./stages-base.js');
 const { seedOrder, resolveElim, buildSingle, buildDouble, elimSize, checkSlots, defaultSlots } = require('./stages-elim.js');
 const { groupName, groupCount, drawGroups, buildRoundRobin, swissPairs, swissNextRound, tally, standings, advancers: groupAdvancers, swissMaxRounds } = require('./stages-groups.js');
-const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB } = require('./stages-tiebreak.js');
+const { RANK_BY, normalizeTiebreaks, tbValue, TIEBREAKS, MAX_TB, rankList } = require('./stages-tiebreak.js');
+const SPL = require('./stages-splits.js'); // giải offline: chặng mùa giải có playoff riêng (kiểu Overwatch League)
 const League = require('./stages-league.js');
 const Race = require('./stages-race.js');
 const Gsl = require('./stages-gsl.js'); // giải offline: bảng đấu loại kép 4 đội kiểu GSL
 const Kings = require('./stages-kings.js'); // giải offline: vòng tranh hạt giống + cơ hội cuối
 const Kinds = require('./stages-kinds.js'); // giải offline: registry các loại giai đoạn tự chứa (GSL, kings, nhánh đồ thị…)
 const TM = require('./stages-tiematch.js'); // giải offline: trận phụ phân hạng ở vòng tròn
+const Pair = require('./stages-pairing.js'); // giải offline: các cách ghép cặp Thụy Sĩ
+const LAD = require('../../../caro/otour-ladder.js'); // giải offline: thang ván của trận
 const REP = require('./stages-repechage.js'); // giải offline: vòng vớt kiểu Olympic trên loại trực tiếp cuối
 
 const MAX_BO = 25;
@@ -101,8 +104,10 @@ function normalizeStage(c, last, opts = {}) {
     // Điểm trận thắng / hoà / thua; mỗi ván thắng / hoà cộng thêm; miễn đấu (Thụy Sĩ số lẻ) mặc định như thắng
     out.points = { w, d: int(p.d, 0, 10, 1), l: int(p.l, 0, 10, 0), gw: int(p.gw, 0, 10, 0), gt: int(p.gt, 0, 10, 0), bye: int(p.bye, 0, 10, w) };
     // Thắng / thua ở set quyết định, sau hiệp phụ / luân lưu (giải offline: bóng chuyền 3–2, khúc côn cầu) – chỉ khi có đặt
-    if (p.wx != null) out.points.wx = int(p.wx, 0, 10, w);
-    if (p.lx != null) out.points.lx = int(p.lx, 0, 10, out.points.l);
+    // Nửa điểm được (Norway Chess: thắng Armageddon 1,5 – thua Armageddon 1)
+    const half = (v, def) => { const n = Math.round(Number(v) * 2) / 2; return Number.isFinite(n) ? Math.max(0, Math.min(10, n)) : def; };
+    if (p.wx != null) out.points.wx = half(p.wx, w);
+    if (p.lx != null) out.points.lx = half(p.lx, out.points.l);
     out.tiebreaks = normalizeTiebreaks(c.tiebreaks, type);
     // Trận không đấu khi tính hệ số phụ: theo FIDE (mặc định) / như bản trước (stages-tb-calc.js)
     out.unplayed = c.unplayed === 'raw' ? 'raw' : 'fide';
@@ -117,7 +122,14 @@ function normalizeStage(c, last, opts = {}) {
   // Loạt Bo2 (vòng bảng Dota 2 ở các giải Esports): đúng 2 ván, 1–1 là hoà – chỉ vòng tròn / Thụy Sĩ tính điểm (không phải
   // Thụy Sĩ theo thắng / thua, không phải loại trực tiếp)
   if (Number(c.bestOf) === 2 && GROUP_TYPES.includes(res.type) && !res.record) res.bestOf = 2;
+  // Đủ số ván (kiểu Overwatch League 2018–2019: luôn đấu đủ 4 map, 2–2 thì map 5 quyết định – không tính vào hiệu số map)
+  if (Number(c.bestOf) === 4 && c.fixed === true && GROUP_TYPES.includes(res.type) && !res.record) { res.bestOf = 4; res.fixed = true; if (c.decider === true) res.decider = true; }
   if (['valve', 'valve16', 'draw', 'faceit'].includes(res.pairing) && !res.record) res.pairing = 'dutch';
+  Pair.normalizeSwiss(c, res); // Monrad / Danish / Baku, King of the Hill + Gibsonization, cắt theo số thua (stages-pairing.js)
+  // Thang ván của trận (FIDE World Cup, Norway Chess, Armageddon đấu giá – caro/otour-ladder.js); ladderKeep: không đổi màu theo cấp
+  const lad = ['single', 'roundrobin', 'swiss'].includes(res.type) && !res.record && LAD.normalize(c.matchLadder);
+  if (lad) { res.matchLadder = lad; if (c.ladderKeep === true) res.ladderKeep = true; }
+  SPL.normalize(c, res); // chặng có playoff riêng
   // Trận phụ phân hạng (vòng tròn chia bảng có người đi tiếp – không phải league phase / mùa giải)
   if (res.type === 'roundrobin' && !last && !res.league && !res.season && TM.MODES.includes(c.tbm)) res.tbm = c.tbm;
   if (res.tbm && c.tbmTop === true) res.tbmTop = true; // thêm trận phụ khi hai đội bằng điểm ở hạng nhất (kiểu MSI)
@@ -270,14 +282,14 @@ function playable(st) {
   if (st.type === 'roundrobin') {
     first = new Map();
     for (const x of all) {
-      if (x.done) continue;
+      if (x.done || x.sp != null) continue; // playoff chặng (stages-splits.js) không chặn lịch vòng tròn
       for (const u of [x.a, x.b]) if (!first.has(u) || x.round < first.get(u)) first.set(u, x.round);
     }
   }
   const out = [];
   for (const m of all) {
     if (m.done || !real(m.a) || !real(m.b)) continue;
-    if (first && (first.get(m.a) < m.round || first.get(m.b) < m.round)) continue;
+    if (first && m.sp == null && (first.get(m.a) < m.round || first.get(m.b) < m.round)) continue;
     out.push(m);
   }
   return out;
@@ -290,6 +302,7 @@ function playable(st) {
 function recordResult(st, m, winner, opts = {}) {
   if (m.done) return st.done;
   if (linked(st.type)) { resolveElim(st, m, winner, winner === m.a ? m.b : m.a); REP.update(st); } // xong hai bán kết: sinh nhánh vớt
+  else if (m.sp != null) SPL.record(st, m, winner); // playoff chặng: như loại trực tiếp
   else {
     m.done = true;
     m.winner = winner;
@@ -302,6 +315,7 @@ function recordResult(st, m, winner, opts = {}) {
     }
   }
   if (st.type === 'roundrobin' && st.cfg.tbm) TM.addTiebreaks(st, opts.seedOf); // bằng điểm ở vạch đi tiếp: thêm trận phụ
+  if (st.type === 'roundrobin' && st.cfg.splits) SPL.update(st, opts.seedOf || ((u) => st.entrants.indexOf(u)), rankList); // xong một chặng: dựng playoff chặng
   st.done = Object.values(st.matches).every((x) => x.done);
   return st.done;
 }
@@ -372,7 +386,7 @@ function eliminated(st, uid) {
 
 module.exports = {
   TYPES, GROUP_TYPES, BYE, seedOrder, normalizeStages, buildStage, playable, recordResult, standings, advancers, podium,
-  linked, splitAdvancers, routesOf, tieBeforeUndo: TM.beforeUndo, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places, Kinds, REP,
+  linked, splitAdvancers, routesOf, tieBeforeUndo: TM.beforeUndo, gslError: Gsl.gslError, gslTables: Gsl.tables, kingsError: Kings.kingsError, kingsTables: Kings.tables, gslPlaces: Gsl.places, Kinds, REP, SPL,
   twoLeg: League.twoLeg, leagueError: League.leagueError, seasonError: League.seasonError, records: League.records,
   tally, eliminated, isElim, real, tbValue, MAX_BO, MAX_STAGES_OFFLINE, elimSize, checkSlots, defaultSlots, TIEBREAKS, MAX_TB, swissPairs, swissMaxRounds, swissAutoRounds, drawGroups, groupCount, groupName, boOf, MAX_GROUP, MAX_GROUPS, directPlan, directTotal,
 };

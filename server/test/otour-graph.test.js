@@ -206,43 +206,8 @@ test('Vòng vớt: từ tứ kết chỉ người thua tứ kết trước final
 });
 
 // ------------------------------------------------------------ Chạy trọn các mẫu mới qua máy chủ
-const TP = require('../../caro/otour-templates.js');
-const { SPORTS } = require('../../caro/otour-sports.js');
-const { ctx, account, until } = require('./otour-client.js');
-
-async function startTpl(tid) {
-  const tpl = TP.byId(tid);
-  const org = await account();
-  const { id } = await org.req({ t: 'otCreate', name: 'Kiểu ' + tid, spec: TP.specOf(tpl, SPORTS), teams: TP.sampleTeams(tpl, 'Đội') }, 'otCreated', undefined, 15000);
-  const t = ctx.app.hub.otGet(id);
-  org.send({ t: 'otStart', id });
-  await until(() => t.status === 'running', 15000);
-  return { org, t, id, so: ctx.app.hub.otSeedOf(t) };
-}
-/** Kết quả trận để hạt giống cao thắng, theo kiểu ghi kết quả của giải. */
-function resultFor(t, st, m, so, draw = false) {
-  const hi = so(m.a) < so(m.b), bo = ST.boOf(st, m);
-  if (t.result === 'winner') return { winner: hi ? m.a : m.b };
-  if (t.result === 'sets') return { sets: Array.from({ length: (bo + 1) / 2 }, () => (hi ? [6, 2] : [2, 6])) };
-  if (m.start || m.tie) {
-    if (draw) return { sets: [[2, 2]] };
-    const need = Math.floor(bo / 2) + 1 - ((m.start || [0])[0] || 0);
-    return { sets: Array.from({ length: need }, () => (hi ? [3, 1] : [1, 3])) };
-  }
-  if (ST.linked(st.type) && bo > 1) return { sets: Array.from({ length: (bo + 1) / 2 }, () => (hi ? [3, 1] : [1, 3])) };
-  return { score: hi ? [2, 1] : [1, 2] };
-}
-async function playAllServer(org, t, id, so, onMatch, upto = 99) {
-  for (let g = 0; t.status === 'running' && t.stage < upto && g < 400; g++) {
-    const st = t.st[t.stage];
-    const list = ST.playable(st);
-    if (!list.length) break;
-    for (const m of list) {
-      org.send({ t: 'otScore', id, match: m.id, ...(onMatch && onMatch(st, m)) || resultFor(t, st, m, so) });
-      await until(() => m.done || t.st[t.stage] !== st || t.status !== 'running');
-    }
-  }
-}
+const { startTpl, playAllServer } = require('./otour-tplrun.js');
+const { until } = require('./otour-client.js');
 
 test('Các mẫu nhánh đồ thị chạy trọn qua máy chủ (Page, AFL, thang leo bậc có trận tặng, loại kép lai, Compass)', async () => {
   for (const tid of ['page_t20', 'afl_final8', 'afl_final10', 'kbo_ladder', 'npb_climax', 'rlcs_hybrid', 'compass8', 'judo_rep']) {

@@ -16,7 +16,7 @@ const { extend } = require('./stages-tb-calc.js');
 
 const RANK_BY = ['points', 'match_wins', 'game_wins', 'game_pct', 'game_diff'];
 const TIEBREAKS = ['h2h', 'bh', 'bh1', 'bh2', 'mbh', 'mbh2', 'fb', 'aob', 'sb', 'koya', 'ps', 'wins', 'won', 'bpg', 'aro', 'aroc1', 'tpr', 'apro',
-  'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses'];
+  'gdiff', 'gwins', 'gpct', 'pdiff', 'ppct', 'losses', 'oppWinPct', 'oppOppWinPct', 'h2hMap'];
 const MAX_TB = TIEBREAKS.length; // chọn bao nhiêu cũng được, mỗi tiêu chí một lần
 // Mặc định giữ đúng cách xếp của bản trước: vòng tròn đối đầu → hiệu số → số ván thắng; Thụy Sĩ Buchholz → SB → số trận thắng
 const DEFAULT_TB = { roundrobin: ['h2h', 'gdiff', 'gwins'], swiss: ['bh', 'sb', 'wins'] };
@@ -40,7 +40,7 @@ const KEY = {
   pdiff: (x) => x.pw - x.pl, ppct: (x) => (x.pw + x.pl ? x.pw / (x.pw + x.pl) : 0),
 };
 // Các hệ số lưu sẵn trong thống kê (tally + stages-tb-calc.js) cùng tên
-for (const k of TIEBREAKS) if (!KEY[k] && k !== 'h2h') KEY[k] = (x) => x[k];
+for (const k of TIEBREAKS) if (!KEY[k] && k !== 'h2h' && k !== 'h2hMap') KEY[k] = (x) => x[k]; // đối đầu: tính theo nhóm bằng nhau
 /** Giá trị một tie-break của một người (bảng xếp hạng hiện cột); đối đầu không có giá trị riêng. */
 const tbValue = (k, x) => (k === 'losses' ? x.l : KEY[k] ? Math.round(KEY[k](x) * 100) / 100 : null); // cột 'ít thua': hiện số trận thua
 
@@ -54,7 +54,7 @@ function tally(st, only, ctx) {
   const s = {};
   for (const uid of only || st.entrants) s[uid] = { uid, mp: 0, w: 0, d: 0, l: 0, gw: 0, gl: 0, gt: 0, pts: 0, opps: [], beat: [], drew: [], byes: 0, rs: [], bpg: 0, pw: 0, pl: 0 };
   for (const m of Object.values(st.matches)) {
-    if (!m.done || m.tb) continue; // trận phụ phân hạng (stages-tiematch.js) không tính điểm
+    if (!m.done || m.tb || m.sp != null) continue; // trận phụ phân hạng (stages-tiematch.js), playoff chặng (stages-splits.js) không tính điểm
     if (m.bye) { // miễn đấu (Thụy Sĩ): tính như thắng, điểm riêng
       if (s[m.winner]) { s[m.winner].pts += bye; s[m.winner].w++; s[m.winner].byes++; s[m.winner].rs.push({ r: m.round, o: null, pts: bye, f: 1, played: false }); }
       continue;
@@ -95,7 +95,7 @@ function tally(st, only, ctx) {
 function playedBy(st) {
   const by = new Map();
   for (const m of Object.values(st.matches)) {
-    if (!m.done || m.bye || m.double || m.tb || !real(m.a) || !real(m.b)) continue;
+    if (!m.done || m.bye || m.double || m.tb || m.sp != null || !real(m.a) || !real(m.b)) continue;
     for (const u of [m.a, m.b]) { if (!by.has(u)) by.set(u, []); by.get(u).push(m); }
   }
   return by;
@@ -112,6 +112,13 @@ function miniPoints(st, group, by) {
     }
   }
   return pts;
+}
+
+/** Hiệu số ván (map) đối đầu giữa một nhóm người bằng nhau (kiểu Overwatch League: hiệu số map → hiệu số map đối đầu). */
+function miniMaps(group, by) {
+  const inG = new Set(group), d = Object.fromEntries(group.map((u) => [u, 0]));
+  for (const u of group) for (const m of by.get(u) || []) { const o = m.a === u ? m.b : m.a; if (inG.has(o)) d[u] += (m.wins[u] || 0) - (m.wins[o] || 0); }
+  return d;
 }
 
 const near = (a, b) => Math.abs(a - b) < 1e-9;
@@ -140,7 +147,8 @@ function rankList(st, uids, seedOf) {
     if (level >= tbs.length) return [...group].sort((a, b) => seedOf(a) - seedOf(b));
     const tb = tbs[level];
     let key;
-    if (tb === 'h2h') { const mini = miniPoints(st, group, by || (by = playedBy(st))); key = (u) => mini[u]; } else key = (u) => KEY[tb](s[u]);
+    if (tb === 'h2h') { const mini = miniPoints(st, group, by || (by = playedBy(st))); key = (u) => mini[u]; }
+    else if (tb === 'h2hMap') { const mini = miniMaps(group, by || (by = playedBy(st))); key = (u) => mini[u]; } else key = (u) => KEY[tb](s[u]);
     return groupsBy(group, key).flatMap((g) => refine(g, level + 1));
   };
   const list = groupsBy(uids, (u) => primary(s[u])).flatMap((g) => refine(g, 0));
@@ -153,7 +161,7 @@ function rankList(st, uids, seedOf) {
  */
 function crossCompare(st, seedOf) {
   const primary = PRIMARY[st.type === 'swiss' ? 'points' : st.cfg.rankBy] || PRIMARY.points;
-  const tbs = normalizeTiebreaks(st.cfg.tiebreaks, st.type).filter((x) => x !== 'h2h');
+  const tbs = normalizeTiebreaks(st.cfg.tiebreaks, st.type).filter((x) => x !== 'h2h' && x !== 'h2hMap');
   return (a, b) => {
     const d = primary(b.s) - primary(a.s);
     if (!near(d, 0)) return d;

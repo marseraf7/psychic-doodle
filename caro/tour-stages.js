@@ -80,7 +80,7 @@
   const preName = (m) => T(m && m.tag ? m.tag : 'pi_title');
   /** Giải đấu Offline kiểu tỉ số: sau hiệp phụ, tỉ số luân lưu (kiểu set đã ghi luân lưu trong setsText). */
   const otTags = (m) => [...(m.sets ? [] : [m.aet ? esc(T('ot_aet_tag')) : '', m.extra ? esc(T('ot_pen_tag', { s: m.extra.join('-') })) : ''].filter(Boolean)),
-    ...(K.otMatchTags ? K.otMatchTags(m) : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js)
+    ...(K.otMatchTags ? K.otMatchTags(m) : []), ...(m.lad && K.ladderTag && K.ladderTag(m) ? [esc(K.ladderTag(m))] : [])]; // giờ / sân / số bàn ghi nhận (otour-league.js); cấp quyết định của thang ván
   /** Nút của trận: ảnh chia sẻ kết quả (trận đã xong, có hai người thật), đính kèm (tour-match-extra.js). */
   function matchTools(m) {
     const out = [];
@@ -252,7 +252,7 @@
         if (!many) return (v.groups.length > 1 ? `<h5>${name}</h5>` : '') + inner();
         const mine = g.table.some((x) => x.uid === uidMe());
         return fold(key + ':gg' + gi, `<b>${name}</b>${mine ? icon('star', 'star') : ''} <span class="muted">${esc(g.table.slice(0, 2).map((x) => x.name).join(', '))}</span>`, inner, mine);
-      }).join('') + rulesNote({ ...v.cfg, byes: v.byes }, true);
+      }).join('') + rulesNote({ ...v.cfg, byes: v.byes }, true) + (v.splits && K.splitsHtml ? K.splitsHtml(t, v) : ''); // playoff từng chặng (otour-ladder-ui.js)
     }
     // Thụy Sĩ: vòng mới nhất lên đầu
     const rounds = v.rounds.map((r, i) => ({ r, i })).reverse();
@@ -261,7 +261,7 @@
     const rlabel = (i) => [label(t, v.index, i, T('swiss_round', { n: i + 1, m: v.totalRounds })), slot(t, v.index, i)].filter(Boolean).join(' · ');
     // Vòng mới nhất hiện sẵn; các vòng trước nằm trong khối riêng (chỉ dựng khi mở)
     const older = rounds.slice(1);
-    return capped + table(v.table, v.cfg)
+    return capped + (K.swissNote ? K.swissNote(v) : '') + table(v.table, v.cfg) // điểm ảo Baku, Gibsonization, cắt theo số thua (otour-swiss-edit.js)
       + fold(key + ':r', esc(T('matches')), () => roundsHtml(rounds.slice(0, 1), rlabel)
         + (older.length ? fold(key + ':ro', esc(T('earlier_rounds', { n: older.length })), () => roundsHtml(older, rlabel), false) : ''), !v.done)
       + rulesNote({ ...v.cfg, byes: v.byes }, false);

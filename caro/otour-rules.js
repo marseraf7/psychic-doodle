@@ -8,6 +8,12 @@
  *   cap  – điểm trần (cầu lông 30: 30–29 vẫn thắng; tennis 7: 7–6 là thắng loạt tie-break); 0 = không có trần
  *   last – điểm set quyết định nếu khác (bóng chuyền 15); 0 = như các set khác
  * Số set: Bo N → ai thắng đủ ⌊N/2⌋ + 1 set là thắng trận; không có set nào sau khi đã đủ; không quá N set.
+ * Thêm (giải offline):
+ *   race    – set "đua tới `to`" không có deuce (darts: set đua tới 3 leg – 3–0, 3–1, 3–2; 4–3 sai)
+ *   lastBy / lastCap – set quyết định phải hơn lastBy, chạm lastCap thì hơn 1 là đủ (darts: hơn 2 leg, 5–5 đấu leg quyết
+ *             định → 6–5); set quyết định = khi hai bên cùng còn một set nữa là thắng
+ *   rubber  – mỗi "set" là một trận con (rubber) Bo `rubber` của trận đồng đội (Davis Cup: [2, 1] = rubber thắng 2–1 set);
+ *   dead    – có rubber: đấu cả các rubber không còn ý nghĩa sau khi trận đã ngã ngũ (tối đa N rubber)
  * Thời gian (hệ Race – stages-race.js ở máy chủ): parseTime / fmtTime / fmtGap.
  */
 (function (global) {
@@ -24,7 +30,13 @@
     let cap = int(x.cap, 0, 199, 0);
     if (cap && cap <= to) cap = 0; // trần phải lớn hơn điểm thắng set
     const last = int(x.last, 0, 99, 0);
-    return { to, by, cap, last: last === to ? 0 : last };
+    const out = { to, by, cap, last: last === to ? 0 : last };
+    if (x.race === true) out.race = true;
+    const lb = int(x.lastBy, 0, 10, 0), lc = int(x.lastCap, 0, 199, 0);
+    if (lb) { out.lastBy = lb; if (lc > to) out.lastCap = lc; }
+    const rb = int(x.rubber, 0, 7, 0);
+    if (rb && rb % 2) { out.rubber = rb; if (x.dead === true) out.dead = true; }
+    return out;
   }
 
   const need = (bo) => Math.floor(Math.max(1, bo) / 2) + 1;
@@ -38,6 +50,16 @@
     if (!rule) return null;
     const W = Math.max(s[0], s[1]), L = Math.min(s[0], s[1]);
     if (W === L) return 'ot_set_tie';
+    // Rubber của trận đồng đội: tỉ số set của một trận con Bo `rubber` đã xong (2–0, 2–1…)
+    if (rule.rubber) { const k = need(rule.rubber); return W === k && L < k ? null : 'ot_rubber_bad'; }
+    // Set quyết định phải hơn lastBy (darts: hơn 2 leg; chạm lastCap – 6–5 sau 5–5 – thì hơn 1 là đủ)
+    if (deciding && rule.lastBy) {
+      const to = rule.last || rule.to, lc = rule.lastCap || 0;
+      if (W < to || (lc && W > lc)) return 'ot_set_bad';
+      if (lc && W === lc) return L === lc - 1 || W - L >= rule.lastBy ? null : 'ot_set_bad';
+      return W === to ? (W - L >= rule.lastBy ? null : 'ot_set_bad') : W - L === rule.lastBy ? null : 'ot_set_bad';
+    }
+    if (rule.race) return W === rule.to ? null : 'ot_set_bad'; // đua tới `to`, không có deuce
     const to = deciding && rule.last ? rule.last : rule.to;
     const cap = rule.cap && !(deciding && rule.last) ? rule.cap : 0;
     if (cap && W > cap) return 'ot_set_bad';
@@ -51,20 +73,26 @@
    * Cả trận theo set: sets [[a, b], …], bo – số set tối đa, rule – luật set (null: chỉ kiểm số set).
    * Trả null nếu đúng, hoặc { code, args } (args.n: số thứ tự set sai, tính từ 1).
    */
-  function setsError(rule, sets, bo) {
+  function setsError(rule, sets, bo, fixed = false) {
     if (!Array.isArray(sets) || !sets.length) return { code: 'score_need_sets', args: {} };
     for (const s of sets) {
       if (!Array.isArray(s) || s.length !== 2 || s.some((v) => !Number.isInteger(v) || v < 0 || v > MAX_POINT)) return { code: 'tour_score_bad', args: {} };
     }
     bo = Math.max(1, Math.floor(bo) || 1);
     if (sets.length > bo) return { code: 'ot_sets_many', args: { bo } };
+    // Đủ số ván (kiểu Overwatch League): luôn đấu đủ N ván, kiểm từng ván, hoà được
+    if (fixed) {
+      for (let i = 0; i < sets.length; i++) { const e = setError(rule, sets[i], false); if (e) return { code: e, args: { n: i + 1 } }; }
+      return sets.length === bo ? null : { code: 'ot_fixed_short', args: { bo } };
+    }
     const k = need(bo);
     let wa = 0, wb = 0;
     for (let i = 0; i < sets.length; i++) {
-      if (wa >= k || wb >= k) return { code: 'ot_sets_after', args: { n: i + 1, bo } };
+      // Trận đồng đội có rubber không còn ý nghĩa (dead): vẫn đấu tiếp tới đủ N rubber
+      if ((wa >= k || wb >= k) && !(rule && rule.rubber && rule.dead)) return { code: 'ot_sets_after', args: { n: i + 1, bo } };
       const s = sets[i];
       // Set quyết định: set cuối cùng có thể của trận (Bo5 → set 5), hoặc khi hai bên cùng còn một set nữa là thắng
-      const deciding = bo > 1 && wa === k - 1 && wb === k - 1;
+      const deciding = bo > 1 && wa === k - 1 && wb === k - 1 && !(wa >= k || wb >= k);
       const e = setError(rule, s, deciding);
       if (e) return { code: e, args: { n: i + 1 } };
       if (s[0] > s[1]) wa++; else if (s[1] > s[0]) wb++;
@@ -72,6 +100,7 @@
     // Loạt Bo chẵn (Bo2 ở vòng bảng): đấu đủ số ván, hoà 1–1 hợp lệ
     if (bo % 2 === 0 && sets.length === bo) return null;
     if (wa < k && wb < k) return { code: 'ot_sets_short', args: { k, bo } };
+    if (rule && rule.rubber && rule.dead && sets.length < bo) return { code: 'ot_rubber_dead', args: { bo } }; // phải đấu đủ các rubber
     return null;
   }
 
