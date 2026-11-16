@@ -602,6 +602,42 @@ test('loại trực tiếp Bo3: mất kết nối thì trận tạm dừng; ban 
   } finally { app.hub.T.TOUR_DISPUTE_MS = keep; }
 });
 
+test('trận đang chờ xử lý khiếu nại (hold): ban tổ chức KHÔNG ghi đè được tỉ số (rà soát 16/11/2026, mục 67)', async () => {
+  const B = await organizer();
+  const keep = app.hub.T.TOUR_DISPUTE_MS;
+  app.hub.T.TOUR_DISPUTE_MS = 60000; // không tự công nhận trong lúc test
+  try {
+    const p1 = await account('hd', 1600);
+    const p2 = await account('hd', 1500);
+    const { id } = await B.req({ t: 'tourCreate', name: 'Giữ trận', format: 'knockout', startsAt: soon(), timeLimit: 30, bestOf: 3, thirdPlace: false, checkin: false }, 'tourCreated');
+    for (const p of [p1, p2]) await p.req({ t: 'tourJoin', id }, 'toast');
+    B.send({ t: 'tourStart', id });
+    await waitRoom(p1, (r) => r.tour && r.players.length === 2);
+    const t = app.hub.tours.get(id);
+    const m = Object.values(t.st[0].matches)[0];
+    await playOut(p1, p2); // ván 1: p1 thắng
+    await waitRoom(p1, (r) => r.gameNo === 2 && !r.winner);
+    p2.close(); // ván 2: p2 mất kết nối quá hạn -> trận hold, khiếu nại open
+    await until(() => !!m.hold);
+    const d = t.disputes[t.disputes.length - 1];
+    assert.strictEqual(d.status, 'open');
+    // BTC thử ghi đè cho người mất kết nối thắng cả trận: phải bị chặn, trận và khiếu nại giữ nguyên
+    assert.strictEqual((await B.req({ t: 'tourScore', id, match: m.id, winner: p2.me.uid }, 'error')).code, 'tour_match_held');
+    assert.strictEqual(m.done, false, 'trận chưa bị chốt bởi đường ghi đè');
+    assert.ok(m.hold, 'hold còn nguyên chờ quyết định');
+    assert.strictEqual(d.status, 'open', 'khiếu nại còn mở');
+    assert.strictEqual(m.wins[p1.me.uid], 1, 'tỉ số ván giữ nguyên 1–0');
+    // Sau khi BTC xử lý khiếu nại (công nhận ván mất kết nối): trận chốt đúng p1 thắng 2–0
+    await B.req({ t: 'tourDispute', id, dispute: d.id, action: 'confirm' }, 'toast', (x) => x.code === 'tour_dispute_saved');
+    assert.strictEqual(m.done, true);
+    assert.strictEqual(m.winner, p1.me.uid);
+    assert.strictEqual(m.hold, null);
+    assert.strictEqual(d.status, 'confirmed');
+    assert.strictEqual(d.auto, false, 'do ban tổ chức xử lý, không phải tự công nhận');
+    [p1, B].forEach((c) => c.close());
+  } finally { app.hub.T.TOUR_DISPUTE_MS = keep; }
+});
+
 test('Arena: mất kết nối -> điểm tính ngay; ban tổ chức cho đấu lại -> trả lại điểm, ghép lại hai người', async () => {
   const B = await organizer();
   const a = await account('ad', 1500);

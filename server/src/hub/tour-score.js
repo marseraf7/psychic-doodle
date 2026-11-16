@@ -70,6 +70,10 @@ class TourScore {
   on_tourScore(conn, { id, match, sets, extra, winner, draw }) {
     const { t, st, m, self } = this.scoreTarget(conn, id, match, true);
     if (m.done) throw E('tour_match_done');
+    // Trận đang tạm dừng chờ xử lý khiếu nại mất kết nối: chỉ được chốt qua quyết định khiếu nại (công nhận /
+    // huỷ / đấu lại). Cho nhập / ghi đè ở đây thì khiếu nại kẹt "open", hết hạn sẽ tự ghi "confirmed" sai nội
+    // dung và cờ hold không bao giờ được gỡ (rà soát 16/11/2026, mục 67)
+    if (m.hold) throw E('tour_match_held');
     if (!ST.real(m.a) || !ST.real(m.b)) throw E('tour_match_not_ready');
     const by = conn.pid;
     if (!t.offline) {
