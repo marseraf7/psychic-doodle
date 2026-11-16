@@ -48,8 +48,10 @@ class TourScore {
   scoreTarget(conn, id, match, self = false) {
     let t, mine = false;
     try { t = this.requireManager(conn, id, 'results'); } catch (e) {
-      // Người chơi tự báo tỉ số trận của mình (giải offline bật "selfReport", người chơi có tài khoản – như Challonge)
-      const uid = uidOf(conn.pid), x = uid && this.tours.get(String(id || ''));
+      // Người chơi tự báo tỉ số trận của mình (giải offline bật "selfReport", người chơi có tài khoản – như Challonge).
+      // Tra cả theo link riêng (slug) như mọi handler khác qua findTour: trước đây chỉ tra theo mã giải nên
+      // tự báo bằng slug bị ném lại lỗi tour_managers_only dù người báo đúng là người chơi (mục 74h)
+      const uid = uidOf(conn.pid), x = uid && (this.tours.get(String(id || '')) || this.tourBySlug(id));
       if (!self || !x || !x.offline || !x.selfReport || !this.canSeeTour(x, uid)) throw e;
       t = x;
       mine = uid;

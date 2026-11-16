@@ -154,6 +154,31 @@ test('mục 74g: giải đang chạy — người thường không tự đổi t
   [org].forEach((c) => c.close());
 });
 
+test('mục 74h: người chơi tự báo tỉ số bằng link riêng (slug) được như bằng mã giải', async () => {
+  const B = await admin();
+  const pa = await account(), pb = await account();
+  const who = (c) => [...c.msgs].reverse().find((m) => m.t === 'welcome').me;
+  const PA = who(pa), PB = who(pb);
+  const { id } = await B.req({ t: 'tourCreate', name: 'Giải Tự Báo Đợt 5', format: 'bracket', startsAt: Date.now() + 600000, timeLimit: 30, offline: true, checkin: false,
+    slug: 'giai-dot-5', stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = ctx.app.hub.tours.get(id);
+  assert.strictEqual(t.slug, 'giai-dot-5');
+  assert.ok(t.selfReport, 'giải offline bật tự báo');
+  await B.req({ t: 'tourAddPlayers', id, names: ['@' + PA.username, '@' + PB.username] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  const m = Object.values(t.st[0].matches).find((x) => !x.bye);
+  const mySets = m.a === PA.uid ? [[2, 0]] : [[0, 2]];
+  // pa tự báo BẰNG SLUG: trước khi sửa bị tour_managers_only (đường dự phòng chỉ tra theo mã giải)
+  pa.send({ t: 'tourScore', id: 'giai-dot-5', match: m.id, sets: mySets });
+  await until(() => m.claim && m.claim.by === PA.uid);
+  assert.strictEqual(m.done, false, 'báo lần đầu mới là đề xuất chờ đối thủ xác nhận');
+  // pb báo trùng bằng mã giải -> chốt kết quả
+  pb.send({ t: 'tourScore', id, match: m.id, sets: mySets });
+  await until(() => m.done === true);
+  [pa, pb].forEach((c) => c.close());
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();
