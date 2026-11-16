@@ -10,12 +10,12 @@ const vm = require('node:vm');
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'tour-disputes.js'), 'utf8');
 
 /** Nạp tour-disputes.js với CaroTourKit giả lập; buttons: các nút giả cho kiểm thử mục 48. */
-function load(buttons = []) {
+function load(buttons = [], sendOk = true) {
   const sent = [];
   const errHandlers = [];
   const K = {
     O: {
-      send: (m) => { sent.push(m); return true; },
+      send: (m) => { sent.push(m); return sendOk; },
       on: (t, fn) => { if (t === 'error') errHandlers.push(fn); },
     },
     T: (k, args) => k + (args ? ':' + JSON.stringify(args) : ''),
@@ -61,6 +61,25 @@ test('mục 46: hạn tự công nhận là đồng hồ .cd sống (data-at = d
   // Khiếu nại Arena không có deadline: không hiện đồng hồ
   const html2 = K.disputesHtml(tourOf([dispute(2)]));
   assert.ok(!html2.includes('class="cd"'), 'không deadline thì không đồng hồ');
+});
+
+test('mục 48: máy chủ trả lỗi cho tourDispute thì nút đã khoá được bật lại', () => {
+  const b1 = { disabled: true }, b2 = { disabled: true };
+  const { errHandlers } = load([b1, b2]);
+  assert.equal(errHandlers.length, 1, 'phải có một handler nghe lỗi từ máy chủ');
+  errHandlers[0]({ ctx: 'tourCreate', code: 'x' }); // lỗi không liên quan: không đụng nút khiếu nại
+  assert.equal(b1.disabled, true);
+  errHandlers[0]({ ctx: 'tourDispute', code: 'dispute_gone' });
+  assert.equal(b1.disabled, false, 'nút phải bật lại khi xử lý lỗi');
+  assert.equal(b2.disabled, false);
+});
+
+test('mục 48: gửi không được (mất kết nối) thì nút bật lại ngay, không chờ', async () => {
+  const { K, sent } = load([], false);
+  const b = { disabled: false, dataset: { v: 'confirm', did: 'd1' } };
+  await K.acts.dispute(b);
+  assert.equal(sent.length, 1);
+  assert.equal(b.disabled, false, 'O.send trả false thì không được để nút xám');
 });
 
 test('mục 45: danh sách ngắn vẫn vẽ bình thường, rỗng thì không khối', () => {

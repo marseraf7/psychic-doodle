@@ -42,7 +42,15 @@
     const v = b.dataset.v;
     if (!(await window.CaroConfirm.ask(T('dispute_confirm_' + v)))) return;
     b.disabled = true;
-    O.send({ t: 'tourDispute', id: D.tour.id, dispute: b.dataset.did, action: v });
+    // Gửi không đi (mất kết nối): không có cập nhật nào tới sau đó, bật lại nút ngay (đợt 7, mục 48)
+    if (!O.send({ t: 'tourDispute', id: D.tour.id, dispute: b.dataset.did, action: v })) b.disabled = false;
   };
+  // Máy chủ trả lỗi (dispute_gone / dispute_closed / tour_managers_only…) thì KHÔNG đẩy cập nhật trang giải,
+  // nên nút vừa bấm sẽ xám vĩnh viễn tới lần vẽ lại không liên quan. Nghe lỗi của chính lệnh này để bật lại
+  // mọi nút xử lý đang khoá (đợt 7, mục 48). Đường thành công vẫn do bản đẩy của máy chủ vẽ lại trang.
+  O.on('error', (m) => {
+    if (!m || m.ctx !== 'tourDispute') return;
+    document.querySelectorAll('button[data-act="dispute"][disabled]').forEach((x) => { x.disabled = false; });
+  });
   K.disputesHtml = disputesHtml;
 })();
