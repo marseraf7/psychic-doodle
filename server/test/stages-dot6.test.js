@@ -147,3 +147,19 @@ test('Mục 40 – Weekly: weeklyError đòi đủ hàng chờ cho mọi trận 
   }
   assert.deepStrictEqual(sizes, [4, 4, 4, 4]);
 });
+
+test('Mục 42 – Graph: cờ final gắn cho trận tranh vô địch (wp = 1), không phải trận cuối danh sách khuôn', () => {
+  const fin = (shape, n) => {
+    const [gc] = off([{ type: 'graph', shape }]);
+    const st = ST.buildStage(gc, 0, ids(n), { seedOf });
+    return Object.values(st.matches).filter((m) => m.final).map((m) => [m.gk, m.wp || 0]);
+  };
+  // compass8: chung kết thật là chung kết Đông (wp = 1); trước đây cờ rơi vào chung kết Nam tranh hạng 7–8 (wp = 7)
+  assert.deepStrictEqual(fin('compass8', 8), [['ef', 1]]);
+  // cross9: cả ba trận quyết định đều có wp = 1 — cả ba cùng mang cờ
+  assert.deepStrictEqual(fin('cross9', 9).map((x) => x[1]), [1, 1, 1]);
+  // Các khuôn còn lại: đúng một trận chung kết như cũ
+  assert.deepStrictEqual(fin('page', 4), [['f', 1]]);
+  assert.deepStrictEqual(fin('afl8', 8).length, 1);
+  assert.deepStrictEqual(fin('gauntlet', 5).map((x) => x[1]), [1]);
+});
