@@ -195,7 +195,9 @@ class TourManage {
     Object.assign(t, { status: 'scheduled', st: null, stage: 0, arrange: null, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [],
       checkinNotified: false, checkinWaived: false }); // điểm danh lại từ đầu
     t.startsAt = Math.max(t.startsAt, Date.now() + 10 * 60 * 1000); // không tự bắt đầu lại ngay
-    for (const p of t.players) Object.assign(p, { seed: null, out: null, score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, paused: false, checkedIn: false });
+    // firsts / last / restUntil cũng là trạng thái thi đấu (ghép Arena và chọn người đi trước đọc chúng):
+    // sót thì giải đặt lại vẫn mang lịch sử ghép của lần chạy trước (mục 74i)
+    for (const p of t.players) Object.assign(p, { seed: null, out: null, score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, paused: false, checkedIn: false, firsts: 0, last: null, restUntil: 0 });
     t.players = t.players.filter((p) => !p.withdrawn);
     this.tourLog(t, uid, 'reset');
     this.saveTour(t);

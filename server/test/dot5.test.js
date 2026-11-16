@@ -179,6 +179,42 @@ test('mục 74h: người chơi tự báo tỉ số bằng link riêng (slug) đ
   [pa, pb].forEach((c) => c.close());
 });
 
+test('mục 74i: đặt lại giải xoá cả firsts/last/restUntil của người chơi; huỷ kết quả xoá notified của trận', async () => {
+  const B = await admin();
+  // Vế 1 — reset giải Arena: các trường ghép trận của người chơi phải về như mới
+  const a1 = await account(), a2 = await account();
+  const who = (c) => [...c.msgs].reverse().find((m) => m.t === 'welcome').me;
+  const ar = await B.req({ t: 'tourCreate', name: 'Arena đợt 5', format: 'arena', startsAt: Date.now() + 600000, timeLimit: 30, minutes: 30, rated: false }, 'tourCreated');
+  const ta = ctx.app.hub.tours.get(ar.id);
+  await a1.req({ t: 'tourJoin', id: ar.id }, 'toast');
+  await a2.req({ t: 'tourJoin', id: ar.id }, 'toast');
+  B.send({ t: 'tourStart', id: ar.id });
+  await until(() => ta.status === 'running');
+  const p = ta.players.find((x) => x.uid === who(a1).uid);
+  Object.assign(p, { firsts: 7, last: who(a2).uid, restUntil: Date.now() + 3600000 }); // trạng thái sau vài ván (dựng như máy chủ ghi)
+  B.send({ t: 'tourReset', id: ar.id });
+  await until(() => ta.status === 'scheduled');
+  assert.ok(!p.firsts, 'reset: số lần đi trước (firsts) về 0');
+  assert.strictEqual(p.last, null, 'reset: đối thủ gần nhất (last) xoá');
+  assert.ok(!(p.restUntil > Date.now()), 'reset: giờ nghỉ (restUntil) không còn ở tương lai');
+  // Vế 2 — undo kết quả giải offline: notified của trận phải xoá để trận sẵn sàng lại thì báo lại
+  const off = await B.req({ t: 'tourCreate', name: 'Offline đợt 5 undo', format: 'bracket', startsAt: Date.now() + 600000, timeLimit: 30, offline: true, checkin: false,
+    stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const to = ctx.app.hub.tours.get(off.id);
+  await B.req({ t: 'tourAddPlayers', id: off.id, names: ['An', 'Bình', 'Chi', 'Dũng'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id: off.id });
+  await until(() => to.status === 'running');
+  const st = to.st[0];
+  const m = st.matches[st.rounds[0][0]];
+  m.notified = [m.a, m.b]; // trận đã từng báo "tới trận" cho cả hai (dựng trạng thái)
+  B.send({ t: 'tourScore', id: off.id, match: m.id, sets: [[2, 0]] });
+  await until(() => m.done === true);
+  B.send({ t: 'tourScoreUndo', id: off.id, match: m.id });
+  await until(() => m.done === false);
+  assert.ok(!m.notified || !m.notified.length, 'undo: notified xoá để trận sẵn sàng lại được báo lại');
+  [a1, a2].forEach((c) => c.close());
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();

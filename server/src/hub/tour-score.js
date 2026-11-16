@@ -156,7 +156,8 @@ class TourScore {
       for (const { r, x } of targets) { x[r.slot] = null; x.readyAt = null; }
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, quick: false, readyAt: Date.now() });
+    // notified: danh sách đã báo "tới trận" — không xoá thì trận sẵn sàng trở lại sẽ không báo lại (mục 74i)
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, quick: false, readyAt: Date.now(), notified: [] });
     delete m.claim;
     st.done = false;
     for (const u of [m.a, m.b]) {
