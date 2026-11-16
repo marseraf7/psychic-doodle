@@ -131,7 +131,7 @@ test('mục 74f: giải đang chạy không đổi được quickAdvance / arran
   assert.strictEqual(t.quickAdvance, false, 'quickAdvance giữ nguyên khi giải đang chạy (đổi nó là đổi cách nhập kết quả)');
   assert.strictEqual(t.arrangeNext, false, 'arrangeNext giữ nguyên khi giải đang chạy (đổi nó là đổi cách chuyển giai đoạn)');
   assert.strictEqual(t.roundLabels, false, 'ô chỉ ảnh hưởng cách hiện vẫn đổi được khi đang chạy');
-  B.close();
+  // Không đóng B: boss là client dùng chung cho mọi bài thử trong file (admin())
 });
 
 test('mục 74g: giải đang chạy — người thường không tự đổi tên / mô tả (nội dung đã duyệt); quản trị viên vẫn đổi được', async () => {
