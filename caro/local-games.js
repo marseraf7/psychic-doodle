@@ -122,7 +122,14 @@
         if (!valid(rec)) return null;
         const at = Number(rec.at) || now();
         const list = index();
-        const same = list.find((g) => (rec.share ? g.share === rec.share : g.at === at && g.n === rec.moves.length && g.rule === (rec.rule || 'vn')));
+        // Nhánh không share phải so cả NỘI DUNG nước đi (đọc khoá riêng của ván ứng viên): chỉ so giờ + số nước + luật
+        // từng nuốt mất ván khác trùng mili-giây (đợt 7, mục 55) — lệch chính tiêu chí đã ghi ở đầu hàm này
+        const same = list.find((g) => {
+          if (rec.share) return g.share === rec.share;
+          if (g.at !== at || g.n !== rec.moves.length || g.rule !== (rec.rule || 'vn')) return false;
+          const d = read(K.game(g.id), null);
+          return !!d && JSON.stringify(d.moves) === JSON.stringify(rec.moves);
+        });
         if (same) return same.id;
         const id = at.toString(36) + Math.random().toString(36).slice(2, 6);
         const meta = pick({ ...rec, id, at, rule: rec.rule || 'vn', n: rec.moves.length, an: !!rec.analysis }, META);

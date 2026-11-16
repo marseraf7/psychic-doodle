@@ -262,3 +262,17 @@ test('mục 49: chỉ khoá ghi INDEX bị quota (ghi ván được) → add() v
   const s = LG.create(st, () => 5000);
   assert.strictEqual(s.add(game(3)), null);
 });
+
+
+test('mục 55: chống trùng phải so cả nước đi — ván khác trùng mili-giây + số nước + luật không bị nuốt', () => {
+  const s = LG.create(fakeStorage(), () => 777000);
+  const a = s.add(game(3, { moves: [[0, 0], [1, 1], [2, 2]] }));
+  // Ván B khác hẳn nước đi nhưng cùng at (now cố định), cùng 3 nước, cùng luật
+  const b = s.add(game(3, { moves: [[9, 9], [8, 8], [7, 7]] }));
+  assert.ok(a && b && a !== b, 'hai ván khác nhau phải có hai id khác nhau');
+  assert.strictEqual(s.count(), 2);
+  assert.deepStrictEqual(s.get(b).moves, [[9, 9], [8, 8], [7, 7]]);
+  // Lưu lại đúng ván A (cùng at + cùng nước đi): vẫn chống trùng như cũ
+  assert.strictEqual(s.add(game(3, { moves: [[0, 0], [1, 1], [2, 2]] })), a);
+  assert.strictEqual(s.count(), 2);
+});
