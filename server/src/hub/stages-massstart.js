@@ -70,7 +70,9 @@ function clean(st, i, rows) {
     else if (r.dnf === true) x.dnf = true;
     else {
       const k = Math.floor(Number(r.rank)), key = heatOf.get(uid) + ':' + k;
-      if (!(k >= 1 && k <= MAX_HEAT * 2) || used.has(key)) return { code: 'ot_race_rank' };
+      // Trần hạng theo cỡ đoàn thật của chặng này (chung kết: số người vào chung kết; bán kết / đua đơn: cả đoàn) —
+      // trước đây là hằng số MAX_HEAT * 2 = 48: chung kết đông người không nhập được hạng 49+, heat ít người lại lọt hạng vô lý
+      if (!(k >= 1 && k <= members.length) || used.has(key)) return { code: 'ot_race_rank' };
       used.add(key);
       x.rank = k;
     }

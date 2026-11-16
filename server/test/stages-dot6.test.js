@@ -11,6 +11,7 @@ const Race = require('../src/hub/stages-race.js');
 const PUR = require('../src/hub/stages-pursuit.js');
 const SJ = require('../src/hub/stages-skijump.js');
 const BY = require('../src/hub/stages-backyard.js');
+const MS = require('../src/hub/stages-massstart.js');
 
 const off = (list) => ST.normalizeStages(list, { offline: true });
 const ids = (n, p = 'u') => Array.from({ length: n }, (_, i) => p + i);
@@ -59,4 +60,27 @@ test('Mục 62 – Backyard: chạm trần 300 yard mà còn ≥ 2 người thì
   const r2 = BY.clean(st2, 0, [{ uid: 'a', done: true }, { uid: 'b', done: true }]);
   BY.record(st2, 0, r2.rows);
   assert.deepStrictEqual([st2.done, st2.events.length], [false, 2]);
+});
+
+test('Mục 36 – Massstart: trần hạng nhập kết quả theo cỡ cuộc đua thật, không phải hằng số 48', () => {
+  // Đua đơn 60 người: hạng 49–60 phải nhập được
+  const [c] = off([{ type: 'race', score: 'massstart' }]);
+  const st = ST.buildStage(c, 0, ids(60), {});
+  const r = Race.cleanEvent(st, ids(60).map((uid, k) => ({ uid, rank: k + 1 })), st.entrants, 0);
+  assert.ok(!r.code, JSON.stringify(r));
+  assert.strictEqual(r.rows.length, 60);
+  // Bán kết 200 người, heat 24, adv 8 → chung kết 72 người: hạng 49–72 phải nhập được
+  const [c2] = off([{ type: 'race', score: 'massstart', massStart: { semis: true, heat: 24, adv: 8 } }]);
+  const st2 = ST.buildStage(c2, 0, ids(200), {});
+  const H = MS.heatsOf(st2);
+  Race.recordEvent(st2, 0, Race.cleanEvent(st2, H.flatMap((h) => h.map((uid, k) => ({ uid, rank: k + 1 }))), st2.entrants, 0).rows);
+  const q = MS.qualifiers(st2);
+  assert.strictEqual(q.length, 72);
+  const rf = Race.cleanEvent(st2, q.map((uid, k) => ({ uid, rank: k + 1 })), st2.entrants, 1);
+  assert.ok(!rf.code, JSON.stringify(rf));
+  // Chiều ngược lại: heat chỉ 6 người thì hạng 48 (không tồn tại trong heat) phải bị chặn
+  const [c3] = off([{ type: 'race', score: 'massstart', massStart: { semis: true, heat: 6, adv: 3 } }]);
+  const st3 = ST.buildStage(c3, 0, ids(12), {});
+  assert.strictEqual(Race.cleanEvent(st3, [{ uid: MS.heatsOf(st3)[0][0], rank: 48 }], st3.entrants, 0).code, 'ot_race_rank');
+  assert.ok(!Race.cleanEvent(st3, [{ uid: MS.heatsOf(st3)[0][0], rank: 6 }], st3.entrants, 0).code, 'hạng 6 trong heat 6 người vẫn nhận');
 });
