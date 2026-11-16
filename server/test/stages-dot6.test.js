@@ -12,6 +12,7 @@ const PUR = require('../src/hub/stages-pursuit.js');
 const SJ = require('../src/hub/stages-skijump.js');
 const BY = require('../src/hub/stages-backyard.js');
 const MS = require('../src/hub/stages-massstart.js');
+const OMN = require('../src/hub/stages-omnium.js');
 
 const off = (list) => ST.normalizeStages(list, { offline: true });
 const ids = (n, p = 'u') => Array.from({ length: n }, (_, i) => p + i);
@@ -96,4 +97,31 @@ test('Mục 44 – Massstart: danh sách kết quả chặng (view.events[].res)
   const first = v.events[0].res.filter((x) => x.rank === 1);
   // Hạt giống cao hơn (người nhất heat 1) phải đứng trước, dù dòng của họ được nhập sau
   assert.deepStrictEqual(first.map((x) => [x.uid, x.place]), [[H[0][0], 1], [H[1][0], 2]]);
+});
+
+test('Mục 38 – Omnium: vắng mặt ở points race (không có dòng) không được tính như về đích', () => {
+  const [c] = off([{ type: 'race', score: 'omnium' }]);
+  const build = (prRows) => {
+    const st = ST.buildStage(c, 0, ['a', 'b', 'c'], {});
+    for (let i = 0; i < 3; i++) Race.recordEvent(st, i, Race.cleanEvent(st, [{ uid: 'a', rank: 1 }, { uid: 'b', rank: 2 }, { uid: 'c', rank: 3 }], st.entrants, i).rows);
+    Race.recordEvent(st, 3, Race.cleanEvent(st, prRows, st.entrants, 3).rows);
+    return st;
+  };
+  // a dẫn 120 điểm sau 3 đua đầu nhưng không có dòng ở points race → xếp sau cả hai người về đích
+  const st = build([{ uid: 'b', rank: 1, sp: 0, lap: 0 }, { uid: 'c', rank: 2, sp: 0, lap: 0 }]);
+  const C = OMN.calc(st, seedOf);
+  assert.deepStrictEqual(C.order, ['b', 'c', 'a']);
+  assert.strictEqual(C.stats.a.dns, true, 'người vắng mặt được đánh dấu dns trong thống kê');
+  // Đối chứng 1: a có dòng dnf ở points race → vẫn xuống cuối như trước (hành vi cũ giữ nguyên)
+  const st2 = build([{ uid: 'b', rank: 1, sp: 0, lap: 0 }, { uid: 'c', rank: 2, sp: 0, lap: 0 }, { uid: 'a', dnf: true, sp: 0, lap: 0 }]);
+  assert.deepStrictEqual(OMN.calc(st2, seedOf).order, ['b', 'c', 'a']);
+  // Đối chứng 2: a về đích ở points race → vô địch như cũ
+  const st3 = build([{ uid: 'a', rank: 1, sp: 0, lap: 0 }, { uid: 'b', rank: 2, sp: 0, lap: 0 }, { uid: 'c', rank: 3, sp: 0, lap: 0 }]);
+  assert.deepStrictEqual(OMN.calc(st3, seedOf).order, ['a', 'b', 'c']);
+  // Đối chứng 3: points race chưa đấu → thứ tự theo tổng điểm như cũ, không ai bị dns
+  const st4 = ST.buildStage(c, 0, ['a', 'b', 'c'], {});
+  for (let i = 0; i < 3; i++) Race.recordEvent(st4, i, Race.cleanEvent(st4, [{ uid: 'a', rank: 1 }, { uid: 'b', rank: 2 }, { uid: 'c', rank: 3 }], st4.entrants, i).rows);
+  const C4 = OMN.calc(st4, seedOf);
+  assert.deepStrictEqual(C4.order, ['a', 'b', 'c']);
+  assert.strictEqual(C4.stats.a.dns, undefined);
 });
