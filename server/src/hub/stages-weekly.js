@@ -44,10 +44,14 @@ function phase(cfg, i) {
 const isFinal = (cfg, i) => phase(cfg, i).kind === 'final';
 const isSurv = (cfg, i) => phase(cfg, i).kind === 'surv';
 
-/** Lỗi cỡ giai đoạn: hàng chờ tuần 1 phải đủ một phòng; còn ít nhất 2 đội cho Bottom (nếu có). */
+/**
+ * Lỗi cỡ giai đoạn: mọi trận Survival đều phải có phòng đầy — mỗi trận một đội thắng rời phòng và đội kế trong hàng
+ * chờ vào thay, nên hàng chờ cần ít nhất seats + (seats − 1) đội (tuần 1 trừ thêm `sit` đội nghỉ); còn ít nhất 2 đội
+ * cho Bottom (nếu có). Trước đây chỉ đòi đủ phòng đầu tiên: các phòng cuối tuần teo dần mà không có cảnh báo nào.
+ */
 function weeklyError(cfg, n) {
   if (!cfg.weekly) return null;
-  const W = cfg.weekly, need = Math.max(W.seats + W.sit, W.bottom && W.weeks > 1 ? W.seats + 2 : 0, W.seats + 1);
+  const W = cfg.weekly, need = Math.max(2 * W.seats - 1 + W.sit, W.bottom && W.weeks > 1 ? W.seats + 2 : 0);
   return n < need ? { code: 'ot_weekly_few', args: { n: need } } : null;
 }
 

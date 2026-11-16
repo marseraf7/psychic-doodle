@@ -13,6 +13,7 @@ const SJ = require('../src/hub/stages-skijump.js');
 const BY = require('../src/hub/stages-backyard.js');
 const MS = require('../src/hub/stages-massstart.js');
 const OMN = require('../src/hub/stages-omnium.js');
+const WK = require('../src/hub/stages-weekly.js');
 
 const off = (list) => ST.normalizeStages(list, { offline: true });
 const ids = (n, p = 'u') => Array.from({ length: n }, (_, i) => p + i);
@@ -124,4 +125,25 @@ test('Mục 38 – Omnium: vắng mặt ở points race (không có dòng) khôn
   const C4 = OMN.calc(st4, seedOf);
   assert.deepStrictEqual(C4.order, ['a', 'b', 'c']);
   assert.strictEqual(C4.stats.a.dns, undefined);
+});
+
+test('Mục 40 – Weekly: weeklyError đòi đủ hàng chờ cho mọi trận Survival (2·seats − 1 + sit), phòng không teo', () => {
+  const cfg = { weekly: { weeks: 2, seats: 4, final: 2, bottom: 1, sit: 1 } };
+  // Cấu hình này cần tối thiểu 2·4 − 1 + 1 = 8 đội; 6–7 đội phải bị chặn ở cổng
+  assert.deepStrictEqual(WK.weeklyError(cfg, 6), { code: 'ot_weekly_few', args: { n: 8 } });
+  assert.deepStrictEqual(WK.weeklyError(cfg, 7), { code: 'ot_weekly_few', args: { n: 8 } });
+  assert.strictEqual(WK.weeklyError(cfg, 8), null);
+  // Đối chứng: cấu hình mẫu PGC 2021 (32 đội) vẫn qua như cũ
+  assert.strictEqual(WK.weeklyError({ weekly: { weeks: 3, seats: 16, final: 10, bottom: 6, sit: 1 } }, 32), null);
+  // Với đủ 8 đội: mọi phòng Survival tuần 1 đều đầy 4 đội (hạt giống cao thắng dần để phòng thay người)
+  const [c] = off([{ type: 'race', score: 'points', weekly: { weeks: 2, seats: 4, final: 2, bottom: 1, sit: 1 } }]);
+  const st = ST.buildStage(c, 0, ids(8), {});
+  const W = WK.make(st, Race.raceTable);
+  const sizes = [];
+  for (let k = 0; k < 4; k++) { // 4 trận Survival tuần 1 = 4 chặng đầu; người về nhất rời phòng, người kế trong hàng chờ vào thay
+    const lobby = W.survLobby(0, k);
+    sizes.push(lobby.length);
+    Race.recordEvent(st, k, Race.cleanEvent(st, lobby.map((uid, j) => ({ uid, rank: j + 1 })), st.entrants, k).rows);
+  }
+  assert.deepStrictEqual(sizes, [4, 4, 4, 4]);
 });
