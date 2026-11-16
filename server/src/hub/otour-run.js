@@ -186,6 +186,7 @@ class OTourRun {
     if (plan) {
       const next = ST.buildStage(cfg, t.stage, plan.seeds, this.otBuildOpts(t, { groupOf, slots: plan.slots }));
       PO.attachPre(next, plan);
+      ST.DRF.seatStage(next); // nhánh này return sớm: phải bốc ghế draft như nhánh thường, nếu không draft tắt lặng
       t.st.push(next);
       this.otSchedNext(t); // tự xếp lịch giai đoạn mới (otour-sched.js)
       if (next.done) this.otNextStage(t); // giai đoạn dựng xong đã xong ngay (vd kings dưới 4 đội): chuyển tiếp luôn

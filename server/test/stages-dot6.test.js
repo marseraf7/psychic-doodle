@@ -330,3 +330,30 @@ test('Mục 41 – The Split: dưới 4 đội đi tiếp thì báo lỗi ot_spl
   assert.strictEqual(ok.t.stage, 1);
   assert.deepStrictEqual(ok.t.st[1].groups.map((g) => g.players.length), [2, 4]);
 });
+
+test('Mục 57 (hub) – Giai đoạn single có playoff + draft: nhánh kế hoạch playoff cũng phải bốc ghế draft', () => {
+  const { OTourRun } = require('../src/hub/otour-run.js');
+  const mk = (next) => {
+    const host = new OTourRun();
+    host.otSchedNext = () => {};
+    const stages = ST.normalizeStages([
+      { type: 'roundrobin', season: { confs: 2, divs: 1, div: { m: 1 }, inter: { m: 0 } }, advance: 4 },
+      next,
+    ], { offline: true });
+    const t = { stages, players: ids(8).map((uid, i) => ({ uid, seed: i + 1 })), stage: 0, status: 'running', st: [], direct: null };
+    t.st = [ST.buildStage(stages[0], 0, ids(8), host.otBuildOpts(t))];
+    for (let g = 0; !t.st[0].done && g < 40; g++) for (const m of ST.playable(t.st[0])) ST.recordResult(t.st[0], m, seedOf(m.a) < seedOf(m.b) ? m.a : m.b, { seedOf });
+    assert.ok(t.st[0].done);
+    host.otNextStage(t);
+    return t;
+  };
+  // Có playoff: otNextStage đi nhánh plan (return sớm) — trước đây nhánh này không gọi seatStage nên draft tắt lặng:
+  // st.drafts không tồn tại, deckMissing luôn false, BTC không hề biết draft đã mất
+  const t = mk({ type: 'single', playoff: { per: 2 }, draft: {} });
+  assert.ok(t.st[1].cfg.playoff && t.st[1].cfg.draft, 'cấu hình giữ cả playoff lẫn draft');
+  assert.ok(Array.isArray(t.st[1].drafts) && t.st[1].drafts.length === 1, 'phải có phiên draft đã bốc ghế');
+  assert.deepStrictEqual([...t.st[1].drafts[0].pods[0]].sort(), [...t.st[1].entrants].sort());
+  // Đối chứng: không playoff (nhánh thường) — draft vẫn bốc ghế như cũ
+  const t2 = mk({ type: 'single', draft: {} });
+  assert.ok(Array.isArray(t2.st[1].drafts) && t2.st[1].drafts.length === 1);
+});
