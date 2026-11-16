@@ -27,6 +27,7 @@ const MAX_BANNED = 500;
 const MAX_OWNED_CLUBS = 2;
 const MAX_CLUBS_PER_USER = 20;
 const MAX_REQUESTS = 200;
+const MAX_PENDING_REQUESTS = 20; // tổng yêu cầu xin vào đang chờ của một người trên mọi CLB
 const newCode = () => crypto.randomBytes(4).toString('hex').toUpperCase();
 
 class Clubs {
@@ -195,6 +196,10 @@ class Clubs {
       if (c.declined.some((x) => x.uid === me.id)) throw E('club_request_declined');
       if (!c.requests.includes(me.id)) {
         if (c.requests.length >= MAX_REQUESTS) throw E('too_fast');
+        // Trần toàn cục: trước đây chỉ có trần của từng CLB nên một người gửi yêu cầu vào bao nhiêu CLB
+        // cũng được, mỗi yêu cầu lại báo cho mọi quản lý của CLB đó (spam thông báo) — mục 74b
+        const pending = [...this.clubs.values()].filter((x) => (x.requests || []).includes(me.id)).length;
+        if (pending >= MAX_PENDING_REQUESTS) throw E('too_fast');
         c.requests.push(me.id);
         const text = cleanPublicText(msg, 300);
         if (text) c.reqMsg[me.id] = text;

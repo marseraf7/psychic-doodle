@@ -37,6 +37,31 @@ function fakeMemberships(uid, k, tag) {
   return () => { for (let i = 0; i < k; i++) hub.clubs.delete(tag + i); };
 }
 
+test('mục 74b: một người không gửi yêu cầu xin vào quá 20 CLB cùng lúc (trần toàn cục)', async () => {
+  const x = await account();
+  const X = uidOf(x);
+  const owners = [];
+  let sent = 0;
+  // Gửi yêu cầu vào 21 CLB khác nhau: 20 cái đầu lọt, cái thứ 21 phải bị chặn
+  for (let i = 0; i < 21; i++) {
+    const k = await club('request');
+    owners.push(k.owner);
+    if (i < 20) {
+      x.send({ t: 'clubJoin', id: k.id });
+      await until(() => k.c.requests.includes(X));
+      sent++;
+    } else {
+      assert.strictEqual((await x.req({ t: 'clubJoin', id: k.id }, 'error')).code, 'too_fast',
+        'yêu cầu thứ 21 cùng lúc phải bị chặn bởi trần toàn cục');
+      assert.ok(!k.c.requests.includes(X), 'yêu cầu bị chặn không được ghi vào CLB');
+    }
+  }
+  assert.strictEqual(sent, 20);
+  const total = [...ctx.app.hub.clubs.values()].filter((c) => (c.requests || []).includes(X)).length;
+  assert.strictEqual(total, 20, 'tổng yêu cầu đang chờ trên mọi CLB đúng bằng trần');
+  [...owners, x].forEach((k) => k.close());
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();
