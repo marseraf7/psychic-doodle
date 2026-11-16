@@ -59,9 +59,14 @@
 
     /** Ghi được thì thôi; bộ nhớ đầy thì giải phóng dần (phân tích ván cũ → ván cũ nhất) rồi thử lại. */
     function writeFreeing(key, val, keepId) {
+      // Trần số lần giải phóng: mỗi lần freeSome hữu ích chỉ giải phóng đúng 1 ván / 1 phần phân tích, nên
+      // không bao giờ cần quá (số ván + 1) lần. Thiếu trần thì khi MỌI lần ghi đều ném quota (kho bị khoá /
+      // đầy bởi dữ liệu khác), các lần ghi trong freeSome bị nuốt lỗi làm kho không hề đổi, freeSome chọn
+      // lại đúng ván cũ và trả true mãi → vòng lặp vô hạn treo trang (đợt 7, mục 49)
+      let tries = index().length + 1;
       for (;;) {
         try { write(key, val); return true; } catch (e) {
-          if (!isQuota(e) || !freeSome(keepId)) return false;
+          if (!isQuota(e) || tries-- <= 0 || !freeSome(keepId)) return false;
         }
       }
     }
@@ -122,6 +127,7 @@
         const id = at.toString(36) + Math.random().toString(36).slice(2, 6);
         const meta = pick({ ...rec, id, at, rule: rec.rule || 'vn', n: rec.moves.length, an: !!rec.analysis }, META);
         if (!writeFreeing(K.game(id), { moves: rec.moves, analysis: rec.analysis || null }, id)) return null;
+        let tries = list.length + 1; // trần như writeFreeing: ghi index mà kho không đổi thì phải thoát (mục 49)
         for (;;) {
           // Dựng lại danh sách mỗi lần thử: freeSome có thể vừa bỏ bớt ván cũ
           const next = [meta].concat(index());
@@ -131,7 +137,7 @@
             for (const g of extra) drop(K.game(g.id));
             return id;
           } catch (e) {
-            if (!isQuota(e) || !freeSome(id)) { drop(K.game(id)); return null; }
+            if (!isQuota(e) || tries-- <= 0 || !freeSome(id)) { drop(K.game(id)); return null; }
           }
         }
       },

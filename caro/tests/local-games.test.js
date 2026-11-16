@@ -26,6 +26,21 @@ function fakeStorage(quota = Infinity) {
   };
 }
 
+/** localStorage giả mà setItem LUÔN ném QuotaExceededError (kho bị khoá/đầy hẳn), removeItem vẫn chạy. */
+function quotaStorage(seed = {}) {
+  const m = new Map(Object.entries(seed));
+  return {
+    m,
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem() { const e = new Error('đầy'); e.name = 'QuotaExceededError'; throw e; },
+    removeItem: (k) => { m.delete(k); },
+  };
+}
+const seedGame = (id, at, an) => ({
+  index: JSON.stringify([{ id, at, kind: 'bot', winner: 1, rule: 'vn', n: 3, an }]),
+  ['caro.lg.g.' + id]: JSON.stringify({ moves: [[0, 0], [1, 1], [2, 2]], analysis: an ? { x: 1 } : null }),
+});
+
 const game = (n, extra = {}) => ({
   kind: 'bot', bot: 'ti', me: 1, x: '', o: '', winner: 1, reason: 'win', rule: 'vn', timeLimit: 0, clock: null,
   moves: Array.from({ length: n }, (_, i) => [i, i % 2]), ...extra,
@@ -205,4 +220,45 @@ test('M-E1: ván có toạ độ vượt biên chung 512 bị coi là không h�
   assert.ok(ok, 'nước ở đúng biên (512, -512) vẫn hợp lệ');
   assert.strictEqual(s.get(ok).moves.length, 5);
   assert.strictEqual(s.count(), 1);
+});
+
+
+test('mục 49: setItem luôn ném quota + kho có ván đã phân tích → add() phải thoát (trả null), không lặp vô hạn', () => {
+  const seed = seedGame('g1', 100, true);
+  const s = LG.create(quotaStorage({ [LG.KEYS.index]: seed.index, 'caro.lg.g.g1': seed['caro.lg.g.g1'] }), () => 5000);
+  // Trước khi sửa: writeFreeing quay mãi vì freeSome luôn trả true mà kho không hề đổi (mọi lần ghi đều bị nuốt lỗi)
+  assert.strictEqual(s.add(game(3)), null);
+});
+
+test('mục 49: setAnalysis() cũng phải thoát khi kho không ghi được và còn ván khác đã phân tích', () => {
+  const idx = JSON.stringify([
+    { id: 'g1', at: 100, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: false },
+    { id: 'g2', at: 90, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: true },
+  ]);
+  const st = quotaStorage({
+    [LG.KEYS.index]: idx,
+    'caro.lg.g.g1': JSON.stringify({ moves: [[0, 0], [1, 1], [2, 2]], analysis: null }),
+    'caro.lg.g.g2': JSON.stringify({ moves: [[3, 3], [4, 4], [5, 5]], analysis: { x: 1 } }),
+  });
+  const s = LG.create(st, () => 5000);
+  assert.strictEqual(s.setAnalysis('g1', { y: 2 }), false);
+});
+
+test('mục 49: chỉ khoá ghi INDEX bị quota (ghi ván được) → add() vẫn phải thoát', () => {
+  const m = new Map(Object.entries(seedGame('g1', 100, false)));
+  m.set(LG.KEYS.index, JSON.stringify([
+    { id: 'g1', at: 100, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: false },
+    { id: 'g0', at: 90, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: false },
+  ]));
+  const st = {
+    m,
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem(k, v) {
+      if (k === LG.KEYS.index) { const e = new Error('đầy'); e.name = 'QuotaExceededError'; throw e; }
+      m.set(k, String(v));
+    },
+    removeItem: (k) => { m.delete(k); },
+  };
+  const s = LG.create(st, () => 5000);
+  assert.strictEqual(s.add(game(3)), null);
 });
