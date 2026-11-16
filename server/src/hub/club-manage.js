@@ -162,11 +162,15 @@ class ClubManage {
       const from = Math.max(c.seen[uid] || 0, c.joinedAt[uid] || 0, since);
       const fresh = c.msgs.filter((m) => m.at > from);
       if (!fresh.length) continue;
-      for (const msg of fresh) items.push({ club: { id: c.id, name: c.name, icon: c.icon || '' }, msg });
-      c.seen[uid] = fresh[fresh.length - 1].at;
-      this.saveClub(c);
+      for (const msg of fresh) items.push({ c, club: { id: c.id, name: c.name, icon: c.icon || '' }, msg });
     }
-    if (items.length) conn.send({ t: 'clubMsgs', items: items.sort((a, b) => a.msg.at - b.msg.at).slice(-30) });
+    if (!items.length) return;
+    // Mỗi lần gửi 30 tin CŨ NHẤT chưa đọc và chỉ đánh dấu đã xem tới tin đã gửi – phần còn lại tới ở lần vào sau
+    // (trước đây đánh dấu đã xem hết nhưng chỉ gửi 30 tin: phần vượt mất vĩnh viễn – rà soát 16/11/2026, mục 13b)
+    const send = items.sort((a, b) => a.msg.at - b.msg.at).slice(0, 30);
+    for (const it of send) it.c.seen[uid] = Math.max(it.c.seen[uid] || 0, it.msg.at);
+    for (const c of new Set(send.map((it) => it.c))) this.saveClub(c);
+    conn.send({ t: 'clubMsgs', items: send.map(({ club, msg }) => ({ club, msg })) });
   }
 
   /** Giải tán CLB (chủ CLB / quản trị viên). Giải của CLB chưa bắt đầu bị huỷ. */

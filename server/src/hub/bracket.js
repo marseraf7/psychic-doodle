@@ -308,6 +308,8 @@ class Bracket {
       double: !!m.double, bye: !!m.bye, skipped: !!m.skipped, walkover: !!m.walkover, gf: m.gf || 0, held: !!m.hold,
       bo: st && bo !== st.cfg.bestOf ? bo : 0, split: !!m.split,
       sets: m.sets || null, extra: m.extra || null, override: !!m.override, quick: !!m.quick, // tỉ số từng set (giải offline), ghi đè, chỉ báo người thắng
+      // Tỉ số người chơi tự báo, chờ đối thủ báo trùng / ban tổ chức xác nhận (tour-score.js)
+      ...(m.claim && !m.done ? { claim: { by: m.claim.by, sets: m.claim.sets, extra: m.claim.extra, w: ST.real(m.claim.w) ? m.claim.w : null } } : {}),
       ...(m.pens ? { pens: m.pens } : {}), // luân lưu từng trận của loạt Bo (kiểu tỉ số – otour-run.js)
       ...(m.aet ? { aet: true } : {}), // giải offline: có đá hiệp phụ
       ...(m.postponed ? { postponed: true } : {}), // giải offline: trận hoãn (otour-sched.js)

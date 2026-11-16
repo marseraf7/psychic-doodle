@@ -151,7 +151,7 @@
     if (fb) { toast(T('forbid_' + fb), 3000); vibrate(30); requestDraw(); return; }
     if (state.online) return playOnline(x, y);
     const mover = state.turn;
-    if (state.clocks && state.clocks.local) LC.press(state.clocks, mover, performance.now());
+    if (state.clocks && state.clocks.local) { const now = performance.now(); LC.mark(state.clocks, state.board.moves.length, now); LC.press(state.clocks, mover, now); }
     const win = placeRaw(x, y);
     state.lastPlacedAt = performance.now();
     sfx(mover === X ? 'placeX' : 'placeO');
@@ -208,6 +208,7 @@
     };
     undoOne();
     if (state.mode === 'ai') while (b.moves.length && state.turn !== state.human) undoOne();
+    if (state.clocks && state.clocks.local) LC.rewind(state.clocks, b.moves.length, performance.now()); // trả quỹ giờ về trước các nước vừa huỷ
     state.winner = null;
     state.winCells = null;
     state.pending = null;

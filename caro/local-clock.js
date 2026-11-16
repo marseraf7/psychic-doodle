@@ -42,5 +42,22 @@
   /** Số liệu để lưu: { spec, x, o } đã chốt tới now. */
   const snapshot = (c, now) => ({ spec: c.spec, x: Math.max(0, left(c, 1, now)), o: Math.max(0, left(c, 2, now)) });
 
-  window.CaroLocalClock = { create, run, press, left, pause, snapshot };
+  /**
+   * "Đi lại" với đồng hồ tổng: mark ghi quỹ giờ hai bên ngay TRƯỚC khi nước thứ n + 1 được bấm (n = số nước đang có);
+   * rewind đưa quỹ giờ về đúng lúc đó khi ván lùi về n nước – thời gian đã nghĩ không được trả lại, nhưng giây cộng của các
+   * nước bị huỷ thì mất (trước đây đi → đi lại → đi mỗi vòng được thêm một lần giây cộng – rà soát 16/11/2026, mục 19).
+   */
+  function mark(c, n, now) {
+    c.hist = (c.hist || []).filter((e) => e.n < n);
+    c.hist.push({ n, x: left(c, 1, now), o: left(c, 2, now) });
+  }
+  function rewind(c, n, now) {
+    const e = (c.hist || []).find((h) => h.n === n);
+    if (!e) return false; // không có mốc (vừa tải lại trang): giữ nguyên quỹ giờ
+    Object.assign(c, { x: e.x, o: e.o, running: 0, at: now });
+    c.hist = c.hist.filter((h) => h.n < n);
+    return true;
+  }
+
+  window.CaroLocalClock = { create, run, press, left, pause, snapshot, mark, rewind };
 })();

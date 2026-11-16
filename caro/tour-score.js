@@ -46,6 +46,19 @@
       ${S.sets.length > 1 ? `<button type="button" class="ghost sm icon" data-act="setDel" data-i="${i}" aria-label="${esc(T('score_set_del'))}">${icon('close')}</button>` : ''}</div>`).join('');
   }
 
+  /**
+   * Tỉ số một người chơi đã tự báo, đang chờ: đối thủ (hoặc ban tổ chức) bấm "Xác nhận tỉ số này" là chốt – gửi lại đúng tỉ số
+   * đó (máy chủ: tour-score.js – đối thủ báo trùng hoặc ban tổ chức nhập thì kết quả mới có hiệu lực).
+   */
+  function claimHtml(t, m) {
+    const c = m.claim;
+    if (!c || m.done) return '';
+    const side = (u) => (m.a.uid === u ? m.a : m.b).name;
+    const s = c.sets ? setsText({ sets: c.sets, extra: c.extra }) : c.w ? T('score_claim_win', { name: side(c.w) }) : T('draw');
+    const canOk = canScore(t) || (mine(t, m) && me().uid !== c.by);
+    return `<p class="hint score-claim">${esc(T('score_claim', { name: side(c.by), s }))}</p>${canOk ? `<div class="row"><button type="button" class="primary sm" data-act="scoreClaimOk">${esc(T('score_claim_ok'))}</button></div>` : ''}`;
+  }
+
   function panel(t) {
     const x = find(t, S.match);
     if (!x) return '';
@@ -59,7 +72,7 @@
         <button type="button" class="ghost" data-act="scoreWin" data-uid="${esc(m.a.uid)}">${esc(T('score_win_for', { name: m.a.name }))}</button>
         <button type="button" class="ghost" data-act="scoreWin" data-uid="${esc(m.b.uid)}">${esc(T('score_win_for', { name: m.b.name }))}</button></div></div>`;
     }
-    const done = m.done ? `<p class="hint">${esc(T('score_current', { s: setsText(m) || `${m.wa}–${m.wb}` }))}</p>` : '';
+    const done = (m.done ? `<p class="hint">${esc(T('score_current', { s: setsText(m) || `${m.wa}–${m.wb}` }))}</p>` : '') + claimHtml(t, m);
     if (t.quickAdvance) {
       // Chỉ báo người thắng: hai nút (+ Hoà ở vòng tròn / Thụy Sĩ)
       const rr = x.v.type === 'roundrobin' || x.v.type === 'swiss';
@@ -114,6 +127,12 @@
   }
 
   K.acts.scoreClose = () => { S.match = null; render(true); };
+  K.acts.scoreClaimOk = () => {
+    const x = find(D.tour, S.match), c = x && x.m.claim;
+    if (!c) return;
+    S.saving = S.match;
+    O.send({ t: 'tourScore', id: D.tour.id, match: S.match, ...(c.sets ? { sets: c.sets, extra: c.extra } : { winner: c.w, draw: !c.w }) });
+  };
   K.acts.setAdd = () => { readSets(); if (S.sets.length < 9) S.sets.push(['', '']); render(true); };
   K.acts.setDel = (b) => { readSets(); S.sets.splice(Number(b.dataset.i), 1); render(true); };
   K.acts.scoreUndo = () => {

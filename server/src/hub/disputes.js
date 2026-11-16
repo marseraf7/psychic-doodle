@@ -21,7 +21,11 @@ class Disputes {
   /** Ghi một ván mất kết nối chờ xử lý và báo ban tổ chức. */
   openDispute(t, d) {
     const rec = { id: crypto.randomBytes(5).toString('hex'), at: Date.now(), status: 'open', ...d };
-    t.disputes = [...(t.disputes || []), rec].slice(-KEEP);
+    // Chỉ cắt bớt khiếu nại ĐÃ XỬ LÝ: bản ghi còn mở mà bị cắt thì trận giữ "hold" mãi, giải treo (rà soát 16/11/2026, mục 7)
+    const all = [...(t.disputes || []), rec];
+    const closed = all.filter((x) => x.status !== 'open');
+    const drop = new Set(closed.slice(0, Math.max(0, closed.length - KEEP)));
+    t.disputes = all.filter((x) => !drop.has(x));
     const args = { name: t.name, loser: this.player(t, d.l)?.name || '?', winner: this.player(t, d.w)?.name || '?' };
     for (const uid of this.tourManagers(t, 'disputes')) this.send(userPid(uid), note('tour_dispute_new', args));
     return rec;

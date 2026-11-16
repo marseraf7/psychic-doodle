@@ -240,14 +240,16 @@
     }
 
     /** Renju: ô cấm của X (khi người chơi đang cầm X tới lượt) – dấu ✕ đỏ nhỏ, như các app Renju. */
-    let fbCache = { key: '', cells: [] };
+    // Nhớ theo ĐÚNG thế cờ: cùng đối tượng bàn + cùng đối tượng nước cuối + cùng số nước. Khoá cũ (số nước + toạ độ nước cuối)
+    // trùng giữa hai thế khác nhau (đi lại rồi đi đường khác, tua xem lại, vào giải đố) → hiện ô cấm của thế trước
+    let fbCache = { board: null, last: null, n: -1, cells: [] };
     function forbiddenCells() {
       const b = state.board;
       if (b.rule !== 'renju' || state.turn !== X || state.winner || state.replay || !canPlaceNow()) return [];
-      const key = b.moves.length + ':' + (b.moves.length ? b.moves[b.moves.length - 1].x + ',' + b.moves[b.moves.length - 1].y : '');
-      if (fbCache.key === key) return fbCache.cells;
+      const n = b.moves.length, last = n ? b.moves[n - 1] : null;
+      if (fbCache.board === b && fbCache.last === last && fbCache.n === n) return fbCache.cells;
       const cells = window.Caro.candidates(b, 2).filter(([x, y]) => forbidden(b, x, y, X));
-      fbCache = { key, cells };
+      fbCache = { board: b, last, n, cells };
       return cells;
     }
     function drawForbidden(s, x0, x1, y0, y1) {
@@ -272,7 +274,7 @@
 
     /** Đánh dấu của phân tích / giải đố: huy hiệu loại nước, nước gợi ý (vòng nét đứt), nước sai. */
     /** Tên cột: a…z, rồi aa, ab… (bàn cờ vô hạn nên chỉ đặt tên trong phạm vi ván đang phân tích). */
-    const colName = (c) => (c < 26 ? String.fromCharCode(97 + c) : String.fromCharCode(96 + Math.floor(c / 26)) + String.fromCharCode(97 + (c % 26)));
+    const colName = (c) => { let s = ''; for (let n = c; n >= 0; n = Math.floor(n / 26) - 1) s = String.fromCharCode(97 + (n % 26)) + s; return s; }; // a…z, aa…zz, aaa…
     let fontFamily = ''; // phông chữ của trang (đọc 1 lần, không gọi getComputedStyle mỗi khung hình)
     function drawMarks(s, x0, x1, y0, y1) {
       for (const m of state.marks) {

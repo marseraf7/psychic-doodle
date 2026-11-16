@@ -229,7 +229,9 @@ class Clubs {
     c.requests = c.requests.filter((x) => x !== uid);
     const msg = c.reqMsg[uid] || '';
     delete c.reqMsg[uid];
-    if (accept && this.store.users.get(uid)) {
+    // Yêu cầu cũ còn sót (người đó đã vào bằng đường khác rồi bị mời ra / chặn, hoặc đang là quản lý): không nhận lại,
+    // không hạ cấp – cùng hai chốt như clubReconsider (rà soát 16/11/2026, mục 1)
+    if (accept && this.store.users.get(uid) && !c.members[uid] && !c.banned[uid]) {
       this.addMember(c, uid);
       this.send(userPid(uid), note('club_request_accepted', { club: c.name }));
     } else if (!accept) {
@@ -264,16 +266,19 @@ class Clubs {
     c.members[uid] = 'member';
     c.joinedAt[uid] = Date.now();
     c.declined = c.declined.filter((x) => x.uid !== uid);
+    // Đã vào rồi thì yêu cầu xin vào cũ không còn nghĩa (không để sót cho lần duyệt sau)
+    c.requests = c.requests.filter((x) => x !== uid);
+    delete c.reqMsg[uid];
   }
 
-  /** Rời / bị mời ra: xoá mọi dấu vết thành viên (quyền, ngày vào, tắt tin, đã đọc). */
+  /** Rời / bị mời ra: xoá dấu vết thành viên (quyền, ngày vào, tắt tin, đã đọc) – trừ lệnh cấm nói. */
   dropMember(c, uid) {
     delete c.members[uid];
     delete c.perms[uid];
     delete c.joinedAt[uid];
     delete c.seen[uid];
     c.muted = c.muted.filter((x) => x !== uid);
-    c.talkMuted = c.talkMuted.filter((x) => x !== uid);
+    // talkMuted (bị cấm nói) GIỮ lại như banned: rời rồi vào lại không thoát được lệnh cấm nói (gỡ bằng clubTalkMute)
   }
 
   /** Những người có quyền perm (chủ + quản lý có quyền đó) – để gửi thông báo. */

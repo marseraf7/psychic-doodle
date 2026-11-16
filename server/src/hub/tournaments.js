@@ -86,12 +86,15 @@ class Tournaments {
     return s ? s.perms : null;
   }
 
-  /** perm: bỏ trống = bất kỳ quyền nào; 'owner' = chỉ chủ giải; còn lại = quyền cụ thể (hoặc 'all'). */
+  /** perm: bỏ trống = bất kỳ quyền nào; 'owner' = chỉ chủ giải (phân quyền, xoá giải); 'run' = chủ giải hoặc 'all'; còn lại = quyền cụ thể (hoặc 'all'). */
   canManageTour(t, uid, perm) {
     const p = this.tourPerms(t, uid);
     if (!p) return false;
     if (p === 'owner') return true;
     if (!perm) return true;
+    // 'run' = điều hành giải (bắt đầu / huỷ / đặt lại / gửi duyệt): chủ giải và đồng ban tổ chức quyền 'all' – đúng định nghĩa
+    // "'all' = toàn quyền như người tạo, trừ phân quyền / xoá giải" (trước đây 'all' không bắt đầu / huỷ được giải)
+    if (perm === 'run') return p.includes('all');
     return perm !== 'owner' && (p.includes('all') || p.includes(perm));
   }
 

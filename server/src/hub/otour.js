@@ -72,7 +72,15 @@ class OTour {
   // ------------------------------------------------------------ Quyền
   /** Xem được: giải công khai / có link; riêng tư chỉ chủ giải, quản trị viên và người được mời đăng ký. */
   otCanSee(t, uid) {
-    return t.access !== 'private' || this.otCanManage(t, uid) || !!(uid && t.reg && (t.reg.invited || []).includes(uid));
+    if (t.access !== 'private' || this.otCanManage(t, uid) || this.otInvited(t, uid)) return true;
+    // Giải con riêng tư của một giải tổng riêng tư cùng chủ: người được mời vào giải tổng xem được (trang giải tổng vốn đã
+    // hiện giải con đó cho họ – otMultiShown; trước đây thấy tên / lịch ở giải tổng nhưng mở giải con thì "không tìm thấy")
+    const p = t.parent && this.otGet(t.parent);
+    return !!(p && p.multi && p.access === 'private' && p.owner === t.owner && this.otInvited(p, uid));
+  }
+
+  otInvited(t, uid) {
+    return !!(uid && t.reg && (t.reg.invited || []).includes(uid));
   }
 
   otCanManage(t, uid) {
@@ -141,6 +149,8 @@ class OTour {
     const t = { id: crypto.randomBytes(5).toString('hex'), kind: 'otour', ...f, ...spec, owner: me.id, status: 'draft', created: now, updated: now,
       players: [], st: null, stage: 0, podium: null, log: [] };
     this.otAddTeams(t, o.teams);
+    // Giải tổng kèm giải con: kiểm hạn mức giải con TRƯỚC khi lưu giải tổng (không để lại giải tổng "ma" khi báo lỗi)
+    if (!parent && o.multi) this.otMultiQuota(me, Multi.initGames(o.multi.games).length);
     if (parent) { t.owner = parent.owner; this.otMultiLink(parent, t); } else if (o.multi) t.multi = { table: Multi.cleanTable(o.multi.table), ...Multi.cleanRule(o.multi), children: [], st: {} };
     this.otAdd(t, me.id);
     if (parent) this.otSave(parent);
@@ -152,12 +162,14 @@ class OTour {
   /** Sửa: tên / mô tả / link / quyền xem lúc nào cũng được; bộ môn và thể thức chỉ trước khi bắt đầu. */
   on_otEdit(conn, o) {
     const { t, me } = this.otManaged(conn, o.id);
-    Object.assign(t, this.otFields(o, t.id));
+    // Kiểm hết rồi mới ghi: cấu hình sai thì KHÔNG trường nào được đổi (trước đây báo lỗi nhưng quyền xem đã thành công khai)
+    const f = this.otFields(o, t.id);
+    let sp = null;
     if (o.spec && t.status === 'draft') {
-      const sp = specGuard(() => Spec.normalizeSpec(o.spec));
+      sp = specGuard(() => Spec.normalizeSpec(o.spec));
       if (o.spec.esports === undefined && sp.sport === t.sport) delete sp.esports; // không gửi cấu hình esports: giữ như cũ
-      Object.assign(t, sp);
     }
+    Object.assign(t, f, sp || {});
     this.otLog(t, me.id, 'edited');
     this.otSave(t);
     conn.send({ t: 'otEdited', id: t.id });
@@ -237,7 +249,20 @@ class OTour {
   otMine(t, uid) {
     const manage = this.otCanManage(t, uid);
     return { canManage: manage, log: manage ? (t.log || []).slice(-50).reverse() : null, now: Date.now(), ...this.otRegMine(t, uid),
-      ...(manage && t.multi ? { multiPriv: this.otMultiPrivate(t) } : {}) }; // giải con riêng tư: chỉ người quản lý thấy (otour-multi.js)
+      ...(manage && t.multi ? { multiPriv: this.otMultiPrivate(t) } : {}), // giải con riêng tư: chỉ người quản lý thấy (otour-multi.js)
+      ...this.otPrivRefs(t, uid) };
+  }
+
+  /**
+   * Liên kết tới giải riêng tư (giải tổng của giải con, mùa trước / sau): không nằm trong phần chung, chỉ gửi cho người xem
+   * được giải đó – ghi đè trường cùng tên của phần chung ở trang (D.ot = { ...tour, ...mine }).
+   */
+  otPrivRefs(t, uid) {
+    const out = {};
+    const p = t.parent && this.otGet(t.parent);
+    if (p && p.access === 'private') { const v = this.otParentView(t, uid || null); if (v) out.parent = v; }
+    if (t.series && [t.series.prev, t.series.next].some((id) => { const x = id && this.otGet(id); return x && x.access === 'private'; })) out.series = this.otSeriesView(t, uid || null);
+    return out;
   }
 
   /** Gom cập nhật rồi gửi: người mới mở trang nhận bản đầy đủ, còn lại nhận bản vá (như giải Caro). */

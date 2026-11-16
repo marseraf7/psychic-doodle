@@ -46,6 +46,7 @@
     const p = t && t.canManage ? t.perms || 'owner' : null;
     if (!p) return false;
     if (p === 'owner' || !perm) return true;
+    if (perm === 'run') return p.includes('all'); // điều hành giải (bắt đầu / huỷ / đặt lại / gửi duyệt): chủ giải hoặc quyền 'all'
     return perm !== 'owner' && (p.includes('all') || p.includes(perm));
   };
   const logo = (name, emoji) => {
@@ -254,8 +255,8 @@
     }
     if (mine && (t.status === 'scheduled' || t.status === 'running')) b.push(`<button type="button" class="ghost" data-act="leave">${esc(T('tour_withdraw'))}</button>`);
     if (t.status !== 'pending' && t.status !== 'rejected') b.push(`<button type="button" class="ghost" data-act="share">${icon('link')}${esc(T('share'))}</button>`);
-    if (can(t, 'owner') && t.status === 'scheduled') b.push(`<button type="button" class="ghost" data-act="start">${icon('play')}${esc(T('tour_start_now'))}</button>`);
-    if (can(t, 'owner') && ['draft', 'pending', 'scheduled', 'running'].includes(t.status)) b.push(`<button type="button" class="ghost danger" data-act="cancel">${esc(T('tour_cancel'))}</button>`);
+    if (can(t, 'run') && t.status === 'scheduled') b.push(`<button type="button" class="ghost" data-act="start">${icon('play')}${esc(T('tour_start_now'))}</button>`);
+    if (can(t, 'run') && ['draft', 'pending', 'scheduled', 'running'].includes(t.status)) b.push(`<button type="button" class="ghost danger" data-act="cancel">${esc(T('tour_cancel'))}</button>`);
     if (!me() && (t.status === 'scheduled' || t.status === 'running')) b.push(`<span class="hint">${esc(T('tour_login_hint'))}</span>`);
     return b.join('');
   }

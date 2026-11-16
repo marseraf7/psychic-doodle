@@ -58,7 +58,7 @@
       [['running', 'finished'].includes(t.status), 'mg_ck_start', t.status === 'scheduled' ? 'start' : null],
     ];
     // Nút "Làm ngay" chỉ hiện khi người xem có quyền làm việc đó
-    const allowed = (act) => act && K.can(t, act === 'mgSettings' ? 'config' : 'owner');
+    const allowed = (act) => act && K.can(t, act === 'mgSettings' ? 'config' : 'run');
     return `<ol class="checklist">${items.map(([ok, k, act]) => `<li class="${ok ? 'ok' : ''}">${icon(ok ? 'check' : 'clock')}<span>${esc(T(k))}</span>${!ok && allowed(act) ? `<button type="button" class="ghost sm" data-act="${esc(act)}">${esc(T('mg_do'))}</button>` : ''}</li>`).join('')}</ol>`;
   }
 
@@ -156,7 +156,7 @@
     const danger = [];
     if (t.status === 'running') {
       danger.push(`<button type="button" class="ghost" data-act="mgHold" data-v="${t.held ? 0 : 1}">${icon(t.held ? 'play' : 'pause')}${esc(T(t.held ? 'mg_resume' : 'mg_hold'))}</button>`);
-      if (K.can(t, 'owner')) danger.push(`<button type="button" class="ghost danger" data-act="mgReset">${icon('retry')}${esc(T('mg_reset'))}</button>`);
+      if (K.can(t, 'run')) danger.push(`<button type="button" class="ghost danger" data-act="mgReset">${icon('retry')}${esc(T('mg_reset'))}</button>`);
     }
     if (t.status !== 'running' && K.can(t, 'owner')) danger.push(`<button type="button" class="ghost danger" data-act="mgDelete">${icon('trash')}${esc(T('mg_delete_tour'))}</button>`);
     return `<section class="mg-sec"><h4>${esc(T('mg_settings'))}</h4>${edit}</section>

@@ -185,7 +185,7 @@ class TourManage {
 
   /** Đặt lại: giải đang chạy về trước khi bắt đầu (giữ người chơi, bỏ nhánh đấu / điểm); ván đang dở không tính nữa. */
   on_tourReset(conn, { id }) {
-    const { t, uid } = this.managerOf(conn, id, 'owner');
+    const { t, uid } = this.managerOf(conn, id, 'run');
     if (t.status !== 'running') throw E('tour_not_running');
     for (const r of this.rooms.values()) if (r.tour && r.tour.id === t.id) r.tour.cancelled = true;
     Object.assign(t, { status: 'scheduled', st: null, stage: 0, arrange: null, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [],
@@ -215,7 +215,7 @@ class TourManage {
 
   /** Nháp → gửi duyệt (quản trị viên: mở đăng ký luôn). */
   on_tourSubmit(conn, { id }) {
-    const { t, uid } = this.managerOf(conn, id, 'owner');
+    const { t, uid } = this.managerOf(conn, id, 'run');
     if (t.status !== 'draft') throw E('tour_not_draft');
     if (t.startsAt < Date.now() + 60 * 1000) throw E('tour_bad_start');
     t.status = this.isAdmin(uid) ? 'scheduled' : 'pending';

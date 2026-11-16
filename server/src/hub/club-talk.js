@@ -14,6 +14,7 @@ const { cleanPublicText, uidOf } = require('./shared.js');
 const { cleanMultiline } = require('./clubs.js');
 
 const PAGE = 20; // chủ đề / bài mỗi trang
+const MAX_TALK_MUTED = 200; // lệnh cấm nói giữ cả sau khi người đó rời CLB → cần trần (như MAX_BANNED)
 const MAX_TOPICS = 500;
 const GAP = { chat: 1000, post: 10000, topic: 60000 };
 
@@ -80,6 +81,7 @@ class ClubTalk {
     const m = this.store.clubChatGet(c.id, Number(msg));
     if (!m) return;
     if (m.uid !== me.id && !this.clubCan(c, me.id, 'mod')) throw E('club_officers_only');
+    if (c.banned[me.id]) throw E('club_banned'); // đã bị chặn khỏi CLB: không còn đụng được vào nội dung trong CLB
     this.store.clubChatDel(c.id, m.id);
     this.sendChatWatchers(c, { t: 'clubChatDel', id: c.id, msg: m.id });
   }
@@ -89,9 +91,12 @@ class ClubTalk {
     const me = this.requireUser(conn);
     const c = this.findClub(id, me.id);
     this.requireClubPerm(c, me.id, 'mod');
-    if (!c.members[uid] || uid === me.id || this.clubCan(c, uid, 'mod')) throw E('club_cannot_kick');
+    // Gỡ cấm nói được cả với người đã rời CLB (lệnh cấm nói giữ lại sau khi rời – clubs.js dropMember)
+    const was = c.talkMuted.includes(uid);
+    if (!(mute ? c.members[uid] : c.members[uid] || was) || uid === me.id || this.clubCan(c, uid, 'mod')) throw E('club_cannot_kick');
     c.talkMuted = c.talkMuted.filter((x) => x !== uid);
     if (mute) c.talkMuted.push(uid);
+    if (c.talkMuted.length > MAX_TALK_MUTED) c.talkMuted.shift();
     this.saveClub(c);
     this.pushClub(c);
   }
@@ -140,7 +145,8 @@ class ClubTalk {
   /** Diễn đàn đổi (chủ đề mới, bài mới / sửa / xoá): người đang mở trang CLB / chủ đề tải lại phần đang xem. */
   topicDirty(c, topic, gone) {
     for (const set of this.byPid.values()) {
-      for (const conn of set) if (conn.watchClub === c.id) conn.send({ t: 'clubTopicDirty', id: c.id, topic, gone: !!gone });
+      // Chỉ người được đọc diễn đàn (như chat lọc theo canChat): người ngoài mở trang CLB không nhận mã chủ đề / nhịp hoạt động
+      for (const conn of set) if (conn.watchClub === c.id && this.canForum(c, uidOf(conn.pid), false)) conn.send({ t: 'clubTopicDirty', id: c.id, topic, gone: !!gone });
     }
   }
 
@@ -174,6 +180,7 @@ class ClubTalk {
     const p = this.store.clubPost(c.id, Number(post));
     if (!p) return;
     if (p.uid !== me.id && !this.clubCan(c, me.id, 'mod')) throw E('club_officers_only');
+    if (c.banned[me.id]) throw E('club_banned'); // người bị chặn không xoá được bài (bài đầu chủ đề mất là mất cả chủ đề)
     const gone = this.store.clubPostDel(p.id);
     this.topicDirty(c, p.topic, gone);
   }

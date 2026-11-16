@@ -20,7 +20,7 @@ class TourRun {
 
   /** Bắt đầu ngay (không chờ tới giờ). */
   on_tourStart(conn, { id }) {
-    const t = this.requireManager(conn, id, 'owner');
+    const t = this.requireManager(conn, id, 'run');
     if (t.status !== 'scheduled') throw E('tour_cannot_start');
     // Bắt đầu sớm trước giờ điểm danh: coi như mọi người đã đăng ký đều điểm danh
     if (t.checkin && !this.inCheckin(t)) t.checkinWaived = true;
@@ -29,7 +29,7 @@ class TourRun {
   }
 
   on_tourCancel(conn, { id }) {
-    const t = this.requireManager(conn, id, 'owner');
+    const t = this.requireManager(conn, id, 'run');
     if (!['draft', 'pending', 'scheduled', 'running'].includes(t.status)) throw E('tour_cannot_cancel');
     this.tourLog(t, this.requireUser(conn).id, 'cancelled');
     this.cancelTour(t, 'organizer');
@@ -38,6 +38,7 @@ class TourRun {
   on_tourKick(conn, { id, uid }) {
     const t = this.requireManager(conn, id, 'players');
     if (!this.player(t, uid)) throw E('player_not_found');
+    if (['finished', 'cancelled', 'rejected'].includes(t.status)) throw E('tour_closed'); // giải đã đóng: không ghi log / báo "bị loại" suông
     this.tourLog(t, this.requireUser(conn).id, 'kicked', { name: this.player(t, uid).name });
     this.withdraw(t, uid, true);
     this.send(userPid(uid), note('tour_kicked', { name: t.name }));

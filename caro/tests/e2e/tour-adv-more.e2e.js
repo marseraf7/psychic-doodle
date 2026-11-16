@@ -51,13 +51,21 @@ const { setup, sleep } = require('./helpers.js');
   await an.fill('[data-set="0"][data-side="0"]', aFirst ? '2' : '0');
   await an.fill('[data-set="0"][data-side="1"]', aFirst ? '0' : '2');
   await an.click('#sp button.primary'); await sleep(600);
-  ok(m.done && m.winner === AN, 'An tự báo: thắng 2–0, kết quả vào nhánh đấu');
+  // Tự báo chỉ là đề xuất (rà soát 16/11/2026): trận chưa xong, cả An và ban tổ chức thấy tỉ số đang chờ; ban tổ chức xác nhận mới chốt
+  ok(!m.done && m.claim && m.claim.by === AN, 'An tự báo: mới là đề xuất, trận chưa chốt');
+  await an.click('.scorable').catch(() => {}); await sleep(300);
+  ok(/đã báo: /.test(await an.textContent('.score-panel')) && !(await an.$('[data-act="scoreClaimOk"]')), 'An thấy tỉ số mình đã báo, không tự xác nhận được');
+  await boss.evaluate(() => window.CaroTourKit.render(true)); await sleep(300);
+  ok(/Chờ xác nhận/.test(await boss.textContent(`.mrow[data-mid="${m.id}"], .b-match[data-mid="${m.id}"]`)), 'Ban tổ chức: trận có nhãn chờ xác nhận tỉ số');
+  await boss.click(`.mrow[data-mid="${m.id}"], .b-match[data-mid="${m.id}"]`, { position: { x: 4, y: 4 } }); await sleep(300);
+  await boss.click('[data-act="scoreClaimOk"]'); await sleep(600);
+  ok(m.done && m.winner === AN && !m.claim, 'Ban tổ chức xác nhận: thắng 2–0, kết quả vào nhánh đấu');
   await shot(an, 'self-report.png');
   // Ẩn bảng xếp hạng: người xem (An) không thấy bảng điểm vòng bảng; ban tổ chức vẫn thấy
   ok(!(await an.$('table.stand')), 'Ẩn bảng xếp hạng: người chơi không thấy bảng điểm');
   await boss.evaluate(() => window.CaroTourKit.render(true)); await sleep(200);
   ok(!!(await boss.$('table.stand')), 'Ban tổ chức vẫn thấy bảng điểm');
-  ok(t.log.some((x) => x.act === 'self_score'), 'Nhật ký ghi "người chơi tự báo tỉ số"');
+  ok(t.log.some((x) => x.act === 'self_claim'), 'Nhật ký ghi "người chơi báo tỉ số (chờ xác nhận)"');
   // Ban tổ chức nhập nốt → kết quả tới chuông
   for (let i = 0; i < 12 && t.status === 'running'; i++) {
     for (const x of Object.values(t.st[t.stage || 0].matches)) {

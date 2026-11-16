@@ -64,6 +64,7 @@ class ClubBattle {
       ...o, name: `${c.name} vs ${opp.name}`.slice(0, 60), format: 'bracket', access: 'public', club: null, checkin: false, offline: false,
       seeding: 'list', maxPlayers: boards * 2, stages: [{ type: 'swiss', rounds: 1, bestOf: o.bestOf }], reg: null, teams: null,
     });
+    this.checkSlug(fields.slug); // như tourCreate: không trùng link riêng với giải khác
     const t = this.createTour(conn, me, { ...fields, teamMatch: { a: c.id, b: opp.id, boards, accepted: false, lineup: { a: [], b: [] } } });
     for (const uid of this.clubManagers(opp, 'tours')) this.send(userPid(uid), note('club_match_invite', { club: c.name, name: t.name }));
   }

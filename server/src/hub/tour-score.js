@@ -8,9 +8,9 @@
  * Quyền: người tạo giải, quản lý CLB của giải, quản trị viên (quyền cao nhất). Không đổi Elo (giải offline không tính Elo).
  */
 'use strict';
-const { E } = require('../msg.js');
+const { E, note } = require('../msg.js');
 const ST = require('./stages.js');
-const { uidOf } = require('./shared.js');
+const { uidOf, userPid } = require('./shared.js');
 
 const MAX_SETS = 9;
 const MAX_POINT = 999;
@@ -77,30 +77,30 @@ class TourScore {
       if (winner !== m.a && winner !== m.b) throw E('tour_score_bad');
       m.override = true;
       this.finishMatch(t, st, m, winner, { walkover: true });
-    } else if (t.quickAdvance && sets == null) {
-      const tie = draw === true && !ST.isElim(st.type);
-      if (!tie && winner !== m.a && winner !== m.b) throw E('tour_score_bad');
-      m.quick = true;
-      m.sets = null;
-      m.extra = null;
-      m.wins = tie ? { [m.a]: 0, [m.b]: 0 } : { [winner]: 1, [winner === m.a ? m.b : m.a]: 0 };
-      this.finishMatch(t, st, m, tie ? null : winner);
-      if (t.status === 'running') this.runOffline(t);
     } else {
-      const list = Array.isArray(sets) ? sets.slice(0, MAX_SETS).map(pair) : [];
-      if (!list.length || list.some((s) => !s)) throw E('tour_score_bad');
-      const ex = extra == null ? null : pair(extra);
-      if (extra != null && !ex) throw E('tour_score_bad');
-      const { ka, kb } = matchScore(list, t.scoreMode);
-      let w = ka > kb ? m.a : kb > ka ? m.b : null;
-      if (w === null && ex && ex[0] !== ex[1]) w = ex[0] > ex[1] ? m.a : m.b;
-      if (w === null && ST.isElim(st.type)) throw E('tour_score_tie');
-      m.sets = list;
-      m.extra = ex;
-      // m.wins luôn là số set thắng (bảng điểm / tie-break đọc như số ván thắng); cách tính chỉ quyết định ai thắng
-      const sw = matchScore(list, 'sets');
-      m.wins = { [m.a]: sw.ka, [m.b]: sw.kb };
-      this.finishMatch(t, st, m, w);
+      const r = this.readScore(t, st, m, { sets, extra, winner, draw }); // sai thì ném lỗi, chưa đổi gì
+      if (self) {
+        // Người chơi tự báo: mới là ĐỀ XUẤT. Kết quả chỉ chốt khi đối thủ báo trùng, hoặc ban tổ chức nhập / xác nhận
+        // (trước đây một người tự báo là chốt luôn → tự thắng tới vô địch, không đảo ngược được – rà soát 16/11/2026, mục 2)
+        const who = uidOf(conn.pid), opp = m.a === who ? m.b : m.a;
+        const key = JSON.stringify([r.quick, r.sets, r.extra, r.winner]);
+        if (!(m.claim && m.claim.by === opp && m.claim.key === key)) {
+          m.claim = { by: who, at: Date.now(), key, sets: r.sets, extra: r.extra, w: r.winner };
+          const side = (u) => (this.player(t, u) || {}).name || '?';
+          const args = { name: t.name, who: side(who), a: side(m.a), b: side(m.b) };
+          for (const uid of new Set([opp, ...this.tourManagers(t, 'results')])) if (uid !== who && ST.real(uid)) this.send(userPid(uid), note('tour_claim', args));
+          this.tourLog(t, who, 'self_claim', { match: m.id, a: args.a, b: args.b, s: r.sets ? r.sets.map((x) => x.join('-')).join(' ') : null, w: ST.real(r.winner) ? side(r.winner) : null });
+          this.saveTour(t);
+          this.pushTour(t);
+          return;
+        }
+      }
+      delete m.claim;
+      m.quick = r.quick;
+      m.sets = r.sets;
+      m.extra = r.extra;
+      m.wins = r.wins;
+      this.finishMatch(t, st, m, r.winner);
       if (t.status === 'running') this.runOffline(t);
     }
     m.by = by ? String(by) : null;
@@ -108,6 +108,31 @@ class TourScore {
     this.tourLog(t, this.requireUser(conn).id, self ? 'self_score' : t.offline ? 'score' : 'override', { match: m.id, a: side(m.a), b: side(m.b), s: m.sets ? m.sets.map((x) => x.join('-')).join(' ') : null, w: ST.real(m.winner) ? side(m.winner) : null });
     this.saveTour(t);
     this.pushTour(t);
+  }
+
+  /**
+   * Đọc và kiểm kết quả giải offline (chưa ghi gì): { quick, sets, extra, wins, winner } – winner null = hoà.
+   * Sai thì ném lỗi tour_score_bad / tour_score_tie.
+   */
+  readScore(t, st, m, { sets, extra, winner, draw }) {
+    if (t.quickAdvance && sets == null) {
+      const tie = draw === true && !ST.isElim(st.type);
+      if (!tie && winner !== m.a && winner !== m.b) throw E('tour_score_bad');
+      return { quick: true, sets: null, extra: null, winner: tie ? null : winner, wins: tie ? { [m.a]: 0, [m.b]: 0 } : { [winner]: 1, [winner === m.a ? m.b : m.a]: 0 } };
+    }
+    const list = Array.isArray(sets) ? sets.slice(0, MAX_SETS).map(pair) : [];
+    if (!list.length || list.some((x) => !x)) throw E('tour_score_bad');
+    // Số set không vượt Bo của trận (trước đây trận Bo1 nhận 9 set × 999–0, phồng hiệu số ván – rà soát 16/11/2026, mục 15)
+    if (sets.length > ST.boOf(st, m)) throw E('tour_score_bad');
+    const ex = extra == null ? null : pair(extra);
+    if (extra != null && !ex) throw E('tour_score_bad');
+    const { ka, kb } = matchScore(list, t.scoreMode);
+    let w = ka > kb ? m.a : kb > ka ? m.b : null;
+    if (w === null && ex && ex[0] !== ex[1]) w = ex[0] > ex[1] ? m.a : m.b;
+    if (w === null && ST.isElim(st.type)) throw E('tour_score_tie');
+    // wins luôn là số set thắng (bảng điểm / tie-break đọc như số ván thắng); cách tính chỉ quyết định ai thắng
+    const sw = matchScore(list, 'sets');
+    return { quick: false, sets: list, extra: ex, winner: w, wins: { [m.a]: sw.ka, [m.b]: sw.kb } };
   }
 
   /** Huỷ kết quả một trận: chỉ khi các trận nhận người thắng / thua của nó chưa đấu (và giai đoạn chưa chuyển). */
@@ -126,6 +151,7 @@ class TourScore {
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
     Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, quick: false, readyAt: Date.now() });
+    delete m.claim;
     st.done = false;
     for (const u of [m.a, m.b]) {
       const p = ST.real(u) && this.player(t, u);

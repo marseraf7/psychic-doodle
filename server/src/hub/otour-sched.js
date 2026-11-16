@@ -69,6 +69,7 @@ class OTourSched {
     const { placed, unplaced } = SC.autoSchedule(items, t.sched, { fromWhen: opts.fromWhen });
     const byId = new Map(items.map((it) => [it.id, it]));
     const touched = new Set();
+    if (!placed.length && unplaced.length) return { n: 0, left: unplaced.length }; // không xếp được trận nào: giữ nguyên giờ cũ
     for (const p of placed) {
       const it = byId.get(p.id);
       Object.assign(it.m, { when: p.when, venue: p.venue || null });
@@ -85,9 +86,10 @@ class OTourSched {
     const { t, me } = this.otManaged(conn, id);
     const c = SC.cleanSched(sched);
     c.venues = c.venues.map((v) => clean(v, 40)).filter(Boolean);
+    const old = t.sched;
     t.sched = c;
     const r = this.otSchedRun(t, mode === 'all' ? 'all' : 'empty');
-    if (!r.n && r.left) throw E('ot_sched_none');
+    if (!r.n && r.left) { t.sched = old; throw E('ot_sched_none'); } // báo lỗi thì không đổi gì
     this.otLog(t, me.id, 'sched', r);
     this.otSave(t);
   }

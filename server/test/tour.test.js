@@ -806,6 +806,9 @@ test('Bulk Add: giải trực tuyến thêm theo tên đăng nhập; giải offl
   const name = (u) => t.players.find((p) => p.uid === u).name;
   assert.deepStrictEqual([name(m1.a), name(m1.b)], ['An', 'Dũng'], 'hạt giống theo thứ tự thêm: 1 gặp 4');
   const score = (m, sets, extra) => B.send({ t: 'tourScore', id: off.id, match: m.id, sets, extra });
+  // Số set không vượt Bo của trận (rà soát 16/11/2026, mục 15: trận nhận 9 set × 999–0 làm phồng hiệu số ván)
+  assert.strictEqual((await B.req({ t: 'tourScore', id: off.id, match: m1.id, sets: Array.from({ length: 9 }, () => [999, 0]) }, 'error')).code, 'tour_score_bad');
+  assert.ok(!m1.done);
   // Hoà số set ở loại trực tiếp: phải có kết quả phụ
   assert.strictEqual((await B.req({ t: 'tourScore', id: off.id, match: m1.id, sets: [[21, 15], [15, 21]] }, 'error')).code, 'tour_score_tie');
   await score(m1, [[21, 15], [15, 21]], [5, 3]);
@@ -1502,10 +1505,22 @@ test('Advanced options như Challonge: chia sẻ quyền quản trị lúc tạo
   // Người ngoài trận không báo được tỉ số; người trong trận báo được (giải bật selfReport)
   const other = Object.values(t.st[0].matches).find((x) => x !== m && !x.bye && x.a && x.b);
   if (other) assert.strictEqual((await pa.req({ t: 'tourScore', id, match: other.id, sets: [[2, 0]] }, 'error')).code, 'tour_managers_only');
-  pa.send({ t: 'tourScore', id, match: m.id, sets: m.a === pa.me.uid ? [[2, 0]] : [[0, 2]] });
+  // Tự báo chỉ là ĐỀ XUẤT (rà soát 16/11/2026, mục 2): trận chưa xong, ban tổ chức được báo; báo lại lần nữa vẫn chưa chốt
+  const mySets = m.a === pa.me.uid ? [[2, 0]] : [[0, 2]];
+  const told = B.wait('toast', (x) => x.code === 'tour_claim');
+  pa.send({ t: 'tourScore', id, match: m.id, sets: mySets });
+  await until(() => m.claim);
+  await told;
+  pa.send({ t: 'tourScore', id, match: m.id, sets: mySets });
+  await sleep(150);
+  assert.ok(!m.done && m.claim.by === pa.me.uid && t.status === 'running', 'một mình tự báo: chưa chốt kết quả');
+  assert.ok(t.log.some((x) => x.act === 'self_claim'), 'nhật ký ghi người chơi báo tỉ số');
+  assert.deepStrictEqual(app.hub.matchView(t, m, t.st[0]).claim.sets, mySets, 'trang giải hiện tỉ số đang chờ xác nhận');
+  // Ban tổ chức xác nhận (gửi đúng tỉ số đó): chốt
+  B.send({ t: 'tourScore', id, match: m.id, sets: mySets });
   await until(() => m.done);
   assert.strictEqual(m.winner, pa.me.uid);
-  assert.ok(t.log.some((x) => x.act === 'self_score'), 'nhật ký ghi người chơi tự báo');
+  assert.ok(!m.claim && !app.hub.matchView(t, m, t.st[0]).claim);
   assert.strictEqual((await pa.req({ t: 'tourScore', id, match: m.id, sets: [[0, 2]] }, 'error')).code, 'tour_managers_only', 'trận đã xong: không tự sửa');
   // Ban tổ chức nhập nốt; giải xong: người online nhận kết quả ngay, người offline nhận khi vào lại
   const res = pa.wait('notes', (x) => x.items.some((y) => y.k === 'tour_result'));
@@ -1646,4 +1661,45 @@ test('Kéo thả xếp nhánh giữa hai giai đoạn: dừng sau Thụy Sĩ, ba
   assert.ok(t.log.some((x) => x.act === 'arranged'));
   assert.strictEqual((await B.req({ t: 'tourArrange', id, slots: swapped }, 'error')).code, 'tour_arrange_none');
   out.close();
+});
+
+test('Rà soát 16/11: tự báo tỉ số chốt khi đối thủ báo trùng (báo khác thì không); đồng ban tổ chức quyền "all" bắt đầu / huỷ được giải', async () => {
+  const B = await organizer();
+  const co = await account('all'), pa = await account('cl'), pb = await account('cl');
+  const { id } = await B.req({ t: 'tourCreate', name: 'Giải Báo Trùng', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, admins: ['@' + co.me.username],
+    stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = app.hub.tours.get(id);
+  await B.req({ t: 'tourAddPlayers', id, names: ['@' + pa.me.username, '@' + pb.me.username] }, 'tourAddResult');
+  // Quyền 'all': bắt đầu được giải (trước đây chỉ chủ giải); vẫn không phân quyền / xoá giải được
+  co.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  assert.strictEqual((await co.req({ t: 'tourStaff', id, username: pa.me.username, perms: ['all'] }, 'error')).code, 'tour_managers_only');
+  assert.strictEqual((await co.req({ t: 'tourDelete', id, confirm: t.name }, 'error')).code, 'tour_managers_only');
+  const m = Object.values(t.st[0].matches).find((x) => !x.bye);
+  const win = (u) => (m.a === u ? [[2, 0]] : [[0, 2]]);
+  // pa báo mình thắng; pb báo KHÁC (pb thắng): không chốt, đề xuất mới nhất là của pb
+  pa.send({ t: 'tourScore', id, match: m.id, sets: win(pa.me.uid) });
+  await until(() => m.claim && m.claim.by === pa.me.uid);
+  pb.send({ t: 'tourScore', id, match: m.id, sets: win(pb.me.uid) });
+  await until(() => m.claim.by === pb.me.uid);
+  assert.ok(!m.done, 'hai bên báo khác nhau: chưa chốt');
+  // pa báo lại như cũ (vẫn khác pb): chưa chốt; pb báo trùng với pa: chốt
+  pa.send({ t: 'tourScore', id, match: m.id, sets: win(pa.me.uid) });
+  await until(() => m.claim.by === pa.me.uid);
+  assert.ok(!m.done);
+  pb.send({ t: 'tourScore', id, match: m.id, sets: win(pa.me.uid) });
+  await until(() => m.done);
+  assert.strictEqual(m.winner, pa.me.uid);
+  assert.ok(!m.claim && t.log.some((x) => x.act === 'self_score'));
+  // Giải đã xong (trận duy nhất đã chốt): mời ra bị từ chối, không ghi nhật ký suông (mục 25)
+  await until(() => t.status === 'finished');
+  const logs = t.log.length;
+  assert.strictEqual((await B.req({ t: 'tourKick', id, uid: pb.me.uid }, 'error')).code, 'tour_closed');
+  assert.strictEqual(t.log.length, logs);
+  // Quyền 'all' huỷ giải đang chờ khác
+  const { id: id2 } = await B.req({ t: 'tourCreate', name: 'Giải Sẽ Huỷ', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, admins: ['@' + co.me.username],
+    stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');
+  co.send({ t: 'tourCancel', id: id2 });
+  await until(() => app.hub.tours.get(id2).status === 'cancelled');
+  [co, pa, pb].forEach((c) => c.close());
 });

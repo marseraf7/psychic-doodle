@@ -44,11 +44,16 @@ class OTourNext {
   }
 
   /** Liên kết các mùa cho người xem: số mùa, mùa trước / sau (mã + tên + link riêng). */
-  otSeriesView(t) {
+  /**
+   * uid === undefined: phần chung cho mọi người xem (otShared) – KHÔNG kèm mùa riêng tư (trước đây lộ mã + tên mùa riêng tư
+   * cho người xem mùa công khai – rà soát 16/11/2026, mục 8a). Có uid: theo quyền xem của người đó (otMine).
+   */
+  otSeriesView(t, uid) {
     if (!t.series) return null;
     const ref = (id) => {
       const x = id && this.otGet(id);
-      return x ? { id: x.id, slug: x.slug || null, name: x.name } : null;
+      if (!x || (uid === undefined ? x.access === 'private' : !this.otCanSee(x, uid))) return null;
+      return { id: x.id, slug: x.slug || null, name: x.name };
     };
     return { n: t.series.n, prev: ref(t.series.prev), next: ref(t.series.next) };
   }

@@ -69,7 +69,10 @@
     // Không nhập kết quả được (người xem, hoặc giải đã kết thúc): chỉ xem – ban tổ chức vẫn sửa giờ / sân / sự kiện
     if (!canScore(t)) {
       const info = t.canManage ? extra(t, m) : K.otMatchView ? K.otMatchView(t, m) : '';
-      return `<div class="score-panel">${head}${m.done ? res() : ''}${games(t, m, v)}${info}</div>`;
+      // Giải vừa kết thúc (24 giờ): chủ giải còn huỷ được kết quả trận của giai đoạn cuối để sửa (máy chủ: otour-undo.js)
+      const reopen = t.canManage && t.status === 'finished' && !t.multi && m.done && v.index === (t.stageViews || []).length - 1 && t.finishedAt && Date.now() - t.finishedAt < 24 * 3600 * 1000;
+      const undo = reopen ? `<p class="hint">${esc(T('score_undo_finished'))}</p><div class="row"><button type="button" class="ghost sm danger" data-act="otUndo">${esc(T('score_undo'))}</button></div>` : '';
+      return `<div class="score-panel">${head}${m.done ? res() : ''}${undo}${games(t, m, v)}${info}</div>`;
     }
     if (m.done) {
       return `<div class="score-panel">${head}${res()}

@@ -53,11 +53,16 @@ class OTourRun {
   otAddTeams(t, names) {
     let n = 0;
     const have = new Set(t.players.map((p) => p.name.toLowerCase()));
+    // Đọc và kiểm trần trước, rồi mới thêm: vượt trần thì không đội nào được thêm (không thêm dở rồi báo lỗi)
+    const add = [];
     for (const raw of (Array.isArray(names) ? names : []).slice(0, Spec.MAX_TEAMS)) {
-      const { name, country, team, young } = parseTeam(raw);
-      if (!name || have.has(name.toLowerCase())) continue;
-      if (t.players.length >= Spec.MAX_TEAMS) throw E('ot_many_teams', { n: Spec.MAX_TEAMS });
-      have.add(name.toLowerCase());
+      const x = parseTeam(raw);
+      if (!x.name || have.has(x.name.toLowerCase())) continue;
+      have.add(x.name.toLowerCase());
+      add.push(x);
+    }
+    if (t.players.length + add.length > Spec.MAX_TEAMS) throw E('ot_many_teams', { n: Spec.MAX_TEAMS });
+    for (const { name, country, team, young } of add) {
       t.players.push({ uid: 't:' + crypto.randomBytes(5).toString('hex'), name, ...(country ? { country } : {}), ...(team ? { team } : {}), ...(young ? { young: true } : {}) });
       n++;
     }
