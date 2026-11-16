@@ -133,6 +133,27 @@ test('mục 74f: giải đang chạy không đổi được quickAdvance / arran
   B.close();
 });
 
+test('mục 74g: giải đang chạy — người thường không tự đổi tên / mô tả (nội dung đã duyệt); quản trị viên vẫn đổi được', async () => {
+  const B = await admin();
+  const org = await account();
+  const { id } = await org.req({ t: 'tourCreate', name: 'Giải đợt 5 duyệt tên', format: 'bracket', startsAt: Date.now() + 600000, timeLimit: 30, offline: true, checkin: false,
+    stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = ctx.app.hub.tours.get(id);
+  assert.strictEqual(t.status, 'pending', 'giải của người thường chờ duyệt');
+  await B.req({ t: 'adminReview', kind: 'tour', id, approve: true }, 'adminQueue');
+  assert.strictEqual(t.status, 'scheduled');
+  await org.req({ t: 'tourAddPlayers', id, names: ['An', 'Bình', 'Chi', 'Dũng'] }, 'tourAddResult');
+  org.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  // Người thường đổi tên giữa giải: bị chặn, tên đã duyệt giữ nguyên
+  assert.strictEqual((await org.req({ t: 'tourEdit', id, name: 'Tên chưa duyệt', desc: 'Mô tả chưa duyệt' }, 'error')).code, 'tour_edit_review');
+  assert.strictEqual(t.name, 'Giải đợt 5 duyệt tên');
+  // Quản trị viên (người duyệt) đổi được
+  await B.req({ t: 'tourEdit', id, name: 'Tên quản trị duyệt' }, 'tourEdited');
+  assert.strictEqual(t.name, 'Tên quản trị duyệt');
+  [org].forEach((c) => c.close());
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();
