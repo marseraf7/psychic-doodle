@@ -18,9 +18,11 @@
     adv_notify_match: 'Báo cho người chơi khi đến trận của họ', adv_notify_match_hint: 'Với giải ngoài đời: báo cho người chơi có tài khoản khi trận đã có đủ hai người.',
     adv_notify_results: 'Gửi kết quả khi giải kết thúc', adv_notify_results_hint: 'Gửi vào chuông thông báo của người chơi; ai đang không trực tuyến sẽ nhận khi vào lại.',
     adv_show_news: 'Hiện mục Thông báo với người xem', adv_show_standings: 'Hiện bảng xếp hạng với người xem',
-    score_self_hint: 'Bạn đang tự báo tỉ số trận của mình, hãy nhập đúng. Ban tổ chức xem được và sẽ sửa nếu cần.',
+    score_self_hint: 'Bạn đang tự báo tỉ số trận của mình, hãy nhập đúng. Kết quả được chốt khi đối thủ báo trùng tỉ số hoặc ban tổ chức xác nhận.',
     nt_tour_match: '{name}: đến trận của bạn, gặp {opp}', nt_tour_place: '{name} đã kết thúc. Bạn xếp hạng {n}', nt_tour_done: '{name} đã kết thúc. Vô địch: {winner}',
     log_self_score: 'Người chơi tự báo tỉ số {a} – {b}: {s}',
+    log_self_claim: 'Người chơi báo tỉ số {a} – {b}: {s} (chờ xác nhận)',
+    score_claim: '{name} đã báo: {s}. Chờ đối thủ báo trùng hoặc ban tổ chức xác nhận.', score_claim_ok: 'Xác nhận tỉ số này', score_claim_win: '{name} thắng',
   });
 
   // ================================================================ English
@@ -34,9 +36,11 @@
     adv_notify_match: 'Notify players when their matches become available', adv_notify_match_hint: 'Offline events: notify players with accounts once both players of a match are known.',
     adv_notify_results: 'Send out the final results when the event ends', adv_notify_results_hint: 'Goes to players’ notifications; anyone offline gets it when they come back.',
     adv_show_news: 'Show the announcements section to viewers', adv_show_standings: 'Show standings to viewers',
-    score_self_hint: 'You are reporting your own match – please enter it accurately; organizers can see and correct it.',
+    score_self_hint: 'You are reporting your own match – please enter it accurately. The result is final once your opponent reports the same score or an organizer confirms it.',
     nt_tour_match: '{name}: your match is ready – vs {opp}', nt_tour_place: '{name} has ended – you placed {n}', nt_tour_done: '{name} has ended – champion: {winner}',
     log_self_score: 'Player-reported score {a} – {b}: {s}',
+    log_self_claim: 'Player-reported score {a} – {b}: {s} (awaiting confirmation)',
+    score_claim: '{name} reported: {s}. Waiting for the opponent to report the same score or for an organizer to confirm.', score_claim_ok: 'Confirm this score', score_claim_win: '{name} wins',
   });
 
   // ================================================================ Русский
@@ -50,9 +54,11 @@
     adv_notify_match: 'Сообщать игрокам, когда их матч готов', adv_notify_match_hint: 'Офлайн-турнир: уведомлять игроков с аккаунтом, когда известны оба соперника.',
     adv_notify_results: 'Разослать итоги после окончания', adv_notify_results_hint: 'В уведомления игроков; кто не в сети – получит при входе.',
     adv_show_news: 'Показывать зрителям объявления', adv_show_standings: 'Показывать зрителям таблицу',
-    score_self_hint: 'Вы сами сообщаете счёт своего матча – вводите точно; организаторы видят и могут исправить.',
+    score_self_hint: 'Вы сами сообщаете счёт своего матча – вводите точно. Результат засчитывается, когда соперник сообщит тот же счёт или организатор его подтвердит.',
     nt_tour_match: '{name}: ваш матч готов – против {opp}', nt_tour_place: '{name} завершён – ваше место: {n}', nt_tour_done: '{name} завершён – победитель: {winner}',
     log_self_score: 'Игрок сообщил счёт {a} – {b}: {s}',
+    log_self_claim: 'Игрок сообщил счёт {a} – {b}: {s} (ждёт подтверждения)',
+    score_claim: '{name} сообщил(а): {s}. Ждём такой же счёт от соперника или подтверждение организатора.', score_claim_ok: 'Подтвердить этот счёт', score_claim_win: 'победа: {name}',
   });
 
   // ================================================================ 中文
@@ -66,8 +72,10 @@
     adv_notify_match: '对局可开始时通知选手', adv_notify_match_hint: '线下赛事：对局双方确定后通知有账号的选手。',
     adv_notify_results: '赛事结束时发送最终结果', adv_notify_results_hint: '发送到选手的通知；离线的选手上线后收到。',
     adv_show_news: '向观众显示公告', adv_show_standings: '向观众显示排名',
-    score_self_hint: '你正在自行上报对局比分——请如实填写；组织者可查看并更正。',
+    score_self_hint: '你正在自行上报对局比分——请如实填写。对手上报相同比分或组织者确认后，结果才生效。',
     nt_tour_match: '{name}：你的对局已就绪——对手 {opp}', nt_tour_place: '{name} 已结束——你获得第 {n} 名', nt_tour_done: '{name} 已结束——冠军：{winner}',
     log_self_score: '选手上报比分 {a} – {b}：{s}',
+    log_self_claim: '选手上报比分 {a} – {b}：{s}（待确认）',
+    score_claim: '{name} 已上报：{s}。等待对手上报相同比分或组织者确认。', score_claim_ok: '确认这个比分', score_claim_win: '{name} 获胜',
   });
 })();

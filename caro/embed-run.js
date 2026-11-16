@@ -33,7 +33,9 @@
     $('em-title').textContent = t.name;
     document.title = t.name + ' – Caro x Gomoku';
     const open = $('em-open');
-    open.href = new URL(t.url, location.origin).toString();
+    // Chỉ nhận link http(s) (không để lọt javascript: nếu dữ liệu giải bị sửa – như online.js)
+    const href = new URL(t.url, location.origin);
+    open.href = /^https?:$/.test(href.protocol) ? href.toString() : location.origin + '/';
     open.textContent = T('embed_open');
     // Giữ chỗ đang cuộn ngang của từng nhánh đấu qua lần vẽ lại
     const keep = [...main.querySelectorAll('.bracket')].map((b) => b.scrollLeft);

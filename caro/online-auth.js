@@ -62,7 +62,7 @@
           send({ t: 'logout' });
         };
         $('av-change').onclick = () => window.CaroAvatar.pick();
-        if ($('av-remove')) $('av-remove').onclick = () => window.CaroAvatar.clear();
+        if ($('av-remove')) $('av-remove').onclick = async () => { if (await window.CaroConfirm.ask(T('av_remove_confirm'))) window.CaroAvatar.clear(); }; // xoá luôn hỏi lại (chuan-giao-dien 4b)
         const lg = $('link-google');
         if (lg) lg.onclick = () => { lg.hidden = true; mountGoogle($('google-link-btn')); };
       }

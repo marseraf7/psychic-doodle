@@ -26,3 +26,21 @@ test('đồng hồ 2+1: chạy, cộng giây, tạm dừng, hết giờ', () => 
   assert.deepStrictEqual([back.x, back.o], [115000, 111000], 'tải lại trang: giữ thời gian còn lại');
   assert.strictEqual(LC.create('2+1', 0, { x: -5, o: 1e12 }).x, 120000, 'số liệu hỏng: về thời gian gốc');
 });
+
+test('đi lại với đồng hồ tổng: giây cộng của nước bị huỷ không được giữ (rà soát 16/11/2026, mục 19)', () => {
+  const c = LC.create('5+3', 0);
+  LC.run(c, 2, 0); // sau nước đầu của X: tới lượt O
+  let now = 0, n = 1;
+  const move = (p, think) => { now += think; LC.mark(c, n, now); LC.press(c, p, now); n++; LC.run(c, p === 1 ? 2 : 1, now); };
+  move(2, 4000); // O nghĩ 4 giây rồi đi: 300 − 4 + 3
+  assert.strictEqual(c.o, 299000);
+  // Đi lại nước của O: quỹ giờ về đúng lúc O bấm (đã trừ 4 giây nghĩ, CHƯA cộng 3 giây)
+  n--; assert.ok(LC.rewind(c, n, now)); LC.run(c, 2, now);
+  assert.strictEqual(LC.left(c, 2, now), 296000);
+  // Vòng đi → đi lại 20 lần (mỗi lần nghĩ 0,1 giây): quỹ giờ không tăng
+  for (let i = 0; i < 20; i++) { move(2, 100); n--; LC.rewind(c, n, now); LC.run(c, 2, now); }
+  assert.ok(LC.left(c, 2, now) <= 296000, 'không bơm được giây cộng: ' + LC.left(c, 2, now));
+  assert.strictEqual(c.x, 300000, 'bên kia không đổi');
+  // Không có mốc (vừa tải lại trang): giữ nguyên
+  assert.strictEqual(LC.rewind(LC.create('5+3', 0), 3, 0), false);
+});

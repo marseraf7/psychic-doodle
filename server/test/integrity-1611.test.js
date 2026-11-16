@@ -103,3 +103,26 @@ test('mục 10: tạo giải tổng khi đã chạm hạn mức giải con trong
   assert.strictEqual((await org.req({ t: 'tourTplSave', name: 'Mẫu rỗng', data: null }, 'error')).code, 'bad_message');
   org.close();
 });
+
+test('giải offline vừa kết thúc: trong 24 giờ huỷ được kết quả chung kết để nhập lại; quá hạn hoặc đã có mùa sau thì khoá', async () => {
+  const org = await account();
+  const { id } = await org.req({ t: 'otCreate', name: 'Giải sửa chung kết', spec: { sport: 'other', stages: [{ type: 'single', thirdPlace: false }] }, teams: ['A', 'B'] }, 'otCreated');
+  const t = ctx.app.hub.otGet(id);
+  org.send({ t: 'otStart', id }); await until(() => t.status === 'running');
+  const m = Object.values(t.st[0].matches)[0];
+  org.send({ t: 'otScore', id, match: m.id, score: [1, 0] }); await until(() => t.status === 'finished');
+  const champ = t.podium[0];
+  org.send({ t: 'otUndo', id, match: m.id }); await until(() => t.status === 'running');
+  assert.ok(!m.done && t.podium === null && !t.finishedAt, 'giải mở lại, trận về chưa đấu');
+  org.send({ t: 'otScore', id, match: m.id, score: [0, 2] }); await until(() => t.status === 'finished');
+  assert.notStrictEqual(t.podium[0], champ, 'nhà vô địch theo tỉ số mới');
+  // Quá 24 giờ: khoá, giải giữ nguyên
+  t.finishedAt = Date.now() - 25 * 3600 * 1000;
+  assert.strictEqual((await org.req({ t: 'otUndo', id, match: m.id }, 'error')).code, 'tour_undo_locked');
+  assert.ok(t.status === 'finished' && m.done && t.podium);
+  // Trận không tồn tại: báo lỗi và giải vẫn "đã kết thúc" (không mở lại dở)
+  t.finishedAt = Date.now();
+  await org.req({ t: 'otUndo', id, match: 's0-khong-co' }, 'error');
+  assert.ok(t.status === 'finished' && t.podium && t.finishedAt);
+  org.close();
+});

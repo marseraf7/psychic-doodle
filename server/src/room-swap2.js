@@ -20,7 +20,8 @@ class Swap2Mixin {
     if (this.actor() !== id) throw E('not_your_turn');
     if (!['x', 'o', 'place2'].includes(choice) || (choice === 'place2' && this.phase !== 'choose1')) throw E('bad_message');
     if (!this.spend(id)) { this.timeLoss(); return; }
-    this.drawOffer = null;
+    // Chọn bên thay vì trả lời = từ chối lời xin hoà (như đi nước thường – room.js): người xin phải chờ mới xin lại được
+    if (this.drawOffer && this.drawOffer !== id) this.declineDraw(); else this.drawOffer = null;
     if (choice === 'place2') { this.phase = 'place2'; this.startClock(); this.touch(); return; }
     const other = id === this.opener ? this.decider : this.opener;
     this.seats[X] = choice === 'x' ? id : other;

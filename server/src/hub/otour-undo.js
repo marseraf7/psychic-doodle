@@ -8,14 +8,29 @@ const { E } = require('../msg.js');
 const ST = require('./stages.js');
 const PO = require('./stages-playoff.js');
 
+const REOPEN_MS = 24 * 3600 * 1000; // sau khi giải kết thúc còn huỷ được kết quả trận cuối trong 24 giờ
+
 class OTourUndo {
   /** Huỷ kết quả (như giải Caro – tour-score.js): chỉ khi các trận nhận người thắng / thua của nó chưa có kết quả. */
   on_otUndo(conn, { id, match }) {
     const { t, me } = this.otManaged(conn, id);
-    const { st, m } = this.otMatch(t, match);
-    if (!m.done || m.bye || m.split || PO.undoLocked(st, m)) throw E('tour_undo_locked');
-    this.otUndoApply(st, m);
-    this.otLog(t, me.id, 'undo', { match: m.id });
+    // Giải vừa kết thúc (trong 24 giờ, chưa tạo mùa sau): cho huỷ kết quả trận của giai đoạn cuối – gõ nhầm tỉ số chung kết
+    // vẫn sửa được. Giải mở lại "đang diễn ra"; huỷ bị khoá thì trả về như cũ (rà soát 16/11/2026, mục 2 / nghi ngờ 4)
+    const reopen = t.status === 'finished' && !t.multi;
+    const keep = reopen ? { status: t.status, finishedAt: t.finishedAt, podium: t.podium } : null;
+    if (reopen) {
+      if (!(Date.now() - (t.finishedAt || 0) < REOPEN_MS) || (t.series && t.series.next)) throw E('tour_undo_locked');
+      Object.assign(t, { status: 'running', finishedAt: null, podium: null });
+    }
+    try {
+      const { st, m } = this.otMatch(t, match);
+      if (!m.done || m.bye || m.split || PO.undoLocked(st, m)) throw E('tour_undo_locked');
+      this.otUndoApply(st, m);
+    } catch (e) {
+      if (keep) Object.assign(t, keep);
+      throw e;
+    }
+    this.otLog(t, me.id, 'undo', { match: String(match) });
     this.otSave(t);
   }
 

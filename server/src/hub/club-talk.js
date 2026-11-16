@@ -145,7 +145,8 @@ class ClubTalk {
   /** Diễn đàn đổi (chủ đề mới, bài mới / sửa / xoá): người đang mở trang CLB / chủ đề tải lại phần đang xem. */
   topicDirty(c, topic, gone) {
     for (const set of this.byPid.values()) {
-      for (const conn of set) if (conn.watchClub === c.id) conn.send({ t: 'clubTopicDirty', id: c.id, topic, gone: !!gone });
+      // Chỉ người được đọc diễn đàn (như chat lọc theo canChat): người ngoài mở trang CLB không nhận mã chủ đề / nhịp hoạt động
+      for (const conn of set) if (conn.watchClub === c.id && this.canForum(c, uidOf(conn.pid), false)) conn.send({ t: 'clubTopicDirty', id: c.id, topic, gone: !!gone });
     }
   }
 
