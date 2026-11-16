@@ -192,7 +192,8 @@
   $('rule-dlg').onBack = () => { if (rv.i > 0) { rv.i--; renderRule(); return true; } Board.stop(); return false; };
   $('rule-dlg').addEventListener('close', () => Board.stop());
 
-  function load() { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { return {}; } }
+  // Dữ liệu lưu hỏng ("null", số, mảng) thì coi như chưa có gì – không để load().done ném lỗi khi mở Học tập
+  function load() { try { const v = JSON.parse(localStorage.getItem(STORE) || '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; } catch (e) { return {}; } }
   function save(d) { try { localStorage.setItem(STORE, JSON.stringify(d)); } catch (e) { /* riêng tư */ } }
   const doneSet = () => new Set(load().done || []);
 

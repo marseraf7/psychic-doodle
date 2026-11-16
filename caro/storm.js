@@ -53,6 +53,7 @@
   function next() {
     if (!s || s.over) return;
     const q = St.pickNear(s.list, 500 + s.solved * 45, s.used);
+    if (!q) return; // không còn bài phù hợp (danh sách rỗng): không đọc q.id của undefined
     s.used.add(q.id);
     s.cur = q;
     St.Trainer.start({
@@ -65,6 +66,9 @@
     });
   }
 
+  /** Sang bài kế sau ms – chỉ khi vẫn là phiên này (hẹn giờ của phiên cũ không được đổi bài của phiên mới). */
+  function later(ms) { const cur = s; setTimeout(() => { if (s === cur) next(); }, ms); }
+
   function right() {
     if (!s || s.over) return;
     s.solved++;
@@ -72,7 +76,7 @@
     s.maxCombo = Math.max(s.maxCombo, s.combo);
     const add = COMBO_BONUS[s.combo];
     if (add) { s.endAt += add * 1000; s.bonus = { text: '+' + add + 's', until: Date.now() + 1500 }; }
-    setTimeout(next, 350);
+    later(350);
   }
 
   function wrong() {
@@ -81,7 +85,7 @@
     s.combo = 0;
     s.endAt -= PENALTY;
     s.bonus = { text: '−10s', until: Date.now() + 1500, bad: true };
-    setTimeout(next, 700);
+    later(700);
   }
 
   function scoreLine() {

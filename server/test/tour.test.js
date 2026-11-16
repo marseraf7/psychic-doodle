@@ -579,7 +579,15 @@ test('loại trực tiếp Bo3: mất kết nối thì trận tạm dừng; ban 
     assert.deepStrictEqual([d.kind, d.status, d.w, d.l], ['bracket', 'open', p1.me.uid, p2.me.uid]);
     assert.strictEqual(m.wins[p1.me.uid], 1, 'ván mất kết nối chưa được tính');
     const v = await B.req({ t: 'tourGet', id }, 'tour');
-    assert.ok(v.tour.disputes.some((x) => x.id === d.id && x.status === 'open'));
+    // Danh sách khiếu nại theo người xem (rà soát 16/11/2026, mục 47): ban tổ chức + hai người trong ván thấy, người ngoài thì không
+    assert.ok(v.shared.disputes === undefined && v.mine.disputes.some((x) => x.id === d.id && x.status === 'open'));
+    assert.ok((await p1.req({ t: 'tourGet', id }, 'tour')).mine.disputes.some((x) => x.id === d.id), 'người trong ván thấy khiếu nại của mình');
+    const stranger = await account('la');
+    assert.deepStrictEqual((await stranger.req({ t: 'tourGet', id }, 'tour')).mine.disputes, [], 'người ngoài không thấy');
+    stranger.close();
+    // Trận đang chờ xử khiếu nại: ban tổ chức không ghi đè tỉ số được (mục 67)
+    assert.strictEqual((await B.req({ t: 'tourScore', id, match: m.id, winner: p1.me.uid }, 'error')).code, 'tour_match_held');
+    assert.ok(m.hold && !m.done);
     assert.ok(v.tour.stageViews[0].rounds[0].some((x) => x && x.held), 'trang giải: trận đang chờ quyết định');
     // Người không phải ban tổ chức không xử lý được
     assert.strictEqual((await p1.req({ t: 'tourDispute', id, dispute: d.id, action: 'confirm' }, 'error')).code, 'tour_managers_only');

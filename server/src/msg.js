@@ -220,6 +220,7 @@ const VI = {
   tour_kicked: 'Bạn đã bị ban tổ chức loại khỏi giải {name}',
   tour_cancelled: 'Giải {name} đã bị huỷ',
   tour_finished: 'Giải {name} đã kết thúc – vô địch: {winner}',
+  tour_match_held: 'Trận này đang chờ xử khiếu nại mất kết nối. Hãy xử khiếu nại trước',
   tour_claim: 'Giải {name}: {who} đã báo tỉ số trận {a} – {b}. Mở trang giải để xác nhận hoặc báo tỉ số khác',
   tour_dispute_new: 'Giải {name}: {loser} mất kết nối và bị xử thua ván với {winner} – mở trang giải để công nhận, huỷ kết quả hoặc cho đấu lại',
   tour_dispute_wait: 'Giải {name}: ván bị gián đoạn vì mất kết nối – trận tạm dừng chờ ban tổ chức quyết định (tối đa 5 phút)',
