@@ -116,6 +116,23 @@ test('mục 74d: bỏ lời mời ở giải offline đang chạy bị chặn nh
   [org, guest, org2, guest2].forEach((c) => c.close());
 });
 
+test('mục 74f: giải đang chạy không đổi được quickAdvance / arrangeNext (hai ô đổi hành vi thi đấu, không phải cách hiện)', async () => {
+  const B = await admin();
+  const { id } = await B.req({ t: 'tourCreate', name: 'Giải đợt 5 LIVE', format: 'bracket', startsAt: Date.now() + 600000, timeLimit: 30, offline: true, checkin: false,
+    quickAdvance: false, arrangeNext: false, stages: [{ type: 'swiss', rounds: 1, bestOf: 1 }, { type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
+  const t = ctx.app.hub.tours.get(id);
+  await B.req({ t: 'tourAddPlayers', id, names: ['An', 'Bình', 'Chi', 'Dũng'] }, 'tourAddResult');
+  B.send({ t: 'tourStart', id });
+  await until(() => t.status === 'running');
+  assert.deepStrictEqual([t.quickAdvance, t.arrangeNext], [false, false]);
+  // Đang chạy: gửi sửa cả hai ô hành vi lẫn một ô chỉ ảnh hưởng cách hiện (roundLabels)
+  await B.req({ t: 'tourEdit', id, name: t.name, quickAdvance: true, arrangeNext: true, roundLabels: false }, 'tourEdited');
+  assert.strictEqual(t.quickAdvance, false, 'quickAdvance giữ nguyên khi giải đang chạy (đổi nó là đổi cách nhập kết quả)');
+  assert.strictEqual(t.arrangeNext, false, 'arrangeNext giữ nguyên khi giải đang chạy (đổi nó là đổi cách chuyển giai đoạn)');
+  assert.strictEqual(t.roundLabels, false, 'ô chỉ ảnh hưởng cách hiện vẫn đổi được khi đang chạy');
+  B.close();
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();
