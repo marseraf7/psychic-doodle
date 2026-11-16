@@ -101,6 +101,7 @@
     if (m.bo) extra.push(`<span class="pill bo">Bo${m.bo}</span>`); // Bo riêng bán kết / chung kết
     if (m.sets && K.setsText) extra.push(`<span class="sets">${esc(K.setsText(m))}</span>`); // tỉ số từng set (giải offline)
     extra.push(...otTags(m));
+    if (m.claim && !m.done) extra.push(`<span class="pill">${esc(T('score_claim_tag'))}</span>`);
     if (m.override) extra.push(esc(T('score_override_tag')));
     extra.push(...replays(m), ...matchTools(m));
     return `<div class="b-match ${m.live ? 'live' : ''}" data-mid="${esc(m.id)}">${row(m.a, m.wa, m.winner && m.a && m.winner === m.a.uid)}${row(m.b, m.wb, m.winner && m.b && m.winner === m.b.uid)}${extra.length ? `<small>${extra.join(' ')}</small>` : ''}</div>`;
@@ -131,6 +132,7 @@
     if (m.draw) tags.push(esc(T('draw')));
     if (m.sets && K.setsText) tags.push(`<span class="sets">${esc(K.setsText(m))}</span>`); // tỉ số từng set (giải offline)
     tags.push(...otTags(m));
+    if (m.claim && !m.done) tags.push(`<span class="pill">${esc(T('score_claim_tag'))}</span>`); // người chơi đã báo tỉ số, chờ xác nhận (tour-score.js)
     if (m.override) tags.push(esc(T('score_override_tag')));
     if (m.walkover) tags.push(esc(T('walkover')));
     if (m.double) tags.push(esc(T('both_absent')));

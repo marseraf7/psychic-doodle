@@ -384,3 +384,15 @@ test('Thời gian tuỳ chỉnh: đồng hồ phút+giây cộng và giây mỗi
   const room = new Room({ code: '123456', password: '123', clock: '2+1' });
   assert.ok(room.clock && room.clock.base === 120000 && room.clock.inc === 1000, 'phòng nhận đồng hồ tuỳ chỉnh 2+1');
 });
+
+test('Swap2: đối thủ chọn bên thay vì trả lời = từ chối lời xin hoà, người xin phải chờ mới xin lại được (rà soát 16/11, mục 21)', () => {
+  const r = room2({ opening: 'swap2' });
+  r.move('A', 0, 0); r.move('A', 5, 5); r.move('A', 1, 0);
+  assert.strictEqual(r.phase, 'choose1');
+  if (r.sideOf('A')) {
+    assert.strictEqual(r.offerDraw('A'), 'offered');
+    r.swapChoose('B', 'x');
+    assert.strictEqual(r.drawOffer, null);
+    assert.throws(() => r.offerDraw('A'), (e) => e.code === 'draw_wait');
+  }
+});

@@ -1691,6 +1691,11 @@ test('Rà soát 16/11: tự báo tỉ số chốt khi đối thủ báo trùng (
   await until(() => m.done);
   assert.strictEqual(m.winner, pa.me.uid);
   assert.ok(!m.claim && t.log.some((x) => x.act === 'self_score'));
+  // Giải đã xong (trận duy nhất đã chốt): mời ra bị từ chối, không ghi nhật ký suông (mục 25)
+  await until(() => t.status === 'finished');
+  const logs = t.log.length;
+  assert.strictEqual((await B.req({ t: 'tourKick', id, uid: pb.me.uid }, 'error')).code, 'tour_closed');
+  assert.strictEqual(t.log.length, logs);
   // Quyền 'all' huỷ giải đang chờ khác
   const { id: id2 } = await B.req({ t: 'tourCreate', name: 'Giải Sẽ Huỷ', format: 'bracket', startsAt: soon(), timeLimit: 30, offline: true, admins: ['@' + co.me.username],
     stages: [{ type: 'single', bestOf: 1 }] }, 'tourCreated');

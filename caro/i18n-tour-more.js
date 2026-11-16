@@ -22,7 +22,7 @@
     nt_tour_match: '{name}: đến trận của bạn, gặp {opp}', nt_tour_place: '{name} đã kết thúc. Bạn xếp hạng {n}', nt_tour_done: '{name} đã kết thúc. Vô địch: {winner}',
     log_self_score: 'Người chơi tự báo tỉ số {a} – {b}: {s}',
     log_self_claim: 'Người chơi báo tỉ số {a} – {b}: {s} (chờ xác nhận)',
-    score_claim: '{name} đã báo: {s}. Chờ đối thủ báo trùng hoặc ban tổ chức xác nhận.', score_claim_ok: 'Xác nhận tỉ số này', score_claim_win: '{name} thắng',
+    score_claim: '{name} đã báo: {s}. Chờ đối thủ báo trùng hoặc ban tổ chức xác nhận.', score_claim_ok: 'Xác nhận tỉ số này', score_claim_tag: 'Chờ xác nhận tỉ số', score_claim_win: '{name} thắng',
   });
 
   // ================================================================ English
@@ -40,7 +40,7 @@
     nt_tour_match: '{name}: your match is ready – vs {opp}', nt_tour_place: '{name} has ended – you placed {n}', nt_tour_done: '{name} has ended – champion: {winner}',
     log_self_score: 'Player-reported score {a} – {b}: {s}',
     log_self_claim: 'Player-reported score {a} – {b}: {s} (awaiting confirmation)',
-    score_claim: '{name} reported: {s}. Waiting for the opponent to report the same score or for an organizer to confirm.', score_claim_ok: 'Confirm this score', score_claim_win: '{name} wins',
+    score_claim: '{name} reported: {s}. Waiting for the opponent to report the same score or for an organizer to confirm.', score_claim_ok: 'Confirm this score', score_claim_tag: 'Score awaiting confirmation', score_claim_win: '{name} wins',
   });
 
   // ================================================================ Русский
@@ -58,7 +58,7 @@
     nt_tour_match: '{name}: ваш матч готов – против {opp}', nt_tour_place: '{name} завершён – ваше место: {n}', nt_tour_done: '{name} завершён – победитель: {winner}',
     log_self_score: 'Игрок сообщил счёт {a} – {b}: {s}',
     log_self_claim: 'Игрок сообщил счёт {a} – {b}: {s} (ждёт подтверждения)',
-    score_claim: '{name} сообщил(а): {s}. Ждём такой же счёт от соперника или подтверждение организатора.', score_claim_ok: 'Подтвердить этот счёт', score_claim_win: 'победа: {name}',
+    score_claim: '{name} сообщил(а): {s}. Ждём такой же счёт от соперника или подтверждение организатора.', score_claim_ok: 'Подтвердить этот счёт', score_claim_tag: 'Счёт ждёт подтверждения', score_claim_win: 'победа: {name}',
   });
 
   // ================================================================ 中文
@@ -76,6 +76,6 @@
     nt_tour_match: '{name}：你的对局已就绪——对手 {opp}', nt_tour_place: '{name} 已结束——你获得第 {n} 名', nt_tour_done: '{name} 已结束——冠军：{winner}',
     log_self_score: '选手上报比分 {a} – {b}：{s}',
     log_self_claim: '选手上报比分 {a} – {b}：{s}（待确认）',
-    score_claim: '{name} 已上报：{s}。等待对手上报相同比分或组织者确认。', score_claim_ok: '确认这个比分', score_claim_win: '{name} 获胜',
+    score_claim: '{name} 已上报：{s}。等待对手上报相同比分或组织者确认。', score_claim_ok: '确认这个比分', score_claim_tag: '比分待确认', score_claim_win: '{name} 获胜',
   });
 })();
