@@ -53,8 +53,10 @@
       const [sx, sy] = cell(m.x, m.y);
       window.CaroStyle.drawStone(ctx, m.p, sx, sy, s, 1, col);
     }
-    if (final && n) {
-      const last = b.moves[n - 1];
+    if (final && b.moves.length) {
+      // Nước cuối ĐÃ CHƠI ĐƯỢC (b.moves), không phải nước gốc thứ n: ván hỏng/trùng bị bỏ qua vài nước ở vòng
+      // trên thì b.moves ngắn hơn n, lấy b.moves[n - 1] là undefined → TypeError hỏng cả luồng xuất (đợt 7, mục 50)
+      const last = b.moves[b.moves.length - 1];
       const w = C.checkWin(b, last.x, last.y, last.p);
       if (w) {
         const [ax, ay] = cell(w[0][0], w[0][1]), [bx, by] = cell(w[w.length - 1][0], w[w.length - 1][1]);
