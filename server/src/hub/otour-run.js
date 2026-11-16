@@ -177,6 +177,7 @@ class OTourRun {
       PO.attachPre(next, plan);
       t.st.push(next);
       this.otSchedNext(t); // tự xếp lịch giai đoạn mới (otour-sched.js)
+      if (next.done) this.otNextStage(t); // giai đoạn dựng xong đã xong ngay (vd kings dưới 4 đội): chuyển tiếp luôn
       return;
     }
     // Bốc thăm theo thành tích Thụy Sĩ (cfg.draw – stages-recdraw.js): chỉ khi không có đội vào thẳng; không được thì như thường
@@ -197,6 +198,9 @@ class OTourRun {
       t.st[t.stage].head = Object.fromEntries(seeds.filter((u) => pts[u] > 0).map((u) => [u, pts[u]]));
     }
     this.otSchedNext(t);
+    // Giai đoạn dựng xong đã xong ngay (vd kings dưới 4 đội — stages-kings.js): không còn trận nào để nhập,
+    // phải tự chuyển tiếp, nếu không giải kẹt ở một giai đoạn rỗng
+    if (t.st[t.stage].done) this.otNextStage(t);
   }
 
   /**

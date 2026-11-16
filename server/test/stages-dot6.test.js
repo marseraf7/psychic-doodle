@@ -185,3 +185,37 @@ test('Mục 39 – Playoff: số miền (bảng của mùa giải) không phải
     assert.ok(p.slots.every((s) => s !== BYE), 'không còn ô BYE ma');
   }
 });
+
+test('Mục 34 – Kings: dưới 4 đội đi tiếp thì giai đoạn tự xong (mọi đội miễn đấu), giải không kẹt', () => {
+  const KG = require('../src/hub/stages-kings.js');
+  const [, kc] = off([{ type: 'swiss' }, { type: 'kings' }, { type: 'single' }]); // kings chỉ tồn tại ở giai đoạn giữa
+  const st = ST.buildStage(kc, 1, ids(3), { seedOf });
+  assert.strictEqual(st.done, true, 'kings 3 đội: không trận nào để đấu thì giai đoạn phải xong ngay');
+  assert.deepStrictEqual(KG.advancers(st, seedOf).seeds, ids(3), 'cả 3 đội đều đi tiếp như đội miễn đấu');
+  // Đối chứng: 4 đội trở lên dựng như cũ, chưa xong
+  const st4 = ST.buildStage(kc, 1, ids(4), { seedOf });
+  assert.strictEqual(st4.done, false);
+  assert.strictEqual(Object.keys(st4.matches).length, 2);
+});
+
+test('Mục 34 (hub) – Swiss record cho 2 đội đi tiếp vào kings: chuyển giai đoạn tự bỏ qua kings, giải chạy tới hết', () => {
+  const { OTourRun } = require('../src/hub/otour-run.js');
+  const host = new OTourRun();
+  host.otSchedNext = () => {}; // xếp lịch không liên quan tới lỗi này
+  const stages = ST.normalizeStages([
+    { type: 'swiss', record: { win: 1, lose: 1 } },
+    { type: 'kings' },
+    { type: 'single' },
+  ], { offline: true });
+  const t = { stages, players: ids(4).map((uid, i) => ({ uid, seed: i + 1 })), stage: 0, status: 'running', st: [], direct: null };
+  t.st = [ST.buildStage(stages[0], 0, ids(4), host.otBuildOpts(t))];
+  for (let g = 0; !t.st[0].done && g < 10; g++) for (const m of ST.playable(t.st[0])) ST.recordResult(t.st[0], m, seedOf(m.a) < seedOf(m.b) ? m.a : m.b, { seedOf });
+  assert.ok(t.st[0].done, 'swiss record 1 thắng/1 thua xong sau vòng 1');
+  host.otNextStage(t); // 2 đội thắng đi tiếp — kings nhận 2 đội
+  assert.strictEqual(t.st[1].done, true, 'giai đoạn kings tự xong');
+  assert.strictEqual(t.stage, 2, 'đã tự chuyển qua kings sang giai đoạn cuối');
+  assert.deepStrictEqual(t.st[2].entrants, ['u0', 'u1']);
+  for (let g = 0; !t.st[2].done && g < 10; g++) for (const m of ST.playable(t.st[2])) ST.recordResult(t.st[2], m, m.a, { seedOf });
+  host.otNextStage(t);
+  assert.strictEqual(t.status, 'finished');
+});
