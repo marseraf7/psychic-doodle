@@ -176,6 +176,9 @@ class OTourRun {
       const bad = ST.Kinds.sizeError(cfg, (plan ? plan.seeds : seeds).length);
       if (bad) throw E(bad.code, bad.args);
     }
+    // Chia đôi theo hạng (The Split): số đội thực tế dưới 4 thì splitGroups sinh nhóm trên rỗng / 1 đội và việc chia
+    // đôi biến mất không một lời cảnh báo — chặn tại đây bằng mã rõ ràng, cùng chỗ và cùng lý do như graph ở trên
+    if (ST.SPL.isSplit(cfg) && seeds.length < 4) throw E('ot_split_few', { n: 4 });
     const going = new Set([...(plan ? plan.seeds : adv.seeds), ...(adv.routes || []).flatMap((r) => r.uids)]); // đội chuyển sang giai đoạn sau nữa cũng không bị loại
     // Không đi tiếp: "không vào vòng sau", hoặc đích ra ngoài giải nếu giai đoạn có nhãn (cfg.exit – kiểu BLAST Showdown)
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) { p.out = st.cfg.exit ? 'exit' : 'not_advanced'; if (st.cfg.exit) p.exit = st.cfg.exit; } }

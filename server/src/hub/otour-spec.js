@@ -65,6 +65,8 @@ function checkSize(spec, n) {
     const k = e.stages[i] ? e.stages[i].players : n;
     // Mỗi giai đoạn sau phải có ít nhất 2 đội (loại trực tiếp ở giữa chỉ cho 1 đội đi tiếp mà không có đội vào thẳng)
     if (i > 0 && k < 2) throw new SpecError('ot_stage_few', { n: i + 1 });
+    // Chia đôi theo hạng (The Split): dưới 4 đội thì nhóm trên rỗng hoặc chỉ 1 đội — việc chia đôi biến mất lặng lẽ
+    if (i > 0 && ST.SPL.isSplit(c) && k < 4) throw new SpecError('ot_split_few', { n: 4 });
     const bad = ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k) || ST.Kinds.sizeError(c, k) || ST.REP.error(c, k, ST.elimSize); // bảng GSL, kings, nhánh đồ thị… (stages-kinds.js); vòng vớt
     if (bad) throw new SpecError(bad.code, bad.args);
   });

@@ -285,3 +285,48 @@ test('Mục 35 (hub) – Graph nhận sai số đội lúc chuyển giai đoạn
   assert.strictEqual(ok.t.stage, 1);
   assert.strictEqual(ok.t.st[1].type, 'graph');
 });
+
+test('Mục 41 – The Split: dưới 4 đội đi tiếp thì báo lỗi ot_split_few rõ ràng (tạo giải + chuyển giai đoạn), không biến mất lặng lẽ', () => {
+  const Spec = require('../src/hub/otour-spec.js');
+  // splitGroups với 2–3 đội sinh nhóm trên rỗng / 1 đội — đó là gốc của lỗi
+  assert.deepStrictEqual(ST.SPL.splitGroups({ split: { top: 6 } }, ids(2)), [[], ids(2)]);
+  assert.deepStrictEqual(ST.SPL.splitGroups({ split: { top: 6 } }, ids(3)), [['u0'], ['u1', 'u2']]);
+  // (a) Lúc tạo giải: giai đoạn split mà số đội ước tính vào đó dưới 4 thì checkSize chặn với mã riêng
+  const spec = Spec.normalizeSpec({ stages: [
+    { type: 'roundrobin', advance: 3 },
+    { type: 'roundrobin', split: { top: 2 } },
+    { type: 'single' },
+  ] });
+  assert.throws(() => Spec.checkSize(spec, 6), (e) => e && e.code === 'ot_split_few');
+  const specOk = Spec.normalizeSpec({ stages: [
+    { type: 'roundrobin', advance: 4 },
+    { type: 'roundrobin', split: { top: 2 } },
+    { type: 'single' },
+  ] });
+  assert.doesNotThrow(() => Spec.checkSize(specOk, 6));
+  // (b) Lúc chuyển giai đoạn (số thực tế lệch ước tính): ném mã lỗi trước khi đổi trạng thái, như graph ở mục 35
+  const { OTourRun } = require('../src/hub/otour-run.js');
+  const mk = (advance) => {
+    const host = new OTourRun();
+    host.otSchedNext = () => {};
+    const stages = ST.normalizeStages([
+      { type: 'swiss', advance },
+      { type: 'roundrobin', split: { top: 2 } },
+      { type: 'single' },
+    ], { offline: true });
+    const t = { stages, players: ids(6).map((uid, i) => ({ uid, seed: i + 1 })), stage: 0, status: 'running', st: [], direct: null };
+    t.st = [ST.buildStage(stages[0], 0, ids(6), host.otBuildOpts(t))];
+    for (let g = 0; !t.st[0].done && g < 20; g++) for (const m of ST.playable(t.st[0])) ST.recordResult(t.st[0], m, seedOf(m.a) < seedOf(m.b) ? m.a : m.b, { seedOf });
+    assert.ok(t.st[0].done);
+    return { host, t };
+  };
+  const bad = mk(3);
+  assert.throws(() => bad.host.otNextStage(bad.t), (e) => e && e.code === 'ot_split_few');
+  assert.strictEqual(bad.t.stage, 0);
+  assert.strictEqual(bad.t.st.length, 1);
+  // Đối chứng: 6 đội đi tiếp → chia hai nhóm 2/4 như cũ
+  const ok = mk(6);
+  ok.host.otNextStage(ok.t);
+  assert.strictEqual(ok.t.stage, 1);
+  assert.deepStrictEqual(ok.t.st[1].groups.map((g) => g.players.length), [2, 4]);
+});
