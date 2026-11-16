@@ -12,7 +12,7 @@
 const crypto = require('crypto');
 const { E, note } = require('../msg.js');
 const { cleanPublicText, userPid } = require('./shared.js');
-const { CLUB_PERMS, DEFAULT_PERMS, CLUB_ICONS, CLUB_JOIN, MAX_DESC, clubPerms, cleanMultiline, newCode } = require('./clubs.js');
+const { CLUB_PERMS, DEFAULT_PERMS, CLUB_ICONS, CLUB_JOIN, MAX_DESC, MAX_CLUBS_PER_USER, clubPerms, cleanMultiline, newCode } = require('./clubs.js');
 
 const CHAT_MODES = ['off', 'officers', 'members'];
 const FORUM_MODES = ['off', 'officers', 'members', 'everyone'];
@@ -100,6 +100,11 @@ class ClubManage {
     const c = this.findClub(id, me.id);
     this.requireClubPerm(c, me.id, 'requests');
     if (!c.declined.some((x) => x.uid === uid)) throw E('request_gone');
+    // Trần 20 CLB cũng áp cho đường duyệt lại, như clubRequest (mục 74a): chặn trước khi xoá khỏi danh sách
+    if (accept && this.store.users.get(uid) && !c.members[uid] && !c.banned[uid]
+      && this.clubCount(uid) >= MAX_CLUBS_PER_USER) {
+      throw E('club_join_limit', { n: MAX_CLUBS_PER_USER });
+    }
     c.declined = c.declined.filter((x) => x.uid !== uid);
     if (accept && this.store.users.get(uid) && !c.members[uid] && !c.banned[uid]) {
       this.addMember(c, uid);
