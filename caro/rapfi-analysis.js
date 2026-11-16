@@ -126,7 +126,8 @@
     // Máy đủ RAM: Worker Rapfi thứ hai chấm hai thế cùng lúc – cùng số nút mỗi thế nên cùng kết quả, xong nhanh gấp đôi.
     // Worker phụ chưa sẵn sàng (lần đầu nạp mạng): không chờ, lượt này một Worker (boat-rapfi.js tạo sẵn khi hết ván)
     const two = todo.length >= 3 && (await R().auxReady(rule, 0));
-    if (my !== job) return null;
+    // Huỷ đúng lúc chờ Worker phụ: vẫn phải auxDone() để nó được hẹn dừng, không thì sống vô thời hạn (đợt 7, mục 54)
+    if (my !== job) { if (two) R().auxDone(); return null; }
     const lanes = two ? 2 : 1;
     // Khung cố định cho cả ván (mọi thế, kể cả thế sau nước tốt nhất nếu vừa); bảng băm mỗi Worker xoá ở lượt đầu
     const gf = R().frame(moves, R().SIZE[rule]);
@@ -176,7 +177,7 @@
     const altMoves = (i) => moves.slice(0, i).concat([ev[i].move]);
     if (cloud && alts.length) {
       const got = await cloud.get(rule, nodes, alts.map(altMoves));
-      if (my !== job) return null;
+      if (my !== job) { if (two) R().auxDone(); return null; } // huỷ giữa chừng: trả Worker phụ như đường trên (mục 54)
       for (const [k, h] of got) ev[alts[k]] = { ...ev[alts[k]], alt: { ...h, q: ms, src: 'rapfi' } };
     }
     await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane, clean) => {
