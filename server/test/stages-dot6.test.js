@@ -256,3 +256,32 @@ test('Mục 56 (hub) – Swiss record → routes/advance 0 → season nhận 0 �
   }
   assert.strictEqual(t.status, 'finished');
 });
+
+test('Mục 35 (hub) – Graph nhận sai số đội lúc chuyển giai đoạn: lỗi có mã ot_graph_size, trạng thái giải không nát', () => {
+  const { OTourRun } = require('../src/hub/otour-run.js');
+  const mk = (advance) => {
+    const host = new OTourRun();
+    host.otSchedNext = () => {};
+    const stages = ST.normalizeStages([
+      { type: 'swiss', advance },
+      { type: 'graph', shape: 'page' }, // khuôn page chỉ hợp đúng 4 đội
+    ], { offline: true });
+    const t = { stages, players: ids(6).map((uid, i) => ({ uid, seed: i + 1 })), stage: 0, status: 'running', st: [], direct: null };
+    t.st = [ST.buildStage(stages[0], 0, ids(6), host.otBuildOpts(t))];
+    for (let g = 0; !t.st[0].done && g < 20; g++) for (const m of ST.playable(t.st[0])) ST.recordResult(t.st[0], m, seedOf(m.a) < seedOf(m.b) ? m.a : m.b, { seedOf });
+    assert.ok(t.st[0].done);
+    return { host, t };
+  };
+  // 5 đội đi tiếp vào khuôn 4 đội: trước đây build ném Error('graph size') trần SAU khi t.stage đã tăng —
+  // giai đoạn mới không tồn tại mà con trỏ đã qua, trạng thái nát dở dang
+  const bad = mk(5);
+  assert.throws(() => bad.host.otNextStage(bad.t), (e) => e && e.code === 'ot_graph_size');
+  assert.strictEqual(bad.t.stage, 0, 'con trỏ giai đoạn chưa tăng');
+  assert.strictEqual(bad.t.st.length, 1, 'chưa có giai đoạn mới nào bị đẩy vào');
+  assert.strictEqual(bad.t.status, 'running');
+  // Đối chứng: đúng 4 đội thì dựng bình thường
+  const ok = mk(4);
+  ok.host.otNextStage(ok.t);
+  assert.strictEqual(ok.t.stage, 1);
+  assert.strictEqual(ok.t.st[1].type, 'graph');
+});

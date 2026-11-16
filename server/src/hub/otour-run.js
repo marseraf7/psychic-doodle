@@ -168,6 +168,14 @@ class OTourRun {
     // Playoff kiểu nhà nghề Mỹ sau mùa giải (stages-playoff.js): nhánh theo miền, nhất bảng con, play-in – ai đi tiếp
     // theo kế hoạch playoff (không theo số đội đi tiếp của mùa giải)
     const plan = cfg.playoff ? PO.playoffPlan(st, cfg, ST.standings(st, this.otSeedOf(t))) : null;
+    // Nhánh đồ thị: số đội thực tế phải hợp khuôn — kiểm TRƯỚC khi đổi trạng thái (t.stage++, đánh dấu bị loại…),
+    // để lỗi là mã ot_graph_size rõ ràng thay vì Error('graph size') trần ném giữa chừng làm nát trạng thái giải.
+    // Chỉ kiểm riêng graph: đây là loại duy nhất mà error() khớp chính xác điều kiện build ném lỗi (kings chạy
+    // đúng với mọi số đội ≥ 4 kể cả không chia hết cho 4, kiểm chung theo registry sẽ chặn oan)
+    if (cfg.type === 'graph') {
+      const bad = ST.Kinds.sizeError(cfg, (plan ? plan.seeds : seeds).length);
+      if (bad) throw E(bad.code, bad.args);
+    }
     const going = new Set([...(plan ? plan.seeds : adv.seeds), ...(adv.routes || []).flatMap((r) => r.uids)]); // đội chuyển sang giai đoạn sau nữa cũng không bị loại
     // Không đi tiếp: "không vào vòng sau", hoặc đích ra ngoài giải nếu giai đoạn có nhãn (cfg.exit – kiểu BLAST Showdown)
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) { p.out = st.cfg.exit ? 'exit' : 'not_advanced'; if (st.cfg.exit) p.exit = st.cfg.exit; } }
