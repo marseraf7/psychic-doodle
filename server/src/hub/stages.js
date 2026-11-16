@@ -222,6 +222,11 @@ function buildStage(cfg, index, seeds, opts = {}) {
     st.cfg = { ...cfg, rounds: Math.min(want, swissMaxRounds(seeds.length)) };
     swissNextRound(st, opts.seedOf || ((u) => seeds.indexOf(u)), opts.isActive, opts.pairs, opts.countryOf); // pairs: vòng 1 cặp cố định (giao hữu CLB); countryOf: vòng 1 tránh cùng khu vực
   }
+  // Chốt an toàn: giai đoạn có trận mà mọi trận đã xong ngay từ lúc dựng (vd loại trực tiếp nhận đúng 1 đội — trận
+  // duy nhất là trận miễn đấu tự xong) thì giai đoạn xong ngay. Nếu không, chẳng còn kết quả nào để nhập mà cờ done
+  // cũng không bao giờ được tính lại — giải kẹt ở một giai đoạn rỗng (cùng họ kẹt với kings/season ít đội)
+  const built = Object.values(st.matches);
+  if (!st.done && built.length && built.every((m) => m.done)) st.done = true;
   return st;
 }
 
