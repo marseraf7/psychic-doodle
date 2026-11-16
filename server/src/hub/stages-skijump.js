@@ -74,7 +74,7 @@ function view(st, i, adv, side, seedOf) {
   const C = calc(st, seedOf);
   let prev = null, pos = 0;
   const rows = C.order.map((u, k) => {
-    const s = C.stats[u], key = s.out ? null : s.t;
+    const s = C.stats[u], key = s.out || !s.fin ? null : s.t; // chưa nhảy lượt nào (fin = 0): không có tổng thật — không đồng hạng với người được 0.0 điểm
     if (key === null || key !== prev) { pos = k + 1; prev = key; }
     return { ...side(u), rank: pos, jumps: s.jumps, total: s.jump, ...(s.out ? { [s.out]: true } : {}), adv: k < adv };
   });

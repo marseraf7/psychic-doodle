@@ -9,6 +9,7 @@ const assert = require('node:assert');
 const ST = require('../src/hub/stages.js');
 const Race = require('../src/hub/stages-race.js');
 const PUR = require('../src/hub/stages-pursuit.js');
+const SJ = require('../src/hub/stages-skijump.js');
 
 const off = (list) => ST.normalizeStages(list, { offline: true });
 const ids = (n, p = 'u') => Array.from({ length: n }, (_, i) => p + i);
@@ -24,4 +25,17 @@ test('Mục 37 – Pursuit: người không có thời gian Sprint nhận khoả
   // Đối chứng: nhánh nhảy cầu không đổi (người không có điểm vẫn nhận khoảng thua lớn nhất)
   const jump = [{ list: ['a', 'b', 'c'], stats: { a: { jump: 100 }, b: { jump: 90 }, c: {} } }];
   assert.deepStrictEqual(PUR.gapsFrom(jump, ['a', 'b', 'c'], {}), { a: 0, b: 40000, c: 40000 });
+});
+
+test('Mục 43 – Skijump (view): người chưa nhảy lượt nào không đồng hạng với người được 0.0 điểm', () => {
+  const [c] = off([{ type: 'race', score: 'skijump', events: 1 }]);
+  const st = ST.buildStage(c, 0, ['a', 'b', 'c', 'd', 'e'], {});
+  Race.recordEvent(st, 0, Race.cleanEvent(st, [{ uid: 'a', pts: 100 }, { uid: 'b', pts: 0 }, { uid: 'd', dsq: true }, { uid: 'e', dnf: true }], st.entrants, 0).rows);
+  const v = SJ.plug.view(st, 0, 0, side, seedOf);
+  // a nhất (100), b hạng 2 (0.0 điểm thật), c chưa nhảy phải xếp sau b (hạng 3, tổng null), dsq/dnf nối tiếp
+  assert.deepStrictEqual(v.table.map((x) => [x.uid, x.rank, x.total]), [['a', 1, 100], ['b', 2, 0], ['c', 3, null], ['d', 4, null], ['e', 5, null]]);
+  // Đối chứng: hai người cùng điểm thật vẫn đồng hạng như cũ
+  const st2 = ST.buildStage(c, 0, ['a', 'b', 'c'], {});
+  Race.recordEvent(st2, 0, Race.cleanEvent(st2, [{ uid: 'a', pts: 50 }, { uid: 'b', pts: 50 }, { uid: 'c', pts: 30 }], st2.entrants, 0).rows);
+  assert.deepStrictEqual(SJ.plug.view(st2, 0, 0, side, seedOf).table.map((x) => [x.uid, x.rank]), [['a', 1], ['b', 1], ['c', 3]]);
 });
