@@ -47,6 +47,7 @@ function position(rule, moves) {
 /** Kết quả chấm hợp lệ: nước đi vào ô trống, điểm trong thang của engine.js, thắng / thua chắc khớp dấu điểm. */
 function validResult(b, r) {
   if (!r || !Array.isArray(r.move) || r.move.length !== 2 || !Number.isInteger(r.move[0]) || !Number.isInteger(r.move[1])) return false;
+  if (!K.validMoves([r.move])) return false; // cùng giới hạn toạ độ như danh sách nước (không nhận nước ở [100000, 100000])
   if (b.get(r.move[0], r.move[1]) !== C.EMPTY) return false;
   if (!Number.isInteger(r.score) || Math.abs(r.score) > WIN) return false;
   if (r.mate !== null && r.mate !== undefined) {

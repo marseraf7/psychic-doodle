@@ -40,7 +40,10 @@ class Store {
     this.dirtyDocs = new Map(); // 'club:id' / 'tour:id' -> bản ghi câu lạc bộ / giải đấu cần ghi
     this.timer = null;
     this.q = prepareQueries(this.db);
-    for (const row of this.db.prepare('SELECT data FROM users').all()) this.index(this.upgrade(JSON.parse(row.data)));
+    // Một dòng tài khoản hỏng không được làm máy chủ không lên: bỏ qua dòng đó, ghi log rõ (dòng gốc vẫn nằm trong CSDL để sửa tay)
+    for (const row of this.db.prepare('SELECT id, data FROM users').all()) {
+      try { this.index(this.upgrade(JSON.parse(row.data))); } catch (e) { console.error(`[store] BỎ QUA tài khoản hỏng id=${row.id}: ${e.message}`); }
+    }
     this.pruneSessions(Date.now(), true);
     if (legacyJson && !this.users.size) this.importLegacy(legacyJson);
   }
@@ -65,7 +68,14 @@ class Store {
   /** Nhập dữ liệu từ file db.json của phiên bản trước (một lần), rồi đổi tên file cũ. */
   importLegacy(file) {
     if (!fs.existsSync(file)) return;
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    let data;
+    try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) {
+      // File cũ bị cắt dở: đổi tên để giữ lại cho việc khôi phục tay, máy chủ vẫn khởi động với CSDL hiện có
+      const bad = `${file}.corrupt-${Date.now()}`;
+      console.error(`[store] db.json cũ hỏng (${e.message}) – đã đổi tên thành ${bad}, KHÔNG nhập dữ liệu cũ`);
+      try { fs.renameSync(file, bad); } catch (e2) { /* không đổi tên được: lần sau lại báo */ }
+      return;
+    }
     this.db.exec('BEGIN');
     try {
       for (const u of data.users || []) {
@@ -241,14 +251,16 @@ class Store {
     if (typeof share !== 'string' || !/^[\w-]{6,20}$/.test(share)) return null;
     const g = this.q.gameByShare.get(share);
     if (!g) return null;
-    return { ...g, moves: JSON.parse(g.moves) };
+    try { return { ...g, moves: JSON.parse(g.moves) }; } catch (e) { console.error('[store] ván hỏng', share, e.message); return null; }
   }
 
   /** n ván gần nhất giữa 2 tài khoản (mới nhất trước): [{ winnerId, moves }] – chống cày điểm bằng ván lặp lại. */
   pairGames(a, b, n = 2) {
-    return this.q.pairGames.all(a, b, b, a, n).map((g) => ({
-      winnerId: g.winner === 1 ? g.x_id : g.winner === 2 ? g.o_id : null, moves: JSON.parse(g.moves),
-    }));
+    return this.q.pairGames.all(a, b, b, a, n).map((g) => {
+      let moves = [];
+      try { moves = JSON.parse(g.moves); } catch (e) { /* bản ghi hỏng: coi như ván rỗng */ }
+      return { winnerId: g.winner === 1 ? g.x_id : g.winner === 2 ? g.o_id : null, moves };
+    });
   }
 
   // ------------------------------------------------------------ Biểu đồ điểm

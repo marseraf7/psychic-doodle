@@ -211,7 +211,8 @@ function makeHandler({ store, hub }) {
       if (pngGlobal.reset < now) { pngGlobal.n = 0; pngGlobal.reset = now + 1000; }
       const wait = hit(pngHits, clientIp(req), PNG_PER_IP, 60000, now) || (++pngGlobal.n > PNG_GLOBAL_PER_S ? 1 : 0);
       if (wait) { res.writeHead(429, { 'retry-after': String(wait), 'content-type': 'text/plain; charset=utf-8' }); return res.end('too many requests'); }
-      png = boardPng(g.moves, g.rule);
+      // Bản ghi ván hỏng (nước trùng ô / toạ độ vô lý – dữ liệu đời cũ, sửa tay): trả 404, không để lỗi làm sập tiến trình
+      try { png = boardPng(g.moves, g.rule); } catch (e) { console.error('[web] ảnh ván hỏng', share, e.message); res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('not found'); }
       pngCache.set(share, png);
       if (pngCache.size > PNG_CACHE) pngCache.delete(pngCache.keys().next().value);
     } else { pngCache.delete(share); pngCache.set(share, png); } // dùng gần đây: đưa về cuối

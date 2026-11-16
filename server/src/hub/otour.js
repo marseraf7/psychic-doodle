@@ -72,7 +72,15 @@ class OTour {
   // ------------------------------------------------------------ Quyền
   /** Xem được: giải công khai / có link; riêng tư chỉ chủ giải, quản trị viên và người được mời đăng ký. */
   otCanSee(t, uid) {
-    return t.access !== 'private' || this.otCanManage(t, uid) || !!(uid && t.reg && (t.reg.invited || []).includes(uid));
+    if (t.access !== 'private' || this.otCanManage(t, uid) || this.otInvited(t, uid)) return true;
+    // Giải con riêng tư của một giải tổng riêng tư cùng chủ: người được mời vào giải tổng xem được (trang giải tổng vốn đã
+    // hiện giải con đó cho họ – otMultiShown; trước đây thấy tên / lịch ở giải tổng nhưng mở giải con thì "không tìm thấy")
+    const p = t.parent && this.otGet(t.parent);
+    return !!(p && p.multi && p.access === 'private' && p.owner === t.owner && this.otInvited(p, uid));
+  }
+
+  otInvited(t, uid) {
+    return !!(uid && t.reg && (t.reg.invited || []).includes(uid));
   }
 
   otCanManage(t, uid) {
@@ -237,7 +245,20 @@ class OTour {
   otMine(t, uid) {
     const manage = this.otCanManage(t, uid);
     return { canManage: manage, log: manage ? (t.log || []).slice(-50).reverse() : null, now: Date.now(), ...this.otRegMine(t, uid),
-      ...(manage && t.multi ? { multiPriv: this.otMultiPrivate(t) } : {}) }; // giải con riêng tư: chỉ người quản lý thấy (otour-multi.js)
+      ...(manage && t.multi ? { multiPriv: this.otMultiPrivate(t) } : {}), // giải con riêng tư: chỉ người quản lý thấy (otour-multi.js)
+      ...this.otPrivRefs(t, uid) };
+  }
+
+  /**
+   * Liên kết tới giải riêng tư (giải tổng của giải con, mùa trước / sau): không nằm trong phần chung, chỉ gửi cho người xem
+   * được giải đó – ghi đè trường cùng tên của phần chung ở trang (D.ot = { ...tour, ...mine }).
+   */
+  otPrivRefs(t, uid) {
+    const out = {};
+    const p = t.parent && this.otGet(t.parent);
+    if (p && p.access === 'private') { const v = this.otParentView(t, uid || null); if (v) out.parent = v; }
+    if (t.series && [t.series.prev, t.series.next].some((id) => { const x = id && this.otGet(id); return x && x.access === 'private'; })) out.series = this.otSeriesView(t, uid || null);
+    return out;
   }
 
   /** Gom cập nhật rồi gửi: người mới mở trang nhận bản đầy đủ, còn lại nhận bản vá (như giải Caro). */
