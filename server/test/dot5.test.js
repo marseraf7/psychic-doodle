@@ -232,6 +232,27 @@ test('mục 74j: dựng bảng GSL với số đội không chia hết cho cỡ 
   for (const m of Object.values(st.matches)) if (m.round === 0) assert.ok(m.a && m.b, 'trận mở màn đủ hai đội');
 });
 
+test('mục 24 (bổ sung bài thử): clubTopicDirty chỉ phát cho người có quyền đọc diễn đàn — người ngoài CLB không nhận', async () => {
+  const { owner, id, c } = await club('open');
+  const mem = await account(), out = await account();
+  const M = uidOf(mem);
+  mem.send({ t: 'clubJoin', id });
+  await until(() => c.members[M]);
+  // Cả thành viên lẫn người ngoài đều đang mở trang CLB (watchClub được đặt cho cả hai ở phía máy chủ)
+  await mem.req({ t: 'clubGet', id }, 'club');
+  await out.req({ t: 'clubGet', id }, 'club');
+  const dirtyOf = (cl) => cl.msgs.filter((m) => m.t === 'clubTopicDirty' && m.id === id);
+  assert.strictEqual(dirtyOf(out).length, 0);
+  // Chủ CLB mở chủ đề mới -> sự kiện diễn đàn đổi phát ra
+  owner.send({ t: 'clubTopicNew', id, title: 'Chủ đề đợt 5', text: 'Bài đầu tiên' });
+  await until(() => dirtyOf(mem).length === 1);
+  assert.ok(dirtyOf(mem)[0].topic, 'thành viên nhận clubTopicDirty kèm mã chủ đề');
+  // Người ngoài: chờ thêm để chắc chắn không có tin nào đến muộn
+  await new Promise((r) => setTimeout(r, 500));
+  assert.strictEqual(dirtyOf(out).length, 0, 'người ngoài CLB không nhận clubTopicDirty (không lộ mã chủ đề / nhịp hoạt động)');
+  [owner, mem, out].forEach((k) => k.close());
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();
