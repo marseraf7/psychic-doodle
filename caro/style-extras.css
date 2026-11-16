@@ -325,6 +325,9 @@ nav.bar.bottom.dragging { transition: none; cursor: grabbing; touch-action: none
    mép trên của thanh dưới cao ~66px) — trước đây 76px nên chìm vào thanh khi thanh phình ra. */
 .mu-tb { position: absolute; left: 50%; transform: translateX(-50%); bottom: 86px; z-index: 3; cursor: grab; }
 .mu-bar.dragging, .mu-tb.dragging { cursor: grabbing; touch-action: none; }
+/* F4 (cùng gốc với .tb-float): .ghost:active { transform: scale() } làm mất translateX(-50%)
+ * căn giữa khi bấm giữ — nút nhảy sang phải, nhả tay ở nửa trái thì mất click. */
+.mu-tb.ghost:active { transform: translateX(-50%) scale(0.97); }
 [data-mu-pos] .tick, [data-mu-labels] .tick { visibility: hidden; }
 [data-mu-pos].sel .tick, [data-mu-labels].sel .tick { visibility: visible; }
 /* Tùy chọn "chỉ biểu tượng": ẩn chữ trên thanh thật (trừ dọc trái/phải vốn đã ẩn) và thanh giả lập. */
