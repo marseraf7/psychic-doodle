@@ -16,7 +16,9 @@
     if (!list.length) return '';
     const open = list.filter((d) => d.status === 'open');
     const now = Date.now() + (D.skew || 0);
-    const rows = list.slice(0, 10).map((d) => {
+    // Vẽ đủ mọi khiếu nại máy chủ gửi (máy chủ đã tự giới hạn 20 mục mới nhất): cắt thêm ở đây từng làm
+    // khiếu nại cũ nhất – gần hết hạn tự công nhận nhất – biến mất khỏi tầm mắt ban tổ chức (đợt 7, mục 45)
+    const rows = list.map((d) => {
       const line = esc(T('dispute_line', { l: d.l ? d.l.name : '?', w: d.w ? d.w.name : '?' }));
       let tail;
       if (d.status === 'open') {
