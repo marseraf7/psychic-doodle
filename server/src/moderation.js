@@ -74,8 +74,14 @@ function mask(text) {
   if (!badWords(out).length) return out;
   const star = (w) => w[0] + '*'.repeat(Math.max(2, [...w].length - 1));
   for (const re of [VI_RE, VI_SOFT_RE, RU_RE, ZH_RE]) out = out.replace(re, star);
-  // Từ tiếng Anh viết lách: so vị trí trên bản latin hoá (cùng độ dài) rồi che ở bản gốc
-  const lat = latinify(out.toLowerCase());
+  // Từ tiếng Anh viết lách: so vị trí trên bản latin hoá (cùng độ dài) rồi che ở bản gốc.
+  // Latin hoá theo từng ký tự và giữ nguyên ký tự mà toLowerCase() nở thành nhiều ký tự ('İ' -> 'i' + U+0307):
+  // nếu không, bản latin hoá dài hơn bản gốc và vị trí che lệch +1 cho mỗi ký tự như vậy (mục 76, rà soát 16/11/2026)
+  const lat = [...out].map((c) => {
+    const lc = c.toLowerCase();
+    const one = [...lc].length === 1 ? lc : c;
+    return LEET[one] || one;
+  }).join('');
   const parts = [...out];
   for (const m of lat.matchAll(EN_RE)) {
     const start = [...lat.slice(0, m.index)].length, len = [...m[0]].length;
