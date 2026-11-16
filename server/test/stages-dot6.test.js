@@ -84,3 +84,16 @@ test('Mục 36 – Massstart: trần hạng nhập kết quả theo cỡ cuộc 
   assert.strictEqual(Race.cleanEvent(st3, [{ uid: MS.heatsOf(st3)[0][0], rank: 48 }], st3.entrants, 0).code, 'ot_race_rank');
   assert.ok(!Race.cleanEvent(st3, [{ uid: MS.heatsOf(st3)[0][0], rank: 6 }], st3.entrants, 0).code, 'hạng 6 trong heat 6 người vẫn nhận');
 });
+
+test('Mục 44 – Massstart: danh sách kết quả chặng (view.events[].res) chốt hoà theo hạt giống, không theo thứ tự nhập', () => {
+  const [c] = off([{ type: 'race', score: 'massstart', massStart: { semis: true, heat: 6, adv: 3 } }]);
+  const st = ST.buildStage(c, 0, ids(12), {});
+  const H = MS.heatsOf(st);
+  // Nhập dòng của heat 2 trước heat 1; hai người về nhất hai heat bằng điểm (60) và cùng hạng 1 trong heat của mình
+  const rows = [...H[1].map((uid, k) => ({ uid, rank: k + 1 })), ...H[0].map((uid, k) => ({ uid, rank: k + 1 }))];
+  Race.recordEvent(st, 0, Race.cleanEvent(st, rows, st.entrants, 0).rows);
+  const v = MS.plug.view(st, 0, 0, side, seedOf);
+  const first = v.events[0].res.filter((x) => x.rank === 1);
+  // Hạt giống cao hơn (người nhất heat 1) phải đứng trước, dù dòng của họ được nhập sau
+  assert.deepStrictEqual(first.map((x) => [x.uid, x.place]), [[H[0][0], 1], [H[1][0], 2]]);
+});

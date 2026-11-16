@@ -32,12 +32,12 @@ function heatsOf(st) {
   return out;
 }
 
-/** Điểm + thứ tự một cuộc đua (một lượt): [{ uid, pts, rank, place, dnf, dsq }] đã xếp. */
-function rankRace(cfg, rows) {
+/** Điểm + thứ tự một cuộc đua (một lượt): [{ uid, pts, rank, place, dnf, dsq }] đã xếp. Hoà tuyệt đối chốt theo hạt giống. */
+function rankRace(cfg, rows, seedOf = () => 0) {
   const M = cfg.massStart;
   const list = rows.map((x) => ({ ...x, pts: (x.dnf || x.dsq ? 0 : M.final[x.rank - 1] || 0) + (x.dsq ? 0 : x.ip || 0) }));
   const grp = (x) => (x.dsq ? 2 : x.dnf ? 1 : 0);
-  list.sort((a, b) => (grp(a) - grp(b)) || (b.pts - a.pts) || ((a.rank || 999) - (b.rank || 999)));
+  list.sort((a, b) => (grp(a) - grp(b)) || (b.pts - a.pts) || ((a.rank || 999) - (b.rank || 999)) || (seedOf(a.uid) - seedOf(b.uid)));
   list.forEach((x, k) => { x.place = k + 1; });
   return list;
 }
@@ -99,9 +99,9 @@ function calc(st, seedOf) {
   const fin = st.events[M.semis ? 1 : 0];
   if (M.semis && st.events[0].done) {
     const by = new Map(st.events[0].rows.map((x) => [x.uid, x]));
-    heatsOf(st).forEach((h, k) => rankRace(cfg, h.filter((u) => by.has(u)).map((u) => by.get(u))).forEach((x) => Object.assign(S[x.uid], { heat: k, semi: x.place, pts: x.pts })));
+    heatsOf(st).forEach((h, k) => rankRace(cfg, h.filter((u) => by.has(u)).map((u) => by.get(u)), seedOf).forEach((x) => Object.assign(S[x.uid], { heat: k, semi: x.place, pts: x.pts })));
   }
-  if (fin.done) rankRace(cfg, fin.rows).forEach((x) => Object.assign(S[x.uid], { final: true, place: x.place, pts: x.pts, dnf: !!x.dnf, dsq: !!x.dsq }));
+  if (fin.done) rankRace(cfg, fin.rows, seedOf).forEach((x) => Object.assign(S[x.uid], { final: true, place: x.place, pts: x.pts, dnf: !!x.dnf, dsq: !!x.dsq }));
   const order = [...st.entrants].sort((a, b) => {
     const x = S[a], y = S[b];
     return (y.final - x.final) || (x.final ? x.place - y.place : ((x.semi || 999) - (y.semi || 999)) || (y.pts - x.pts)) || (seedOf(a) - seedOf(b));
@@ -119,7 +119,7 @@ function view(st, i, adv, side, seedOf) {
   });
   const races = st.events.map((ev) => {
     const groups = (M.semis && ev.i === 0 ? heatsOf(st) : [membersOf(st, ev.i)]).map((h) => h.map(side));
-    const res = ev.rows ? rankRace(st.cfg, ev.rows).map((x) => ({ ...x, ...side(x.uid) })) : null;
+    const res = ev.rows ? rankRace(st.cfg, ev.rows, seedOf).map((x) => ({ ...x, ...side(x.uid) })) : null;
     return { i: ev.i, done: ev.done, groups, ...(ev.rows ? { rows: ev.rows, res } : {}) };
   });
   return { index: i, type: 'race', cfg: st.cfg, done: st.done, events: races, table: rows, mass: true, entrants: st.entrants.map(side) };
