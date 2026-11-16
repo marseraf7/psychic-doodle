@@ -86,6 +86,36 @@ test('mục 74c: giải tán CLB phải huỷ giao hữu đang chờ và chặn 
   [A.owner, B.owner, A2.owner].forEach((k) => k.close());
 });
 
+test('mục 74d: bỏ lời mời ở giải offline đang chạy bị chặn như mời mới — người được mời không mất quyền xem giữa giải', async () => {
+  const org = await account(), guest = await account();
+  const who = (c) => [...c.msgs].reverse().find((m) => m.t === 'welcome').me;
+  const single = { sport: 'esports', stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] };
+  const { id } = await org.req({ t: 'otCreate', name: 'Cúp đợt 5', access: 'private', spec: single, teams: ['A', 'B', 'C', 'D'] }, 'otCreated');
+  const t = ctx.app.hub.otGet(id);
+  const G = who(guest);
+  org.send({ t: 'otRegOpen', id, open: true, invite: true });
+  await until(() => t.reg && t.reg.invite);
+  await org.req({ t: 'otInvite', id, names: '@' + G.username }, 'otInvited');
+  assert.ok(t.reg.invited.includes(G.uid));
+  // Người được mời xem được giải riêng tư
+  await guest.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && m.tour);
+  // Ở bản nháp: bỏ lời mời vẫn được như thường (không hồi quy)
+  const org2 = await account(), guest2 = await account();
+  const { id: id2 } = await org2.req({ t: 'otCreate', name: 'Cúp nháp đợt 5', access: 'private', spec: single, teams: ['A', 'B'] }, 'otCreated');
+  const t2 = ctx.app.hub.otGet(id2), G2 = who(guest2);
+  org2.send({ t: 'otRegOpen', id: id2, open: true, invite: true });
+  await until(() => t2.reg && t2.reg.invite);
+  await org2.req({ t: 'otInvite', id: id2, names: '@' + G2.username }, 'otInvited');
+  org2.send({ t: 'otUninvite', id: id2, uid: G2.uid });
+  await until(() => !t2.reg.invited.includes(G2.uid));
+  // Giải 1 sang trạng thái đang chạy (dựng trạng thái như các bài thử otour khác): bỏ lời mời phải bị chặn
+  t.status = 'running';
+  assert.strictEqual((await org.req({ t: 'otUninvite', id, uid: G.uid }, 'error')).code, 'tour_closed');
+  assert.ok(t.reg.invited.includes(G.uid), 'lời mời còn nguyên');
+  await guest.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && m.tour);
+  [org, guest, org2, guest2].forEach((c) => c.close());
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();
