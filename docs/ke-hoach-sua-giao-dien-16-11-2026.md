@@ -92,3 +92,19 @@ Quy ước: mỗi lỗi sửa kèm bài thử **đỏ trên code cũ**, rồi m�
 - Nhật ký giải: có khoảng cách giữa tên người ghi và tên đội.
 - Form Tạo giải Offline → AI → "Model": không tự điền "gaya" (tắt/bật autofill đều thử).
 - Giải cũ đổi tên lại (R3).
+
+## F. Kết quả thực hiện (16/11/2026)
+
+- **A1** xong: "Xoá tỉ số" hỏi `CaroConfirm`; test tĩnh `danger-confirm.test.js` (đỏ trên code cũ) + bước trong `confirm-dlg.e2e.js`.
+  Các nút xoá khác trong `index.html` (`lh-set-clear`, form xoá tài khoản gõ mật khẩu) đã có xác nhận sẵn.
+- **A2** xong: `K.mgReviewed` – "bị từ chối" không còn ✓.
+- **A3** xong: `.ot-log li` dùng `gap`; loại `glue` trong `ui-audit.js`; `otour-ui.e2e.js` kiểm nhật ký.
+- **A4** xong (chặn autofill) – chờ Laplace kiểm trên Chrome.
+- **A5** không sửa mã (dữ liệu cũ).
+- **B1** không sửa: không có thanh dính nào khác trong khung cuộn (trang Cài đặt, form tạo giải: tiêu đề trang nằm ngoài khung cuộn);
+  hiện tượng là nội dung trôi qua mép khung khi cuộn. Ghi quy tắc 4c vào chuẩn giao diện.
+- **B2** chưa làm (thẩm mỹ, tuỳ chọn).
+- **C1** xong phần chắc chắn: nhớ chữ gõ dở ở ô thêm bạn trong bộ nhớ (sống qua lần vẽ mất ô), bài thử in trạng thái thật khi hỏng.
+  Nguyên nhân gốc trên CI vẫn là giả thuyết (mất kết nối thoáng qua → vẽ nhánh chưa đăng nhập).
+- **C2** xong, tìm ra gốc: `systemDialog()` chỉ đọc dòng `mCurrentFocus` đầu tiên; Android 34 in `mCurrentFocus=null` trước dòng của hộp
+  "isn't responding" nên hộp không bao giờ được dẹp. Nay xét mọi dòng.

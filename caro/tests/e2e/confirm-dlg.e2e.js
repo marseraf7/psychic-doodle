@@ -129,5 +129,26 @@ const { setup } = require('./helpers');
     setTimeout(() => d.dispatchEvent(new Event('close')), 30); setTimeout(() => document.getElementById('confirm-ok').click(), 150); return p; }) === true,
   'sự kiện đóng tới muộn của hộp trước không làm hộp mới thành Huỷ');
 
+  // ---------------------------------------------------------------- Xoá tỉ số (Cài đặt): phải hỏi lại (rà soát 16/11/2026 – R2)
+  const store = await c.evaluate(() => Object.keys(localStorage).find((k) => { try { return 'score' in JSON.parse(localStorage.getItem(k)); } catch (e) { return false; } }));
+  ok(!!store, 'có trạng thái ván lưu trên máy');
+  // Đặt tỉ số 3 – 1 trước khi app nạp (app tự lưu lại trạng thái lúc rời trang nên không sửa thẳng rồi tải lại được)
+  await c.addInitScript((k) => { try { const o = JSON.parse(localStorage.getItem(k)); if (o && !sessionStorage.getItem('e2e-score')) { o.score = { 1: 3, 2: 1 }; localStorage.setItem(k, JSON.stringify(o)); sessionStorage.setItem('e2e-score', '1'); } } catch (e) { /* bỏ qua */ } }, store);
+  await c.reload(); await sleep(1500);
+  const scoreOf = () => c.evaluate((k) => JSON.parse(localStorage.getItem(k)).score, store);
+  c.autoConfirm = false;
+  ok((await scoreOf())[1] === 3, 'tỉ số trước khi xoá: 3 – 1');
+  await c.evaluate(() => { window.CaroShell.open('settings'); }); await sleep(500);
+  await c.click('#reset-score'); await sleep(400);
+  ok(await dlgOpen(c), 'Xoá tỉ số: hiện hộp xác nhận của app');
+  await c.click('#confirm-no'); await sleep(300);
+  ok((await scoreOf())[1] === 3, 'Xoá tỉ số + Huỷ: tỉ số giữ nguyên');
+  await c.click('#reset-score'); await sleep(400);
+  await c.click('#confirm-ok'); await sleep(400);
+  const sc = await scoreOf();
+  ok(sc[1] === 0 && sc[2] === 0, 'Xoá tỉ số + Đồng ý: về 0 – 0');
+  // Checklist giải Online: giải bị từ chối không được tính là "đã duyệt" (rà soát 16/11/2026)
+  ok(await c.evaluate(() => { const r = window.CaroTourKit.mgReviewed; return !r('draft') && !r('pending') && !r('rejected') && r('scheduled') && r('running') && r('finished'); }), 'checklist: nháp / chờ duyệt / bị từ chối chưa phải "đã duyệt"');
+
   await finish();
 })();

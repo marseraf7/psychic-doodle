@@ -66,12 +66,18 @@ const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${
  * (bàn phím không hiện, Back không đóng được hộp thoại của app…). Trước mỗi thao tác thật: bấm "Wait" để dẹp hộp thoại.
  */
 const SYS_DIALOG = /Application Not Responding|isn't responding|has stopped|keeps stopping/;
-function systemDialog() {
-  try { return (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/) || [''])[0].match(SYS_DIALOG) ? true : false; } catch (e) { return false; }
+/**
+ * Dòng mCurrentFocus của hộp thoại hệ thống đang hiện ('' nếu không có). dumpsys có thể in NHIỀU dòng mCurrentFocus (mỗi màn
+ * hình một dòng – Android 34: dòng đầu là "mCurrentFocus=null", hộp treo nằm ở dòng sau): phải xét mọi dòng, không chỉ dòng đầu
+ * (lỗi CI 13/11/2026: hộp "Pixel Launcher isn't responding" không được dẹp nên bàn phím không hiện / không tìm được trận).
+ */
+function systemDialogLine() {
+  try { return (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/g) || []).find((l) => SYS_DIALOG.test(l)) || ''; } catch (e) { return ''; }
 }
+const systemDialog = () => !!systemDialogLine();
 function dismissSystemDialogs() {
   for (let i = 0; i < 5 && systemDialog(); i++) {
-    console.log('Dẹp hộp thoại hệ thống: ' + (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/) || [''])[0].trim());
+    console.log('Dẹp hộp thoại hệ thống: ' + systemDialogLine().trim());
     let done = false;
     try {
       adb('shell', 'uiautomator', 'dump', '/sdcard/sys.xml');

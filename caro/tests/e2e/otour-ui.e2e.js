@@ -75,6 +75,15 @@ const LONG = 'Giải giao hữu mùa đông các câu lạc bộ phía Bắc m�
       }
       report(`${id} [score-panel]`, await audit(boss, '.score-panel'));
       L1++;
+      // Giải đầu: nhập một kết quả để tab "Khác" có nhật ký – tên người ghi và nội dung không dính nhau (R4 16/11/2026)
+      if (k === 0) {
+        const ins = await boss.$$('.score-panel input[type=number]');
+        if (ins.length >= 2) { await ins[0].fill('2'); await ins[1].fill('1'); await ins[1].press('Enter'); await sleep(1200); }
+        await boss.click('[data-act="otScoreClose"]').catch(() => {}); await sleep(300);
+        await boss.click('.ot-tabs [data-tab="more"]'); await sleep(700);
+        ok(await boss.evaluate(() => { const li = document.querySelector('.ot-log li'); if (!li) return false; const a = li.children[0].getBoundingClientRect(), b = li.children[1].getBoundingClientRect(); return b.left - a.right >= 6 || b.top > a.top; }), 'R4: nhật ký – người ghi và nội dung cách nhau');
+        report(`${id} [more + nhật ký]`, await audit(boss));
+      }
       await boss.click('[data-act="otScoreClose"]').catch(() => {}); await sleep(300);
     }
   }

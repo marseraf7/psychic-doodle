@@ -23,6 +23,8 @@ Tài liệu này rút ra từ đợt kiểm thử 12–13/11/2026 (danh sách l�
 | Khung cuộn có thanh dính (`position: sticky`) phải có `scroll-padding-top` ≥ chiều cao thanh – `scrollIntoView` / `focus()` mới không đưa ô nhập xuống dưới thanh | L1: thanh tab giải che khung nhập kết quả, nút "Huỷ kết quả chặng", bục vinh danh | `css-rules.test.js` (luật 3), `otour-ui.e2e.js` (`coverAt` sau khi mở trận) |
 | Không đổi `display` của ô bảng (`td`, `th`) sang flex / grid – ô rời khỏi lưới bảng. Bọc nội dung ô trong `<span>` inline-flex | L2: cột "Phong độ" lệch khỏi bảng | `css-rules.test.js` (luật 2) |
 | Khối có ô nhập vẽ lại theo cập nhật từ máy chủ (danh sách bạn bè, bảng giải…) phải giữ **chữ và con trỏ riêng rẽ** – ô còn trống mà đang được bấm vào cũng giữ focus, nếu không chữ gõ ngay sau đó rơi mất | Ô thêm bạn mất chữ khi bạn bè đổi trạng thái (chập chờn CI 13/11) | `friends-chat.e2e.js` (M-F6) |
+| Hai phần chữ liền nhau (người ghi + nội dung, nhãn + giá trị) tách bằng `gap` / `margin` của khung, **không** dựa vào một dấu cách giữa hai thẻ | R4 16/11: nhật ký giải hiện "gayaĐội 11 – …" | `ui-audit.js` → `glue`, `otour-ui.e2e.js` (nhật ký) |
+| Ô văn bản đứng ngay trước ô mật khẩu / khoá API: ô khoá `autocomplete="new-password"`, ô văn bản có `name` riêng + `autocomplete="off"` (Chrome tự điền tên đăng nhập vào ô văn bản trước ô mật khẩu) | 16/11: ô "Model" hiện sẵn "gaya" | kiểm tay trên Chrome |
 
 ## 3. Không lộ chuỗi mẫu, không đọc thông báo cũ
 
@@ -41,6 +43,19 @@ Tài liệu này rút ra từ đợt kiểm thử 12–13/11/2026 (danh sách l�
 | Bố cục nhiều nhánh (loại kép: nhánh thắng, nhánh thua, chung kết tổng) có câu nối giải thích ai gặp ai khi không vẽ đường nối | A1 | – |
 | Giải con / mục bị ẩn vì quyền xem: người quản lý vẫn thấy (kèm nhãn "Riêng tư"); không để trang báo "0 mục" trong khi có mục ẩn | N6: giải tổng EWC "0 giải con", không mở được giải con | `server/test/otour-multi.test.js` |
 
+## 4b. Thao tác xoá / đặt lại luôn hỏi lại
+
+| Quy tắc | Lỗi đã gặp | Tự kiểm |
+|---|---|---|
+| Mọi nút xoá, đặt lại, huỷ dữ liệu (kể cả dữ liệu chỉ lưu trên máy) hỏi xác nhận bằng `await CaroConfirm.ask(…)` trước khi làm; nút trong `index.html` mang class `danger` / `danger-li` | R2 16/11: "Xoá tỉ số" xoá ngay | `server/test/danger-confirm.test.js`, `confirm-dlg.e2e.js` |
+| Trạng thái "đã xong / đã duyệt ✓" liệt kê **đúng các trạng thái đạt**, không viết kiểu "khác nháp là đạt" (trạng thái mới như "bị từ chối" sẽ lọt) | 16/11: checklist giải bị từ chối vẫn ✓ "Được quản trị viên duyệt" | `confirm-dlg.e2e.js` (`mgReviewed`) |
+
+## 4c. Kết luận lỗi hiển thị dựa trên ảnh chụp
+
+Văn bản trích từ DOM / cây trợ năng có thể thiếu chữ, thiếu dấu cách hoặc bị cắt dù màn hình hiển thị đủ (N3, các "dị thường DOM"
+16/11). Chỉ ghi nhận là lỗi hiển thị khi có ảnh chụp tại vị trí lỗi. Nội dung trôi dưới thanh dính **trong lúc đang cuộn** là bình
+thường; chỉ là lỗi khi app tự đưa tới (focus, `scrollIntoView`) mà phần tử vẫn nằm dưới thanh.
+
 ## 5. Cách kiểm trước khi đẩy code giao diện
 
 1. `cd server && npm run coverage` – gồm `css-rules`, `i18n-vars`, `i18n-quality`, `no-native-dialogs`.
@@ -58,6 +73,7 @@ Tài liệu này rút ra từ đợt kiểm thử 12–13/11/2026 (danh sách l�
 | `clip` | Chữ tràn ngang trong khung `overflow: hidden` mà không có "…", hoặc "…" đặt trên khung flex / grid |
 | `placeholder` | Chữ gợi ý dài hơn ô nhập |
 | `select` | Lựa chọn đang chọn dài hơn hộp chọn |
+| `glue` | Chữ của hai phần liền nhau dính vào nhau (kết thúc và bắt đầu bằng chữ cái, cùng dòng, hở dưới 2px) |
 | `overlap` | Nút / ô nhập đè hoặc dính (< 3px) chữ cùng khối; hoặc nằm trên chữ của khối khác (bỏ qua lớp nổi có chủ ý: thanh cố định, thanh dính, huy hiệu absolute; tiền tố ô nhập `.addon` / `.slug-pre`) |
 | `token` | `{x}`, `%s`, `undefined`, `NaN`, `[object Object]` trong chữ, `placeholder`, `title`, `aria-label` |
 | `stale-sr` | `#sr-live` còn thông báo bàn cờ khi đang ở một trang |
