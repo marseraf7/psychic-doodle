@@ -62,6 +62,30 @@ test('mục 74b: một người không gửi yêu cầu xin vào quá 20 CLB cù
   [...owners, x].forEach((k) => k.close());
 });
 
+test('mục 74c: giải tán CLB phải huỷ giao hữu đang chờ và chặn khi giao hữu đang chạy', async () => {
+  const A = await club('open'), B = await club('open');
+  const startsAt = Date.now() + 3600000;
+  // Giao hữu 1 đang chờ (pending): giải tán CLB A thì giao hữu phải bị huỷ theo
+  A.owner.send({ t: 'clubMatchCreate', id: A.id, opp: B.id, boards: 2, bestOf: 1, startsAt });
+  await until(() => [...ctx.app.hub.tours.values()].some((t) => t.teamMatch && t.teamMatch.a === A.id));
+  const m1 = [...ctx.app.hub.tours.values()].find((t) => t.teamMatch && t.teamMatch.a === A.id);
+  assert.strictEqual(m1.club, null, 'giao hữu không mang club như giải thường — đây là gốc của lỗi');
+  A.owner.send({ t: 'clubDisband', id: A.id });
+  await until(() => !ctx.app.hub.clubs.has(A.id));
+  assert.strictEqual(m1.status, 'cancelled', 'giao hữu đang chờ bị huỷ khi một bên giải tán');
+  assert.strictEqual(m1.cancelReason, 'club_disbanded');
+  // Giao hữu 2 đang chạy (dựng trạng thái running): giải tán CLB B phải bị chặn
+  const A2 = await club('open');
+  A2.owner.send({ t: 'clubMatchCreate', id: A2.id, opp: B.id, boards: 2, bestOf: 1, startsAt });
+  await until(() => [...ctx.app.hub.tours.values()].some((t) => t.teamMatch && t.teamMatch.a === A2.id));
+  const m2 = [...ctx.app.hub.tours.values()].find((t) => t.teamMatch && t.teamMatch.a === A2.id);
+  m2.status = 'running';
+  assert.strictEqual((await B.owner.req({ t: 'clubDisband', id: B.id }, 'error')).code, 'club_has_running_tour',
+    'CLB có giao hữu đang chạy không giải tán được');
+  assert.ok(ctx.app.hub.clubs.has(B.id), 'CLB B còn nguyên');
+  [A.owner, B.owner, A2.owner].forEach((k) => k.close());
+});
+
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
   const k1 = await club('request');
   const x = await account();

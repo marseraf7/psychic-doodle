@@ -183,7 +183,10 @@ class ClubManage {
     const me = this.requireUser(conn);
     const c = this.findClub(id, me.id);
     if (c.owner !== me.id && !this.isAdmin(me.id)) throw E('club_owner_only');
-    const tours = [...this.tours.values()].filter((t) => t.club === c.id);
+    // Cả giải của CLB lẫn giao hữu CLB đấu CLB: giao hữu mang teamMatch {a, b} và club = null nên lọc
+    // theo t.club sẽ bỏ sót — giao hữu đang chờ không bị huỷ, đang chạy cũng không chặn giải tán (mục 74c)
+    const tours = [...this.tours.values()].filter((t) => t.club === c.id
+      || (t.teamMatch && (t.teamMatch.a === c.id || t.teamMatch.b === c.id)));
     if (tours.some((t) => t.status === 'running')) throw E('club_has_running_tour');
     for (const t of tours) if (t.status === 'pending' || t.status === 'scheduled') this.cancelTour(t, 'club_disbanded');
     this.clubs.delete(c.id);
