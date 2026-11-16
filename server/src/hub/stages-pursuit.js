@@ -36,7 +36,12 @@ function gapsFrom(tables, seeds, cfg) {
   const time = {};
   for (const tb of tables || []) for (const u of tb.list) { const s = tb.stats[u]; if (s && s.time > 0 && s.fin > 0) time[u] = s.time; }
   const best = Math.min(...seeds.filter((u) => time[u] != null).map((u) => time[u]));
-  return Number.isFinite(best) ? Object.fromEntries(seeds.map((u) => [u, time[u] != null ? time[u] - best : 0])) : {};
+  if (!Number.isFinite(best)) return {};
+  const g = Object.fromEntries(seeds.filter((u) => time[u] != null).map((u) => [u, time[u] - best]));
+  const worst = Math.max(0, ...Object.values(g));
+  // Người không có thời gian (bỏ cuộc ở Sprint nhưng vẫn đi tiếp): xuất phát sau cùng như nhánh nhảy cầu ở trên,
+  // không phải gap 0 (xuất phát cùng người dẫn đầu)
+  return Object.fromEntries(seeds.map((u) => [u, g[u] != null ? g[u] : worst]));
 }
 
 /** Gán khoảng thua cho giai đoạn đuổi bắt vừa dựng (st.gapsBy: 'jump' – từ điểm nhảy cầu, 'time' – từ thời gian). */
