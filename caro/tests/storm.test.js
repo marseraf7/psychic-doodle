@@ -10,8 +10,8 @@ const vm = require('node:vm');
 const SRC = fs.readFileSync(path.join(__dirname, '..', 'storm.js'), 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function load() {
-  const puzzles = [1, 2, 3, 4, 5, 6].map((i) => ({ id: 'q' + i, m: [[0, 0], [1, 1]], len: 1, sol: [2, 2], r: 1000 }));
+function load(list) {
+  const puzzles = list || [1, 2, 3, 4, 5, 6].map((i) => ({ id: 'q' + i, m: [[0, 0], [1, 1]], len: 1, sol: [2, 2], r: 1000 }));
   const starts = [];
   const sandbox = {
     window: {
@@ -20,7 +20,7 @@ function load() {
       CaroApp: { esc: (s) => String(s), exitExt() {} },
       CaroStudy: {
         loadPuzzles: async () => puzzles,
-        pickNear: (list, target, avoid) => list.find((q) => !avoid.has(q.id)) || list[0],
+        pickNear: (list, target, avoid) => list.find((q) => !avoid.has(q.id)) || list[0] || null,
         Trainer: { start: (opts) => starts.push(opts), refresh() {}, exit() {} },
       },
       addEventListener() {},
@@ -68,4 +68,13 @@ test('mục 52: trong cùng phiên, timer chuyển bài vẫn chạy bình thư�
     if (cur && cur.onExit) cur.onExit();
     await sleep(300);
   }
+});
+
+
+test('mục 53: Storm với danh sách bài rỗng — phiên kết thúc êm, không crash ở q.id', async () => {
+  const { Storm, starts } = load([]);
+  await Storm.start(); // trước sửa: next() ném TypeError vì pickNear trả null/undefined
+  assert.equal(starts.length, 0, 'không có bài thì không mở Trainer');
+  assert.equal(Storm.active, false, 'phiên phải đã kết thúc');
+  await sleep(300); // cho ticker tự dọn
 });
