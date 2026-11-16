@@ -192,7 +192,14 @@
   $('rule-dlg').onBack = () => { if (rv.i > 0) { rv.i--; renderRule(); return true; } Board.stop(); return false; };
   $('rule-dlg').addEventListener('close', () => Board.stop());
 
-  function load() { try { return JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { return {}; } }
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(STORE) || '{}');
+      // JSON hợp lệ nhưng không phải object ('null', '5', '"…"', mảng) cũng phải coi như rỗng: trả thẳng ra thì
+      // doneSet đọc .done của null ném TypeError, markDone gán thuộc tính lên số nguyên thuỷ cũng ném (đợt 7, mục 51)
+      return d && typeof d === 'object' && !Array.isArray(d) ? d : {};
+    } catch (e) { return {}; }
+  }
   function save(d) { try { localStorage.setItem(STORE, JSON.stringify(d)); } catch (e) { /* riêng tư */ } }
   const doneSet = () => new Set(load().done || []);
 
