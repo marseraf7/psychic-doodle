@@ -72,7 +72,10 @@
     s.maxCombo = Math.max(s.maxCombo, s.combo);
     const add = COMBO_BONUS[s.combo];
     if (add) { s.endAt += add * 1000; s.bonus = { text: '+' + add + 's', until: Date.now() + 1500 }; }
-    setTimeout(next, 350);
+    // Gắn timer vào ĐÚNG phiên này: thoát rồi chơi lại trong 350 ms thì timer cũ không được thay bài đầu
+    // của phiên mới (trước đây next() chỉ chặn !s || s.over nên bắn thẳng vào phiên mới – đợt 7, mục 52)
+    const cur = s;
+    setTimeout(() => { if (s === cur) next(); }, 350);
   }
 
   function wrong() {
@@ -81,7 +84,8 @@
     s.combo = 0;
     s.endAt -= PENALTY;
     s.bonus = { text: '−10s', until: Date.now() + 1500, bad: true };
-    setTimeout(next, 700);
+    const cur = s; // gắn phiên như right() (mục 52)
+    setTimeout(() => { if (s === cur) next(); }, 700);
   }
 
   function scoreLine() {
