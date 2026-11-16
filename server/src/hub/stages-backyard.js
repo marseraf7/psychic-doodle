@@ -34,6 +34,9 @@ function calc(st, seedOf = () => 0) {
     if (next.length === 1) last = alive.filter((u) => u !== next[0]); // dừng cùng yard cuối có nhiều người
     alive = next;
   }
+  // Chạm trần số yard mà vẫn chưa phân định (còn người chạy, chưa có yard một mình): không tạo thêm yard được nữa —
+  // kết thúc không nhà vô địch như ca cả yard không ai về, thay vì kẹt ở trạng thái 'running' vĩnh viễn
+  if (status === 'running' && st.events.length >= MAX_YARDS && st.events.every((e) => e.done)) { status = 'none'; alive = []; }
   const order = [...st.entrants].sort((a, b) => (b === winner) - (a === winner) || yards[b] - yards[a] || seedOf(a) - seedOf(b));
   return { yards, alive, status, winner, order, assist: status === 'champion' ? last : [] };
 }

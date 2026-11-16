@@ -10,6 +10,7 @@ const ST = require('../src/hub/stages.js');
 const Race = require('../src/hub/stages-race.js');
 const PUR = require('../src/hub/stages-pursuit.js');
 const SJ = require('../src/hub/stages-skijump.js');
+const BY = require('../src/hub/stages-backyard.js');
 
 const off = (list) => ST.normalizeStages(list, { offline: true });
 const ids = (n, p = 'u') => Array.from({ length: n }, (_, i) => p + i);
@@ -38,4 +39,24 @@ test('Mục 43 – Skijump (view): người chưa nhảy lượt nào không đ�
   const st2 = ST.buildStage(c, 0, ['a', 'b', 'c'], {});
   Race.recordEvent(st2, 0, Race.cleanEvent(st2, [{ uid: 'a', pts: 50 }, { uid: 'b', pts: 50 }, { uid: 'c', pts: 30 }], st2.entrants, 0).rows);
   assert.deepStrictEqual(SJ.plug.view(st2, 0, 0, side, seedOf).table.map((x) => [x.uid, x.rank]), [['a', 1], ['b', 1], ['c', 3]]);
+});
+
+test('Mục 62 – Backyard: chạm trần 300 yard mà còn ≥ 2 người thì giải kết thúc (không vô địch), không kẹt running', () => {
+  const [c] = off([{ type: 'race', score: 'backyard' }]);
+  const st = ST.buildStage(c, 0, ['a', 'b'], {});
+  for (let k = 0; k < 300; k++) {
+    const i = st.events.findIndex((e) => !e.done);
+    assert.notStrictEqual(i, -1, 'còn yard để nhập ở vòng ' + k);
+    const r = BY.clean(st, i, [{ uid: 'a', done: true }, { uid: 'b', done: true }]);
+    assert.ok(!r.code, JSON.stringify(r));
+    BY.record(st, i, r.rows);
+  }
+  assert.strictEqual(st.events.length, 300);
+  assert.strictEqual(st.done, true, 'giai đoạn phải xong ở yard 300');
+  assert.deepStrictEqual([st.backyard.status, st.backyard.winner], ['none', null]);
+  // Đối chứng: chưa chạm trần thì vẫn running và có yard kế tiếp như cũ
+  const st2 = ST.buildStage(c, 0, ['a', 'b'], {});
+  const r2 = BY.clean(st2, 0, [{ uid: 'a', done: true }, { uid: 'b', done: true }]);
+  BY.record(st2, 0, r2.rows);
+  assert.deepStrictEqual([st2.done, st2.events.length], [false, 2]);
 });
