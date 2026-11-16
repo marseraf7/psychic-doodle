@@ -11,6 +11,7 @@
 const test = require('node:test');
 const assert = require('node:assert');
 const { ctx, Client, account, until } = require('./otour-client.js');
+const ST = require('../src/hub/stages.js');
 
 const uidOf = (c) => { const m = c.msgs.filter((x) => x.t === 'welcome').pop().me; return m.uid; };
 let boss = null, n = 0;
@@ -213,6 +214,22 @@ test('mục 74i: đặt lại giải xoá cả firsts/last/restUntil của ngư�
   await until(() => m.done === false);
   assert.ok(!m.notified || !m.notified.length, 'undo: notified xoá để trận sẵn sàng lại được báo lại');
   [a1, a2].forEach((c) => c.close());
+});
+
+test('mục 74j: dựng bảng GSL với số đội không chia hết cho cỡ bảng phải ném lỗi rõ, không cắt lặng lẽ / dựng trận thiếu người', () => {
+  const seeds = (n) => Array.from({ length: n }, (_, i) => 'u' + (i + 1));
+  // Đường lọt: số đội đi tiếp THỰC TẾ lệch số ƯỚC TÍNH ở checkSize (Thụy Sĩ theo record / cắt theo số thua)
+  // nên otNextStage gọi dựng GSL với số đội không hợp lệ — trước khi sửa buildGsl cắt bớt đội hoặc để undefined vào trận
+  for (const n of [3, 6, 10]) {
+    assert.throws(() => ST.buildStage({ type: 'gsl', size: 4 }, 1, seeds(n)),
+      (e) => e.code === 'ot_gsl_four', `GSL cỡ 4 với ${n} đội phải bị chặn bằng ot_gsl_four`);
+  }
+  assert.throws(() => ST.buildStage({ type: 'gsl', size: 8 }, 1, seeds(12)),
+    (e) => e.code === 'ot_gsl_four', 'GSL cỡ 8 với 12 đội phải bị chặn');
+  // Số hợp lệ: dựng đủ đội, mọi trận mở màn có đủ hai đội thật
+  const st = ST.buildStage({ type: 'gsl', size: 4 }, 1, seeds(8));
+  assert.strictEqual(st.entrants.length, 8);
+  for (const m of Object.values(st.matches)) if (m.round === 0) assert.ok(m.a && m.b, 'trận mở màn đủ hai đội');
 });
 
 test('mục 74a: duyệt yêu cầu và duyệt lại đều không lách trần 20 CLB của người được duyệt', async () => {
