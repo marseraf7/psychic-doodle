@@ -163,3 +163,25 @@ test('Mục 42 – Graph: cờ final gắn cho trận tranh vô địch (wp = 1)
   assert.deepStrictEqual(fin('afl8', 8).length, 1);
   assert.deepStrictEqual(fin('gauntlet', 5).map((x) => x[1]), [1]);
 });
+
+test('Mục 39 – Playoff: số miền (bảng của mùa giải) không phải luỹ thừa của 2 thì không lập kế hoạch miền', () => {
+  const PO = require('../src/hub/stages-playoff.js');
+  // prev tối thiểu đúng những gì playoffPlan đọc: type/cfg.season/groups; standings: bảng từng miền
+  const mk = (C, per) => {
+    const prev = { type: 'roundrobin', cfg: { season: {} }, groups: Array.from({ length: C }, (_, c) => ({ name: 'M' + (c + 1), divs: null })) };
+    const standings = Array.from({ length: C }, (_, c) => ({ list: ids(per).map((u) => 'c' + c + u) }));
+    return PO.playoffPlan(prev, { playoff: PO.normalizePlayoff({ per }) }, standings);
+  };
+  // Trước đây: size = pow2(C)·half — 3 miền thành 16 ô với 4 ô BYE (một "nửa nhánh ma" không đội nào vào được)
+  assert.strictEqual(mk(3, 4), null);
+  assert.strictEqual(mk(5, 2), null);
+  assert.strictEqual(mk(6, 2), null);
+  // Số miền hợp lệ giữ nguyên: 1, 2, 4 miền vẫn lập kế hoạch, mọi ô đều có đội thật
+  const { BYE } = require('../src/hub/stages-base.js');
+  for (const [C, per] of [[1, 4], [2, 4], [4, 4], [2, 2]]) {
+    const p = mk(C, per);
+    assert.ok(p, `miền ${C} vẫn có kế hoạch`);
+    assert.strictEqual(p.slots.length, C * per);
+    assert.ok(p.slots.every((s) => s !== BYE), 'không còn ô BYE ma');
+  }
+});
