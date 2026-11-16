@@ -215,7 +215,7 @@
     teams: teamsTab,
     // Cấu hình esports (otour-games-ui.js), xuất file, nhúng vào website (tour-embed.js), nhật ký
     more: (t) => (t.multi ? '' : (K.otNextHtml ? K.otNextHtml(t) : '') + (K.otEspCfgHtml ? K.otEspCfgHtml(t) : '') + (K.otExportHtml ? K.otExportHtml(t) : '') + (K.embedHtml && t.status !== 'draft' ? K.embedHtml(t) : ''))
-      + (t.log && t.log.length ? `<section class="ot-sec"><h4>${esc(T('mg_log'))}</h4><ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> ${esc(T('otlog_' + x.act, x))}</li>`).join('')}</ul></section>` : ''),
+      + (t.log && t.log.length ? `<section class="ot-sec"><h4>${esc(T('mg_log'))}</h4><ul class="ot-log">${t.log.map((x) => `<li><small class="muted">${esc(when(x.at))}${x.by ? ' · ' + esc(x.by) : ''}</small> <span>${esc(T('otlog_' + x.act, x))}</span></li>`).join('')}</ul></section>` : ''),
   };
   function pageView() {
     const t = D.ot;

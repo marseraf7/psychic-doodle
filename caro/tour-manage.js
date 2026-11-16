@@ -44,6 +44,9 @@
   K.tourTabs = (t) => (t.canManage ? `<div class="seg tour-seg" role="tablist">${['view', 'manage'].map((k) => `<label><input type="radio" name="tourtab" data-act="tourTab" value="${k}" ${(M.tab[t.id] || 'view') === k ? 'checked' : ''}> <span>${esc(T('mg_tab_' + k))}</span></label>`).join('')}</div>` : '');
   K.isManageTab = isManage;
 
+  // Đã được duyệt: không tính nháp, chờ duyệt và BỊ TỪ CHỐI (trước đây giải bị từ chối vẫn hiện ✓ – rà soát 16/11/2026)
+  const reviewed = (status) => !['draft', 'pending', 'rejected'].includes(status);
+  K.mgReviewed = reviewed;
   function checklist(t) {
     const n = t.players.filter((p) => !p.withdrawn).length;
     const items = [
@@ -51,7 +54,7 @@
       [n >= 2, 'mg_ck_players', null],
       [t.format !== 'bracket' || !!t.seedPlan || t.seeding !== 'list' || t.offline, 'mg_ck_seeds', null],
       [Object.keys(t.schedule || {}).length > 0, 'mg_ck_schedule', null],
-      [!['draft', 'pending'].includes(t.status), 'mg_ck_review', t.status === 'draft' ? 'mgSubmit' : null],
+      [reviewed(t.status), 'mg_ck_review', t.status === 'draft' ? 'mgSubmit' : null],
       [['running', 'finished'].includes(t.status), 'mg_ck_start', t.status === 'scheduled' ? 'start' : null],
     ];
     // Nút "Làm ngay" chỉ hiện khi người xem có quyền làm việc đó

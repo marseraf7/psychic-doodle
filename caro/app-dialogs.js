@@ -105,7 +105,9 @@
       else if (changedSides && state.board.moves.length && !state.winner) newGame();
     });
     dlg.addEventListener('close', () => { updateUI(); maybeAI(); if (!state.clock) resetClock(); });
-    $('reset-score').onclick = () => {
+    // Thao tác xoá: luôn hỏi lại bằng hộp trong app (docs/chuan-giao-dien.md – rà soát 16/11/2026, R2)
+    $('reset-score').onclick = async () => {
+      if (!(await window.CaroConfirm.ask(T('reset_score_confirm')))) return;
       state.score = { 1: 0, 2: 0 };
       save();
       updateUI();

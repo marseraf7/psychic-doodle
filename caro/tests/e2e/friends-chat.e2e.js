@@ -124,14 +124,17 @@ const { setup, gotoRetry } = require('./helpers');
   // Bên kia vào ván với máy -> a nhận cập nhật hiện diện/bạn bè -> panel bạn bè vẽ lại
   await b.evaluate(() => window.CaroApp.startPreset({ rule: 'vn', moves: [[0, 0]], mode: 'ai', bot: 'tit' }));
   ok(await until(a, () => /Đang chơi/.test(document.querySelector('.cb-list small').textContent), null, 8000), 'đã nhận cập nhật trạng thái của bạn (đang chơi)');
-  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ đang gõ ở ô thêm bạn còn nguyên sau khi panel vẽ lại');
+  // Hỏng thì in trạng thái thật (giá trị ô, ô đang focus, đã đăng nhập chưa, trạng thái kết nối) để tìm đúng nguyên nhân trên CI
+  const addState = () => a.evaluate(() => { const i = document.querySelector('#add-friend input[name="u"]'); const S = window.CaroOnline.state; const f = document.activeElement;
+    return JSON.stringify({ v: i ? i.value : null, focus: f ? f.tagName + (f.name ? '[' + f.name + ']' : '') : null, me: S.me ? (S.me.guest ? 'khách' : S.me.username || 'có') : null, st: S.status }); });
+  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ đang gõ ở ô thêm bạn còn nguyên sau khi panel vẽ lại ' + await addState());
   ok(await a.evaluate(() => document.querySelector('.cb-win input').value === 'tin nhap do...'), 'M-F6: chữ đang gõ ở ô chat còn nguyên');
   ok(await a.evaluate(() => document.activeElement === document.querySelector('.cb-win input')), 'M-F6: ô chat đang focus vẫn giữ focus');
   // Bên kia mất kết nối (máy chủ đổi trạng thái -> vẽ lại lần nữa): chữ vẫn còn
   await b.context().close();
   await a.click('.cb-launch');
   ok(await until(a, () => /Hoạt động/.test(document.querySelector('.cb-list small').textContent), null, 8000), 'bạn offline: Hoạt động vừa xong / x phút trước');
-  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ ô thêm bạn còn nguyên ở lượt vẽ lại thứ hai');
+  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ ô thêm bạn còn nguyên ở lượt vẽ lại thứ hai' + ' ' + await addState());
   // Focus vào ô thêm bạn rồi tự gây một cập nhật bạn bè (gửi lời mời tới tài khoản thứ ba):
   // panel vẽ lại trong lúc ô đang focus — focus và chữ phải được khôi phục vào ô mới
   const c = await user('vi', 'fc_moi', 1280);
@@ -139,7 +142,7 @@ const { setup, gotoRetry } = require('./helpers');
   await a.evaluate(() => { document.querySelector('#add-friend input[name="u"]').dataset.mark = 'cu'; });
   await a.evaluate(() => window.CaroOnline.send({ t: 'friendAdd', username: 'fc_moi' }));
   ok(await until(a, () => !document.querySelector('#add-friend input[name="u"]').dataset.mark), 'panel bạn bè đã vẽ lại theo cập nhật mới');
-  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ ô thêm bạn còn nguyên khi vẽ lại lúc đang focus');
+  ok(await a.evaluate(() => document.querySelector('#add-friend input[name="u"]').value === 'nguoi_la_'), 'M-F6: chữ ô thêm bạn còn nguyên khi vẽ lại lúc đang focus' + ' ' + await addState());
   ok(await a.evaluate(() => document.activeElement === document.querySelector('#add-friend input[name="u"]')), 'M-F6: ô thêm bạn đang focus vẫn giữ focus sau khi vẽ lại');
   // Vừa bấm vào ô thêm bạn CÒN TRỐNG thì có cập nhật bạn bè (panel vẽ lại): con trỏ vẫn ở ô, gõ tiếp không rơi chữ
   // (lỗi chập chờn CI 13/11/2026: trước đây chỉ khôi phục focus khi ô đã có chữ)

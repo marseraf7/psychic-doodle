@@ -42,14 +42,19 @@
       window.addEventListener('DOMContentLoaded', () => { searchWait = false; attachSearch(); }, { once: true });
     }
 
+    let addDraft = ''; // chữ đang gõ dở ở ô thêm bạn (M-F6)
     function renderFriends() {
       const el = $('friends');
       // M-F6: render chạy mỗi khi có tin bạn bè/hiện diện mới — giữ lại nội dung đang gõ
       // trong ô thêm bạn (chữ, focus, vùng chọn) qua lần dựng lại, kẻo người dùng gõ dở
       // là mất sạch. Khôi phục ở cuối hàm, sau khi form mới đã gắn xong.
       const oldIn = el.querySelector('#add-friend input[name="u"]');
-      const draft = oldIn ? { v: oldIn.value, f: document.activeElement === oldIn, s: oldIn.selectionStart, e: oldIn.selectionEnd } : null;
+      // Chữ đang gõ còn được nhớ ở addDraft (cập nhật theo từng lần gõ): lần vẽ nào làm mất ô (vd. mất kết nối thoáng qua →
+      // vẽ nhánh "chưa đăng nhập") thì lần vẽ sau vẫn trả lại chữ – trước đây chỉ đọc lại từ ô đang có nên mất luôn
+      const draft = oldIn ? { v: oldIn.value, f: document.activeElement === oldIn, s: oldIn.selectionStart, e: oldIn.selectionEnd } : { v: addDraft, f: false };
+      if (oldIn) addDraft = oldIn.value;
       if (!S.me || S.me.guest) {
+        if (S.me) addDraft = ''; // đã thành khách (đăng xuất): bỏ chữ gõ dở của tài khoản trước; !S.me = đang nối lại, giữ
         el.innerHTML = `<h3>${esc(T('friends'))}</h3><p class="hint">${esc(T('friends_login_hint'))}</p>`;
         return;
       }
@@ -87,10 +92,11 @@
         if (draft.v) inp.value = draft.v;
         if (draft.f) { inp.focus(); try { inp.setSelectionRange(draft.s, draft.e); } catch (err) { /* ô không hỗ trợ chọn vùng */ } }
       }
+      $('add-friend').u.oninput = (e) => { addDraft = e.target.value; };
       $('add-friend').onsubmit = (e) => {
         e.preventDefault();
         const u = e.target.u.value.trim();
-        if (u && send({ t: 'friendAdd', username: u })) e.target.reset();
+        if (u && send({ t: 'friendAdd', username: u })) { e.target.reset(); addDraft = ''; }
       };
       el.querySelectorAll('[data-accept]').forEach((b) => { b.onclick = () => send({ t: 'friendRespond', id: b.dataset.accept, accept: true }); });
       el.querySelectorAll('[data-deny]').forEach((b) => { b.onclick = () => send({ t: 'friendRespond', id: b.dataset.deny, accept: false }); });

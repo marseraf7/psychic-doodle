@@ -49,10 +49,10 @@
       <p class="hint">${esc(T('ot_ai_own_hint'))}</p>
       <div class="row ot-ai-own-row">
         <label class="field inline"><span>${esc(T('ot_ai_provider'))}</span><select id="otai-prov">${Object.keys(PV.PROVIDERS).map((k) => `<option value="${esc(k)}" ${k === o.provider ? 'selected' : ''}>${esc(pname(k))}</option>`).join('')}</select></label>
-        <label class="field inline"><span>${esc(T('ot_ai_model'))}</span><input id="otai-model" maxlength="80" autocomplete="off" spellcheck="false" value="${esc(o.model || '')}" placeholder="${esc(p.model)}"></label>
+        <label class="field inline"><span>${esc(T('ot_ai_model'))}</span><input id="otai-model" name="otai-model" maxlength="80" autocomplete="off" data-lpignore="true" data-1p-ignore spellcheck="false" value="${esc(o.model || '')}" placeholder="${esc(p.model)}"></label>
       </div>
       <label class="field"><span>${esc(T('ot_ai_key'))} · <a id="otai-getkey" href="${esc(p.keyUrl)}" target="_blank" rel="noopener noreferrer">${esc(T('ot_ai_getkey'))}</a></span>
-        <input id="otai-key" type="password" autocomplete="off" spellcheck="false" maxlength="300" value="${esc(o.key || '')}"></label>
+        <input id="otai-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="300" value="${esc(o.key || '')}"></label>
       <label class="check"><input type="checkbox" id="otai-remember" ${o.remember ? 'checked' : ''}> <span>${esc(T('ot_ai_remember'))}</span></label>
       <p class="err" id="otai-own-err"></p>
       <div class="row"><button type="button" class="ghost sm" data-act="otAiOwnSave">${esc(T('ot_ai_save'))}</button>

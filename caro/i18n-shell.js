@@ -71,6 +71,7 @@
     allow_undo_d: 'Áp dụng khi chơi trên máy này (với máy hoặc 2 người chung máy).',
     sound_on: 'Âm thanh khi đánh',
     reset_score_d: 'Đưa tỉ số X – O về 0 – 0.',
+    reset_score_confirm: 'Xoá tỉ số X – O trên máy này về 0 – 0?',
   });
   I.extend('en', {
     pz_go: 'Solve now',
@@ -141,6 +142,7 @@
     allow_undo_d: 'When playing on this device (computer or 2 players).',
     sound_on: 'Move sounds',
     reset_score_d: 'Set the X – O score back to 0 – 0.',
+    reset_score_confirm: 'Reset the X – O score on this device to 0 – 0?',
   });
   I.extend('ru', {
     pz_go: 'Решить',
@@ -211,6 +213,7 @@
     allow_undo_d: 'При игре на этом устройстве (с компьютером или вдвоём).',
     sound_on: 'Звук ходов',
     reset_score_d: 'Сбросить счёт X – O до 0 – 0.',
+    reset_score_confirm: 'Сбросить счёт X – O на этом устройстве до 0 – 0?',
   });
   I.extend('zh', {
     pz_go: '立即解题',
@@ -281,5 +284,6 @@
     allow_undo_d: '在本设备上对弈时（人机或双人）。',
     sound_on: '落子音效',
     reset_score_d: '把 X – O 比分清零。',
+    reset_score_confirm: '把这台设备上的 X – O 比分清零吗？',
   });
 })();

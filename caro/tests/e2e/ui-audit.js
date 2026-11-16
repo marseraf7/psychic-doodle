@@ -7,6 +7,7 @@
  *   select      – lựa chọn đang chọn của hộp chọn dài hơn hộp;
  *   token       – chuỗi mẫu chưa thay biến còn hiện ra: {bo}, {n}, %s, undefined, NaN, [object Object];
  *   overlap     – nút / ô nhập đè lên chữ (cùng khối cha, hoặc tràn sang khối khác);
+ *   glue        – chữ của hai phần liền nhau dính vào nhau (thiếu khoảng cách);
  *   stale-sr    – vùng đọc màn hình (#sr-live) còn thông báo cũ của bàn cờ khi đang ở một trang;
  *   cover       – phần tử dính (sticky / fixed) che lên ô nhập / nút đang được cuộn tới (coverAt).
  * Chỉ xét phần tử đang hiện (có kích thước, không ẩn). scope: CSS selector giới hạn vùng soát (mặc định cả trang).
@@ -99,6 +100,21 @@ function auditInPage(scope) {
         }
       }
     }
+  }
+  // 4c. Chữ của hai phần liền nhau dính vào nhau ("gayaĐội 11" – tên người ghi + nội dung nhật ký): phần tử có chữ kết thúc
+  //     bằng chữ cái, ngay sau là chữ bắt đầu bằng chữ cái, cùng dòng, khoảng hở dưới 2px
+  const LET = /\p{L}/u;
+  const rectsOf = (n) => { const rg = document.createRange(); rg.selectNodeContents(n); return [...rg.getClientRects()].filter((q) => q.width); };
+  for (const el of root.querySelectorAll('small, b, strong, span, a')) {
+    const nx = el.nextSibling;
+    if (!nx || (nx.nodeType !== 1 && nx.nodeType !== 3) || !vis(el) || el.closest('button, select, svg, .sr-only')) continue;
+    const a = el.textContent, b = nx.textContent || '';
+    if (a.trim().length < 2 || b.trim().length < 2 || !LET.test(a[a.length - 1]) || !LET.test(b[0])) continue;
+    if (nx.nodeType === 1 && (!vis(nx) || ['absolute', 'fixed'].includes(getComputedStyle(nx).position))) continue;
+    const ra = rectsOf(el).pop(), rb = rectsOf(nx)[0];
+    if (!ra || !rb || Math.abs(ra.top - rb.top) > ra.height / 2) continue; // khác dòng
+    const gap = rb.left - ra.right;
+    if (gap < 2 && gap > -4) out.push({ kind: 'glue', el: label(el), text: a.trim().slice(-20) + ' ⟂ ' + b.trim().slice(0, 20) });
   }
   // 5. Thông báo cũ của bàn cờ còn trong vùng đọc màn hình khi đang ở một trang (E2 / N5: "Lượt X (bạn)", "X thắng!")
   const sr = document.getElementById('sr-live');
