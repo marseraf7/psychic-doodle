@@ -63,3 +63,14 @@ test('mục 18: hai thế cùng số nước + cùng ô cuối nhưng khác ô c
   assert.deepEqual(key(view.forbiddenCells()), [], 'thế B không có ô cấm — cache không được trả kết quả của thế A');
   assert.deepEqual(key(view.forbiddenCells()), direct(Caro, b));
 });
+
+test('mục 32: colName bijective base-26 ở các cột biên', () => {
+  const { view } = load();
+  assert.equal(view.colName(0), 'a');
+  assert.equal(view.colName(25), 'z');
+  assert.equal(view.colName(26), 'aa');
+  assert.equal(view.colName(51), 'az');
+  assert.equal(view.colName(52), 'ba');
+  assert.equal(view.colName(701), 'zz');
+  assert.equal(view.colName(702), 'aaa');
+});
