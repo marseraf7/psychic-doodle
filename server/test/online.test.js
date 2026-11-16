@@ -705,8 +705,11 @@ test('xin hoà: đồng ý thì hoà, từ chối thì báo lại, đánh tiếp
   for (let i = 0; i < 3; i++) x.send({ t: 'drawOffer' });
   await new Promise((r) => setTimeout(r, 150));
   assert.strictEqual(notes, 1);
-  // Đối thủ đánh tiếp -> lời xin hoà bị huỷ, và cũng tính là bị từ chối
+  // Đối thủ đánh tiếp -> lời xin hoà bị huỷ, và cũng tính là bị từ chối:
+  // người xin phải nhận được thông báo bị từ chối (F3 — trước đây lặng lẽ, không có thông báo nào)
+  const declinedByMove = x.wait('toast', (m) => m.code === 'draw_declined');
   await move(o, x, 5, 5);
+  await declinedByMove;
   assert.strictEqual(o.room.drawOffer, null);
   assert.strictEqual((await x.req({ t: 'drawOffer' }, 'error')).code, 'draw_wait');
   // Xin hoà, đồng ý -> ván hoà

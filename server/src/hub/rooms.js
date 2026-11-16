@@ -184,13 +184,26 @@ class Rooms {
 
   on_swap(conn, { choice }) {
     const room = this.inRoom(conn);
+    // Chọn bên thay vì trả lời lời xin hoà = từ chối ngầm (room-swap2.js tự declineDraw lặng lẽ):
+    // báo cho người xin như khi bị từ chối tường minh (F3).
+    const drawFrom = room.drawOffer && room.drawOffer !== conn.pid ? room.drawOffer : null;
     room.swapChoose(conn.pid, choice);
+    if (drawFrom && !room.drawOffer) this.send(drawFrom, note('draw_declined', { name: this.nameOf(conn.pid) }));
     this.afterChange(room);
   }
 
   on_move(conn, { x, y }) {
     const room = this.inRoom(conn);
+    // Đi nước thay vì trả lời = từ chối ngầm lời xin hoà / xin đi lại (room.js tự decline lặng lẽ):
+    // báo cho người xin như khi bị từ chối tường minh — trước đây họ không nhận được gì,
+    // chỉ thấy nút lặng lẽ sáng lại (F3; xin đi lại cùng cơ chế).
+    const drawFrom = room.drawOffer && room.drawOffer !== conn.pid ? room.drawOffer : null;
+    const tbFrom = room.takebackOffer && room.takebackOffer !== conn.pid ? room.takebackOffer : null;
     room.move(conn.pid, x, y);
+    if (!room.winner) {
+      if (drawFrom && !room.drawOffer) this.send(drawFrom, note('draw_declined', { name: this.nameOf(conn.pid) }));
+      if (tbFrom && !room.takebackOffer) this.send(tbFrom, note('takeback_declined', { name: this.nameOf(conn.pid) }));
+    }
     this.afterChange(room);
     if (conn.probe) conn.probe(); // đo lại trễ ngay sau nước đi: lần bù sau dùng số mới
   }
