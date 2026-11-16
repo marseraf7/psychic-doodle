@@ -43,7 +43,12 @@ const newPool = (r = START, rd = RD_MAX) => ({ r, rd, vol: VOL, n: 0, at: 0 });
 function upgradePools(u) {
   if (!u.pools || typeof u.pools !== 'object') u.pools = {};
   const legacyRd = u.rated >= 20 ? 100 : u.rated > 0 ? 200 : RD_MAX;
-  for (const p of POOLS) if (!u.pools[p]) u.pools[p] = newPool(typeof u.rating === 'number' ? u.rating : START, legacyRd);
+  for (const p of POOLS) {
+    if (!u.pools[p]) u.pools[p] = newPool(typeof u.rating === 'number' ? u.rating : START, legacyRd);
+    // Bảng điểm thiếu trường / không phải số (dữ liệu cũ, sửa tay): bổ sung – thiếu "vol" thì sau một ván mọi số thành NaN mãi
+    const d = newPool(), q = u.pools[p];
+    for (const k of Object.keys(d)) if (typeof q[k] !== 'number' || !Number.isFinite(q[k])) q[k] = d[k];
+  }
   return u;
 }
 

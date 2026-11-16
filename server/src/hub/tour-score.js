@@ -89,6 +89,8 @@ class TourScore {
     } else {
       const list = Array.isArray(sets) ? sets.slice(0, MAX_SETS).map(pair) : [];
       if (!list.length || list.some((s) => !s)) throw E('tour_score_bad');
+      // Số set không vượt Bo của trận (trước đây trận Bo1 nhận 9 set × 999–0, phồng hiệu số ván – rà soát 16/11/2026, mục 15)
+      if (Array.isArray(sets) && sets.length > ST.boOf(st, m)) throw E('tour_score_bad');
       const ex = extra == null ? null : pair(extra);
       if (extra != null && !ex) throw E('tour_score_bad');
       const { ka, kb } = matchScore(list, t.scoreMode);

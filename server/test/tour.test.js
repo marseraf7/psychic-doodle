@@ -806,6 +806,9 @@ test('Bulk Add: giải trực tuyến thêm theo tên đăng nhập; giải offl
   const name = (u) => t.players.find((p) => p.uid === u).name;
   assert.deepStrictEqual([name(m1.a), name(m1.b)], ['An', 'Dũng'], 'hạt giống theo thứ tự thêm: 1 gặp 4');
   const score = (m, sets, extra) => B.send({ t: 'tourScore', id: off.id, match: m.id, sets, extra });
+  // Số set không vượt Bo của trận (rà soát 16/11/2026, mục 15: trận nhận 9 set × 999–0 làm phồng hiệu số ván)
+  assert.strictEqual((await B.req({ t: 'tourScore', id: off.id, match: m1.id, sets: Array.from({ length: 9 }, () => [999, 0]) }, 'error')).code, 'tour_score_bad');
+  assert.ok(!m1.done);
   // Hoà số set ở loại trực tiếp: phải có kết quả phụ
   assert.strictEqual((await B.req({ t: 'tourScore', id: off.id, match: m1.id, sets: [[21, 15], [15, 21]] }, 'error')).code, 'tour_score_tie');
   await score(m1, [[21, 15], [15, 21]], [5, 3]);

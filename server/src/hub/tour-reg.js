@@ -161,11 +161,12 @@ class TourReg {
     const x = this.queueEntry(t, String(uid || ''));
     if (!x) throw E('player_not_found');
     const u = this.store.users.get(x.uid);
-    this.tourLog(t, this.requireUser(conn).id, accept ? 'reg_accept' : 'reg_reject', { name: x.name });
     if (accept && u) {
-      const res = this.regAdmit(t, u, x.answers);
+      const res = this.regAdmit(t, u, x.answers); // giải đầy thì ném lỗi – chỉ ghi nhật ký khi nhận thành công
+      this.tourLog(t, this.requireUser(conn).id, 'reg_accept', { name: x.name });
       this.send(userPid(x.uid), note(res === 'in' ? 'tour_reg_accepted' : 'tour_waitlisted', { name: t.name }));
     } else {
+      this.tourLog(t, this.requireUser(conn).id, accept ? 'reg_accept' : 'reg_reject', { name: x.name });
       t.queue = t.queue.filter((y) => y !== x);
       this.send(userPid(x.uid), note('tour_reg_rejected', { name: t.name }));
     }

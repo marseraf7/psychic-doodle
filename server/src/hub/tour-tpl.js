@@ -32,7 +32,7 @@ class TourTpl {
     if (name.length < 2) throw E('tour_tpl_name');
     let json;
     try { json = JSON.stringify(data); } catch (e) { throw E('bad_message'); }
-    if (!json || json.length > MAX_TPL_BYTES || typeof data !== 'object') throw E('bad_message');
+    if (!json || json.length > MAX_TPL_BYTES || !data || typeof data !== 'object' || Array.isArray(data)) throw E('bad_message');
     me.tourTpls = (me.tourTpls || []).filter((x) => x.name !== name); // trùng tên: ghi đè
     if (me.tourTpls.length >= MAX_TPL) throw E('tour_tpl_limit', { n: MAX_TPL });
     me.tourTpls.unshift({ id: crypto.randomBytes(4).toString('hex'), name, at: Date.now(), data: JSON.parse(json) });

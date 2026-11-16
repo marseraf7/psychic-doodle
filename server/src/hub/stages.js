@@ -343,7 +343,13 @@ function podium(st, seedOf) {
     const final = st.matches[st.rounds[st.rounds.length - 1][0]];
     const out = [final.winner, final.loser];
     if (st.third) out.push(st.matches[st.third].winner);
-    else if (st.rounds.length >= 2) out.push(...st.rounds[st.rounds.length - 2].map((id) => st.matches[id].loser));
+    // Không có trận tranh hạng ba: hai đội thua bán kết đồng hạng – xếp theo hạt giống (không theo thứ tự trận trên nhánh),
+    // để giai đoạn giữa lấy "3 đội đầu" không loại nhầm đội hạt giống cao hơn
+    else if (st.rounds.length >= 2) {
+      const sf = st.rounds[st.rounds.length - 2].map((id) => st.matches[id].loser);
+      if (seedOf) sf.sort((a, b) => (real(a) && real(b) ? seedOf(a) - seedOf(b) : 0));
+      out.push(...sf);
+    }
     return out.filter(real);
   }
   if (st.type === 'double') {

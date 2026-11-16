@@ -95,6 +95,9 @@ function finalPlaces(t, seedOf) {
   return out;
 }
 
+/** Các giải con kèm theo khi tạo giải tổng (tối đa MAX_INIT_GAMES). */
+const initGames = (games) => (Array.isArray(games) ? games : []).slice(0, MAX_INIT_GAMES);
+
 class OTourMulti {
   /** Giải tổng mà người gửi quản lý (để thêm giải con). */
   otMultiParent(conn, id) {
@@ -161,7 +164,7 @@ class OTourMulti {
 
   /** Tạo các giải con kèm theo khi tạo giải tổng từ mẫu: games = [{ name, spec, teams }] (bỏ qua mục sai cấu hình). */
   otMultiGames(parent, me, games) {
-    const list = (Array.isArray(games) ? games : []).slice(0, MAX_INIT_GAMES);
+    const list = initGames(games);
     if (!list.length) return;
     const commit = this.otMultiQuota(me, list.length);
     let made = 0;
@@ -309,4 +312,4 @@ class OTourMulti {
   }
 }
 
-module.exports = { OTourMulti, cleanTable, cleanRule, finalPlaces, TABLE, MAX_CHILDREN };
+module.exports = { OTourMulti, initGames, cleanTable, cleanRule, finalPlaces, TABLE, MAX_CHILDREN };

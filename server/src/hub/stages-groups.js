@@ -187,7 +187,7 @@ function advancers(st, seedOf, min = 2) {
   }
   // Cắt theo thành tích (kiểu VGC X-2): mọi người thua ≤ cutLosses trận – số người đi tiếp do kết quả quyết định
   if (st.type === 'swiss' && st.cfg.advanceMode === 'record') { const seeds = Pair.recordCut(tables[0].list, tables[0].stats, st.cfg.cutLosses); return { seeds: seeds.length >= min ? seeds : tables[0].list.slice(0, 2), groupOf }; }
-  if (st.type === 'swiss' || (st.type === 'race' && !st.cfg.groups)) return { seeds: tables[0].list.slice(0, Math.max(2, k)), groupOf };
+  if (st.type === 'swiss' || (st.type === 'race' && !st.cfg.groups)) return { seeds: tables[0].list.slice(0, Math.max(min, k)), groupOf }; // min = 1 khi đã có đội vào thẳng (otour-run.js)
   const tiers = [];
   tables.forEach((t, g) => t.list.slice(0, k).forEach((uid, pos) => { (tiers[pos] = tiers[pos] || []).push({ uid, s: t.stats[uid] }); groupOf[uid] = g; }));
   const seeds = [];

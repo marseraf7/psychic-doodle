@@ -38,6 +38,7 @@ class TourRun {
   on_tourKick(conn, { id, uid }) {
     const t = this.requireManager(conn, id, 'players');
     if (!this.player(t, uid)) throw E('player_not_found');
+    if (['finished', 'cancelled', 'rejected'].includes(t.status)) throw E('tour_closed'); // giải đã đóng: không ghi log / báo "bị loại" suông
     this.tourLog(t, this.requireUser(conn).id, 'kicked', { name: this.player(t, uid).name });
     this.withdraw(t, uid, true);
     this.send(userPid(uid), note('tour_kicked', { name: t.name }));
