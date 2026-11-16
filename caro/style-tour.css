@@ -93,7 +93,9 @@ details.card[open] summary { margin-bottom: 8px; }
 .rv .pn small { white-space: normal; }
 .rv .row { justify-content: flex-end; }
 .tour-body .ranks { max-height: none; overflow: visible; }
-.titem .pn { flex: 1; }
+.titem .pn { flex: 1; min-width: 0; }
+/* Tên giải trong thẻ: tự cắt "…" ngay trong style-tour, không phụ thuộc style-online.css đã nạp hay chưa (R3) */
+.titem .pn b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tour-body select.mops { width: auto; max-width: 44px; }
 .tform [hidden], .check[hidden] { display: none !important; }
 
