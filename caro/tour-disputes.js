@@ -15,14 +15,14 @@
     const list = t.disputes || [];
     if (!list.length) return '';
     const open = list.filter((d) => d.status === 'open');
-    const now = Date.now() + (D.skew || 0);
     // Vẽ đủ mọi khiếu nại máy chủ gửi (máy chủ đã tự giới hạn 20 mục mới nhất): cắt thêm ở đây từng làm
     // khiếu nại cũ nhất – gần hết hạn tự công nhận nhất – biến mất khỏi tầm mắt ban tổ chức (đợt 7, mục 45)
     const rows = list.map((d) => {
       const line = esc(T('dispute_line', { l: d.l ? d.l.name : '?', w: d.w ? d.w.name : '?' }));
       let tail;
       if (d.status === 'open') {
-        const wait = d.deadline ? ` · ${esc(T('dispute_auto_in', { n: Math.max(0, Math.ceil((d.deadline - now) / 60000)) }))}` : '';
+        // Đồng hồ sống theo mẫu .cd của tour.js (tick mỗi giây), không tính một lần lúc vẽ rồi đứng yên (đợt 7, mục 46)
+        const wait = d.deadline ? ` · ${K.cd(d.deadline, 'dispute_auto_in_t')}` : '';
         tail = `<small class="loss">${esc(T('dispute_open'))}${wait}</small>`;
         if (K.can(t, 'disputes') && t.status === 'running') {
           const b = (a, cls) => `<button type="button" class="${esc(cls)} sm" data-act="dispute" data-did="${esc(d.id)}" data-v="${a}">${esc(T('dispute_' + a))}</button>`;

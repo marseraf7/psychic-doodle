@@ -415,7 +415,7 @@
   K.pages.tours = pageTours;
   K.pages.tour = pageTour;
   Object.assign(K, {
-    O, T, esc, $, S, D, V, secs, me, can, when, logo, tourItem, setTitle, needLogin, isOpen, icon, fmtIcon, metaHtml,
+    O, T, esc, $, S, D, V, secs, me, can, when, cd, logo, tourItem, setTitle, needLogin, isOpen, icon, fmtIcon, metaHtml,
     open, top, back, render, share, shareLink,
   });
 

@@ -24,6 +24,8 @@ function load(buttons = []) {
     icon: () => '',
     can: () => true,
     acts: {},
+    // Mẫu đồng hồ đếm ngược của tour.js: span .cd có data-at + data-prefix, tick() cập nhật mỗi giây
+    cd: (at, prefix) => `<span class="cd" data-at="${at}" data-prefix="${prefix}">${prefix}</span>`,
   };
   const sandbox = {
     window: { CaroTourKit: K, CaroConfirm: { ask: async () => true } },
@@ -48,6 +50,17 @@ test('mục 45: hiện đủ mọi khiếu nại máy chủ gửi (20), không c
   assert.ok(html.includes('<span class="count">20</span>'));
   // Khiếu nại cũ nhất (cuối danh sách máy chủ gửi, mới nhất trước) vẫn có nút xử lý
   assert.ok(html.includes('data-did="d19"'), 'khiếu nại cũ nhất phải có dòng + nút xử lý');
+});
+
+test('mục 46: hạn tự công nhận là đồng hồ .cd sống (data-at = deadline), không phải chữ tĩnh', () => {
+  const { K } = load();
+  const deadline = Date.now() + 5 * 60000;
+  const html = K.disputesHtml(tourOf([dispute(1, { deadline })]));
+  assert.ok(html.includes(`<span class="cd" data-at="${deadline}" data-prefix="dispute_auto_in_t">`),
+    'phần chờ phải là span .cd để tick() của tour.js đếm ngược mỗi giây');
+  // Khiếu nại Arena không có deadline: không hiện đồng hồ
+  const html2 = K.disputesHtml(tourOf([dispute(2)]));
+  assert.ok(!html2.includes('class="cd"'), 'không deadline thì không đồng hồ');
 });
 
 test('mục 45: danh sách ngắn vẫn vẽ bình thường, rỗng thì không khối', () => {
