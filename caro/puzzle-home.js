@@ -32,6 +32,7 @@
     let list;
     try { list = await S.loadPuzzles(); } catch (e) { el.hidden = true; return; }
     const q = S.dailyPuzzle(list.filter((z) => !z.rule));
+    if (!q) { el.hidden = true; return; } // không có bài nào: ẩn thẻ thay vì crash ở q.m (đợt 7, mục 53)
     const p = q.m.length % 2 ? 'O' : 'X';
     el.hidden = false;
     el.innerHTML = `<div class="pzt-board">${miniBoard(q.m)}</div>

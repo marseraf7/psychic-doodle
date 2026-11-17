@@ -176,7 +176,7 @@
     const altMoves = (i) => moves.slice(0, i).concat([ev[i].move]);
     if (cloud && alts.length) {
       const got = await cloud.get(rule, nodes, alts.map(altMoves));
-      if (my !== job) return null;
+      if (my !== job) { if (two) R().auxDone(); return null; } // huỷ giữa chừng: trả Worker phụ như đường trên (mục 54)
       for (const [k, h] of got) ev[alts[k]] = { ...ev[alts[k]], alt: { ...h, q: ms, src: 'rapfi' } };
     }
     await run(alts.filter((i) => !ours(ev[i].alt, ms)), async (i, lane, clean) => {

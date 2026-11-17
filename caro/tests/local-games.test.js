@@ -26,6 +26,21 @@ function fakeStorage(quota = Infinity) {
   };
 }
 
+/** localStorage giả mà setItem LUÔN ném QuotaExceededError (kho bị khoá/đầy hẳn), removeItem vẫn chạy. */
+function quotaStorage(seed = {}) {
+  const m = new Map(Object.entries(seed));
+  return {
+    m,
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem() { const e = new Error('đầy'); e.name = 'QuotaExceededError'; throw e; },
+    removeItem: (k) => { m.delete(k); },
+  };
+}
+const seedGame = (id, at, an) => ({
+  index: JSON.stringify([{ id, at, kind: 'bot', winner: 1, rule: 'vn', n: 3, an }]),
+  ['caro.lg.g.' + id]: JSON.stringify({ moves: [[0, 0], [1, 1], [2, 2]], analysis: an ? { x: 1 } : null }),
+});
+
 const game = (n, extra = {}) => ({
   kind: 'bot', bot: 'ti', me: 1, x: '', o: '', winner: 1, reason: 'win', rule: 'vn', timeLimit: 0, clock: null,
   moves: Array.from({ length: n }, (_, i) => [i, i % 2]), ...extra,
@@ -229,4 +244,58 @@ test('hai ván khác nhau trùng giờ kết thúc và số nước vẫn lưu t
   const again = s.add(game(9, { at: 7000 }));
   assert.ok(a && b && a !== b, 'nước đi khác: hai ván');
   assert.strictEqual(again, a, 'đúng cùng ván: không lưu lần hai');
+});
+
+test('mục 49: setItem luôn ném quota + kho có ván đã phân tích → add() phải thoát (trả null), không lặp vô hạn', () => {
+  const seed = seedGame('g1', 100, true);
+  const s = LG.create(quotaStorage({ [LG.KEYS.index]: seed.index, 'caro.lg.g.g1': seed['caro.lg.g.g1'] }), () => 5000);
+  // Trước khi sửa: writeFreeing quay mãi vì freeSome luôn trả true mà kho không hề đổi (mọi lần ghi đều bị nuốt lỗi)
+  assert.strictEqual(s.add(game(3)), null);
+});
+
+test('mục 49: setAnalysis() cũng phải thoát khi kho không ghi được và còn ván khác đã phân tích', () => {
+  const idx = JSON.stringify([
+    { id: 'g1', at: 100, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: false },
+    { id: 'g2', at: 90, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: true },
+  ]);
+  const st = quotaStorage({
+    [LG.KEYS.index]: idx,
+    'caro.lg.g.g1': JSON.stringify({ moves: [[0, 0], [1, 1], [2, 2]], analysis: null }),
+    'caro.lg.g.g2': JSON.stringify({ moves: [[3, 3], [4, 4], [5, 5]], analysis: { x: 1 } }),
+  });
+  const s = LG.create(st, () => 5000);
+  assert.strictEqual(s.setAnalysis('g1', { y: 2 }), false);
+});
+
+test('mục 49: chỉ khoá ghi INDEX bị quota (ghi ván được) → add() vẫn phải thoát', () => {
+  const m = new Map(Object.entries(seedGame('g1', 100, false)));
+  m.set(LG.KEYS.index, JSON.stringify([
+    { id: 'g1', at: 100, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: false },
+    { id: 'g0', at: 90, kind: 'bot', winner: 1, rule: 'vn', n: 3, an: false },
+  ]));
+  const st = {
+    m,
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem(k, v) {
+      if (k === LG.KEYS.index) { const e = new Error('đầy'); e.name = 'QuotaExceededError'; throw e; }
+      m.set(k, String(v));
+    },
+    removeItem: (k) => { m.delete(k); },
+  };
+  const s = LG.create(st, () => 5000);
+  assert.strictEqual(s.add(game(3)), null);
+});
+
+
+test('mục 55: chống trùng phải so cả nước đi — ván khác trùng mili-giây + số nước + luật không bị nuốt', () => {
+  const s = LG.create(fakeStorage(), () => 777000);
+  const a = s.add(game(3, { moves: [[0, 0], [1, 1], [2, 2]] }));
+  // Ván B khác hẳn nước đi nhưng cùng at (now cố định), cùng 3 nước, cùng luật
+  const b = s.add(game(3, { moves: [[9, 9], [8, 8], [7, 7]] }));
+  assert.ok(a && b && a !== b, 'hai ván khác nhau phải có hai id khác nhau');
+  assert.strictEqual(s.count(), 2);
+  assert.deepStrictEqual(s.get(b).moves, [[9, 9], [8, 8], [7, 7]]);
+  // Lưu lại đúng ván A (cùng at + cùng nước đi): vẫn chống trùng như cũ
+  assert.strictEqual(s.add(game(3, { moves: [[0, 0], [1, 1], [2, 2]] })), a);
+  assert.strictEqual(s.count(), 2);
 });

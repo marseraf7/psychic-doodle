@@ -45,6 +45,7 @@
   function dailyPuzzle(list) {
     const pool = list.filter((q) => q.r >= 800 && q.r <= 1600);
     const src = pool.length ? pool : list;
+    if (!src.length) return null; // danh sách rỗng: không có bài của ngày (phòng thủ – đợt 7, mục 53)
     let h = 2166136261;
     for (const ch of today()) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
     return src[h % src.length];
@@ -54,6 +55,7 @@
     const src = cand.length ? cand : list;
     const sorted = src.slice().sort((a, b) => Math.abs(a.r - target) - Math.abs(b.r - target));
     const top = sorted.slice(0, 6);
+    if (!top.length) return null; // danh sách rỗng: nơi gọi phải tự dừng thay vì đọc .id của undefined (mục 53)
     return top[Math.floor(Math.random() * top.length)];
   }
 
@@ -92,6 +94,7 @@
     else if (s.mode === 'streak') q = pickNear(list.filter((z) => !z.rule), 600 + s.streak * 70, s.used);
     else if (s.mode === 'vcf' || s.mode === 'vct') q = pickNear(list.filter((z) => (z.t || 'vct') === s.mode), pz.r + pz.diff, s.used); // luyện theo chủ đề (không tính điểm)
     else q = pickNear(list.filter((z) => !z.rule), pz.r + pz.diff, new Set([...pz.recent, ...s.used]));
+    if (!q) { toast(T('pz_load_fail')); return; } // không có bài nào (danh sách rỗng / lọc hết): báo lỗi, không crash (mục 53)
     s.used.add(q.id);
     s.current = q;
     s.delta = null;

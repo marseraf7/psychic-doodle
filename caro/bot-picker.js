@@ -80,7 +80,7 @@
       const locked = b.tier - 1 >= n;
       return `<label class="bot-card${locked ? ' locked' : ''}" style="--c:${esc(look(b.id).color)}" title="${esc(locked ? T('tier_locked', { elo: Bots.TIERS[b.tier - 2].elo }) : '')}">
         <input type="radio" name="bot" value="${b.id}"${locked ? ' disabled' : ''}${b.id === selected ? ' checked' : ''}>
-        ${avatarHtml(b.id)}<b>${esc(name(b.id))}</b><small>${locked ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-lock"/></svg>' : esc(eloText(b, false))}</small></label>`;
+        ${avatarHtml(b.id)}<b title="${esc(name(b.id))}">${esc(name(b.id))}</b><small>${locked ? '<svg class="ico i-in" aria-hidden="true"><use href="#i-lock"/></svg>' : esc(eloText(b, false))}</small></label>`;
     }).join('');
     renderSay(root);
   }

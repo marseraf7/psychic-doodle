@@ -53,7 +53,7 @@
   function next() {
     if (!s || s.over) return;
     const q = St.pickNear(s.list, 500 + s.solved * 45, s.used);
-    if (!q) return; // không còn bài phù hợp (danh sách rỗng): không đọc q.id của undefined
+    if (!q) { stop(false); return; } // danh sách lọc rỗng: kết thúc phiên êm thay vì crash ở q.id (đợt 7, mục 53)
     s.used.add(q.id);
     s.cur = q;
     St.Trainer.start({
