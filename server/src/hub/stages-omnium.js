@@ -61,7 +61,7 @@ function record(st, i, rows) {
   return st.done;
 }
 
-/** Bảng: mỗi người { parts: [điểm 4 đua | null], sp, lap, total, fin (thứ tự qua vạch points race), dnf }. */
+/** Bảng: mỗi người { parts: [điểm 4 đua | null], sp, lap, total, fin (thứ tự qua vạch points race), dnf, dns (không có dòng ở points race đã xong) }. */
 function calc(st, seedOf) {
   const cfg = st.cfg, O = cfg.omnium;
   const S = Object.fromEntries(st.entrants.map((u) => [u, { uid: u, parts: [null, null, null, null], sp: 0, lap: 0, total: 0, fin: null, dnf: false }]));
@@ -77,12 +77,15 @@ function calc(st, seedOf) {
       s.total += s.parts[3];
       s.fin = x.rank;
     }
-    // Không có dòng ở points race (vắng mặt): coi như bỏ cuộc – không giữ hạng nhờ điểm ba đua đầu
-    if (ev.i === EVENTS - 1) { const got = new Set(ev.rows.map((x) => x.uid)); for (const u of st.entrants) if (!got.has(u)) { S[u].dnf = true; S[u].parts[3] = 0; } }
   }
+  // Points race đã xong mà một người không có dòng nào = không xuất phát (dns): cùng bản chất với bỏ cuộc —
+  // không được tính như người về đích (trước đây họ đứng thuần theo tổng điểm, có thể vô địch dù không chạy đua cuối)
+  const prDone = !!(st.events[EVENTS - 1] && st.events[EVENTS - 1].done);
+  if (prDone) for (const u of st.entrants) { const s = S[u]; if (!s.dnf && s.fin == null) s.dns = true; }
   const order = [...st.entrants].sort((a, b) => {
     const x = S[a], y = S[b];
-    return (x.dnf - y.dnf) || (y.total - x.total) || ((x.fin || 999) - (y.fin || 999)) || (seedOf(a) - seedOf(b));
+    const gx = x.dnf || x.dns ? 1 : 0, gy = y.dnf || y.dns ? 1 : 0;
+    return (gx - gy) || (y.total - x.total) || ((x.fin || 999) - (y.fin || 999)) || (seedOf(a) - seedOf(b));
   });
   return { stats: S, order };
 }
@@ -93,7 +96,7 @@ function view(st, i, adv, side, seedOf) {
   const C = calc(st, seedOf);
   const rows = C.order.map((u, k) => {
     const s = C.stats[u];
-    return { ...side(u), rank: k + 1, parts: s.parts, sp: s.sp, lap: s.lap, total: s.total, ...(s.dnf ? { dnf: true } : {}), adv: k < adv };
+    return { ...side(u), rank: k + 1, parts: s.parts, sp: s.sp, lap: s.lap, total: s.total, ...(s.dnf ? { dnf: true } : {}), ...(s.dns ? { dns: true } : {}), adv: k < adv };
   });
   // Mỗi đua con: các dòng đã nhập (để sửa / xem), điểm theo hạng
   const events = st.events.map((ev) => ({ i: ev.i, done: ev.done, ...(ev.rows ? { rows: ev.rows.map((x) => ({ ...x, ...side(x.uid) })) } : {}) }));

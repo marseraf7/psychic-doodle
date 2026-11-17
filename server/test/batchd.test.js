@@ -34,6 +34,14 @@ test('kiểm duyệt: từ tục 4 thứ tiếng (kể cả viết lách), khôn
   assert.ok(M.mask('vãi cl').includes('*'));
 });
 
+test('kiểm duyệt: mask không lệch vị trí với ký tự İ (toLowerCase nở 2 ký tự) — rà soát 16/11/2026, mục 76', () => {
+  // 'İ'.toLowerCase() = 'i' + U+0307 (2 ký tự): bản latin hoá dài hơn bản gốc từng làm vị trí che lệch +1 mỗi ký tự İ
+  assert.strictEqual(M.mask('İ fuck'), 'İ f***');
+  assert.strictEqual(M.mask('İİ fuck'), 'İİ f***');
+  assert.strictEqual(M.mask('İ shit hello'), 'İ s*** hello');
+  assert.strictEqual(M.mask('fuck İ'), 'f*** İ', 'từ cấm đứng trước İ thì vẫn che đúng như trước');
+});
+
 test('kiểm duyệt: mật khẩu yếu, tin nhắn dồn dập / lặp lại', () => {
   assert.ok(M.weakPassword('123456') && M.weakPassword('Password') && M.weakPassword('aaaaaaa') && M.weakPassword('binh_99', 'binh_99'));
   assert.ok(!M.weakPassword('caro-pass1', 'binh'));

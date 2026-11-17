@@ -12,7 +12,7 @@
 const crypto = require('crypto');
 const { E, note } = require('../msg.js');
 const { cleanPublicText, userPid } = require('./shared.js');
-const { CLUB_PERMS, DEFAULT_PERMS, CLUB_ICONS, CLUB_JOIN, MAX_DESC, clubPerms, cleanMultiline, newCode } = require('./clubs.js');
+const { CLUB_PERMS, DEFAULT_PERMS, CLUB_ICONS, CLUB_JOIN, MAX_DESC, MAX_CLUBS_PER_USER, clubPerms, cleanMultiline, newCode } = require('./clubs.js');
 
 const CHAT_MODES = ['off', 'officers', 'members'];
 const FORUM_MODES = ['off', 'officers', 'members', 'everyone'];
@@ -100,6 +100,11 @@ class ClubManage {
     const c = this.findClub(id, me.id);
     this.requireClubPerm(c, me.id, 'requests');
     if (!c.declined.some((x) => x.uid === uid)) throw E('request_gone');
+    // Trần 20 CLB cũng áp cho đường duyệt lại, như clubRequest (mục 74a): chặn trước khi xoá khỏi danh sách
+    if (accept && this.store.users.get(uid) && !c.members[uid] && !c.banned[uid]
+      && this.clubCount(uid) >= MAX_CLUBS_PER_USER) {
+      throw E('club_join_limit', { n: MAX_CLUBS_PER_USER });
+    }
     c.declined = c.declined.filter((x) => x.uid !== uid);
     if (accept && this.store.users.get(uid) && !c.members[uid] && !c.banned[uid]) {
       this.addMember(c, uid);
@@ -178,7 +183,10 @@ class ClubManage {
     const me = this.requireUser(conn);
     const c = this.findClub(id, me.id);
     if (c.owner !== me.id && !this.isAdmin(me.id)) throw E('club_owner_only');
-    const tours = [...this.tours.values()].filter((t) => t.club === c.id);
+    // Cả giải của CLB lẫn giao hữu CLB đấu CLB: giao hữu mang teamMatch {a, b} và club = null nên lọc
+    // theo t.club sẽ bỏ sót — giao hữu đang chờ không bị huỷ, đang chạy cũng không chặn giải tán (mục 74c)
+    const tours = [...this.tours.values()].filter((t) => t.club === c.id
+      || (t.teamMatch && (t.teamMatch.a === c.id || t.teamMatch.b === c.id)));
     if (tours.some((t) => t.status === 'running')) throw E('club_has_running_tour');
     for (const t of tours) if (t.status === 'pending' || t.status === 'scheduled') this.cancelTour(t, 'club_disbanded');
     this.clubs.delete(c.id);

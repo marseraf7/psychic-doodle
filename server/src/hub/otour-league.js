@@ -160,6 +160,9 @@ class OTourLeague {
   /** Bỏ lời mời một tài khoản. */
   on_otUninvite(conn, { id, uid }) {
     const { t } = this.otManaged(conn, id);
+    // Chỉ khi giải còn ở bản nháp, như otInvite / otRegOpen: người được mời xem được giải riêng tư nhờ
+    // lời mời, bỏ lời mời giữa giải đang chạy làm họ mất quyền xem ngay giữa giải (mục 74d)
+    if (t.status !== 'draft') throw E('tour_closed');
     if (!t.reg || !t.reg.invited) return;
     t.reg.invited = t.reg.invited.filter((x) => x !== uid);
     this.otSave(t);

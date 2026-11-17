@@ -50,8 +50,7 @@ function build(st, seeds, opts = {}) {
   const ref = (s) => (s ? { to: id(s.split('.')[0]), slot: s.split('.')[1] } : null);
   st.cols = g.cols.map(() => []);
   st.colNames = g.cols; // khoá tên từng cột (i18n)
-  const last = g.ms.length - 1;
-  g.ms.forEach((d, i) => {
+  g.ms.forEach((d) => {
     const bo = d.bo || (d.wp === 1 && st.cfg.boFinal) || 0;
     const m = newMatch(id(d.k), d.col, { tag: d.tag, gk: d.k, ...(bo ? { bo } : {}), ...(d.start ? { start: d.start } : {}), ...(d.tie ? { tie: true } : {}) });
     m.next = ref(d.win);
@@ -60,7 +59,9 @@ function build(st, seeds, opts = {}) {
     if (d.lp) m.lp = d.lp;
     if (d.a) m.a = seeds[d.a - 1];
     if (d.b) m.b = seeds[d.b - 1];
-    if (i === last) m.final = true;
+    // Chung kết thật là trận tranh hạng 1 (wp = 1) — không phải trận cuối danh sách khuôn (compass8: trận cuối là
+    // chung kết Nam tranh hạng 7–8; cross9 có ba trận wp = 1 thì cả ba cùng là trận quyết định)
+    if (d.wp === 1) m.final = true;
     st.matches[m.id] = m;
     st.cols[d.col].push(m.id);
   });

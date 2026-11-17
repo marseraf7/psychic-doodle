@@ -35,6 +35,10 @@ function kingsError(cfg, n) {
 /** Dựng hai nửa: mỗi nửa cao gặp thấp theo thứ tự hạt giống vào giai đoạn. */
 function buildKings(st, seeds) {
   const h = Math.floor(seeds.length / 4) * 2, rem = seeds.length - 2 * h;
+  // Dưới 4 đội (số đi tiếp thực tế của giai đoạn trước ít hơn ước tính lúc tạo giải — vd Swiss record bất đối xứng):
+  // không ghép được trận nào, mọi đội thành đội miễn đấu và giai đoạn xong ngay; trước đây done cứ false,
+  // không còn trận nào để nhập kết quả nên giải kẹt vĩnh viễn ở giai đoạn này
+  if (!h) st.done = true;
   // Đội dư: các đội hạt giống cao nhất của nửa dưới được miễn đấu (như miễn đấu vòng đầu nhánh loại trực tiếp)
   st.byes = seeds.slice(h, h + rem);
   st.groups = [seeds.slice(0, h), seeds.slice(h + rem)].map((list, g) => {

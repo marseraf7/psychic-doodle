@@ -78,6 +78,10 @@ function playoffPlan(prev, cfg, standings) {
   const po = cfg.playoff;
   if (!po || !prev || prev.type !== 'roundrobin' || !prev.cfg.season || !prev.groups || !prev.groups.length) return null;
   const C = prev.groups.length;
+  // Mỗi miền chiếm đúng một nửa nhánh: số miền phải là luỹ thừa của 2 (1, 2, 4…). Số khác (3, 5, 6…) mà vẫn dựng theo
+  // pow2(C) sẽ thừa ra cả một khối ô BYE — "nửa nhánh ma" không đội nào vào được; thà không lập kế hoạch miền,
+  // để nơi gọi xếp nhánh theo hạt giống như thường (đúng hợp đồng null của hàm này)
+  if (pow2(C) !== C) return null;
   const half = po.mode === 'div' ? 8 : pow2(po.per);
   const size = pow2(C) * half;
   const slots = new Array(size).fill(BYE);

@@ -169,8 +169,13 @@ class OTourRun {
     // Kiểm cỡ theo số đội THỰC vào giai đoạn sau, TRƯỚC khi đổi gì: lúc tạo giải chỉ kiểm được số ước tính (Thụy Sĩ theo
     // thành tích… cho số đội đi tiếp không cố định). Không vừa thì báo lỗi có mã, giai đoạn không chuyển – trước đây dựng ra
     // giai đoạn 0 trận hoặc ném lỗi lạ, giải kẹt không rõ lý do (rà soát 16/11/2026, mục 34, 35, 56)
-    const bad = Spec.stageSizeError(cfg, (plan ? plan.seeds : seeds).length, t.stage + 1);
-    if (bad) { this.otSave(t); throw E(bad.code, bad.args); } // kết quả vừa nhập vẫn được lưu (huỷ lại được); chỉ không chuyển giai đoạn
+    // Kings: dựng được với mọi số đội ≥ 4 (kể cả không chia hết cho 4), dưới 4 đội thì giai đoạn tự xong và được bỏ qua –
+    // không chặn theo luật cỡ lúc tạo giải
+    // Dưới 2 đội: không chặn – giai đoạn dựng ra là trống / chỉ có trận miễn đấu, tự xong và được bỏ qua (stages.js,
+    // stages-season.js), giải đi tiếp tới hết thay vì kẹt
+    const nReal = (plan ? plan.seeds : seeds).length;
+    const bad = cfg.type === 'kings' || nReal < 2 ? null : Spec.stageSizeError(cfg, nReal, t.stage + 1);
+    if (bad) { if (this.otSave) this.otSave(t); throw E(bad.code, bad.args); } // kết quả vừa nhập vẫn được lưu (huỷ lại được); chỉ không chuyển giai đoạn
     // Các dải hạng chuyển sang giai đoạn sau nữa (cfg.routes / cfg.skip): đứng sau đội đã có trong danh sách vào thẳng giai đoạn đó
     for (const r of adv.routes || []) if (r.uids.length) t.direct = { ...(t.direct || {}), [r.to]: [...((t.direct && t.direct[r.to]) || []), ...r.uids] };
     const going = new Set([...(plan ? plan.seeds : adv.seeds), ...(adv.routes || []).flatMap((r) => r.uids)]); // đội chuyển sang giai đoạn sau nữa cũng không bị loại
@@ -183,6 +188,7 @@ class OTourRun {
       ST.DRF.seatStage(next); // có draft: bốc ghế (nhánh này trước đây bỏ sót – mục 57)
       t.st.push(next);
       this.otSchedNext(t); // tự xếp lịch giai đoạn mới (otour-sched.js)
+      if (next.done) this.otNextStage(t); // giai đoạn dựng xong đã xong ngay (vd kings dưới 4 đội): chuyển tiếp luôn
       return;
     }
     // Bốc thăm theo thành tích Thụy Sĩ (cfg.draw – stages-recdraw.js): chỉ khi không có đội vào thẳng; không được thì như thường
@@ -203,6 +209,9 @@ class OTourRun {
       t.st[t.stage].head = Object.fromEntries(seeds.filter((u) => pts[u] > 0).map((u) => [u, pts[u]]));
     }
     this.otSchedNext(t);
+    // Giai đoạn dựng xong đã xong ngay (vd kings dưới 4 đội — stages-kings.js): không còn trận nào để nhập,
+    // phải tự chuyển tiếp, nếu không giải kẹt ở một giai đoạn rỗng
+    if (t.st[t.stage].done) this.otNextStage(t);
   }
 
   /**

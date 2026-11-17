@@ -27,6 +27,7 @@ const MAX_BANNED = 500;
 const MAX_OWNED_CLUBS = 2;
 const MAX_CLUBS_PER_USER = 20;
 const MAX_REQUESTS = 200;
+const MAX_PENDING_REQUESTS = 20; // tổng yêu cầu xin vào đang chờ của một người trên mọi CLB
 const newCode = () => crypto.randomBytes(4).toString('hex').toUpperCase();
 
 class Clubs {
@@ -182,7 +183,7 @@ class Clubs {
     if (c.status !== 'approved') throw E('club_not_found');
     if (c.members[me.id]) return;
     if (c.banned[me.id]) throw E('club_banned');
-    if ([...this.clubs.values()].filter((x) => x.members[me.id]).length >= MAX_CLUBS_PER_USER) {
+    if (this.clubCount(me.id) >= MAX_CLUBS_PER_USER) {
       throw E('club_join_limit', { n: MAX_CLUBS_PER_USER });
     }
     if (c.join === 'code') {
@@ -195,6 +196,10 @@ class Clubs {
       if (c.declined.some((x) => x.uid === me.id)) throw E('club_request_declined');
       if (!c.requests.includes(me.id)) {
         if (c.requests.length >= MAX_REQUESTS) throw E('too_fast');
+        // Trần toàn cục: trước đây chỉ có trần của từng CLB nên một người gửi yêu cầu vào bao nhiêu CLB
+        // cũng được, mỗi yêu cầu lại báo cho mọi quản lý của CLB đó (spam thông báo) — mục 74b
+        const pending = [...this.clubs.values()].filter((x) => (x.requests || []).includes(me.id)).length;
+        if (pending >= MAX_PENDING_REQUESTS) throw E('too_fast');
         c.requests.push(me.id);
         const text = cleanPublicText(msg, 300);
         if (text) c.reqMsg[me.id] = text;
@@ -220,12 +225,24 @@ class Clubs {
     this.pushClub(c);
   }
 
+  /** Số CLB một người đang là thành viên (đếm cho trần MAX_CLUBS_PER_USER). */
+  clubCount(uid) {
+    return [...this.clubs.values()].filter((x) => x.members[uid]).length;
+  }
+
   /** Duyệt yêu cầu vào (quyền requests). Từ chối: vào danh sách đã từ chối – duyệt lại được bằng clubReconsider. */
   on_clubRequest(conn, { id, uid, accept }) {
     const me = this.requireUser(conn);
     const c = this.findClub(id, me.id);
     this.requireClubPerm(c, me.id, 'requests');
     if (!c.requests.includes(uid)) throw E('request_gone');
+    // Trần 20 CLB áp cho cả đường duyệt (trước đây chỉ kiểm lúc tự vào thẳng): yêu cầu gửi trước khi chạm
+    // trần rồi được duyệt sau sẽ lách trần. Chạm trần thì chặn trước khi xoá yêu cầu, để yêu cầu còn
+    // nguyên cho lần duyệt sau khi người đó rời bớt CLB (rà soát 16/11/2026, mục 74a)
+    if (accept && this.store.users.get(uid) && !c.members[uid] && !c.banned[uid]
+      && this.clubCount(uid) >= MAX_CLUBS_PER_USER) {
+      throw E('club_join_limit', { n: MAX_CLUBS_PER_USER });
+    }
     c.requests = c.requests.filter((x) => x !== uid);
     const msg = c.reqMsg[uid] || '';
     delete c.reqMsg[uid];
@@ -338,4 +355,4 @@ function normalizeClub(c) {
   return c;
 }
 
-module.exports = { Clubs, CLUB_PERMS, DEFAULT_PERMS, CLUB_ICONS, CLUB_JOIN, MAX_DESC, clubPerms, cleanMultiline, newCode };
+module.exports = { Clubs, CLUB_PERMS, DEFAULT_PERMS, CLUB_ICONS, CLUB_JOIN, MAX_DESC, MAX_CLUBS_PER_USER, clubPerms, cleanMultiline, newCode };

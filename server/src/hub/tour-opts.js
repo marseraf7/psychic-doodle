@@ -12,6 +12,9 @@
  *  - shareImages: ảnh chia sẻ kết quả trận (vẽ ở trình duyệt – caro/tour-share-img.js) cho loại trực tiếp, nhánh thắng
  *    – thua, vòng tròn, Thụy Sĩ.
  * Phần tuỳ chọn đổi được cả khi giải đang chạy / đã xong (chỉ ảnh hưởng cách hiện): LIVE_OPTS.
+ * quickAdvance và arrangeNext KHÔNG nằm trong LIVE_OPTS: hai ô này đổi hành vi thi đấu thật (cách nhập
+ * kết quả tại thời điểm nhập; dừng xếp nhánh lúc chuyển giai đoạn) nên chỉ đổi được trước giờ đấu
+ * (rà soát 16/11/2026, mục 74f — trước đây chú thích "chỉ ảnh hưởng cách hiện" là sai với hai ô này).
  */
 'use strict';
 const { E } = require('../msg.js');
@@ -20,7 +23,7 @@ const ST = require('./stages.js');
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]{2,19}$/;
 const MAX_ATT = 10; // đính kèm mỗi trận
-const LIVE_OPTS = ['slug', 'roundLabels', 'quickAdvance', 'attachments', 'shareImages', 'arrangeNext', 'showNews', 'showStandings', 'notifyMatch', 'notifyResults'];
+const LIVE_OPTS = ['slug', 'roundLabels', 'attachments', 'shareImages', 'showNews', 'showStandings', 'notifyMatch', 'notifyResults'];
 
 class TourOpts {
   /** Các trường tuỳ chọn từ client (tourFields gọi). ko: thi đấu theo giai đoạn; offline: giải offline. */

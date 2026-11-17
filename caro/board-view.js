@@ -390,6 +390,7 @@
 
     return {
       readColors, resize, toScreen, toCell, toWorld, requestDraw, animateCamera, ensureVisible, centerView, clamp, zoomAt, saveSoon, colName,
+      forbiddenCells, // xuất cho bài thử cache ô cấm Renju (caro/tests/forbidden-cache.test.js, mục 18)
       screenDelta, rotation: R, setDrafts, setDrawLines,
       get W() { return W; },
       get H() { return H; },

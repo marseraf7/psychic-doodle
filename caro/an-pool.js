@@ -21,6 +21,7 @@
     !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
   const size = () => Math.max(1, Math.min(small() ? 2 : 4, (navigator.hardwareConcurrency || 2) - 1));
   const IDLE_MS = 15000; // phân tích xong mà không có lượt mới trong ngần này: dừng các Worker, trả RAM
+  const STALL_MS = 30000; // một lượt mà chừng này lâu không có BẤT KỲ thế nào chấm xong: coi như Worker đã chết lặng
   let idleTimer = 0;
   const reusable = (e, ms) => !!e && typeof e.score === 'number' && (e.q || 0) >= ms;
 
@@ -71,9 +72,28 @@
       if (!workers.length) ensure(); // lượt trước có Worker sập: tạo lại
       if (!workers.length) return res(out);
       pending.add(res);
-      let next = 0, active = workers.length;
-      const finish = () => { pending.delete(res); res(out); };
+      let next = 0, active = workers.length, settled = false, watchdog = 0;
+      const finish = () => { if (settled) return; settled = true; clearTimeout(watchdog); pending.delete(res); res(out); };
+      // Worker chết ở mức tiến trình (OOM…) thì có thể không message mà cũng không error nào tới được: trước đây
+      // Promise treo vĩnh viễn, bảng phân tích đứng ở trạng thái đang chấm vì nhánh dự phòng của study.js chỉ
+      // chạy khi evaluate TRẢ VỀ null. Nay: onerror (như an-explore / live-analysis) hoặc quá STALL_MS không có
+      // thế nào xong → bỏ cả lượt (trả null) và dừng cả bể Worker để lượt sau tạo mới, không tái dùng Worker chết
+      // (đợt 7, mục 71)
+      const fail = () => {
+        // my !== job: lượt đã bị cancel() kết thúc hộ (nó tự trả null cho pending) — watchdog trễ không được
+        // đụng vào bể Worker của lượt mới đang chạy khoẻ
+        if (settled || my !== job) return;
+        settled = true;
+        clearTimeout(watchdog);
+        pending.delete(res);
+        workers.forEach((w) => { try { w.terminate(); } catch (e) { /* đã chết */ } });
+        workers = [];
+        res(null);
+      };
+      const arm = () => { clearTimeout(watchdog); watchdog = setTimeout(fail, STALL_MS); };
+      arm();
       workers.forEach((w, k) => {
+        w.onerror = () => fail();
         const take = () => {
           if (my !== job) return;
           if (next >= tasks.length) { if (--active === 0) finish(); return; }
@@ -83,18 +103,9 @@
             if (e.data.id !== id || my !== job) return;
             // C3: Worker báo lỗi (vd. thế trải quá rộng) → thế này coi như chưa chấm (null), hàng vẫn chạy tiếp
             out.set(t.key, e.data.error ? null : e.data.ev);
+            arm(); // có tiến triển: hẹn lại watchdog từ đầu
             if (onDone) onDone();
             take();
-          };
-          // Worker sập (hết bộ nhớ, lỗi nạp): thế đang chấm coi như chưa chấm, Worker này thôi nhận việc – các Worker khác làm nốt
-          w.onerror = (e) => {
-            if (e && e.preventDefault) e.preventDefault();
-            if (my !== job) return;
-            w.onmessage = w.onerror = null;
-            try { w.terminate(); } catch (err) { /* đã dừng */ }
-            workers = workers.filter((x) => x !== w); // lượt sau tạo lại
-            out.set(t.key, null);
-            if (--active === 0) finish();
           };
           w.postMessage({ type: 'eval', id, rule, ms, moves: t.moves });
         };

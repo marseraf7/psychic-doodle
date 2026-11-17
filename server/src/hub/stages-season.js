@@ -125,6 +125,15 @@ function eulerOrient(edges) {
 
 /** Dựng giai đoạn mùa giải vào st (st.cfg.season đã chuẩn hoá; số đội không khớp thì gộp thành một miền, một bảng con). */
 function buildSeason(st, seeds, rnd = Math.random) {
+  // Dưới 2 đội (số đi tiếp thực tế lệch ước tính lúc tạo giải — vd routes/advance của giai đoạn trước cho 0 đội):
+  // không có trận nào để xếp; dựng giai đoạn trống đã xong để nơi gọi tự chuyển tiếp. Trước đây seasonInfo /
+  // seasonPairs ném TypeError ngay lúc chuyển giai đoạn, làm hỏng trạng thái giải dở dang
+  if (seeds.length < 2) {
+    st.groups = [{ name: 'A', players: [...seeds], divs: null, rounds: [] }];
+    st.season = { perTeam: 0, confs: 1, divs: 1 };
+    st.done = true;
+    return;
+  }
   let info = SS.seasonInfo(st.cfg.season, seeds.length);
   if (info.error) info = SS.seasonInfo({ confs: 1, divs: 1, div: { m: 2 } }, seeds.length); // đi tiếp lệch dự tính: vòng tròn 2 lượt
   const confs = structure(seeds, info);
