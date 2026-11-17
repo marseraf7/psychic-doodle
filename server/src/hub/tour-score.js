@@ -48,8 +48,10 @@ class TourScore {
   scoreTarget(conn, id, match, self = false) {
     let t, mine = false;
     try { t = this.requireManager(conn, id, 'results'); } catch (e) {
-      // Người chơi tự báo tỉ số trận của mình (giải offline bật "selfReport", người chơi có tài khoản – như Challonge)
-      const uid = uidOf(conn.pid), x = uid && this.tours.get(String(id || ''));
+      // Người chơi tự báo tỉ số trận của mình (giải offline bật "selfReport", người chơi có tài khoản – như Challonge).
+      // Tra cả theo link riêng (slug) như mọi handler khác qua findTour: trước đây chỉ tra theo mã giải nên
+      // tự báo bằng slug bị ném lại lỗi tour_managers_only dù người báo đúng là người chơi (mục 74h)
+      const uid = uidOf(conn.pid), x = uid && (this.tours.get(String(id || '')) || this.tourBySlug(id));
       if (!self || !x || !x.offline || !x.selfReport || !this.canSeeTour(x, uid)) throw e;
       t = x;
       mine = uid;
@@ -70,9 +72,11 @@ class TourScore {
   on_tourScore(conn, { id, match, sets, extra, winner, draw }) {
     const { t, st, m, self } = this.scoreTarget(conn, id, match, true);
     if (m.done) throw E('tour_match_done');
-    if (!ST.real(m.a) || !ST.real(m.b)) throw E('tour_match_not_ready');
-    // Trận đang chờ xử khiếu nại mất kết nối: phải xử khiếu nại trước (ghi đè tỉ số ở đây thì khiếu nại kẹt, "hold" không gỡ)
+    // Trận đang tạm dừng chờ xử lý khiếu nại mất kết nối: chỉ được chốt qua quyết định khiếu nại (công nhận /
+    // huỷ / đấu lại). Cho nhập / ghi đè ở đây thì khiếu nại kẹt "open", hết hạn sẽ tự ghi "confirmed" sai nội
+    // dung và cờ hold không bao giờ được gỡ (rà soát 16/11/2026, mục 67)
     if (m.hold) throw E('tour_match_held');
+    if (!ST.real(m.a) || !ST.real(m.b)) throw E('tour_match_not_ready');
     const by = conn.pid;
     if (!t.offline) {
       if (m.room && this.rooms.has(m.room)) throw E('tour_match_live');
@@ -152,7 +156,8 @@ class TourScore {
       for (const { r, x } of targets) { x[r.slot] = null; x.readyAt = null; }
       if (g2) Object.assign(g2, { done: false, skipped: false, winner: null, loser: null, a: null, b: null });
     } else if (st.type === 'swiss' && m.round < st.rounds.length - 1) throw E('tour_undo_locked');
-    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, quick: false, readyAt: Date.now() });
+    // notified: danh sách đã báo "tới trận" — không xoá thì trận sẵn sàng trở lại sẽ không báo lại (mục 74i)
+    Object.assign(m, { done: false, winner: null, loser: null, wins: {}, sets: null, extra: null, walkover: false, double: false, override: false, quick: false, readyAt: Date.now(), notified: [] });
     delete m.claim;
     st.done = false;
     for (const u of [m.a, m.b]) {

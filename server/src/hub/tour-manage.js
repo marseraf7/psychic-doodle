@@ -143,6 +143,10 @@ class TourManage {
     const me = this.store.users.get(uid);
     if (['running', 'finished', 'cancelled', 'rejected'].includes(t.status)) {
       const f = this.tourFields(me, { ...o, startsAt: Date.now() + 3600000, format: t.format, stages: t.stages, offline: !!t.offline, teams: null });
+      // Giải đang chạy: tên / mô tả là nội dung đã qua duyệt lúc tạo — người thường không tự đổi được
+      // giữa giải (trước đây gán thẳng, bỏ qua khâu duyệt của quản trị viên như ở nhánh trước giờ đấu;
+      // mục 74g). Quản trị viên — chính là người duyệt — vẫn sửa được.
+      if (t.status === 'running' && !this.isAdmin(uid) && (f.name !== t.name || f.desc !== t.desc)) throw E('tour_edit_review');
       t.name = f.name;
       t.desc = f.desc;
       // Tuỳ chọn chỉ ảnh hưởng cách hiện (link riêng, nhãn vòng, ảnh chia sẻ…): đổi được cả khi đang chạy – chỉ những ô có gửi
@@ -191,7 +195,9 @@ class TourManage {
     Object.assign(t, { status: 'scheduled', st: null, stage: 0, arrange: null, startedAt: null, endsAt: null, held: false, podium: null, disputes: [], games: [],
       checkinNotified: false, checkinWaived: false }); // điểm danh lại từ đầu
     t.startsAt = Math.max(t.startsAt, Date.now() + 10 * 60 * 1000); // không tự bắt đầu lại ngay
-    for (const p of t.players) Object.assign(p, { seed: null, out: null, score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, paused: false, checkedIn: false });
+    // firsts / last / restUntil cũng là trạng thái thi đấu (ghép Arena và chọn người đi trước đọc chúng):
+    // sót thì giải đặt lại vẫn mang lịch sử ghép của lần chạy trước (mục 74i)
+    for (const p of t.players) Object.assign(p, { seed: null, out: null, score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, paused: false, checkedIn: false, firsts: 0, last: null, restUntil: 0 });
     t.players = t.players.filter((p) => !p.withdrawn);
     this.tourLog(t, uid, 'reset');
     this.saveTour(t);

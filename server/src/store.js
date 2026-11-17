@@ -114,10 +114,11 @@ class Store {
     }
   }
 
+  /** Ghi hàng đợi xuống đĩa. Trả về true nếu đã ghi hết (hoặc không có gì để ghi), false nếu ghi lỗi. */
   flush() {
     clearTimeout(this.timer);
     this.timer = null;
-    if (!this.dirty.size && !this.dirtyDocs.size) return;
+    if (!this.dirty.size && !this.dirtyDocs.size) return true;
     const list = [...this.dirty];
     const docs = [...this.dirtyDocs.entries()];
     try {
@@ -135,11 +136,12 @@ class Store {
       // chưa ghi, ghi log, rồi hẹn thử lại sau 5 giây. Chỉ xoá đúng các mục đã COMMIT ở dưới.
       try { this.db.exec('ROLLBACK'); } catch (_) { /* chưa vào được giao dịch */ }
       console.error('[store] ghi dữ liệu thất bại, giữ hàng đợi để thử lại:', e && e.message);
-      this.schedule(5000);
-      return;
+      if (!this.closed) this.schedule(5000); // đang đóng thì không hẹn nữa: hẹn giờ sẽ chạy trên CSDL đã đóng
+      return false;
     }
     for (const u of list) this.dirty.delete(u);
     for (const [key] of docs) this.dirtyDocs.delete(key);
+    return true;
   }
 
   /**
@@ -184,7 +186,16 @@ class Store {
   }
 
   close() {
-    this.flush();
+    // Ghi nốt hàng đợi trước khi đóng, ghi lỗi thì thử lại ngay vài lần: trước đây close() đóng CSDL vô
+    // điều kiện dù flush() vừa ghi lỗi và đang hẹn thử lại sau 5 giây — các thay đổi trong hàng đợi mất
+    // hẳn vì hẹn giờ chạy trên CSDL đã đóng (rà soát 16/11/2026, mục 75). Vẫn đóng sau số lần thử tối
+    // đa để tiến trình thoát được; còn hàng đợi chưa ghi được thì ghi log rõ thay vì mất lặng lẽ.
+    this.closed = true;
+    let ok = this.flush();
+    for (let i = 0; !ok && i < 3; i++) ok = this.flush();
+    clearTimeout(this.timer);
+    this.timer = null;
+    if (!ok) console.error('[store] đóng CSDL nhưng còn', this.dirty.size + this.dirtyDocs.size, 'mục chưa ghi được (ghi đĩa vẫn lỗi)');
     this.db.close();
   }
 

@@ -48,6 +48,11 @@ function gslError(cfg, n) {
 
 /** Dựng các bảng: chia kiểu rắn theo hạt giống (bảng A: 1, 2G, 2G+1, 4G…). */
 function buildGsl(st, seeds) {
+  // Số đội phải hợp lệ ngay tại lúc dựng: checkSize chỉ kiểm theo số ƯỚC TÍNH, mà số đi tiếp thực tế có
+  // thể lệch (Thụy Sĩ theo record / cắt theo số thua) — trước đây lệch thì thừa bị cắt lặng lẽ, thiếu thì
+  // trận có undefined. Nay ném lỗi có mã như gslError để dừng rõ ràng thay vì dựng giải hỏng (mục 74j)
+  const bad = gslError(st.cfg, seeds.length);
+  if (bad) { const e = new Error(bad.code); e.code = bad.code; e.args = bad.args; throw e; }
   const K = sizeOf(st.cfg);
   const G = Math.max(1, Math.floor(seeds.length / K));
   const groups = Array.from({ length: G }, (_, g) => ({ name: groupName(g), players: [], rounds: [] }));

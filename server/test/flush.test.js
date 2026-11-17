@@ -36,6 +36,36 @@ test('H-S2: flush ghi lỗi → không ném, giữ hàng đợi; hết lỗi th�
   s.db.close();
 });
 
+test('mục 75: close() phải ghi nốt hàng đợi trước khi đóng — lỗi ghi tạm thời thì thử lại, không mất dữ liệu', () => {
+  const s = new Store(null);
+  const u = s.createUser({ username: 'close_a', name: 'A' });
+  u.rating = 1999;
+  s.touch(u);
+  assert.ok(s.dirty.has(u), 'thay đổi đang chờ ghi');
+
+  // Lỗi ghi chỉ ở lần đầu (tạm thời): close() phải thử lại và ghi được thay vì đóng CSDL ngay
+  const orig = s.q.upsertUser.run;
+  let calls = 0;
+  s.q.upsertUser.run = (...a) => { calls++; if (calls === 1) throw new Error('disk full (giả lập)'); return orig.apply(s.q.upsertUser, a); };
+  assert.doesNotThrow(() => s.close(), 'close không được ném lỗi');
+  assert.ok(calls >= 2, 'close đã thử ghi lại sau lần lỗi đầu, không đóng ngay');
+  assert.strictEqual(s.dirty.size, 0, 'hàng đợi đã ghi hết trước khi đóng — dữ liệu không mất');
+  assert.strictEqual(s.timer, null, 'không còn hẹn giờ thử lại nào treo trên CSDL đã đóng');
+});
+
+test('mục 75: close() khi ghi lỗi dai dẳng — vẫn đóng được (không treo), số lần thử có giới hạn', () => {
+  const s = new Store(null);
+  const u = s.createUser({ username: 'close_b', name: 'B' });
+  u.rating = 1888;
+  s.touch(u);
+  let calls = 0;
+  s.q.upsertUser.run = () => { calls++; throw new Error('disk full (giả lập)'); };
+  assert.doesNotThrow(() => s.close(), 'close vẫn phải hoàn tất để tiến trình thoát');
+  assert.ok(calls >= 2 && calls <= 6, `close thử lại có giới hạn (đã gọi ${calls} lần)`);
+  assert.ok(s.dirty.has(u), 'ghi không được thì hàng đợi còn nguyên (mất dữ liệu là do đĩa lỗi, không phải do đóng vội)');
+  assert.strictEqual(s.timer, null, 'không còn hẹn giờ thử lại nào treo trên CSDL đã đóng');
+});
+
 test('H-S1: flush chạy từ hẹn giờ (schedule) mà ghi lỗi cũng không làm sập tiến trình', async () => {
   const s = new Store(null);
   const u = s.createUser({ username: 'flush_b', name: 'B' });
