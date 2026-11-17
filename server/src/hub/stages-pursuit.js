@@ -36,7 +36,10 @@ function gapsFrom(tables, seeds, cfg) {
   const time = {};
   for (const tb of tables || []) for (const u of tb.list) { const s = tb.stats[u]; if (s && s.time > 0 && s.fin > 0) time[u] = s.time; }
   const best = Math.min(...seeds.filter((u) => time[u] != null).map((u) => time[u]));
-  return Number.isFinite(best) ? Object.fromEntries(seeds.map((u) => [u, time[u] != null ? time[u] - best : 0])) : {};
+  if (!Number.isFinite(best)) return {};
+  // Người không có thời gian (bỏ cuộc / không đua giai đoạn trước): xuất phát cùng người thua xa nhất, không phải cùng người dẫn đầu
+  const worst = Math.max(...Object.values(time)) - best;
+  return Object.fromEntries(seeds.map((u) => [u, time[u] != null ? time[u] - best : worst]));
 }
 
 /** Gán khoảng thua cho giai đoạn đuổi bắt vừa dựng (st.gapsBy: 'jump' – từ điểm nhảy cầu, 'time' – từ thời gian). */

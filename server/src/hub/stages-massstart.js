@@ -33,11 +33,11 @@ function heatsOf(st) {
 }
 
 /** Điểm + thứ tự một cuộc đua (một lượt): [{ uid, pts, rank, place, dnf, dsq }] đã xếp. */
-function rankRace(cfg, rows) {
-  const M = cfg.massStart;
+function rankRace(st, rows) {
+  const M = st.cfg.massStart, at = new Map(st.entrants.map((u, k) => [u, k]));
   const list = rows.map((x) => ({ ...x, pts: (x.dnf || x.dsq ? 0 : M.final[x.rank - 1] || 0) + (x.dsq ? 0 : x.ip || 0) }));
   const grp = (x) => (x.dsq ? 2 : x.dnf ? 1 : 0);
-  list.sort((a, b) => (grp(a) - grp(b)) || (b.pts - a.pts) || ((a.rank || 999) - (b.rank || 999)));
+  list.sort((a, b) => (grp(a) - grp(b)) || (b.pts - a.pts) || ((a.rank || 999) - (b.rank || 999)) || (at.get(a.uid) - at.get(b.uid))); // bằng nhau (cùng bỏ cuộc): theo hạt giống, không theo thứ tự nhập
   list.forEach((x, k) => { x.place = k + 1; });
   return list;
 }
@@ -47,7 +47,7 @@ function qualifiers(st) {
   const ev = st.events[0];
   if (!st.cfg.massStart.semis || !ev.done) return [];
   const by = new Map(ev.rows.map((x) => [x.uid, x]));
-  return heatsOf(st).flatMap((h) => rankRace(st.cfg, h.filter((u) => by.has(u)).map((u) => by.get(u))).filter((x) => !x.dnf && !x.dsq).slice(0, st.cfg.massStart.adv).map((x) => x.uid));
+  return heatsOf(st).flatMap((h) => rankRace(st, h.filter((u) => by.has(u)).map((u) => by.get(u))).filter((x) => !x.dnf && !x.dsq).slice(0, st.cfg.massStart.adv).map((x) => x.uid));
 }
 
 /** Người của cuộc đua i. */
@@ -58,7 +58,8 @@ function clean(st, i, rows) {
   if (!Array.isArray(rows) || !rows.length || rows.length > members.length) return { code: 'tour_score_bad' };
   const ok = new Set(members), seen = new Set(), out = [];
   // Thứ tự về đích không trùng trong cùng một lượt (bán kết: theo lượt)
-  const heatOf = new Map((M.semis && i === 0 ? heatsOf(st) : [members]).flatMap((h, k) => h.map((u) => [u, k])));
+  const heats = M.semis && i === 0 ? heatsOf(st) : [members];
+  const heatOf = new Map(heats.flatMap((h, k) => h.map((u) => [u, k])));
   const used = new Set();
   const maxIp = M.sprints.length * Math.max(0, ...M.mid);
   for (const r of rows) {
@@ -70,7 +71,7 @@ function clean(st, i, rows) {
     else if (r.dnf === true) x.dnf = true;
     else {
       const k = Math.floor(Number(r.rank)), key = heatOf.get(uid) + ':' + k;
-      if (!(k >= 1 && k <= MAX_HEAT * 2) || used.has(key)) return { code: 'ot_race_rank' };
+      if (!(k >= 1 && k <= heats[heatOf.get(uid)].length) || used.has(key)) return { code: 'ot_race_rank' };
       used.add(key);
       x.rank = k;
     }
@@ -90,19 +91,19 @@ function record(st, i, rows) {
   return st.done;
 }
 
-/** Bảng chung: người chạy chung kết trước (theo hạng chung kết), rồi người dừng ở bán kết. */
+/** Bảng chung: người chạy chung kết trước (theo hạng chung kết), rồi người dừng ở bán kết; bị truất quyền (ở cuộc đua nào cũng vậy) xếp sau cùng. */
 function calc(st, seedOf) {
   const cfg = st.cfg, M = cfg.massStart, S = {};
   for (const u of st.entrants) S[u] = { uid: u, pts: 0, place: null, heat: null, semi: null, final: false };
   const fin = st.events[M.semis ? 1 : 0];
   if (M.semis && st.events[0].done) {
     const by = new Map(st.events[0].rows.map((x) => [x.uid, x]));
-    heatsOf(st).forEach((h, k) => rankRace(cfg, h.filter((u) => by.has(u)).map((u) => by.get(u))).forEach((x) => Object.assign(S[x.uid], { heat: k, semi: x.place, pts: x.pts })));
+    heatsOf(st).forEach((h, k) => rankRace(st, h.filter((u) => by.has(u)).map((u) => by.get(u))).forEach((x) => Object.assign(S[x.uid], { heat: k, semi: x.place, pts: x.pts, ...(x.dsq ? { dsq: true } : {}) })));
   }
-  if (fin.done) rankRace(cfg, fin.rows).forEach((x) => Object.assign(S[x.uid], { final: true, place: x.place, pts: x.pts, dnf: !!x.dnf, dsq: !!x.dsq }));
+  if (fin.done) rankRace(st, fin.rows).forEach((x) => Object.assign(S[x.uid], { final: true, place: x.place, pts: x.pts, dnf: !!x.dnf, dsq: !!x.dsq }));
   const order = [...st.entrants].sort((a, b) => {
     const x = S[a], y = S[b];
-    return (y.final - x.final) || (x.final ? x.place - y.place : ((x.semi || 999) - (y.semi || 999)) || (y.pts - x.pts)) || (seedOf(a) - seedOf(b));
+    return (!!x.dsq - !!y.dsq) || (y.final - x.final) || (x.final ? x.place - y.place : ((x.semi || 999) - (y.semi || 999)) || (y.pts - x.pts)) || (seedOf(a) - seedOf(b));
   });
   return { stats: S, order };
 }
@@ -117,7 +118,7 @@ function view(st, i, adv, side, seedOf) {
   });
   const races = st.events.map((ev) => {
     const groups = (M.semis && ev.i === 0 ? heatsOf(st) : [membersOf(st, ev.i)]).map((h) => h.map(side));
-    const res = ev.rows ? rankRace(st.cfg, ev.rows).map((x) => ({ ...x, ...side(x.uid) })) : null;
+    const res = ev.rows ? rankRace(st, ev.rows).map((x) => ({ ...x, ...side(x.uid) })) : null;
     return { i: ev.i, done: ev.done, groups, ...(ev.rows ? { rows: ev.rows, res } : {}) };
   });
   return { index: i, type: 'race', cfg: st.cfg, done: st.done, events: races, table: rows, mass: true, entrants: st.entrants.map(side) };

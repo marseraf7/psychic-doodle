@@ -1,7 +1,8 @@
 /*
  * Hệ Race – cách tính 'skijump' (nhảy cầu tính điểm – phần đầu của Nordic combined kiểu Gundersen; chỉ mô phỏng thể thức).
  * Mỗi chặng là một lượt nhảy: ban tổ chức nhập điểm của từng người (0–300, một chữ số thập phân – điểm cự ly + điểm phong cách
- * + bù gió / bục xuất phát đã cộng sẵn); bỏ trống = không nhảy, dnf / dsq = không tính. Xếp theo tổng điểm các lượt (nhiều xếp
+ * + bù gió / bục xuất phát đã cộng sẵn); bỏ trống = không nhảy, dnf = 0 điểm lượt đó (không có lượt nào có điểm thì
+ * không xếp hạng), dsq = loại hẳn. Xếp theo tổng điểm các lượt (nhiều xếp
  * trên); bằng điểm thì đồng hạng (hạt giống chỉ để sắp thứ tự hiển thị).
  * Giai đoạn đuổi bắt (stages-pursuit.js) sau giai đoạn này đổi điểm thua ra giây (cfg.pursuit.perPoint – Gundersen cá nhân:
  * 1 điểm = 4 giây). Nhập lần lượt từng lượt nhảy. Đăng ký vào stages-race-plug.js.
@@ -56,12 +57,15 @@ function calc(st, seedOf = () => 0) {
     for (const x of ev.rows) {
       const s = S[x.uid];
       if (!s) continue;
-      if (x.dnf || x.dsq) { s.out = s.out || (x.dsq ? 'dsq' : 'dnf'); continue; }
+      if (x.dsq) { s.dsq = true; continue; }
+      if (x.dnf) { s.dnf = true; s.jumps[ev.i] = 0; continue; } // bỏ một lượt: 0 điểm lượt đó, các lượt khác vẫn tính
       s.jumps[ev.i] = x.p / 10;
       s.t += x.p;
       s.fin++;
     }
   }
+  // Truất quyền: loại hẳn; bỏ cuộc chỉ bị loại khi không có lượt nào có điểm
+  for (const u of st.entrants) { const s = S[u]; s.out = s.dsq ? 'dsq' : s.dnf && !s.fin ? 'dnf' : null; }
   const grp = (s) => (s.out ? 2 : s.fin ? 0 : 1);
   const order = [...st.entrants].sort((a, b) => grp(S[a]) - grp(S[b]) || S[b].t - S[a].t || seedOf(a) - seedOf(b));
   for (const u of st.entrants) S[u].jump = S[u].fin && !S[u].out ? S[u].t / 10 : null;
@@ -74,7 +78,7 @@ function view(st, i, adv, side, seedOf) {
   const C = calc(st, seedOf);
   let prev = null, pos = 0;
   const rows = C.order.map((u, k) => {
-    const s = C.stats[u], key = s.out ? null : s.t;
+    const s = C.stats[u], key = s.out || !s.fin ? null : s.t; // chưa nhảy lượt nào: không đồng hạng với người nhảy được 0,0
     if (key === null || key !== prev) { pos = k + 1; prev = key; }
     return { ...side(u), rank: pos, jumps: s.jumps, total: s.jump, ...(s.out ? { [s.out]: true } : {}), adv: k < adv };
   });

@@ -30,7 +30,12 @@ function raceRows(st, i, mem) {
     case 'skijump': return mem.map((uid, k) => ({ uid, pts: Math.max(0, 140 - k * 0.5) }));
     case 'backyard': return mem.map((uid, k) => ({ uid, done: i < 2 || k === 0 })); // 2 yard cả đoàn, rồi chỉ người đầu
     case 'poker': return [{ uid: mem[mem.length - 1], by: mem[0] }]; // mỗi chặng loại người cuối
-    default: return mem.map((uid, k) => ({ uid, rank: k + 1 })); // points, massstart, pursuit
+    case 'massstart': { // bán kết: thứ tự về đích tính trong lượt của mình
+      if (!(c.massStart.semis && i === 0)) return mem.map((uid, k) => ({ uid, rank: k + 1 }));
+      const heatOf = new Map(MS.heatsOf(st).flatMap((h, k) => h.map((u) => [u, k]))), n = {};
+      return mem.map((uid) => { const h = heatOf.get(uid); n[h] = (n[h] || 0) + 1; return { uid, rank: n[h] }; });
+    }
+    default: return mem.map((uid, k) => ({ uid, rank: k + 1 })); // points, pursuit
   }
 }
 
