@@ -75,8 +75,9 @@ function mask(text) {
   const star = (w) => w[0] + '*'.repeat(Math.max(2, [...w].length - 1));
   for (const re of [VI_RE, VI_SOFT_RE, RU_RE, ZH_RE]) out = out.replace(re, star);
   // Từ tiếng Anh viết lách: so vị trí trên bản latin hoá (cùng độ dài) rồi che ở bản gốc
-  const lat = latinify(out.toLowerCase());
+  // Viết thường TỪNG chữ: chữ nào viết thường ra nhiều ký tự (vd. 'İ' → 'i' + dấu chấm rời) thì giữ nguyên, kẻo lệch vị trí
   const parts = [...out];
+  const lat = latinify(parts.map((c) => { const l = c.toLowerCase(); return [...l].length === 1 ? l : c; }).join(''));
   for (const m of lat.matchAll(EN_RE)) {
     const start = [...lat.slice(0, m.index)].length, len = [...m[0]].length;
     for (let i = start + 1; i < start + len; i++) parts[i] = '*';

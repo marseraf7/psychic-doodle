@@ -41,10 +41,20 @@ class Disputes {
     return out;
   }
 
-  /** Danh sách gửi cho trang giải (mới nhất trước). */
-  disputeViews(t) {
+  /**
+   * Danh sách gửi cho trang giải (mới nhất trước) – theo người xem (tourMine): người có quyền xử khiếu nại thấy MỌI khiếu
+   * nại còn mở + 20 khiếu nại đã xử gần nhất; người chơi chỉ thấy khiếu nại của ván mình; người khác không thấy gì
+   * (trước đây gửi cho mọi người xem trang giải: tên hai người + link xem lại – rà soát 16/11/2026, mục 47; và chỉ gửi 20
+   * bản ghi cuối nên khiếu nại mở cũ hơn bị giấu – mục 45).
+   */
+  disputeViews(t, uid) {
     const side = (u) => this.tourSide(t, u);
-    return (t.disputes || []).slice(-20).reverse().map((d) => ({
+    const all = t.disputes || [];
+    const manage = this.canManageTour(t, uid, 'disputes');
+    if (!manage && !(uid && all.some((d) => d.w === uid || d.l === uid))) return [];
+    const mine = manage ? all : all.filter((d) => d.w === uid || d.l === uid);
+    const closed = new Set(mine.filter((d) => d.status !== 'open').slice(-20));
+    return mine.filter((d) => d.status === 'open' || closed.has(d)).reverse().map((d) => ({
       id: d.id, kind: d.kind, w: side(d.w), l: side(d.l), share: d.share || null, status: d.status, at: d.at,
       deadline: d.deadline || null, auto: !!d.auto, match: d.match || null,
     }));

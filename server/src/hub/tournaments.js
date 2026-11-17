@@ -163,7 +163,6 @@ class Tournaments {
       games: t.format === 'arena' ? t.games.slice(-30).reverse().map((g) => ({
         x: side(g.x), o: side(g.o), w: g.w, px: g.px, po: g.po, share: g.share || null, dc: !!g.dc, annulled: !!g.annulled,
       })) : null,
-      disputes: this.disputeViews(t), // ván mất kết nối và cách ban tổ chức đã xử lý
       // Team Battle: bảng CLB; giao hữu CLB: tỉ số hai bên + từng bàn (club-battle.js)
       teams: t.teams ? this.teamTable(t) : null, teamTop: t.teams ? t.teams.top : null, teamPodium: t.teamPodium || null,
       teamMatch: t.teamMatch ? this.teamMatchView(t) : null,
@@ -186,6 +185,7 @@ class Tournaments {
       joined: !!(me && !me.withdrawn),
       reviewNote: t.creator === uid || this.isAdmin(uid) ? t.reviewNote || '' : '',
       canManage: manage, canJoin: this.canJoinTour(t, uid),
+      disputes: this.disputeViews(t, uid), // ván mất kết nối và cách xử lý: ban tổ chức thấy hết, người chơi thấy ván của mình (disputes.js)
       me: me ? { checkedIn: !!me.checkedIn, paused: !!me.paused, withdrawn: !!me.withdrawn, out: me.out || null } : null,
       groupDraft: this.canManageTour(t, uid, 'players') ? this.groupDraft(t) : null,
       // Hàng chờ duyệt / danh sách chờ của mình (vị trí trong danh sách chờ), phần đăng ký riêng của ban tổ chức

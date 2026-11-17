@@ -206,3 +206,27 @@ test('M-E1: ván có toạ độ vượt biên chung 512 bị coi là không h�
   assert.strictEqual(s.get(ok).moves.length, 5);
   assert.strictEqual(s.count(), 1);
 });
+
+test('bộ nhớ đầy tới mức không ghi nổi danh sách: add() dừng, không treo (rà soát 16/11/2026, mục 49)', () => {
+  // Kho có 3 ván đã phân tích; sau đó mọi lần ghi đều báo đầy (chỉ xoá được) – như trình duyệt hết hạn mức
+  const st = fakeStorage();
+  let t = 1000;
+  const s = LG.create(st, () => t++);
+  for (let i = 0; i < 3; i++) s.add(game(9 + i, { analysis: { v: 1 } }));
+  const real = st.setItem;
+  let writes = 0;
+  st.setItem = () => { if (++writes > 5000) throw new Error('lặp vô hạn'); const e = new Error('đầy'); e.name = 'QuotaExceededError'; throw e; };
+  assert.strictEqual(s.add(game(20)), null, 'không lưu được thì trả null');
+  assert.ok(writes < 200, 'số lần thử ghi có giới hạn: ' + writes);
+  assert.strictEqual(s.setAnalysis(s.list()[0] ? s.list()[0].id : 'x', { v: 2 }), false);
+  st.setItem = real;
+});
+
+test('hai ván khác nhau trùng giờ kết thúc và số nước vẫn lưu thành hai ván (mục 55)', () => {
+  const s = LG.create(fakeStorage(), () => 5000);
+  const a = s.add(game(9, { at: 7000 }));
+  const b = s.add({ ...game(9, { at: 7000 }), moves: Array.from({ length: 9 }, (_, i) => [i + 3, i % 2]) });
+  const again = s.add(game(9, { at: 7000 }));
+  assert.ok(a && b && a !== b, 'nước đi khác: hai ván');
+  assert.strictEqual(again, a, 'đúng cùng ván: không lưu lần hai');
+});

@@ -28,7 +28,9 @@
   const DEFAULTS = { on: true, ask: true, online: 'off' };
   // Thông tin tóm tắt giữ trong danh sách (nước đi + phân tích nằm ở khoá riêng của ván)
   // share: mã ván trên máy chủ (ván online của tài khoản) – để không lưu trùng và biết ván nào đã có trên máy
-  const META = ['id', 'at', 'kind', 'bot', 'me', 'x', 'o', 'winner', 'reason', 'rule', 'timeLimit', 'clock', 'n', 'an', 'share'];
+  const META = ['id', 'at', 'kind', 'bot', 'me', 'x', 'o', 'winner', 'reason', 'rule', 'timeLimit', 'clock', 'n', 'an', 'share', 'h'];
+  /** Dấu vân tay các nước đi (chuỗi ngắn) – phân biệt hai ván khác nhau trùng giờ kết thúc và số nước. */
+  const movesHash = (moves) => { let h = 0; for (const m of moves) { h = (h * 31 + (m[0] | 0) * 1009 + (m[1] | 0)) | 0; } return (h >>> 0).toString(36); };
 
   const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
   const isQuota = (e) => !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
@@ -73,17 +75,20 @@
         const d = read(K.game(g.id), null);
         if (d) { d.analysis = null; try { write(K.game(g.id), d); } catch (e) { /* vẫn đầy */ } }
         g.an = false;
-        saveIndex(list);
-        return true;
+        // Chỉ coi là "đã giải phóng" khi ghi được danh sách: ghi hỏng mà vẫn trả true thì lần sau lại chọn đúng ván này,
+        // vòng lặp ở writeFreeing / add không bao giờ dừng – trang treo (rà soát 16/11/2026, mục 49)
+        if (saveIndex(list)) return true;
+        g.an = true;
       }
       const old = list.filter((g) => g.id !== keepId).pop();
       if (!old) return false;
+      const had = storage.getItem(K.game(old.id)) != null;
       drop(K.game(old.id));
-      saveIndex(list.filter((g) => g.id !== old.id));
-      return true;
+      const saved = saveIndex(list.filter((g) => g.id !== old.id));
+      return had || saved; // có tiến triển thật (xoá được dữ liệu ván, hoặc ghi được danh sách) mới thử lại
     }
     function saveIndex(list) {
-      try { write(K.index, list); } catch (e) { /* danh sách nhỏ – hiếm khi đầy; ván vẫn đọc được từ khoá riêng */ }
+      try { write(K.index, list); return true; } catch (e) { return false; } // danh sách nhỏ – hiếm khi đầy; ván vẫn đọc được từ khoá riêng
     }
 
     const api = {
@@ -117,10 +122,11 @@
         if (!valid(rec)) return null;
         const at = Number(rec.at) || now();
         const list = index();
-        const same = list.find((g) => (rec.share ? g.share === rec.share : g.at === at && g.n === rec.moves.length && g.rule === (rec.rule || 'vn')));
+        const h = movesHash(rec.moves);
+        const same = list.find((g) => (rec.share ? g.share === rec.share : g.at === at && g.n === rec.moves.length && g.rule === (rec.rule || 'vn') && (!g.h || g.h === h)));
         if (same) return same.id;
         const id = at.toString(36) + Math.random().toString(36).slice(2, 6);
-        const meta = pick({ ...rec, id, at, rule: rec.rule || 'vn', n: rec.moves.length, an: !!rec.analysis }, META);
+        const meta = pick({ ...rec, id, at, rule: rec.rule || 'vn', n: rec.moves.length, an: !!rec.analysis, h }, META);
         if (!writeFreeing(K.game(id), { moves: rec.moves, analysis: rec.analysis || null }, id)) return null;
         for (;;) {
           // Dựng lại danh sách mỗi lần thử: freeSome có thể vừa bỏ bớt ván cũ

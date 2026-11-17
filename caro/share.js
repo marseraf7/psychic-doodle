@@ -53,8 +53,9 @@
       const [sx, sy] = cell(m.x, m.y);
       window.CaroStyle.drawStone(ctx, m.p, sx, sy, s, 1, col);
     }
-    if (final && n) {
-      const last = b.moves[n - 1];
+    // Nước cuối theo bàn đã dựng (nước hỏng trong dữ liệu bị bỏ qua nên b.moves có thể ngắn hơn n – H-E1)
+    const last = b.moves[b.moves.length - 1];
+    if (final && last) {
       const w = C.checkWin(b, last.x, last.y, last.p);
       if (w) {
         const [ax, ay] = cell(w[0][0], w[0][1]), [bx, by] = cell(w[w.length - 1][0], w[w.length - 1][1]);

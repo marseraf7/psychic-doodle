@@ -5,7 +5,8 @@
  *     hạng 21 trở xuống ở Giải vô địch thế giới 2023 / 2024 đều 1 điểm); bỏ cuộc (DNF) không có hạng, 0 điểm đua đó;
  *   3 Points race – mỗi người mang điểm 3 đua đầu vào; nhập tổng điểm sprint (mốc giữa đua 5-3-2-1, mốc cuối gấp đôi),
  *     số vòng hơn (+lap điểm mỗi vòng) / kém (−lap) và thứ tự qua vạch cuối. Điểm có thể âm.
- * Xếp hạng: tổng điểm (nhiều xếp trên); bằng điểm → thứ tự qua vạch ở points race; bỏ cuộc points race xếp sau người về đích.
+ * Xếp hạng: tổng điểm (nhiều xếp trên); bằng điểm → thứ tự qua vạch ở points race; bỏ cuộc / vắng mặt points race xếp sau người về đích
+ * và không có điểm đua đó.
  * Nhập lần lượt từng đua con. Đăng ký vào registry stages-race-plug.js.
  */
 'use strict';
@@ -70,11 +71,14 @@ function calc(st, seedOf) {
       const s = S[x.uid];
       if (!s) continue;
       if (ev.i < EVENTS - 1) { s.parts[ev.i] = x.dnf ? 0 : rankPts(cfg, x.rank); s.total += s.parts[ev.i]; continue; } // DNF: 0 điểm
+      if (x.dnf) { s.dnf = true; s.parts[3] = 0; continue; } // bỏ cuộc points race: 0 điểm đua này như ba đua đầu
       s.sp = x.sp || 0; s.lap = x.lap || 0;
       s.parts[3] = s.sp + s.lap * O.lap;
       s.total += s.parts[3];
-      if (x.dnf) s.dnf = true; else s.fin = x.rank;
+      s.fin = x.rank;
     }
+    // Không có dòng ở points race (vắng mặt): coi như bỏ cuộc – không giữ hạng nhờ điểm ba đua đầu
+    if (ev.i === EVENTS - 1) { const got = new Set(ev.rows.map((x) => x.uid)); for (const u of st.entrants) if (!got.has(u)) { S[u].dnf = true; S[u].parts[3] = 0; } }
   }
   const order = [...st.entrants].sort((a, b) => {
     const x = S[a], y = S[b];

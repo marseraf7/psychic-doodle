@@ -50,6 +50,18 @@ function normalizeSpec(o) {
   return { sport, result, set, stages: ST.normalizeStages(raw, { offline: true }), esports };
 }
 
+/**
+ * Lỗi cỡ của MỘT giai đoạn với k đội ({ code, args } hoặc null): dùng lúc tạo giải (số đội ước tính – checkSize) và lúc
+ * chuyển giai đoạn (số đội THỰC đi tiếp – otour-run.js otNextStage: Thụy Sĩ theo thành tích, cắt theo số trận thua… cho số
+ * đội đi tiếp không cố định nên ước tính có thể lệch). i: chỉ số giai đoạn.
+ */
+function stageSizeError(c, k, i) {
+  if (i > 0 && k < 2) return { code: 'ot_stage_few', args: { n: i + 1 } };
+  // The Split: mỗi nửa cần ít nhất 2 đội
+  if (ST.SPL.isSplit(c) && k < 4) return { code: 'ot_stage_few', args: { n: i + 1 } };
+  return ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k) || ST.Kinds.sizeError(c, k) || ST.REP.error(c, k, ST.elimSize) || null; // bảng GSL, kings, nhánh đồ thị… (stages-kinds.js); vòng vớt
+}
+
 /** Kiểm cỡ giải sau khi đã có số đội: đủ người, tối đa MAX_TEAMS, ước tính số trận không vượt MAX_MATCHES. */
 function checkSize(spec, n) {
   if (n < 2) throw new SpecError('ot_few_teams');
@@ -64,11 +76,10 @@ function checkSize(spec, n) {
   spec.stages.forEach((c, i) => {
     const k = e.stages[i] ? e.stages[i].players : n;
     // Mỗi giai đoạn sau phải có ít nhất 2 đội (loại trực tiếp ở giữa chỉ cho 1 đội đi tiếp mà không có đội vào thẳng)
-    if (i > 0 && k < 2) throw new SpecError('ot_stage_few', { n: i + 1 });
-    const bad = ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k) || ST.Kinds.sizeError(c, k) || ST.REP.error(c, k, ST.elimSize); // bảng GSL, kings, nhánh đồ thị… (stages-kinds.js); vòng vớt
+    const bad = stageSizeError(c, k, i);
     if (bad) throw new SpecError(bad.code, bad.args);
   });
   return e;
 }
 
-module.exports = { SPORTS, RESULTS, MAX_TEAMS, MAX_MATCHES, SpecError, normalizeSpec, checkSize };
+module.exports = { SPORTS, RESULTS, MAX_TEAMS, MAX_MATCHES, SpecError, normalizeSpec, checkSize, stageSizeError };

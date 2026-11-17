@@ -126,7 +126,7 @@
     // Máy đủ RAM: Worker Rapfi thứ hai chấm hai thế cùng lúc – cùng số nút mỗi thế nên cùng kết quả, xong nhanh gấp đôi.
     // Worker phụ chưa sẵn sàng (lần đầu nạp mạng): không chờ, lượt này một Worker (boat-rapfi.js tạo sẵn khi hết ván)
     const two = todo.length >= 3 && (await R().auxReady(rule, 0));
-    if (my !== job) return null;
+    if (my !== job) { if (two) R().auxDone(); return null; } // huỷ lúc đang chờ: vẫn hẹn dừng Worker phụ
     const lanes = two ? 2 : 1;
     // Khung cố định cho cả ván (mọi thế, kể cả thế sau nước tốt nhất nếu vừa); bảng băm mỗi Worker xoá ở lượt đầu
     const gf = R().frame(moves, R().SIZE[rule]);

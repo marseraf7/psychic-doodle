@@ -71,6 +71,8 @@ class TourScore {
     const { t, st, m, self } = this.scoreTarget(conn, id, match, true);
     if (m.done) throw E('tour_match_done');
     if (!ST.real(m.a) || !ST.real(m.b)) throw E('tour_match_not_ready');
+    // Trận đang chờ xử khiếu nại mất kết nối: phải xử khiếu nại trước (ghi đè tỉ số ở đây thì khiếu nại kẹt, "hold" không gỡ)
+    if (m.hold) throw E('tour_match_held');
     const by = conn.pid;
     if (!t.offline) {
       if (m.room && this.rooms.has(m.room)) throw E('tour_match_live');

@@ -44,10 +44,14 @@ function phase(cfg, i) {
 const isFinal = (cfg, i) => phase(cfg, i).kind === 'final';
 const isSurv = (cfg, i) => phase(cfg, i).kind === 'surv';
 
-/** Lỗi cỡ giai đoạn: hàng chờ tuần 1 phải đủ một phòng; còn ít nhất 2 đội cho Bottom (nếu có). */
+/**
+ * Lỗi cỡ giai đoạn: Weekly Survival đấu `seats` trận, mỗi trận một đội thắng rời phòng và đội kế trong hàng chờ vào thay –
+ * muốn phòng luôn đủ `seats` đội thì hàng chờ cần seats + (seats − 1) đội, cộng `sit` đội nghỉ tuần 1 (PGC 2021: 16 + 15 + 1
+ * = 32). Trước đây chỉ đòi seats + 1 nên phòng teo dần còn 2 đội (rà soát 16/11/2026, mục 40).
+ */
 function weeklyError(cfg, n) {
   if (!cfg.weekly) return null;
-  const W = cfg.weekly, need = Math.max(W.seats + W.sit, W.bottom && W.weeks > 1 ? W.seats + 2 : 0, W.seats + 1);
+  const W = cfg.weekly, need = 2 * W.seats - 1 + W.sit;
   return n < need ? { code: 'ot_weekly_few', args: { n: need } } : null;
 }
 

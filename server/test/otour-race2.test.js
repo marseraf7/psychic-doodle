@@ -98,7 +98,7 @@ test('Mass start: bán kết chia rắn, người đầu mỗi lượt vào chun
   assert.deepStrictEqual(v.table.slice(0, 6).map((x) => x.pts), [60, 40, 20, 12, 10, 6]);
   assert.ok(v.table.slice(6).every((x) => !x.fin && x.semi >= 4), 'người dừng ở bán kết xếp sau');
   // Bảng xếp hạng một cuộc đua: bỏ cuộc sau người về đích, truất quyền cuối
-  const R = MS.rankRace(c, [{ uid: 'x', dsq: true, ip: 9 }, { uid: 'y', dnf: true }, { uid: 'z', rank: 7 }]);
+  const R = MS.rankRace({ cfg: c, entrants: ['x', 'y', 'z'] }, [{ uid: 'x', dsq: true, ip: 9 }, { uid: 'y', dnf: true }, { uid: 'z', rank: 7 }]);
   assert.deepStrictEqual(R.map((x) => [x.uid, x.pts]), [['z', 0], ['y', 0], ['x', 0]]);
 });
 
