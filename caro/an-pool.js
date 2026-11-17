@@ -68,6 +68,8 @@
     const out = new Map();
     return new Promise((res) => {
       if (!tasks.length) return res(out);
+      if (!workers.length) ensure(); // lượt trước có Worker sập: tạo lại
+      if (!workers.length) return res(out);
       pending.add(res);
       let next = 0, active = workers.length;
       const finish = () => { pending.delete(res); res(out); };
@@ -83,6 +85,16 @@
             out.set(t.key, e.data.error ? null : e.data.ev);
             if (onDone) onDone();
             take();
+          };
+          // Worker sập (hết bộ nhớ, lỗi nạp): thế đang chấm coi như chưa chấm, Worker này thôi nhận việc – các Worker khác làm nốt
+          w.onerror = (e) => {
+            if (e && e.preventDefault) e.preventDefault();
+            if (my !== job) return;
+            w.onmessage = w.onerror = null;
+            try { w.terminate(); } catch (err) { /* đã dừng */ }
+            workers = workers.filter((x) => x !== w); // lượt sau tạo lại
+            out.set(t.key, null);
+            if (--active === 0) finish();
           };
           w.postMessage({ type: 'eval', id, rule, ms, moves: t.moves });
         };

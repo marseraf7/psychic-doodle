@@ -18,6 +18,7 @@ test('kiểm duyệt: từ tục 4 thứ tiếng (kể cả viết lách), khôn
   assert.strictEqual(M.mask('đ.ị.t mày'), 'đ**** mày');
   assert.strictEqual(M.mask('сука блять'), 'с*** б****');
   assert.ok(M.mask('you f.u.c.k').includes('*'));
+  assert.strictEqual(M.mask('İ fuck'), 'İ f***', "chữ viết thường ra 2 ký tự ('İ') không làm lệch chỗ che");
   assert.ok(M.mask('fuuuck you').includes('*'));
   assert.ok(M.mask('sh1t').includes('*'), 'leetspeak');
   assert.ok(M.mask('傻逼').includes('*'));
