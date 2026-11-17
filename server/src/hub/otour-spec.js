@@ -58,7 +58,7 @@ function normalizeSpec(o) {
 function stageSizeError(c, k, i) {
   if (i > 0 && k < 2) return { code: 'ot_stage_few', args: { n: i + 1 } };
   // The Split: mỗi nửa cần ít nhất 2 đội
-  if (ST.SPL.isSplit(c) && k < 4) return { code: 'ot_stage_few', args: { n: i + 1 } };
+  if (ST.SPL.isSplit(c) && k < 4) return { code: 'ot_split_few', args: { n: 4 } };
   return ST.leagueError(c, k) || ST.seasonError(c, k) || Race.raceError(c, k) || ST.Kinds.sizeError(c, k) || ST.REP.error(c, k, ST.elimSize) || null; // bảng GSL, kings, nhánh đồ thị… (stages-kinds.js); vòng vớt
 }
 

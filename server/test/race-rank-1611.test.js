@@ -59,7 +59,7 @@ test('mục 38 / 59: omnium – vắng mặt hoặc bỏ cuộc points race xế
   OM.record(st, 3, OM.clean(st, 3, [{ uid: 'b', dnf: true, sp: 50, lap: 1 }, { uid: 'c', rank: 1, sp: 5 }, { uid: 'd', rank: 2 }]).rows);
   const C = OM.calc(st, seedOf2);
   assert.deepStrictEqual(C.order, ['c', 'd', 'a', 'b']);
-  assert.ok(C.stats.a.dnf && C.stats.b.dnf);
+  assert.ok(C.stats.a.dns && C.stats.b.dnf, 'vắng mặt: dns; có dòng bỏ cuộc: dnf');
   assert.strictEqual(C.stats.b.total, 38 * 3, 'bỏ cuộc: không cộng điểm sprint / vòng');
 });
 const seedOf2 = (u) => u.charCodeAt(0);

@@ -38,6 +38,7 @@
     kings_top: 'Tranh hạt giống (nửa trên)', kings_low: 'Cơ hội cuối (nửa dưới)', kings_pool: 'Nhóm hạt giống {n}',
     ds_kings: 'vòng tranh hạt giống (Bo{bo}): nửa trên thắng vào nhóm hạt giống 1, thua vào nhóm 2; nửa dưới thắng vào nhóm 2, thua bị loại', ds_kings_low: 'nửa dưới Bo{bo}',
     srv_ot_kings_four: 'Vòng tranh hạt giống cần số đội chia hết cho 4 (đang có {n} đội ở giai đoạn này).', srv_ot_kings_many: 'Vòng tranh hạt giống có tối đa {n} đội.',
+    srv_ot_split_few: 'Chia đôi theo hạng cần ít nhất {n} đội đi tiếp vào giai đoạn này.',
     opt_mp_min: 'Chỉ tính match point từ trận thứ', mp_min_note: 'Match point chỉ tính từ trận {n}.', ds_mp_min: '(chỉ tính từ trận {n})',
   });
 
@@ -72,6 +73,7 @@
     kings_top: 'Seeding round (upper half)', kings_low: 'Last chance (lower half)', kings_pool: 'Seeding pot {n}',
     ds_kings: 'seeding round (Bo{bo}): upper-half winners go to seeding pot 1, losers to pot 2; lower-half winners go to pot 2, losers are out', ds_kings_low: 'lower half Bo{bo}',
     srv_ot_kings_four: 'A seeding round needs a multiple of 4 teams (this stage has {n}).', srv_ot_kings_many: 'A seeding round takes at most {n} teams.',
+    srv_ot_split_few: 'The Split needs at least {n} teams advancing into this stage.',
     opt_mp_min: 'Match point counts from match', mp_min_note: 'Match point counts only from match {n}.', ds_mp_min: '(counted from match {n})',
   });
 
@@ -106,6 +108,7 @@
     kings_top: 'Раунд посева (верхняя половина)', kings_low: 'Последний шанс (нижняя половина)', kings_pool: 'Корзина посева {n}',
     ds_kings: 'раунд посева (Bo{bo}): победители верхней половины — в корзину 1, проигравшие — в корзину 2; победители нижней половины — в корзину 2, проигравшие выбывают', ds_kings_low: 'нижняя половина Bo{bo}',
     srv_ot_kings_four: 'Для раунда посева число команд должно делиться на 4 (на этом этапе {n}).', srv_ot_kings_many: 'В раунде посева может быть не более {n} команд.',
+    srv_ot_split_few: 'Для разделения на две группы нужно не менее {n} команд, проходящих в этот этап.',
     opt_mp_min: 'Матч-пойнт считается с матча', mp_min_note: 'Матч-пойнт считается только с матча {n}.', ds_mp_min: '(считается с матча {n})',
   });
 
@@ -140,6 +143,7 @@
     kings_top: '种子争夺赛（上半区）', kings_low: '最后机会赛（下半区）', kings_pool: '种子档 {n}',
     ds_kings: '种子争夺赛（Bo{bo}）：上半区胜者进入种子档 1，负者进入种子档 2；下半区胜者进入种子档 2，负者淘汰', ds_kings_low: '下半区 Bo{bo}',
     srv_ot_kings_four: '种子争夺赛需要队伍数为 4 的倍数（本阶段有 {n} 队）。', srv_ot_kings_many: '种子争夺赛最多 {n} 队。',
+    srv_ot_split_few: '分档阶段至少需要 {n} 支晋级队伍。',
     opt_mp_min: '赛点从第几场开始计算', mp_min_note: '赛点从第 {n} 场开始计算。', ds_mp_min: '（从第 {n} 场起计算）',
   });
 })();
