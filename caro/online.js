@@ -171,7 +171,7 @@
     me(m) { S.me = m.me; render(); },
     friends(m) { S.friends = m; render(); },
     room(m) {
-      if (m.watch) return; // phòng đang xem: watch.js xử lý
+      if (m.watch) { linkWatch = null; return; } // phòng đang xem: watch.js xử lý; dò link bằng watch đã xong (F6)
       probing = null;
       setRoom(m.room);
     },
@@ -197,6 +197,15 @@
       // Máy chủ cũ không gửi kèm ctx nên nhận ra bằng thời điểm: lỗi "unsupported" ngay sau một lần ping.
       if (m.code === 'unsupported' && (m.ctx === 'ping' || (!m.ctx && Date.now() - lastPing < PONG_MS))) { noPing = true; return; }
       if (m.ctx === 'move') App.resync();
+      // F6: dò link bằng watch thất bại (phòng riêng không xem được, quá đông người xem…):
+      // quay về luồng dò cũ — joinRoom sẽ hỏi mật khẩu phòng riêng hoặc báo phòng không tồn tại.
+      if (m.ctx === 'watch' && linkWatch) {
+        const code = linkWatch;
+        linkWatch = null;
+        probing = code;
+        send({ t: 'joinRoom', code });
+        return;
+      }
       if (m.code === 'too_fast' && ['watch', 'profile'].includes(m.ctx)) return; // bấm dồn: bỏ qua lần thừa
       if (m.ctx === 'evalGet' || m.ctx === 'evalPut') return; // bộ nhớ điểm dùng chung (eval-cloud.js) chạy ngầm: không báo
       // Mở bằng link mời: phòng công khai vào thẳng, phòng riêng (sai/thiếu mật khẩu) thì hỏi mật khẩu
@@ -301,10 +310,16 @@
     if (S.room && S.room.code === code) return;
     // Đang có ván dở mà mở link phòng khác: vào phòng đó là bỏ ván (bị xử thua) — hỏi trước (Issue #141 mục 1)
     if (ctx.roomActive() && !(await window.CaroConfirm.ask(T('confirm_leave')))) return;
-    probing = code;
-    send({ t: 'joinRoom', code }); // không gửi mật khẩu: phòng công khai thì vào luôn
+    if (ctx.roomActive()) send({ t: 'leaveRoom' }); // đã hỏi ở trên; máy chủ xử lý tuần tự trước tin xem dưới đây
+    // F6: link phòng là để xem/chia sẻ — mở link vào vai KHÁN GIẢ trước, kể cả phòng công khai
+    // còn trống ghế (trước đây khách mở link bị đặt thẳng vào ghế người chơi). Muốn ngồi ghế
+    // thì bấm "Vào chơi" ở thanh xem (watch.js). Phòng không xem được (phòng riêng, phòng
+    // không tồn tại…) thì lỗi watch ở dưới sẽ quay về luồng dò cũ: hỏi mật khẩu / báo lỗi.
+    linkWatch = code;
+    send({ t: 'watch', code });
   }
   let probing = null;
+  let linkWatch = null; // mã phòng đang dò bằng watch khi mở link (F6)
 
   // ------------------------------------------------------------ Link xem lại ván
   function replayLink(share) {
