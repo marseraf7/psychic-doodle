@@ -152,8 +152,6 @@ class OTourRun {
     // Đội vào thẳng giai đoạn này (hạt giống cao hơn) đứng trước các đội đi tiếp
     const direct = (t.direct && t.direct[t.stage + 1]) || [];
     const adv = ST.splitAdvancers(st, this.otSeedOf(t), direct.length ? 1 : 2);
-    // Các dải hạng chuyển sang giai đoạn sau nữa (cfg.routes / cfg.skip): đứng sau đội đã có trong danh sách vào thẳng giai đoạn đó
-    for (const r of adv.routes || []) if (r.uids.length) t.direct = { ...(t.direct || {}), [r.to]: [...((t.direct && t.direct[r.to]) || []), ...r.uids] };
     const { groupOf } = adv;
     const cfg = t.stages[t.stage + 1];
     // directLast: đội vào thẳng xếp sau đội đi tiếp (hàng chờ Grand Survival PGC 2022: đội cuối nhánh thua 1 đứng chờ)
@@ -168,6 +166,13 @@ class OTourRun {
     // Playoff kiểu nhà nghề Mỹ sau mùa giải (stages-playoff.js): nhánh theo miền, nhất bảng con, play-in – ai đi tiếp
     // theo kế hoạch playoff (không theo số đội đi tiếp của mùa giải)
     const plan = cfg.playoff ? PO.playoffPlan(st, cfg, ST.standings(st, this.otSeedOf(t))) : null;
+    // Kiểm cỡ theo số đội THỰC vào giai đoạn sau, TRƯỚC khi đổi gì: lúc tạo giải chỉ kiểm được số ước tính (Thụy Sĩ theo
+    // thành tích… cho số đội đi tiếp không cố định). Không vừa thì báo lỗi có mã, giai đoạn không chuyển – trước đây dựng ra
+    // giai đoạn 0 trận hoặc ném lỗi lạ, giải kẹt không rõ lý do (rà soát 16/11/2026, mục 34, 35, 56)
+    const bad = Spec.stageSizeError(cfg, (plan ? plan.seeds : seeds).length, t.stage + 1);
+    if (bad) { this.otSave(t); throw E(bad.code, bad.args); } // kết quả vừa nhập vẫn được lưu (huỷ lại được); chỉ không chuyển giai đoạn
+    // Các dải hạng chuyển sang giai đoạn sau nữa (cfg.routes / cfg.skip): đứng sau đội đã có trong danh sách vào thẳng giai đoạn đó
+    for (const r of adv.routes || []) if (r.uids.length) t.direct = { ...(t.direct || {}), [r.to]: [...((t.direct && t.direct[r.to]) || []), ...r.uids] };
     const going = new Set([...(plan ? plan.seeds : adv.seeds), ...(adv.routes || []).flatMap((r) => r.uids)]); // đội chuyển sang giai đoạn sau nữa cũng không bị loại
     // Không đi tiếp: "không vào vòng sau", hoặc đích ra ngoài giải nếu giai đoạn có nhãn (cfg.exit – kiểu BLAST Showdown)
     for (const u of st.entrants) { const p = t.players.find((x) => x.uid === u); if (p && !going.has(u)) { p.out = st.cfg.exit ? 'exit' : 'not_advanced'; if (st.cfg.exit) p.exit = st.cfg.exit; } }
@@ -175,6 +180,7 @@ class OTourRun {
     if (plan) {
       const next = ST.buildStage(cfg, t.stage, plan.seeds, this.otBuildOpts(t, { groupOf, slots: plan.slots }));
       PO.attachPre(next, plan);
+      ST.DRF.seatStage(next); // có draft: bốc ghế (nhánh này trước đây bỏ sót – mục 57)
       t.st.push(next);
       this.otSchedNext(t); // tự xếp lịch giai đoạn mới (otour-sched.js)
       return;

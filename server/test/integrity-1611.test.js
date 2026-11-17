@@ -126,3 +126,39 @@ test('giải offline vừa kết thúc: trong 24 giờ huỷ được kết qu�
   assert.ok(t.status === 'finished' && t.podium && t.finishedAt);
   org.close();
 });
+
+test('mục 34 / 35 / 56: chuyển giai đoạn kiểm cỡ theo số đội THỰC – không vừa thì báo lỗi có mã, kết quả vừa nhập vẫn lưu, giai đoạn không chuyển', async () => {
+  const Spec = require('../src/hub/otour-spec.js');
+  // Hàm kiểm dùng chung: giai đoạn sau có < 2 đội; The Split có < 4 đội
+  assert.deepStrictEqual(Spec.stageSizeError({ type: 'single' }, 1, 1), { code: 'ot_stage_few', args: { n: 2 } });
+  assert.strictEqual(Spec.stageSizeError({ type: 'single' }, 2, 1), null);
+  // Qua máy chủ (đúng ca của mục 34): Thụy Sĩ theo số thắng / thua (3 thắng đi tiếp, 2 thua bị loại) → vòng tranh hạt giống →
+  // loại trực tiếp, 10 đội. Số đội đủ 3 thắng không cố định; không vừa cỡ vòng tranh hạt giống thì phải báo lỗi có mã
+  const org = await account();
+  const spec = { sport: 'other', stages: [{ type: 'swiss', record: { win: 3, loss: 2 } }, { type: 'kings' }, { type: 'single' }] };
+  const either = (send) => { const n = org.msgs.length; org.send(send); return until(() => org.msgs.slice(n).some((x) => x.t === 'otCreated' || x.t === 'error' || x.t === 'ot')).then(() => org.msgs.slice(n).find((x) => x.t === 'otCreated' || x.t === 'error') || {}); };
+  const made = await either({ t: 'otCreate', name: 'Giải lệch cỡ', spec, teams: Array.from({ length: 6 }, (_, k) => 'Đ' + k) }); // 6 đội: ước tính 4 đội đi tiếp, thực tế số đội đủ 3 thắng có thể khác
+  if (made.t === 'otCreated') {
+    const t = ctx.app.hub.otGet(made.id);
+    const n0 = org.msgs.length;
+    org.send({ t: 'otStart', id: t.id });
+    await until(() => t.status === 'running' || org.msgs.slice(n0).some((x) => x.t === 'error'));
+    if (t.status !== 'running') { console.log('bắt đầu bị từ chối:', org.msgs.slice(n0).find((x) => x.t === 'error').code); org.close(); return; }
+    org.msgs.length = 0;
+    const so = ctx.app.hub.otSeedOf(t);
+    let err = null;
+    for (let g = 0; g < 200 && t.stage === 0 && t.status === 'running' && !err; g++) {
+      const m = ST.playable(t.st[0])[0];
+      if (!m) break;
+      org.send({ t: 'otScore', id: t.id, match: m.id, score: so(m.a) < so(m.b) ? [1, 0] : [0, 1] });
+      await until(() => m.done || org.msgs.some((x) => x.t === 'error'));
+      err = org.msgs.find((x) => x.t === 'error') || null;
+    }
+    const last = t.st[t.st.length - 1];
+    // Hoặc chuyển giai đoạn được với giai đoạn mới CÓ trận, hoặc dừng ở giai đoạn 1 với lỗi có mã – không bao giờ là giai đoạn 0 trận
+    if (t.stage === 0) assert.match(err ? err.code : '', /^ot_/, 'không chuyển được thì phải có lỗi có mã');
+    else assert.ok(Object.keys(last.matches || {}).length > 0, 'giai đoạn mới phải có trận');
+    assert.ok(t.st[0].done, 'kết quả cuối của giai đoạn 1 vẫn được ghi');
+  }
+  org.close();
+});

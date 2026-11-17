@@ -27,7 +27,9 @@ test('Vòng tuần: Survival theo hàng chờ (hạt giống cuối nghỉ tuầ
   const [c] = off([{ type: 'race', score: 'points', table: SUPER, kill: 1, tb: 'pubg_k', weekly: { weeks: 2, seats: 4, final: 2, bottom: 1, sit: 1 }, gate: { seats: 3 }, advance: 4 }, { type: 'race' }]);
   assert.deepStrictEqual([c.weekly, c.gate], [{ weeks: 2, seats: 4, final: 2, bottom: 1, sit: 1 }, undefined]);
   assert.strictEqual(WK.totalEvents(c), 4 + 2 + 1 + 4 + 2);
-  assert.deepStrictEqual(Race.raceError(c, 4), { code: 'ot_weekly_few', args: { n: 6 } });
+  assert.deepStrictEqual(Race.raceError(c, 4), { code: 'ot_weekly_few', args: { n: 8 } }); // 4 + 3 đội vào thay + 1 đội nghỉ (rà soát 16/11/2026, mục 40)
+  assert.strictEqual(Race.raceError(c, 8), null);
+  assert.ok(Race.raceError(c, 7));
   const st = ST.buildStage(c, 0, uids(8), { seedOf });
   assert.strictEqual(st.events.length, 13);
   assert.deepStrictEqual(Race.lobby(st, 0), ['u0', 'u1', 'u2', 'u3'], 'tuần 1: 4 hạt giống đầu; u7 nghỉ');
