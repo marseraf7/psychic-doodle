@@ -226,6 +226,14 @@ input:not([type="range"]):focus { outline: 2px solid var(--accent); outline-offs
   bottom: calc(86px + env(safe-area-inset-bottom));
   pointer-events: auto; cursor: grab; z-index: 16;
 }
+/* Đang có thẻ người chơi phía dưới (ván online, màn hẹp): thẻ nằm đúng chỗ mặc định của nút và che mất nút –
+ * đẩy nút lên trên thẻ (như .invites / .banner trong game.css). Màn rộng thẻ ở cột phải nên không cần. */
+@media (max-width: 1099px) {
+  body:has(#pl-bot:not([hidden])) .tb-float { bottom: calc(76px + var(--strip-h) + 8px + env(safe-area-inset-bottom)); }
+}
+/* Hiệu ứng lún của nút (button:active { transform: scale }) ghi đè translateX(-50%) → nút nhảy sang phải nửa chiều
+ * rộng ngay lúc ấn, nhả ra thì trượt khỏi nút (bấm không ăn). Giữ phép canh giữa khi lún. */
+.tb-float:active { transform: translateX(-50%) scale(0.97); }
 .tb-float.tb-sent { opacity: .6; }
 .tb-float.dragging { cursor: grabbing; touch-action: none; }
 body.online .banner-actions .online-only[hidden] { display: none !important; }

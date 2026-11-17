@@ -360,3 +360,9 @@ Quyết định của Minh áp dụng xuyên suốt: **không xoá diễn biến
 - 63 / Q11 (Glicko NaN): cần số liệu production, vẫn ở mức nghi ngờ.
 - Nghi ngờ 7 (`vcf` luật Việt Nam): chưa có thế cờ cụ thể để tái hiện.
 - Nghi ngờ 15 (a–h), 31 (pack toạ độ lớn), 33 (chuỗi lỗi Google trong mã), bài thử bổ sung cho 18 / 24 / 32 / link trang nhúng: chưa làm trong đợt này.
+
+### Phát hiện thêm khi chạy bài thử trình duyệt (`batchd.e2e.js` đỏ sẵn trên nhánh gốc)
+
+- Nút nổi "Xin đi lại" trên màn hẹp nằm đúng chỗ thẻ người chơi phía dưới nên bị thẻ che → đẩy nút lên trên thẻ.
+- Hiệu ứng lún của nút (`.ghost:active { transform: scale }`) ghi đè `translateX(-50%)` → nút nhảy sang phải nửa chiều rộng
+  ngay lúc ấn, bấm vào giữa / nửa trái không ăn → giữ phép canh giữa khi lún (cả nút giả lập trong Cài đặt).
