@@ -117,7 +117,7 @@ test('mục 74d: bỏ lời mời ở giải offline đang chạy bị chặn nh
   [org, guest, org2, guest2].forEach((c) => c.close());
 });
 
-test('mục 74f: giải đang chạy không đổi được quickAdvance / arrangeNext (hai ô đổi hành vi thi đấu, không phải cách hiện)', async () => {
+test('mục 74f (Minh quyết 17/11/2026): giải đang chạy vẫn đổi được quickAdvance / arrangeNext', async () => {
   const B = await admin();
   const { id } = await B.req({ t: 'tourCreate', name: 'Giải đợt 5 LIVE', format: 'bracket', startsAt: Date.now() + 600000, timeLimit: 30, offline: true, checkin: false,
     quickAdvance: false, arrangeNext: false, stages: [{ type: 'swiss', rounds: 1, bestOf: 1 }, { type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
@@ -126,32 +126,26 @@ test('mục 74f: giải đang chạy không đổi được quickAdvance / arran
   B.send({ t: 'tourStart', id });
   await until(() => t.status === 'running');
   assert.deepStrictEqual([t.quickAdvance, t.arrangeNext], [false, false]);
-  // Đang chạy: gửi sửa cả hai ô hành vi lẫn một ô chỉ ảnh hưởng cách hiện (roundLabels)
   await B.req({ t: 'tourEdit', id, name: t.name, quickAdvance: true, arrangeNext: true, roundLabels: false }, 'tourEdited');
-  assert.strictEqual(t.quickAdvance, false, 'quickAdvance giữ nguyên khi giải đang chạy (đổi nó là đổi cách nhập kết quả)');
-  assert.strictEqual(t.arrangeNext, false, 'arrangeNext giữ nguyên khi giải đang chạy (đổi nó là đổi cách chuyển giai đoạn)');
-  assert.strictEqual(t.roundLabels, false, 'ô chỉ ảnh hưởng cách hiện vẫn đổi được khi đang chạy');
+  assert.deepStrictEqual([t.quickAdvance, t.arrangeNext, t.roundLabels], [true, true, false]);
   // Không đóng B: boss là client dùng chung cho mọi bài thử trong file (admin())
 });
 
-test('mục 74g: giải đang chạy — người thường không tự đổi tên / mô tả (nội dung đã duyệt); quản trị viên vẫn đổi được', async () => {
+test('mục 74g (Minh quyết 17/11/2026): giải đang chạy – ban tổ chức vẫn sửa được tên / mô tả, từ tục vẫn bị lọc', async () => {
   const B = await admin();
   const org = await account();
   const { id } = await org.req({ t: 'tourCreate', name: 'Giải đợt 5 duyệt tên', format: 'bracket', startsAt: Date.now() + 600000, timeLimit: 30, offline: true, checkin: false,
     stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] }, 'tourCreated');
   const t = ctx.app.hub.tours.get(id);
-  assert.strictEqual(t.status, 'pending', 'giải của người thường chờ duyệt');
   await B.req({ t: 'adminReview', kind: 'tour', id, approve: true }, 'adminQueue');
-  assert.strictEqual(t.status, 'scheduled');
   await org.req({ t: 'tourAddPlayers', id, names: ['An', 'Bình', 'Chi', 'Dũng'] }, 'tourAddResult');
   org.send({ t: 'tourStart', id });
   await until(() => t.status === 'running');
-  // Người thường đổi tên giữa giải: bị chặn, tên đã duyệt giữ nguyên
-  assert.strictEqual((await org.req({ t: 'tourEdit', id, name: 'Tên chưa duyệt', desc: 'Mô tả chưa duyệt' }, 'error')).code, 'tour_edit_review');
-  assert.strictEqual(t.name, 'Giải đợt 5 duyệt tên');
-  // Quản trị viên (người duyệt) đổi được
-  await B.req({ t: 'tourEdit', id, name: 'Tên quản trị duyệt' }, 'tourEdited');
-  assert.strictEqual(t.name, 'Tên quản trị duyệt');
+  await org.req({ t: 'tourEdit', id, name: 'Giải đợt 5 sửa tên', desc: 'Sửa lỗi chính tả giữa giải' }, 'tourEdited');
+  assert.deepStrictEqual([t.name, t.desc], ['Giải đợt 5 sửa tên', 'Sửa lỗi chính tả giữa giải']);
+  // Tên có từ tục: bị từ chối như lúc tạo giải, tên cũ giữ nguyên
+  await org.req({ t: 'tourEdit', id, name: 'Giải fuck', desc: '' }, 'error');
+  assert.strictEqual(t.name, 'Giải đợt 5 sửa tên');
   [org].forEach((c) => c.close());
 });
 

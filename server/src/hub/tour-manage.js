@@ -143,10 +143,7 @@ class TourManage {
     const me = this.store.users.get(uid);
     if (['running', 'finished', 'cancelled', 'rejected'].includes(t.status)) {
       const f = this.tourFields(me, { ...o, startsAt: Date.now() + 3600000, format: t.format, stages: t.stages, offline: !!t.offline, teams: null });
-      // Giải đang chạy: tên / mô tả là nội dung đã qua duyệt lúc tạo — người thường không tự đổi được
-      // giữa giải (trước đây gán thẳng, bỏ qua khâu duyệt của quản trị viên như ở nhánh trước giờ đấu;
-      // mục 74g). Quản trị viên — chính là người duyệt — vẫn sửa được.
-      if (t.status === 'running' && !this.isAdmin(uid) && (f.name !== t.name || f.desc !== t.desc)) throw E('tour_edit_review');
+      // Tên / mô tả vẫn sửa được khi giải đang chạy (Minh quyết 17/11/2026); tourFields ở trên đã lọc từ tục như lúc tạo
       t.name = f.name;
       t.desc = f.desc;
       // Tuỳ chọn chỉ ảnh hưởng cách hiện (link riêng, nhãn vòng, ảnh chia sẻ…): đổi được cả khi đang chạy – chỉ những ô có gửi

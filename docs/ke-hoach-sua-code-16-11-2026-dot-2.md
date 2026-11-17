@@ -366,3 +366,8 @@ Quyết định của Minh áp dụng xuyên suốt: **không xoá diễn biến
 - Nút nổi "Xin đi lại" trên màn hẹp nằm đúng chỗ thẻ người chơi phía dưới nên bị thẻ che → đẩy nút lên trên thẻ.
 - Hiệu ứng lún của nút (`.ghost:active { transform: scale }`) ghi đè `translateX(-50%)` → nút nhảy sang phải nửa chiều rộng
   ngay lúc ấn, bấm vào giữa / nửa trái không ăn → giữ phép canh giữa khi lún (cả nút giả lập trong Cài đặt).
+
+### Quyết định của Minh ngày 17/11/2026 (sau khi gộp PR của Laplace)
+
+- 74g / Q10: giải đang chạy, ban tổ chức **vẫn sửa được** tên và mô tả (vẫn lọc từ tục như lúc tạo).
+- 74f: `quickAdvance` và `arrangeNext` **vẫn đổi được** giữa giải.
