@@ -2,6 +2,7 @@
  * Trang chính dạng gộp (server/src/web-bundle.js – bước 1 của docs/nghien-cuu-viet-lai-rust-17-11-2026.md):
  *  - Đã chọn tiếng Nga: chỉ tải gói chuỗi tiếng Nga, giao diện hiện tiếng Nga ngay lần nạp đầu, không lỗi JS.
  *  - Đổi sang tiếng Trung lúc đang dùng: tải thêm đúng gói tiếng Trung rồi mới đổi chữ.
+ *  - Đo thực địa: rum.js gửi số đo, /api/rum có số của lượt mở trang.
  *  - ?perf=1: ô số đo hiện "Bản gộp"; ?bundle=0&perf=1: trang gốc từng file, ô số đo hiện "Từng file".
  *   node caro/tests/e2e/bundle-load.e2e.js
  */
@@ -34,6 +35,11 @@ const { setup, gotoRetry } = require('./helpers');
   for (let i = 0; i < 30 && !(zh = await ph() === '搜索棋手…'); i++) await sleep(100);
   ok(zh && packs.join() === 'ru,zh', 'đổi ngôn ngữ: tải thêm gói tiếng Trung rồi đổi chữ');
   ok(!errs.length, 'không có lỗi JS' + (errs.length ? ': ' + errs.join(' | ') : ''));
+  // Đo thực địa (rum.js → /api/rum): gửi khi trang bị ẩn; ở đây gọi thẳng rồi đọc bảng gộp của máy chủ
+  await p.evaluate(() => window.CaroRum.send());
+  let rum = null;
+  for (let i = 0; i < 20 && !rum; i++) { await sleep(100); rum = await p.evaluate(async () => { const r = await (await fetch('/api/rum')).json(); return Object.entries(r.kinds).find(([k]) => k.endsWith('+b')); }); }
+  ok(!!rum && rum[1].dcl && rum[1].dcl.p50 > 0, 'đo thực địa: máy chủ nhận số đo của lượt mở trang (' + (rum ? rum[0] : 'không có') + ')');
 
   // 3. Ô số đo
   const box = async (q) => {

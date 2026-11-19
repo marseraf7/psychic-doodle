@@ -19,3 +19,4 @@ caro/rapfi/nets/
 
 # Ảnh chụp cửa hàng sinh bởi app/store/screenshots.js — không commit ảnh
 app/store/shots/
+.claude/worktrees/

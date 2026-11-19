@@ -17,6 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const { boardPng } = require('./png.js');
 const { makeBundle } = require('./web-bundle.js');
+const { Rum } = require('./rum.js');
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
@@ -161,6 +162,7 @@ function origin(req) {
 
 function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
   const B = bundle ? makeBundle(STATIC_DIR) : null; // gộp mã trang chính (web-bundle.js)
+  const rum = new Rum(); // số đo tốc độ từ máy người chơi (rum.js)
   const pngCache = new Map(); // mã -> ảnh PNG (ván đã lưu không đổi)
   const apiCache = new Map(); // đường dẫn -> { at, body }
   const apiHits = new Map(); // ip -> { n, reset }
@@ -324,6 +326,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
       return res.end();
     }
+    if (rum.handle(req, res, url, clientIp(req))) return;
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
     if (url === '/healthz') { res.writeHead(200); return res.end('ok'); }
     if (url === '/.well-known/assetlinks.json') return serveAssetLinks(res);
