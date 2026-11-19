@@ -69,3 +69,14 @@ Bằng chứng nghiêng hẳn về thứ tự "đo, sửa JS rẻ, thí điểm 
 Câu hỏi "có nên viết lại bằng Rust" hóa ra là câu hỏi sai chỗ: số đo tại máy cho thấy app chậm vì **cách phân phối file**, một vấn đề đã có giải pháp rẻ và đã được chứng minh, còn mọi đường viết lại giao diện bằng Rust/WASM đều thêm byte và bước biên dịch vào đúng đường tải đầu đang là điểm nghẽn. Ngay cả khi bạn làm bước 1, hãy xác nhận trên máy thật và trong Zalo/Messenger, vì số lab chưa nén, chưa qua Caddy và chưa phản ánh điều kiện thực.
 
 Rust có giá trị thực ở những chỗ bạn chưa có: vỏ desktop với engine gốc và một lõi luật chơi duy nhất cho web, máy chủ và desktop. Hai điều này đáng làm vì chúng mở ra khả năng mới (engine mạnh hơn, đa luồng đầy đủ, ít lệch luật), không vì "web nhanh hơn". Cho tới khi có dữ liệu thực địa (đặc biệt về INP, WebView của Zalo và độ trễ vòng lặp máy chủ), mọi quyết định lớn hơn nên hoãn lại.
+
+## Kết quả thực hiện lộ trình (19/11/2026)
+
+| Bước | Trạng thái | Kết quả |
+|---|---|---|
+| 1. Gộp file, chỉ nạp 1 ngôn ngữ | **Xong** | `server/src/web-bundle.js`. Lab (HTTP/2 + nén, điện thoại giả lập): DOMContentLoaded lần đầu 2,35 → 1,48 giây (−37%), JS qua mạng 938 → 545 KB, FCP giữ ~0,63 giây. Chưa thu gọn mã (minify) vì không cài thêm công cụ ngoài. |
+| 2. Đo thực địa | **Phần code xong; phần đo trên máy thật giao Laplace** | `caro/rum.js` + `server/src/rum.js` (`GET /api/rum`: p50 / p75 / p95 theo loại trình duyệt, độ trễ vòng lặp máy chủ). `?perf=1` hiện ô số đo. Hướng dẫn cho Laplace: `docs/do-toc-do-tai-laplace-19-11-2026.md`. |
+| 3. Sửa JS cho độ mượt | **Đã đo; chưa có chỗ cần sửa** | Lab: CPU chậm 4 lần, màn hình DPR 3, chạm đặt 16 quân. Thời gian phản hồi mỗi lần chạm p50 ~48 ms, p75 ~64 ms, chậm nhất ~112 ms (ngưỡng "tốt" của INP là ≤ 200 ms); khung hình trễ nhất ~69 ms. SQLite đã bật sẵn WAL + `synchronous=NORMAL`. Vì vậy chưa vẽ lại canvas hai lớp hay giới hạn DPR 2: số đo chưa cho thấy cần. Chưa đo được việc chuyển trang (công cụ đo không bấm được thanh tab trong chế độ giả lập điện thoại). Chờ số thực địa của bước 2 rồi mới sửa đúng chỗ. |
+| 4. Thí điểm desktop Tauri | Xem `docs/thi-diem-desktop-tauri.md` | |
+| 5. Thí điểm bộ luật Rust | **Xong (thí điểm)** | `core/caro-rules/`, đối chiếu 105.004 thế cờ với `caro/rules.js`: 0 sai khác. WASM 41,7 KB (16 KB nén). Nhanh hơn JS ~2× (checkWin) và ~4× (nước cấm Renju), nhưng người chơi không cảm nhận được. Chi tiết: `docs/thi-diem-rust-luat-choi.md`. Chưa nối vào game. |
+| 6. Tách thành phần máy chủ sang Rust | **Không làm** | Điều kiện của bước này là có số đo cho thấy máy chủ là nút cổ chai. Chưa có số đo nào như vậy: độ trễ vòng lặp sự kiện đã đo được qua `/api/rum`, cần chờ số production. |
