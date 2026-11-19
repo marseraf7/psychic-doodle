@@ -24,4 +24,20 @@ const extras = fs.readdirSync(EXTRA).filter((f) => f.endsWith('.js')).sort();
 for (const f of extras) fs.copyFileSync(path.join(EXTRA, f), path.join(WWW, f));
 injectScripts(WWW, extras);
 
+// CSP cho cửa sổ app (Tauri ghép vào lúc dựng: tauri build --config src-tauri/tauri.csp.json). Giống CSP của máy chủ
+// (server/src/web.js) nhưng giao diện nạp tại chỗ ('self' = tauri://localhost) nên phải cho thêm máy chủ online (API, ảnh,
+// WebSocket) và kênh IPC của Tauri (ipc: trên macOS / Linux, http://ipc.localhost trên Windows). withGlobalTauri mở cầu
+// nối lệnh native cho mọi script trên trang – CSP chặn script lạ (chỉ script của app + Google đăng nhập).
+const ws = serverUrl.replace(/^http/, 'ws');
+const csp = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
+  `img-src 'self' data: blob: ${serverUrl} https://*.googleusercontent.com`,
+  `connect-src 'self' ipc: http://ipc.localhost ${serverUrl} ${ws} https://accounts.google.com/gsi/ https://cdn.jsdelivr.net https://raw.githubusercontent.com`,
+  "frame-src https://accounts.google.com/gsi/",
+  "object-src 'none'", "base-uri 'none'", "form-action 'self'",
+].join('; ');
+fs.writeFileSync(path.join(DESK, 'src-tauri', 'tauri.csp.json'), JSON.stringify({ app: { security: { csp } } }, null, 2) + '\n');
+
 console.log(`✓ desktop/www đã dựng từ ../caro · máy chủ ${serverUrl} · thêm ${extras.join(', ')}`);

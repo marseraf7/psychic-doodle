@@ -146,7 +146,7 @@ jobs:
         run: |
           npm ci
           npx tauri icon ../app/assets/icon-only.png
-          npx tauri build --target "$TARGET_TRIPLE"
+          npx tauri build --target "$TARGET_TRIPLE" --config src-tauri/tauri.csp.json
       - name: Kích thước bộ cài
         shell: bash
         run: |

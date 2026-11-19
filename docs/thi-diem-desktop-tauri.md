@@ -226,3 +226,11 @@ nhận rõ. Tuy vậy, **chưa nên phát hành** khi chưa có ba thứ:
 
 Nếu điều 1 không được duyệt thì dừng thí điểm. Phần desktop khi đó vẫn có thể giữ (vỏ Tauri chạy giao diện web), chỉ bỏ
 sidecar Rapfi và dùng bản WASM như trên web.
+
+## Bổ sung khi gộp (19/11/2026)
+
+- **CSP cho cửa sổ app** (trước đây `csp: null`). `withGlobalTauri` mở cầu nối lệnh native cho mọi script trên trang, nên
+  cần chặn script lạ. `scripts/build-web.js` sinh `src-tauri/tauri.csp.json` theo đúng `CARO_SERVER_URL` (giống CSP của
+  máy chủ, thêm máy chủ online cho API / ảnh / WebSocket và kênh IPC `ipc:` / `http://ipc.localhost`). `tauri build` /
+  `tauri dev` / CI ghép file này bằng `--config`. Đã dựng lại bản Linux với CSP và chạy tự kiểm: `CARO_SELFTEST ok`
+  (gọi Rapfi gốc cho luật tiêu chuẩn và luật Việt Nam), trang nạp xong ~1,5 giây.
