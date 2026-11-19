@@ -23,6 +23,9 @@ test('M-S1: Origin cùng host / của app / khai thêm thì qua, Origin lạ và
     assert.strictEqual(wsOriginAllowed(req({ host: 'caro.example:8080', origin: 'https://caro.example:8080' })), true, 'cùng host: qua');
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'https://localhost' })), true, 'app Android (Capacitor): qua');
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'capacitor://localhost' })), true, 'app iOS (Capacitor): qua');
+    assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'tauri://localhost' })), true, 'app desktop macOS / Linux (Tauri): qua');
+    assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'http://tauri.localhost' })), true, 'app desktop Windows (Tauri): qua');
+    assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'http://tauri.localhost.evil.example' })), false, 'tên giống app Tauri: chặn');
     assert.strictEqual(wsOriginAllowed(req({ host: 'caro.example:8080', origin: 'https://evil.example' })), false, 'trang lạ mượn trình duyệt người dùng: chặn');
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'không-phải-url' })), false, 'Origin rác: chặn');
     // #110 P3: bản tĩnh chính thức trên GitHub Pages được phép sẵn (không cần đặt WS_ALLOWED_ORIGINS trên máy chủ);

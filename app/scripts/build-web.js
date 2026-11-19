@@ -1,5 +1,6 @@
 /*
- * Dựng thư mục www cho ứng dụng từ giao diện web (../caro) – hai bản dùng chung một mã nguồn.
+ * Dựng thư mục www cho ứng dụng từ giao diện web (../caro) – hai bản dùng chung một mã nguồn (phần chép chung với
+ * app desktop: web-common.js).
  * Biến môi trường:
  *   CARO_SERVER_URL            máy chủ online (mặc định https://caroxo.duckdns.org) – phải là https
  *   CARO_APP_TEST=1            bản thử nghiệm: cho phép máy chủ http (chỉ dùng khi kiểm thử)
@@ -8,36 +9,20 @@
 const fs = require('fs');
 const path = require('path');
 
+const { fail, serverOrigin, copyCaro, writeConfig, injectScripts } = require('./web-common.js');
+
 const ROOT = path.resolve(__dirname, '..');
-const SRC = path.resolve(ROOT, '..', 'caro');
 const WWW = path.join(ROOT, 'www');
 const TEST = process.env.CARO_APP_TEST === '1';
 const APP_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 
-function fail(msg) { console.error('✗ ' + msg); process.exit(1); }
-
 // ---------------------------------------------------------------- Máy chủ
-let server;
-try { server = new URL(process.env.CARO_SERVER_URL || 'https://caroxo.duckdns.org'); } catch (e) { fail('CARO_SERVER_URL không hợp lệ'); }
-if (!['https:', 'http:'].includes(server.protocol) || server.pathname !== '/' || server.search || server.hash) {
-  fail('CARO_SERVER_URL chỉ gồm giao thức + tên miền (+ cổng), ví dụ https://caro.example.com');
-}
 // Android và iOS chặn kết nối không mã hoá: bản phát hành bắt buộc https/wss.
-if (server.protocol === 'http:' && !TEST) fail('Máy chủ phải dùng https (http chỉ dùng cho bản thử nghiệm CARO_APP_TEST=1)');
-const serverUrl = server.origin;
+const serverUrl = serverOrigin(process.env, TEST);
 
 // ---------------------------------------------------------------- Chép giao diện
-const SKIP = new Set(['tests', 'README.md', 'sw.js', 'config.js']);
-fs.rmSync(WWW, { recursive: true, force: true });
-// rapfi/nets/: mạng Rapfi (~10 MB mỗi file) nếu người triển khai đặt sẵn cho web – app tự tải khi cần, không gói vào
-const skip = (rel) => SKIP.has(rel.split(path.sep)[0]) || rel === path.join('rapfi', 'nets');
-fs.cpSync(SRC, WWW, { recursive: true, filter: (src) => src === SRC || !skip(path.relative(SRC, src)) });
-
-fs.writeFileSync(path.join(WWW, 'config.js'),
-  '// Tạo tự động bởi app/scripts/build-web.js – không sửa tay.\n' +
-  `window.CARO_SERVER = ${JSON.stringify(serverUrl)};\n` +
-  // Gửi kèm khi kết nối để máy chủ báo "cần cập nhật app" với bản quá cũ (MIN_APP_VERSION)
-  `window.CARO_APP_VERSION = ${JSON.stringify(APP_VERSION)};\n`);
+copyCaro(WWW);
+writeConfig(WWW, 'app/scripts/build-web.js', serverUrl, APP_VERSION);
 
 // ---------------------------------------------------------------- Thư viện Capacitor (không cần bundler)
 const VENDOR = [
@@ -56,12 +41,7 @@ for (const [from, to] of VENDOR) {
   // Bỏ dòng sourceMappingURL (không chép file .map)
   fs.writeFileSync(path.join(WWW, 'vendor', to), fs.readFileSync(src, 'utf8').replace(/\n\/\/# sourceMappingURL=.*$/m, '\n'));
 }
-const indexFile = path.join(WWW, 'index.html');
-let html = fs.readFileSync(indexFile, 'utf8');
-const anchor = '<script src="native.js"></script>';
-if (!html.includes(anchor)) fail('index.html thiếu thẻ <script src="native.js">');
-html = html.replace(anchor, VENDOR.map(([, to]) => `<script src="vendor/${to}"></script>`).join('\n  ') + '\n  ' + anchor);
-fs.writeFileSync(indexFile, html);
+injectScripts(WWW, VENDOR.map(([, to]) => `vendor/${to}`));
 
 // ---------------------------------------------------------------- Cấu hình Capacitor
 const config = {
