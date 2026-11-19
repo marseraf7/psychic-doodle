@@ -71,5 +71,7 @@ như Caddy. Đây là số trong phòng thí nghiệm, không phải máy thật
 |---|---|---|---|---|---|
 | Từng file (cũ), lần đầu | ~670 ms | ~2.340 ms | 237 | ~950 | ~80 ms |
 | Bản thử gộp 1 khối + 1 ngôn ngữ, lần đầu | ~620 ms | ~1.430 ms | 1 | ~500 | ~450 ms |
+| **Bản gộp thật (6 khối + 1 gói ngôn ngữ), lần đầu** | **~630 ms** | **~1.480 ms** | 12 | ~545 | ~140 ms |
 
-Bản thật chia thành 6 khối để tránh một lần CPU bận quá lâu. Số đo của bản này ghi trong PR của bước 1.
+Bản thật chia mã thành 6 khối để tránh một lần CPU bận quá lâu. So với cách cũ: DOMContentLoaded nhanh hơn ~37%, tải qua
+mạng ít hơn ~42%, FCP như cũ. Lần CPU bận lâu nhất tăng từ ~80 lên ~140 ms nhưng vẫn dưới 200 ms.
