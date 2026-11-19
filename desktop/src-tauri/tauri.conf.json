@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Caro x Gomoku",
+  "version": "../package.json",
+  "identifier": "io.github.marseraf7.caro.desktop",
+  "build": {
+    "frontendDist": "../www"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Caro x Gomoku",
+        "width": 1100,
+        "height": 820,
+        "minWidth": 360,
+        "minHeight": 560,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null,
+      "capabilities": ["main"]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi", "app", "dmg", "deb", "rpm", "appimage"],
+    "category": "BoardGame",
+    "shortDescription": "Cờ caro / Gomoku: chơi online, chơi với máy, giải đấu",
+    "copyright": "Cờ Caro; Rapfi © Rapfi developers (GPL-3)",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "externalBin": ["binaries/pbrain-rapfi", "binaries/pbrain-rapfi-caro"],
+    "resources": {
+      "resources/rapfi/": "rapfi/"
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}
