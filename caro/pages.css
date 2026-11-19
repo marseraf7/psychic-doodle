@@ -94,3 +94,10 @@
 .devices .dev-st.on { color: #2fb45a; font-weight: var(--fw-semibold); }
 #devices-card[hidden], #devices-others[hidden] { display: none; }
 .devices .pn b, .devices .pn small { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+
+/* Ô số đo tải trang (perf-box.js, mở bằng ?perf=1): góc trên, cuộn được, chữ dài tự xuống dòng */
+.perf-box { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 8px; right: 8px; z-index: 9999;
+  max-width: 480px; max-height: 60vh; overflow: auto; padding: 8px; border-radius: 10px;
+  background: var(--panel); color: var(--text); border: 1px solid var(--panel-border); box-shadow: 0 4px 16px rgba(0, 0, 0, .25); }
+.perf-box pre { margin: 0 0 6px; font-size: var(--fs-xs); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.perf-acts { display: flex; gap: 6px; justify-content: flex-end; }

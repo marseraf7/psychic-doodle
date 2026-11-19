@@ -373,12 +373,29 @@
     return timeLimit ? t('per_move', { n: timeLimit }) : t('time_off');
   }
 
+  // Bản gộp của máy chủ (server/src/web-bundle.js): chuỗi phụ (các file i18n-*.js) tách theo ngôn ngữ, trang chỉ nạp
+  // gói của ngôn ngữ đang dùng (window.CARO_PACK). Đổi sang ngôn ngữ khác thì tải gói đó rồi mới đổi.
+  const PACKS = window.CARO_PACKS || null;
+  const loaded = new Set(PACKS ? [window.CARO_PACK] : Object.keys(DICT));
+  function withPack(l, done) {
+    if (loaded.has(l) || !PACKS || !PACKS[l]) { done(); return; }
+    const s = document.createElement('script');
+    s.src = PACKS[l];
+    s.onload = () => { loaded.add(l); done(); };
+    s.onerror = () => done(); // mất mạng: vẫn đổi, chuỗi thiếu hiện tiếng Việt / khoá như khi chưa dịch
+    document.head.appendChild(s);
+  }
+  // Ngôn ngữ chọn ở đây khác gói đã nạp (hiếm: trang nhúng ?lang=…): tải gói rồi vẽ lại
+  if (PACKS && lang !== window.CARO_PACK) withPack(lang, () => { apply(); window.dispatchEvent(new Event('langchange')); });
+
   function setLang(l) {
     if (!DICT[l] || l === lang) return;
-    lang = l;
     try { localStorage.setItem(KEY, l); } catch (e) { /* riêng tư */ }
-    apply();
-    window.dispatchEvent(new Event('langchange'));
+    withPack(l, () => {
+      lang = l;
+      apply();
+      window.dispatchEvent(new Event('langchange'));
+    });
   }
 
   /** Bổ sung / ghi đè chuỗi cho một ngôn ngữ (i18n-rules.js, i18n-bots.js). */

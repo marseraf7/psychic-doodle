@@ -5,6 +5,10 @@ description: Quy tắc Claude Code (Quản trị viên) chia việc với Antigr
 
 # Giao việc cho Antigravity
 
+> **Ngừng dùng (Minh, 19/11/2026): không giao việc cho Antigravity nữa.** Việc đo / kiểm trên máy thật giao Laplace
+> (xem CLAUDE.md). Phần dưới chỉ giữ để tham khảo cách viết đề bài và tiêu chí xong.
+
+
 Mục tiêu: Claude Code dồn token và thời gian vào việc khó (tìm nguyên nhân gốc, thiết kế, engine, server, bảo mật);
 việc đơn giản nhưng tốn token / thời gian thì giao Antigravity chạy song song. Luật chung của hai agent: `AGENTS.md`.
 

@@ -107,7 +107,11 @@ const { boardPng } = require('../../../server/src/png.js');
   ok(await a.evaluate(async () => (await fetch('img/backdrop.webp')).ok), 'ảnh nền tải được');
   await a.click('#qs [data-sub="lang"]');
   await a.click('#qs [data-v="en"]');
-  ok(await a.evaluate(() => window.I18N.lang === 'en' && document.querySelector('#tb-search').placeholder === 'Search players…'), 'đổi ngôn ngữ: tiếng Anh');
+  // Trang gộp của máy chủ chỉ nạp gói chuỗi của ngôn ngữ đang dùng: đổi ngôn ngữ phải chờ tải gói mới (server/src/web-bundle.js)
+  const isEn = () => a.evaluate(() => window.I18N.lang === 'en' && document.querySelector('#tb-search').placeholder === 'Search players…');
+  let en = false;
+  for (let i = 0; i < 30 && !(en = await isEn()); i++) await sleep(100);
+  ok(en, 'đổi ngôn ngữ: tiếng Anh');
   await a.mouse.click(600, 500);
   await sleep(150);
   ok(await a.evaluate(() => document.getElementById('qs').hidden), 'bấm ra ngoài: đóng Cài đặt nhanh');

@@ -177,6 +177,7 @@ Biến môi trường:
 | `SMTP_URL` | Bật "Quên mật khẩu" qua email, ví dụ `smtps://ten%40gmail.com:mat-khau-ung-dung@smtp.gmail.com:465` (bỏ trống thì tính năng bị ẩn) |
 | `ADMIN_USERNAMES` | Tên đăng nhập của quản trị viên, cách nhau bởi dấu phẩy, ví dụ `minh,lan`. Quản trị viên duyệt câu lạc bộ và giải đấu mới (nút **Giải đấu → Duyệt**). Tạo tài khoản bình thường trong game rồi điền tên đăng nhập vào đây. Bỏ trống = không ai duyệt được, giải / CLB mới chỉ nằm ở trạng thái chờ |
 | `MIN_APP_VERSION` | Bản app điện thoại thấp nhất còn được chơi online, ví dụ `1.0.0`. App cũ hơn hiện "Cần cập nhật app" (chơi offline vẫn được). Bỏ trống = không kiểm tra. Bản web luôn mới nhất nên không bị ảnh hưởng |
+| `CARO_BUNDLE` | Mặc định bật: trang chính được gộp ~240 file JS thành vài khối và chỉ nạp chuỗi dịch của ngôn ngữ đang dùng (`src/web-bundle.js`). Đặt `0` để phục vụ từng file như cũ. Mở `/?bundle=0` cũng xem được bản từng file; `/?perf=1` hiện ô số đo tải trang. |
 | `ANDROID_UPDATE_URL`, `IOS_UPDATE_URL` | Link cửa hàng cho nút "Cập nhật app", ví dụ `https://play.google.com/store/apps/details?id=io.github.marseraf7.caro` |
 | `MAIL_FROM` | Người gửi, ví dụ `"Cờ Caro <caro@ten-mien.com>"` (mặc định: tài khoản trong `SMTP_URL`) |
 | `TRUST_PROXY=1` | **Chỉ bật khi chạy sau nginx/Caddy** (lấy IP người chơi từ header `X-Forwarded-For`). Máy chủ chỉ tin header này khi kết nối đến từ chính máy hoặc mạng nội bộ (proxy), nên người gọi thẳng từ Internet không giả IP được |
