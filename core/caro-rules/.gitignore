@@ -1,0 +1,3 @@
+# Thư mục dựng của cargo và file .wasm dựng ra (CI tự dựng lại)
+/target/
+/js/caro_rules.wasm
