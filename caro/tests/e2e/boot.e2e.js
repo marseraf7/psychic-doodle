@@ -63,8 +63,10 @@ const PORT = 8121;
       await navigator.serviceWorker.ready;
       for (let i = 0; i < 50 && !navigator.serviceWorker.controller; i++) await new Promise((r) => setTimeout(r, 100));
       const keys = await caches.keys();
-      const c = await caches.open(keys.find((k) => /^caro-v\d+$/.test(k)));
-      return !!navigator.serviceWorker.controller && !!(await c.match('app.js'));
+      // Trang gộp (server/src/web-bundle.js): tên bộ đệm thêm mã bản gộp, app.js nằm trong một khối b/core-…
+      const c = await caches.open(keys.find((k) => /^caro-v\d+/.test(k)));
+      const core = (await c.keys()).some((r) => /\/b\/core-[0-9a-f]+\.js$/.test(r.url));
+      return !!navigator.serviceWorker.controller && (core || !!(await c.match('app.js')));
     });
     ok(ready, 'service worker đã cài và lưu sẵn file (app.js)');
     let slowHits = 0;
@@ -131,6 +133,7 @@ const PORT = 8121;
   ok(await p.evaluate(() => window.__caroBooted === true && !document.getElementById('boot-fail')), 'tải bình thường: không báo lỗi khởi động');
   const bctx = await browser.newContext({ serviceWorkers: 'block' });
   await bctx.route('**/app.js', (route) => route.abort());
+  await bctx.route('**/b/core-*.js', (route) => route.abort()); // trang gộp: app.js nằm trong các khối này
   const bp = await bctx.newPage();
   await bp.goto(URL).catch(() => {});
   await sleep(1500);

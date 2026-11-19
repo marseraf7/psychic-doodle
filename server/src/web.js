@@ -16,6 +16,8 @@
 const fs = require('fs');
 const path = require('path');
 const { boardPng } = require('./png.js');
+const { makeBundle } = require('./web-bundle.js');
+const { Rum } = require('./rum.js');
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
@@ -158,7 +160,9 @@ function origin(req) {
   return proto + '://' + host;
 }
 
-function makeHandler({ store, hub }) {
+function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
+  const B = bundle ? makeBundle(STATIC_DIR) : null; // gộp mã trang chính (web-bundle.js)
+  const rum = new Rum(); // số đo tốc độ từ máy người chơi (rum.js)
   const pngCache = new Map(); // mã -> ảnh PNG (ván đã lưu không đổi)
   const apiCache = new Map(); // đường dẫn -> { at, body }
   const apiHits = new Map(); // ip -> { n, reset }
@@ -173,6 +177,12 @@ function makeHandler({ store, hub }) {
     return ++h.n > limit ? Math.ceil((h.reset - now) / 1000) : 0;
   }
   let indexHtml = null; // { mtime, text }
+  /** Gửi nội dung có sẵn trong bộ nhớ (bản gộp). */
+  function sendText(res, req, body, type, cache) {
+    const buf = Buffer.isBuffer(body) ? body : Buffer.from(body);
+    res.writeHead(200, { 'content-type': type, 'content-length': buf.length, 'cache-control': cache });
+    res.end(req.method === 'HEAD' ? undefined : buf);
+  }
 
   const APP_ID = 'io.github.marseraf7.caro';
   /** H-A5 (Android App Links): khai báo app chính thức cho tên miền này. Vân tay SHA-256 của
@@ -253,8 +263,9 @@ function makeHandler({ store, hub }) {
       if (!indexHtml || indexHtml.mtime !== st.mtimeMs) {
         try { indexHtml = { mtime: st.mtimeMs, text: fs.readFileSync(file, 'utf8') }; } catch (e) { res.writeHead(503); return res.end(); } // đang cập nhật code (L-S4)
       }
-      let html = indexHtml.text;
-      const g = store.gameByShare(share);
+      const b = B && B.current();
+      let html = b ? b.html : indexHtml.text;
+      const g = share ? store.gameByShare(share) : null;
       if (g) {
         const base = origin(req);
         const title = `${g.x_name || '?'} ✕ vs ${g.o_name || '?'} ◯ – Caro x Gomoku`;
@@ -270,7 +281,7 @@ function makeHandler({ store, hub }) {
       const body = Buffer.from(html);
       // Chưa đặt PUBLIC_URL thì đường dẫn ảnh lấy theo tên miền trình duyệt gửi lên: không cho bộ nhớ đệm dùng chung (CDN) giữ lại
       res.writeHead(200, { 'content-type': MIME['.html'], 'content-length': body.length,
-        'cache-control': process.env.PUBLIC_URL ? 'no-cache' : 'private, no-store', vary: 'host' });
+        'cache-control': !g || process.env.PUBLIC_URL ? 'no-cache' : 'private, no-store', vary: 'host' });
       res.end(req.method === 'HEAD' ? undefined : body);
     });
   }
@@ -315,6 +326,7 @@ function makeHandler({ store, hub }) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
       return res.end();
     }
+    if (rum.handle(req, res, url, clientIp(req))) return;
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
     if (url === '/healthz') { res.writeHead(200); return res.end('ok'); }
     if (url === '/.well-known/assetlinks.json') return serveAssetLinks(res);
@@ -353,6 +365,13 @@ function makeHandler({ store, hub }) {
     }
     if (url.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
     if ((url === '/' || url === '/index.html') && u.searchParams.get('replay')) return serveIndex(req, res, u.searchParams.get('replay'));
+    // ?bundle=0: phục vụ index gốc (từng file) để so tốc độ trên cùng máy (docs/do-toc-do-tai-laplace-19-11-2026.md)
+    if (B && (url === '/' || url === '/index.html') && u.searchParams.get('bundle') !== '0' && B.current()) return serveIndex(req, res, null);
+    if (B && url === '/sw.js' && B.current()) return sendText(res, req, B.current().sw, MIME['.js'], 'no-cache');
+    if (B && url.startsWith('/b/')) {
+      const f = B.file(url.slice(1));
+      if (f) return sendText(res, req, f, MIME['.js'], 'public, max-age=31536000, immutable'); // tên có mã băm nội dung
+    }
     if (url.endsWith('/')) url += 'index.html';
     // Trang nhúng giải (iframe trên website khác): cho phép nhúng – mọi trang khác vẫn chặn (frame-ancestors 'none')
     if (url === '/embed.html') {

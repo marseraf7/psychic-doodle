@@ -1,0 +1,23 @@
+# Thí điểm bước 5 (docs/nghien-cuu-viet-lai-rust-17-11-2026.md): lõi luật chơi Cờ Caro viết bằng Rust,
+# port nguyên ý từ caro/rules.js. Không phụ thuộc crate ngoài (chỉ std) để dựng được khi không có mạng.
+# Chưa nối vào trò chơi / máy chủ đang chạy – xem docs/thi-diem-rust-luat-choi.md.
+[package]
+name = "caro-rules"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Luật Cờ Caro (vn, free, std, renju) – port từ caro/rules.js, biên dịch được ra WebAssembly"
+
+[lib]
+# rlib: dùng trong cargo test / Rust khác; cdylib: ra file .wasm (wasm32-unknown-unknown)
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+
+[profile.release]
+# Ưu tiên kích thước file .wasm: opt-level "s", LTO, một codegen unit, bỏ ký hiệu, panic = abort
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

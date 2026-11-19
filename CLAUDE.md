@@ -18,8 +18,9 @@
 - Văn bản người dùng tự viết (mô tả giải / CLB, giới thiệu bản thân…): dùng trình soạn có định dạng `CaroRich.editor`
   và hiện bằng `CaroRich.render` (`caro/rich-text.js`) – không tự chèn HTML.
 - Đổi file trong `caro/` thì tăng `CACHE` trong `caro/sw.js`; thêm file thì thêm vào `FILES`.
-- Chia việc với Antigravity: làm theo skill `.claude/skills/giao-viec-antigravity/SKILL.md` (việc lặp lại / tốn token như chạy test N lần,
-  đọc log dài, kiểm trên máy thật, soát dịch, audit chỉ đọc → giao Issue `agent:agy`; việc khó / quan trọng → tự làm).
+- **Không giao việc cho Antigravity nữa** (Minh, 19/11/2026; skill `giao-viec-antigravity` chỉ còn để tham khảo).
+  Đo / kiểm trên máy thật, trong Zalo / Messenger, rà soát lỗi → giao **Laplace**: soạn hướng dẫn trong `docs/` (việc cần làm,
+  cách đo, mẫu báo cáo) để Minh chuyển cho Laplace. Việc còn lại tự làm.
 - Kiểm thử: `cd server && npm run coverage` (unit + độ phủ), `node caro/tests/e2e/<tên>.e2e.js` (trình duyệt).
 - **Merge PR**: người dùng cho phép (5/11/2026) tự merge PR của Claude khi CI xanh và không xung đột, không cần hỏi
   (kiểu merge commit). Sau merge: `git merge --ff-only origin/<base>` rồi push nhánh làm việc.

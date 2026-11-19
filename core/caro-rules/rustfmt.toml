@@ -1,0 +1,3 @@
+# Định dạng mã Rust của lõi luật (cargo fmt): dòng tối đa 120 ký tự như phần JS của repo
+max_width = 120
+use_small_heuristics = "Max"
