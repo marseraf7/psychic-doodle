@@ -96,9 +96,10 @@ function fromProxy(addr) {
  *  bằng IP của họ (qua NAT nhà mạng có thể làm cháy hạn mức của cả một nhà mạng).
  *  Chính sách: không có Origin (app gốc / công cụ kiểm thử — không phải trình duyệt) thì cho
  *  qua; Origin cùng host với máy chủ (bản web do chính máy chủ phục vụ), Origin của app
- *  Capacitor, các địa chỉ web chính thức (OWN_WS_ORIGINS), Origin của PUBLIC_URL, hoặc Origin khai thêm qua
+ *  Capacitor / Tauri, các địa chỉ web chính thức (OWN_WS_ORIGINS), Origin của PUBLIC_URL, hoặc Origin khai thêm qua
  *  WS_ALLOWED_ORIGINS thì cho qua; còn lại từ chối. */
-const APP_WS_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost'];
+// App desktop Tauri (thí điểm, desktop/): tauri://localhost trên macOS / Linux, http://tauri.localhost trên Windows
+const APP_WS_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost', 'tauri://localhost', 'http://tauri.localhost'];
 // Các địa chỉ web chính thức của game (cùng chủ, tin được như bản do máy chủ phục vụ) – có sẵn, khỏi đặt
 // WS_ALLOWED_ORIGINS trên máy chủ:
 //  - bản giao diện tĩnh trên GitHub Pages (caro/config.js trỏ về máy chủ chính, #110 P3): tải nhanh ở nơi khó vào

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main",
+  "description": "Cửa sổ chính chỉ được gọi hai lệnh engine của app. Không cấp quyền plugin nào (không shell, fs, http): tiến trình Rapfi do phía Rust chạy với đường dẫn cố định, JS không tự chạy được chương trình nào.",
+  "windows": ["main"],
+  "permissions": ["allow-engine-bench", "allow-engine-best-move"]
+}

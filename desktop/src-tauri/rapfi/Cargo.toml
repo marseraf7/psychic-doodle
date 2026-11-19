@@ -1,0 +1,10 @@
+[package]
+name = "caro-rapfi"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+publish = false
+description = "Điều khiển Rapfi gốc (tiến trình riêng) qua giao thức Piskvork / Gomocup – chỉ dùng thư viện chuẩn"
+
+# Không phụ thuộc Tauri / WebKitGTK: dựng và chạy thử được ở mọi máy có Rust (cargo test).
+[dependencies]

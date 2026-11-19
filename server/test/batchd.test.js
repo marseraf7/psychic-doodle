@@ -448,6 +448,19 @@ test('thêm giờ, xin đi lại (từ chối), hồ sơ có thống kê sâu v�
   [a, b].forEach((c) => c.close());
 });
 
+test('xin đi lại: đối thủ đánh tiếp thay cho trả lời thì người xin được báo bị từ chối (F3)', async () => {
+  const a = await account('dd_tb_a'), b = await account('dd_tb_b');
+  await privateRoom(a, b);
+  const [x, o] = a.room.seats.x === a.me.id ? [a, b] : [b, a];
+  await mv(x, o, 0, 0);
+  await x.req({ t: 'takeback' }, 'room', (m) => m.room.takebackOffer);
+  const no = x.wait('toast', (m) => m.code === 'takeback_declined');
+  await mv(o, x, 5, 5); // đánh tiếp = từ chối ngầm: phải báo cho người xin như từ chối tường minh
+  await no;
+  assert.strictEqual(x.room.takebackOffer, null);
+  [a, b].forEach((c) => c.close());
+});
+
 test('quản trị: số liệu máy chủ chỉ quản trị viên xem được', async () => {
   const u = await account('dd_user'), ad = await account('dd_admin');
   assert.strictEqual((await u.req({ t: 'adminStats' }, 'error')).code, 'admin_only');

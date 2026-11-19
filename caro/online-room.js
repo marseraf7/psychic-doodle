@@ -158,13 +158,18 @@
       // Rời ván đang đánh dở (quá nước huỷ được) = xử thua: báo lại sau khi rời, không chỉ trong hộp hỏi (#155)
       const forfeit = roomActive() && !r.abortable;
       if (!send({ t: 'leaveRoom' })) {
-        // Mất kết nối: vẫn cho quay về chơi cục bộ.
+        // Mất kết nối: vẫn cho quay về chơi cục bộ. Vẫn báo xử thua nếu ván đang dở (F1):
+        // trước đây nhánh này không báo gì, phía rời tưởng ván chưa bị tính.
         S.room = null;
         App.leaveOnline();
         if (toLobby) goLobby();
+        if (forfeit) window.CaroConfirm.info(T('left_forfeit'));
       } else {
         if (toLobby) S.toLobby = true; // online.js (setRoom) đưa về sảnh khi máy chủ xác nhận đã rời phòng
-        if (forfeit) toast(T('left_forfeit'), 4000);
+        // F1: trước đây chỉ là toast 4 giây — rất dễ lỡ (phiên kiểm thử hai phía 16/11 phía rời
+        // không thấy thông báo nào), trong khi phía ở lại nhận thẻ kết quả bền. Nay dùng hộp
+        // thông báo phải bấm Đóng mới tắt, tương xứng với mức quan trọng của kết quả ván.
+        if (forfeit) window.CaroConfirm.info(T('left_forfeit'));
       }
     }
     $('btn-leave').onclick = leaveRoom;

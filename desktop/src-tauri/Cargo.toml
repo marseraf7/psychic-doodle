@@ -1,0 +1,23 @@
+[package]
+name = "caro-desktop"
+version = "0.1.0"
+description = "Caro x Gomoku – app desktop thí điểm (Tauri 2), Rapfi gốc chạy như tiến trình phụ"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+# Phiên bản ghim theo bậc minor (~): bản vá cùng minor tự lên khi cập nhật Cargo.lock, minor mới phải đổi tay.
+# Số đã tra trên crates.io ngày 19/11/2026: tauri 2.12.7, tauri-build 2.7.6 (CLI npm @tauri-apps/cli 2.12.6).
+[build-dependencies]
+tauri-build = { version = "~2.7.6", features = [] }
+
+[dependencies]
+tauri = { version = "~2.12.7", features = [] }
+serde = { version = "1", features = ["derive"] }
+caro-rapfi = { path = "rapfi" }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
