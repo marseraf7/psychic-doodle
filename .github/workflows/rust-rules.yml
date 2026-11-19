@@ -1,0 +1,39 @@
+# Thí điểm lõi luật Rust (core/caro-rules, xem docs/thi-diem-rust-luat-choi.md): kiểm thử Rust, dựng WebAssembly và
+# kiểm thử đối chiếu với caro/rules.js (yêu cầu 0 sai khác). Chỉ chạy khi đổi lõi Rust hoặc file luật JS.
+name: Rust luật chơi (thí điểm)
+
+on:
+  push:
+    paths: ['core/**', 'caro/rules.js', 'caro/puzzles.json', 'server/scripts/openings.json', '.github/workflows/rust-rules.yml']
+  pull_request:
+    paths: ['core/**', 'caro/rules.js', 'caro/puzzles.json', 'server/scripts/openings.json', '.github/workflows/rust-rules.yml']
+  workflow_dispatch:
+
+jobs:
+  caro-rules:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core/caro-rules
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy, rustfmt
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Định dạng + clippy
+        run: |
+          cargo fmt --check
+          cargo clippy --all-targets -- -D warnings
+      - name: Kiểm thử Rust
+        run: cargo test
+      - name: Dựng WebAssembly (opt-level s, LTO, strip)
+        run: bash build-wasm.sh
+      # Ván ngẫu nhiên có hạt giống + bài đố + khai cuộc + thế của rules.test.js: > 100 000 thế, phải 0 sai khác
+      - name: Kiểm thử đối chiếu JS ↔ Rust
+        run: node diff/diff.js
+      - name: Đo nhanh JS ↔ WASM (chỉ để xem, không chặn)
+        run: node diff/bench.js --games=60
