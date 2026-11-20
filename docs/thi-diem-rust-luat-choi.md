@@ -1,7 +1,8 @@
 # Thí điểm Rust cho lõi luật chơi (bước 5 của lộ trình)
 
 Ngày: 19/11/2026. Lộ trình gốc: [nghien-cuu-viet-lai-rust-17-11-2026.md](nghien-cuu-viet-lai-rust-17-11-2026.md), bước 5.
-Mã nguồn: `core/caro-rules/`. **Chưa nối vào trò chơi hay máy chủ**. Trò chơi vẫn chạy hoàn toàn bằng `caro/rules.js`.
+Mã nguồn: `core/caro-rules/`. Trò chơi vẫn chạy hoàn toàn bằng `caro/rules.js`. Từ 20/11/2026 máy chủ **chạy bóng**
+bản Rust trên ván thật (chỉ so, không quyết định gì): xem mục 8.
 
 ## 1. Đã port những gì
 
@@ -48,7 +49,9 @@ CI: `.github/workflows/rust-rules.yml` chạy khi đổi `core/**`, `caro/rules.
 Nạp từ JS (`core/caro-rules/js/rules-wasm.js`, chạy cả Node lẫn trình duyệt):
 
 ```js
-const R = await CaroRulesWasm.load('caro_rules.wasm');  // Node: require(...).load() đọc file cạnh loader
+const R = await CaroRulesWasm.load('caro_rules.wasm');  // Node: require(...).load() đọc file cạnh loader,
+                                                         // chưa dựng thì đọc server/vendor/caro_rules.wasm
+const R2 = require('./core/caro-rules/js/rules-wasm.js').loadSync();  // Node: nạp đồng bộ
 const b = new R.Board('renju');
 b.play(0, 0, R.X);
 R.checkWin(b, 0, 0, R.X); R.winsIfPlaced(b, 1, 1, R.O); R.forbidden(b, 2, 2, R.X);
@@ -166,7 +169,7 @@ Nhận xét thẳng:
 
 **Đi tiếp, nhưng hẹp: chạy bóng ở máy chủ trước, chưa thay `rules.js` ở trình duyệt.**
 
-1. Bước tiếp theo nên làm: chạy bóng (shadow) ở máy chủ. `server/src/room.js` / `room-clock.js` đã dùng `rules.js` để
+1. Bước tiếp theo nên làm (**đã làm 20/11/2026, mục 8**): chạy bóng (shadow) ở máy chủ. `server/src/room.js` / `room-clock.js` đã dùng `rules.js` để
    xác nhận thắng. Có thể nạp cùng file `.wasm` trong Node (không cần napi-rs, `diff.js` đã chạy được như vậy). Mỗi nước
    chạy cả hai bản, chỉ ghi log khi khác nhau, kết quả vẫn lấy từ JS. Chạy vài tuần trên ván thật. Nếu vẫn 0 sai khác
    thì đó là bằng chứng mạnh hơn cả bài thử ngẫu nhiên. Việc này cỡ 1–2 ngày.
@@ -181,3 +184,100 @@ Nhận xét thẳng:
 Chưa làm trong thí điểm này: phần "đọc ký hiệu" (notation) mà lộ trình nhắc tới; bản napi-rs (cần crate ngoài, mà file
 `.wasm` đã chạy được trong Node nên chưa cần); `wasm-opt`; thử trên trình duyệt / Zalo / Messenger thật. Việc thử trên
 máy thật có thể giao Antigravity theo skill `giao-viec-antigravity`.
+
+## 8. Chạy bóng ở máy chủ (20/11/2026)
+
+Làm khuyến nghị 1 ở mục 7. Máy chủ vẫn quyết định mọi thứ bằng `caro/rules.js`. Bản Rust chỉ tính lại cùng kết quả
+rồi so. Khác nhau thì đếm và ghi lại, ván không đổi gì.
+
+### 8.1. Thiết kế
+
+- **File .wasm của máy chủ**: `server/vendor/caro_rules.wasm` (41 748 byte), đã commit. VPS không có Rust, còn
+  `core/caro-rules/js/caro_rules.wasm` bị gitignore. Loader (`core/caro-rules/js/rules-wasm.js`) có thêm `loadSync()`
+  cho Node. `load()` / `loadSync()` không truyền đường dẫn thì đọc file vừa dựng cạnh loader, chưa dựng thì đọc bản
+  trong `server/vendor/`.
+- **CI** (`.github/workflows/rust-rules.yml`): ghim rustc **1.97.0**, dựng lại crate rồi `cmp` với
+  `server/vendor/caro_rules.wasm`. Khác một byte là đỏ. Bản dựng tái lập được từng byte: hai lần dựng ở hai thư mục
+  khác nhau cho cùng sha256 `d9bc714d…5b83c99`. File chỉ chứa đường dẫn tương đối của crate (`src/ffi.rs`) và đường
+  dẫn cố định của std (`/rustc/<mã phiên bản>/…`), không có thư mục máy dựng. Vì vậy phải ghim phiên bản rustc: lên
+  rustc mới thì đổi số trong workflow, dựng lại, chép file sang `server/vendor/` và commit cùng lúc. Không cần so
+  hành vi thay cho so byte, vì `diff.js` chạy trên chính bản vừa dựng, và bản này giống hệt bản đã commit.
+- **Chỗ móc** (`server/src/room.js`, `move()`): sau `checkWin` của JS gọi `observe(...)` với nước vừa đặt. Nước bị
+  JS từ chối vì cấm Renju cũng được so (lý do `'overline'` / `'44'` / `'33'` phải trùng), trước khi ném
+  `forbidden_move`. Mỗi lần so gồm:
+  - cờ cấm của bản Rust cho quân vừa đi, tính **trước khi đặt**. Với nước được đặt, JS đã cho qua nên Rust phải trả
+    `null`. Ba luật kia luôn `null`;
+  - `checkWin` sau khi đặt: cùng có / không thắng, cùng từng ô của chuỗi, đúng thứ tự (như `room.winCells`).
+- **Dựng lại bàn mỗi lần** (`server/src/rules-shadow.js`): mỗi lần so tạo một bàn Rust, đặt lại các nước từ
+  `board.moves` của JS (có ghi quân từng nước), tính, rồi giải phóng ngay. Không giữ bàn Rust theo phòng, nên đi lại,
+  Swap2 (một người đặt cả X lẫn O), tái đấu, ván tiếp của Bo3/Bo5, làm mới phòng đều không cần xử lý riêng, và không rò
+  bộ nhớ WASM. Đổi lại, chi phí tăng theo số nước (mục 8.2). Ván thật vẫn rẻ nên không cần giữ bàn theo phòng.
+- **An toàn**: `observe` bọc toàn bộ trong `try/catch`. Lỗi (kể cả khi chính hàm log hỏng) chỉ tăng `errors` và ghi
+  `lastError`, không ném vào phần xử lý ván. File .wasm được nạp đồng bộ ở nước đầu tiên. Nạp không được (thiếu file,
+  file hỏng) thì `state = 'unavailable'`, ghi log đúng một lần, rồi tắt chạy bóng. `CARO_RULES_SHADOW=0` tắt hẳn
+  (`state = 'off'`). Mặc định bật.
+- **Log**: mỗi chỗ khác nhau ghi `console.error` (lên journald), tối đa 1 dòng mỗi 10 giây. Dòng sau ghi thêm số lần
+  đã bỏ qua: "(+N lần chưa báo)".
+
+### 8.2. Chi phí đo được
+
+Đo trên máy dựng (Xeon 2,1 GHz, Node 22). Thời gian là thời gian của một lần `observe`: dựng bàn, tính, so.
+
+| Số nước trên bàn | vn: p50 / p95 (µs) | renju: p50 / p95 (µs) |
+|---:|---:|---:|
+| 20 | 3,9 / 7,6 (lần đo đầu, còn khởi động JIT) | 1,4 / 1,6 |
+| 40 | 4,6 / 9,7 | 2,3 / 2,4 |
+| 80 | 4,8 / 6,4 | 4,0 / 4,7 |
+| 200 | 9,4 / 13,9 | 8,7 / 9,8 |
+| 500 | 23 / 41 | 23 / 30 |
+| 1 000 | 46 / 61 | 46 / 70 |
+| 2 000 (trần `MAX_MOVES`) | 94 / 125 | 93 / 120 |
+
+- Một ván thật dài 30–80 nước, nên mỗi nước tốn khoảng **2–5 µs**. Ván dài nhất máy chủ cho phép (2 000 nước) tốn
+  khoảng 0,1 ms. Cả hai đều **dưới 1 ms rất xa**. Dựng lại bàn tốn khoảng 0,045 µs mỗi nước có sẵn.
+- 300 ván ngẫu nhiên mỗi luật đi qua `Room.move` thật (238 036 nước, trung bình 115–230 nước mỗi ván vì đánh ngẫu
+  nhiên): trung bình 4,8 µs (vn), 8,1 µs (free), 8,2 µs (std), 9,7 µs (renju) mỗi nước. Đã có 207 nước cấm bị từ chối
+  và 812 nước thắng. **0 sai khác, 0 lỗi.** Cả `Room.move` (kèm chạy bóng) mất 6–14 µs mỗi nước, so với 0,8–4,2 µs
+  khi tắt. `maxMicros` có lúc lên 1–5 ms. Đó là lúc V8 dọn rác hoặc tối ưu lại mã, không phải phần tính.
+- Đo lại: chạy `observe` trên bàn có N nước, lặp 500 lần, lấy trung vị (script đo không đưa vào repo).
+
+### 8.3. Đọc số đo
+
+`GET /api/rum` có thêm mục `rulesShadow`. Số được giữ 10 giây như phần còn lại và mất khi khởi động lại máy chủ:
+
+```json
+"rulesShadow": { "enabled": true, "state": "on", "checked": 1234, "rejected": 3, "wins": 41, "mismatches": 0,
+  "errors": 0, "avgMicros": 3.1, "maxMicros": 820.4, "since": 1763600000000, "lastError": null, "recent": [] }
+```
+
+- `state`: `on` (đang chạy), `idle` (bật nhưng chưa có nước nào nên chưa nạp WASM), `off` (`CARO_RULES_SHADOW=0`),
+  `unavailable` (nạp WASM hỏng, lý do ở `lastError`, log máy chủ có một dòng `[rules-shadow] không nạp được…`).
+- `checked`: số lần đã so. `rejected` là số nước JS từ chối vì cấm. `wins` là số nước thắng, đã so cả chuỗi ô.
+- `mismatches`: số lần JS và Rust khác nhau. Phải luôn là **0**.
+- `errors`: số lần đường chạy bóng tự lỗi (ví dụ dựng lại bàn không được). Cũng phải là 0. Khác 0 thì xem `lastError`.
+- `avgMicros` / `maxMicros`: thời gian trung bình / lớn nhất mỗi lần so.
+- `recent`: tối đa 20 chỗ khác nhau gần nhất. Mỗi chỗ có `{ at, rule, moves, move, side, applied, js, rust }`.
+  `moves` là các nước **trước** nước đang xét, dạng `[x, y]`, X đi trước, xen kẽ. `js` / `rust` là
+  `{ forbidden, cells }`. Không có tên hay id người chơi. Muốn tái hiện thì nạp `moves` vào `caro/rules.js` và
+  `rules-wasm.js` rồi gọi cùng hàm.
+- Số đếm mất khi khởi động lại. Muốn theo dõi một tuần thì chụp `curl -s https://<máy chủ>/api/rum | jq .rulesShadow`
+  mỗi ngày (trước mỗi lần cập nhật / khởi động lại), rồi cộng dồn. Nếu có chỗ khác nhau thì đọc thêm dòng
+  `[rules-shadow]` trong `journalctl -u caro`.
+
+### 8.4. Kết quả nào đủ để đi bước tiếp
+
+- **Đủ**: chạy liên tục ít nhất **7 ngày** trên máy chủ thật, cộng dồn **≥ 20 000 nước** đã so, trong đó **≥ 1 000
+  nước Renju** và **≥ 500 nước thắng**, đủ cả 4 luật, có ván Swap2 và ván có đi lại. Kèm theo `mismatches = 0` và
+  `errors = 0` suốt thời gian đó. Ván ngẫu nhiên của `diff.js` đã phủ phần luật, nên số nước ván thật chủ yếu để thấy
+  các tình huống người thật tạo ra (đi lại, Swap2, ván rất dài, toạ độ xa).
+  Nếu lượng ván thật ít hơn mức này thì kéo dài thời gian chạy, không hạ ngưỡng.
+- **Bước tiếp khi đủ**: cho một nơi thứ hai dùng crate (ứng dụng desktop Tauri ở bước 4, hoặc công cụ sách khai
+  cuộc), hoặc cho máy chủ dùng kết quả Rust làm bản quyết định và giữ JS chạy bóng ngược lại một thời gian. Vẫn chưa
+  thay `rules.js` ở trình duyệt (lý do ở mục 7).
+- **Dừng / sửa**: có dù chỉ một chỗ khác nhau. Lấy chỗ đó trong `recent`, thêm vào `core/caro-rules/diff/fixtures.js`
+  làm thế cố định, sửa bản sai (Rust, hoặc `rules.js` nếu JS sai), rồi chạy lại từ đầu. Sai khác không sửa được trong
+  khoảng một tuần thì dừng hướng này (khuyến nghị 4).
+- **Bài thử** (`server/test/rules-shadow.test.js`): ván thật qua máy chủ và client WebSocket ở cả 4 luật, có đi lại,
+  tái đấu, Swap2 và nước 3-3 bị từ chối, phải 0 sai khác và `checked > 0`. Bộ tính giả trả kết quả sai thì sai khác
+  được đếm và ghi lại, kết quả ván vẫn theo JS. Bộ tính ném lỗi thì lỗi được đếm. Thiếu file .wasm thì tự tắt, log một
+  lần. `CARO_RULES_SHADOW=0` tắt hẳn.

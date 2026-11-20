@@ -6,6 +6,8 @@
  * thế cờ không vừa bàn của Rapfi hay Rapfi lỗi → trả null để app.js / phân tích dùng engine của game.
  *
  * Bàn của game vô hạn, Rapfi cần bàn cố định: đặt thế lên bàn Rapfi và kiểm lại thế sát mép – xem rapfi-board.js. Nghĩ trước: rapfi-ponder.js.
+ * App desktop: BOAT đi bằng Rapfi gốc (native-boat.js – tiến trình riêng, nhanh hơn nhiều); lỗi / quá hạn thì Worker WASM.
+ * Nghĩ trước và phân tích vẫn chạy WASM.
  *
  *   CaroRapfi.handles(botId, rule)   – BOAT + luật có Rapfi + trình duyệt chạy được
  *   CaroRapfi.available(rule)        – luật có Rapfi + trình duyệt chạy được (phân tích)
@@ -57,17 +59,21 @@
     }
     return simd;
   }
+  // tauri: – app desktop trên Linux / macOS (tauri://localhost; Windows là http://tauri.localhost): Worker WASM là đường
+  // dự phòng khi Rapfi gốc lỗi (native-boat.js), và là engine của phân tích
   function supported() {
     return !global.CARO_NO_RAPFI && typeof WebAssembly === 'object' && !!global.Worker &&
-      /^(https?|capacitor):$/.test(global.location.protocol) && hasSimd();
+      /^(https?|capacitor|tauri):$/.test(global.location.protocol) && hasSimd();
   }
   function botOf(id) { return global.CaroBots && (typeof id === 'string' ? global.CaroBots.get(id) : id); }
   function available(rule) {
     return !!(SIZE[rule] && supported() && !(failedAt[rule] && Date.now() - failedAt[rule] < RETRY_MS));
   }
+  // Rapfi gốc của app desktop (native-boat.js); ngoài app desktop luôn false
+  const nativeOn = (rule) => !!(global.CaroNativeBoat && global.CaroNativeBoat.on(rule));
   function handles(botId, rule) {
     const bot = botOf(botId);
-    return !!(bot && bot.rapfi && available(rule));
+    return !!(bot && bot.rapfi && (available(rule) || nativeOn(rule)));
   }
   const emit = (detail) => global.dispatchEvent(new CustomEvent('caro:rapfi', { detail }));
 
@@ -163,9 +169,11 @@
   function prepare(botId, rule) {
     game.rapfi = game.fallback = 0;
     stopPonder();
+    if (global.CaroNativeBoat) global.CaroNativeBoat.cancel(); // nước bản gốc đang nghĩ cho ván cũ: bỏ
     // Ván mới: Worker quên lượt nghĩ trước và quỹ giờ của ván cũ (rapfi/brain.js)
     if (cur && cur.state === 'ready') try { cur.worker.postMessage({ type: 'game' }); } catch (e) { /* đã dừng */ }
-    if (handles(botId, rule)) ensure(rule);
+    // App desktop có Rapfi gốc: khỏi dựng Worker WASM (tải ~10 MB mạng, giữ RAM) – chỉ dựng khi phải dùng (lỗi / phân tích)
+    if (handles(botId, rule) && !nativeOn(rule)) ensure(rule);
   }
 
   const wait = (ms) => new Promise((r) => setTimeout(() => r(false), ms));
@@ -247,8 +255,9 @@
       !!(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
   }
   // Đếm (kiểm thử, gỡ lỗi): nước Rapfi đi / nhường engine của game / engine sửa nước Rapfi sát mép / lần nghĩ trước / thế
-  // Worker phụ chấm / số luồng / lần tạm nghĩ trước vì bỏ máy / mức tự giảm tải / nước đáp nhanh vì đoán trúng
-  const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0, threads: 0, idle: 0, load: 0, hit: 0 };
+  // Worker phụ chấm / số luồng / lần tạm nghĩ trước vì bỏ máy / mức tự giảm tải / nước đáp nhanh vì đoán trúng / nước do
+  // Rapfi gốc đi (app desktop)
+  const stats = { rapfi: 0, fallback: 0, fixed: 0, ponder: 0, aux: 0, threads: 0, idle: 0, load: 0, hit: 0, native: 0 };
   // Nghĩ trước trên thế người chơi tới lượt, tạm dừng / nghĩ tiếp (rapfi-ponder.js); level: đang tự giảm tải (load)
   const P = global.CaroRapfiPonder.create({ cur: () => cur, place, blocked: () => level > 0, nextId: () => ++seq, stats });
   const stopPonder = () => P.stop();
@@ -298,18 +307,20 @@
     const bot = botOf(botId);
     if (!handles(bot, board.rule)) return null;
     P.drop(); // người chơi đã đi: thế nghĩ trước cũ hết dùng (tin 'move' dừng lượt nghĩ trước trong Worker)
-    const m = await think(board, p, bot);
+    const how = {}; // how.native: nước này do Rapfi gốc đi (think)
+    const m = await think(board, p, bot, how);
     stats[m ? 'rapfi' : 'fallback']++;
     game[m ? 'rapfi' : 'fallback']++;
-    // Nghĩ trước trong lúc người chơi nghĩ (trừ khi nước này thắng luôn, hoặc nước sau của BOAT còn trong sách)
+    // Nghĩ trước trong lúc người chơi nghĩ (trừ khi nước này thắng luôn, hoặc nước sau của BOAT còn trong sách). Rapfi
+    // gốc chưa có lệnh nghĩ trước: không nghĩ trước bằng WASM (nước sau lại do bản gốc đi – bảng băm WASM vô ích, tranh CPU)
     const moves = board.moves.map((q) => [q.x, q.y]);
-    if (m && !C.winsIfPlaced(board, m[0], m[1], p) && !(hasBook(board.rule) && moves.length + 2 <= BOOK_MAX)) {
+    if (m && !how.native && !C.winsIfPlaced(board, m[0], m[1], p) && !(hasBook(board.rule) && moves.length + 2 <= BOOK_MAX)) {
       P.start(board.rule, moves.concat([m]));
     }
     return m;
   }
 
-  async function think(board, p, bot) {
+  async function think(board, p, bot, how) {
     const rule = board.rule, moves = board.moves.map((m) => [m.x, m.y]);
     if (!moves.length) return [0, 0];
     if ((moves.length % 2 === 0 ? C.X : C.O) !== p) return null; // Rapfi tính bên đi theo số quân
@@ -320,18 +331,32 @@
       if (m && board.get(m[0], m[1]) === C.EMPTY && !(C.forbidden && C.forbidden(board, m[0], m[1], p))) return m;
     }
     const f = frame(moves, SIZE[rule]);
-    if (!f || !(await ready(rule, FIRST_WAIT))) return null;
+    if (!f) return null;
     const near = f.margin < SAFE_EDGE;
     // Sát mép: chừa thời gian cho engine kiểm lại (tổng vẫn ≈ thời gian nghĩ của BOAT)
-    const r = await ask(rule, moves, near ? Math.max(800, bot.rapfi.ms - 2 * CHECK_MS) : bot.rapfi.ms, 0, { play: true, ...PLAY });
+    const ms = near ? Math.max(800, bot.rapfi.ms - 2 * CHECK_MS) : bot.rapfi.ms;
+    const ok = (m) => m && board.get(m[0], m[1]) === C.EMPTY && !(C.forbidden && C.forbidden(board, m[0], m[1], p));
+    // App desktop: Rapfi gốc trước (cùng thời gian nghĩ, cùng khung bàn); lỗi / quá hạn / nước không đi được → WASM
+    const N = global.CaroNativeBoat;
+    let r = null;
+    if (nativeOn(rule)) {
+      const key = String(moves);
+      r = await N.ask(rule, moves, ms, { place, live: () => String(board.moves.map((q) => [q.x, q.y])) === key });
+      if (r && r.stale) return null; // người chơi đã đi lại / ván mới: app-ai.js cũng bỏ kết quả này
+      if (r && !ok(r.move)) { N.fail('nước không đi được: ' + r.move); r = null; }
+      if (r) { how.native = true; stats.native++; }
+    }
+    if (!r) {
+      if (!(await ready(rule, FIRST_WAIT))) return null;
+      r = await ask(rule, moves, ms, 0, { play: true, ...PLAY });
+    }
     if (!r) return null;
     if (r.hit) stats.hit++;
     let [x, y] = r.move;
-    if (board.get(x, y) !== C.EMPTY || (C.forbidden && C.forbidden(board, x, y, p))) return null;
+    if (!ok([x, y])) return null;
     if (r.margin < SAFE_EDGE) {
       const [mine, after] = await Promise.all([check(rule, moves, CHECK_MS), check(rule, moves.concat([[x, y]]), CHECK_MS)]);
       const keeps = after && after.mate < 0; // sau nước Rapfi, đối thủ thua chắc
-      const ok = (m) => m && board.get(m[0], m[1]) === C.EMPTY && !(C.forbidden && C.forbidden(board, m[0], m[1], p));
       // Engine thấy ta có chuỗi thắng mà nước Rapfi không giữ được / nước Rapfi để đối thủ có chuỗi thắng trong khi
       // engine chưa thấy ta thua: đi nước của engine (Rapfi đọc sai vì mép bàn)
       if (mine && ok(mine.move) && ((mine.mate > 0 && !keeps) || (after && after.mate > 0 && !(mine.mate < 0)))) {

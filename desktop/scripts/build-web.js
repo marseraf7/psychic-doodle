@@ -3,7 +3,7 @@
  * (app/scripts/web-common.js: bỏ tests, sw.js, rapfi/nets), rồi:
  *  - config.js trỏ về máy chủ online, thêm cờ window.CARO_DESKTOP = true;
  *  - chép cầu nối thí điểm www-extra/native-engine.js (window.CaroNativeEngine – Rapfi gốc qua lệnh Tauri) và nạp nó
- *    trong bản sao www/index.html (không sửa caro/index.html). Chưa nối vào giao diện chơi.
+ *    trong bản sao www/index.html (không sửa caro/index.html). BOAT dùng nó qua caro/native-boat.js.
  * Biến môi trường: CARO_SERVER_URL (mặc định https://caroxo.duckdns.org, phải https) · CARO_APP_TEST=1 cho phép http.
  */
 'use strict';

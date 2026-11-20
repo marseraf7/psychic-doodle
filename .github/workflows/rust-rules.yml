@@ -1,12 +1,15 @@
 # Thí điểm lõi luật Rust (core/caro-rules, xem docs/thi-diem-rust-luat-choi.md): kiểm thử Rust, dựng WebAssembly và
-# kiểm thử đối chiếu với caro/rules.js (yêu cầu 0 sai khác). Chỉ chạy khi đổi lõi Rust hoặc file luật JS.
+# kiểm thử đối chiếu với caro/rules.js (yêu cầu 0 sai khác). Chỉ chạy khi đổi lõi Rust, file luật JS hoặc bản .wasm
+# máy chủ dùng để chạy bóng (server/vendor/caro_rules.wasm – VPS không có Rust nên file dựng sẵn được commit).
+# Ghim rustc 1.97.0: cùng phiên bản thì bản dựng giống hệt từng byte (đã thử ở hai thư mục khác nhau); đổi phiên bản
+# thì phải dựng lại và commit server/vendor/caro_rules.wasm cùng lúc với việc đổi số phiên bản ở dưới.
 name: Rust luật chơi (thí điểm)
 
 on:
   push:
-    paths: ['core/**', 'caro/rules.js', 'caro/puzzles.json', 'server/scripts/openings.json', '.github/workflows/rust-rules.yml']
+    paths: ['core/**', 'caro/rules.js', 'caro/puzzles.json', 'server/scripts/openings.json', 'server/vendor/**', '.github/workflows/rust-rules.yml']
   pull_request:
-    paths: ['core/**', 'caro/rules.js', 'caro/puzzles.json', 'server/scripts/openings.json', '.github/workflows/rust-rules.yml']
+    paths: ['core/**', 'caro/rules.js', 'caro/puzzles.json', 'server/scripts/openings.json', 'server/vendor/**', '.github/workflows/rust-rules.yml']
   workflow_dispatch:
 
 jobs:
@@ -17,8 +20,9 @@ jobs:
         working-directory: core/caro-rules
     steps:
       - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.97.0
           targets: wasm32-unknown-unknown
           components: clippy, rustfmt
       - uses: actions/setup-node@v7
@@ -32,6 +36,14 @@ jobs:
         run: cargo test
       - name: Dựng WebAssembly (opt-level s, LTO, strip)
         run: bash build-wasm.sh
+      # Máy chủ chạy bóng bằng bản đã commit: phải giống hệt từng byte bản vừa dựng từ mã nguồn
+      - name: Bản .wasm đã commit (server/vendor) khớp mã nguồn
+        run: |
+          sha256sum js/caro_rules.wasm ../../server/vendor/caro_rules.wasm
+          cmp js/caro_rules.wasm ../../server/vendor/caro_rules.wasm || {
+            echo "::error::server/vendor/caro_rules.wasm khác bản dựng từ core/caro-rules. Chạy: bash core/caro-rules/build-wasm.sh && cp core/caro-rules/js/caro_rules.wasm server/vendor/ rồi commit."
+            exit 1
+          }
       # Ván ngẫu nhiên có hạt giống + bài đố + khai cuộc + thế của rules.test.js: > 100 000 thế, phải 0 sai khác
       - name: Kiểm thử đối chiếu JS ↔ Rust
         run: node diff/diff.js

@@ -5,10 +5,12 @@
  *                    loại trình duyệt (Zalo, Messenger, Chrome…) rồi bỏ – không lưu User-Agent, IP hay tài khoản.
  *   GET  /api/rum  – bảng p50 / p75 / p95 mỗi chỉ số theo loại trình duyệt (+ bản gộp / từng file), cùng độ trễ vòng lặp
  *                    sự kiện của máy chủ (trung bình, p99, lớn nhất trong giờ gần nhất). Chỉ là số gộp chung.
+ *                    Thêm mục rulesShadow: số đo chạy bóng luật Rust (rules-shadow.js – không có tên / id người chơi).
  * Chỉ giữ trong bộ nhớ (1000 số gần nhất mỗi chỉ số mỗi loại), mất khi khởi động lại. Mỗi IP tối đa 30 lần / phút.
  */
 'use strict';
 const { monitorEventLoopDelay } = require('perf_hooks');
+const RulesShadow = require('./rules-shadow.js');
 
 const METRICS = ['ttfb', 'fcp', 'lcp', 'dcl', 'load', 'inp', 'cls', 'loaf', 'longest'];
 const MAX_MS = 120000;
@@ -77,7 +79,7 @@ class Rum {
     return this.cache.body;
   }
 
-  /** Bảng gộp: { kinds: { key: { n, fcp: { p50, p75, p95, n } … } }, server: { loopMean, loopP99, loopMax } }. */
+  /** Bảng gộp: { kinds: { key: { n, fcp: { p50, p75, p95, n } … } }, server: { loopMean, loopP99, loopMax }, rulesShadow }. */
   summary() {
     const kinds = {};
     for (const [key, d] of [...this.data].sort((a, b) => b[1].n - a[1].n)) {
@@ -92,7 +94,7 @@ class Rum {
     const h = this.loop, ms = (v) => Math.round(Math.max(0, v / 1e6 - 20) * 10) / 10; // trừ độ phân giải bộ đo
     const server = h.count ? { loopMean: ms(h.mean), loopP99: ms(h.percentile(99)), loopMax: ms(h.max), since: this.loopAt } : null;
     if (this.now() - this.loopAt > 3600000) { h.reset(); this.loopAt = this.now(); } // chỉ giữ ~1 giờ gần nhất
-    return { kinds, server };
+    return { kinds, server, rulesShadow: RulesShadow.shadow().stats() };
   }
 
   /** Xử lý /api/rum; trả về true nếu đã trả lời. */

@@ -20,6 +20,7 @@ const { parseClock } = require('./rating.js');
 const { ClockMixin } = require('./room-clock.js');
 const { Swap2Mixin } = require('./room-swap2.js');
 const { ExtrasMixin } = require('./room-extras.js');
+const RulesShadow = require('./rules-shadow.js'); // chạy bóng luật Rust: chỉ đếm / ghi chỗ khác, không đổi ván
 
 const { X, O } = Caro;
 const DRAW = 3; // winner = 3: ván hoà (hai bên đồng ý)
@@ -177,7 +178,11 @@ class Room {
       throw E('bad_move');
     }
     if (this.board.get(x, y) !== Caro.EMPTY) throw E('cell_taken');
-    if (Caro.forbidden(this.board, x, y, this.turn)) throw E('forbidden_move');
+    const forb = Caro.forbidden(this.board, x, y, this.turn);
+    if (forb) {
+      RulesShadow.shadow().observe(this.rule, this.board.moves, false, x, y, this.turn, forb, null);
+      throw E('forbidden_move');
+    }
     if (!this.spend(id)) { this.timeLoss(); return; }
     const side = this.turn; // khai cuộc Swap2: một người đặt cả quân X lẫn O
     this.board.play(x, y, side);
@@ -189,6 +194,7 @@ class Room {
     this.takebackOffer = null;
     this.touch();
     const cells = Caro.checkWin(this.board, x, y, side);
+    RulesShadow.shadow().observe(this.rule, this.board.moves, true, x, y, side, null, cells); // không bao giờ ném lỗi
     if (cells) {
       this.winCells = cells;
       this.finish(side, 'win');
