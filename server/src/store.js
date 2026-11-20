@@ -415,6 +415,13 @@ async function checkPassword(password, pass) {
   const h = await scrypt(password, pass.salt);
   return crypto.timingSafeEqual(h, Buffer.from(pass.hash, 'hex'));
 }
+// I-1 (rà soát 20/11/2026): tên không tồn tại / tài khoản chỉ có Google vẫn chạy một lần scrypt cùng tham số, để thời gian
+// trả lời giống tài khoản thật – không dò được tên nào đã đăng ký qua thời gian phản hồi. Luôn trả về false.
+const DUMMY_PASS = { salt: crypto.randomBytes(16).toString('hex'), hash: '0'.repeat(64) };
+async function dummyCheckPassword(password) {
+  if (typeof password === 'string') await checkPassword(password, DUMMY_PASS); // như passOk: không phải chuỗi thì không băm
+  return false;
+}
 
 // Phiên đăng nhập / thiết bị (store-sessions.js)
 // + chat / diễn đàn câu lạc bộ (store-club.js) + giải đấu offline (store-otour.js)
@@ -422,4 +429,4 @@ for (const part of [Sessions, ClubStore, OTourStore]) for (const name of Object.
   if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 
-module.exports = { Store, hashPassword, checkPassword };
+module.exports = { Store, hashPassword, checkPassword, dummyCheckPassword };

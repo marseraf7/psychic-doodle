@@ -1,7 +1,7 @@
 /* Tài khoản: chào hỏi, đăng ký / đăng nhập / Google, đổi tên, mật khẩu, email, quên mật khẩu, xoá tài khoản. */
 'use strict';
 const crypto = require('crypto');
-const { hashPassword, checkPassword } = require('../store.js');
+const { hashPassword, checkPassword, dummyCheckPassword } = require('../store.js');
 const { sessionId } = require('../store-sessions.js');
 const { codeHash, codeMatches } = require('../code-hash.js');
 const { E, note } = require('../msg.js');
@@ -78,7 +78,9 @@ class Auth {
     const rules = [['login:' + conn.ip + ':' + name, 8], ['login-user:' + name, 30], ['login-ip:' + conn.ip, 100]];
     this.limit(rules);
     const user = this.store.byUsername.get(name);
-    if (!user) { this.fail(rules); throw E('bad_login'); }
+    // Không có tài khoản / chỉ đăng nhập Google: đếm lần sai TRƯỚC (như passOk), rồi vẫn băm giả cho thời gian trả lời
+    // giống tài khoản thật (I-1) – không dò được tên nào tồn tại
+    if (!user || !user.pass) { this.fail(rules); await dummyCheckPassword(password); throw E('bad_login'); }
     if (!(await this.passOk(rules, password, user.pass))) throw E('bad_login');
     this.loginConn(conn, user);
   }
