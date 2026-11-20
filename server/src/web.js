@@ -11,6 +11,7 @@
  *    dùng để không khởi động lại máy chủ khi đang có ván.
  *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz
  *    – cho phép gọi từ trang khác (CORS), giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
+ *  - /mcp                  : connector MCP cho Claude (mcp/index.js; tắt bằng CARO_MCP=0).
  */
 'use strict';
 const fs = require('fs');
@@ -164,6 +165,7 @@ function origin(req) {
 function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
   const B = bundle ? makeBundle(STATIC_DIR) : null; // gộp mã trang chính (web-bundle.js)
   const rum = new Rum(); // số đo tốc độ từ máy người chơi (rum.js)
+  const mcp = process.env.CARO_MCP === '0' ? null : require('./mcp/index.js').makeMcp({ hub, clientIp }); // connector MCP cho Claude (mcp/)
   const pngCache = new Map(); // mã -> ảnh PNG (ván đã lưu không đổi)
   const apiCache = new Map(); // đường dẫn -> { at, body }
   const apiHits = new Map(); // ip -> { n, reset }
@@ -327,6 +329,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
       return res.end();
     }
+    if (mcp && url === '/mcp') return mcp(req, res);
     if (rum.handle(req, res, url, clientIp(req))) return;
     if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
     if (url === '/healthz') { res.writeHead(200); return res.end('ok'); }
