@@ -465,6 +465,10 @@ table.stand tr.bye td:first-child { box-shadow: inset 6px 0 0 #2fb45a; } /* gi�
 .otp-body, #tour-body { scroll-padding-top: 64px; }
 .ot-tabs { position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; padding: 6px 0; background: var(--bg); border-bottom: 1px solid var(--line, #8883); }
 .ot-tabs::-webkit-scrollbar { display: none; }
+/* Thanh tab dính (quyết định R1: giữ dính) có bóng mờ phía dưới để thấy nội dung đang trượt vào dưới nó – cả nền sáng lẫn tối */
+.ot-tabs { box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.22); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ot-tabs { box-shadow: 0 6px 10px -6px rgba(0, 0, 0, 0.75); } }
+:root[data-theme="dark"] .ot-tabs { box-shadow: 0 6px 10px -6px rgba(0, 0, 0, 0.75); }
 .ot-tabs button { flex: none; padding: 8px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-weight: var(--fw-medium); cursor: pointer; }
 .ot-tabs button.on { background: var(--accent); color: var(--accent-ink, #fff); }
 .ot-tab { display: flex; flex-direction: column; gap: 12px; }

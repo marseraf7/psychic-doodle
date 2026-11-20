@@ -1,8 +1,9 @@
 /*
  * Connector MCP – lớp HTTP (Node http → Request / Response chuẩn web của SDK MCP) kèm các lớp chặn cho một điểm vào
  * công khai, không đăng nhập:
- *  - Origin (chống DNS rebinding theo đặc tả MCP Streamable HTTP): không có Origin (máy chủ gọi máy chủ, như Claude) thì cho
- *    qua; có thì chỉ nhận Claude, chính tên miền này, localhost (MCP Inspector khi thử) và CARO_MCP_ORIGINS.
+ *  - Host + Origin (chống DNS rebinding theo đặc tả MCP Streamable HTTP): Host phải là tên miền của game (CARO_PUBLIC_HOST,
+ *    mặc định caroxo.duckdns.org) hoặc localhost; không có Origin (máy chủ gọi máy chủ, như Claude) thì cho qua; có thì chỉ
+ *    nhận Claude, chính tên miền này, localhost (MCP Inspector khi thử) và CARO_MCP_ORIGINS.
  *  - CORS cho các Origin được nhận; OPTIONS trả 204.
  *  - Giới hạn theo IP (cửa sổ 1 phút, CARO_MCP_RATE, mặc định 240 – rộng vì mọi người dùng Claude đi chung vài IP của
  *    Anthropic; việc tốn CPU đã bị chặn riêng bằng hàng đợi máy cờ ở think.js).
@@ -11,6 +12,8 @@
  * Trình duyệt mở thẳng /mcp (GET, Accept: text/html) thì chuyển tới trang hướng dẫn /connector.html.
  */
 'use strict';
+
+const { requestCtx } = require('./think.js');
 
 const MAX_BODY = 64 * 1024;
 const CLAUDE_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*(claude\.ai|claude\.com|claudemcpcontent\.com)$/i;
@@ -22,31 +25,52 @@ function rpcError(res, status, message, extra = {}) {
   res.end(body);
 }
 
-function originAllowed(origin, req) {
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+/**
+ * Tên máy (không cổng, chữ thường) được nhận ở header Host: CARO_PUBLIC_HOST (phẩy ngăn cách; mặc định caroxo.duckdns.org),
+ * tên máy của PUBLIC_URL, localhost (thử / MCP Inspector). Chống DNS rebinding: trang lạ trỏ tên miền của nó về máy chủ thì
+ * Host là tên miền lạ – trước đây so Origin với chính Host nên lọt qua.
+ */
+function publicHosts() {
+  const list = String(process.env.CARO_PUBLIC_HOST || 'caroxo.duckdns.org').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  try { if (process.env.PUBLIC_URL) list.push(new URL(process.env.PUBLIC_URL).hostname.toLowerCase()); } catch (e) { /* PUBLIC_URL sai: bỏ qua */ }
+  return list;
+}
+/** Tên máy của một giá trị Host ("a.b:443", "[::1]:80") – chữ thường, bỏ cổng. */
+const hostName = (h) => { const m = /^(\[[0-9a-f:.]+\]|[^:]+)(?::\d{1,5})?$/i.exec(String(h || '').trim()); return m ? m[1].toLowerCase() : ''; };
+function hostAllowed(host) {
+  const n = hostName(host);
+  return !!n && (LOCAL_HOSTS.includes(n) || publicHosts().includes(n));
+}
+
+function originAllowed(origin) {
   const o = String(origin).replace(/\/+$/, '');
   if (CLAUDE_ORIGIN.test(o) || LOCAL_ORIGIN.test(o)) return true;
   const extras = String(process.env.CARO_MCP_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
   if (extras.includes(o)) return true;
   try {
     const u = new URL(o);
-    if (process.env.PUBLIC_URL && new URL(process.env.PUBLIC_URL).origin === u.origin) return true;
-    return u.host === String(req.headers.host || '');
+    return u.protocol === 'https:' && publicHosts().includes(u.hostname.toLowerCase()); // trang của chính game (connector.html)
   } catch (e) { return false; }
 }
 
-/** Đọc thân yêu cầu, dừng khi quá giới hạn (trả null). */
+/**
+ * Đọc thân yêu cầu; quá giới hạn thì trả null NGAY (không đọc tiếp tới hết – khách gửi mãi không dứt sẽ giữ kết nối và
+ * băng thông), kể cả khi content-length đã khai quá cỡ. Người gọi trả 413 và đóng kết nối.
+ */
 function readBody(req, limit) {
   return new Promise((resolve, reject) => {
+    if (Number(req.headers['content-length']) > limit) return resolve(null);
     const chunks = [];
-    let size = 0, over = false;
-    req.on('data', (c) => {
-      if (over) return;
+    let size = 0, done = false;
+    const onData = (c) => {
       size += c.length;
-      if (size > limit) { over = true; chunks.length = 0; return; }
+      if (size > limit) { done = true; chunks.length = 0; req.off('data', onData); req.pause(); resolve(null); return; }
       chunks.push(c);
-    });
-    req.on('end', () => resolve(over ? null : Buffer.concat(chunks)));
-    req.on('error', reject);
+    };
+    req.on('data', onData);
+    req.on('end', () => { if (!done) resolve(Buffer.concat(chunks)); });
+    req.on('error', (e) => { if (!done) reject(e); });
   });
 }
 
@@ -68,8 +92,9 @@ function nodeHandler(fetchHandler, opts = {}) {
   }
 
   return async function handle(req, res) {
+    if (!hostAllowed(req.headers.host)) return rpcError(res, 403, 'This MCP server only answers on its own host name (Host header not allowed). Connect to https://caroxo.duckdns.org/mcp.');
     const origin = req.headers.origin;
-    if (origin && !originAllowed(origin, req)) return rpcError(res, 403, `Origin ${origin} is not allowed to use this MCP server.`);
+    if (origin && !originAllowed(origin)) return rpcError(res, 403, `Origin ${String(origin).slice(0, 100)} is not allowed to use this MCP server.`);
     if (origin) {
       res.setHeader('access-control-allow-origin', origin);
       res.setHeader('vary', 'origin');
@@ -87,13 +112,18 @@ function nodeHandler(fetchHandler, opts = {}) {
       res.writeHead(302, { location: '/connector.html' });
       return res.end();
     }
-    const wait = limited(opts.clientIp ? opts.clientIp(req) : req.socket.remoteAddress);
+    const ip = opts.clientIp ? opts.clientIp(req) : req.socket.remoteAddress;
+    const wait = limited(ip);
     if (wait) return rpcError(res, 429, `Too many requests to the Caro MCP server. Please wait ${wait} s and try again.`, { 'retry-after': String(wait) });
 
     let body;
     if (req.method === 'POST') {
       body = await readBody(req, MAX_BODY).catch(() => null);
-      if (body === null) return rpcError(res, 413, `Request body is too large (limit ${MAX_BODY / 1024} KB). A Caro game needs at most 400 moves.`);
+      if (body === null) {
+        // Đóng kết nối sau khi trả lời: phần thân còn lại không đọc nữa
+        res.on('finish', () => req.destroy());
+        return rpcError(res, 413, `Request body is too large (limit ${MAX_BODY / 1024} KB). A Caro game needs at most 400 moves.`, { connection: 'close' });
+      }
     }
     const ac = new AbortController();
     res.on('close', () => { if (!res.writableFinished) ac.abort(); });
@@ -102,10 +132,14 @@ function nodeHandler(fetchHandler, opts = {}) {
     const host = /^[a-z0-9.:[\]-]+$/i.test(String(req.headers.host || '')) ? req.headers.host : 'localhost';
     let resp;
     try {
-      resp = await fetchHandler(new Request(`http://${host}${req.url}`, { method: req.method, headers, body, signal: ac.signal }));
+      // Việc máy cờ của yêu cầu này (think.js) biết IP (giới hạn mỗi IP) và tín hiệu huỷ (khách đóng kết nối → bỏ việc)
+      resp = await requestCtx.run({ key: String(ip || ''), signal: ac.signal },
+        () => fetchHandler(new Request(`http://${host}${req.url}`, { method: req.method, headers, body, signal: ac.signal })));
     } catch (e) {
       if (ac.signal.aborted) return res.destroy();
-      return rpcError(res, 500, `The Caro MCP server failed to handle the request (${e && e.message}). Please retry.`);
+      // Không đưa lời lỗi nội bộ (đường dẫn file, chi tiết thư viện) ra ngoài – chỉ ghi ở máy chủ
+      console.error('[mcp] lỗi xử lý yêu cầu:', e && e.message);
+      return rpcError(res, 500, 'The Caro MCP server failed to handle the request. Please retry.');
     }
     const out = {};
     resp.headers.forEach((v, k) => { out[k] = v; });
@@ -118,4 +152,4 @@ function nodeHandler(fetchHandler, opts = {}) {
   };
 }
 
-module.exports = { nodeHandler, originAllowed, MAX_BODY };
+module.exports = { nodeHandler, originAllowed, hostAllowed, MAX_BODY };

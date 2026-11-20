@@ -10,7 +10,10 @@
  * ép thắng (đúng trên bàn vô hạn) mà Rapfi không thấy → lấy kết quả engine; Rapfi báo thắng / thua chắc mà engine không
  * xác nhận → hạ về điểm cao thường (có thể do mép bàn). Không vừa bàn Rapfi → dùng kết quả engine.
  * Kết quả có src: 'rapfi' để không lẫn với thế engine đã chấm (phân tích nhanh / phân tích ngầm).
- *   CaroRapfiAn.handles(rule) · CaroRapfiAn.evaluate({ moves, rule, ms, evals, onProgress }) → evals | null
+ *   CaroRapfiAn.handles(rule) · CaroRapfiAn.evaluate({ moves, rule, ms, evals, onProgress, onStage }) → evals | null
+ *     onStage('load'): đang nạp máy phân tích (WASM + mạng ~6 MB lần đầu, hỏi bộ nhớ dùng chung) – chưa có tiến độ;
+ *     onStage('run'): bắt đầu chấm (tiến độ đến qua onProgress); onStage('fail'): Rapfi không nạp được (trả null)
+ *   CaroRapfiAn.warm(rule) – bắt đầu nạp Rapfi sớm (không chờ), vd. lúc mở phân tích trong khi lượt nhanh của engine chạy
  *   CaroRapfiAn.convert(ev, move, ms, rule) · CaroRapfiAn.cancel()
  */
 (function (global) {
@@ -104,10 +107,14 @@
    * Chấm mọi thế của ván (và thế sau nước tốt nhất khi cần) bằng Rapfi, ms mỗi thế; dùng lại thế Rapfi đã chấm đủ kỹ.
    * → mảng evals cho analyzeGame, hoặc null (Rapfi không dùng được / đã huỷ) để study.js dùng engine của game.
    */
-  async function evaluate({ moves, rule, ms, evals, onProgress }) {
+  async function evaluate({ moves, rule, ms, evals, onProgress, onStage }) {
     if (!handles(rule)) return null;
     const my = ++job;
-    if (!(await R().ready(rule, LOAD_WAIT)) || my !== job) return null;
+    const stage = (s) => { if (onStage && my === job) onStage(s); };
+    stage('load'); // rà soát 20/11/2026: trước đây đứng "0%" ~10 giây trong lúc nạp, người dùng tưởng treo
+    // Không nạp được (hết hạn chờ / lỗi): báo 'fail' – study.js chuyển sang engine của game, thôi hiện "Đang nạp…"
+    if (!(await R().ready(rule, LOAD_WAIT))) { stage('fail'); return null; }
+    if (my !== job) return null;
     const n = moves.length, last = lastPos(moves, rule);
     const ev = Array.from({ length: n + 1 }, (_, i) => (evals && ours(evals[i], ms) ? evals[i] : null));
     let todo = [];
@@ -121,6 +128,7 @@
       for (const [k, h] of got) ev[todo[k]] = { ...h, q: ms, src: 'rapfi' };
       todo = todo.filter((i) => !ev[i]);
     }
+    stage('run');
     // Tiến độ: chấm các thế 0 → 85%, thế sau nước tốt nhất 85 → 99%
     const prog = (f) => { if (onProgress) onProgress(Math.min(0.99, f)); };
     // Máy đủ RAM: Worker Rapfi thứ hai chấm hai thế cùng lúc – cùng số nút mỗi thế nên cùng kết quả, xong nhanh gấp đôi.
@@ -192,6 +200,8 @@
 
   /** Huỷ lượt đang chạy (mở ván khác): Worker Rapfi giữ nguyên (nạp lại mạng tốn thời gian), chỉ bỏ kết quả. */
   function cancel() { job++; }
+  /** Nạp Rapfi sớm, không chờ (ready với hạn 0 chỉ khởi động việc tải); luật không có Rapfi thì thôi. */
+  function warm(rule) { if (handles(rule)) R().ready(rule, 0).catch(() => {}); }
 
-  global.CaroRapfiAn = { handles, evaluate, convert, cancel };
+  global.CaroRapfiAn = { handles, evaluate, convert, cancel, warm };
 })(window);

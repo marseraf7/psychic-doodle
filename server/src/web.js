@@ -18,7 +18,9 @@ const fs = require('fs');
 const path = require('path');
 const { boardPng } = require('./png.js');
 const { makeBundle } = require('./web-bundle.js');
+const { sendStatic } = require('./static-file.js');
 const { Rum } = require('./rum.js');
+const { rapfiNetSources } = require('./csp-nets.js');
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
@@ -30,13 +32,14 @@ const PNG_GLOBAL_PER_S = 10;
 
 // Chính sách bảo mật nội dung: chỉ chạy script của chính trang (và Google khi bật đăng nhập Google).
 // 'wasm-unsafe-eval': cho phép biên dịch WebAssembly (Rapfi của BOAT – caro/rapfi/), không mở eval cho JavaScript.
-// connect-src thêm 2 CDN của repo mạng Rapfi (CC0): mạng ~10 MB tải khi người chơi đấu BOAT (caro/rapfi/worker.js).
+// connect-src thêm đúng thư mục mạng Rapfi (CC0) trên jsDelivr / GitHub raw ở commit đã ghim: mạng ~10 MB tải khi người chơi
+// đấu BOAT (caro/rapfi/worker.js) – không mở cả origin (I-11, csp-nets.js).
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client",
   "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   "img-src 'self' data: https://*.googleusercontent.com",
-  "connect-src 'self' ws: wss: https://accounts.google.com/gsi/ https://cdn.jsdelivr.net https://raw.githubusercontent.com",
+  `connect-src 'self' ws: wss: https://accounts.google.com/gsi/ ${rapfiNetSources()}`,
   'frame-src https://accounts.google.com/gsi/',
   "frame-ancestors 'none'",
   "base-uri 'none'",
@@ -59,75 +62,7 @@ const SECURITY_HEADERS = {
 // RAPFI_THREADS=0: tắt.
 if (process.env.RAPFI_THREADS !== '0') SECURITY_HEADERS['document-isolation-policy'] = 'isolate-and-credentialless';
 
-/** Địa chỉ IPv4 có nằm trong CIDR (vd. 172.17.0.0/16) hay bằng đúng IP đơn lẻ không.
- *  IPv6 chỉ so khớp đúng chuỗi (đủ cho địa chỉ proxy cụ thể). */
-function ipInCidr(addr, cidr) {
-  const c = String(cidr || '').trim();
-  if (!c) return false;
-  if (!c.includes('/')) return addr === c;
-  const [base, bitsStr] = c.split('/');
-  const bits = Number(bitsStr);
-  const v4 = (s) => { const p = String(s).split('.').map(Number); return p.length === 4 && p.every((n) => Number.isInteger(n) && n >= 0 && n <= 255) ? p.reduce((v, n) => v * 256 + n, 0) : null; };
-  const a = v4(addr), b = v4(base);
-  if (a === null || b === null || !Number.isInteger(bits) || bits < 0 || bits > 32) return false;
-  if (bits === 0) return true;
-  const mask = (0xffffffff << (32 - bits)) >>> 0;
-  return (a & mask) === (b & mask);
-}
-
-/** Kết nối đến từ proxy đáng tin không.
- *  M-S2: nếu đặt TRUSTED_PROXY_CIDRS (các CIDR/IP cách nhau dấu phẩy) thì CHỈ những địa chỉ
- *  đó được tin — trước đây mọi dải IP riêng (gồm cả dải bridge 172.16/12 của Docker) đều
- *  được tin, nên khi cổng máy chủ bị lộ ra Internet qua Docker, kẻ tấn công nối thẳng vào
- *  vẫn được coi là "proxy" và X-Forwarded-For của chúng được tin hoàn toàn.
- *  Chưa đặt biến này thì giữ hành vi cũ (máy này + mạng nội bộ) để không phá các bản
- *  cài đang chạy sau proxy thật; máy chủ sẽ in cảnh báo khi TRUST_PROXY bật ở cấu hình đó. */
-function fromProxy(addr) {
-  const a = String(addr || '').replace(/^::ffff:/, '');
-  const configured = String(process.env.TRUSTED_PROXY_CIDRS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  if (configured.length) return configured.some((c) => ipInCidr(a, c));
-  if (a === '::1' || /^127\./.test(a) || /^10\./.test(a) || /^192\.168\./.test(a)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])\./.test(a)) return true;
-  return /^f[cd][0-9a-f]{2}:/i.test(a); // IPv6 nội bộ fc00::/7
-}
-
-/** M-S1: Origin của một kết nối WebSocket có được phép không. Xác thực của game dùng
- *  token gửi trong tin hello (không dùng cookie) nên đây không phải chống trộm tài khoản,
- *  mà để một trang web lạ không mượn được trình duyệt + IP của người thăm để chơi/chat/spam
- *  bằng IP của họ (qua NAT nhà mạng có thể làm cháy hạn mức của cả một nhà mạng).
- *  Chính sách: không có Origin (app gốc / công cụ kiểm thử — không phải trình duyệt) thì cho
- *  qua; Origin cùng host với máy chủ (bản web do chính máy chủ phục vụ), Origin của app
- *  Capacitor / Tauri, các địa chỉ web chính thức (OWN_WS_ORIGINS), Origin của PUBLIC_URL, hoặc Origin khai thêm qua
- *  WS_ALLOWED_ORIGINS thì cho qua; còn lại từ chối. */
-// App desktop Tauri (thí điểm, desktop/): tauri://localhost trên macOS / Linux, http://tauri.localhost trên Windows
-const APP_WS_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost', 'tauri://localhost', 'http://tauri.localhost'];
-// Các địa chỉ web chính thức của game (cùng chủ, tin được như bản do máy chủ phục vụ) – có sẵn, khỏi đặt
-// WS_ALLOWED_ORIGINS trên máy chủ:
-//  - bản giao diện tĩnh trên GitHub Pages (caro/config.js trỏ về máy chủ chính, #110 P3): tải nhanh ở nơi khó vào
-//    máy chủ (đo từ Nga: Pages hiện ngay, máy chủ chính > 5 phút);
-//  - tên miền phụ caroxo.ddnsgeek.com (cùng máy chủ với caroxo.duckdns.org).
-const OWN_WS_ORIGINS = ['https://marseraf7.github.io', 'https://caroxo.ddnsgeek.com'];
-function wsOriginAllowed(req) {
-  const raw = String((req.headers && req.headers.origin) || '').trim().replace(/\/+$/, '');
-  if (!raw) return true;
-  const extras = String(process.env.WS_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
-  if (APP_WS_ORIGINS.includes(raw) || OWN_WS_ORIGINS.includes(raw) || extras.includes(raw)) return true;
-  let o;
-  try { o = new URL(raw); } catch (e) { return false; }
-  if (process.env.PUBLIC_URL) { try { if (new URL(process.env.PUBLIC_URL).origin === o.origin) return true; } catch (e) { /* PUBLIC_URL sai định dạng: bỏ qua */ } }
-  return o.host === String((req.headers && req.headers.host) || '');
-}
-
-/** IP thật của người chơi. Sau proxy (Caddy/nginx) lấy IP cuối cùng do proxy thêm vào,
- *  vì các phần đầu của X-Forwarded-For do trình duyệt tự gửi và có thể bị giả mạo. */
-function clientIp(req) {
-  // Chỉ tin X-Forwarded-For khi kết nối đến từ proxy; ai gọi thẳng vào cổng Node từ Internet thì không giả IP được
-  if (process.env.TRUST_PROXY && fromProxy(req.socket.remoteAddress)) {
-    const parts = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1];
-  }
-  return req.socket.remoteAddress;
-}
+const { ipInCidr, fromProxy, wsOriginAllowed, clientIp } = require('./web-net.js'); // IP thật sau proxy, Origin WebSocket
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -205,6 +140,17 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     json(res, 200, { applinks: { apps: [], details: [{ appID: `${team}.${APP_ID}`, paths: ['/', '/index.html'] }] } }, { 'cache-control': 'no-cache' });
   }
 
+  /** RFC 9116 security.txt (I-13, rà soát 20/11/2026): báo lỗ hổng KÍN qua GitHub (Private vulnerability reporting – chủ repo
+   *  bật trong Settings → Security), không đăng công khai ở Issues; không lộ email cá nhân.
+   *  Expires luôn là một năm tính từ lúc hỏi – nội dung không cũ đi khi repo còn đó. */
+  function serveSecurityTxt(req, res) {
+    const exp = new Date(Date.now() + 365 * 86400000); exp.setUTCHours(0, 0, 0, 0);
+    const body = Buffer.from(['Contact: https://github.com/marseraf7/psychic-doodle/security/advisories/new', `Expires: ${exp.toISOString()}`,
+      'Preferred-Languages: vi, en, ru, zh', ''].join('\n'));
+    res.writeHead(200, { 'content-type': MIME['.txt'], 'content-length': body.length, 'cache-control': 'public, max-age=86400' });
+    res.end(req.method === 'HEAD' ? undefined : body);
+  }
+
   /** Ván đã lưu để xem lại qua đường link chia sẻ (không trả id tài khoản). */
   function serveReplay(share, res) {
     const g = store.gameByShare(share);
@@ -261,7 +207,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
   /** Trang chính; mở bằng link ?replay=<mã> thì thêm thẻ og để mạng xã hội hiện ảnh bàn cờ. */
   function serveIndex(req, res, share) {
     const file = path.join(STATIC_DIR, 'index.html');
-    fs.stat(file, (err, st) => {
+    fs.stat(file, (err, st) => { try {
       if (err) { res.writeHead(404); return res.end(); }
       if (!indexHtml || indexHtml.mtime !== st.mtimeMs) {
         try { indexHtml = { mtime: st.mtimeMs, text: fs.readFileSync(file, 'utf8') }; } catch (e) { res.writeHead(503); return res.end(); } // đang cập nhật code (L-S4)
@@ -286,7 +232,9 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       res.writeHead(200, { 'content-type': MIME['.html'], 'content-length': body.length,
         'cache-control': !g || process.env.PUBLIC_URL ? 'no-cache' : 'private, no-store', vary: 'host' });
       res.end(req.method === 'HEAD' ? undefined : body);
-    });
+    } catch (e) { // callback hẹn sau: guardHttp không với tới
+      console.error('[web] trang chính lỗi', e); if (!res.headersSent) { res.writeHead(500); res.end(); } else res.destroy();
+    } });
   }
 
   const tourCache = new Map(); // trang giải công khai (JSON) đã dựng gần đây
@@ -324,6 +272,9 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
   return function handle(req, res) {
     let u, url;
     try { u = new URL(req.url, 'http://x'); url = decodeURIComponent(u.pathname); } catch (e) { res.writeHead(400); return res.end(); }
+    // H-1 (rà soát bảo mật 20/11): byte null / ký tự điều khiển sau giải mã ('%00'…) làm fs.stat ném lỗi đồng bộ → sập
+    // cả tiến trình. Không đường hợp lệ nào chứa chúng: từ chối trước khi chạm tới fs
+    if (/[\x00-\x1f\x7f]/.test(url)) { res.writeHead(400); return res.end(); }
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
     if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
@@ -335,6 +286,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (url === '/healthz') { res.writeHead(200); return res.end('ok'); }
     if (url === '/.well-known/assetlinks.json') return serveAssetLinks(res);
     if (url === '/.well-known/apple-app-site-association') return serveAasa(res);
+    if (url === '/.well-known/security.txt') return serveSecurityTxt(req, res);
     if (url.startsWith('/api/replay/')) {
       const share = url.slice(12);
       return share.endsWith('.png') ? serveReplayPng(share.slice(0, -4), req, res) : serveReplay(share, res);
@@ -384,17 +336,14 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     }
     const file = path.resolve(STATIC_DIR, '.' + url);
     if (!file.startsWith(STATIC_DIR + path.sep) || url.includes('/tests/')) { res.writeHead(404); return res.end(); }
-    fs.stat(file, (err, st) => {
-      if (err || !st.isFile()) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('Không tìm thấy'); }
-      res.writeHead(200, {
-        'content-type': MIME[path.extname(file)] || 'application/octet-stream',
-        'content-length': st.size,
-        'cache-control': 'no-cache',
+    const notFound = () => { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Không tìm thấy'); };
+    try { // lớp thứ hai cho H-1: đường lạ nào khác cũng chỉ ra 404, không bao giờ giết tiến trình
+      fs.stat(file, (err, st) => {
+        if (err || !st.isFile()) return notFound();
+        try { sendStatic(req, res, file, st, MIME[path.extname(file)] || 'application/octet-stream'); } // ETag + 304 (static-file.js)
+        catch (e) { console.error('[web] file tĩnh lỗi', e.code || e.name); if (!res.headersSent) notFound(); else res.destroy(); }
       });
-      if (req.method === 'HEAD') return res.end();
-      // File bị thay / xoá giữa chừng (update.sh đang cập nhật code): đóng kết nối, không để lỗi luồng làm sập tiến trình (L-S4)
-      fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
-    });
+    } catch (e) { notFound(); }
   };
 }
 

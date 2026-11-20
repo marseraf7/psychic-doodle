@@ -26,9 +26,11 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const { Store } = require('./src/store.js');
 const { EvalCache } = require('./src/evalcache.js');
+const CodeHash = require('./src/code-hash.js');
 const { Hub, verifyGoogleToken } = require('./src/hub.js');
 const { makeHandler, clientIp, fromProxy, wsOriginAllowed } = require('./src/web.js');
 const { LagMeter } = require('./src/lag.js');
+const { guardHttp, guardCall } = require('./src/guard.js');
 
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = process.env.HOST || '';
@@ -60,11 +62,14 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
   const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
   // Khoá bí mật cho mã người gửi điểm phân tích (src/evalcache.js) – file riêng cạnh caro.db, không nằm trong bản sao lưu CSDL
   if (dataFile) EvalCache.useKeyFile(path.join(path.dirname(dataFile), 'eval-key'));
+  // Khoá HMAC cho mã 6 số quên mật khẩu / xác minh email (L-1, src/code-hash.js) – khoá riêng, không cần sao lưu
+  if (dataFile) CodeHash.useKeyFile(path.join(path.dirname(dataFile), 'code-key'));
   const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, ...(timers ? { timers } : {}) });
   // Trợ lý AI tạo giải offline (hub/otour-ai.js): khoá API bí mật ở DATA_DIR/muse-key (Muse Spark – mặc định) hoặc
   // DATA_DIR/anthropic-key (Claude); hoặc biến MODEL_API_KEY / ANTHROPIC_API_KEY
   if (dataFile) hub.otAiKeyDir = path.dirname(dataFile);
-  const server = http.createServer(makeHandler({ store, hub }));
+  // Lỗi bất ngờ của một yêu cầu chỉ hỏng yêu cầu đó (500 + log), không sập cả máy chủ (src/guard.js)
+  const server = http.createServer(guardHttp(makeHandler({ store, hub })));
   // Nén tin lớn (trang giải, danh sách…) – JSON nén còn khoảng 1/10. Tin nhỏ (nước đi) không nén cho nhanh.
   // Không giữ ngữ cảnh nén giữa các tin để mỗi kết nối không chiếm thêm bộ nhớ (hàng trăm người xem một giải).
   const wss = new WebSocketServer({
@@ -108,7 +113,7 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
       probe = { data: crypto.randomBytes(4), at: now };
       ws.ping(probe.data);
     };
-    hub.connect(conn);
+    guardCall('connect', () => hub.connect(conn));
     ws.isAlive = true;
     ws.on('pong', (data) => {
       ws.isAlive = true;
@@ -122,12 +127,12 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
       tokens = Math.min(MSG_BURST, tokens + ((now - last) / 1000) * msgRate);
       last = now;
       if (--tokens < 0) return ws.close(1008, 'Too many messages');
-      hub.handle(conn, data.toString());
+      guardCall('message', () => hub.handle(conn, data.toString()));
     });
     ws.on('close', () => {
       const left = (perIp.get(ip) || 1) - 1;
       if (left > 0) perIp.set(ip, left); else perIp.delete(ip);
-      hub.disconnect(conn);
+      guardCall('disconnect', () => hub.disconnect(conn));
     });
     ws.on('error', () => {});
   });
@@ -171,4 +176,4 @@ if (require.main === module) {
   process.on('SIGTERM', shutdown);
 }
 
-module.exports = { fromProxy, start };
+module.exports = { fromProxy, start, smtpMailer };

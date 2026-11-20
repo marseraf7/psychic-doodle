@@ -21,7 +21,7 @@ const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (L
 const RATING_POINTS_PER_USER = 400; // điểm vẽ biểu đồ trên trang hồ sơ
 const DM_PER_PAIR = 100;
 // Chỉ lưu mã băm của token: lộ file dữ liệu cũng không dùng được để đăng nhập.
-const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
+const { codeHash, codeMatches } = require('./code-hash.js'); // mã 6 số đặt lại mật khẩu: HMAC có khoá (L-1)
 const pair = (a, b) => (a < b ? [a, b] : [b, a]);
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -385,14 +385,14 @@ class Store {
 
   // ------------------------------------------------------------ Đặt lại mật khẩu
   setReset(uid, code, ttlMs) {
-    this.q.setReset.run(uid, sha256(code), Date.now() + ttlMs);
+    this.q.setReset.run(uid, codeHash('reset', code), Date.now() + ttlMs); // HMAC có khoá (L-1, code-hash.js)
   }
 
   /** Kiểm tra mã; tối đa 5 lần thử, dùng xong thì xoá. */
   checkReset(uid, code) {
     const r = this.q.getReset.get(uid);
     if (!r || r.expires < Date.now() || r.tries >= 5) return false;
-    if (r.code_hash !== sha256(String(code))) { this.q.bumpReset.run(uid); return false; }
+    if (!codeMatches('reset', String(code), r.code_hash)) { this.q.bumpReset.run(uid); return false; }
     this.q.dropReset.run(uid);
     return true;
   }
@@ -415,6 +415,13 @@ async function checkPassword(password, pass) {
   const h = await scrypt(password, pass.salt);
   return crypto.timingSafeEqual(h, Buffer.from(pass.hash, 'hex'));
 }
+// I-1 (rà soát 20/11/2026): tên không tồn tại / tài khoản chỉ có Google vẫn chạy một lần scrypt cùng tham số, để thời gian
+// trả lời giống tài khoản thật – không dò được tên nào đã đăng ký qua thời gian phản hồi. Luôn trả về false.
+const DUMMY_PASS = { salt: crypto.randomBytes(16).toString('hex'), hash: '0'.repeat(64) };
+async function dummyCheckPassword(password) {
+  if (typeof password === 'string') await checkPassword(password, DUMMY_PASS); // như passOk: không phải chuỗi thì không băm
+  return false;
+}
 
 // Phiên đăng nhập / thiết bị (store-sessions.js)
 // + chat / diễn đàn câu lạc bộ (store-club.js) + giải đấu offline (store-otour.js)
@@ -422,4 +429,4 @@ for (const part of [Sessions, ClubStore, OTourStore]) for (const name of Object.
   if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 
-module.exports = { Store, hashPassword, checkPassword };
+module.exports = { Store, hashPassword, checkPassword, dummyCheckPassword };

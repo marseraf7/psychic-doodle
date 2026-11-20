@@ -180,8 +180,16 @@
     w.stick = true;
     draw();
     markRead(w);
-    const inp = root.querySelector(`.cb-win[data-id="${CSS.escape(id)}"] input`);
-    if (inp) setTimeout(() => inp.focus(), 30);
+    // Đưa con trỏ vào ô chat sau 30 ms – trừ khi trong lúc chờ người dùng đã bấm / gõ sang ô khác ngoài khung chat (máy
+    // chậm thì hẹn giờ chạy trễ hơn nhiều): trước đây vẫn giật focus về ô chat, chữ đang gõ ở ô kia (vd. ô thêm bạn) rơi
+    // sang ô chat (e2e friends-chat M-F6 chập chờn trên CI 20/11/2026). Tìm lại ô lúc hẹn giờ chạy: draw() có thể đã vẽ lại.
+    const before = document.activeElement;
+    setTimeout(() => {
+      const a = document.activeElement;
+      if (a && a !== before && a !== document.body && !root.contains(a)) return;
+      const inp = root.querySelector(`.cb-win[data-id="${CSS.escape(id)}"] input`);
+      if (inp) inp.focus();
+    }, 30);
   }
   function minimize(id) { const w = wins.find((x) => x.id === id); if (w) { w.open = false; draw(); } }
   function close(id) { const i = wins.findIndex((x) => x.id === id); if (i >= 0) { wins.splice(i, 1); draw(); } }

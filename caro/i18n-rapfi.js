@@ -7,6 +7,7 @@
   const X = window.I18N.extend;
 
   X('vi', {
+    an_loading_engine: 'Đang nạp máy phân tích…',
     licenses: 'Giấy phép mã nguồn mở',
     boat_elo_rapfi: 'Rapfi, máy cờ vô địch Gomocup (luật Việt Nam: Rapfi-CARO)',
     badge_beat_boat_rapfi: 'Đánh chìm BOAT–Rapfi',
@@ -23,6 +24,7 @@
   });
 
   X('en', {
+    an_loading_engine: 'Loading the analysis engine…',
     licenses: 'Open-source licenses',
     boat_elo_rapfi: 'Rapfi – the Gomocup champion engine (Vietnamese rule: Rapfi-CARO)',
     badge_beat_boat_rapfi: 'Sink BOAT–Rapfi',
@@ -39,6 +41,7 @@
   });
 
   X('ru', {
+    an_loading_engine: 'Загружаем движок анализа…',
     licenses: 'Лицензии открытого ПО',
     boat_elo_rapfi: 'Rapfi – движок-чемпион Gomocup (вьетнамские правила: Rapfi-CARO)',
     badge_beat_boat_rapfi: 'Потопить BOAT–Rapfi',
@@ -55,6 +58,7 @@
   });
 
   X('zh', {
+    an_loading_engine: '正在加载分析引擎…',
     licenses: '开源许可',
     boat_elo_rapfi: 'Rapfi——Gomocup 冠军引擎（越南规则：Rapfi-CARO）',
     badge_beat_boat_rapfi: '击沉 BOAT–Rapfi',

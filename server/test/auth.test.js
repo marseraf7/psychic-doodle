@@ -87,6 +87,30 @@ test('đăng nhập sai gửi dồn cùng lúc: vẫn chỉ 8 lần được th�
   x.close();
 });
 
+test('I-1: tên không tồn tại vẫn băm scrypt một lần như tài khoản thật (không lộ tên qua thời gian); vẫn bị đếm lần sai', async () => {
+  const { c, username } = await account();
+  c.close();
+  const x = await Client.open();
+  const orig = crypto.scrypt;
+  let n = 0;
+  crypto.scrypt = function (...a) { n++; return orig.apply(this, a); };
+  try {
+    const ghost = 'khongco_' + crypto.randomBytes(3).toString('hex');
+    assert.strictEqual((await x.req({ t: 'login', username: ghost, password: 'sai-mat-khau' }, 'error')).code, 'bad_login');
+    assert.strictEqual(n, 1, 'tên không tồn tại: vẫn chạy đúng một lần scrypt');
+    n = 0;
+    assert.strictEqual((await x.req({ t: 'login', username, password: 'sai-mat-khau' }, 'error')).code, 'bad_login');
+    assert.strictEqual(n, 1, 'tài khoản thật sai mật khẩu: một lần scrypt – hai nhánh tốn công như nhau');
+    // Gửi dồn với tên không tồn tại: vẫn đếm trước khi băm → đúng 8 lần được thử (1 lần ở trên + 7), còn lại bị chặn
+    const errs = [];
+    x.ws.on('message', (d) => { const m = JSON.parse(d); if (m.t === 'error') errs.push(m.code); });
+    for (let i = 0; i < 12; i++) x.send({ t: 'login', username: ghost, password: 'sai-' + i });
+    await until(() => errs.length === 12);
+    assert.strictEqual(errs.filter((e) => e === 'bad_login').length, 7, errs.join());
+    assert.strictEqual(errs.filter((e) => e === 'too_many_attempts').length, 5, errs.join());
+  } finally { crypto.scrypt = orig; x.close(); }
+});
+
 test('đăng nhập đúng không bị tính là lần sai; đổi mật khẩu sai / đúng', async () => {
   const { c, username } = await account();
   for (let i = 0; i < 10; i++) {
@@ -110,11 +134,13 @@ test('trong lúc băm mật khẩu máy chủ vẫn trả lời người khác',
   const b = await Client.open();
   const order = [];
   a.ws.on('message', (d) => { if (JSON.parse(d).t === 'welcome') order.push('a'); });
-  b.ws.on('message', (d) => { if (JSON.parse(d).t === 'error') order.push('b'); });
+  b.ws.on('message', (d) => { if (JSON.parse(d).t === 'pong') order.push('b'); });
   // 3 lần đăng nhập đúng (băm đồng bộ thì máy chủ đứng ~3 lần băm), rồi một lệnh rẻ từ người khác
   for (let i = 0; i < 3; i++) a.send({ t: 'login', username, password: 'caro-pass1' });
   await new Promise((r) => setTimeout(r, 5));
-  b.send({ t: 'login', username: 'khong_co_ai_ten_nay', password: 'x' }); // không băm: trả lỗi ngay
+  // Lệnh rẻ, không băm (ping). Không dùng đăng nhập sai tên nữa: từ khi chống dò tên qua thời gian (I-1, rà soát bảo mật
+  // 20/11) tên không tồn tại cũng chạy một lần scrypt giả, nên nó xếp hàng sau các lần băm của a – đúng ý đồ, không phải lỗi
+  b.send({ t: 'ping' });
   await until(() => order.length === 4);
   assert.notStrictEqual(order[order.length - 1], 'b', 'người khác không phải chờ hết các lần băm: ' + order.join());
   [a, b].forEach((k) => k.close());

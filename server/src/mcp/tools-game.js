@@ -25,7 +25,8 @@ function errorResult(e) {
   let text;
   if (e instanceof G.InputError) text = e.message;
   else if (e instanceof BusyError) text = 'The Caro engine is busy with other games right now. Please try again in a few seconds.';
-  else text = `The Caro engine could not answer (${e && e.message}). Please try again; if it keeps failing, report it at ${ISSUES}.`;
+  // Không đưa lời lỗi nội bộ (quá giờ, luồng dừng, lỗi thư viện…) ra ngoài – chỉ lời nhắn làm được gì tiếp
+  else text = `The Caro engine could not answer this time. Please try again in a few seconds; if it keeps failing, report it at ${ISSUES}.`;
   return { content: [{ type: 'text', text }], isError: true };
 }
 

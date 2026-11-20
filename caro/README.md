@@ -14,7 +14,7 @@ Game cờ caro (Caro x Gomoku) chạy trên web, chơi mượt trên cả điệ
 - Chơi **2 người cùng máy**, **với máy** (24 nhân vật: 6 mức × 4 lối đánh, xem dưới), hoặc **online**:
   **giải đấu** Arena / loại trực tiếp / nhánh thắng – thua / vòng tròn / Thụy Sĩ (ghép được nhiều giai đoạn, ví dụ
   vòng bảng → playoff) và **câu lạc bộ**, **tìm trận nhanh** (ghép với người có điểm gần mình), phòng công khai (ai cũng vào được từ danh sách
-  "Phòng đang chờ"), tạo phòng riêng (mã 6 số + mật khẩu 3 số, gửi link mời), tái đấu tự đổi bên đi trước,
+  "Phòng đang chờ"), tạo phòng riêng (mã 6 số + mật khẩu 4 số, gửi link mời), tái đấu tự đổi bên đi trước,
   thách đấu bạn bè Bo1/Bo3/Bo5, tài khoản riêng hoặc Google, kết bạn và xem ai đang online,
   xin hoà, chat nhanh, nhắn tin bạn bè, lịch sử 10 trận + xem lại + link chia sẻ, đối đầu, điểm Glicko-2 và bảng xếp hạng theo loại thời gian, xem trực tiếp, hồ sơ người chơi.
   Phần online cần chạy máy chủ trong thư mục [`server/`](../server/README.md).
@@ -548,6 +548,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |
+| `home-hero.js` | Trang chủ: thẻ người mới (chưa chơi ván nào) – nút lớn "Chơi với máy", bấm là vào ván với máy mức dễ; ẩn sau ván đầu / khi bấm ✕ |
 | `history.js`, `i18n-history.js` | Lịch sử đấu: thẻ Trên máy này / Online, quyền xem, danh sách ván, xem lại, phân tích |
 | `local-games.js`, `local-history.js`, `local-save.js`, `i18n-local.js` | Lịch sử đấu trên máy này: kho ván (localStorage), danh sách + chọn nhiều để xoá, hỏi lưu khi thoát ván, Cài đặt |
 | `devices.js`, `i18n-devices.js` | Thiết bị: nơi tài khoản đang đăng nhập, đăng xuất từ xa |

@@ -10,6 +10,7 @@
 const fs = require('fs');
 const path = require('path');
 const { serverOrigin, copyCaro, writeConfig, injectScripts } = require('../../app/scripts/web-common.js');
+const { rapfiNetSources } = require('../../server/src/csp-nets.js'); // mạng Rapfi được phép tải (I-11) – chung với CSP máy chủ
 
 const DESK = path.resolve(__dirname, '..');
 const WWW = path.join(DESK, 'www');
@@ -34,7 +35,7 @@ const csp = [
   "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client",
   "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   `img-src 'self' data: blob: ${serverUrl} https://*.googleusercontent.com`,
-  `connect-src 'self' ipc: http://ipc.localhost ${serverUrl} ${ws} https://accounts.google.com/gsi/ https://cdn.jsdelivr.net https://raw.githubusercontent.com`,
+  `connect-src 'self' ipc: http://ipc.localhost ${serverUrl} ${ws} https://accounts.google.com/gsi/ ${rapfiNetSources()}`,
   "frame-src https://accounts.google.com/gsi/",
   "object-src 'none'", "base-uri 'none'", "form-action 'self'",
 ].join('; ');

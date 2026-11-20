@@ -81,8 +81,12 @@
   color-scheme: light;
   /* Màu bàn cờ: mặc định theo giao diện; đổi trong Cài đặt → Bàn cờ (boardstyle.js) */
   --board: var(--bg);
-  --board-grid: var(--grid);
-  --board-grid-strong: var(--grid-strong);
+  /* Đường kẻ bàn cờ mặc định: đậm hơn --grid (≥ 3:1 so với nền – WCAG 1.4.11 cho hình cần để hiểu nội dung);
+     --grid giữ nhạt cho biểu đồ, thanh cuộn, nhánh đấu */
+  --bgrid: #8f8468;
+  --bgrid-strong: #7a6f52;
+  --board-grid: var(--bgrid);
+  --board-grid-strong: var(--bgrid-strong);
 }
 :root[data-board="wood"] { --board: #dcb67f; --board-grid: #b48a52; --board-grid-strong: #8f6a38; }
 :root[data-board="green"] { --board: #cfe3c4; --board-grid: #9dbf8d; --board-grid-strong: #78a066; }
@@ -103,6 +107,8 @@
     --bg: #161512;
     --grid: #2b2925;
     --grid-strong: #3c3934;
+    --bgrid: #6b665c;
+    --bgrid-strong: #8a8272;
     --panel: #262421;
     --panel-border: rgba(255, 255, 255, 0.13);
     --text: #e6e4e1;
@@ -111,7 +117,7 @@
     --field-border: rgba(255, 255, 255, 0.32);
     --x: #ff5d52;
     --o: #57a0ff;
-    --last: rgba(255, 196, 0, 0.18);
+    --last: rgba(255, 196, 0, 0.35);
     --win: rgba(60, 220, 120, 0.9);
     --accent: #57a0ff;
     --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
@@ -123,6 +129,8 @@
   --bg: #161512;
   --grid: #2b2925;
   --grid-strong: #3c3934;
+  --bgrid: #6b665c;
+  --bgrid-strong: #8a8272;
   --panel: #262421;
   --panel-border: rgba(255, 255, 255, 0.13);
   --text: #e6e4e1;
@@ -131,7 +139,7 @@
   --field-border: rgba(255, 255, 255, 0.32);
   --x: #ff5d52;
   --o: #57a0ff;
-  --last: rgba(255, 196, 0, 0.18);
+  --last: rgba(255, 196, 0, 0.35);
   --win: rgba(60, 220, 120, 0.9);
   --accent: #57a0ff;
   --shadow: 0 6px 24px rgba(0, 0, 0, 0.45);

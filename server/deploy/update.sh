@@ -92,18 +92,35 @@ healthy() {
 
 # Mạng NNUE của Rapfi (~40 MB, không commit – caro/rapfi/SOURCE.md) đặt sẵn trên máy chủ: worker.js thử máy chủ trước
 # jsDelivr / GitHub raw, mà hai nơi này hay bị chặn ở một số nước (vd. Nga). Thiếu file nào thì tải file đó; lỗi mạng
-# thì bỏ qua (lần hẹn giờ sau thử lại), không làm hỏng việc cập nhật. Chỉ nhận đúng tệp nén lz4 (4 byte đầu 04 22 4d 18).
+# thì bỏ qua (lần hẹn giờ sau thử lại), không làm hỏng việc cập nhật. Chỉ nhận đúng tệp nén lz4 (4 byte đầu 04 22 4d 18)
+# VÀ đúng SHA-256 ghim kèm commit (I-7, rà soát 20/11/2026 – trùng SPEC trong caro/rapfi/worker.js; test
+# server/test/update-nets.test.js báo đỏ nếu lệch). File đã có từ trước khi có kiểm băm: kiểm một lần, sai thì tải lại;
+# đúng thì ghi dấu .<tên>.ok (chứa mã băm) để các lần hẹn giờ sau không phải băm lại 40 MB.
+NETS_COMMIT=e32ad77a5364363b3e3a02b3f9e8610ade19ea98
+declare -A NETS_SHA256=(
+  [mix9svqfreestyle_bsmix]=6bc0d1b0ff8e1d857f7f412923cd458f38f1a435087c91ae71fec3676c23ef62
+  [mix9svqstandard_bs15]=84334f5db96f45b3e36ebdde06d2259d878ae1eb347b7cf74574ac908b8d9e7d
+  [mix9svqrenju_bs15_black]=7ab8c974c30da07717ce6a504616a62ac8c981500503f0ced0fadefd3f46c5ec
+  [mix9svqrenju_bs15_white]=a31f318518d3b5630489054d9eb013fd5353c553999640c2bcfd8d95e6fe4e4e
+)
+sha_of() { sha256sum "$1" | cut -d' ' -f1; }
 ensure_nets() {
-  local DIR="$1/caro/rapfi/nets" BASE=https://raw.githubusercontent.com/marseraf7/rapfi-networks/e32ad77a5364363b3e3a02b3f9e8610ade19ea98/mix9svq
-  local f tmp
+  local DIR="$1/caro/rapfi/nets" BASE="${NETS_BASE:-https://raw.githubusercontent.com/marseraf7/rapfi-networks/$NETS_COMMIT/mix9svq}"
+  local f tmp want
   install -d -m 755 "$DIR"
-  for f in mix9svqfreestyle_bsmix mix9svqstandard_bs15 mix9svqrenju_bs15_black mix9svqrenju_bs15_white; do
-    [ -s "$DIR/$f.bin.lz4" ] && continue
+  for f in "${!NETS_SHA256[@]}"; do
+    want="${NETS_SHA256[$f]}"
+    if [ -s "$DIR/$f.bin.lz4" ]; then
+      [ "$(cat "$DIR/.$f.ok" 2>/dev/null)" = "$want" ] && continue
+      if [ "$(sha_of "$DIR/$f.bin.lz4")" = "$want" ]; then echo "$want" > "$DIR/.$f.ok"; continue; fi
+      echo "Mạng Rapfi $f sai mã băm SHA-256 – xoá, tải lại"; rm -f "$DIR/$f.bin.lz4" "$DIR/.$f.ok"
+    fi
     tmp="$DIR/.$f.tmp"
-    if curl -fsSL --max-time 300 -o "$tmp" "$BASE/$f.bin.lz4" && [ "$(head -c 4 "$tmp" | od -An -tx1 | tr -d ' \n')" = 04224d18 ]; then
-      chmod 644 "$tmp" && mv "$tmp" "$DIR/$f.bin.lz4" && echo "Đã tải mạng Rapfi $f"
+    if curl -fsSL --max-time 300 -o "$tmp" "$BASE/$f.bin.lz4" && [ "$(head -c 4 "$tmp" | od -An -tx1 | tr -d ' \n')" = 04224d18 ] \
+        && [ "$(sha_of "$tmp")" = "$want" ]; then
+      chmod 644 "$tmp" && mv "$tmp" "$DIR/$f.bin.lz4" && echo "$want" > "$DIR/.$f.ok" && echo "Đã tải mạng Rapfi $f"
     else
-      rm -f "$tmp"; echo "Chưa tải được mạng Rapfi $f (lần sau thử lại)"
+      rm -f "$tmp"; echo "Chưa tải được mạng Rapfi $f (lỗi mạng hoặc sai mã băm – lần sau thử lại)"
     fi
   done
 }

@@ -119,6 +119,16 @@ const { setup, gotoRetry } = require('./helpers');
   ok(await until(a, () => !!document.querySelector('.cb-win input')), 'mở lại cửa sổ chat để gõ dở');
   await a.click('#tabbar [data-tab="more"]');
   ok(await until(a, () => !!document.querySelector('#add-friend input[name="u"]')), 'sang tab Thêm: thấy ô thêm bạn');
+  // Mở cửa sổ chat rồi bấm ngay sang ô khác (trước khi hẹn giờ 30 ms đưa con trỏ vào ô chat chạy – máy chậm còn trễ hơn):
+  // con trỏ phải ở lại ô người dùng vừa chọn, không bị giật về ô chat (gốc lỗi M-F6 chập chờn trên CI 20/11/2026: chữ
+  // Playwright gõ vào ô thêm bạn rơi sang ô chat)
+  ok(await a.evaluate(async () => {
+    window.CaroChatBubbles.open(window.CaroOnline.state.friends.friends[0].id);
+    const i = document.querySelector('#add-friend input[name="u"]');
+    i.focus();
+    await new Promise((r) => setTimeout(r, 150));
+    return document.activeElement === i;
+  }), 'mở chat rồi bấm ngay sang ô thêm bạn: con trỏ ở lại ô thêm bạn, không bị giật về ô chat');
   await a.fill('#add-friend input[name="u"]', 'nguoi_la_');
   await a.fill('.cb-win input', 'tin nhap do...');
   // Bên kia vào ván với máy -> a nhận cập nhật hiện diện/bạn bè -> panel bạn bè vẽ lại

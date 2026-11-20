@@ -36,6 +36,8 @@ function kindOf(ua, app, desktop) {
 
 /** Số hợp lệ của một chỉ số (cls là điểm × 1000), hoặc null. */
 function clean(m, v) {
+  // Chỉ nhận số / chuỗi: Number() trên object JSON kiểu {"toString":1,"valueOf":1} ném TypeError (rà soát 20/11/2026)
+  if (typeof v !== 'number' && typeof v !== 'string') return null;
   const n = Number(v);
   if (!Number.isFinite(n) || n < 0) return null;
   if (m === 'cls') return n <= 10 ? Math.round(n * 1000) : null;
@@ -121,9 +123,10 @@ class Rum {
     });
     req.on('end', () => {
       if (done) return;
-      let body = null;
-      try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (e) { /* bỏ qua */ }
-      send(this.add(body, req.headers['user-agent']) ? 204 : 400);
+      // Callback hẹn sau: lưới guardHttp (guard.js) không với tới – lỗi ở đây phải tự bắt, không thì sập cả tiến trình
+      let ok = false;
+      try { ok = this.add(JSON.parse(Buffer.concat(chunks).toString('utf8')), req.headers['user-agent']); } catch (e) { /* thân hỏng */ }
+      send(ok ? 204 : 400);
     });
     req.on('error', () => {});
     return true;

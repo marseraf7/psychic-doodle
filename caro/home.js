@@ -55,7 +55,8 @@
     $('home-bots').innerHTML = RULES.map((rule) => ts.map((tier) => {
       const b = Bots.of(tier, st); // mức trùm cuối chỉ có BOAT
       // Hiện cả tên nhân vật máy trên thẻ (trước đây chỉ có ~Elo và luật, tên chỉ nằm trong title — loi-03)
-      return `<button type="button" class="qm-tile" data-bot-rule="${rule}" data-bot="${b.id}" title="${esc(T('bot_' + b.id))}">
+      // Thẻ máy (qm-bot): tên một dòng, dài thì "…" – tên đầy đủ trong title (rà soát R5: "Khá Bảnh" xuống 2 dòng ở 390px)
+      return `<button type="button" class="qm-tile qm-bot" data-bot-rule="${rule}" data-bot="${b.id}" title="${esc(T('bot_' + b.id))}">
         <b>${esc(T('bot_' + b.id))}</b><small>~${b.elo} · ${esc(T('grule_s_' + rule))}</small></button>`;
     }).join('')).join('');
     $('home-bot-hint').textContent = T('home_bot_hint', { style: T('style_' + st) });
@@ -140,4 +141,8 @@
   // file này chạy – link ?o= giải đấu Offline mở trang riêng ngay khi kết nối xong)
   if (Shell.current && Shell.current !== 'home') { /* giữ trang đang mở */ } else if (!App.online && !App.replay && !App.ext) open();
   else Shell.hide(); // khung hiện sẵn từ HTML (index.html): mở thẳng vào bàn cờ thì ẩn đi
+
+  // Trang chủ đã dựng xong (mọi file mã đã chạy – DOMContentLoaded): bỏ ẩn thân trang (shell.css, chống xô lệch CLS)
+  const ready = () => document.documentElement.classList.add('caro-ready');
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready); else ready();
 })();

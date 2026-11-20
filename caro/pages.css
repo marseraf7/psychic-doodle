@@ -49,6 +49,9 @@
 .hist-vis { display: flex; flex-direction: column; gap: 6px; }
 .hist-vis[hidden] { display: none; }
 #history .games li { flex-wrap: wrap; row-gap: 6px; }
+/* Dòng phụ của ván (giờ · thời gian · luật · số nước · lý do kết thúc): được xuống dòng để lý do ("đầu hàng") luôn
+ * thấy được – trước đây một dòng + "…" nên lý do ở cuối bị cắt mất ở 390px */
+#history .pn small { white-space: normal; overflow-wrap: anywhere; }
 .hist-acts { display: flex; gap: 6px; margin-left: auto; flex: 1 1 100%; justify-content: flex-end; } /* nút xuống dòng riêng: tên đối thủ không bị cắt */
 .hist-acts .ico { width: 16px; height: 16px; }
 #history-more[hidden] { display: none; }

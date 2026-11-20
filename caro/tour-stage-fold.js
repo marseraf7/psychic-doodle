@@ -5,7 +5,8 @@
  *   - open: các khối đang mở (theo số thứ tự giai đoạn), nhớ qua các lần vẽ lại;
  *   - summary(c): một dòng tóm tắt giá trị trong khối thu gọn;
  *   - short(nhãn): lựa chọn dài "A (giải thích)" → [A, giải thích] – hộp chọn không bị cắt ở màn hẹp.
- *   K.stageFold = { RARE, isDefault, open, summary, short }. Nạp sau tour.js, trước tour-stage-edit.js.
+ *   - shift(at, delta): thêm / bỏ giai đoạn thì dời số thứ tự các khối đang mở theo;
+ *   K.stageFold = { RARE, isDefault, open, summary, short, shift }. Nạp sau tour.js, trước tour-stage-edit.js.
  */
 (function () {
   'use strict';
@@ -41,5 +42,15 @@
     return out.filter(Boolean).join(' · ');
   }
 
-  K.stageFold = { RARE, isDefault, open: OPEN, summary, short };
+  /**
+   * Thêm / bỏ giai đoạn (tour-stage-edit.js – click 'add' / 'del'): dời số thứ tự các khối đang mở theo – trước đây khối mở
+   * của giai đoạn đã xoá "truyền" sang giai đoạn đứng sau nó. at: chỗ thêm / bỏ, delta: +1 (thêm) | -1 (bỏ).
+   */
+  function shift(at, delta) {
+    const was = [...OPEN];
+    OPEN.clear();
+    for (const i of was) if (i < at) OPEN.add(i); else if (delta > 0) OPEN.add(i + delta); else if (i > at) OPEN.add(i + delta);
+  }
+
+  K.stageFold = { RARE, isDefault, open: OPEN, summary, short, shift };
 })();

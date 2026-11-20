@@ -3,7 +3,7 @@
 Một tiến trình Node.js duy nhất vừa phục vụ giao diện game (thư mục `caro/`) vừa xử lý
 chơi online qua WebSocket (`/ws`):
 
-- **Phòng chơi**: mã 6 số + mật khẩu 3 số, người tạo chọn đi trước/đi sau, gửi link mời
+- **Phòng chơi**: mã 6 số + mật khẩu 4 số, người tạo chọn đi trước/đi sau, gửi link mời
   (`https://…/?room=123456`) – người vào vẫn phải nhập mật khẩu. **Tái đấu** cần cả hai bấm,
   mỗi ván tái đấu tự đổi bên đi trước.
 - **Phòng công khai**: đánh dấu khi tạo phòng → phòng hiện trong mục "Phòng đang chờ" của mọi người
@@ -103,8 +103,9 @@ chơi online qua WebSocket (`/ws`):
   `CARO_MCP=0`): 6 tool chỉ đọc – `play_caro` (chơi với máy trên bàn cờ tương tác – MCP App), `suggest_caro_move`,
   `caro_puzzle`, `caro_rules`, `caro_leaderboard`, `caro_player`. Ván là danh sách nước người gọi gửi lên, máy chủ không lưu
   gì. Máy cờ chạy ở luồng phụ (`think.js`, `CARO_MCP_WORKERS`, mặc định 1; nghĩ ≤ 1,3 giây) để không chặn ván online.
-  Giới hạn `CARO_MCP_RATE` lần / phút / IP (mặc định 240), thân yêu cầu ≤ 64 KB, Origin lạ bị chặn (`CARO_MCP_ORIGINS` để
-  thêm). Hướng dẫn: `/connector.html`; hồ sơ nộp thư mục connector của Claude: `docs/claude-directory/`.
+  Giới hạn `CARO_MCP_RATE` lần / phút / IP (mặc định 240), mỗi IP tối đa 2 việc trong hàng đợi máy cờ, thân yêu cầu ≤ 64 KB,
+  Host phải là tên miền của game (`CARO_PUBLIC_HOST`, mặc định caroxo.duckdns.org, cùng tên máy của `PUBLIC_URL`; localhost),
+  Origin lạ bị chặn (`CARO_MCP_ORIGINS` để thêm). Hướng dẫn: `/connector.html`; hồ sơ nộp thư mục connector của Claude: `docs/claude-directory/`.
 - **Mật khẩu**: đổi mật khẩu (đăng xuất các thiết bị khác), đặt mật khẩu cho tài khoản Google,
   thêm email và **quên mật khẩu** qua mã 6 số gửi email (cần cấu hình SMTP).
 - **Học từ Lichess (đợt D)** – chỉ lấy ý tưởng, không chép mã (Lichess dùng giấy phép AGPL):
@@ -362,7 +363,10 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
   khoá hỏng thì máy chủ không khởi động (không tự tạo khoá mới). Bản gửi giữ 30 ngày, xoá tài khoản thì xoá luôn; bộ nhớ
   tối đa 300 nghìn thế (bỏ thế lâu không dùng).
 
-- Mật khẩu băm scrypt; token đăng nhập và mã đặt lại mật khẩu chỉ lưu dạng băm SHA-256.
+- Mật khẩu băm scrypt; token đăng nhập (192 bit) chỉ lưu dạng băm SHA-256. Mã 6 số đặt lại mật khẩu / xác minh email lưu
+  dạng HMAC-SHA256 với khoá riêng `DATA_DIR/code-key` (`src/code-hash.js`, L-1 rà soát 20/11/2026): đọc được `caro.db` mà
+  thiếu khoá thì không dò ngược ra mã. Khoá này **không cần** sao lưu hay chép khi chuyển máy (mất khoá chỉ làm các mã đang
+  chờ ≤ 30 phút hết hiệu lực) – cố ý để ngoài bản sao lưu.
 - Quên mật khẩu: luôn trả lời giống nhau dù tài khoản có tồn tại hay không; mã 6 số hết hạn sau
   15 phút, sai 5 lần là huỷ; đặt lại xong thì đăng xuất mọi thiết bị.
 - Link xem lại không chứa id tài khoản; tin nhắn tối đa 500 ký tự, 60 tin / 10 phút.

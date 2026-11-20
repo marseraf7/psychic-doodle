@@ -18,7 +18,7 @@
       board_aria: 'Bàn cờ caro',
       score_title: 'Tỉ số',
       btn_new: 'Ván mới',
-      btn_undo: 'Đi lại nước vừa rồi',
+      btn_undo: 'Đi lại',
       btn_center: 'Về giữa',
       btn_online: 'Chơi online',
       btn_settings: 'Cài đặt',

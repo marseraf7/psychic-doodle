@@ -102,10 +102,10 @@ test('phòng: tạo, sai/đúng mật khẩu, chọn đi sau, thắng, tái đ�
   await a.req({ t: 'createRoom', side: 'second' }, 'room');
   const { code, password } = a.room;
   assert.match(code, /^\d{6}$/);
-  assert.match(password, /^\d{3}$/);
+  assert.match(password, /^\d{4}$/, 'mật khẩu phòng 4 số (I-4)');
   assert.strictEqual(side(a.room, a.me.id), 2, 'chủ phòng chọn đi sau -> cầm O');
 
-  const wrong = String((Number(password) + 1) % 1000).padStart(3, '0');
+  const wrong = String((Number(password) + 1) % 10000).padStart(4, '0');
   const err = await b.req({ t: 'joinRoom', code, password: wrong }, 'error');
   assert.match(err.msg, /mật khẩu/);
   const bad = await b.req({ t: 'joinRoom', code: '000000', password }, 'error');
@@ -348,7 +348,7 @@ test('giới hạn thử sai theo từng phòng / tài khoản, không khoá c�
   const c = await Client.open();
   await a.req({ t: 'createRoom', side: 'first' }, 'room');
   await b.req({ t: 'createRoom', side: 'first' }, 'room');
-  const wrong = String((Number(a.room.password) + 1) % 1000).padStart(3, '0');
+  const wrong = String((Number(a.room.password) + 1) % 10000).padStart(4, '0');
   for (let i = 0; i < 8; i++) await c.req({ t: 'joinRoom', code: a.room.code, password: wrong }, 'error');
   const locked = await c.req({ t: 'joinRoom', code: a.room.code, password: a.room.password }, 'error');
   assert.match(locked.msg, /quá nhiều/);
