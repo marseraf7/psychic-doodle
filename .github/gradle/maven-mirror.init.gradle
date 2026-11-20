@@ -1,0 +1,9 @@
+// Chỉ dùng trên CI (.github/workflows/app.yml: ./gradlew --init-script …). Máy CI có lúc nhận "Could not find …" từ
+// repo.maven.apache.org cho cả thư viện chắc chắn có (kotlin-stdlib, guava…), thử lại vẫn vậy. Thêm bản sao Maven Central
+// của Google vào kho của MỌI project – cả buildscript của các module Capacitor trong node_modules (không sửa được) –
+// trước các kho do build script tự khai; thư viện Android (androidx…) không có ở đây thì Gradle tìm tiếp google().
+def mirror = 'https://maven-central.storage-download.googleapis.com/maven2/'
+gradle.beforeProject { p ->
+    p.buildscript.repositories { maven { url = mirror } }
+    p.repositories { maven { url = mirror } }
+}

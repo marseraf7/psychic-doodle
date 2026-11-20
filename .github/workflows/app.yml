@@ -32,6 +32,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # Lưu đệm thư viện Gradle (~/.gradle/caches, wrapper) giữa các lần chạy: bớt tải lại từ Maven Central / Google
+          # Maven – các job Android từng đỏ vì máy CI không tải được thư viện ("Could not find …", BUILD FAILED sau ~10 s)
+          cache: gradle
+          cache-dependency-path: |
+            app/android/**/*.gradle*
+            app/android/gradle/wrapper/gradle-wrapper.properties
       - name: Cài thư viện, dựng giao diện, đồng bộ Android
         working-directory: app
         run: |
@@ -67,7 +73,8 @@ jobs:
           CARO_KEYSTORE_PASSWORD: ${{ secrets.CARO_KEYSTORE_PASSWORD }}
           CARO_KEY_ALIAS: ${{ secrets.CARO_KEY_ALIAS }}
           CARO_KEY_PASSWORD: ${{ secrets.CARO_KEY_PASSWORD }}
-        run: ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease
+        # Lỗi tải thư viện thoáng qua: thử lại một lần sau 30 s (lỗi dựng thật thì lần 2 cũng đỏ)
+        run: ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug assembleRelease bundleRelease || { sleep 30; ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug assembleRelease bundleRelease; }
       - name: Kiểm tra gói APK
         run: |
           APK=app/android/app/build/outputs/apk/debug/app-debug.apk
@@ -104,6 +111,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # Lưu đệm thư viện Gradle (~/.gradle/caches, wrapper) giữa các lần chạy: bớt tải lại từ Maven Central / Google
+          # Maven – các job Android từng đỏ vì máy CI không tải được thư viện ("Could not find …", BUILD FAILED sau ~10 s)
+          cache: gradle
+          cache-dependency-path: |
+            app/android/**/*.gradle*
+            app/android/gradle/wrapper/gradle-wrapper.properties
       - name: Dựng bản thử nghiệm (máy chủ http://10.0.2.2:8790 = máy chạy CI nhìn từ máy ảo)
         working-directory: app
         env:
@@ -113,7 +126,7 @@ jobs:
           npm ci
           npm run build:web
           npx cap sync android
-          cd android && ./gradlew --no-daemon assembleDebug
+          cd android && { ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug || { sleep 30; ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug; }; } # lỗi tải thư viện thoáng qua: thử lại một lần
       - name: Chạy máy chủ game
         run: |
           cd server && npm ci
