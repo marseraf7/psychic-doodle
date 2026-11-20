@@ -548,6 +548,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |
+| `home-hero.js` | Trang chủ: thẻ người mới (chưa chơi ván nào) – nút lớn "Chơi với máy", bấm là vào ván với máy mức dễ; ẩn sau ván đầu / khi bấm ✕ |
 | `history.js`, `i18n-history.js` | Lịch sử đấu: thẻ Trên máy này / Online, quyền xem, danh sách ván, xem lại, phân tích |
 | `local-games.js`, `local-history.js`, `local-save.js`, `i18n-local.js` | Lịch sử đấu trên máy này: kho ván (localStorage), danh sách + chọn nhiều để xoá, hỏi lưu khi thoát ván, Cài đặt |
 | `devices.js`, `i18n-devices.js` | Thiết bị: nơi tài khoản đang đăng nhập, đăng xuất từ xa |

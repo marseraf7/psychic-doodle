@@ -190,6 +190,14 @@ html:not(.caro-ready) #page-home > .pg-body { visibility: hidden; animation: car
 .home-foot p { margin: 0 0 6px; font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; }
 .home-foot .home-credit { color: var(--text); font-weight: var(--fw-medium); }
 .home-foot a { color: inherit; }
+/* Thẻ người mới (home-hero.js): một nút chính lớn "Chơi với máy" + gợi ý, ✕ ẩn hẳn */
+.home-hero { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 14px 44px 12px 14px; border-radius: 12px; background: var(--panel); }
+.home-hero[hidden] { display: none; }
+.home-hero-go { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; font-size: var(--fs-lg); font-weight: var(--fw-semibold); border-radius: 10px; }
+.home-hero-go .ico { width: 26px; height: 26px; flex: none; }
+.home-hero-go span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-hero .hint { margin: 0; text-align: center; }
+.home-hero-x { position: absolute; top: 8px; right: 8px; }
 .resume-card {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
   padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 16%, var(--panel)); color: var(--text);
@@ -269,7 +277,7 @@ body.online .home .welcome-card { display: flex; }
   .home .qm-tile { min-height: 120px; }
   .home .qm-tile b { font-size: calc(var(--fs-xl) * 1.25); }
   .home .qm-tile.qm-bot b { font-size: var(--fs-xl); }
-  .home-resume, .home .dlg-invites, .home .welcome-card { width: min(980px, 100%); margin: 0 auto; }
+  .home-resume, .home-hero, .home .dlg-invites, .home .welcome-card { width: min(980px, 100%); margin: 0 auto; }
 }
 @media (min-width: 900px) and (max-width: 1180px) {
   .home-grid { grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr); grid-template-areas: "main side" "left side"; }

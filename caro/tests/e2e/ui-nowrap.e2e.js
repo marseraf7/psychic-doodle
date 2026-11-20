@@ -6,6 +6,8 @@
  *   - Trang chủ mở trang không xô lệch: CLS < 0,05 (bản gộp, 390 và 1280 px).
  *   - Số phiên bản ở cuối Cài đặt hiện cả ở bản gộp (tên bộ nhớ đệm "caro-vNNN-b<mã>").
  *   - Thanh tab dính của trang giải Offline có bóng đổ phía dưới (R1).
+ *   - Xem lại ván chưa xong ghi "Chưa kết thúc"; phân tích lúc nạp Rapfi ghi "Đang nạp máy phân tích…" (đợt 2).
+ *   - Người mới: nút lớn "Chơi với máy" (home-hero.js), 1 chạm vào ván, ẩn sau ván đầu / khi bấm ✕ (đợt 3).
  *   - Không cuộn ngang, không lỗi JS.
  *   node caro/tests/e2e/ui-nowrap.e2e.js
  */
@@ -141,6 +143,45 @@ const LANGS = ['vi', 'en', 'ru', 'zh'];
       await p.screenshot({ path: require('path').join(process.env.E2E_OUT || require('os').tmpdir(), 'nowrap-an-loading-390.png') });
     } else console.log('     (trình duyệt không chạy được Rapfi – bỏ qua bước nạp máy phân tích)');
     await p.context().close();
+  }
+
+  // 8. Người mới: nút lớn "Chơi với máy" (home-hero.js) – 1 chạm vào ván với máy; ẩn sau ván đầu / khi bấm ✕.
+  //    Trình duyệt tự động chỉ thấy thẻ khi đặt caro.heroE2E (các bài thử khác giữ bố cục cũ).
+  {
+    const plain = await page(390, 'vi');
+    ok(await plain.evaluate(() => document.getElementById('home-hero').hidden), 'trình duyệt tự động (không đặt caro.heroE2E): không hiện thẻ người mới');
+    await plain.context().close();
+    for (const lang of LANGS) for (const w of [360, 390]) {
+      const p = await page(w, lang, { 'caro.heroE2E': '1', 'caro.theme': 'light' });
+      const g = await p.evaluate(() => {
+        const h = document.getElementById('home-hero'), b = h.querySelector('[data-hero-go]'), s = b && b.querySelector('span');
+        const r = b && b.getBoundingClientRect();
+        return { shown: !h.hidden && !!b, one: !!s && s.getBoundingClientRect().height < parseFloat(getComputedStyle(s).fontSize) * 2, inView: !!r && r.left >= 0 && r.right <= innerWidth && r.top < innerHeight, cut: !!s && s.scrollWidth > s.clientWidth + 0.5,
+          about: !!document.querySelector('.home-foot .home-about[data-i18n="home_about"]') && !!document.querySelector('.home-foot .home-credit') };
+      });
+      ok(g.shown && g.one && g.inView && !g.cut && g.about, `${lang} @${w}: thẻ người mới – nút "Chơi với máy" một dòng, thấy ngay, chân trang còn giới thiệu + đơn vị ${JSON.stringify(g)}`);
+      ok(await noHScroll(p), `${lang} @${w}: thẻ người mới không gây cuộn ngang`);
+      if (w === 390 && lang === 'vi') await p.screenshot({ path: require('path').join(process.env.E2E_OUT || require('os').tmpdir(), 'nowrap-hero-vi-390.png') });
+      if (lang === 'vi' && w === 390) {
+        // 1 chạm: vào ván với máy mức dễ, chưa có nước nào
+        await p.click('[data-hero-go]'); await sleep(500);
+        const L = await p.evaluate(() => ({ ...window.CaroApp.local, shell: window.CaroShell.visible }));
+        ok(L.mode === 'ai' && L.bot === 'ti' && L.moves === 0 && !L.shell, '1 chạm "Chơi với máy": vào ngay ván với Anh Độ (mức dễ) ' + JSON.stringify(L));
+        // xong ván đầu → thôi hiện (cả khi tải lại)
+        await p.evaluate(() => window.dispatchEvent(new CustomEvent('caro:gameover', { detail: { mode: 'ai' } })));
+        await p.evaluate(() => window.CaroShell.go('home')); await sleep(300);
+        ok(await p.evaluate(() => document.getElementById('home-hero').hidden), 'xong ván đầu: thẻ người mới ẩn');
+        await p.reload(); await sleep(1200);
+        ok(await p.evaluate(() => document.getElementById('home-hero').hidden), 'tải lại sau ván đầu: thẻ vẫn ẩn');
+      }
+      if (lang === 'en' && w === 360) {
+        await p.click('[data-hero-x]'); await sleep(200);
+        ok(await p.evaluate(() => document.getElementById('home-hero').hidden), 'bấm ✕: thẻ người mới ẩn');
+        await p.reload(); await sleep(1200);
+        ok(await p.evaluate(() => document.getElementById('home-hero').hidden), 'tải lại sau khi ẩn: thẻ vẫn ẩn');
+      }
+      await p.context().close();
+    }
   }
 
   ok(!errs.length, 'không lỗi JS ở các trang thử' + (errs.length ? ': ' + errs.join(' | ') : ''));
