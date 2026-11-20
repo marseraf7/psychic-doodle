@@ -5,6 +5,9 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        // Bản sao Maven Central của Google: máy CI có lúc nhận "Could not find …" từ repo.maven.apache.org cho cả thư viện
+        // chắc chắn có (kotlin-stdlib, guava…) – Gradle thử kho kế tiếp khi kho trước báo không có
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.13.0'
@@ -21,6 +24,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // Bản sao Maven Central của Google: máy CI có lúc nhận "Could not find …" từ repo.maven.apache.org cho cả thư viện
+        // chắc chắn có (kotlin-stdlib, guava…) – Gradle thử kho kế tiếp khi kho trước báo không có
+        maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }
     }
 }
 
