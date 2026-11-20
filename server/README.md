@@ -99,6 +99,12 @@ chơi online qua WebSocket (`/ws`):
 - **Xoá tài khoản** ngay trong game (Online → Tài khoản → Xoá tài khoản): xoá phiên đăng nhập, bạn bè,
   tin nhắn, Elo, đối đầu, email; ván đã chơi với người khác còn trong lịch sử của họ nhưng bỏ tên và id.
   Trang chính sách quyền riêng tư: `https://…/privacy.html` (4 ngôn ngữ, mục `#delete` hướng dẫn xoá tài khoản).
+- **Connector MCP cho Claude** (`src/mcp/`, đường dẫn `/mcp`, Streamable HTTP không trạng thái, không đăng nhập; tắt bằng
+  `CARO_MCP=0`): 6 tool chỉ đọc – `play_caro` (chơi với máy trên bàn cờ tương tác – MCP App), `suggest_caro_move`,
+  `caro_puzzle`, `caro_rules`, `caro_leaderboard`, `caro_player`. Ván là danh sách nước người gọi gửi lên, máy chủ không lưu
+  gì. Máy cờ chạy ở luồng phụ (`think.js`, `CARO_MCP_WORKERS`, mặc định 1; nghĩ ≤ 1,3 giây) để không chặn ván online.
+  Giới hạn `CARO_MCP_RATE` lần / phút / IP (mặc định 240), thân yêu cầu ≤ 64 KB, Origin lạ bị chặn (`CARO_MCP_ORIGINS` để
+  thêm). Hướng dẫn: `/connector.html`; hồ sơ nộp thư mục connector của Claude: `docs/claude-directory/`.
 - **Mật khẩu**: đổi mật khẩu (đăng xuất các thiết bị khác), đặt mật khẩu cho tài khoản Google,
   thêm email và **quên mật khẩu** qua mã 6 số gửi email (cần cấu hình SMTP).
 - **Học từ Lichess (đợt D)** – chỉ lấy ý tưởng, không chép mã (Lichess dùng giấy phép AGPL):

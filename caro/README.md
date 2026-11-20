@@ -513,6 +513,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `eval-key.js`, `eval-cloud.js` | Bộ nhớ chấm dùng chung: khoá thế chuẩn hoá (dời / xoay / lật, dùng chung máy chủ); hỏi / gửi máy chủ khi đã đăng nhập |
 | `rapfi/` | Rapfi WebAssembly (GPL-3): `worker.js`, `brain.js` (cách nghĩ mỗi nước, đọc chuỗi nước tốt nhất), `rapfi-single-simd128.{js,wasm}`, `rapfi-caro-simd128.{js,wasm}` (Rapfi-CARO), mô hình cổ điển + `model-caro.bin`, `COPYING.txt`, `SOURCE.md`, `build/` (mã nguồn, bản vá Rapfi-CARO, cách dựng) |
 | `licenses.html` | Giấy phép mã nguồn mở (Rapfi GPL-3, mạng CC0, phông OFL) – 4 ngôn ngữ, dùng `privacy.js` |
+| `connector.html`, `policy-page.css` | Hướng dẫn connector Caro x Gomoku cho Claude (máy chủ MCP `server/src/mcp/`) – 4 ngôn ngữ, dùng `privacy.js`; kiểu trang chữ dùng chung với `privacy.html` |
 | `attention.js` | Ván online: tiêu đề tab "Đến lượt bạn" / "Đang chờ đối thủ", biểu tượng tab nhấp nháy khi tới lượt mà đang ở tab khác; giữ màn hình sáng khi đang có ván và đang ở bàn cờ (Wake Lock) |
 | `live-analysis.js` | Phân tích ngầm ván đang chơi trong Web Worker riêng; `study.js` lấy các thế đã chấm qua `CaroLive.evalsFor` |
 | `analysis.js` | Phân tích ván: xếp loại từng nước, độ chính xác, kiểm tra nước thắng / nước giữ thế (dùng chung trình duyệt, Worker, Node) |
