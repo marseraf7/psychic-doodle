@@ -15,7 +15,7 @@ và **chủ dự án chưa xác nhận quyết định giấy phép GPL**.
 | Hai lệnh `engine_bench`, `engine_best_move(moves, rule, timeMs)` | `desktop/src-tauri/src/engine.rs` |
 | Điều khiển Rapfi qua giao thức Gomocup (canh giờ, tự chạy lại khi treo / chết); chỉ dùng thư viện chuẩn, kiểm thử được mà không cần Tauri | crate `desktop/src-tauri/rapfi/` (`caro-rapfi`) |
 | Tự kiểm khi đặt `CARO_DESKTOP_SELFTEST=1`: mở app, JS gọi Rapfi, in kết quả và thời gian khởi động rồi thoát | `desktop/src-tauri/src/selftest.rs` |
-| Cầu nối JS thí điểm `window.CaroNativeEngine = { available, bench(), bestMove(moves, rule, ms) }`, **chưa nối vào giao diện chơi** | `desktop/www-extra/native-engine.js` |
+| Cầu nối JS thí điểm `window.CaroNativeEngine = { available, bench(), bestMove(moves, rule, ms) }`; BOAT đi nước qua nó từ 20/11/2026 (mục 9) | `desktop/www-extra/native-engine.js` |
 | Chép giao diện `caro/` → `desktop/www` (y như app Android / iOS), ghi `config.js` có `CARO_DESKTOP = true` | `desktop/scripts/build-web.js` và `app/scripts/web-common.js` (phần chung với app di động) |
 | Dựng Rapfi gốc từ fork `marseraf7/rapfi` đúng commit ghim, ra `binaries/pbrain-rapfi[-caro]-<triple>[.exe]` | `desktop/scripts/build-rapfi.sh` |
 | Tài nguyên của tiến trình phụ: cấu hình (sinh từ `caro/rapfi/worker.js`), mô hình, mạng NNUE, giấy phép, mã nguồn | `desktop/scripts/rapfi-resources.js` |
@@ -93,8 +93,9 @@ CI chạy khi có thay đổi ở `desktop/**` hoặc ở chính file workflow, 
 4. **Chỉ Linux:** in `pbrain-rapfi bench`, rồi chạy `bench-goc-wasm.js` ở độ sâu 16 và ghi bảng vào Step Summary. Tỉ lệ
    dưới 1,3 thì chỉ in cảnh báo, không làm đỏ lượt dựng.
 5. Dựng giao diện và tài nguyên, rồi `tauri build --target <triple>` và in kích thước bộ cài.
-6. Tự kiểm app: mở cửa sổ, gọi Rapfi qua cầu nối JS ở luật tiêu chuẩn và luật Việt Nam, rồi app tự thoát. Linux bắt buộc
-   đạt. Windows và macOS đặt `continue-on-error` vì chưa từng chạy thử.
+6. Tự kiểm app: mở cửa sổ, gọi Rapfi qua cầu nối JS ở luật tiêu chuẩn và luật Việt Nam, cho BOAT đi một nước thật trong
+   giao diện (phải qua Rapfi gốc), giả lỗi bản gốc để BOAT phải đi bằng Worker WASM, rồi app tự thoát (mục 9). Linux bắt
+   buộc đạt. Windows và macOS đặt `continue-on-error` vì chưa từng chạy thử.
 7. Tải các bộ cài lên artifact: `.deb`, `.rpm`, `.AppImage`, `.msi`, `.exe` (NSIS), `.dmg`.
 
 **Chưa ký số.** Workflow không dùng bí mật nào. Bộ cài Windows chưa có chữ ký Authenticode, nên SmartScreen sẽ cảnh báo.
@@ -190,9 +191,8 @@ Thời gian dựng: biên dịch Rust bản phát hành (LTO) mất khoảng 3 p
 
 ## 7. Việc còn lại để nối Rapfi gốc vào ván cờ
 
-1. Trong `caro/boat-rapfi.js` và `caro/rapfi-analysis.js`, chọn "nguồn" engine: có `CaroNativeEngine.available` thì gọi
-   bản gốc, không thì dùng Worker WASM như cũ, giữ nguyên khung bàn và cách dời toạ độ. Việc này đụng tới `caro/`, nên
-   phải tăng `CACHE` trong `sw.js` và tuân theo luật chia file.
+1. ~~BOAT đi nước bằng bản gốc~~: **xong 20/11/2026** (mục 9). Còn `caro/rapfi-analysis.js` (phân tích ván) và nghĩ trước
+   vẫn chạy Worker WASM: cần các lệnh Rust ở điểm 2 (điểm đánh giá, số nút, dừng).
 2. Mở rộng lệnh Rust cho đủ những gì `worker.js` đang làm:
    - trả về điểm đánh giá (`ev`: cp / mate) cùng nước đi;
    - ván mới (`YXHASHCLEAR`);
@@ -234,3 +234,86 @@ sidecar Rapfi và dùng bản WASM như trên web.
   máy chủ, thêm máy chủ online cho API / ảnh / WebSocket và kênh IPC `ipc:` / `http://ipc.localhost`). `tauri build` /
   `tauri dev` / CI ghép file này bằng `--config`. Đã dựng lại bản Linux với CSP và chạy tự kiểm: `CARO_SELFTEST ok`
   (gọi Rapfi gốc cho luật tiêu chuẩn và luật Việt Nam), trang nạp xong ~1,5 giây.
+
+## 9. BOAT dùng Rapfi gốc trong ván cờ (20/11/2026)
+
+**Đã nối.** Trong app desktop, BOAT (luật tự do / tiêu chuẩn / Renju / Việt Nam) đi nước bằng Rapfi gốc. Lỗi hay quá hạn
+thì tự về Worker WASM như bản web. Web, Android và iOS không đổi gì: chỉ đi đường mới khi có `window.CaroNativeEngine` và
+`available === true`, mà cầu nối này chỉ được chèn vào `desktop/www`.
+
+### 9.1. Chỗ nối và file
+
+| Phần | File |
+|---|---|
+| Hỏi bản gốc: dời toạ độ theo khung bàn Rapfi, canh hạn, bỏ câu trả lời cũ, tạm thôi bản gốc sau lỗi | `caro/native-boat.js` (`window.CaroNativeBoat`, ~70 dòng) |
+| Chỗ nối: trong `think()` (nước không lấy từ sách), hỏi `CaroNativeBoat` trước, `null` thì đi đường WASM cũ | `caro/boat-rapfi.js` |
+| Nạp module (trước `boat-rapfi.js`), thêm vào `FILES`, tăng `CACHE` lên `caro-v210` | `caro/index.html`, `caro/sw.js` |
+| Bài thử Node: 8 ca, `CaroNativeEngine` và Worker WASM đều giả | `caro/tests/native-boat.test.js` |
+| Tự kiểm app thật: BOAT đi một nước qua giao diện bằng bản gốc, rồi giả lỗi bản gốc để BOAT đi bằng WASM | `desktop/src-tauri/src/selftest.rs` |
+
+Vì sao module nằm trong `caro/` mà không ở `desktop/www-extra/`: module dựa vào nội bộ của `boat-rapfi.js` (khung bàn
+`place` của `rapfi-board.js`, dạng kết quả `{ move, margin }` mà phần kiểm thế sát mép dùng). Đặt cạnh nhau thì đổi một
+bên mà quên bên kia sẽ làm đỏ bài thử của `caro/tests`, thay vì chỉ hỏng âm thầm trong app desktop. Ngoài app desktop,
+module chỉ là một file ~4 KB không làm gì (`on()` luôn `false`). `desktop/www-extra/native-engine.js` vẫn là phần duy nhất
+chỉ có ở desktop (cầu nối tới lệnh Tauri).
+
+### 9.2. Cách một nước đi
+
+1. Sách khai cuộc (≤ 7 quân) như cũ. Ngoài sách: `frame()` kiểm thế vừa bàn Rapfi. Thời gian nghĩ giống hệt bản WASM:
+   `bots.js` `rapfi.ms` (2.500 ms), sát mép thì `max(800, ms − 800)`. Bản WASM với `PLAY = { hit: false, tm: false }`
+   cũng gửi `INFO timeout_turn ms`, như lệnh Rust.
+2. Có bản gốc: dời toạ độ bằng đúng khung `place(rule, moves)` của đường WASM (khung "dính", toạ độ 0..size-1, cỡ bàn
+   20 / 15 / 15 / 20). Tên luật `free` / `std` / `renju` / `vn` truyền thẳng (`Rule::parse`). Lệnh Rust tự chọn
+   `pbrain-rapfi-caro` cho luật `vn`.
+3. Kết quả bản gốc được kiểm như kết quả WASM: phải trong bàn, ô trống, không phải nước cấm (Renju). Sát mép (cách mép < 4
+   ô) thì engine của game vẫn kiểm lại như cũ.
+4. **Dự phòng:** bản gốc báo lỗi (lệnh Tauri từ chối: tiến trình chết hai lần, luật lạ…), quá hạn **2 × thời gian nghĩ +
+   5 giây** (10 giây với BOAT), trả nước ngoài bàn hay vào ô có quân. Khi đó nước này đi bằng Worker WASM (`ready(rule,
+   1,5 s)` rồi `ask`, như bản web). WASM chưa sẵn sàng sau 1,5 giây thì dùng engine của game, như bản web khi mạng chưa
+   tải xong. Sau một lỗi, bản gốc tạm nghỉ **60 giây**, để mỗi nước khỏi phải chờ hết hạn rồi mới đi WASM.
+5. **Huỷ:** mỗi lượt hỏi có số thứ tự. Lượt hỏi mới, ván mới (`prepare` → `cancel()`), hay người chơi đã đi lại (thế trên
+   bàn khác thế đã hỏi) thì câu trả lời đến sau bị bỏ (`{ stale: true }`). Khi đó không hỏi WASM cho thế cũ. `app-ai.js`
+   cũng tự bỏ kết quả của thế cũ như trước. Rust chưa có lệnh dừng (`YXSTOP`), nên lượt cũ vẫn nghĩ nốt trong tiến trình
+   và lượt sau xếp hàng chờ. Hạn 2 × ms + 5 s đã tính cho trường hợp này.
+6. Bản gốc đi thì **không nghĩ trước bằng WASM**. Nước sau lại do bản gốc đi, nên bảng băm của WASM không dùng được mà còn
+   tranh CPU với các luồng của bản gốc. Ván dùng bản gốc cũng không dựng Worker WASM lúc bắt đầu ván (đỡ tải ~10 MB mạng
+   NNUE và RAM). Worker chỉ được dựng khi cần dự phòng hoặc khi phân tích.
+7. Bộ đếm: `CaroRapfi.stats.native` (nước do bản gốc đi, cũng được tính vào `stats.rapfi` và huy hiệu BOAT–Rapfi),
+   `CaroNativeBoat.stats` (`native`, `fail`, `timeout`, `stale`, `ms` của nước gần nhất, `last` là lỗi gần nhất).
+
+**Vẫn chạy WASM:** nghĩ trước (`rapfi-ponder.js`) và phân tích ván (`rapfi-analysis.js`). Hai việc này cần những thứ lệnh
+Rust chưa có: dừng giữa chừng, điểm đánh giá `ev`, dừng theo số nút (`max_node`), xoá bảng băm. Đó là việc của mục 7,
+điểm 2. Không thêm chữ nào trên giao diện (không có nhãn "Rapfi gốc"), nên không cần chuỗi dịch mới.
+
+**Sửa kèm:** `supported()` của `boat-rapfi.js` nay nhận cả giao thức `tauri:`. App desktop trên Linux / macOS chạy ở
+`tauri://localhost` (Windows ở `http://tauri.localhost`), nên trước đây trên Linux / macOS, BOAT không dùng Rapfi nào cả,
+chỉ dùng engine của game. Nay Worker WASM chạy được ở đó (tự kiểm đã thấy) và làm đường dự phòng, cũng như engine phân
+tích. Giao thức `tauri:` chỉ có trong app desktop, nên web / Android / iOS không đổi.
+
+### 9.3. Kiểm thử và số đo (máy dev: Xeon 2,1 GHz 4 lõi, Ubuntu 24.04, Xvfb dựng hình phần mềm)
+
+- `node --test caro/tests/native-boat.test.js`: 8/8 đạt. Các ca: bản gốc được dùng khi có (cả 4 luật, không dựng Worker
+  WASM); toạ độ dời đúng khung và nằm giữa bàn; truyền đúng luật và 2.500 ms; bị từ chối thì WASM đi, nghỉ 60 giây rồi hỏi
+  lại; quá hạn thì WASM đi và câu trả lời muộn bị bỏ; trả ô có quân / ngoài bàn thì WASM đi; đi lại / ván mới / lượt hỏi
+  mới thì câu trả lời cũ bị bỏ, không hỏi WASM; không có `CaroNativeEngine` hoặc `available = false` thì y như cũ (dựng
+  Worker từ đầu ván, nghĩ trước).
+- `cd server && npm test` 521/521 · `node --test caro/tests/*.test.js` 133/133 · e2e `boot`, `localhist`, `boat-rapfi`
+  (`RAPFI_NETS`, Chromium): tất cả đạt.
+- Tự kiểm app thật (dựng như CI: `build-rapfi.sh`, `build-web.js`, `rapfi-resources.js` có mạng NNUE, `tauri build
+  --target x86_64-unknown-linux-gnu --config src-tauri/tauri.csp.json`; chạy bằng `xvfb-run -a`, hồ sơ trống), hai lần:
+
+  ```
+  CARO_SELFTEST ok std=8,6 vn=9,9 van-std=1,0 (Rapfi gốc 2017 ms, cả nước 2077 ms) wasm-vn=san-sang 643 ms loi-vn=0,-1 (wasm, 2501 ms) · trang nạp xong sau 1979 ms · tổng 8060 ms
+  CARO_SELFTEST ok std=8,6 vn=9,9 van-std=1,0 (Rapfi gốc 2139 ms, cả nước 2186 ms) wasm-vn=san-sang 653 ms loi-vn=0,-1 (wasm, 2559 ms) · trang nạp xong sau 1945 ms · tổng 8212 ms
+  ```
+
+  Đọc như sau. `van-std`: BOAT đi nước thứ 10 trong giao diện bằng Rapfi gốc. `wasm-vn`: Worker WASM (Rapfi-CARO) nạp
+  được trong WebKitGTK ở `tauri://`. `loi-vn`: bản gốc bị giả lỗi, BOAT vẫn đi, và đi bằng WASM. Một bản tự kiểm trước đó, chưa có
+  bước nạp sẵn WASM, cho ra `engine, 4616 ms`: WASM chưa sẵn sàng sau 1,5 giây nên engine của game đi. Đúng thiết kế ở bước 4.
+- **Thời gian một nước:** cả hai bản đều nghĩ theo cùng quỹ 2.500 ms. Bản gốc trả nước sau **~2,0–2,1 s** (luật tiêu
+  chuẩn, 4 luồng; cả nước tính từ lúc bắt đầu ván tới khi quân hiện là ~2,1–2,2 s). Rapfi thôi mở lớp mới sau 0,75 × quỹ.
+  Bản WASM trả sau **~2,5 s** (luật Việt Nam, 1 luồng, có cả thời gian kiểm và chờ). Hai số này **không cùng luật**, nên
+  chỉ cho thấy độ trễ cỡ như nhau, vì độ trễ do quỹ giờ quyết định. Cái lợi nằm ở số nút tìm được trong cùng quỹ: ×3,35
+  mỗi luồng (mục 4.1) nhân với số luồng. Chưa đo sức chơi bằng ván đấu (mục 7, điểm 4).
+- **Chưa kiểm:** Windows / macOS (CI đã có bước tự kiểm mới, chưa chạy); máy Linux thật có GPU; bản gốc treo thật (mới
+  giả lỗi bằng cách thay `bestMove`; treo thật đã có bài thử Rust ở `caro-rapfi`).

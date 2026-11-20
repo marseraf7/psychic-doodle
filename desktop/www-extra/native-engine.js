@@ -1,7 +1,7 @@
 /*
  * Cầu nối THÍ ĐIỂM tới Rapfi gốc của app desktop (Tauri): Rapfi chạy như tiến trình riêng (sidecar), JS chỉ gọi hai lệnh
- * Tauri engine_bench / engine_best_move (desktop/src-tauri/src/engine.rs). Chưa nối vào giao diện chơi – BOAT vẫn dùng
- * bản WebAssembly. Thử trong DevTools của app:
+ * Tauri engine_bench / engine_best_move (desktop/src-tauri/src/engine.rs). BOAT đi nước qua đây (caro/native-boat.js,
+ * lỗi / quá hạn thì về Worker WASM); nghĩ trước và phân tích vẫn dùng bản WebAssembly. Thử trong DevTools của app:
  *   await CaroNativeEngine.bench()                        → { nodesPerSec, nodes, timeMs, hash } (~25 giây, 1 luồng)
  *   await CaroNativeEngine.bestMove([[7, 7]], 'std', 500)  → [x, y]
  * moves: [[x, y], …] toạ độ 0..size-1, quân đen đi trước; rule: 'free' | 'std' | 'renju' | 'vn' (cỡ bàn 20 / 15 / 15 / 20,
