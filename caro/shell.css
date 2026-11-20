@@ -144,6 +144,12 @@ input.tog:checked::after { transform: translateX(20px); }
 .home-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
 .home-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-bottom: 1px solid var(--line); }
 .home-tabs button { border-radius: 0; padding: 10px 4px; color: var(--muted); font-weight: var(--fw-regular); font-size: var(--fs-sm); background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+/* Chống xô lệch bố cục (CLS) lúc mở trang: HTML vẽ trước khi các file mã (defer) chạy – chữ của Trang chủ còn rỗng,
+ * thẻ / lưới chưa dựng, rồi chữ đến làm mọi khối bên dưới bị đẩy (đo 20/11/2026: CLS ≈ 0,20 ở 390px, 0,17 ở 1280px).
+ * Thân Trang chủ ẩn (vẫn giữ chỗ) tới khi home.js dựng xong (class caro-ready trên <html>) – hiện ra là đúng chỗ luôn.
+ * Mã lỗi / mạng chậm (home.js tới muộn – boot.e2e.js): tự hiện sau 1,2 giây như trước. */
+html:not(.caro-ready) #page-home > .pg-body { visibility: hidden; animation: caro-reveal 0s 1.2s forwards; }
+@keyframes caro-reveal { to { visibility: visible; } }
 .home-tabs button.on { color: var(--accent); background: none; border-bottom-color: var(--accent); }
 .home-main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .hpane { display: flex; flex-direction: column; gap: 12px; }
@@ -160,6 +166,11 @@ input.tog:checked::after { transform: translateX(20px); }
 .home .qm-tile small { font-size: var(--fs-sm); color: var(--muted); }
 .home .qm-tile.on b, .home .qm-tile.on small { color: #fff; }
 .home .qm-tile.wide2 { grid-column: 1 / -1; min-height: 64px; }
+/* Thẻ Với máy: cột co được (minmax 0), tên nhân vật một dòng, dài thì "…" (tên đầy đủ ở title) – rà soát R5 */
+.home .home-bots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.home .qm-tile.qm-bot { min-width: 0; padding-inline: 6px; }
+.home .qm-tile.qm-bot b, .home .qm-tile.qm-bot small { display: block; max-width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home .qm-tile.qm-bot b { font-size: var(--fs-lg); }
 .home .qm-tile.wide2 b { font-size: var(--fs-md); font-weight: var(--fw-semibold); }
 @media (hover: hover) { .home .qm-tile:hover { background: color-mix(in srgb, var(--panel) 80%, var(--accent) 20%); } }
 .home-side { display: flex; flex-direction: column; gap: 8px; }
@@ -257,6 +268,7 @@ body.online .home .welcome-card { display: flex; }
   .home-side { grid-area: side; padding-top: 52px; }
   .home .qm-tile { min-height: 120px; }
   .home .qm-tile b { font-size: calc(var(--fs-xl) * 1.25); }
+  .home .qm-tile.qm-bot b { font-size: var(--fs-xl); }
   .home-resume, .home .dlg-invites, .home .welcome-card { width: min(980px, 100%); margin: 0 auto; }
 }
 @media (min-width: 900px) and (max-width: 1180px) {

@@ -49,8 +49,11 @@ a.pill.live { text-decoration: none; cursor: pointer; }
 .watch-link { color: var(--accent); }
 .plink { color: inherit; text-decoration: none; }
 .plink:hover { text-decoration: underline; }
-.lb-tabs { flex-wrap: wrap; margin-bottom: 8px; }
-.lb-tabs label { font-size: var(--fs-xs) !important; }
+/* Tab bảng xếp hạng: 5 nhãn một hàng, không xuống dòng ("Siêu chớp"), không tràn ở 360px (en "Classical", ru "Классика").
+ * Hàng flex: nhãn rộng theo chữ, thiếu chỗ thì co lại và chữ cắt "…" (tên đầy đủ ở title – social.js) */
+.lb-tabs { display: flex; margin-bottom: 8px; }
+.lb-tabs label { flex: 1 1 auto; min-width: 0; padding-inline: 4px; font-size: var(--fs-xs) !important; white-space: nowrap; }
+.lb-tabs label span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* Hồ sơ */
 dialog.wide-dlg { width: min(620px, calc(100% - 16px)); }

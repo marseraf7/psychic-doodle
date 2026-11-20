@@ -6,6 +6,18 @@
  */
 (function () {
   'use strict';
+  /**
+   * Chữ kết quả của ván đang xem lại: "<tên> thắng · <lý do>", "Hoà", hoặc ván chưa kết thúc (winner rỗng / 0 – vd.
+   * phân tích ván đang đánh dở): "Ván chưa kết thúc" – trước đây rơi vào nhánh thắng nên hiện "<người cầm O> thắng".
+   * Chia sẻ (share = true): ván chưa kết thúc thì để trống, ảnh không ghi kết quả.
+   */
+  function resultText(d, T, X, share) {
+    const nm = (s) => s || T('deleted_player'); // người chơi đã xoá tài khoản
+    if (!d.winner) return share ? '' : T('replay_unfinished');
+    let r = d.winner === 3 ? T('draw_short') : T('replay_wins', { name: nm(d.winner === X ? d.x : d.o) });
+    if (d.reason && !['win', 'draw'].includes(d.reason)) r += ' · ' + T('end_' + d.reason);
+    return r;
+  }
   window.CaroBoardReplay = function (env) {
     const { Board, X, O, checkWin } = window.Caro;
     const T = window.I18N.t;
@@ -115,11 +127,7 @@
       const nm = (s) => s || T('deleted_player'); // người chơi đã xoá tài khoản
       const who = (p, name) => `${glyph(p)} <span class="name" title="${esc(nm(name))}">${esc(nm(name))}</span>`;
       $('turn').innerHTML = `${who(X, data.x)} <span class="thinking">–</span> ${who(O, data.o)}`;
-      let result = '';
-      if (idx === n) {
-        result = data.winner === 3 ? T('draw_short') : T('replay_wins', { name: nm(data.winner === X ? data.x : data.o) });
-        if (data.reason && !['win', 'draw'].includes(data.reason)) result += ' · ' + T('end_' + data.reason);
-      }
+      const result = idx === n ? resultText(data, T, X) : '';
       $('score').innerHTML = ruleChip(data.rule) + `${idx}/${n}` + (result ? ` · ${esc(result)}` : '');
       $('rp-first').disabled = $('rp-prev').disabled = idx === 0;
       $('rp-next').disabled = idx === n;
@@ -135,11 +143,11 @@
     $('rp-share').onclick = () => {
       const d = state.replay.data;
       const nm = (v) => v || T('deleted_player');
-      let result = d.winner === 3 ? T('draw_short') : d.winner ? T('replay_wins', { name: nm(d.winner === X ? d.x : d.o) }) : '';
-      if (d.reason && !['win', 'draw'].includes(d.reason) && result) result += ' · ' + T('end_' + d.reason);
+      const result = resultText(d, T, X, true);
       window.CaroShare.open({ moves: d.moves, x: nm(d.x), o: nm(d.o), result, rule: d.rule }, d.share && net() ? () => net().shareReplay(d) : null);
     };
 
     return { openReplay, fitReplayView, seekReplay, stopReplay, toggleReplayPlay, closeReplay, updateReplayUI };
   };
+  window.CaroBoardReplay.resultText = resultText; // cho kiểm thử (caro/tests/replay-result.test.js)
 })();

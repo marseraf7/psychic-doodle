@@ -24,6 +24,8 @@
   const lbPool = () => (document.querySelector('input[name="lb-pool"]:checked') || {}).value || '';
   function openLeaderboard() {
     board = null;
+    // Nhãn tab có thể bị cắt "…" ở màn rất hẹp: tên đầy đủ trong title
+    document.querySelectorAll('#lb-tabs label').forEach((l) => { l.title = l.textContent.trim(); });
     renderLeaderboard();
     N.openDlg('leaderboard');
     N.send({ t: 'leaderboard', pool: lbPool() || undefined });
