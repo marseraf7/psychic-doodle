@@ -121,6 +121,28 @@ const LANGS = ['vi', 'en', 'ru', 'zh'];
     await a.screenshot({ path: require('path').join(process.env.E2E_OUT || require('os').tmpdir(), `nowrap-ot-tabs-${th}-390.png`) });
   }
 
+  // 7. Phân tích ván chưa kết thúc: đầu trang ghi "Chưa kết thúc"; lúc nạp Rapfi hiện "Đang nạp máy phân tích…"
+  //    (không đứng "0%") – giữ Rapfi ở trạng thái đang nạp bằng ready() không bao giờ xong
+  {
+    const p = await page(390, 'vi');
+    const can = await p.evaluate(() => !!(window.CaroRapfiAn && window.CaroRapfiAn.handles('free')));
+    await p.evaluate(() => { if (window.CaroRapfi) window.CaroRapfi.ready = () => new Promise(() => {}); });
+    await p.evaluate(() => window.CaroApp.openReplay({ local: true, x: 'An', o: 'Bình', winner: null, rule: 'free', moves: [[0, 0], [1, 1], [0, 1], [2, 2], [0, 2], [3, 3]] }));
+    await sleep(300);
+    await p.evaluate(() => { for (let i = 0; i < 6; i++) document.getElementById('rp-next').click(); }); // tua tới cuối ván
+    await sleep(200);
+    const sc = await p.evaluate(() => document.getElementById('score').textContent);
+    ok(/Chưa kết thúc/.test(sc) && !/thắng/.test(sc), `xem lại ván chưa xong: "${sc}"`);
+    if (can) {
+      p.evaluate(() => window.CaroStudy.analyze()).catch(() => {});
+      let txt = '';
+      for (let i = 0; i < 100 && !/Đang nạp máy phân tích/.test(txt); i++) { await sleep(150); txt = await p.evaluate(() => (document.getElementById('an-panel') || {}).textContent || ''); }
+      ok(/Đang nạp máy phân tích/.test(txt) && !/ 0%/.test(txt), 'phân tích: lúc nạp Rapfi hiện "Đang nạp máy phân tích…", không đứng 0%');
+      await p.screenshot({ path: require('path').join(process.env.E2E_OUT || require('os').tmpdir(), 'nowrap-an-loading-390.png') });
+    } else console.log('     (trình duyệt không chạy được Rapfi – bỏ qua bước nạp máy phân tích)');
+    await p.context().close();
+  }
+
   ok(!errs.length, 'không lỗi JS ở các trang thử' + (errs.length ? ': ' + errs.join(' | ') : ''));
   await finish();
 })();

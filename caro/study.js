@@ -48,7 +48,7 @@
     // Lượt kỹ do Rapfi chấm (luật Việt Nam: Rapfi-CARO) (rapfi-analysis.js); Rapfi lỗi thì engine của game
     if (opts.rapfi && window.CaroRapfiAn) {
       const job = an.job;
-      const evals = await window.CaroRapfiAn.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress });
+      const evals = await window.CaroRapfiAn.evaluate({ moves, rule, ms: opts.ms, evals: opts.evals, onProgress, onStage: opts.onStage });
       if (job !== an.job) return null;
       if (evals) return { ...A.analyzeGame(moves, { rule, ms: opts.ms, evals }), engine: 'rapfi' };
       an.rapfi = false;
@@ -140,11 +140,14 @@
     an.result = null;
     an.refining = null;
     an.prog = 0;
+    an.loading = false; // đang nạp máy phân tích Rapfi (chưa có tiến độ): hiện "Đang nạp máy phân tích…" thay cho "0%"
     const same = () => mine() && App.replay && App.replay.data.moves === moves; // chưa đóng xem lại / mở ván khác
     const progress = (f) => { if (!mine()) return; an.prog = f; if (an.refining != null) renderRefine(f); else if (same()) renderProgress(f); };
     const n = moves.length;
     an.rapfi = !!(window.CaroRapfiAn && window.CaroRapfiAn.handles(r.data.rule || 'vn'));
     const ms = an.rapfi ? rapfiMs(n) : fullMs(n);
+    if (an.rapfi) window.CaroRapfiAn.warm(r.data.rule || 'vn'); // nạp Rapfi song song với lượt nhanh của engine
+    const stage = (st) => { if (!mine()) return; an.loading = st === 'load'; if (an.refining != null) renderRefine(an.refining); else if (same()) renderProgress(an.prog); };
     const live = window.CaroLive ? window.CaroLive.evalsFor(moves, r.data.rule) : null;
     const missing = Array.from({ length: n + 1 }, (_, i) => !(live && live[i] && (live[i].q || 0) >= ms)).filter(Boolean).length;
     let evals = live || undefined;
@@ -158,7 +161,7 @@
         evals = quick.evals;
       } else if (missing) renderProgress(0); // không thiếu thế nào: đã phân tích ngầm xong, chỉ còn xếp loại nước đi
       // Lượt kỹ: chỉ chấm lại các thế mới chấm nhanh / còn thiếu
-      const res = await runAnalysis(moves, r.data.rule, progress, { evals, ms, rapfi: an.rapfi });
+      const res = await runAnalysis(moves, r.data.rule, progress, { evals, ms, rapfi: an.rapfi, onStage: stage });
       if (!res || !mine()) return;
       cache.set(key, res);
       // Lịch sử đấu trên máy (local-save.js) lưu kèm kết quả: mở lại ván không phải phân tích lại
@@ -168,7 +171,7 @@
       an.refining = null;
       renderPanel();
     } finally {
-      if (mine()) { an.running = false; an.key = null; }
+      if (mine()) { an.running = false; an.key = null; an.loading = false; }
     }
   }
 
@@ -176,11 +179,12 @@
   function renderRefine(f) {
     an.refining = f;
     const el = $('an-refine');
-    if (el) el.textContent = T(an.rapfi ? 'an_refining_rapfi' : 'an_refining', { p: Math.round(f * 100) });
+    if (el) el.textContent = an.loading ? T('an_loading_engine') : T(an.rapfi ? 'an_refining_rapfi' : 'an_refining', { p: Math.round(f * 100) });
   }
 
   function renderProgress(f) {
-    $('an-body').innerHTML = `<div class="an-prog"><i style="width:${Math.round(f * 100)}%"></i></div>
+    $('an-body').innerHTML = an.loading ? `<div class="an-prog busy" role="progressbar" aria-busy="true"><i></i></div><p class="muted">${esc(T('an_loading_engine'))}</p>`
+      : `<div class="an-prog"><i style="width:${Math.round(f * 100)}%"></i></div>
       <p class="muted">${esc(T('an_running', { p: Math.round(f * 100) }))}<br>${esc(T('an_engine'))}</p>`;
   }
 

@@ -8,7 +8,7 @@
   'use strict';
   /**
    * Chữ kết quả của ván đang xem lại: "<tên> thắng · <lý do>", "Hoà", hoặc ván chưa kết thúc (winner rỗng / 0 – vd.
-   * phân tích ván đang đánh dở): "Ván chưa kết thúc" – trước đây rơi vào nhánh thắng nên hiện "<người cầm O> thắng".
+   * phân tích ván đang đánh dở): "Chưa kết thúc" – trước đây rơi vào nhánh thắng nên hiện "<người cầm O> thắng".
    * Chia sẻ (share = true): ván chưa kết thúc thì để trống, ảnh không ghi kết quả.
    */
   function resultText(d, T, X, share) {

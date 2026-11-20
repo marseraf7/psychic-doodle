@@ -48,6 +48,10 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .an-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
 .an-prog { height: 6px; border-radius: 3px; background: rgba(127, 127, 127, 0.18); overflow: hidden; margin: 8px 0 6px; }
 .an-prog i { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
+/* Đang nạp máy phân tích (chưa có tiến độ): thanh chạy qua lại thay cho "0%" đứng yên */
+.an-prog.busy i { width: 30%; animation: an-busy 1.2s ease-in-out infinite alternate; }
+@keyframes an-busy { from { transform: translateX(0); } to { transform: translateX(233%); } }
+@media (prefers-reduced-motion: reduce) { .an-prog.busy i { animation: none; width: 100%; opacity: 0.4; } }
 .an-refine { margin: 2px 0 6px; font-size: var(--fs-xs); }
 .an-eng { margin: 2px 0 6px; font-size: var(--fs-xs); }
 
