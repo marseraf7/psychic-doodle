@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Trang hướng dẫn connector Caro x Gomoku cho Claude (MCP, server/src/mcp/) – 4 ngôn ngữ, dùng chung kiểu trang và
+       privacy.js (chọn ngôn ngữ) với privacy.html. Link "Documentation" khi nộp vào thư mục connector của Claude. -->
+  <title>Caro x Gomoku – Claude connector</title>
+  <meta name="description" content="Play Caro (Gomoku) against the computer, solve puzzles and get move suggestions inside Claude.">
+  <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style-extras.css">
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="policy-page.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.svg" alt=""><span id="brand-label">Caro x Gomoku</span></a>
+    <nav class="langs" aria-label="Language"><a href="#en" lang="en">EN</a><a href="#vi" lang="vi">VI</a><a href="#ru" lang="ru">RU</a><a href="#zh" lang="zh-CN">中文</a></nav>
+    <a class="back" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg><span id="back-label">Back to game</span></a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="en" lang="en" data-title="Caro x Gomoku – Claude connector" data-back="Back to game" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Caro x Gomoku for Claude</h1>
+      <p class="meta">Play Caro (Gomoku, five in a row) against the computer, solve puzzles and get move suggestions right inside a Claude conversation.</p>
+      <span class="updated">Updated: 2026-11-20</span>
+      <ul class="chips"><li>No account needed</li><li>Nothing stored</li><li>No ads</li><li>Free</li></ul>
+    </header>
+    <div class="card">
+      <h2>Set up</h2>
+      <p class="steps">From the directory: in Claude open <b>Settings</b> → <b>Connectors</b> → <b>Browse connectors</b>, search for <b>Caro x Gomoku</b> and click <b>Connect</b>.</p>
+      <p class="steps">As a custom connector: <b>Settings</b> → <b>Connectors</b> → <b>Add custom connector</b>, name it <b>Caro x Gomoku</b> and paste the server URL <b>https://caroxo.duckdns.org/mcp</b>. No sign-in is needed.</p>
+      <p>Then ask Claude, for example: <i>"Let's play Caro, I'll go first"</i>. When Claude asks to show the app, choose <b>Allow</b>.</p>
+    </div>
+    <div class="card">
+      <h2>What you can do</h2>
+      <ul class="list">
+        <li><b>Play against the computer</b> (play_caro): click on the board to move; choose Easy, Normal or Hard, play X or O, undo, start a new game. Four rule sets: Vietnamese Caro, freestyle Gomoku, standard Gomoku and Renju.</li>
+        <li><b>Get a hint</b> (suggest_caro_move): the best move for any position with a short reason.</li>
+        <li><b>Solve puzzles</b> (caro_puzzle): a daily puzzle or any of 363 puzzles; tap your answer, reveal the solution when you want.</li>
+        <li><b>Learn the rules</b> (caro_rules), see the <b>leaderboard</b> (caro_leaderboard) and <b>public player profiles</b> (caro_player) of the online server.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Example prompts</h2>
+      <ul class="list">
+        <li>"Let's play Caro on hard. I'll play O, you start."</li>
+        <li>"Give me today's Caro puzzle."</li>
+        <li>"What are the rules of Renju, and how is it different from Vietnamese Caro?"</li>
+        <li>"In this game X played [0,0],[1,1],[1,0] and O played [2,0],[0,1]. What should O play next?"</li>
+        <li>"Who are the top 5 blitz players on caroxo.duckdns.org?"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Troubleshooting</h2>
+      <ul class="list">
+        <li><b>The board does not appear:</b> allow Claude to display the app when asked (or set the connector to "Always allow"). The text answer still contains the position and the move.</li>
+        <li><b>"The Caro engine is busy":</b> many games are being computed at once. Wait a few seconds and try again.</li>
+        <li><b>"Too many requests":</b> wait the number of seconds shown and try again.</li>
+        <li><b>"Move N … is on an occupied cell" or "off the board":</b> coordinates are [x, y] from -30 to 30 with [0,0] in the center, x to the right and y downward. Ask Claude to start a new game if the move list got mixed up.</li>
+        <li>Other problems: open an issue at <a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Privacy</h2>
+      <p>The connector only receives moves, rules, puzzle numbers and public usernames. It needs no account and stores nothing. Details: <a href="privacy.html#claude-en">privacy policy</a>.</p>
+    </div>
+  </section>
+
+  <section id="vi" lang="vi" data-title="Caro x Gomoku – Connector cho Claude" data-back="Về game" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Caro x Gomoku trong Claude</h1>
+      <p class="meta">Chơi Caro với máy, giải đố và xin gợi ý nước đi ngay trong cuộc trò chuyện với Claude.</p>
+      <span class="updated">Cập nhật: 20/11/2026</span>
+      <ul class="chips"><li>Không cần tài khoản</li><li>Không lưu gì</li><li>Không quảng cáo</li><li>Miễn phí</li></ul>
+    </header>
+    <div class="card">
+      <h2>Cài đặt</h2>
+      <p class="steps">Từ thư mục connector: trong Claude mở <b>Settings</b> → <b>Connectors</b> → <b>Browse connectors</b>, tìm <b>Caro x Gomoku</b> rồi bấm <b>Connect</b>.</p>
+      <p class="steps">Thêm thủ công: <b>Settings</b> → <b>Connectors</b> → <b>Add custom connector</b>, đặt tên <b>Caro x Gomoku</b> và dán địa chỉ máy chủ <b>https://caroxo.duckdns.org/mcp</b>. Không cần đăng nhập.</p>
+      <p>Sau đó nhắn Claude, ví dụ: <i>"Chơi Caro với mình nhé, mình đi trước"</i>. Khi Claude xin phép hiện ứng dụng, chọn <b>Allow</b>.</p>
+    </div>
+    <div class="card">
+      <h2>Làm được gì</h2>
+      <ul class="list">
+        <li><b>Chơi với máy</b> (play_caro): chạm vào bàn cờ để đi; chọn mức Dễ, Vừa hoặc Khó, cầm X hoặc O, đi lại, ván mới. Bốn luật: Caro Việt Nam, Gomoku tự do, Gomoku tiêu chuẩn và Renju.</li>
+        <li><b>Xin gợi ý</b> (suggest_caro_move): nước tốt nhất cho một thế cờ kèm lý do ngắn.</li>
+        <li><b>Giải đố</b> (caro_puzzle): bài đố của ngày hoặc một trong 363 bài; chạm vào nước trả lời, muốn thì xem lời giải.</li>
+        <li><b>Xem luật</b> (caro_rules), <b>bảng xếp hạng</b> (caro_leaderboard) và <b>hồ sơ công khai</b> của kỳ thủ (caro_player) trên máy chủ online.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Câu hỏi mẫu</h2>
+      <ul class="list">
+        <li>"Chơi Caro mức khó nhé. Mình cầm O, bạn đi trước."</li>
+        <li>"Cho mình bài đố Caro của hôm nay."</li>
+        <li>"Luật Renju là gì, khác Caro Việt Nam thế nào?"</li>
+        <li>"Ván này X đã đi [0,0],[1,1],[1,0], O đã đi [2,0],[0,1]. O nên đi đâu?"</li>
+        <li>"Ai là 5 kỳ thủ blitz mạnh nhất trên caroxo.duckdns.org?"</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Khi gặp lỗi</h2>
+      <ul class="list">
+        <li><b>Không thấy bàn cờ:</b> cho phép Claude hiện ứng dụng khi được hỏi (hoặc đặt connector là "Always allow"). Câu trả lời chữ vẫn có thế cờ và nước đi.</li>
+        <li><b>"The Caro engine is busy":</b> máy chủ đang tính nhiều ván cùng lúc. Chờ vài giây rồi thử lại.</li>
+        <li><b>"Too many requests":</b> chờ đúng số giây được báo rồi thử lại.</li>
+        <li><b>"Move N … is on an occupied cell" hoặc "off the board":</b> toạ độ là [x, y] từ -30 đến 30, [0,0] ở giữa bàn, x sang phải, y xuống dưới. Nếu danh sách nước bị lẫn, hãy bảo Claude bắt đầu ván mới.</li>
+        <li>Lỗi khác: báo tại <a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Quyền riêng tư</h2>
+      <p>Connector chỉ nhận nước đi, luật, số bài đố và tên đăng nhập công khai. Không cần tài khoản, không lưu gì. Chi tiết: <a href="privacy.html#claude">chính sách quyền riêng tư</a>.</p>
+    </div>
+  </section>
+
+  <section id="ru" lang="ru" data-title="Caro x Gomoku – коннектор для Claude" data-back="К игре" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Caro x Gomoku в Claude</h1>
+      <p class="meta">Играйте в каро (гомоку, пять в ряд) с компьютером, решайте задачи и получайте подсказки прямо в разговоре с Claude.</p>
+      <span class="updated">Обновлено: 20.11.2026</span>
+      <ul class="chips"><li>Без аккаунта</li><li>Ничего не хранится</li><li>Без рекламы</li><li>Бесплатно</li></ul>
+    </header>
+    <div class="card">
+      <h2>Подключение</h2>
+      <p class="steps">Из каталога: в Claude откройте <b>Settings</b> → <b>Connectors</b> → <b>Browse connectors</b>, найдите <b>Caro x Gomoku</b> и нажмите <b>Connect</b>.</p>
+      <p class="steps">Вручную: <b>Settings</b> → <b>Connectors</b> → <b>Add custom connector</b>, назовите его <b>Caro x Gomoku</b> и вставьте адрес сервера <b>https://caroxo.duckdns.org/mcp</b>. Вход не нужен.</p>
+      <p>Затем напишите Claude, например: <i>«Давай сыграем в каро, я хожу первым»</i>. Когда Claude попросит показать приложение, выберите <b>Allow</b>.</p>
+    </div>
+    <div class="card">
+      <h2>Что можно делать</h2>
+      <ul class="list">
+        <li><b>Играть с компьютером</b> (play_caro): нажимайте на доску, чтобы ходить; выбирайте уровень (лёгкий, средний, сложный), играйте за X или O, отменяйте ход, начинайте новую партию. Четыре набора правил: вьетнамское каро, свободное гомоку, стандартное гомоку и рэндзю.</li>
+        <li><b>Получить подсказку</b> (suggest_caro_move): лучший ход в любой позиции с коротким объяснением.</li>
+        <li><b>Решать задачи</b> (caro_puzzle): задача дня или любая из 363 задач; нажмите на ответ, решение — по желанию.</li>
+        <li><b>Узнать правила</b> (caro_rules), посмотреть <b>рейтинг</b> (caro_leaderboard) и <b>публичные профили</b> игроков (caro_player) онлайн-сервера.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Примеры запросов</h2>
+      <ul class="list">
+        <li>«Сыграем в каро на сложном уровне. Я играю за O, ты начинаешь».</li>
+        <li>«Дай мне задачу дня по каро».</li>
+        <li>«Какие правила у рэндзю и чем оно отличается от вьетнамского каро?»</li>
+        <li>«В этой партии X сыграл [0,0],[1,1],[1,0], а O — [2,0],[0,1]. Как ходить O?»</li>
+        <li>«Кто 5 лучших игроков в блиц на caroxo.duckdns.org?»</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Если что-то не работает</h2>
+      <ul class="list">
+        <li><b>Доска не появляется:</b> разрешите Claude показывать приложение (или включите для коннектора «Always allow»). Текстовый ответ всё равно содержит позицию и ход.</li>
+        <li><b>«The Caro engine is busy»:</b> сервер считает много партий сразу. Подождите несколько секунд и повторите.</li>
+        <li><b>«Too many requests»:</b> подождите указанное число секунд и повторите.</li>
+        <li><b>«Move N … is on an occupied cell» или «off the board»:</b> координаты — [x, y] от -30 до 30, [0,0] в центре, x вправо, y вниз. Если список ходов перепутался, попросите Claude начать новую партию.</li>
+        <li>Другие проблемы: создайте issue на <a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Конфиденциальность</h2>
+      <p>Коннектор получает только ходы, правила, номера задач и публичные имена пользователей. Аккаунт не нужен, ничего не хранится. Подробнее: <a href="privacy.html#claude-ru">политика конфиденциальности</a>.</p>
+    </div>
+  </section>
+
+  <section id="zh" lang="zh-CN" data-title="Caro x Gomoku – Claude 连接器" data-back="返回游戏" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>在 Claude 中玩 Caro x Gomoku</h1>
+      <p class="meta">在与 Claude 的对话中直接和电脑下卡罗（五子棋），做题，获取着法建议。</p>
+      <span class="updated">更新日期：2026-11-20</span>
+      <ul class="chips"><li>无需账号</li><li>不保存数据</li><li>无广告</li><li>免费</li></ul>
+    </header>
+    <div class="card">
+      <h2>安装</h2>
+      <p class="steps">从目录添加：在 Claude 中打开 <b>Settings</b> → <b>Connectors</b> → <b>Browse connectors</b>，搜索 <b>Caro x Gomoku</b>，点击 <b>Connect</b>。</p>
+      <p class="steps">手动添加：<b>Settings</b> → <b>Connectors</b> → <b>Add custom connector</b>，名称填 <b>Caro x Gomoku</b>，服务器地址填 <b>https://caroxo.duckdns.org/mcp</b>。无需登录。</p>
+      <p>然后对 Claude 说，例如：<i>“来下一盘卡罗，我先走”</i>。Claude 请求显示应用时，选择 <b>Allow</b>。</p>
+    </div>
+    <div class="card">
+      <h2>可以做什么</h2>
+      <ul class="list">
+        <li><b>和电脑对局</b>（play_caro）：点击棋盘落子；可选简单、普通或困难，执 X 或 O，悔棋，开新对局。四种规则：越南卡罗、自由五子棋、标准五子棋和连珠。</li>
+        <li><b>获取提示</b>（suggest_caro_move）：任意局面的最佳着法和简短理由。</li>
+        <li><b>做题</b>（caro_puzzle）：每日一题或 363 道题中的任意一道；点击你的答案，需要时查看答案。</li>
+        <li><b>了解规则</b>（caro_rules），查看在线服务器的<b>排行榜</b>（caro_leaderboard）和<b>公开玩家资料</b>（caro_player）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>示例提问</h2>
+      <ul class="list">
+        <li>“用困难难度下一盘卡罗。我执 O，你先走。”</li>
+        <li>“给我今天的卡罗每日一题。”</li>
+        <li>“连珠有哪些规则？和越南卡罗有什么不同？”</li>
+        <li>“这盘棋 X 下了 [0,0]、[1,1]、[1,0]，O 下了 [2,0]、[0,1]。O 下一步该下哪里？”</li>
+        <li>“caroxo.duckdns.org 上快棋前 5 名是谁？”</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>常见问题</h2>
+      <ul class="list">
+        <li><b>棋盘没有显示：</b>Claude 请求显示应用时请允许（或把连接器设为 “Always allow”）。文字回答中仍有局面和着法。</li>
+        <li><b>“The Caro engine is busy”：</b>服务器正在同时计算很多对局。请等几秒后重试。</li>
+        <li><b>“Too many requests”：</b>请等待提示的秒数后重试。</li>
+        <li><b>“Move N … is on an occupied cell” 或 “off the board”：</b>坐标为 [x, y]，范围 -30 到 30，[0,0] 在中央，x 向右，y 向下。如果着法列表混乱，请让 Claude 开始新对局。</li>
+        <li>其他问题：请在 <a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a> 提交 issue。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>隐私</h2>
+      <p>连接器只接收着法、规则、题目编号和公开用户名。无需账号，不保存任何数据。详情：<a href="privacy.html#claude-zh">隐私政策</a>。</p>
+    </div>
+  </section>
+
+  <footer class="foot"><span id="foot-brand">Caro x Gomoku</span><a href="https://github.com/marseraf7/psychic-doodle/issues">Support · GitHub issues</a></footer>
+</main>
+<script src="privacy.js"></script>
+</body>
+</html>
