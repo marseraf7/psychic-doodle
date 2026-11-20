@@ -69,3 +69,26 @@ test('M-F6: render lại panel bạn bè giữ nguyên nội dung đang gõ, foc
   assert.strictEqual(doc.activeElement, second, 'focus phải trở lại ô nhập');
   assert.strictEqual(second.selectionStart, 4, 'vị trí con trỏ được giữ');
 });
+
+test('M-F6: chữ gõ vào ô cũ đúng lúc panel vẽ lại (ô cũ đã bị gỡ) vẫn được trả về ở lần vẽ sau', () => {
+  const S = { me: { id: 'me1', guest: false }, friends: { friends: [], incoming: [], outgoing: [] }, invites: new Set() };
+  const api = global.window.CaroOnlineFriends({ S, send: () => true, openDlg: () => {} });
+  api.renderFriends();
+  el.currentInput.value = '';
+  el.currentInput.oninput({ target: el.currentInput }); // bỏ chữ còn nhớ từ bài thử trước (bộ nhớ dùng chung của module)
+  api.renderFriends();
+  const old = el.currentInput;
+  api.renderFriends(); // vẽ lại ngay trước khi chữ kịp vào ô
+  // Chữ rơi vào ô cũ đã bị gỡ: oninput của ô cũ vẫn chạy (như Playwright fill / bàn phím đang gõ dở)
+  old.value = 'nguoi_la_';
+  old.oninput({ target: old });
+  assert.strictEqual(el.currentInput.value, '', 'ô mới chưa có chữ (đây là lúc chữ bị mất trước khi sửa)');
+  api.renderFriends(); // cập nhật hiện diện tiếp theo
+  assert.strictEqual(el.currentInput.value, 'nguoi_la_', 'lần vẽ sau lấy lại chữ đã gõ');
+  // Xoá chữ bằng tay rồi vẽ lại: không hồi sinh chữ đã xoá
+  const cur = el.currentInput;
+  cur.value = '';
+  cur.oninput({ target: cur });
+  api.renderFriends();
+  assert.strictEqual(el.currentInput.value, '', 'chữ đã xoá không quay lại');
+});

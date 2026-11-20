@@ -36,7 +36,7 @@
     function attachSearch() {
       const form = $('add-friend');
       if (!form) return;
-      if (window.CaroPlayerSearch) { window.CaroPlayerSearch.attach(form.u, { onPick: (u) => { $('add-friend').u.value = '@' + u.username; } }); return; }
+      if (window.CaroPlayerSearch) { window.CaroPlayerSearch.attach(form.u, { onPick: (u) => { $('add-friend').u.value = addDraft = '@' + u.username; } }); return; }
       if (searchWait) return; // đã hẹn: lúc đó gắn vào ô đang có (ô vẽ lại sau cùng)
       searchWait = true;
       window.addEventListener('DOMContentLoaded', () => { searchWait = false; attachSearch(); }, { once: true });
@@ -51,8 +51,10 @@
       const oldIn = el.querySelector('#add-friend input[name="u"]');
       // Chữ đang gõ còn được nhớ ở addDraft (cập nhật theo từng lần gõ): lần vẽ nào làm mất ô (vd. mất kết nối thoáng qua →
       // vẽ nhánh "chưa đăng nhập") thì lần vẽ sau vẫn trả lại chữ – trước đây chỉ đọc lại từ ô đang có nên mất luôn
-      const draft = oldIn ? { v: oldIn.value, f: document.activeElement === oldIn, s: oldIn.selectionStart, e: oldIn.selectionEnd } : { v: addDraft, f: false };
-      if (oldIn) addDraft = oldIn.value;
+      // Ô đang có còn trống mà addDraft có chữ: chữ vừa gõ đã rơi vào ô cũ bị gỡ đúng lúc vẽ lại (oninput của ô cũ vẫn ghi
+      // addDraft) → lấy lại từ addDraft. Xoá chữ bằng tay thì oninput cũng đặt addDraft = '' nên không hồi sinh chữ đã xoá.
+      const draft = oldIn ? { v: oldIn.value || addDraft, f: document.activeElement === oldIn, s: oldIn.selectionStart, e: oldIn.selectionEnd } : { v: addDraft, f: false };
+      if (oldIn) addDraft = draft.v;
       if (!S.me || S.me.guest) {
         if (S.me) addDraft = ''; // đã thành khách (đăng xuất): bỏ chữ gõ dở của tài khoản trước; !S.me = đang nối lại, giữ
         el.innerHTML = `<h3>${esc(T('friends'))}</h3><p class="hint">${esc(T('friends_login_hint'))}</p>`;
