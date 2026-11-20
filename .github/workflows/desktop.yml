@@ -35,6 +35,9 @@ jobs:
           - { name: macOS arm64, os: macos-latest, triple: aarch64-apple-darwin, exe: '' }
     env:
       TARGET_TRIPLE: ${{ matrix.triple }}
+      # Windows: bước chạy bằng Git Bash, /usr/bin/link (coreutils) che mất link.exe của MSVC – rustc gọi nhầm. Dùng lld-link
+      # của LLVM (đã có trên máy CI, build-rapfi.sh cũng dùng); hai biến này không ảnh hưởng Linux / macOS.
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: lld-link
     steps:
       # Windows: git mặc định đổi xuống dòng thành CRLF – script bash và bản vá Rapfi (*.patch) phải giữ LF
       - name: Giữ nguyên xuống dòng LF
@@ -145,6 +148,7 @@ jobs:
         working-directory: desktop
         run: |
           npm ci
+          rm -rf src-tauri/icons # thư mục sinh ra, không commit
           npx tauri icon ../app/assets/icon-only.png
           npx tauri build --target "$TARGET_TRIPLE" --config src-tauri/tauri.csp.json
       - name: Kích thước bộ cài

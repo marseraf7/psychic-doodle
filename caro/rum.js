@@ -24,7 +24,7 @@
     const body = {
       ttfb: n.responseStart, fcp: fcp && fcp.startTime, dcl: n.domContentLoadedEventEnd, load: n.loadEventEnd,
       lcp: m.lcp, cls: Math.round(m.cls * 1000) / 1000, inp: m.inp, loaf: m.loaf, longest: m.longest,
-      bundle: !!window.CARO_PACKS, app: !!window.CARO_APP_VERSION,
+      bundle: !!window.CARO_PACKS, app: !!window.CARO_APP_VERSION && !window.CARO_DESKTOP, desktop: !!window.CARO_DESKTOP,
     };
     for (const k of Object.keys(body)) if (typeof body[k] === 'number') body[k] = Math.round(body[k] * 1000) / 1000;
     try {

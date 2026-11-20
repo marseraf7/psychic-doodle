@@ -1,7 +1,7 @@
 /*
  * Số đo tốc độ từ máy người chơi (bước 2 của docs/nghien-cuu-viet-lai-rust-17-11-2026.md – "đo thực địa").
  *   POST /api/rum  – caro/rum.js gửi một lần mỗi lượt mở trang (sendBeacon, text/plain nên không cần preflight CORS):
- *                    { ttfb, fcp, lcp, dcl, load, inp, cls, loaf, longest, bundle, app }. Máy chủ đọc User-Agent để xếp
+ *                    { ttfb, fcp, lcp, dcl, load, inp, cls, loaf, longest, bundle, app, desktop }. Máy chủ đọc User-Agent để xếp
  *                    loại trình duyệt (Zalo, Messenger, Chrome…) rồi bỏ – không lưu User-Agent, IP hay tài khoản.
  *   GET  /api/rum  – bảng p50 / p75 / p95 mỗi chỉ số theo loại trình duyệt (+ bản gộp / từng file), cùng độ trễ vòng lặp
  *                    sự kiện của máy chủ (trung bình, p99, lớn nhất trong giờ gần nhất). Chỉ là số gộp chung.
@@ -17,7 +17,8 @@ const RATE = 30;
 const MAX_BODY = 2048;
 
 /** Loại trình duyệt từ User-Agent – trình duyệt trong app (Zalo, Messenger…) trước, rồi trình duyệt thường. */
-function kindOf(ua, app) {
+function kindOf(ua, app, desktop) {
+  if (desktop) return 'desktop'; // app desktop Tauri (desktop/)
   if (app) return 'app';
   const s = String(ua || '');
   if (/Zalo/i.test(s)) return 'zalo';
@@ -54,7 +55,7 @@ class Rum {
   /** Ghi một lượt đo (đã parse). Trả về false nếu không có số nào hợp lệ. */
   add(body, ua) {
     if (!body || typeof body !== 'object') return false;
-    const key = kindOf(ua, body.app === true) + (body.bundle === true ? '+b' : '');
+    const key = kindOf(ua, body.app === true, body.desktop === true) + (body.bundle === true ? '+b' : '');
     const vals = {};
     for (const m of METRICS) { const v = clean(m, body[m]); if (v !== null) vals[m] = v; }
     if (!Object.keys(vals).length) return false;
@@ -67,6 +68,13 @@ class Rum {
       if (a.length > KEEP) a.shift();
     }
     return true;
+  }
+
+  /** Bảng gộp, giữ 10 giây (GET /api/rum công khai: gọi dồn dập không bắt máy chủ sắp xếp lại mỗi lần). */
+  cachedSummary() {
+    const now = this.now();
+    if (!this.cache || now - this.cache.at > 10000) this.cache = { at: now, body: this.summary() };
+    return this.cache.body;
   }
 
   /** Bảng gộp: { kinds: { key: { n, fcp: { p50, p75, p95, n } … } }, server: { loopMean, loopP99, loopMax } }. */
@@ -96,7 +104,7 @@ class Rum {
         'cache-control': 'no-store', 'access-control-allow-origin': '*' });
       res.end(buf);
     };
-    if (req.method === 'GET') { send(200, this.summary()); return true; }
+    if (req.method === 'GET') { send(200, this.cachedSummary()); return true; }
     if (req.method !== 'POST') { send(405); return true; }
     const now = this.now();
     let h = this.hits.get(ip);

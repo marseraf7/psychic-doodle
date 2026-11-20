@@ -89,6 +89,9 @@ function build(dir) {
   if (bodyAt < 0) throw new Error('index.html không có <body>');
   const head = html.slice(0, bodyAt), body = html.slice(bodyAt);
   const names = [...body.matchAll(TAG)].map((m) => m[1]);
+  // Thẻ <script> khác dạng chuẩn (có defer / type / async…) mà gộp thì nó chạy trước mọi khối defer – đổi thứ tự âm thầm.
+  // Gặp là thôi gộp (phục vụ từng file như cũ) để lỗi lộ ra ngay ở bản gộp lẫn bản gốc.
+  if ((body.match(/<script\b/g) || []).length !== names.length) throw new Error('có thẻ <script> trong <body> không đúng dạng <script src="…"></script>');
   if (names.length < 2) throw new Error('index.html không có thẻ <script> để gộp');
   for (const n of names) if (!/^[\w./-]+\.js$/.test(n) || n.includes('..')) throw new Error('tên file lạ: ' + n);
 
@@ -157,14 +160,17 @@ function makeBundle(dir, { log = console.error } = {}) {
     const now = Date.now();
     if (now - checked < 1000) return cur;
     checked = now;
+    // Chữ ký: index.html, sw.js và mọi file đã gộp (sửa một file JS mà quên tăng CACHE, hay cập nhật code ghi file lần
+    // lượt, đều dựng lại – không phục vụ mãi một bản lẫn file cũ / mới)
+    const sigOf = (names) => ['index.html', 'sw.js'].concat(names).map((f) => fs.statSync(path.join(dir, f)).mtimeMs).join(':');
     let s;
-    try { s = ['index.html', 'sw.js'].map((f) => fs.statSync(path.join(dir, f)).mtimeMs).join(':'); } catch (e) { return cur; }
+    try { s = sigOf(cur ? cur.names : []); } catch (e) { return cur; }
     if (s === sig) return cur;
     try {
       const b = build(dir);
       if (cur) old = cur.files;
       cur = b;
-      sig = s;
+      sig = sigOf(b.names); // tính lại theo đúng các file vừa gộp
       failed = '';
     } catch (e) {
       sig = s;
@@ -179,6 +185,7 @@ function makeBundle(dir, { log = console.error } = {}) {
     const b = current();
     return (b && b.files.get(name)) || old.get(name) || null;
   }
+  current(); // dựng ngay khi tạo (lúc máy chủ khởi động, trước khi nhận kết nối) – không để yêu cầu đầu tiên phải chờ
   return { current, file };
 }
 
