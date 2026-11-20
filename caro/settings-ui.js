@@ -8,6 +8,19 @@
  */
 (function () {
   'use strict';
+  /**
+   * Số phiên bản từ tên bộ nhớ đệm: "caro-v214" (trang từng file) hoặc "caro-v214-b<mã>" (bản gộp – web-bundle.js đổi tên
+   * CACHE). Trả về "v214" của bản số lớn nhất, không có thì ''. Trước đây chỉ nhận "caro-vNNN" nên bản gộp không hiện số.
+   */
+  function pickVersion(keys) {
+    let best = -1;
+    for (const k of keys || []) {
+      const m = /^caro-v(\d+)(?:-b[\w-]+)?$/.exec(k);
+      if (m && Number(m[1]) > best) best = Number(m[1]);
+    }
+    return best < 0 ? '' : 'v' + best;
+  }
+  if (typeof window === 'undefined') { module.exports = { pickVersion }; return; } // kiểm thử trên Node
   const $ = (id) => document.getElementById(id);
   const T = window.I18N.t;
   const form = $('settings-form');
@@ -54,11 +67,13 @@
    */
   function showVersion() {
     const el = $('app-ver');
-    if (!el || !window.caches) return;
-    caches.keys().then((keys) => {
-      const v = keys.filter((k) => /^caro-v\d+$/.test(k)).sort((a, b) => Number(b.slice(6)) - Number(a.slice(6)))[0];
-      el.textContent = v ? T('app_version', { v: v.slice(5) }) : '';
-    }).catch(() => {});
+    if (!el) return;
+    const put = (v) => { el.textContent = v ? T('app_version', { v }) : ''; };
+    // Chưa có bộ nhớ đệm (Service Worker chưa cài xong / bị chặn): đọc tên CACHE trong sw.js
+    const fromSw = () => fetch('sw.js', { cache: 'no-cache' }).then((r) => (r.ok ? r.text() : ''))
+      .then((t) => { const m = /const CACHE = '([^']+)'/.exec(t); put(pickVersion(m ? [m[1]] : [])); }).catch(() => {});
+    if (!window.caches) { fromSw(); return; }
+    caches.keys().then((keys) => { const v = pickVersion(keys); if (v) put(v); else fromSw(); }).catch(fromSw);
   }
 
   form.addEventListener('click', (e) => {

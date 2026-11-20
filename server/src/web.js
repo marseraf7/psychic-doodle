@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const { boardPng } = require('./png.js');
 const { makeBundle } = require('./web-bundle.js');
+const { sendStatic } = require('./static-file.js');
 const { Rum } = require('./rum.js');
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
@@ -386,14 +387,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (!file.startsWith(STATIC_DIR + path.sep) || url.includes('/tests/')) { res.writeHead(404); return res.end(); }
     fs.stat(file, (err, st) => {
       if (err || !st.isFile()) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('Không tìm thấy'); }
-      res.writeHead(200, {
-        'content-type': MIME[path.extname(file)] || 'application/octet-stream',
-        'content-length': st.size,
-        'cache-control': 'no-cache',
-      });
-      if (req.method === 'HEAD') return res.end();
-      // File bị thay / xoá giữa chừng (update.sh đang cập nhật code): đóng kết nối, không để lỗi luồng làm sập tiến trình (L-S4)
-      fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
+      sendStatic(req, res, file, st, MIME[path.extname(file)] || 'application/octet-stream'); // ETag + 304 (static-file.js)
     });
   };
 }
