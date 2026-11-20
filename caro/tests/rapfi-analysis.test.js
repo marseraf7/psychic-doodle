@@ -115,3 +115,13 @@ test('warm(rule): gọi ready(rule, 0) – không chờ; luật không có Rapfi
   An.warm('free');
   assert.deepEqual(calls, [['free', 0]]);
 });
+
+// Rà soát (review 20/11/2026): Rapfi không nạp được (hết hạn chờ / lỗi WASM) → evaluate trả null và study.js chuyển sang
+// engine của game – trước đây không báo gì sau 'load' nên bảng phân tích kẹt "Đang nạp máy phân tích…" suốt lượt engine
+// (tiến độ % không hiện). Nay báo 'fail' để giao diện thôi trạng thái nạp.
+test('onStage: Rapfi không nạp được → báo "fail" sau "load"', async () => {
+  const { An } = load({ ready: async () => false });
+  const seen = [];
+  assert.equal(await An.evaluate({ moves: MOVES, rule: 'free', ms: 100, onStage: (s) => seen.push(s) }), null);
+  assert.deepEqual(seen, ['load', 'fail']);
+});

@@ -12,7 +12,7 @@
  * Kết quả có src: 'rapfi' để không lẫn với thế engine đã chấm (phân tích nhanh / phân tích ngầm).
  *   CaroRapfiAn.handles(rule) · CaroRapfiAn.evaluate({ moves, rule, ms, evals, onProgress, onStage }) → evals | null
  *     onStage('load'): đang nạp máy phân tích (WASM + mạng ~6 MB lần đầu, hỏi bộ nhớ dùng chung) – chưa có tiến độ;
- *     onStage('run'): bắt đầu chấm (tiến độ đến qua onProgress)
+ *     onStage('run'): bắt đầu chấm (tiến độ đến qua onProgress); onStage('fail'): Rapfi không nạp được (trả null)
  *   CaroRapfiAn.warm(rule) – bắt đầu nạp Rapfi sớm (không chờ), vd. lúc mở phân tích trong khi lượt nhanh của engine chạy
  *   CaroRapfiAn.convert(ev, move, ms, rule) · CaroRapfiAn.cancel()
  */
@@ -112,7 +112,9 @@
     const my = ++job;
     const stage = (s) => { if (onStage && my === job) onStage(s); };
     stage('load'); // rà soát 20/11/2026: trước đây đứng "0%" ~10 giây trong lúc nạp, người dùng tưởng treo
-    if (!(await R().ready(rule, LOAD_WAIT)) || my !== job) return null;
+    // Không nạp được (hết hạn chờ / lỗi): báo 'fail' – study.js chuyển sang engine của game, thôi hiện "Đang nạp…"
+    if (!(await R().ready(rule, LOAD_WAIT))) { stage('fail'); return null; }
+    if (my !== job) return null;
     const n = moves.length, last = lastPos(moves, rule);
     const ev = Array.from({ length: n + 1 }, (_, i) => (evals && ours(evals[i], ms) ? evals[i] : null));
     let todo = [];
