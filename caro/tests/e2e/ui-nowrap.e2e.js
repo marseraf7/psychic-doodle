@@ -55,6 +55,12 @@ const LANGS = ['vi', 'en', 'ru', 'zh'];
     });
     ok(!lb.over && lb.labs.every((l) => l.one && l.in && (!l.cut || (l.ell && l.title))), `${lang} @${w}: tab Bảng xếp hạng một dòng, không tràn ${JSON.stringify(lb.labs.filter((l) => !l.one || !l.in || l.cut))}`);
     ok(await noHScroll(p), `${lang} @${w}: không cuộn ngang`);
+    if (lang === 'vi' && w === 390) {
+      // Đổi ngôn ngữ lúc bảng đang mở: title của tab (tên đầy đủ khi nhãn bị "…") theo ngôn ngữ mới
+      await p.evaluate(() => window.I18N.setLang('en')); await sleep(400);
+      const tl = await p.evaluate(() => [...document.querySelectorAll('#lb-tabs label')].map((l) => [l.title, l.textContent.trim()]));
+      ok(tl.length === 5 && tl.every(([t, x]) => t === x) && tl.some(([t]) => /Bullet|Blitz/.test(t)),`vi → en lúc bảng xếp hạng đang mở: title tab theo ngôn ngữ mới ${JSON.stringify(tl)}`);
+    }
     await p.context().close();
   }
 

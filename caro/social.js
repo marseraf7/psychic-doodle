@@ -22,10 +22,11 @@
   // ------------------------------------------------------------ Bảng xếp hạng
   let board = null;
   const lbPool = () => (document.querySelector('input[name="lb-pool"]:checked') || {}).value || '';
+  // Nhãn tab có thể bị cắt "…" ở màn rất hẹp: tên đầy đủ trong title (đổi ngôn ngữ lúc đang mở thì đặt lại)
+  const lbTitles = () => document.querySelectorAll('#lb-tabs label').forEach((l) => { l.title = l.textContent.trim(); });
   function openLeaderboard() {
     board = null;
-    // Nhãn tab có thể bị cắt "…" ở màn rất hẹp: tên đầy đủ trong title
-    document.querySelectorAll('#lb-tabs label').forEach((l) => { l.title = l.textContent.trim(); });
+    lbTitles();
     renderLeaderboard();
     N.openDlg('leaderboard');
     N.send({ t: 'leaderboard', pool: lbPool() || undefined });
@@ -390,7 +391,7 @@
   window.CaroSocial = { open, openChat, openReport, errorTarget };
 
   window.addEventListener('langchange', () => {
-    if (N.isOpen('leaderboard')) renderLeaderboard();
+    if (N.isOpen('leaderboard')) { lbTitles(); renderLeaderboard(); }
     if (N.isOpen('chat')) renderChat();
     if (N.isOpen('account-dlg')) fillAccount();
     if (N.isOpen('forgot')) renderForgot();
