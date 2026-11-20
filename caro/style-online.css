@@ -183,6 +183,20 @@ input:not([type="range"]):focus { outline: 2px solid var(--accent); outline-offs
 }
 .invite > div { flex: 1; min-width: 0; font-size: var(--fs-sm); }
 .invite small { display: block; color: var(--muted); font-size: var(--fs-xs); }
+/* Thẻ mời khách mở link chia sẻ (share-link.js, A3): nút hành động "Chơi ngay" / "Vào phòng" / "Đăng ký giải". Có khung
+   trang: dưới cùng, trên thanh tab; trên bàn cờ: phía trên. Chữ gợi ý được xuống dòng (tiếng Nga dài), nút không co. */
+.link-cta {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 16;
+  display: flex; align-items: center; gap: 8px; width: min(420px, calc(100% - 16px));
+  background: var(--panel); border: 1px solid var(--panel-border); border-radius: 14px; box-shadow: var(--shadow); padding: 8px 10px;
+  color: var(--text); /* nằm được cả trong hộp thoại (share-link.js) */
+}
+.link-cta[hidden] { display: none; }
+body.shell-on .link-cta { bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); }
+/* Trên bàn cờ (xem lại / xem trực tiếp): dưới thanh trên + thẻ người chơi – phía dưới đã có thẻ người chơi, nút về giữa */
+body:not(.shell-on) .link-cta { bottom: auto; top: calc(64px + var(--strip-h, 48px) + 8px + env(safe-area-inset-top)); }
+.link-cta .lc-hint { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--muted); }
+.link-cta button { flex: none; }
 /* Lời thách đấu đã gửi (online-friends.js, Issue #128): dạt sang bên phải cho đỡ vướng giữa màn hình. */
 .invites .invite.invite-right { align-self: flex-end; }
 /* Thẻ lời mời nổi gọn lại (1 ô hẹp dạt hẳn phải, không đè thanh công cụ): chỉ áp cho thẻ

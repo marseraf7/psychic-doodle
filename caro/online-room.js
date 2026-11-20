@@ -69,7 +69,7 @@
       if (r.public) $('ri-time').textContent += ' · 🌐 ' + T('public_tag');
       $('ri-link').value = inviteLink(r.code);
       $('ri-link').closest('.link-row').hidden = r.kind === 'series' || !!r.tour;
-      $('ri-share').hidden = r.kind === 'series' || !!r.tour || !navigator.share;
+      $('ri-share').hidden = r.kind === 'series' || !!r.tour; // không có bảng chia sẻ của máy: sao chép link (share-link.js)
       $('ri-tour').hidden = !r.tour;
       const friendIds = new Set(S.friends.friends.map((f) => 'u_' + f.id));
       const pending = new Set(S.friends.outgoing.map((f) => 'u_' + f.id));
@@ -106,7 +106,7 @@
       toast(T('copied'));
     };
     $('ri-share').onclick = () => {
-      navigator.share({ title: T('app_title'), text: T('share_text', { code: S.room.code }), url: inviteLink(S.room.code) }).catch(() => {});
+      window.CaroShareLink.send({ title: T('app_title'), text: T('share_text', { code: S.room.code }), url: inviteLink(S.room.code) });
     };
 
     $('btn-room').onclick = openRoomInfo;

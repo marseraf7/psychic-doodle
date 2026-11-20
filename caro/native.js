@@ -79,13 +79,13 @@
 
   // ------------------------------------------------------------ Link sâu (H-A5)
   // Link mời phòng / xem lại / giải đấu / câu lạc bộ trên web đều dùng tham số truy vấn
-  // (?room= ?replay= ?t= ?club=) và mã web đã xử lý chúng từ location.search. Trong app,
+  // (?room= ?replay= ?t= ?o= ?club= ?u=) và mã web đã xử lý chúng từ location.search. Trong app,
   // link https của máy chủ (App Links / Universal Links) hoặc link scheme riêng mở app qua
   // sự kiện appUrlOpen: chép đúng các tham số đó vào địa chỉ của app rồi nạp lại trang —
   // phần còn lại để mã web sẵn có xử lý như khi mở link trên trình duyệt.
   let routeLink = null;
   if (P.App) {
-    const LINK_KEYS = ['room', 'replay', 't', 'club'];
+    const LINK_KEYS = ['room', 'replay', 't', 'o', 'club', 'u']; // như share-link.js (A3)
     routeLink = (url) => {
       try {
         const u = new URL(String(url));

@@ -329,14 +329,10 @@
     u.searchParams.set('replay', share);
     return u.toString();
   }
-  async function shareReplay(g) {
-    const url = replayLink(g.share);
-    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-      return navigator.share({ title: T('app_title'), text: T('replay_share_text', { x: g.x || T('deleted_player'), o: g.o || T('deleted_player') }), url }).catch(() => {});
-    }
-    // Không chép được (trình duyệt nhúng): hiện link trong ô để người dùng tự chép
-    try { await navigator.clipboard.writeText(url); } catch (e) { await window.CaroConfirm.prompt(T('share_game'), url, { max: 500 }); return; }
-    toast(T('replay_copied'));
+  /** Chia sẻ link xem lại: bảng chia sẻ của máy, hoặc sao chép kèm lời nhắn (share-link.js). */
+  function shareReplay(g) {
+    return window.CaroShareLink.send({ url: replayLink(g.share), title: T('app_title'),
+      text: T('replay_share_text', { x: g.x || T('deleted_player'), o: g.o || T('deleted_player') }) });
   }
   /** Ván đã lưu trên máy chủ: dữ liệu, 'missing' (không còn) hoặc null (lỗi mạng). Dùng cả cho "Lưu về máy" (history.js). */
   async function fetchReplay(share) {
@@ -399,9 +395,9 @@
   // Kết nối sẵn khi có tài khoản (để bạn bè thấy mình online), đang ở trong phòng, hoặc mở bằng link mời.
   function start() {
     serverChecked = true;
-    // (?t= / ?club= / ?o=: link giải đấu / câu lạc bộ / giải offline; đang ở Trang chủ / Xem: cần danh sách trận, sảnh)
+    // (?t= / ?club= / ?o= / ?u=: link giải đấu / câu lạc bộ / giải offline / hồ sơ kỳ thủ; đang ở Trang chủ / Xem: cần danh sách trận, sảnh)
     const page = window.CaroShell && window.CaroShell.current;
-    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club|o)=/.test(location.search) || page === 'home' || page === 'watch')) connect();
+    if (wsUrl && (LS.get('caro.token') || LS.get('caro.inRoom') || pendingLink || /[?&](t|club|o|u)=/.test(location.search) || page === 'home' || page === 'watch')) connect();
     render();
     checkReplayLink();
   }

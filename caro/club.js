@@ -59,7 +59,7 @@
     if (c.role && c.role !== 'owner') b.push(`<button type="button" class="ghost" data-act="clubLeave">${esc(T('club_leave'))}</button>`);
     if (can('tours') && c.status === 'approved') b.push(`<button type="button" class="ghost" data-act="tourNewClub">${icon('trophy')}${esc(T('club_new_tour'))}</button>`);
     if (c.officer) b.push(`<button type="button" class="ghost" data-act="clubAdmin">${icon('gear')}${esc(T('club_manage'))}${c.requests.length ? ` <i class="count">${c.requests.length}</i>` : ''}</button>`);
-    b.push(`<button type="button" class="ghost" data-act="clubShare">${icon('link')}${esc(T('share'))}</button>`);
+    b.push(`<button type="button" class="primary" data-act="clubShare">${icon('link')}${esc(T('share'))}</button>`);
     if (!me()) b.push(`<span class="hint">${esc(T('tour_login_hint'))}</span>`);
     html += `<div class="row tactions">${b.join('')}</div>`;
     // Tin gửi toàn CLB (thành viên): mới nhất trước; tự tắt / bật nhận tin
@@ -121,7 +121,7 @@
   K.acts.club = (b) => { open('club', b.dataset.id); };
   K.acts.tourNewClub = () => { if (K.tourDraft) K.tourDraft.begin(D.club.id); open('tourNew', D.club.id); };
   K.acts.clubNew = () => { open('clubNew', null); };
-  K.acts.clubShare = (b) => { share(shareLink('club', D.club.id), D.club.name); };
+  K.acts.clubShare = (b) => { share(shareLink('club', D.club.id), D.club.name, T('sl_text_club', { name: D.club.name })); };
   K.acts.clubJoin = (b) => { O.send({ t: 'clubJoin', id: D.club.id, code: ($('club-code') || {}).value, msg: ($('club-msg') || {}).value }); };
   K.acts.clubAdmin = () => { open('clubAdmin', D.club.id); };
   K.acts.clubMute = (b) => { O.send({ t: 'clubMute', id: D.club.id, mute: !b.checked }); };

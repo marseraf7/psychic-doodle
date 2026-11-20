@@ -23,6 +23,7 @@
  *   disputes.js    – ván giải đấu mất kết nối: ban tổ chức công nhận / huỷ kết quả / cho đấu lại
  *   playban.js     – chống bỏ ván: ghi cư xử, cấm tìm trận tạm thời
  *   api.js         – số liệu máy chủ cho quản trị viên, API công khai chỉ đọc
+ *   og.js          – dữ liệu thẻ xem trước link chia sẻ (Zalo / Messenger): ván, phòng, giải, CLB, hồ sơ
  *   evals.js       – bộ nhớ điểm dùng chung cho phân tích ván bằng Rapfi (evalcache.js)
  *   avatar.js      – ảnh đại diện của tài khoản (kiểm ảnh: ../avatar.js; phục vụ ảnh: web.js)
  *   lobby.js       – ping (độ trễ máy chủ, số người online / số ván đang đấu), tìm kỳ thủ theo tên
@@ -76,12 +77,13 @@ const { Profile } = require('./profile.js');
 const { Playban } = require('./playban.js');
 const { Disputes } = require('./disputes.js');
 const { Api } = require('./api.js');
+const { Og } = require('./og.js'); // thẻ xem trước link chia sẻ (A3)
 const { Evals } = require('./evals.js');
 const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Og, Disputes, Evals, Lobby, AvatarPart]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

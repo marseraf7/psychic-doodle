@@ -16,11 +16,11 @@
   const POOLS = ['bullet', 'blitz', 'rapid', 'classical'];
 
   let profile = null, chartPool = null;
-  function openProfile(id) {
+  function openProfile(id, username) {
     profile = null;
     $('profile-body').innerHTML = '<p class="hint">…</p>';
     N.openDlg('profile-dlg');
-    N.send({ t: 'profile', id });
+    N.send(id ? { t: 'profile', id } : { t: 'profile', username });
   }
   N.on('profile', (m) => {
     profile = m.profile;
@@ -145,6 +145,8 @@
     const sameRoom = S.room && S.room.players.some((q) => q.id === 'u_' + p.id); // đang đấu với chính mình
     if (p.canHistory) actions.push(`<button type="button" class="ghost sm" data-hist>${esc(T('hist_open'))}</button>`);
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
+    // Chia sẻ hồ sơ (link ?u=<tên đăng nhập> – khách mở xem được ngay, Zalo / Messenger hiện thẻ xem trước)
+    actions.push(`<button type="button" class="primary sm" data-pf-share>${esc(T('sl_share_profile'))}</button>`);
     $('profile-body').innerHTML = `
       <div class="who pf-who">${window.CaroAvatar.html(p)}
         <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
@@ -174,6 +176,9 @@
     if (window.CaroProfileBio) window.CaroProfileBio.bind(body, p, (bio) => { if (bio !== undefined) p.bio = bio; renderProfile(); });
     body.querySelectorAll('[data-pool]').forEach((b) => { b.onclick = () => { chartPool = b.dataset.pool; renderProfile(); }; });
     body.querySelectorAll('[data-replay]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); N.openReplay(b.dataset.replay); }; });
+    body.querySelectorAll('[data-pf-share]').forEach((b) => {
+      b.onclick = () => window.CaroShareLink.send({ url: window.CaroShareLink.url('u', p.username), title: p.name, text: T('sl_text_user', { name: p.name }) });
+    });
     body.querySelectorAll('[data-hist]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroHistory.open(p.id, p.name); }; });
     body.querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendAdd', id: b.dataset.add }); b.disabled = true; }; });
     body.querySelectorAll('[data-accept-pf]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendRespond', id: b.dataset.acceptPf, accept: true }); b.disabled = true; }; });
@@ -210,5 +215,6 @@
   });
 
   window.addEventListener('langchange', () => { if (N.isOpen('profile-dlg')) renderProfile(); });
-  window.CaroProfile = { open: openProfile };
+  /** Mở hồ sơ theo tên đăng nhập (link ?u= – share-link.js). */
+  window.CaroProfile = { open: openProfile, openName: (username) => openProfile(null, username) };
 })();
