@@ -20,6 +20,7 @@ const { boardPng } = require('./png.js');
 const { makeBundle } = require('./web-bundle.js');
 const { sendStatic } = require('./static-file.js');
 const { Rum } = require('./rum.js');
+const { rapfiNetSources } = require('./csp-nets.js');
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
@@ -31,13 +32,14 @@ const PNG_GLOBAL_PER_S = 10;
 
 // Chính sách bảo mật nội dung: chỉ chạy script của chính trang (và Google khi bật đăng nhập Google).
 // 'wasm-unsafe-eval': cho phép biên dịch WebAssembly (Rapfi của BOAT – caro/rapfi/), không mở eval cho JavaScript.
-// connect-src thêm 2 CDN của repo mạng Rapfi (CC0): mạng ~10 MB tải khi người chơi đấu BOAT (caro/rapfi/worker.js).
+// connect-src thêm đúng thư mục mạng Rapfi (CC0) trên jsDelivr / GitHub raw ở commit đã ghim: mạng ~10 MB tải khi người chơi
+// đấu BOAT (caro/rapfi/worker.js) – không mở cả origin (I-11, csp-nets.js).
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client",
   "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   "img-src 'self' data: https://*.googleusercontent.com",
-  "connect-src 'self' ws: wss: https://accounts.google.com/gsi/ https://cdn.jsdelivr.net https://raw.githubusercontent.com",
+  `connect-src 'self' ws: wss: https://accounts.google.com/gsi/ ${rapfiNetSources()}`,
   'frame-src https://accounts.google.com/gsi/',
   "frame-ancestors 'none'",
   "base-uri 'none'",
