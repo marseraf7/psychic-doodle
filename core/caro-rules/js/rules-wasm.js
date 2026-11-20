@@ -3,10 +3,13 @@
  *   EMPTY, X, O, DIRS, RULES, ruleOf, key, other, Board, lineWin, checkWin, winsIfPlaced, forbidden, winLen
  * thêm: checkWinMoves(rule, moves), forbiddenMoves(rule, moves, x, y) – kiểu "không trạng thái" (dãy nước (x,y),
  *       X đi trước); mayForbid, forbiddenRaw – chỉ để kiểm tra bước lọc nhanh; exports – các hàm caro_* gốc.
- * Thí điểm (docs/thi-diem-rust-luat-choi.md): CHƯA nối vào trò chơi. Chạy được trên Node (đọc file bằng fs) và
- * trình duyệt (fetch + instantiateStreaming). Toạ độ phải là số nguyên 32 bit (WASM nhận i32).
+ * Thí điểm (docs/thi-diem-rust-luat-choi.md): trò chơi vẫn dùng rules.js; máy chủ chạy bóng bản này
+ * (server/src/rules-shadow.js). Chạy được trên Node (đọc file bằng fs) và trình duyệt (fetch + instantiateStreaming).
+ * Toạ độ phải là số nguyên 32 bit (WASM nhận i32).
  *
- *   const R = await CaroRulesWasm.load();              // Node: mặc định ./caro_rules.wasm cạnh file này
+ *   const R = await CaroRulesWasm.load();              // Node: mặc định ./caro_rules.wasm cạnh file này; chưa dựng
+ *                                                      // thì lấy bản đã commit server/vendor/caro_rules.wasm
+ *   const R2 = CaroRulesWasm.loadSync();               // Node: nạp đồng bộ (cùng cách tìm file)
  *   const b = new R.Board('renju'); b.play(0, 0, R.X); R.forbidden(b, 1, 1, R.X); b.free();
  */
 (function (global) {
@@ -19,13 +22,19 @@
   const PLAY_ERR = { 1: 'out_of_range', 2: 'occupied' };
   const isNode = typeof process !== 'undefined' && !!(process.versions && process.versions.node);
 
+  /** Node: file .wasm mặc định – bản vừa dựng cạnh loader, không có thì bản đã commit của máy chủ. */
+  function nodeFile(src) {
+    if (src) return src;
+    const fs = require('fs'), path = require('path');
+    const built = path.join(__dirname, 'caro_rules.wasm');
+    return fs.existsSync(built) ? built : path.join(__dirname, '..', '..', '..', 'server', 'vendor', 'caro_rules.wasm');
+  }
+
   /** Đọc byte của file .wasm: Uint8Array/ArrayBuffer dùng luôn; chuỗi là đường dẫn (Node) hoặc URL (trình duyệt). */
   async function instantiate(src) {
     if (src instanceof ArrayBuffer || ArrayBuffer.isView(src)) return (await WebAssembly.instantiate(src, {})).instance;
     if (isNode && (src === undefined || typeof src === 'string') && !/^https?:/.test(src || '')) {
-      const fs = require('fs'), path = require('path');
-      const file = src || path.join(__dirname, 'caro_rules.wasm');
-      return (await WebAssembly.instantiate(fs.readFileSync(file), {})).instance;
+      return (await WebAssembly.instantiate(require('fs').readFileSync(nodeFile(src)), {})).instance;
     }
     const url = src || 'caro_rules.wasm';
     if (WebAssembly.instantiateStreaming) {
@@ -146,8 +155,13 @@
   }
 
   async function load(src) { return makeApi(await instantiate(src)); }
+  /** Chỉ Node: nạp đồng bộ từ đường dẫn (mặc định như load) hoặc từ byte. */
+  function loadSync(src) {
+    const bytes = src instanceof ArrayBuffer || ArrayBuffer.isView(src) ? src : require('fs').readFileSync(nodeFile(src));
+    return makeApi(new WebAssembly.Instance(new WebAssembly.Module(bytes), {}));
+  }
 
-  const api = { load, makeApi };
+  const api = { load, loadSync, makeApi };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroRulesWasm = api;
 })(typeof window !== 'undefined' ? window : globalThis);
