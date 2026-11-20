@@ -457,6 +457,8 @@
       </div>
       <h3 class="list-h" data-i18n="set_more"></h3>
       <div class="list">
+        <!-- Cài ứng dụng (pwa-install.js): ẩn trong app, khi đã cài, khi trình duyệt không cài được -->
+        <button type="button" class="li" id="set-install" hidden><svg class="ico li-ic" aria-hidden="true"><use href="#i-phone"/></svg><span class="li-t" data-i18n="inst_title"></span><span class="li-v" id="set-install-v"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <button type="button" class="li" data-open="habits"><svg class="ico li-ic" aria-hidden="true"><use href="#i-medal2"/></svg><span class="li-t" data-i18n="habits_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <a class="li privacy-link" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-shield"/></svg><span class="li-t" data-i18n="privacy"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
         <a class="li licenses-link" href="licenses.html" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-info"/></svg><span class="li-t" data-i18n="licenses"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
@@ -1126,6 +1128,7 @@
   <script src="i18n-demos.js"></script>
   <script src="i18n-shell.js"></script>
   <script src="i18n-share.js"></script>
+  <script src="i18n-install.js"></script>
   <script src="i18n-tc.js"></script>
   <script src="i18n-history.js"></script>
   <script src="i18n-local.js"></script>
@@ -1310,6 +1313,7 @@
   <script src="draw-lines.js"></script>
   <script src="bar-menu.js"></script>
   <script src="settings-ui.js"></script>
+  <script src="pwa-install.js"></script>
   <script src="more.js"></script>
   <script src="home.js"></script>
   <script src="home-hero.js"></script>

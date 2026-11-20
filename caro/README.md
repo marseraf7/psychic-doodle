@@ -547,6 +547,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `club.js` | Câu lạc bộ: danh sách, trang CLB, tạo CLB, quản lý thành viên |
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
 | `share-link.js`, `i18n-share.js` | Link chia sẻ (`CaroShareLink`): dựng link `?replay=` `?room=` `?t=` `?o=` `?club=` `?u=`, gửi bằng bảng chia sẻ của máy hoặc sao chép kèm lời nhắn; khách mở link thấy nội dung ngay kèm thẻ "Chơi ngay" / "Vào phòng" / "Đăng ký giải"; link hồ sơ `?u=`. Máy chủ chèn thẻ xem trước og (`server/src/og-meta.js`, `hub/og.js`) |
+| `pwa-install.js`, `i18n-install.js` | Cài ứng dụng (`CaroInstall`): hàng ở Cài đặt + thẻ Trang chủ từ lần mở thứ 2 – hộp cài của trình duyệt (beforeinstallprompt), gợi ý iPhone "Chia sẻ → Thêm vào MH chính", trong Zalo / Messenger gợi ý "Mở bằng trình duyệt"; ẩn trong app điện thoại / máy tính và khi đã cài |
 | `sched.js`, `sw-boot.js`, `sw.js` | Chia việc khởi động thành việc CPU ngắn (`CaroSched`: `yield`, `afterPaint`, `idle`, `afterLoad`); đăng ký service worker sau khi trang tải xong, nhờ lưu nốt file cho chơi offline lúc rảnh, tải lại khi có bản mới (`CaroSW.status()` cho ô `?perf=1`); service worker (lúc cài chỉ lưu vỏ tối thiểu) |
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |

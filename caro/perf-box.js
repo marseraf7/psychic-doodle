@@ -1,7 +1,8 @@
 /*
  * Ô số đo tải trang – chỉ hiện khi mở bằng ?perf=1 (đo trên máy thật, trong trình duyệt của Zalo / Messenger, nơi không
  * mở được công cụ dev). Hiện sau khi trang nạp xong: cách nạp mã (bản gộp của máy chủ hay từng file), TTFB, lần vẽ đầu
- * (FCP), DOMContentLoaded, Load, số file JS + dung lượng tải qua mạng, việc CPU dài nhất, service worker, trình duyệt.
+ * (FCP), DOMContentLoaded, Load, số file JS + dung lượng tải qua mạng, việc CPU dài nhất, service worker (đang điều khiển trang
+ * không; trạng thái đăng ký none / installing / waiting / active, scope – A4), trình duyệt.
  * Hướng dẫn đo: docs/do-toc-do-tai-laplace-19-11-2026.md. Không gửi số đo đi đâu (chỉ hiện để người đo chép lại).
  * window.CaroPerfBox.read() – số đo dạng { key: giá trị } (dùng cho bài thử).
  */
@@ -28,6 +29,7 @@
       jsFiles: js.length, jsKb: Math.round(js.reduce((a, r) => a + (r.transferSize || 0), 0) / 1024),
       longest: longOk ? Math.round(worst) : -1,
       sw: !!(navigator.serviceWorker && navigator.serviceWorker.controller),
+      swReg: window.CaroSW ? window.CaroSW.status() : { state: 'off', controller: false, scope: '' }, // sw-boot.js
     };
   }
 
@@ -39,6 +41,8 @@
       [T('perf_js'), T('perf_js_v', { n: m.jsFiles, kb: m.jsKb })],
       [T('perf_long'), m.longest < 0 ? '—' : ms(m.longest)],
       [T('perf_sw'), m.sw ? T('perf_yes') : T('perf_no')],
+      // Chẩn đoán service worker: trạng thái đăng ký, có điều khiển trang này không, phạm vi
+      [T('perf_sw_reg'), [T('perf_sw_' + m.swReg.state), T('perf_sw_ctl', { v: m.swReg.controller ? T('perf_yes') : T('perf_no') }), m.swReg.scope ? T('perf_sw_scope', { s: m.swReg.scope }) : ''].filter(Boolean).join(' · ')],
       ['UA', navigator.userAgent],
     ].map(([k, v]) => k + ': ' + v).join('\n');
   }
