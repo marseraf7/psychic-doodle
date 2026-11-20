@@ -128,6 +128,29 @@ test('MCP HTTP: giới hạn theo IP trả 429 kèm lời nhắn và Retry-After
   } finally { await s2.stop(); }
 });
 
+// Review 20/11/2026: thân quá cỡ trước đây vẫn được đọc (và bỏ đi) tới hết – một yêu cầu gửi mãi không dứt giữ kết nối
+// và băng thông. Nay báo 413 ngay khi vượt giới hạn (kể cả khi khai content-length quá cỡ) và đóng kết nối.
+test('MCP HTTP: thân quá cỡ gửi mãi không dứt → 413 ngay, không chờ hết thân', async () => {
+  const s = await start();
+  try {
+    const u = new URL(s.url);
+    const status = await new Promise((resolve, reject) => {
+      const req = http.request({ host: u.hostname, port: u.port, path: u.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'transfer-encoding': 'chunked' } }, (res) => { resolve(res.statusCode); res.resume(); req.destroy(); });
+      req.on('error', () => {});
+      req.write('x'.repeat(70 * 1024)); // không gọi end(): khách còn "đang gửi"
+      setTimeout(() => { req.destroy(); reject(new Error('không trả lời khi thân còn đang gửi')); }, 3000);
+    });
+    assert.strictEqual(status, 413);
+    const declared = await new Promise((resolve, reject) => {
+      const req = http.request({ host: u.hostname, port: u.port, path: u.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': String(10 * 1024 * 1024) } }, (res) => { resolve(res.statusCode); res.resume(); req.destroy(); });
+      req.on('error', () => {});
+      req.write('{');
+      setTimeout(() => { req.destroy(); reject(new Error('content-length quá cỡ: không trả lời')); }, 3000);
+    });
+    assert.strictEqual(declared, 413);
+  } finally { await s.stop(); }
+});
+
 test('web.js: /mcp đi tới connector; CARO_MCP=0 thì tắt (404 như đường dẫn lạ)', async () => {
   const run = async () => {
     const srv = http.createServer(makeHandler({ store: {}, hub, bundle: false }));

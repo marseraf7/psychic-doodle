@@ -34,19 +34,23 @@ function originAllowed(origin, req) {
   } catch (e) { return false; }
 }
 
-/** Đọc thân yêu cầu, dừng khi quá giới hạn (trả null). */
+/**
+ * Đọc thân yêu cầu; quá giới hạn thì trả null NGAY (không đọc tiếp tới hết – khách gửi mãi không dứt sẽ giữ kết nối và
+ * băng thông), kể cả khi content-length đã khai quá cỡ. Người gọi trả 413 và đóng kết nối.
+ */
 function readBody(req, limit) {
   return new Promise((resolve, reject) => {
+    if (Number(req.headers['content-length']) > limit) return resolve(null);
     const chunks = [];
-    let size = 0, over = false;
-    req.on('data', (c) => {
-      if (over) return;
+    let size = 0, done = false;
+    const onData = (c) => {
       size += c.length;
-      if (size > limit) { over = true; chunks.length = 0; return; }
+      if (size > limit) { done = true; chunks.length = 0; req.off('data', onData); req.pause(); resolve(null); return; }
       chunks.push(c);
-    });
-    req.on('end', () => resolve(over ? null : Buffer.concat(chunks)));
-    req.on('error', reject);
+    };
+    req.on('data', onData);
+    req.on('end', () => { if (!done) resolve(Buffer.concat(chunks)); });
+    req.on('error', (e) => { if (!done) reject(e); });
   });
 }
 
@@ -93,7 +97,11 @@ function nodeHandler(fetchHandler, opts = {}) {
     let body;
     if (req.method === 'POST') {
       body = await readBody(req, MAX_BODY).catch(() => null);
-      if (body === null) return rpcError(res, 413, `Request body is too large (limit ${MAX_BODY / 1024} KB). A Caro game needs at most 400 moves.`);
+      if (body === null) {
+        // Đóng kết nối sau khi trả lời: phần thân còn lại không đọc nữa
+        res.on('finish', () => req.destroy());
+        return rpcError(res, 413, `Request body is too large (limit ${MAX_BODY / 1024} KB). A Caro game needs at most 400 moves.`, { connection: 'close' });
+      }
     }
     const ac = new AbortController();
     res.on('close', () => { if (!res.writableFinished) ac.abort(); });
@@ -105,7 +113,9 @@ function nodeHandler(fetchHandler, opts = {}) {
       resp = await fetchHandler(new Request(`http://${host}${req.url}`, { method: req.method, headers, body, signal: ac.signal }));
     } catch (e) {
       if (ac.signal.aborted) return res.destroy();
-      return rpcError(res, 500, `The Caro MCP server failed to handle the request (${e && e.message}). Please retry.`);
+      // Không đưa lời lỗi nội bộ (đường dẫn file, chi tiết thư viện) ra ngoài – chỉ ghi ở máy chủ
+      console.error('[mcp] lỗi xử lý yêu cầu:', e && e.message);
+      return rpcError(res, 500, 'The Caro MCP server failed to handle the request. Please retry.');
     }
     const out = {};
     resp.headers.forEach((v, k) => { out[k] = v; });
