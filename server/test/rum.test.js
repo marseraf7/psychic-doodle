@@ -21,6 +21,7 @@ const UA = {
 test('xếp loại trình duyệt: trình duyệt trong app trước trình duyệt thường; app riêng theo cờ app', () => {
   for (const [k, ua] of Object.entries(UA)) assert.strictEqual(kindOf(ua), k, k);
   assert.strictEqual(kindOf(UA.chrome, true), 'app');
+  assert.strictEqual(kindOf(UA.chrome, true, true), 'desktop', 'app desktop tách riêng khỏi app di động');
   assert.strictEqual(kindOf(''), 'other');
 });
 

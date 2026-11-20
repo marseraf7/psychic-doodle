@@ -1,0 +1,192 @@
+# Thí điểm app desktop Cờ Caro (Tauri 2) – bước 4 của docs/nghien-cuu-viet-lai-rust-17-11-2026.md; chi tiết:
+# docs/thi-diem-desktop-tauri.md. Mỗi hệ điều hành: dựng Rapfi gốc (sidecar, GPL-3) từ fork marseraf7/rapfi đúng commit
+# ghim, chép giao diện web, dựng bộ cài; bản Linux đo thêm Rapfi gốc so với Rapfi WebAssembly của app (ngưỡng ×1,3).
+# CHƯA KÝ: bộ cài Windows / macOS chưa ký số, bản macOS chưa notarize – cần chứng thư của chủ dự án (xem tài liệu).
+name: Desktop Caro (Tauri – thí điểm)
+
+on:
+  push:
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
+  pull_request:
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RAPFI_NETS_COMMIT: e32ad77a5364363b3e3a02b3f9e8610ade19ea98 # rapfi-networks (CC0), như caro/rapfi/worker.js
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04: glibc cũ hơn → bộ cài .deb / AppImage chạy được trên nhiều bản Linux hơn
+          - { name: Linux x64, os: ubuntu-22.04, triple: x86_64-unknown-linux-gnu, exe: '' }
+          - { name: Windows x64, os: windows-latest, triple: x86_64-pc-windows-msvc, exe: .exe }
+          - { name: macOS arm64, os: macos-latest, triple: aarch64-apple-darwin, exe: '' }
+    env:
+      TARGET_TRIPLE: ${{ matrix.triple }}
+      # Windows: bước chạy bằng Git Bash, /usr/bin/link (coreutils) che mất link.exe của MSVC – rustc gọi nhầm. Dùng lld-link
+      # của LLVM (đã có trên máy CI, build-rapfi.sh cũng dùng); hai biến này không ảnh hưởng Linux / macOS.
+      CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER: lld-link
+    steps:
+      # Windows: git mặc định đổi xuống dòng thành CRLF – script bash và bản vá Rapfi (*.patch) phải giữ LF
+      - name: Giữ nguyên xuống dòng LF
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.triple }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            desktop/src-tauri
+            desktop/src-tauri/rapfi
+
+      # ------------------------------------------------------------ Thư viện hệ thống / trình dịch
+      - name: Linux – WebKitGTK 4.1 và công cụ dựng
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf \
+            libxdo-dev libssl-dev build-essential file ninja-build clang-15
+          # Rapfi: preset x64-clang-AVX2 gọi clang / clang++ – dùng clang 15 thay bản 14 mặc định của 22.04
+          echo 'RAPFI_CMAKE_ARGS=-DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15' >> "$GITHUB_ENV"
+      - name: Windows – môi trường MSVC (clang-cl, lld-link, Windows SDK)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Windows – kiểm clang-cl / ninja
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command clang-cl -ErrorAction SilentlyContinue)) { Add-Content $env:GITHUB_PATH 'C:\Program Files\LLVM\bin' }
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) { choco install ninja -y --no-progress }
+      - name: macOS – ninja
+        if: runner.os == 'macOS'
+        run: command -v ninja || brew install ninja
+
+      # ------------------------------------------------------------ Rapfi gốc + mạng NNUE
+      - name: Mạng NNUE Rapfi (CC0, ~40 MB) – bộ nhớ đệm
+        id: nets
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/rapfi-networks
+          key: rapfi-networks-${{ env.RAPFI_NETS_COMMIT }}
+      - name: Tải mạng NNUE đúng commit (fork marseraf7/rapfi-networks)
+        if: steps.nets.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          d="$RUNNER_TEMP/rapfi-networks"
+          git init -q "$d"
+          git -C "$d" fetch -q --depth 1 https://github.com/marseraf7/rapfi-networks.git "$RAPFI_NETS_COMMIT" \
+            || git -C "$d" fetch -q --depth 1 https://github.com/dhbloo/rapfi-networks.git "$RAPFI_NETS_COMMIT"
+          git -C "$d" checkout -q FETCH_HEAD
+          ls -la "$d/mix9svq"
+      - name: Dựng Rapfi gốc (sidecar) từ fork marseraf7/rapfi
+        shell: bash
+        run: bash desktop/scripts/build-rapfi.sh
+      - name: Kiểm điều khiển sidecar (crate caro-rapfi, Rapfi thật)
+        shell: bash
+        working-directory: desktop/src-tauri/rapfi
+        run: |
+          node ../../scripts/rapfi-resources.js
+          export CARO_RAPFI_BIN="../binaries/pbrain-rapfi-$TARGET_TRIPLE${{ matrix.exe }}" CARO_RAPFI_CONFIG=../resources/rapfi/config.toml
+          export CARO_RAPFI_CARO_BIN="../binaries/pbrain-rapfi-caro-$TARGET_TRIPLE${{ matrix.exe }}" CARO_RAPFI_CARO_CONFIG=../resources/rapfi/config-caro.toml
+          cargo test --release
+        env:
+          RAPFI_NETS: ${{ runner.temp }}/rapfi-networks/mix9svq
+
+      # ------------------------------------------------------------ Đo: Rapfi gốc vs WASM (chỉ Linux, cùng máy)
+      - name: Đo Rapfi gốc vs WebAssembly (1 luồng, độ sâu 16, cùng mạng / cấu hình)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          RAPFI_NETS: ${{ runner.temp }}/rapfi-networks/mix9svq
+        run: |
+          BIN="desktop/src-tauri/binaries/pbrain-rapfi-$TARGET_TRIPLE"
+          export RAPFI_CARO_BIN="desktop/src-tauri/binaries/pbrain-rapfi-caro-$TARGET_TRIPLE"
+          lscpu | grep -E 'Model name|^CPU\(s\)|Flags' | cut -c1-200
+          echo "== Rapfi bench (bản gốc, 1 luồng, độ sâu 19) =="
+          (cd desktop/src-tauri/resources/rapfi && "$GITHUB_WORKSPACE/$BIN" bench --config "$PWD/config.toml" | tail -5)
+          node server/scripts/rapfi/bench-goc-wasm.js "$BIN" 16 | tee bench.txt
+          ratio=$(sed -n 's/^BENCH_JSON=//p' bench.txt | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).ratio))')
+          {
+            echo "### Rapfi gốc vs WASM (${{ matrix.os }})"
+            echo '```'
+            grep -v '^BENCH_JSON=' bench.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Điều kiện dừng của lộ trình: gốc phải nhanh ≥ 1,3 lần mỗi luồng – chỉ cảnh báo, không làm đỏ lượt dựng
+          node -e "process.exit(Number('$ratio') >= 1.3 ? 0 : 1)" || echo "::warning::Rapfi gốc chỉ nhanh ×$ratio so với WASM (< 1,3) – điều kiện dừng của thí điểm"
+
+      # ------------------------------------------------------------ Giao diện + bộ cài
+      - name: Dựng giao diện (desktop/www) và tài nguyên Rapfi
+        shell: bash
+        env:
+          CARO_SERVER_URL: ${{ vars.CARO_SERVER_URL }}
+          RAPFI_NETS: ${{ runner.temp }}/rapfi-networks/mix9svq
+        run: |
+          node desktop/scripts/build-web.js
+          node desktop/scripts/rapfi-resources.js
+      - name: Dựng bộ cài (tauri build)
+        shell: bash
+        working-directory: desktop
+        run: |
+          npm ci
+          rm -rf src-tauri/icons # thư mục sinh ra, không commit
+          npx tauri icon ../app/assets/icon-only.png
+          npx tauri build --target "$TARGET_TRIPLE" --config src-tauri/tauri.csp.json
+      - name: Kích thước bộ cài
+        shell: bash
+        run: |
+          B="desktop/src-tauri/target/$TARGET_TRIPLE/release/bundle"
+          {
+            echo "### Bộ cài ${{ matrix.name }} (chưa ký)"
+            echo '```'
+            find "$B" -maxdepth 2 -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*.AppImage' -o -name '*.msi' -o -name '*.exe' -o -name '*.dmg' \) -exec ls -la {} \;
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      # Mở app thật, JS gọi CaroNativeEngine.bestMove (luật tiêu chuẩn + Việt Nam) qua lệnh Tauri → sidecar, rồi tự thoát
+      # (desktop/src-tauri/src/selftest.rs). Linux bắt buộc đạt; Windows / macOS chưa từng chạy thử nên chỉ cảnh báo.
+      - name: Tự kiểm app (mở cửa sổ, gọi Rapfi qua cầu nối JS)
+        continue-on-error: ${{ runner.os != 'Linux' }}
+        shell: bash
+        env:
+          CARO_DESKTOP_SELFTEST: '1'
+        run: |
+          BIN="desktop/src-tauri/target/$TARGET_TRIPLE/release/caro-desktop${{ matrix.exe }}"
+          RUN=(); [ "$RUNNER_OS" = Linux ] && { sudo apt-get install -y xvfb; RUN=(xvfb-run -a); }
+          set +e
+          # perl alarm thay cho timeout (macOS không có sẵn lệnh timeout)
+          ${RUN[@]+"${RUN[@]}"} perl -e 'alarm shift; exec @ARGV' 180 "$BIN" | tee selftest.txt
+          code=${PIPESTATUS[0]}
+          set -e
+          # Windows: bản phát hành không có console nên không in được dòng CARO_SELFTEST – chỉ xét mã thoát
+          { echo "### Tự kiểm app ${{ matrix.name }}: mã thoát $code"; grep CARO_SELFTEST selftest.txt || true; } >> "$GITHUB_STEP_SUMMARY"
+          [ "$code" = 0 ] || { echo "::error::Tự kiểm app không đạt (mã $code; 142 = quá 180 giây)"; exit 1; }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: caro-desktop-${{ matrix.triple }}
+          if-no-files-found: error
+          path: |
+            desktop/src-tauri/target/${{ matrix.triple }}/release/bundle/deb/*.deb
+            desktop/src-tauri/target/${{ matrix.triple }}/release/bundle/rpm/*.rpm
+            desktop/src-tauri/target/${{ matrix.triple }}/release/bundle/appimage/*.AppImage
+            desktop/src-tauri/target/${{ matrix.triple }}/release/bundle/msi/*.msi
+            desktop/src-tauri/target/${{ matrix.triple }}/release/bundle/nsis/*.exe
+            desktop/src-tauri/target/${{ matrix.triple }}/release/bundle/dmg/*.dmg

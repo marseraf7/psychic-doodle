@@ -120,3 +120,16 @@ test('máy chủ: trang chính, sw.js và khối từ bản gộp; khối lưu l
   assert.strictEqual((await get(off, '/' + name)).status, 404);
   store.close();
 });
+
+test('thẻ <script> trong <body> không đúng dạng (defer / type…) thì không gộp – tránh đổi thứ tự chạy âm thầm', () => {
+  const os = require('os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-bundle-'));
+  for (const f of ['a.js', 'b.js', 'c.js']) fs.writeFileSync(path.join(dir, f), `(function () { window.${f[0]} = 1; })();`);
+  fs.writeFileSync(path.join(dir, 'sw.js'), "const CACHE = 'caro-v1';\nconst FILES = ['./', 'a.js', 'b.js', 'c.js'];\n");
+  const page = (extra) => `<html><head></head><body>\n  <script src="a.js"></script>\n  <script src="b.js"></script>\n${extra}</body></html>`;
+  fs.writeFileSync(path.join(dir, 'index.html'), page(''));
+  assert.ok(build(dir).files.size >= 1, 'dạng chuẩn: gộp được');
+  fs.writeFileSync(path.join(dir, 'index.html'), page('  <script src="c.js" defer></script>\n'));
+  assert.throws(() => build(dir), /không đúng dạng/);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

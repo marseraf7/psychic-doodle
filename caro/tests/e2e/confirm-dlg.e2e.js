@@ -67,9 +67,12 @@ const { setup } = require('./helpers');
   await sleep(600);
   await a.click('#confirm-ok');
   await sleep(800);
+  // F1: người rời phải nhận được thông báo bị xử thua bằng hộp thông báo của app (phải bấm Đóng mới tắt,
+  // không thể lỡ như toast 4 giây trước đây); người ở lại thấy thẻ kết quả "đối thủ đã rời phòng".
+  ok(await dlgOpen(a) && (await a.textContent('#confirm-q')).includes('bị tính thua'), 'rời phòng: người rời được báo ván bị tính thua bằng hộp thông báo');
+  await a.click('#confirm-ok');
+  await sleep(500);
   ok((await room(a)) === null, 'rời phòng + Đồng ý: đã ra khỏi phòng');
-  // #155: người rời được báo đã bị xử thua; người ở lại thấy thẻ kết quả "đối thủ đã rời phòng" (không phải phòng chờ trống)
-  ok((await a.textContent('#toasts')).includes('bị tính thua'), 'rời phòng: người rời được báo ván bị tính thua');
   const rb = await waitRoom(b, (x) => x.players.length === 1, 'B nhận phòng sau khi A rời');
   ok(rb.reason === 'leave' && rb.winner === (rb.seats.x === await meId(b) ? 1 : 2) && rb.moves.length === 2, 'người ở lại: phòng còn ván vừa xong, B thắng vì A rời phòng');
   await sleep(500);

@@ -633,9 +633,9 @@ index b328ed9..1039854 100644
 +
 +            if (patCnt[F5]) {
 +                // Number of five-points left in a line after the defender's stones.
-+                auto fiveCount = [&](const Line<R> &l) {
++                auto fiveCount = [&, s0 = start, e0 = end](const Line<R> &l) {
 +                    int n = 0;
-+                    for (int i = start; i <= end; i++) {
++                    for (int i = s0; i <= e0; i++) {
 +                        if (l[i] == EMPT) {
 +                            Line<R> sl = shiftLine<R>(l, i);
 +                            sl[Mid]    = SELF;

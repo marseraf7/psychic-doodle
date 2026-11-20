@@ -43,13 +43,15 @@ const { setup, gotoRetry } = require('./helpers');
 
   // 3. Ô số đo
   const box = async (q) => {
-    const c = await browser.newContext({ serviceWorkers: 'block' });
+    const c = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 390, height: 844 } }); // chuẩn giao diện: kiểm ở 390px
     await c.addInitScript(() => { localStorage.setItem('caro.lang', 'vi'); });
     const pg = await c.newPage();
     await gotoRetry(pg, URL + q);
-    let t = '';
+    let t = '', fits = true;
     for (let i = 0; i < 40 && !t; i++) { await sleep(100); t = await pg.evaluate(() => { const b = document.querySelector('.perf-box pre'); return b ? b.textContent : ''; }); }
+    if (t) fits = await pg.evaluate(() => { const r = document.querySelector('.perf-box').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; });
     await c.close();
+    ok(fits, 'ô số đo nằm gọn trong màn hình 390px' + (q ? ' (' + q + ')' : ''));
     return t;
   };
   const a = await box('?perf=1');

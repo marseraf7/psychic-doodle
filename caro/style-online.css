@@ -231,11 +231,14 @@ input:not([type="range"]):focus { outline: 2px solid var(--accent); outline-offs
 @media (max-width: 1099px) {
   body:has(#pl-bot:not([hidden])) .tb-float { bottom: calc(76px + var(--strip-h) + 8px + env(safe-area-inset-bottom)); }
 }
-/* Hiệu ứng lún của nút (button:active { transform: scale }) ghi đè translateX(-50%) → nút nhảy sang phải nửa chiều
- * rộng ngay lúc ấn, nhả ra thì trượt khỏi nút (bấm không ăn). Giữ phép canh giữa khi lún. */
-.tb-float:active { transform: translateX(-50%) scale(0.97); }
 .tb-float.tb-sent { opacity: .6; }
 .tb-float.dragging { cursor: grabbing; touch-action: none; }
+/* F4: luật chung .ghost:active { transform: scale() } ở style.css ghi đè mất translateX(-50%)
+ * căn giữa của .tb-float — ngay khi bấm giữ, nút nhảy sang phải nửa bề ngang; nhả tay ở nửa
+ * trái nút thì rơi ra ngoài nút nên mất sự kiện click, bấm như không bấm (im lặng hoàn toàn).
+ * Giữ cả hai thành phần transform khi :active. Nút đã kéo có transform inline 'none' nên
+ * không bị ảnh hưởng. */
+.tb-float.ghost:active { transform: translateX(-50%) scale(0.97); }
 body.online .banner-actions .online-only[hidden] { display: none !important; }
 dialog form.row { padding: 0; }
 dialog form.dlg { padding: 16px 18px 18px; }

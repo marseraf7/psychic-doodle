@@ -49,13 +49,24 @@
   let resultFor = null; // mã phòng đang hiện thẻ kết quả (ván đã xong, chờ khán giả rời / ván mới bắt đầu)
   function hideWatchResult() { $('wt-result').hidden = true; resultFor = null; }
 
+  // Nút "Vào chơi" ở thanh xem (F6): chỉ hiện khi phòng đang xem còn một ghế trống và ván
+  // chưa bắt đầu — phòng công khai do người chơi tạo (không phải ghép nhanh / ván giải).
+  // Mở link phòng vào vai khán giả; ngồi ghế phải là hành động chủ động bấm nút này.
+  function updateJoinBtn(room) {
+    const btn = $('wt-join');
+    if (!btn) return;
+    btn.hidden = !(room && room.public && !room.quick && !room.tour
+      && room.players.length === 1 && !room.winner && room.moves.length === 0);
+  }
+
   N.on('room', (m) => {
-    if (!m.watch) { if (m.room) { watchCode = null; hideWatchResult(); } return; } // đã vào ván của mình: máy chủ tự thôi cho xem
+    if (!m.watch) { if (m.room) { watchCode = null; hideWatchResult(); updateJoinBtn(null); } return; } // đã vào ván của mình: máy chủ tự thôi cho xem
     if (!m.room) {
       // Phòng đóng / thôi xem
       if (App.watching) { App.leaveOnline(); if (watchCode) N.toast(T('watch_ended')); }
       watchCode = null;
       hideWatchResult();
+      updateJoinBtn(null);
       return;
     }
     if (!watchCode) { N.closeDlg('online'); N.closeDlg('profile-dlg'); window.CaroTour && N.closeDlg('tour-dlg'); }
@@ -65,10 +76,11 @@
     // xoá bàn cờ, trống một ghế). Không áp bản tin đó cho khán giả — giữ thẻ kết quả và bàn cờ cuối,
     // tránh cảnh tiêu đề nhảy về "đang xem" với tên '?'. Ván mới thật (đủ hai ghế) thì xem tiếp bình thường.
     if (!room.winner && resultFor === room.code && room.moves.length === 0 && !(room.seats.x && room.seats.o)) return;
+    updateJoinBtn(room);
     App.watchRoom(room, S.me ? S.me.id : null);
     if (room.winner) { showWatchResult(room); resultFor = room.code; } else hideWatchResult();
   });
-  N.on('close', () => { if (App.watching) { App.leaveOnline(); watchCode = null; hideWatchResult(); } });
+  N.on('close', () => { if (App.watching) { App.leaveOnline(); watchCode = null; hideWatchResult(); updateJoinBtn(null); } });
 
   function watch(opts) {
     if (N.roomActive()) return N.toast(T('busy_in_game_short'));
@@ -77,9 +89,19 @@
   function stopWatching() {
     watchCode = null;
     hideWatchResult();
+    updateJoinBtn(null);
     N.send({ t: 'unwatch' });
     if (App.watching) App.leaveOnline();
   }
+  // Ngồi vào ghế trống của phòng đang xem (F6): thôi xem rồi vào phòng như người chơi —
+  // phòng công khai nên không cần mật khẩu; máy chủ sẽ báo lỗi nếu ghế vừa bị người khác lấy.
+  $('wt-join').onclick = () => {
+    if (!watchCode) return;
+    if (N.roomActive()) return N.toast(T('busy_in_game_short'));
+    const code = watchCode;
+    stopWatching();
+    N.send({ t: 'joinRoom', code });
+  };
   // "Thôi xem" về mục Xem (trước đây rơi về ván với máy trên bàn cờ).
   $('wt-leave').onclick = () => { stopWatching(); window.CaroShell.open('watch'); };
   $('wt-result-more').onclick = () => { stopWatching(); window.CaroShell.open('watch'); };

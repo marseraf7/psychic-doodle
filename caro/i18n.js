@@ -376,30 +376,43 @@
   // Bản gộp của máy chủ (server/src/web-bundle.js): chuỗi phụ (các file i18n-*.js) tách theo ngôn ngữ, trang chỉ nạp
   // gói của ngôn ngữ đang dùng (window.CARO_PACK). Đổi sang ngôn ngữ khác thì tải gói đó rồi mới đổi.
   const PACKS = window.CARO_PACKS || null;
+  const extended = {}; // ngôn ngữ đã nhận chuỗi phụ (gói đã chạy) – extend() đánh dấu
   const loaded = new Set(PACKS ? [window.CARO_PACK] : Object.keys(DICT));
-  function withPack(l, done) {
+  const changed = () => { apply(); window.dispatchEvent(new Event('langchange')); };
+  /** Nạp gói của l rồi gọi done(); gói không nạp được (mất mạng, bị chặn) thì gọi fail() nếu có, không thì done(). */
+  function withPack(l, done, fail) {
     if (loaded.has(l) || !PACKS || !PACKS[l]) { done(); return; }
     const s = document.createElement('script');
     s.src = PACKS[l];
-    s.onload = () => { loaded.add(l); done(); };
-    s.onerror = () => done(); // mất mạng: vẫn đổi, chuỗi thiếu hiện tiếng Việt / khoá như khi chưa dịch
+    s.onload = () => { if (extended[l]) { loaded.add(l); done(); } else (fail || done)(); };
+    s.onerror = () => (fail || done)();
     document.head.appendChild(s);
   }
-  // Ngôn ngữ chọn ở đây khác gói đã nạp (hiếm: trang nhúng ?lang=…): tải gói rồi vẽ lại
-  if (PACKS && lang !== window.CARO_PACK) withPack(lang, () => { apply(); window.dispatchEvent(new Event('langchange')); });
+  if (PACKS) {
+    // Ngôn ngữ chọn ở đây khác gói đã nạp (hiếm: trang nhúng ?lang=…): tải gói rồi vẽ lại
+    if (lang !== window.CARO_PACK) withPack(lang, changed);
+    // Gói boot.js chèn vào không chạy được (mất mạng giữa chừng): thử tải lại một lần thay vì để chữ hiện tên khoá
+    document.addEventListener('DOMContentLoaded', () => { if (!extended[lang]) { loaded.delete(lang); withPack(lang, changed); } });
+  }
 
+  let wanted = lang; // ngôn ngữ người dùng chọn sau cùng (đang chờ tải gói thì lang vẫn là ngôn ngữ cũ)
   function setLang(l) {
-    if (!DICT[l] || l === lang) return;
-    try { localStorage.setItem(KEY, l); } catch (e) { /* riêng tư */ }
+    if (!DICT[l] || l === wanted) return;
+    wanted = l;
     withPack(l, () => {
+      if (wanted !== l) return; // trong lúc chờ đã chọn ngôn ngữ khác: bỏ lần này
       lang = l;
-      apply();
-      window.dispatchEvent(new Event('langchange'));
+      try { localStorage.setItem(KEY, l); } catch (e) { /* riêng tư */ }
+      changed();
+    }, () => {
+      // Không tải được gói: giữ ngôn ngữ đang dùng (đổi sang thì chữ của các file dịch phụ hiện thành tên khoá)
+      if (wanted === l) wanted = lang;
+      window.dispatchEvent(new Event('langchange')); // ô chọn ngôn ngữ vẽ lại theo ngôn ngữ thật
     });
   }
 
   /** Bổ sung / ghi đè chuỗi cho một ngôn ngữ (i18n-rules.js, i18n-bots.js). */
-  function extend(l, obj) { if (DICT[l]) Object.assign(DICT[l], obj); }
+  function extend(l, obj) { if (DICT[l]) { Object.assign(DICT[l], obj); extended[l] = true; } }
   /** ' · Renju' – nhãn luật thắng khác luật Việt Nam (để nối vào dòng thông tin ván). */
   const ruleTag = (rule) => (rule && rule !== 'vn' ? ' · ' + t('grule_s_' + rule) : '');
 
