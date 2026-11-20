@@ -143,12 +143,16 @@
   K.matchAttBtn = (m) => `<a href="#" data-act="matchAtt" data-mid="${esc(m.id)}" title="${esc(T('mx_att'))}" aria-label="${esc(T('mx_att'))}">📎${m.att && m.att.length ? m.att.length : '+'}</a>`;
   let attMid = null;
 
+  // Phòng thủ chiều sâu (rà soát bảo mật 20/11/2026, mục 4.1.1): máy chủ chỉ lưu link http(s) (tour-opts.js), nhưng
+  // client cũng chỉ đặt vào href link http(s) theo cùng LINK_RE của rich-text.js – lạ (javascript:, data:…) thì hiện chữ thường
+  const linkHtml = (u) => (R.isHttpLink(u) ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer nofollow ugc">${esc(u)}</a>` : `<span>${esc(u)}</span>`);
+
   function attHtml(t, x) {
     const { m } = x;
     const uid = me() && me().uid;
     const canAdd = t.canManage || (t.attachments && m.a && m.b && [m.a.uid, m.b.uid].includes(uid));
     const list = (m.att || []).map((a) => `<li>${a.img ? `<a href="${esc(R.imgUrl(a.img))}" target="_blank" rel="noopener"><img class="mx-thumb" src="${esc(R.imgUrl(a.img))}" alt="" loading="lazy"></a>` : ''}
-      <div>${a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer nofollow ugc">${esc(a.url)}</a>` : ''}${a.text ? `<p>${esc(a.text)}</p>` : ''}
+      <div>${a.url ? linkHtml(a.url) : ''}${a.text ? `<p>${esc(a.text)}</p>` : ''}
       <small class="muted">${esc(a.name || '')} · ${esc(when(a.at))}</small></div>
       ${t.canManage || a.by === uid ? `<button type="button" class="ghost sm icon" data-act="matchAttDel" data-att="${esc(a.id)}" aria-label="${esc(T('mx_att_del'))}">${icon('trash')}</button>` : ''}</li>`).join('');
     const form = canAdd ? `<form class="mx-add"><input name="url" type="url" maxlength="300" placeholder="https://…" aria-label="${esc(T('mx_att_url'))}">
@@ -195,6 +199,7 @@
     }
     bindAtt(dialog('mx-att', attHtml(t, x)));
   }
+  K.matchAttHtml = attHtml; // cho kiểm thử (caro/tests/match-att.test.js)
   K.acts.matchAtt = (b) => { attMid = b.dataset.mid; closeBox(); showAtt(); };
   K.acts.matchAttDel = (b) => O.send({ t: 'tourAttachDel', id: D.tour.id, match: attMid, att: b.dataset.att });
   // Bấm nút trong hộp thoại (nằm ngoài trang giải): chuyển cho K.acts

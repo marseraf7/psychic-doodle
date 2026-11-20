@@ -21,6 +21,8 @@
   // ------------------------------------------------------------ Dựng HTML
   const base = () => ((window.CaroOnline && window.CaroOnline.base) || '');
   const LINK_RE = /^(https?:\/\/|mailto:)[^\s]+$/i;
+  /** Link http(s) hợp lệ để đặt vào href (đính kèm trận – tour-match-extra.js): cùng LINK_RE, bỏ mailto. */
+  const isHttpLink = (u) => typeof u === 'string' && LINK_RE.test(u) && /^https?:\/\//i.test(u);
   /** Định dạng trong dòng – s đã được thoát HTML. */
   function inline(s) {
     // Ảnh đã tải lên máy chủ; ảnh nơi khác (CSP không cho hiện) thành link
@@ -276,6 +278,6 @@
   }
   const imgUrl = (id) => `${base()}/api/timg/${id}`;
 
-  window.CaroRich = { render, plain, editor, esc, uploadImage, imgUrl };
+  window.CaroRich = { render, plain, editor, esc, uploadImage, imgUrl, isHttpLink };
   if (typeof module !== 'undefined') module.exports = window.CaroRich;
 })();
