@@ -176,4 +176,4 @@ if (require.main === module) {
   process.on('SIGTERM', shutdown);
 }
 
-module.exports = { fromProxy, start };
+module.exports = { fromProxy, start, smtpMailer };
