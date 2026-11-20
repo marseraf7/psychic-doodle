@@ -546,6 +546,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `tour-groups.js` | Xếp bảng (ban tổ chức, trước khi bắt đầu): kéo thả hoặc chọn bảng cho từng người, lưu / chia tự động |
 | `club.js` | Câu lạc bộ: danh sách, trang CLB, tạo CLB, quản lý thành viên |
 | `social.js` | Lịch sử & xem lại, bảng xếp hạng, nhắn tin, chặn / báo cáo, mật khẩu & email, chat nhanh |
+| `sched.js`, `sw-boot.js`, `sw.js` | Chia việc khởi động thành việc CPU ngắn (`CaroSched`: `yield`, `afterPaint`, `idle`, `afterLoad`); đăng ký service worker sau khi trang tải xong, nhờ lưu nốt file cho chơi offline lúc rảnh, tải lại khi có bản mới (`CaroSW.status()` cho ô `?perf=1`); service worker (lúc cài chỉ lưu vỏ tối thiểu) |
 | `shell.js`, `shell.css` | Khung 5 tab, trang, chuyển hộp thoại cũ thành trang (`CaroShell`); kiểu hàng danh sách, công tắc, Trang chủ |
 | `home.js`, `more.js`, `settings-ui.js` | Trang chủ; Xem thêm; Cài đặt dạng danh sách + trang con + bàn cờ xem trước |
 | `home-hero.js` | Trang chủ: thẻ người mới (chưa chơi ván nào) – nút lớn "Chơi với máy", bấm là vào ván với máy mức dễ; ẩn sau ván đầu / khi bấm ✕ |

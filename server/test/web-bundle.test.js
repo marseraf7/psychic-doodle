@@ -84,6 +84,10 @@ test('service worker lưu sẵn các khối mới thay cho file lẻ; tên bộ 
   const files = JSON.parse(/const FILES = (\[[^\]]*\]);/.exec(B.sw)[1]);
   for (const n of B.files.keys()) assert.ok(files.includes(n), n + ' được lưu sẵn');
   for (const n of B.names) assert.ok(!files.includes(n), n + ' không lưu trùng');
+  assert.ok(files.every((f) => /^[\w./-]+$/.test(f)), 'FILES chỉ có tên file (không lẫn chữ trong chú thích, vd. caro-rapfi-nets-*)');
+  // A2: khối mã + boot lưu ngay lúc cài (vỏ tối thiểu), gói chuỗi dịch lưu sau khi trang rảnh (tin precache)
+  const shell = new RegExp(/const SHELL = \/(.+)\/;/.exec(B.sw)[1]);
+  for (const n of B.files.keys()) assert.strictEqual(shell.test(n), !n.startsWith('b/i18n-'), n + (n.startsWith('b/i18n-') ? ' lưu sau' : ' lưu lúc cài'));
   const orig = /const CACHE = '([^']+)';/.exec(fs.readFileSync(path.join(DIR, 'sw.js'), 'utf8'))[1];
   assert.strictEqual(/const CACHE = '([^']+)';/.exec(B.sw)[1], `${orig}-b${B.key}`);
 });

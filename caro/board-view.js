@@ -14,7 +14,12 @@
     let colors = {};
 
     // ------------------------------------------------------------ Vẽ
-    function readColors() {
+    // Màu đọc từ biến CSS (--bg, --grid, --x…). Đọc getComputedStyle giữa lúc chạy mã khởi động bắt trình duyệt tính lại
+    // kiểu cho cả trang ngay lúc đó (forced style recalc, ~26 ms trên điện thoại yếu – A2): readColors() chỉ đánh dấu "cần
+    // đọc lại", lần vẽ kế tiếp (trong requestAnimationFrame, khi trình duyệt sắp tự tính kiểu) mới đọc – một lần.
+    let colorsDirty = true;
+    function loadColors() {
+      colorsDirty = false;
       const cs = getComputedStyle(document.documentElement);
       for (const k of ['bg', 'grid', 'grid-strong', 'x', 'o', 'last', 'win', 'muted']) {
         colors[k] = cs.getPropertyValue('--' + k).trim();
@@ -24,7 +29,13 @@
       colors.grid = cs.getPropertyValue('--board-grid').trim() || colors.grid;
       colors['grid-strong'] = cs.getPropertyValue('--board-grid-strong').trim() || colors['grid-strong'];
     }
+    function readColors() {
+      colorsDirty = true;
+      requestDraw();
+    }
 
+    // Đọc clientWidth bắt trình duyệt tính bố cục ngay (forced sync layout). Lúc khởi động không gọi resize() trực tiếp:
+    // ResizeObserver (app.js) báo kích thước sau lần tính bố cục đầu tiên – lúc đó đọc không tốn thêm gì.
     function resize() {
       dpr = Math.min(window.devicePixelRatio || 1, 3);
       // Kích thước thật của bàn cờ: thường là cả màn hình; khi phân tích ván, bàn cờ nhường chỗ cho bảng phân tích
@@ -73,6 +84,10 @@
 
     function draw() {
       drawQueued = false;
+      // Bàn cờ đang bị khung trang che (shell.css: visibility hidden) hoặc chưa biết kích thước: không vẽ – lúc mở app ở
+      // Trang chủ đỡ được một lần vẽ cả bàn (~85 ms trên điện thoại yếu). Khung ẩn đi thì shell.js gọi resize() → vẽ lại.
+      if (!W || document.body.classList.contains('shell-on')) return;
+      if (colorsDirty) loadColors();
       const now = performance.now();
       let again = false;
       const s = cam.size;
