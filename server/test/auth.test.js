@@ -134,11 +134,13 @@ test('trong lúc băm mật khẩu máy chủ vẫn trả lời người khác',
   const b = await Client.open();
   const order = [];
   a.ws.on('message', (d) => { if (JSON.parse(d).t === 'welcome') order.push('a'); });
-  b.ws.on('message', (d) => { if (JSON.parse(d).t === 'error') order.push('b'); });
+  b.ws.on('message', (d) => { if (JSON.parse(d).t === 'pong') order.push('b'); });
   // 3 lần đăng nhập đúng (băm đồng bộ thì máy chủ đứng ~3 lần băm), rồi một lệnh rẻ từ người khác
   for (let i = 0; i < 3; i++) a.send({ t: 'login', username, password: 'caro-pass1' });
   await new Promise((r) => setTimeout(r, 5));
-  b.send({ t: 'login', username: 'khong_co_ai_ten_nay', password: 'x' }); // không băm: trả lỗi ngay
+  // Lệnh rẻ, không băm (ping). Không dùng đăng nhập sai tên nữa: từ khi chống dò tên qua thời gian (I-1, rà soát bảo mật
+  // 20/11) tên không tồn tại cũng chạy một lần scrypt giả, nên nó xếp hàng sau các lần băm của a – đúng ý đồ, không phải lỗi
+  b.send({ t: 'ping' });
   await until(() => order.length === 4);
   assert.notStrictEqual(order[order.length - 1], 'b', 'người khác không phải chờ hết các lần băm: ' + order.join());
   [a, b].forEach((k) => k.close());

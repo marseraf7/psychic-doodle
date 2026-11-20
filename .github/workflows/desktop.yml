@@ -74,7 +74,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (-not (Get-Command clang-cl -ErrorAction SilentlyContinue)) { Add-Content $env:GITHUB_PATH 'C:\Program Files\LLVM\bin' }
+          if (-not (Get-Command clang-cl -ErrorAction SilentlyContinue)) { Add-Content $env:GITHUB_PATH 'C:\Program Files\LLVM\bin'; $env:PATH = 'C:\Program Files\LLVM\bin;' + $env:PATH }
+          # Thư viện chuẩn của MSVC mới (14.52, VS 18) đòi Clang ≥ 22 (lỗi STL1000) – máy CI cũ hơn thì nâng LLVM
+          $v = (& clang-cl --version | Select-Object -First 1); Write-Host "clang-cl: $v"
+          if ($v -notmatch 'version (\d+)' -or [int]$Matches[1] -lt 22) {
+            choco upgrade llvm -y --no-progress
+            Add-Content $env:GITHUB_PATH 'C:\Program Files\LLVM\bin'
+            $v = (& 'C:\Program Files\LLVM\bin\clang-cl.exe' --version | Select-Object -First 1); Write-Host "clang-cl sau khi nâng: $v"
+            if ($v -notmatch 'version (\d+)' -or [int]$Matches[1] -lt 22) { throw "Cần clang-cl ≥ 22 cho MSVC STL hiện tại, đang có: $v" }
+          }
           if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) { choco install ninja -y --no-progress }
       - name: macOS – ninja
         if: runner.os == 'macOS'
