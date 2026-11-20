@@ -149,6 +149,42 @@ test('caro_rules, caro_leaderboard, caro_player: dữ liệu công khai, không 
   assert.match(text(r), /3–20 characters/);
 });
 
+// Review 20/11/2026: một IP chỉ giữ tối đa 2 việc trong hàng đợi máy cờ; yêu cầu bị huỷ thì việc của nó rời hàng đợi
+// (đang chạy thì dừng luồng) – trước đây việc của khách đã bỏ đi vẫn chiếm máy cờ.
+test('Máy cờ: giới hạn việc mỗi IP, huỷ yêu cầu thì bỏ việc khỏi hàng đợi / dừng việc đang chạy', async () => {
+  const { requestCtx } = require('../src/mcp/think.js');
+  const t = new Thinker({ maxQueue: 10, perKey: 2 });
+  const long = { kind: 'analyse', moves: [[0, 0], [1, 1], [2, 0]], rule: 'vn', ms: 1500 };
+  try {
+    const ac = new AbortController();
+    const p1 = requestCtx.run({ key: 'ip1', signal: ac.signal }, () => t.run(long));
+    const p2 = requestCtx.run({ key: 'ip1' }, () => t.run(long));
+    await assert.rejects(requestCtx.run({ key: 'ip1' }, () => t.run(long)), /busy/, 'IP thứ ba của cùng một IP: bận');
+    const p3 = requestCtx.run({ key: 'ip2' }, () => t.run({ kind: 'bot', moves: [], rule: 'vn', bot: 'ti' }));
+    assert.strictEqual(t.queue.length, 2, 'p2, p3 đang chờ');
+    const ac2 = new AbortController();
+    const p4 = requestCtx.run({ key: 'ip3', signal: ac2.signal }, () => t.run(long));
+    ac2.abort();
+    await assert.rejects(p4, /aborted/);
+    assert.strictEqual(t.queue.length, 2, 'việc đã huỷ rời hàng đợi');
+    const t0 = Date.now();
+    ac.abort(); // việc đang chạy: dừng luồng ngay
+    await assert.rejects(p1, /aborted/);
+    assert.ok(Date.now() - t0 < 1000);
+    p2.catch(() => {});
+    assert.ok(Array.isArray((await p3).move), 'việc khác vẫn chạy tiếp trên luồng mới');
+  } finally { await t.close(); }
+});
+
+test('Máy cờ qua HTTP: việc của tool biết IP + tín hiệu huỷ của yêu cầu (requestCtx)', async () => {
+  const { requestCtx } = require('../src/mcp/think.js');
+  let seen = null;
+  const orig = mcp.thinker.run.bind(mcp.thinker);
+  mcp.thinker.run = (job) => { seen = requestCtx.getStore(); return orig(job); };
+  try { await call('play_caro', { moves: [[0, 0]] }); } finally { mcp.thinker.run = orig; }
+  assert.ok(seen && /127\.0\.0\.1/.test(seen.key) && seen.signal, JSON.stringify(seen && seen.key));
+});
+
 test('Máy cờ: hàng đợi đầy → báo bận; quá giờ → huỷ luồng, báo lỗi đọc được; lỗi trong luồng', async () => {
   const busy = new Thinker({ maxQueue: 0 });
   await assert.rejects(busy.run({ kind: 'bot', moves: [], rule: 'vn', bot: 'ti' }), /busy/);
@@ -172,7 +208,8 @@ test('Máy cờ: hàng đợi đầy → báo bận; quá giờ → huỷ luồn
     assert.match(text(x), /busy.*try again/);
     m2.thinker.run = () => Promise.reject(new Error('boom'));
     x = await c2.callTool({ name: 'suggest_caro_move', arguments: { moves: [[0, 0]] } });
-    assert.match(text(x), /could not answer \(boom\).*github\.com/);
+    assert.match(text(x), /could not answer.*try again.*github\.com/s);
+    assert.ok(!/boom/.test(text(x)), 'không lộ lời lỗi nội bộ của máy cờ');
   } finally { await c2.close(); await m2.close(); s2.close(); }
 });
 

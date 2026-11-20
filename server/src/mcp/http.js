@@ -13,6 +13,8 @@
  */
 'use strict';
 
+const { requestCtx } = require('./think.js');
+
 const MAX_BODY = 64 * 1024;
 const CLAUDE_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*(claude\.ai|claude\.com|claudemcpcontent\.com)$/i;
 const LOCAL_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?$/i;
@@ -130,7 +132,9 @@ function nodeHandler(fetchHandler, opts = {}) {
     const host = /^[a-z0-9.:[\]-]+$/i.test(String(req.headers.host || '')) ? req.headers.host : 'localhost';
     let resp;
     try {
-      resp = await fetchHandler(new Request(`http://${host}${req.url}`, { method: req.method, headers, body, signal: ac.signal }));
+      // Việc máy cờ của yêu cầu này (think.js) biết IP (giới hạn mỗi IP) và tín hiệu huỷ (khách đóng kết nối → bỏ việc)
+      resp = await requestCtx.run({ key: String(ip || ''), signal: ac.signal },
+        () => fetchHandler(new Request(`http://${host}${req.url}`, { method: req.method, headers, body, signal: ac.signal })));
     } catch (e) {
       if (ac.signal.aborted) return res.destroy();
       // Không đưa lời lỗi nội bộ (đường dẫn file, chi tiết thư viện) ra ngoài – chỉ ghi ở máy chủ
