@@ -74,7 +74,7 @@ jobs:
           CARO_KEY_ALIAS: ${{ secrets.CARO_KEY_ALIAS }}
           CARO_KEY_PASSWORD: ${{ secrets.CARO_KEY_PASSWORD }}
         # Lỗi tải thư viện thoáng qua: thử lại một lần sau 30 s (lỗi dựng thật thì lần 2 cũng đỏ)
-        run: ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease || { sleep 30; ./gradlew --no-daemon assembleDebug assembleRelease bundleRelease; }
+        run: ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug assembleRelease bundleRelease || { sleep 30; ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug assembleRelease bundleRelease; }
       - name: Kiểm tra gói APK
         run: |
           APK=app/android/app/build/outputs/apk/debug/app-debug.apk
@@ -126,7 +126,7 @@ jobs:
           npm ci
           npm run build:web
           npx cap sync android
-          cd android && { ./gradlew --no-daemon assembleDebug || { sleep 30; ./gradlew --no-daemon assembleDebug; }; } # lỗi tải thư viện thoáng qua: thử lại một lần
+          cd android && { ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug || { sleep 30; ./gradlew --no-daemon --init-script ../../.github/gradle/maven-mirror.init.gradle assembleDebug; }; } # lỗi tải thư viện thoáng qua: thử lại một lần
       - name: Chạy máy chủ game
         run: |
           cd server && npm ci
