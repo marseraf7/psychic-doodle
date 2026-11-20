@@ -6,7 +6,7 @@
  *   node caro/tests/e2e/otour-multi.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 const ST = require('../../../server/src/hub/stages.js');
 
 (async () => {
@@ -14,7 +14,7 @@ const ST = require('../../../server/src/hub/stages.js');
   const { app, user, ok, shot, finish } = await setup(PORT);
   const boss = await user('vi', 'ban_ewc', 1100);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="esports_world_cup"]'); await sleep(400);
+  await pickTpl(boss, 'esports_world_cup'); await sleep(400);
   ok(await boss.isVisible('#otmf') && await boss.$$eval('#otmf .multi-games input', (xs) => xs.length) === 14, 'Form giải tổng: 14 giải con tạo kèm');
   ok(await boss.inputValue('#otmf input[name=table]') === '1000 750 500 300 200 150 100 50' && await boss.inputValue('#otmf input[name=minTop]') === '2' && await boss.isChecked('#otmf input[name=needWin]') && /câu lạc bộ/.test(await boss.textContent('#otmf .tpl-desc')), 'Bảng điểm theo hạng + mô tả');
   for (const k of ['moba_bo2', 'br', 'br_mp', 'br_rush', 'fighting', 'rts', 'moba_mobile', 'football_sim', 'fps_gsl', 'fighting_gsl', 'simrace', 'chess']) await boss.uncheck(`#otmf input[name=g_${k}]`);

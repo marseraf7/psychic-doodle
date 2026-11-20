@@ -1,8 +1,8 @@
 /*
- * Giải đấu Offline – chọn mẫu giải nổi tiếng ở form tạo giải (dữ liệu: otour-templates.js). Bấm một mẫu: bộ môn, cách ghi
+ * Giải đấu Offline – áp mẫu giải nổi tiếng ở form tạo giải (dữ liệu: otour-templates.js; ô gọn + hộp chọn: otour-tpl-lib.js). Dùng một mẫu: bộ môn, cách ghi
  * kết quả, luật set và các giai đoạn được điền sẵn (vẫn sửa được như thường), kèm mô tả bằng lời và ước tính số trận;
  * nút "Điền N đội mẫu" để thử nhanh; nhập / xuất cấu hình JSON; xem trước bằng lời (otour-spec-io.js – describeSpec).
- * K.otTplHtml(d), K.otDescribe(F) – gọi từ otour.js (pageNew, showEst).
+ * K.otTplHtml(d), K.otIoHtml(tiêu đề), K.otDescribe(F) – gọi từ otour.js (pageNew, showEst).
  */
 (function () {
   'use strict';
@@ -13,19 +13,19 @@
   if (!K || !TP || !SP || !IO) return;
   const { T, esc, render, $ } = K;
 
+  // Ô gọn "Mẫu giải nổi tiếng" (otour-tpl-lib.js – mở hộp danh sách / chi tiết) + mô tả mẫu đang dùng
   K.otTplHtml = (d) => {
-    const cards = TP.TEMPLATES.map((x) => `<button type="button" class="tpl-card ${d.tpl === x.id ? 'on' : ''}" data-act="otTpl" data-id="${esc(x.id)}" aria-pressed="${d.tpl === x.id}">
-      <span class="ti">${x.icon}</span><b>${esc(T('tpl_' + x.id))}</b><small>${esc(T('tpl_n', { n: x.n }))}</small></button>`).join('');
     const cur = d.tpl && TP.byId(d.tpl);
-    const desc = cur ? `<div class="tpl-desc"><p>${esc(T('tpl_' + cur.id + '_d'))}</p>
-      <div class="row"><button type="button" class="ghost sm" data-act="otTplTeams">${esc(T('tpl_fill', { n: cur.n }))}</button>
-      <button type="button" class="ghost sm" data-act="otTplOff">${esc(T('tpl_off'))}</button></div></div>` : `<small class="hint">${esc(T('tpl_hint'))}</small>`;
-    // Nhập / xuất cấu hình JSON (file xuất từ trang giải, hoặc chatbot viết theo /api/otour/schema.json)
-    const io = K.fold('otf:io', esc(T('ot_io')), () => `<p class="hint">${esc(T('ot_io_hint'))}</p><textarea id="otf-json" rows="6" spellcheck="false"></textarea>
+    const desc = cur ? `<div class="tpl-desc"><p><b class="tpl-card on">${cur.icon} ${esc(T('tpl_' + cur.id))}</b> ${esc(T('tpl_' + cur.id + '_d'))}</p>
+      <div class="row"><button type="button" class="ghost sm" data-act="otTplInfo" data-id="${esc(cur.id)}">${esc(T('otl_info'))}</button>
+      <button type="button" class="ghost sm" data-act="otTplTeams">${esc(T('tpl_fill', { n: cur.n }))}</button>
+      <button type="button" class="ghost sm" data-act="otTplOff">${esc(T('tpl_off'))}</button></div></div>` : '';
+    return `<div class="ot-tpl">${K.otTplTile ? K.otTplTile(d) : ''}${desc}</div>`;
+  };
+  // Nhập / xuất cấu hình JSON (file xuất từ trang giải, hoặc chatbot viết theo /api/otour/schema.json) – bước "Tuỳ chọn nâng cao"
+  K.otIoHtml = (title) => K.fold('otf:io', title || esc(T('ot_io')), () => `<p class="hint"><b>${esc(T('ot_io'))}</b> · ${esc(T('ot_io_hint'))}</p><textarea id="otf-json" rows="6" spellcheck="false"></textarea>
       <p class="err" id="otf-json-err"></p><div class="row"><button type="button" class="ghost sm" data-act="otIoCopy">${esc(T('ot_io_copy'))}</button>
       <button type="button" class="primary sm" data-act="otIoApply">${esc(T('ot_io_apply'))}</button></div>`, false);
-    return `<div class="field ot-tpl"><span>${esc(T('tpl_pick'))}</span><div class="tpl-cards">${cards}</div>${desc}${io}</div>`;
-  };
 
   /** Bản cấu hình đang soạn trong form. */
   const cur = (F) => ({ sport: F.d.sport, result: F.d.result, ...(F.d.result === 'sets' ? { set: F.d.set } : {}), stages: F.stages, ...(F.d.esports ? { esports: F.d.esports } : {}) });

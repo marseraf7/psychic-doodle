@@ -8,7 +8,7 @@
  *   node caro/tests/e2e/otour-graph.e2e.js
  */
 'use strict';
-const { setup, sleep, exportText } = require('./helpers.js');
+const { setup, sleep, exportText, pickTpl } = require('./helpers.js');
 const ST = require('../../../server/src/hub/stages.js');
 
 (async () => {
@@ -17,7 +17,7 @@ const ST = require('../../../server/src/hub/stages.js');
   const boss = await user('vi', 'ban_graph', 1100);
   const S = (i, k) => `#otf-stages [data-i="${i}"][data-k="${k}"]`;
   const desc = () => boss.textContent('#otf-desc');
-  const tpl = async (id) => { await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300); await boss.click(`.tpl-card[data-id="${id}"]`); await sleep(500); };
+  const tpl = async (id) => { await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300); await pickTpl(boss, id); await sleep(500); };
   const create = async () => {
     await boss.click('[data-act="otTplTeams"]'); await sleep(400);
     await boss.click('#otf button.primary.wide'); await sleep(1200);

@@ -8,7 +8,7 @@
  *   node caro/tests/e2e/otour-msi.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 const ST = require('../../../server/src/hub/stages.js');
 
 (async () => {
@@ -17,7 +17,7 @@ const ST = require('../../../server/src/hub/stages.js');
   const boss = await user('vi', 'ban_msi', 1100);
   const S = (i, k, n) => `#otf-stages [data-i="${i}"][data-k="${k}"]${n != null ? `[data-n="${n}"]` : ''}`;
   const desc = () => boss.textContent('#otf-desc');
-  const tpl = async (id) => { await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300); await boss.click(`.tpl-card[data-id="${id}"]`); await sleep(500); };
+  const tpl = async (id) => { await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300); await pickTpl(boss, id); await sleep(500); };
 
   // ---------- 1. Form mẫu kiểu MSI 2021–2022
   await tpl('msi21');

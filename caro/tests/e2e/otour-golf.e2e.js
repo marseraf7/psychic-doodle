@@ -7,7 +7,7 @@
  *   node caro/tests/e2e/otour-golf.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8838;
@@ -15,7 +15,7 @@ const { setup, sleep } = require('./helpers.js');
   const boss = await user('vi', 'ban_golf', 1100);
   const tab = (k) => boss.click(`[data-act="otTab"][data-tab="${k}"]`).then(() => sleep(400));
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="masters"]'); await sleep(300);
+  await pickTpl(boss, 'masters'); await sleep(300);
   ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'golf' && await boss.$eval('#otf-stages [data-k="score"]', (e) => e.value) === 'golf', 'Mẫu The Masters: golf, cách tính đấu gậy');
   ok(await boss.inputValue('#otf-stages [data-k="par"]') === '4 5 4 3 4 3 4 5 4 4 4 3 5 4 5 3 4 4' && /par 72/.test(await boss.textContent('#otf-stages')), 'Par 18 lỗ, tổng 72');
   ok(await boss.isChecked('#otf-stages [data-k="cutOn"]') && await boss.inputValue('#otf-stages [data-k="cutTop"]') === '50', 'Cắt sau vòng 2: 50 người + đồng hạng');

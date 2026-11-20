@@ -161,4 +161,14 @@ async function exportText(page) {
   });
 }
 
-module.exports = { setup, play, roomOf, sleep, gotoRetry, exportText };
+/**
+ * Dùng một mẫu giải nổi tiếng ở form tạo giải Offline như người dùng: bấm ô gọn "Mẫu giải nổi tiếng" → chọn mẫu trong hộp
+ * danh sách → "Dùng mẫu này" (otour-tpl-lib.js).
+ */
+async function pickTpl(p, id) {
+  await p.click('.tpl-tile');
+  await p.click(`.tpl-lib .tpl-item[data-id="${id}"]`);
+  await p.click('.tpl-lib [data-lib="use"]');
+}
+
+module.exports = { setup, play, roomOf, sleep, gotoRetry, exportText, pickTpl };

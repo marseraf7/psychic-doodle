@@ -5,7 +5,7 @@
  *   node caro/tests/e2e/otour-esports.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8835;
@@ -13,7 +13,7 @@ const { setup, sleep } = require('./helpers.js');
   const boss = await user('vi', 'ban_esport', 1100);
   const tab = (k) => boss.click(`[data-act="otTab"][data-tab="${k}"]`).then(() => sleep(400));
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="lol_worlds"]'); await sleep(300);
+  await pickTpl(boss, 'lol_worlds'); await sleep(300);
   ok(await boss.$eval('#otf-stages [data-i="1"][data-k="direct"]', (e) => e.value) === '15' && await boss.isChecked('#otf-stages [data-i="1"][data-k="region"]'), 'Mẫu LoL: 15 đội vào thẳng vòng Thụy Sĩ, vòng 1 tránh cùng khu vực');
   ok(/\+ 15 đội vào thẳng/.test(await boss.textContent('#otf-stages .flow')), 'Sơ đồ giai đoạn ghi "+ 15 đội vào thẳng"');
   await boss.click('[data-act="otTplTeams"]'); await sleep(300);

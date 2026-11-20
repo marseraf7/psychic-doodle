@@ -4,7 +4,7 @@
  *   node caro/tests/e2e/otour-io.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8815;
@@ -12,7 +12,7 @@ const { setup, sleep } = require('./helpers.js');
   const boss = await user('vi', 'ban_json', 1100);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
   ok(/Giai đoạn 1: vòng tròn 4 bảng/.test(await boss.textContent('#otf-desc')), 'Xem trước bằng lời theo cấu hình mặc định');
-  await boss.click('.tpl-card[data-id="champions_league"]'); await sleep(300);
+  await pickTpl(boss, 'champions_league'); await sleep(300);
   ok(/vòng phân hạng: mỗi đội 8 trận/.test(await boss.textContent('#otf-desc')), 'Mô tả đổi theo mẫu');
   await boss.$eval('details[data-k="otf:io"]', (d) => { d.open = true; }); await sleep(200);
   await boss.click('[data-act="otIoCopy"]'); await sleep(200);

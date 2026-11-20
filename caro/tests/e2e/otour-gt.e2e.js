@@ -6,14 +6,14 @@
  *   node caro/tests/e2e/otour-gt.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8837;
   const { app, user, ok, shot, finish, browser } = await setup(PORT);
   const boss = await user('vi', 'ban_xedap', 1100);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="tour_de_france"]'); await sleep(300);
+  await pickTpl(boss, 'tour_de_france'); await sleep(300);
   ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'cycling', 'Mẫu Tour de France: bộ môn xe đạp');
   ok(await boss.$eval('#otf-stages [data-i="0"][data-k="score"]', (e) => e.value) === 'gt', 'Cách tính: nhiều bảng xếp hạng');
   ok(await boss.$$eval('#otf-stages [data-k="kind"]', (xs) => xs.length) === 21 && await boss.$eval('#otf-stages [data-k="kind"][data-n="4"]', (e) => e.value) === 'itt', '21 ô loại chặng, chặng 5 tính giờ');

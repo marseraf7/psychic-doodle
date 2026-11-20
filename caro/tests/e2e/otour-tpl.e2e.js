@@ -5,7 +5,7 @@
  *   node caro/tests/e2e/otour-tpl.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 const ST = require('../../../server/src/hub/stages.js');
 
 (async () => {
@@ -13,8 +13,8 @@ const ST = require('../../../server/src/hub/stages.js');
   const { app, user, ok, shot, finish } = await setup(PORT);
   const boss = await user('vi', 'ban_mau', 1100);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  ok(await boss.isVisible('.tpl-card[data-id="champions_league"]'), 'Form tạo giải có thư viện mẫu');
-  await boss.click('.tpl-card[data-id="champions_league"]'); await sleep(300);
+  ok(await boss.isVisible('.tpl-tile'), 'Form tạo giải có ô gọn thư viện mẫu');
+  await pickTpl(boss, 'champions_league'); await sleep(300);
   ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'football', 'Mẫu CL: bộ môn bóng đá');
   ok(await boss.isChecked('#otf-stages [data-k="league"]') && await boss.isChecked('#otf-stages [data-k="legs"]'), 'Mẫu CL: league phase + loại trực tiếp 2 lượt');
   ok(/36 đội/.test(await boss.textContent('.tpl-desc')), 'Có mô tả bằng lời');
@@ -36,16 +36,16 @@ const ST = require('../../../server/src/hub/stages.js');
   ok(ms.length === 144 && ms.every((m) => cty.get(m.a) !== cty.get(m.b)), 'Bắt đầu: 144 trận league phase, không gặp đội cùng quốc gia');
   // Mẫu khác
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="lol_worlds"]'); await sleep(300);
+  await pickTpl(boss, 'lol_worlds'); await sleep(300);
   ok(await boss.isChecked('#otf-stages [data-k="record"]') && await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'esports', 'Mẫu LoL: Thụy Sĩ theo thắng / thua, thể thao điện tử');
-  await boss.click('.tpl-card[data-id="f1"]'); await sleep(300);
+  await pickTpl(boss, 'f1'); await sleep(300);
   ok(await boss.$eval('#otf-stages [data-k="events"]', (e) => e.value) === '24' && await boss.isChecked('#otf-stages [data-k="teams"]'), 'Mẫu F1: 24 chặng, bảng đội');
   // Mẫu giải Mỹ: NBA – bóng rổ, mỗi "set" là một trận trong loạt (form ghi "Trận 1"), playoff Bo7
   for (const [tid, sport] of [['nfl', 'amfootball'], ['mlb', 'baseball'], ['nhl', 'hockey'], ['mls', 'football']]) {
-    await boss.click(`.tpl-card[data-id="${tid}"]`); await sleep(250);
+    await pickTpl(boss, tid); await sleep(250);
     ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === sport, `Mẫu ${tid.toUpperCase()}: bộ môn ${sport}`);
   }
-  await boss.click('.tpl-card[data-id="nba"]'); await sleep(300);
+  await pickTpl(boss, 'nba'); await sleep(300);
   ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'basketball' && await boss.$eval('#otf select[name=result]', (e) => e.value) === 'sets', 'Mẫu NBA: bóng rổ, ghi theo từng trận của loạt');
   ok(/Kiểu NBA/.test(await boss.textContent('.tpl-card.on')) && /Bo7/.test(await boss.textContent('.tpl-desc')), 'Mẫu NBA: thẻ đang chọn + mô tả có Bo7');
   await boss.fill('#otf input[name=name]', 'Bóng rổ kiểu NBA');
@@ -101,10 +101,10 @@ const ST = require('../../../server/src/hub/stages.js');
   await shot(boss, 'ot-playoff-nba.png');
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
   // Tắt mùa giải ở mẫu NBA: playoff kiểu Mỹ cũng bỏ theo (chỉ có nghĩa ngay sau mùa giải)
-  await boss.click('.tpl-card[data-id="nba"]'); await sleep(300);
+  await pickTpl(boss, 'nba'); await sleep(300);
   await boss.uncheck('#otf-stages [data-k="season"]'); await sleep(300);
   ok(!(await boss.$('#otf-stages [data-k="playoff"]')) && !/Playoff/.test(await boss.textContent('#otf-stages .flow')), 'Tắt mùa giải: bỏ luôn playoff kiểu Mỹ');
-  await boss.click('.tpl-card[data-id="f1"]'); await sleep(300);
+  await pickTpl(boss, 'f1'); await sleep(300);
   await boss.selectOption('#otf select[name=sport]', 'badminton'); await sleep(400);
   ok(!(await boss.$('.tpl-card.on')), 'Đổi môn: bỏ đánh dấu mẫu');
   await finish();
