@@ -3,7 +3,7 @@
 Một tiến trình Node.js duy nhất vừa phục vụ giao diện game (thư mục `caro/`) vừa xử lý
 chơi online qua WebSocket (`/ws`):
 
-- **Phòng chơi**: mã 6 số + mật khẩu 3 số, người tạo chọn đi trước/đi sau, gửi link mời
+- **Phòng chơi**: mã 6 số + mật khẩu 4 số, người tạo chọn đi trước/đi sau, gửi link mời
   (`https://…/?room=123456`) – người vào vẫn phải nhập mật khẩu. **Tái đấu** cần cả hai bấm,
   mỗi ván tái đấu tự đổi bên đi trước.
 - **Phòng công khai**: đánh dấu khi tạo phòng → phòng hiện trong mục "Phòng đang chờ" của mọi người

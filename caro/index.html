@@ -726,7 +726,7 @@
       </div>
       <div class="row">
         <label class="field"><span data-i18n="room_code_label"></span><input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="123456" autocomplete="off" required></label>
-        <label class="field short"><span data-i18n="password"></span><input name="password" inputmode="numeric" pattern="\d{3}" maxlength="3" placeholder="123" autocomplete="off" required></label>
+        <label class="field short"><span data-i18n="password"></span><input name="password" inputmode="numeric" pattern="\d{3,4}" maxlength="4" placeholder="1234" autocomplete="off" required></label>
       </div>
       <p class="err" id="join-err"></p>
       <button class="primary wide" data-i18n="join_title"></button>

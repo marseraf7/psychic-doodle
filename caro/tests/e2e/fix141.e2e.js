@@ -132,7 +132,7 @@ const { setup, play, roomOf, sleep } = require('./helpers');
     await b.click('#open-join');
     await sleep(300);
     await b.fill('#join-form input[name=code]', codeC);
-    await b.fill('#join-form input[name=password]', /^\d{3}$/.test(pwC || '') ? pwC : '123'); // ô mật khẩu bắt buộc nhập
+    await b.fill('#join-form input[name=password]', /^\d{3,4}$/.test(pwC || '') ? pwC : '1234'); // ô mật khẩu bắt buộc nhập
   };
   b.dialogMode = 'dismiss';
   b.dialogs = [];

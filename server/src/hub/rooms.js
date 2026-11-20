@@ -10,6 +10,13 @@ const Perf = require('../perf.js');
 const FARM_MOVES = 20; // chống cày điểm: ván lặp lại y hệt 20 nước đầu, cùng người thắng với 1 trong 2 ván trước
 const NEW_ACCOUNT_MS = 7 * 24 * 3600 * 1000; // người thua là tài khoản dưới 7 ngày mà đầu hàng / bỏ ván: không tính điểm
 
+// Mật khẩu phòng riêng 4 số (I-4, rà soát 20/11/2026; trước 3 số), vẫn kèm giới hạn thử sai ở on_joinRoom. Phòng chỉ ở trong
+// bộ nhớ nên sau khi cập nhật không còn phòng 3 số. ROOM_PIN_DIGITS=3: tạm về 3 số khi app điện thoại bản cũ (ô chỉ gõ 3 số).
+function roomPin() {
+  const n = process.env.ROOM_PIN_DIGITS === '3' ? 3 : 4;
+  return String(crypto.randomInt(0, 10 ** n)).padStart(n, '0');
+}
+
 class Rooms {
   roomFor(pid) {
     const code = this.roomOf.get(pid);
@@ -72,7 +79,7 @@ class Rooms {
     const c = cleanTc({ timeLimit, clock: tc.clock, opening: tc.opening, rule: tc.rule }); // giá trị lạ -> mặc định
     const room = new Room({
       code: this.newCode(),
-      password: String(crypto.randomInt(0, 1000)).padStart(3, '0'),
+      password: roomPin(),
       kind,
       bestOf,
       timeLimit: c.timeLimit,
@@ -395,4 +402,4 @@ class Rooms {
   }
 }
 
-module.exports = { Rooms };
+module.exports = { Rooms, roomPin };
