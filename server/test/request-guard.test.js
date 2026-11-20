@@ -80,6 +80,29 @@ test('guardHttp: promise bị từ chối → 500; đã gửi header thì cắt 
   assert.strictEqual(logs.length, 1);
 });
 
+test('guardHttp: handler đã trả lời xong (res.end) rồi mới ném → không cắt cụt thân đang gửi (máy chủ thật, 8 MB)', async () => {
+  const N = 8 * 1024 * 1024;
+  const logs = [];
+  const srv = http.createServer(guardHttp((rq, rs) => {
+    rs.writeHead(200, { 'content-length': N });
+    rs.end(Buffer.alloc(N, 97));
+    throw new Error('sau khi đã trả lời');
+  }, (...a) => logs.push(a)));
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  try {
+    const got = await new Promise((done) => {
+      http.get({ host: '127.0.0.1', port: srv.address().port, path: '/' }, (res) => {
+        let n = 0;
+        res.on('data', (c) => { n += c.length; });
+        res.on('end', () => done(n));
+        res.on('error', () => done(-n));
+      }).on('error', () => done(-1));
+    });
+    assert.strictEqual(got, N, 'nhận đủ thân trả lời');
+    assert.strictEqual(logs.length, 1, 'lỗi vẫn được ghi log');
+  } finally { srv.close(); }
+});
+
 test('guardHttp: res.writeHead cũng ném (kết nối hỏng) → vẫn không ném ra ngoài', () => {
   const res = { headersSent: false, writeHead() { throw new Error('x'); }, end() {}, destroy() { this.d = true; } };
   guardHttp(() => { throw new Error('a'); }, () => {})({ method: 'GET', url: '/' }, res);

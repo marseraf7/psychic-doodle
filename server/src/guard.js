@@ -20,7 +20,8 @@ function guardHttp(handler, log = console.error) {
       log(`[web] lỗi không lường trước khi xử lý ${String(req.method).slice(0, 10)} ${logPath(req.url)}:`, e);
       try {
         if (!res.headersSent) { res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }); res.end('server error'); }
-        else res.destroy();
+        // Đã trả lời xong (res.end) rồi mới ném: chỉ ghi log – destroy lúc này cắt cụt phần thân còn trong bộ đệm socket
+        else if (!res.writableEnded) res.destroy(); // đang trả dở: cắt kết nối để bên kia biết trả lời không trọn
       } catch (e2) { try { res.destroy(); } catch (e3) { /* kết nối đã đóng */ } }
     };
     try {
