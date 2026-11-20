@@ -26,6 +26,7 @@ const path = require('path');
 const { WebSocketServer } = require('ws');
 const { Store } = require('./src/store.js');
 const { EvalCache } = require('./src/evalcache.js');
+const CodeHash = require('./src/code-hash.js');
 const { Hub, verifyGoogleToken } = require('./src/hub.js');
 const { makeHandler, clientIp, fromProxy, wsOriginAllowed } = require('./src/web.js');
 const { LagMeter } = require('./src/lag.js');
@@ -61,6 +62,8 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
   const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
   // Khoá bí mật cho mã người gửi điểm phân tích (src/evalcache.js) – file riêng cạnh caro.db, không nằm trong bản sao lưu CSDL
   if (dataFile) EvalCache.useKeyFile(path.join(path.dirname(dataFile), 'eval-key'));
+  // Khoá HMAC cho mã 6 số quên mật khẩu / xác minh email (L-1, src/code-hash.js) – khoá riêng, không cần sao lưu
+  if (dataFile) CodeHash.useKeyFile(path.join(path.dirname(dataFile), 'code-key'));
   const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, ...(timers ? { timers } : {}) });
   // Trợ lý AI tạo giải offline (hub/otour-ai.js): khoá API bí mật ở DATA_DIR/muse-key (Muse Spark – mặc định) hoặc
   // DATA_DIR/anthropic-key (Claude); hoặc biến MODEL_API_KEY / ANTHROPIC_API_KEY

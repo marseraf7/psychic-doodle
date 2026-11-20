@@ -363,7 +363,10 @@ Khuyên dùng cách để chính máy chủ phục vụ giao diện (link mời 
   khoá hỏng thì máy chủ không khởi động (không tự tạo khoá mới). Bản gửi giữ 30 ngày, xoá tài khoản thì xoá luôn; bộ nhớ
   tối đa 300 nghìn thế (bỏ thế lâu không dùng).
 
-- Mật khẩu băm scrypt; token đăng nhập và mã đặt lại mật khẩu chỉ lưu dạng băm SHA-256.
+- Mật khẩu băm scrypt; token đăng nhập (192 bit) chỉ lưu dạng băm SHA-256. Mã 6 số đặt lại mật khẩu / xác minh email lưu
+  dạng HMAC-SHA256 với khoá riêng `DATA_DIR/code-key` (`src/code-hash.js`, L-1 rà soát 20/11/2026): đọc được `caro.db` mà
+  thiếu khoá thì không dò ngược ra mã. Khoá này **không cần** sao lưu hay chép khi chuyển máy (mất khoá chỉ làm các mã đang
+  chờ ≤ 30 phút hết hiệu lực) – cố ý để ngoài bản sao lưu.
 - Quên mật khẩu: luôn trả lời giống nhau dù tài khoản có tồn tại hay không; mã 6 số hết hạn sau
   15 phút, sai 5 lần là huỷ; đặt lại xong thì đăng xuất mọi thiết bị.
 - Link xem lại không chứa id tài khoản; tin nhắn tối đa 500 ký tự, 60 tin / 10 phút.
