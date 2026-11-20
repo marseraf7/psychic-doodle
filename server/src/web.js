@@ -140,6 +140,16 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     json(res, 200, { applinks: { apps: [], details: [{ appID: `${team}.${APP_ID}`, paths: ['/', '/index.html'] }] } }, { 'cache-control': 'no-cache' });
   }
 
+  /** RFC 9116 security.txt (I-13, rà soát 20/11/2026): nơi báo lỗ hổng = Issues của repo (không lộ email cá nhân).
+   *  Expires luôn là một năm tính từ lúc hỏi – nội dung không cũ đi khi repo còn đó. */
+  function serveSecurityTxt(req, res) {
+    const exp = new Date(Date.now() + 365 * 86400000); exp.setUTCHours(0, 0, 0, 0);
+    const body = Buffer.from(['Contact: https://github.com/marseraf7/psychic-doodle/issues', `Expires: ${exp.toISOString()}`,
+      'Preferred-Languages: vi, en, ru, zh', ''].join('\n'));
+    res.writeHead(200, { 'content-type': MIME['.txt'], 'content-length': body.length, 'cache-control': 'public, max-age=86400' });
+    res.end(req.method === 'HEAD' ? undefined : body);
+  }
+
   /** Ván đã lưu để xem lại qua đường link chia sẻ (không trả id tài khoản). */
   function serveReplay(share, res) {
     const g = store.gameByShare(share);
@@ -275,6 +285,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (url === '/healthz') { res.writeHead(200); return res.end('ok'); }
     if (url === '/.well-known/assetlinks.json') return serveAssetLinks(res);
     if (url === '/.well-known/apple-app-site-association') return serveAasa(res);
+    if (url === '/.well-known/security.txt') return serveSecurityTxt(req, res);
     if (url.startsWith('/api/replay/')) {
       const share = url.slice(12);
       return share.endsWith('.png') ? serveReplayPng(share.slice(0, -4), req, res) : serveReplay(share, res);

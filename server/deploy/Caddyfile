@@ -4,7 +4,10 @@
 caro.ten-mien-cua-ban.com {
 	encode zstd gzip
 	header {
-		Strict-Transport-Security "max-age=31536000"
+		# includeSubDomains: chỉ phủ các tên miền con CỦA tên miền này (vd. *.caroxo.duckdns.org – cùng chủ, không dịch vụ
+		# HTTP nào khác), không đụng tên miền cha / tên miền khác. KHÔNG thêm "preload": duckdns.org là tên miền dùng chung,
+		# danh sách preload của trình duyệt khó gỡ ra và không dành cho tên miền con kiểu này (I-13, rà soát 20/11/2026).
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
 	}
 	# Máy chủ chỉ nhận GET (file tĩnh) và WebSocket: chặn yêu cầu có thân lớn
