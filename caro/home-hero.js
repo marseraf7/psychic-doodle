@@ -1,6 +1,8 @@
 /*
  * Trang chủ – thẻ cho người mới (lần đầu mở, chưa chơi ván nào): một nút lớn "Chơi với máy", bấm một lần là vào ván với
- * nhân vật máy mặc định (dễ – App.local.bot, người mới: Anh Độ), luật đang chọn, cầm X.
+ * nhân vật máy đang chọn (App.local.bot – mặc định Anh Độ, hoặc nhân vật theo trình độ đã chọn ở thẻ chào), luật đang
+ * chọn, cầm X; dòng gợi ý ghi tên + ~Elo nhân vật đó. Thẻ chào "Bạn chơi giỏi cỡ nào?" (learn.js) còn chờ trả lời thì
+ * nút lớn chờ – chỉ một thẻ chào một lúc.
  * Ẩn hẳn (lưu caro.hero) khi đã chơi xong một ván (caro:gameover) hoặc bấm ✕. Không hiện cho người đã chơi trên máy này:
  * có Lịch sử đấu trên máy, đã mở khoá nhân vật, đã đăng nhập, ván cục bộ đang dở / đã có tỉ số.
  * Đang có thẻ "Tiếp tục ván" (home.js) thì nhường chỗ cho thẻ đó.
@@ -19,22 +21,32 @@
 
   /** Đã chơi trên máy này (hoặc đã ẩn thẻ)? */
   function played() {
-    if (get(KEY) || get('caro.bots') || get('caro.token')) return true;
+    // caro.bots: đã mở khoá nhân vật – trừ khi do chọn "Chơi giỏi" ở thẻ chào (learn.js mở khoá tới mức 4, chưa chơi ván nào)
+    if (get(KEY) || get('caro.token') || (get('caro.bots') && get('caro.welcomed') !== 'good')) return true;
     if ((json('caro.lg.index', []) || []).length) return true;
     const v = json('caro.v1', null);
     return !!(v && ((v.moves && v.moves.length) || (v.score && Object.values(v.score).some(Boolean))));
   }
   const done = () => { try { localStorage.setItem(KEY, '1'); } catch (e) { /* riêng tư */ } };
 
+  /** Nhân vật máy nút lớn sẽ mở (theo trình độ đã chọn ở thẻ chào – App.setBot): tên + ~Elo cho dòng gợi ý. */
+  function botInfo() {
+    const B = window.CaroBots, b = B ? B.get(App.local.bot || 'ti') : null;
+    return { name: T('bot_' + (b ? b.id : 'ti')), elo: b ? b.elo : '' };
+  }
+
   function render() {
     const el = $('home-hero');
     if (!el) return;
     const robot = navigator.webdriver && !get('caro.heroE2E');
     const busy = !$('home-resume').hidden; // đã có thẻ Tiếp tục ván
-    el.hidden = robot || busy || played();
+    // Thẻ "Bạn chơi giỏi cỡ nào?" (learn.js) đang chờ trả lời: chỉ một thẻ chào – nút lớn hiện sau khi chọn trình độ
+    const wc = $('welcome-card');
+    const asking = !!wc && !wc.hidden;
+    el.hidden = robot || busy || asking || played();
     if (el.hidden) return;
     el.innerHTML = `<button type="button" class="primary home-hero-go" data-hero-go><svg class="ico" aria-hidden="true"><use href="#i-cpu"/></svg><span>${App.esc(T('home_vs_bot'))}</span></button>
-      <p class="hint">${App.esc(T('home_hero_hint'))}</p>
+      <p class="hint">${App.esc(T('home_hero_hint', botInfo()))}</p>
       <button type="button" class="x-close home-hero-x" data-hero-x aria-label="${App.esc(T('home_hero_hide'))}" title="${App.esc(T('home_hero_hide'))}">✕</button>`;
   }
 
@@ -45,6 +57,9 @@
       App.startPreset({ rule: L.rule || 'vn', bot: L.bot || 'ti', human: window.Caro.X, moves: [] });
     }
   });
+  // Trả lời thẻ chào (learn.js đã đặt nhân vật theo trình độ – trình nghe của nó gắn trước): hiện nút lớn với đúng nhân vật
+  const wc = $('welcome-card');
+  if (wc) wc.addEventListener('click', (e) => { if (e.target.closest('[data-level]')) setTimeout(render, 0); });
   // Chơi xong ván đầu tiên (với máy hay 2 người): thôi hiện
   window.addEventListener('caro:gameover', () => { done(); render(); });
   window.addEventListener('caro:page', (e) => { if (e.detail.id === 'home') render(); });

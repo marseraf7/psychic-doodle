@@ -182,6 +182,24 @@ const LANGS = ['vi', 'en', 'ru', 'zh'];
       }
       await p.context().close();
     }
+    // Người mới thật (không phải trình duyệt tự động): chỉ MỘT thẻ chào – thẻ "Bạn chơi giỏi cỡ nào?" trước, nút lớn ẩn tới
+    // khi trả lời; trả lời xong nút lớn mở đúng nhân vật máy của trình độ đã chọn và gợi ý ghi tên nhân vật đó (4 ngôn ngữ).
+    for (const lang of LANGS) {
+      const c = await browser.newContext({ viewport: { width: 390, height: 800 }, serviceWorkers: 'block' });
+      await c.addInitScript((l) => { localStorage.setItem('caro.lang', l); Object.defineProperty(navigator, 'webdriver', { get: () => false }); }, lang);
+      const p = await c.newPage();
+      p.on('pageerror', (e) => errs.push(`${lang} welcome: ${e.message}`));
+      await gotoRetry(p, URL); await sleep(1200);
+      const st = await p.evaluate(() => ({ welcome: !document.getElementById('welcome-card').hidden, hero: !document.getElementById('home-hero').hidden }));
+      ok(st.welcome && !st.hero, `${lang}: người mới chỉ thấy một thẻ chào (trình độ), nút lớn chờ ${JSON.stringify(st)}`);
+      await p.click('#welcome-card [data-level="good"]'); await sleep(300);
+      const h = await p.evaluate(() => ({ hero: !document.getElementById('home-hero').hidden, hint: (document.querySelector('#home-hero .hint') || {}).textContent || '', name: window.I18N.t('bot_mai') }));
+      ok(h.hero && h.hint.includes(h.name) && !/\{\w+\}|undefined|NaN/.test(h.hint), `${lang}: trả lời "chơi giỏi" → nút lớn hiện, gợi ý ghi đúng nhân vật ${JSON.stringify(h)}`);
+      await p.click('[data-hero-go]'); await sleep(400);
+      const L = await p.evaluate(() => window.CaroApp.local);
+      ok(L.mode === 'ai' && L.bot === 'mai', `${lang}: nút lớn mở đúng nhân vật của trình độ đã chọn ${JSON.stringify(L)}`);
+      await c.close();
+    }
   }
 
   ok(!errs.length, 'không lỗi JS ở các trang thử' + (errs.length ? ': ' + errs.join(' | ') : ''));
