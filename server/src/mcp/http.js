@@ -1,8 +1,9 @@
 /*
  * Connector MCP – lớp HTTP (Node http → Request / Response chuẩn web của SDK MCP) kèm các lớp chặn cho một điểm vào
  * công khai, không đăng nhập:
- *  - Origin (chống DNS rebinding theo đặc tả MCP Streamable HTTP): không có Origin (máy chủ gọi máy chủ, như Claude) thì cho
- *    qua; có thì chỉ nhận Claude, chính tên miền này, localhost (MCP Inspector khi thử) và CARO_MCP_ORIGINS.
+ *  - Host + Origin (chống DNS rebinding theo đặc tả MCP Streamable HTTP): Host phải là tên miền của game (CARO_PUBLIC_HOST,
+ *    mặc định caroxo.duckdns.org) hoặc localhost; không có Origin (máy chủ gọi máy chủ, như Claude) thì cho qua; có thì chỉ
+ *    nhận Claude, chính tên miền này, localhost (MCP Inspector khi thử) và CARO_MCP_ORIGINS.
  *  - CORS cho các Origin được nhận; OPTIONS trả 204.
  *  - Giới hạn theo IP (cửa sổ 1 phút, CARO_MCP_RATE, mặc định 240 – rộng vì mọi người dùng Claude đi chung vài IP của
  *    Anthropic; việc tốn CPU đã bị chặn riêng bằng hàng đợi máy cờ ở think.js).
@@ -22,15 +23,32 @@ function rpcError(res, status, message, extra = {}) {
   res.end(body);
 }
 
-function originAllowed(origin, req) {
+const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+/**
+ * Tên máy (không cổng, chữ thường) được nhận ở header Host: CARO_PUBLIC_HOST (phẩy ngăn cách; mặc định caroxo.duckdns.org),
+ * tên máy của PUBLIC_URL, localhost (thử / MCP Inspector). Chống DNS rebinding: trang lạ trỏ tên miền của nó về máy chủ thì
+ * Host là tên miền lạ – trước đây so Origin với chính Host nên lọt qua.
+ */
+function publicHosts() {
+  const list = String(process.env.CARO_PUBLIC_HOST || 'caroxo.duckdns.org').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  try { if (process.env.PUBLIC_URL) list.push(new URL(process.env.PUBLIC_URL).hostname.toLowerCase()); } catch (e) { /* PUBLIC_URL sai: bỏ qua */ }
+  return list;
+}
+/** Tên máy của một giá trị Host ("a.b:443", "[::1]:80") – chữ thường, bỏ cổng. */
+const hostName = (h) => { const m = /^(\[[0-9a-f:.]+\]|[^:]+)(?::\d{1,5})?$/i.exec(String(h || '').trim()); return m ? m[1].toLowerCase() : ''; };
+function hostAllowed(host) {
+  const n = hostName(host);
+  return !!n && (LOCAL_HOSTS.includes(n) || publicHosts().includes(n));
+}
+
+function originAllowed(origin) {
   const o = String(origin).replace(/\/+$/, '');
   if (CLAUDE_ORIGIN.test(o) || LOCAL_ORIGIN.test(o)) return true;
   const extras = String(process.env.CARO_MCP_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
   if (extras.includes(o)) return true;
   try {
     const u = new URL(o);
-    if (process.env.PUBLIC_URL && new URL(process.env.PUBLIC_URL).origin === u.origin) return true;
-    return u.host === String(req.headers.host || '');
+    return u.protocol === 'https:' && publicHosts().includes(u.hostname.toLowerCase()); // trang của chính game (connector.html)
   } catch (e) { return false; }
 }
 
@@ -72,8 +90,9 @@ function nodeHandler(fetchHandler, opts = {}) {
   }
 
   return async function handle(req, res) {
+    if (!hostAllowed(req.headers.host)) return rpcError(res, 403, 'This MCP server only answers on its own host name (Host header not allowed). Connect to https://caroxo.duckdns.org/mcp.');
     const origin = req.headers.origin;
-    if (origin && !originAllowed(origin, req)) return rpcError(res, 403, `Origin ${origin} is not allowed to use this MCP server.`);
+    if (origin && !originAllowed(origin)) return rpcError(res, 403, `Origin ${String(origin).slice(0, 100)} is not allowed to use this MCP server.`);
     if (origin) {
       res.setHeader('access-control-allow-origin', origin);
       res.setHeader('vary', 'origin');
@@ -91,7 +110,8 @@ function nodeHandler(fetchHandler, opts = {}) {
       res.writeHead(302, { location: '/connector.html' });
       return res.end();
     }
-    const wait = limited(opts.clientIp ? opts.clientIp(req) : req.socket.remoteAddress);
+    const ip = opts.clientIp ? opts.clientIp(req) : req.socket.remoteAddress;
+    const wait = limited(ip);
     if (wait) return rpcError(res, 429, `Too many requests to the Caro MCP server. Please wait ${wait} s and try again.`, { 'retry-after': String(wait) });
 
     let body;
@@ -128,4 +148,4 @@ function nodeHandler(fetchHandler, opts = {}) {
   };
 }
 
-module.exports = { nodeHandler, originAllowed, MAX_BODY };
+module.exports = { nodeHandler, originAllowed, hostAllowed, MAX_BODY };

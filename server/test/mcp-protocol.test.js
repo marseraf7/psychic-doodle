@@ -102,6 +102,8 @@ test('MCP HTTP: Origin lạ bị chặn 403, Origin của Claude được CORS, 
   assert.ok(originAllowed('https://abc123.claudemcpcontent.com', req()));
   assert.ok(originAllowed('http://localhost:6274', req()));
   assert.ok(originAllowed('https://caroxo.duckdns.org', req(null, 'caroxo.duckdns.org')));
+  // DNS rebinding: Origin trùng Host lạ không còn được nhận
+  assert.ok(!originAllowed('https://evil.example', req(null, 'evil.example')));
   assert.ok(!originAllowed('https://claude.ai.evil.com', req()));
   assert.ok(!originAllowed('not a url', req()));
   process.env.CARO_MCP_ORIGINS = 'https://friend.example';
@@ -130,6 +132,34 @@ test('MCP HTTP: giới hạn theo IP trả 429 kèm lời nhắn và Retry-After
 
 // Review 20/11/2026: thân quá cỡ trước đây vẫn được đọc (và bỏ đi) tới hết – một yêu cầu gửi mãi không dứt giữ kết nối
 // và băng thông. Nay báo 413 ngay khi vượt giới hạn (kể cả khi khai content-length quá cỡ) và đóng kết nối.
+// Review 20/11/2026 (DNS rebinding): Host phải thuộc danh sách (CARO_PUBLIC_HOST, mặc định caroxo.duckdns.org; localhost);
+// trang lạ trỏ tên miền của nó về máy chủ thì Host = tên miền lạ → 403 kèm lời nhắn rõ.
+test('MCP HTTP: Host không thuộc danh sách → 403; Origin của chính tên miền lạ cũng bị chặn', async () => {
+  const s = await start();
+  try {
+    const u = new URL(s.url);
+    const ask = (headers) => new Promise((resolve, reject) => {
+      const req = http.request({ host: u.hostname, port: u.port, path: u.pathname, method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', ...headers } }, (res) => {
+        let b = ''; res.on('data', (c) => { b += c; }); res.on('end', () => resolve({ status: res.statusCode, body: b }));
+      });
+      req.on('error', reject);
+      req.end(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }));
+    });
+    let r = await ask({ host: 'evil.example', origin: 'http://evil.example' });
+    assert.strictEqual(r.status, 403);
+    assert.match(JSON.parse(r.body).error.message, /Host/);
+    r = await ask({ host: 'evil.example' });
+    assert.strictEqual(r.status, 403, 'không có Origin nhưng Host lạ: vẫn chặn');
+    r = await ask({ host: 'caroxo.duckdns.org', origin: 'https://caroxo.duckdns.org', 'mcp-protocol-version': '2025-06-18' });
+    assert.notStrictEqual(r.status, 403, 'tên miền công khai mặc định được nhận');
+    process.env.CARO_PUBLIC_HOST = 'caro.example.org';
+    try {
+      r = await ask({ host: 'caro.example.org:443', 'mcp-protocol-version': '2025-06-18' });
+      assert.notStrictEqual(r.status, 403, 'CARO_PUBLIC_HOST được nhận (kèm cổng)');
+    } finally { delete process.env.CARO_PUBLIC_HOST; }
+  } finally { await s.stop(); }
+});
+
 test('MCP HTTP: thân quá cỡ gửi mãi không dứt → 413 ngay, không chờ hết thân', async () => {
   const s = await start();
   try {
