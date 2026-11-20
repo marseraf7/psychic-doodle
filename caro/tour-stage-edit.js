@@ -385,9 +385,10 @@
       return true;
     }
     const RE = K.routeEdit;
-    if (b.dataset.sact === 'add' && stages.length < max) { stages.unshift(DEFAULT.roundrobin()); if (RE) RE.shift(stages, 0, 1); }
+    if (b.dataset.sact === 'add' && stages.length < max) { stages.unshift(DEFAULT.roundrobin()); if (RE) RE.shift(stages, 0, 1); if (FD) FD.shift(0, 1); }
     else if (b.dataset.sact === 'del' && stages.length > 1) {
       if (RE) RE.shift(stages, Number(b.dataset.i), -1); // dời đích các dải hạng trước khi bỏ giai đoạn
+      if (FD) FD.shift(Number(b.dataset.i), -1); // khối "Tuỳ chọn nâng cao" đang mở đi theo giai đoạn của nó
       stages.splice(Number(b.dataset.i), 1);
       const last = stages[stages.length - 1];
       if (last) delete last.advance; // giai đoạn cuối không có "đi tiếp"
