@@ -325,6 +325,9 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
   return function handle(req, res) {
     let u, url;
     try { u = new URL(req.url, 'http://x'); url = decodeURIComponent(u.pathname); } catch (e) { res.writeHead(400); return res.end(); }
+    // H-1 (rà soát bảo mật 20/11): byte null / ký tự điều khiển sau giải mã ('%00'…) làm fs.stat ném lỗi đồng bộ → sập
+    // cả tiến trình. Không đường hợp lệ nào chứa chúng: từ chối trước khi chạm tới fs
+    if (/[\x00-\x1f\x7f]/.test(url)) { res.writeHead(400); return res.end(); }
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
     if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
@@ -385,10 +388,14 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     }
     const file = path.resolve(STATIC_DIR, '.' + url);
     if (!file.startsWith(STATIC_DIR + path.sep) || url.includes('/tests/')) { res.writeHead(404); return res.end(); }
-    fs.stat(file, (err, st) => {
-      if (err || !st.isFile()) { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('Không tìm thấy'); }
-      sendStatic(req, res, file, st, MIME[path.extname(file)] || 'application/octet-stream'); // ETag + 304 (static-file.js)
-    });
+    const notFound = () => { res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }); res.end('Không tìm thấy'); };
+    try { // lớp thứ hai cho H-1: đường lạ nào khác cũng chỉ ra 404, không bao giờ giết tiến trình
+      fs.stat(file, (err, st) => {
+        if (err || !st.isFile()) return notFound();
+        try { sendStatic(req, res, file, st, MIME[path.extname(file)] || 'application/octet-stream'); } // ETag + 304 (static-file.js)
+        catch (e) { console.error('[web] file tĩnh lỗi', e.code || e.name); if (!res.headersSent) notFound(); else res.destroy(); }
+      });
+    } catch (e) { notFound(); }
   };
 }
 
