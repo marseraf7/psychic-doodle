@@ -140,11 +140,12 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     json(res, 200, { applinks: { apps: [], details: [{ appID: `${team}.${APP_ID}`, paths: ['/', '/index.html'] }] } }, { 'cache-control': 'no-cache' });
   }
 
-  /** RFC 9116 security.txt (I-13, rà soát 20/11/2026): nơi báo lỗ hổng = Issues của repo (không lộ email cá nhân).
+  /** RFC 9116 security.txt (I-13, rà soát 20/11/2026): báo lỗ hổng KÍN qua GitHub (Private vulnerability reporting – chủ repo
+   *  bật trong Settings → Security), không đăng công khai ở Issues; không lộ email cá nhân.
    *  Expires luôn là một năm tính từ lúc hỏi – nội dung không cũ đi khi repo còn đó. */
   function serveSecurityTxt(req, res) {
     const exp = new Date(Date.now() + 365 * 86400000); exp.setUTCHours(0, 0, 0, 0);
-    const body = Buffer.from(['Contact: https://github.com/marseraf7/psychic-doodle/issues', `Expires: ${exp.toISOString()}`,
+    const body = Buffer.from(['Contact: https://github.com/marseraf7/psychic-doodle/security/advisories/new', `Expires: ${exp.toISOString()}`,
       'Preferred-Languages: vi, en, ru, zh', ''].join('\n'));
     res.writeHead(200, { 'content-type': MIME['.txt'], 'content-length': body.length, 'cache-control': 'public, max-age=86400' });
     res.end(req.method === 'HEAD' ? undefined : body);

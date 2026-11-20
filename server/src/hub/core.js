@@ -80,10 +80,13 @@ class Hub {
     this.conns = Math.max(0, (this.conns || 0) - 1);
     this.lobbyWatchers.delete(conn);
     if (this.closed) return;
-    this.unwatch(conn);
-    if (!pid) return;
-    this.detach(conn);
-    if (!this.isOnline(pid)) this.wentOffline(pid);
+    // try/finally: lỗi khi bỏ theo dõi (ván xem, giải…) không được chặn bước gỡ kết nối – kẻo người chơi "online ma"
+    try { this.unwatch(conn); } finally {
+      if (pid) {
+        this.detach(conn);
+        if (!this.isOnline(pid)) this.wentOffline(pid);
+      }
+    }
   }
 
   async handle(conn, raw) {

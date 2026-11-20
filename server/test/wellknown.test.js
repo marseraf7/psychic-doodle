@@ -61,7 +61,7 @@ test('I-13: security.txt (RFC 9116) – liên hệ qua Issues của repo, Expire
   const r = get('/.well-known/security.txt');
   assert.strictEqual(r.status, 200);
   assert.match(r.headers['content-type'], /^text\/plain/);
-  assert.match(r.body, /^Contact: https:\/\/github\.com\/marseraf7\/psychic-doodle\/issues$/m);
+  assert.match(r.body, /^Contact: https:\/\/github\.com\/marseraf7\/psychic-doodle\/security\/advisories\/new$/m);
   const exp = Date.parse(/^Expires: (\S+)$/m.exec(r.body)[1]);
   assert.ok(exp > Date.now() + 300 * 86400000 && exp <= Date.now() + 366 * 86400000, 'Expires khoảng một năm tới, không quá một năm');
   assert.ok(!/@/.test(r.body), 'không có địa chỉ email');
