@@ -10,14 +10,14 @@
  *   node caro/tests/e2e/otour-majors.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8843;
   const { app, user, ok, shot, finish } = await setup(PORT);
   const boss = await user('vi', 'ban_major', 1100);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="cs_major"]'); await sleep(500);
+  await pickTpl(boss, 'cs_major'); await sleep(500);
   ok(await boss.$$eval('#otf-stages .stage-card', (xs) => xs.length) === 4 && !!(await boss.$('#otf-stages [data-sact="add"]')), 'Mẫu kiểu CS Major: 4 giai đoạn, còn thêm được (tối đa 6)');
   ok(/ghép cặp kiểu CS Major/.test(await boss.textContent('#otf-desc')), 'Mô tả bằng lời: ghép cặp kiểu CS Major');
   ok(await boss.$$eval('#otf-stages [data-i="0"][data-k="pairing"] option', (os) => os.some((o) => o.value === 'valve' && o.selected)), 'Lựa chọn ghép cặp "Kiểu CS Major" đang chọn');
@@ -38,7 +38,7 @@ const { setup, sleep } = require('./helpers.js');
 
   // ---------- 3. Kiểu PGC: sinh tồn chia bảng cố định
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="pgc"]'); await sleep(500);
+  await pickTpl(boss, 'pgc'); await sleep(500);
   ok(/chia 2 bảng cố định, mỗi bảng 18 trận/.test(await boss.textContent('#otf-desc')) && /kiểu PUBG/.test(await boss.textContent('#otf-desc')), 'Mô tả: chia 2 bảng cố định + hệ số phụ kiểu PUBG');
   ok(await boss.inputValue('#otf-stages [data-i="0"][data-k="groups"]') === '2' && await boss.inputValue('#otf-stages [data-i="0"][data-k="tb"]') === 'pubg', 'Form: ô chia bảng = 2, hệ số phụ kiểu PUBG');
   await boss.click('[data-act="otTplTeams"]'); await sleep(400);
@@ -58,14 +58,14 @@ const { setup, sleep } = require('./helpers.js');
 
   // ---------- 4. Kiểu LoL Worlds 2022 / LoL Worlds: trận phụ phân hạng, bốc thăm theo thành tích Thụy Sĩ
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="lol_worlds22"]'); await sleep(500);
+  await pickTpl(boss, 'lol_worlds22'); await sleep(500);
   ok(await boss.inputValue('#otf-stages [data-i="0"][data-k="tbm"]') === 'match' && await boss.inputValue('#otf-stages [data-i="1"][data-k="tbm"]') === 'match'
     && !(await boss.$('#otf-stages [data-i="2"][data-k="tbm"]')), 'Kiểu Worlds 2022: trận phụ ở 2 vòng bảng, không có ở giai đoạn cuối');
   ok(/đấu trận phụ/.test(await boss.textContent('#otf-desc')), 'Mô tả: trận phụ khi bằng điểm');
   await boss.selectOption('#otf-stages [data-i="0"][data-k="tbm"]', 'h2h'); await sleep(300);
   ok(/xét đối đầu, vẫn bằng thì đấu trận phụ/.test(await boss.textContent('#otf-desc')), 'Đổi sang "đối đầu trước"');
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="lol_worlds"]'); await sleep(500);
+  await pickTpl(boss, 'lol_worlds'); await sleep(500);
   ok(await boss.isChecked('#otf-stages [data-i="2"][data-k="drawRec"]') && /bốc thăm nhánh theo thành tích/.test(await boss.textContent('#otf-desc')), 'Kiểu LoL Worlds: bốc thăm theo thành tích vòng Thụy Sĩ');
   await shot(boss, 'ot-lol-form.png');
   await finish();

@@ -18,6 +18,7 @@
   if (!K) return;
   const { T, esc, icon } = K;
   const { stageName, advText } = K;
+  const FD = K.stageFold; // thu gọn ô ít dùng, rút gọn lựa chọn dài (tour-stage-fold.js)
 
   const PT = { w: 3, d: 1, l: 0 };
   const DEFAULT = {
@@ -78,7 +79,13 @@
   function html(stages, adv, ctx = {}) {
     const st = stages || [];
     const num = (i, k, v, min, max) => `<input type="number" data-i="${i}" data-k="${k}" value="${v}" min="${min}" max="${max}">`;
-    const sel = (i, k, items, v) => `<select data-i="${i}" data-k="${k}">${items.map(([x, l]) => `<option value="${x}" ${String(x) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+    // Lựa chọn dài: trong hộp chỉ hiện phần trước ngoặc, phần giải thích hiện dưới hộp (tour-stage-fold.js – FD.short)
+    const short = FD.short;
+    const sel = (i, k, items, v) => {
+      const cur = items.find(([x]) => String(x) === String(v));
+      const tip = cur ? short(cur[1])[1] : '';
+      return `<select data-i="${i}" data-k="${k}" title="${esc(cur ? cur[1] : '')}">${items.map(([x, l]) => `<option value="${x}" ${String(x) === String(v) ? 'selected' : ''}>${esc(short(l)[0])}</option>`).join('')}</select>${tip ? `<small class="hint sel-tip">${esc(tip)}</small>` : ''}`;
+    };
     const chk = (i, k, v, label) => `<label class="check"><input type="checkbox" data-i="${i}" data-k="${k}" ${v ? 'checked' : ''}> <span>${esc(label)}</span></label>`;
     const field = (label, inner) => `<label class="field inline"><span>${esc(label)}</span>${inner}</label>`;
     // Bo của cả giai đoạn: Bo1–7 hoặc tự nhập số lẻ bất kỳ tới MAX_BO
@@ -107,11 +114,13 @@
         <div class="row"><button type="button" class="ghost sm" data-sact="placeAll" data-i="${i}" data-size="${size}">${esc(T('place_all'))}</button>
         <button type="button" class="ghost sm" data-sact="placeNone" data-i="${i}">${esc(T('place_none'))}</button></div></div>`;
     };
+    // Tên thể thức trong hộp chọn: loại có tên theo tham số (pool {n} người) lấy từ registry K.kinds, không để lộ {n}
+    const typeLabel = (x, c) => (K.kinds && K.kinds[x] && x === c.type ? K.kinds[x].name(c) : T('fmt_' + x, { n: 16 }));
     const cards = st.map((c, i) => {
       const last = i === st.length - 1;
       // Giải offline: loại trực tiếp cũng được làm giai đoạn giữa (vòng loại đội thách đấu kiểu America's Cup)
       // Loại trong registry phía trình duyệt (K.kinds – nhánh đồ thị…): chỉ giải offline
-      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race', ...(last ? [] : ['kings']), ...Object.keys(K.kinds || {}).filter((x) => !(last && K.kinds[x].mid))] : [])].map((x) => [x, T('fmt_' + x)]);
+      const types = [...(last || ctx.ext ? ['single', 'double', 'roundrobin', 'swiss'] : ['roundrobin', 'swiss']), ...(ctx.ext ? ['gsl', 'race', ...(last ? [] : ['kings']), ...Object.keys(K.kinds || {}).filter((x) => !(last && K.kinds[x].mid))] : [])].map((x) => [x, typeLabel(x, c)]);
       const f = [field(T('format'), sel(i, 'type', types, c.type))];
       if (K.kindOf && K.kindOf(c.type)) f.push(...K.kindOf(c.type).edit(i, c, st, last)); // nhánh đồ thị… (registry)
       else if (c.type !== 'race') f.push(field(T('format_bo'), boPick(i, 'bestOf', c.bestOf, ctx.ext && (c.type === 'roundrobin' || c.type === 'swiss') && !c.record)));
@@ -237,7 +246,20 @@
       // Thụy Sĩ theo số thắng / thua: ai đủ số thắng đều đi tiếp (không cần ô số người đi tiếp)
       if (!last && !c.record && !c.gate && !c.advanceMode && c.type !== 'gsl' && c.type !== 'kings') f.push(field(T(c.season ? 'adv_per_conf' : c.type === 'roundrobin' && !c.league ? 'adv_per_group' : 'adv_total'), num(i, 'advance', c.advance, c.routes ? 0 : 1, c.type === 'race' ? 512 : 32))); // race: tới MAX_RACE_HEATS (512) như máy chủ
       const del = st.length > 1 ? `<button type="button" class="ghost sm icon" data-sact="del" data-i="${i}" title="${esc(T('stage_remove'))}" aria-label="${esc(T('stage_remove'))}">${icon('close')}</button>` : '';
-      const extra = more.length ? `<div class="sc-more"><b>${esc(T('stage_more'))}</b><div class="sc-body">${more.join('')}</div></div>` : '';
+      // Giải offline: ô ít dùng (bridge, đích đội bị loại, trận phụ, vào thẳng, King of the Hill…) đang để mặc định thì chuyển
+      // vào khối thu gọn – ô đã đặt giá trị (mẫu giải, người dùng) vẫn hiện ngoài để không giấu cấu hình đang dùng
+      if (ctx.ext) {
+        const keep = [], rare = [];
+        for (const h of f) (FD.RARE.has((/data-k="([^"]+)"/.exec(h) || [])[1]) && FD.isDefault(h) ? rare : keep).push(h);
+        f.length = 0;
+        f.push(...keep);
+        more.unshift(...rare);
+      }
+      // Giải offline: khối "Tuỳ chọn nâng cao" của giai đoạn thu gọn sẵn (ít dùng – form ngắn hơn), dòng tóm tắt giá trị đang
+      // đặt; mở / đóng được nhớ qua các lần vẽ lại (tour-stage-fold.js). Trang nâng cao giải Caro giữ như cũ (luôn mở).
+      const extra = !more.length ? '' : ctx.ext
+        ? `<details class="sc-more fold-more" data-si="${i}" ${FD.open.has(i) ? 'open' : ''}><summary><b>${esc(T('stage_more'))}</b><span class="ellip muted">${esc(FD.summary(c, { gfOf, tbsOf }))}</span></summary><div class="sc-body">${more.join('')}</div></details>`
+        : `<div class="sc-more"><b>${esc(T('stage_more'))}</b><div class="sc-body">${more.join('')}</div></div>`;
       return `<div class="stage-card"><div class="sc-head"><b>${esc(T('stage_n', { n: i + 1 }))}</b>${last && st.length > 1 ? ` <span class="muted">${esc(T('stage_final'))}</span>` : ''}${del}</div><div class="sc-body">${f.join('')}</div>${extra}</div>`;
     });
     const arrows = [];

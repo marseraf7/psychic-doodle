@@ -9,7 +9,7 @@
  *   node caro/tests/e2e/otour-ui.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 const { audit, coverAt } = require('./ui-audit.js');
 
 const TPLS = ['premier_league', 'lol_msi', 'baku_open', 'pgc23', 'tour_de_france', 'americas_cup'];
@@ -31,7 +31,7 @@ const LONG = 'Giải giao hữu mùa đông các câu lạc bộ phía Bắc m�
   for (const [k, id] of TPLS.entries()) {
     await boss.setViewportSize({ width: 1920, height: 998 });
     await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-    await boss.click(`.tpl-card[data-id="${id}"]`); await sleep(500);
+    await pickTpl(boss, id); await sleep(500);
     await boss.click('[data-act="otTplTeams"]').catch(() => {}); await sleep(300);
     // Form tạo giải (cả phần giai đoạn đã mở): gợi ý ô nhập, hộp chọn
     await openAll(); await sleep(200);

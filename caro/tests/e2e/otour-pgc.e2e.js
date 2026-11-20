@@ -10,7 +10,7 @@
  *   node caro/tests/e2e/otour-pgc.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 const Race = require('../../../server/src/hub/stages-race.js');
 
 (async () => {
@@ -22,7 +22,7 @@ const Race = require('../../../server/src/hub/stages-race.js');
 
   // ---------- 1. Form mẫu kiểu PGC 2022
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="pgc22"]'); await sleep(500);
+  await pickTpl(boss, 'pgc22'); await sleep(500);
   ok(await boss.$$eval('#otf-stages .stage-card', (xs) => xs.length) === 6 && !(await boss.$('#otf-stages [data-sact="add"]')), 'Mẫu kiểu PGC 2022: 6 giai đoạn, hết chỗ thêm');
   ok(await boss.inputValue(S(1, 'rtN', 0)) === '8' && await boss.inputValue(S(1, 'rtTo', 0)) === '3'
     && await boss.inputValue(S(1, 'rtN', 1)) === '7' && await boss.inputValue(S(1, 'rtTo', 1)) === '4', 'Nhánh thua 1: 8 đội → giai đoạn 4, 7 đội → giai đoạn 5');
@@ -35,9 +35,9 @@ const Race = require('../../../server/src/hub/stages-race.js');
   await shot(boss, 'ot-pgc22-form.png');
   await boss.fill(S(1, 'rtN', 1), '0'); await boss.press(S(1, 'rtN', 1), 'Tab'); await sleep(300);
   ok(!/hạng 9–15/.test(await desc()) && !(await boss.$(S(1, 'rtN', 2))), 'Bỏ một dải hạng');
-  await boss.click('.tpl-card[data-id="pgc22"]').catch(() => {}); await sleep(300);
+  await pickTpl(boss, 'pgc22').catch(() => {}); await sleep(300);
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="pgc22"]'); await sleep(500);
+  await pickTpl(boss, 'pgc22'); await sleep(500);
   await boss.click('[data-act="otTplTeams"]'); await sleep(400);
   await boss.click('#otf button.primary.wide'); await sleep(1200);
   const id = await boss.evaluate(() => window.CaroTourKit.D.ot.id);
@@ -70,7 +70,7 @@ const Race = require('../../../server/src/hub/stages-race.js');
 
   // ---------- 3. Mẫu kiểu PGC 2019
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="pgc19"]'); await sleep(500);
+  await pickTpl(boss, 'pgc19'); await sleep(500);
   ok(await boss.inputValue(S(0, 'tb')) === 'pubg_k' && await boss.isChecked(S(1, 'carry')) && await boss.isChecked(S(2, 'rot')) && await boss.inputValue(S(2, 'rotN')) === '3', 'PGC 2019: chỉ số phụ PUBG cũ, mang điểm, 3 bảng xoay vòng');
   ok(/mang nguyên điểm giai đoạn trước/.test(await desc()) && /kiểu PUBG cũ/.test(await desc()), 'Mô tả: mang điểm, PUBG cũ');
   await boss.fill(S(2, 'rotN'), '4'); await boss.press(S(2, 'rotN'), 'Tab'); await sleep(300);
@@ -79,7 +79,7 @@ const Race = require('../../../server/src/hub/stages-race.js');
 
   // ---------- 4. Đợt 15 – mẫu kiểu PGC 2024: hệ Circuit
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="pgc24"]'); await sleep(500);
+  await pickTpl(boss, 'pgc24'); await sleep(500);
   ok(await boss.isChecked(S(0, 'ciOn')) && await boss.inputValue(S(0, 'ciN')) === '3' && await boss.inputValue(S(0, 'ciKeep')) === '12' && await boss.inputValue(S(0, 'ciLate')) === '4 4'
     && !(await boss.$(S(0, 'groups'))) && !(await boss.$(S(0, 'gateOn'))), 'PGC 2024: hệ Circuit 3 vòng, giữ 12, vào muộn 4 4; không có ô chia bảng / cổng thắng trận');
   ok(/hệ Circuit 3 vòng × 3 ngày × 6 trận/.test(await desc()), 'Mô tả: hệ Circuit');
@@ -101,7 +101,7 @@ const Race = require('../../../server/src/hub/stages-race.js');
 
   // ---------- 5. Đợt 18 – mẫu kiểu PGC 2021: vòng tuần
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="pgc21"]'); await sleep(500);
+  await pickTpl(boss, 'pgc21'); await sleep(500);
   await boss.click('[data-act="otTplTeams"]'); await sleep(400);
   await boss.click('#otf button.primary.wide'); await sleep(1200);
   const wid = await boss.evaluate(() => window.CaroTourKit.D.ot.id);

@@ -29,6 +29,8 @@ const ST = require('../../../server/src/hub/stages.js');
   await boss.selectOption(S(1, 'type'), 'kings'); await sleep(300);
   ok(await boss.isVisible(S(1, 'boLow')) && !(await boss.$(S(1, 'advance'))), 'Tranh hạt giống: có Bo nửa dưới, không có ô số đội đi tiếp');
   await boss.selectOption(S(1, 'boLow'), '5'); await sleep(300);
+  // Ô "vào thẳng" đang 0 nằm trong khối "Tuỳ chọn nâng cao" thu gọn của giai đoạn (tour-stage-fold.js): mở ra trước
+  await boss.evaluate(() => document.querySelectorAll('#otf-stages details.fold-more').forEach((d) => { d.open = true; })); await sleep(100);
   await boss.fill(S(2, 'direct'), '2'); await boss.press(S(2, 'direct'), 'Tab'); await sleep(300);
   ok(/3\/4 số đội đi tiếp/.test(await boss.textContent('#otf-stages .flow')) && /vòng tranh hạt giống/.test(await boss.textContent('#otf-desc')) && /nửa dưới Bo5/.test(await boss.textContent('#otf-desc')), 'Sơ đồ + mô tả bằng lời');
   const teams = Array.from({ length: 10 }, (_, i) => 'Đội ' + (i + 1));

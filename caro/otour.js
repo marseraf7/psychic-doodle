@@ -79,25 +79,33 @@
     if (d.multi && K.otMultiForm) return K.otMultiForm(d); // giải tổng từ mẫu (otour-multi.js)
     const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label)}</option>`;
     const n = d.teams.split('\n').filter((x) => x.trim()).length;
-    return `<form id="otf" class="tform">
+    const step = K.otStep || ((i, body) => body);
+    const sel = `<label class="field"><span>${esc(T(K.otFmtCards ? 'otn_fmt_all' : 'format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>`;
+    // Bố cục chia bước (otour-new-ui.js): Bắt đầu nhanh → 1 Thông tin → 2 Bộ môn và thể thức → 3 Đội → 4 Nâng cao; tóm tắt bên phải
+    return `<form id="otf" class="tform ot-new"><div class="ot-main">
       ${d.parent ? `<p class="hint ot-parent"><b>${esc(T('multi_child_of', { name: d.parent.name }))}</b></p>` : ''}
-      ${K.otAiHtml ? K.otAiHtml() : ''}
-      ${K.otTplHtml ? K.otTplHtml(d) : ''}
-      <label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
-      ${K.slugKit ? K.slugKit.field(d.slug, 'o') : ''}
-      <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
-      <label class="field"><span>${esc(T('ot_sport'))}</span><select name="sport">${Object.keys(SP.SPORTS).map((k) => opt(k, d.sport, SP.SPORTS[k].icon + ' ' + T('sport_' + k))).join('')}</select></label>
-      <label class="field"><span>${esc(T('ot_result'))}</span><select name="result">${SP.RESULTS.map((k) => opt(k, d.result, T('otres_' + k))).join('')}</select></label>
-      <div id="otf-set">${setHtml()}</div>
-      <label class="field"><span>${esc(T('format'))}</span><select name="preset">${[...Object.keys(PRESETS), 'custom'].map((k) => opt(k, d.preset, T('fmt_' + k))).join('')}</select></label>
-      <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), n, ext: true, result: F.d.result })}</div>
-      <p class="est" id="otf-est"></p>
-      <div class="ot-desc" id="otf-desc"></div>
-      <label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>
-      <fieldset><legend>${esc(T('ot_access'))}</legend><div class="seg">${['public', 'link', 'private'].map((k) => `<label><input type="radio" name="access" value="${k}" ${d.access === k ? 'checked' : ''}> <span>${esc(T('ot_acc_' + k))}</span></label>`).join('')}</div></fieldset>
-      <p class="hint">${esc(T('ot_quota_hint'))}</p>
-      <p class="err" id="otf-err"></p>
-      <button class="primary wide">${esc(T('ot_create'))}</button></form>`;
+      <section class="ot-step ot-quick" aria-labelledby="ots-0"><header class="ot-step-h"><span class="ot-step-t"><h3 id="ots-0">${esc(T('otn_quick'))}</h3><small class="hint">${esc(T('otn_quick_h'))}</small></span></header>
+        <div class="ot-step-b">${K.otTplHtml ? K.otTplHtml(d) : ''}${K.otAiHtml ? K.otAiHtml() : ''}</div></section>
+      ${step(1, `<label class="field"><span>${esc(T('tour_name'))}</span><input name="name" maxlength="60" required value="${esc(d.name)}"></label>
+        ${K.slugKit ? K.slugKit.field(d.slug, 'o') : ''}
+        <div class="field"><span>${esc(T('tour_desc'))}</span>${R ? R.editor('desc', d.desc, { rows: 4, max: 4000 }) : `<textarea name="desc" rows="3" maxlength="4000">${esc(d.desc)}</textarea>`}</div>
+        <fieldset><legend>${esc(T('ot_access'))}</legend><div class="seg">${['public', 'link', 'private'].map((k) => `<label><input type="radio" name="access" value="${k}" ${d.access === k ? 'checked' : ''}> <span>${esc(T('ot_acc_' + k))}</span></label>`).join('')}</div></fieldset>`)}
+      ${step(2, `<div class="ot-row2"><label class="field"><span>${esc(T('ot_sport'))}</span><select name="sport">${Object.keys(SP.SPORTS).map((k) => opt(k, d.sport, SP.SPORTS[k].icon + ' ' + T('sport_' + k))).join('')}</select></label>
+        <label class="field"><span>${esc(T('ot_result'))}</span><select name="result">${SP.RESULTS.map((k) => opt(k, d.result, T('otres_' + k))).join('')}</select></label></div>
+        <div id="otf-set">${setHtml()}</div>
+        ${K.otFmtCards ? `<div class="field"><span>${esc(T('otn_fmt_pick'))}</span>${K.otFmtCards(d)}</div>` : ''}${sel}
+        <h4 class="ot-sub">${esc(T('otn_stages'))}</h4>
+        <div id="otf-stages">${SE.html(F.stages, true, { max: Math.max(n, 4), n, ext: true, result: F.d.result })}</div>`)}
+      ${step(3, `<label class="field"><span>${esc(T('ot_teams'))} <b id="otf-n">${n}</b></span><textarea name="teams" rows="6" placeholder="${esc(T('ot_teams_ph'))}">${esc(d.teams)}</textarea><small class="hint">${esc(T('ot_teams_hint'))}</small></label>`)}
+      <section class="ot-step ot-step-adv" aria-labelledby="ots-4">${K.otIoHtml ? K.otIoHtml(K.otStepFoldTitle ? K.otStepFoldTitle(4) : '') : ''}</section>
+      </div>
+      <aside class="ot-sum" aria-labelledby="ots-sum"><h3 id="ots-sum">${esc(T('otn_sum'))}</h3>
+        <div id="otf-sum" aria-live="polite"></div>
+        <p class="est" id="otf-est"></p>
+        <div class="ot-desc" id="otf-desc"></div>
+        <p class="hint">${esc(T('ot_quota_hint'))}</p>
+        <p class="err" id="otf-err"></p>
+        <button class="primary wide">${esc(T('ot_create'))}</button></aside></form>`;
   }
   /** Đọc form vào bản nháp. */
   function collect(f) {
@@ -113,6 +121,7 @@
     if (K.otDescribe) K.otDescribe(F); // xem trước bằng lời (otour-tpl.js)
     const n = F.d.teams.split('\n').filter((x) => x.trim()).length;
     $('otf-n').textContent = n;
+    if (K.otSummary) K.otSummary(F, n); // khung "Giải của bạn" (otour-new-ui.js)
     const el = $('otf-est');
     if (!el || n < 2 || !window.CaroTourEstimate) { if (el) el.textContent = ''; return; }
     const e = window.CaroTourEstimate.estimate({ stages: F.stages, players: n, timeLimit: 20 });

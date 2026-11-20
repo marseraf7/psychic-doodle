@@ -5,7 +5,7 @@
  *   node caro/tests/e2e/otour-cup.e2e.js
  */
 'use strict';
-const { setup, sleep } = require('./helpers.js');
+const { setup, sleep, pickTpl } = require('./helpers.js');
 const ST = require('../../../server/src/hub/stages.js');
 
 (async () => {
@@ -14,7 +14,7 @@ const ST = require('../../../server/src/hub/stages.js');
   const boss = await user('vi', 'ban_thuyen', 1100);
   const tab = (k) => boss.click(`[data-act="otTab"][data-tab="${k}"]`).then(() => sleep(400));
   await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(300);
-  await boss.click('.tpl-card[data-id="americas_cup"]'); await sleep(300);
+  await pickTpl(boss, 'americas_cup'); await sleep(300);
   ok(await boss.$eval('#otf select[name=sport]', (e) => e.value) === 'sailing', 'Mẫu America’s Cup: bộ môn đua thuyền');
   ok(await boss.$eval('#otf-stages [data-i="1"][data-k="type"]', (e) => e.value) === 'single' && await boss.$eval('#otf-stages [data-i="1"][data-k="advance"]', (e) => e.value) === '1', 'Giai đoạn 2: loại trực tiếp, 1 đội đi tiếp');
   ok(await boss.$eval('#otf-stages [data-i="2"][data-k="direct"]', (e) => e.value) === '1' && /\+ 1 đội vào thẳng/.test(await boss.textContent('#otf-stages .flow')), 'Giai đoạn 3: đội giữ cúp vào thẳng');
