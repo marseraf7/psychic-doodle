@@ -24,7 +24,9 @@ const { setup, sleep } = require('./helpers.js');
   const openNew = async () => { await boss.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(700); };
   await openNew();
   ok(await boss.$eval('#otai', (e) => !e.hidden).catch(() => false) && /chưa bật AI/.test(await boss.textContent('#otai-chat')), 'Máy chủ chưa có khoá: khung vẫn hiện, mời thêm khoá riêng');
-  ok(await boss.$eval('#otai-own', (d) => d.open) && await boss.$eval('[data-act="otAiSend"]', (b) => b.disabled), 'Mục khoá riêng mở sẵn, nút Gửi khoá khi chưa có khoá');
+  ok(!(await boss.$eval('#otai-own', (d) => d.open)) && await boss.$eval('[data-act="otAiSend"]', (b) => b.disabled), 'Mục khoá riêng thu gọn sẵn (form ngắn), nút Gửi khoá khi chưa có khoá');
+  await boss.click('#otai-own summary'); await sleep(100);
+  ok(await boss.$eval('#otai-own', (d) => d.open), 'Bấm tiêu đề: mở mục khoá riêng');
 
   // Khoá riêng: OpenAI
   await boss.selectOption('#otai-prov', 'openai'); await sleep(100);

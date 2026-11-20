@@ -41,11 +41,14 @@
         <small class="muted">${esc(using)} · ${esc(T('ot_ai_note'))}</small></div>`;
   }
 
-  /** Phần "Dùng khoá API của riêng bạn" (mở sẵn khi máy chủ chưa bật AI và chưa có khoá riêng). */
+  /**
+   * Phần "Dùng khoá API của riêng bạn": thu gọn sẵn (form tạo giải ngắn hơn – lời mời thêm khoá đã có trong khung chat);
+   * người dùng mở ra thì giữ mở qua các lần vẽ lại trang (A.ownOpen).
+   */
   function ownHtml() {
     const o = A.own || { provider: 'muse', key: '', model: '' };
     const p = PV.PROVIDERS[o.provider] || PV.PROVIDERS.muse;
-    return `<details class="ot-ai-own" id="otai-own" ${!A.on && !A.own ? 'open' : ''}><summary>${esc(T('ot_ai_own'))}${A.own ? ' ✓' : ''}</summary>
+    return `<details class="ot-ai-own" id="otai-own" ${A.ownOpen ? 'open' : ''}><summary>${esc(T('ot_ai_own'))}${A.own ? ' ✓' : ''}</summary>
       <p class="hint">${esc(T('ot_ai_own_hint'))}</p>
       <div class="row ot-ai-own-row">
         <label class="field inline"><span>${esc(T('ot_ai_provider'))}</span><select id="otai-prov">${Object.keys(PV.PROVIDERS).map((k) => `<option value="${esc(k)}" ${k === o.provider ? 'selected' : ''}>${esc(pname(k))}</option>`).join('')}</select></label>
@@ -60,6 +63,7 @@
   }
 
   /** Vẽ lại riêng phần hội thoại (giữ chữ đang gõ trong ô hỏi). */
+  document.addEventListener('toggle', (e) => { if (e.target && e.target.id === 'otai-own') A.ownOpen = e.target.open; }, true);
   function paint() {
     const box = $('otai');
     if (!box) return;

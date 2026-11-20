@@ -78,6 +78,13 @@ const { audit } = require('./ui-audit.js');
   ok(await boss.inputValue('#otf select[name=preset]') === 'double' && /16 đội · Nhánh thắng – nhánh thua · khoảng 3\d(–3\d)? trận/.test(s2)
     && await boss.getAttribute('#otf .ot-fmt[data-fmt="double"]', 'aria-pressed') === 'true', 'Thẻ thể thức: chọn loại kép, tóm tắt đổi: ' + s2);
   ok(await boss.$$eval('#otf-stages [data-sact], #otf-stages select, #otf-stages input', (x) => x.length) > 0, 'Trình sửa giai đoạn vẫn hiện');
+  ok(await boss.$$eval('#otf-stages details.fold-more', (d) => d.length && d.every((x) => !x.open)) && /1 hoặc 2 trận/.test(await boss.textContent('#otf-stages details.fold-more summary')),
+    'Tuỳ chọn nâng cao của giai đoạn thu gọn sẵn, có dòng tóm tắt: ' + (await boss.textContent('#otf-stages details.fold-more summary')));
+  await boss.click('#otf-stages details.fold-more summary'); await sleep(150);
+  await boss.selectOption('#otf-stages [data-i="0"][data-k="gf"]', '1'); await sleep(300);
+  ok(await boss.$eval('#otf-stages details.fold-more', (d) => d.open) && await boss.inputValue('#otf-stages [data-i="0"][data-k="gf"]') === '1', 'Mở khối rồi đổi giá trị: vẽ lại vẫn mở, giữ giá trị');
+  await boss.click('#otf-stages details.fold-more summary'); await sleep(150);
+  ok(!(await boss.$('#otai-own[open]')), 'Mục khoá AI riêng thu gọn sẵn');
   await boss.selectOption('#otf select[name=preset]', 'swiss'); await sleep(300);
   ok(await boss.getAttribute('#otf .ot-fmt[data-fmt="swiss"]', 'aria-pressed') === 'true' && /Hệ Thụy Sĩ/.test(await boss.textContent('#otf-sum')), 'Chọn trong hộp chọn: thẻ + tóm tắt theo');
   ok(await boss.$eval('.ot-sum', (e) => getComputedStyle(e).position) === 'sticky', 'Máy tính: khung tóm tắt dính bên phải');
@@ -88,11 +95,15 @@ const { audit } = require('./ui-audit.js');
   const hs = await boss.evaluate(() => [document.scrollingElement, ...document.querySelectorAll('.otp-body, #otf')].filter(Boolean).map((e) => e.scrollWidth - e.clientWidth));
   ok(hs.every((d) => d <= 1), 'Điện thoại: không cuộn ngang ' + JSON.stringify(hs));
   ok(await boss.$eval('.ot-sum', (e) => getComputedStyle(e).position) === 'static', 'Điện thoại: khung tóm tắt nằm cuối form (không dính, không che ô nhập)');
-  // (Hộp chọn dài của trình sửa giai đoạn Thụy Sĩ / loại kép – "Kiểu Hà Lan, chuẩn FIDE…", "1 hoặc 2 trận…" – dài hơn hộp ở
-  // 390px: lỗi có từ trước, không thuộc phần này; soát với thể thức mặc định vòng bảng + loại trực tiếp)
-  await boss.click('#otf .ot-fmt[data-fmt="groups_single"]'); await sleep(300);
-  const bad = await audit(boss, '#otf');
-  ok(!bad.length, 'Soát giao diện form 390px: 0 lỗi ' + JSON.stringify(bad.slice(0, 5)));
+  // Soát mọi thể thức chọn nhanh, mở cả các khối thu gọn (tuỳ chọn nâng cao của giai đoạn, nhập / xuất JSON): hộp chọn dài
+  // của Thụy Sĩ ("Kiểu Hà Lan, chuẩn FIDE…") / loại kép ("1 hoặc 2 trận…") không còn bị cắt ở 390px
+  const bad = [];
+  for (const fmt of ['groups_single', 'swiss', 'double', 'swiss_single', 'single', 'roundrobin']) {
+    await boss.click(`#otf .ot-fmt[data-fmt="${fmt}"]`); await sleep(300);
+    await boss.evaluate(() => document.querySelectorAll('#otf details.fold-more:not([open])').forEach((d) => { d.open = true; })); await sleep(150);
+    for (const x of await audit(boss, '#otf')) bad.push(fmt + ': ' + x.kind + ' ' + x.text);
+  }
+  ok(!bad.length, 'Soát giao diện form 390px (6 thể thức, mở tuỳ chọn nâng cao): 0 lỗi ' + JSON.stringify(bad.slice(0, 5)));
   await boss.click('.tpl-tile'); await sleep(300);
   const r = await boss.$eval('dialog.tpl-lib', (d) => { const b = d.getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)]; });
   ok(r[0] === 390 && r[1] === 844, 'Điện thoại: hộp mẫu toàn màn hình ' + r);
@@ -108,8 +119,8 @@ const { audit } = require('./ui-audit.js');
   await zh.evaluate(() => window.CaroTourKit.acts.otNew()); await sleep(400);
   await zh.click('.tpl-tile'); await sleep(250);
   await zh.click('.tpl-lib .tpl-item[data-id="world_cup_2026"]'); await sleep(250);
-  // (chỉ phần của tính năng này: hộp mẫu, ô gọn, các bước, tóm tắt – chuỗi trong trình sửa giai đoạn soát ở bài khác)
-  const zt = (await zh.textContent('dialog.tpl-lib')) + (await zh.$$eval('#otf .ot-step-h, #otf .tpl-tile, #otf .ot-fmts, #otf .ot-sum', (e) => e.map((x) => x.textContent).join(' ')));
-  ok(!/\{\w+\}|undefined|NaN/.test(zt) && /48 队/.test(zt) && /小组赛（12 组）/.test(zt) && /你的赛事/.test(zt), 'Tiếng Trung: hộp chi tiết + form không lộ {x}, có "48 队", "小组赛（12 组）"');
+  // Cả form (kể cả chữ của mọi lựa chọn trong hộp chọn thể thức giai đoạn: trước đây lộ "fmt_knock" và "{n}" của pool)
+  const zt = (await zh.textContent('dialog.tpl-lib')) + (await zh.textContent('#otf'));
+  ok(!/\{\w+\}|undefined|NaN|fmt_/.test(zt) && /48 队/.test(zt) && /小组赛（12 组）/.test(zt) && /你的赛事/.test(zt), 'Tiếng Trung: hộp chi tiết + form không lộ {x}, có "48 队", "小组赛（12 组）"');
   await finish();
 })();

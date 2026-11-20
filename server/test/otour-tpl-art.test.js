@@ -111,6 +111,8 @@ test('Chuỗi mới (otl_*, otn_*) đủ 4 ngôn ngữ, cùng biến', () => {
     assert.ok(typeof D[l][k] === 'string' && D[l][k].trim(), `${l}:${k}`);
     assert.strictEqual(vars(D[l][k]), vars(D.vi[k]), `${l}:${k}`);
   }
+  // Hộp chọn thể thức của giai đoạn: mọi loại (cả loại trong registry K.kinds) có tên ở 4 ngôn ngữ (lỗi cũ: "fmt_knock" thô)
+  for (const l of LANGS) for (const k of ['single', 'double', 'roundrobin', 'swiss', 'gsl', 'race', 'kings', 'graph', 'pools', 'knock']) assert.ok(D[l]['fmt_' + k], `${l}:fmt_${k}`);
   // Tên thể thức và nhãn kiểu hình dùng trong hộp / thẻ chọn nhanh đều có
   for (const l of LANGS) {
     for (const k of ['rr', 'groups', 'single', 'double', 'swiss', 'race', 'ladder']) assert.ok(D[l]['otl_k_' + k], l + k);

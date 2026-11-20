@@ -128,3 +128,17 @@ dialog.tpl-lib::backdrop { background: rgba(0, 0, 0, 0.5); }
 .tpl-svg .a-tx { fill: var(--text); font-size: 9px; font-family: var(--font); }
 .tpl-svg .a-mid { text-anchor: middle; font-size: 7px; }
 .tpl-svg .a-end { text-anchor: end; }
+
+/* Khối "Tuỳ chọn nâng cao" của từng giai đoạn (tour-stage-edit.js, giải offline): thu gọn sẵn, dòng tóm tắt cắt có "…" */
+details.fold-more > summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; min-width: 0; }
+details.fold-more > summary > b { flex: none; font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+details.fold-more > summary > .ellip { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-xs); }
+details.fold-more[open] > summary > .ellip { display: none; }
+
+/* Hộp chọn trong thẻ giai đoạn không vượt khung ở màn hẹp (chữ dài đã rút gọn, phần giải thích ở dòng .sel-tip) */
+.sc-body select { max-width: 100%; min-width: 0; }
+.sc-body .sel-tip { font-weight: var(--fw-regular); }
+details.fold-more > summary { list-style: none; }
+details.fold-more > summary::-webkit-details-marker { display: none; }
+details.fold-more > summary::before { content: '▸'; flex: none; color: var(--muted); }
+details.fold-more[open] > summary::before { content: '▾'; }
