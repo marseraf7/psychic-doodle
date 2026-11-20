@@ -1,6 +1,6 @@
 /*
  * Một phòng chơi online (máy chủ giữ trạng thái chuẩn, client chỉ hiển thị).
- *  kind = 'room'   : phòng thường (mã 6 số + mật khẩu 3 số), tái đấu thì đổi bên đi trước.
+ *  kind = 'room'   : phòng thường (mã 6 số + mật khẩu 4 số – roomPin() ở hub/rooms.js), tái đấu thì đổi bên đi trước.
  *  kind = 'series' : thách đấu bạn bè Bo1/Bo3/Bo5, mỗi ván đổi bên đi trước.
  * Quân X luôn đi trước; "đổi bên đi trước" = hai người đổi quân X/O cho nhau.
  *
