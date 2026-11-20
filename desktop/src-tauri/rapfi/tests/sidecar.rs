@@ -8,6 +8,14 @@ use caro_rapfi::{run_bench, EngineError, EngineSpec, Rule, Supervisor};
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+/// Các bài chạy lần lượt. Bài thử ghi script engine giả rồi chạy ngay; nếu cùng lúc một bài khác fork tiến trình con, con
+/// fork giữ fd đang ghi của script (trước khi exec) và exec script báo ETXTBSY ("Text file busy") – lỗi chập chờn trên CI.
+/// Khoá này bảo đảm không có fork nào xen giữa lúc ghi và lúc chạy script.
+fn serial() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|p| p.into_inner())
+}
+
 fn env_spec(bin: &str, cfg: &str) -> Option<EngineSpec> {
     let (b, c) = (std::env::var_os(bin)?, std::env::var_os(cfg)?);
     // Đường dẫn tuyệt đối: Rapfi chạy với thư mục làm việc là thư mục của config
@@ -33,6 +41,7 @@ fn fake_engine(name: &str, body: &str) -> EngineSpec {
 #[cfg(unix)]
 #[test]
 fn treo_thi_het_gio_va_thu_lai() {
+    let _k = serial();
     // Không bao giờ trả lời START
     let mut sup = Supervisor::new(fake_engine("treo", "exec sleep 30"));
     let t = Instant::now();
@@ -45,6 +54,7 @@ fn treo_thi_het_gio_va_thu_lai() {
 #[cfg(unix)]
 #[test]
 fn chet_giua_chung_thi_chay_lai() {
+    let _k = serial();
     // Trả OK cho START rồi chết khi nhận lệnh tiếp: lần nào cũng chết → báo Crashed sau 2 lần
     let mut sup = Supervisor::new(fake_engine("chet", "read a; echo OK; read b; exit 3"));
     let r = sup.best_move(&[[1, 1]], Rule::Std, 100);
@@ -56,6 +66,7 @@ fn chet_giua_chung_thi_chay_lai() {
 #[cfg(unix)]
 #[test]
 fn nuoc_di_cua_engine_gia() {
+    let _k = serial();
     // Engine giả luôn đi 3,4 sau khi đọc hết khối BOARD … DONE
     let body = r#"while read l; do case "$l" in START*) echo OK;; DONE*) echo "MESSAGE nghĩ xong"; echo 3,4;; esac; done"#;
     let mut sup = Supervisor::new(fake_engine("tot", body));
@@ -72,12 +83,14 @@ fn nuoc_di_cua_engine_gia() {
 
 #[test]
 fn thieu_file_rapfi() {
+    let _k = serial();
     let spec = EngineSpec::new(PathBuf::from("/khong/co/pbrain-rapfi"), PathBuf::from("/khong/co/config.toml"), 1);
     assert!(matches!(Supervisor::new(spec).best_move(&[], Rule::Free, 100), Err(EngineError::Spawn(_))));
 }
 
 #[test]
 fn rapfi_that_luat_nnue() {
+    let _k = serial();
     let Some(spec) = env_spec("CARO_RAPFI_BIN", "CARO_RAPFI_CONFIG") else {
         eprintln!("bỏ qua: chưa đặt CARO_RAPFI_BIN / CARO_RAPFI_CONFIG");
         return;
@@ -103,6 +116,7 @@ fn rapfi_that_luat_nnue() {
 
 #[test]
 fn rapfi_that_luat_viet_nam() {
+    let _k = serial();
     let Some(spec) = env_spec("CARO_RAPFI_CARO_BIN", "CARO_RAPFI_CARO_CONFIG") else {
         eprintln!("bỏ qua: chưa đặt CARO_RAPFI_CARO_BIN / CARO_RAPFI_CARO_CONFIG");
         return;
@@ -115,6 +129,7 @@ fn rapfi_that_luat_viet_nam() {
 
 #[test]
 fn rapfi_that_bench() {
+    let _k = serial();
     if std::env::var_os("CARO_RAPFI_BENCH").is_none() {
         eprintln!("bỏ qua: chưa đặt CARO_RAPFI_BENCH=1");
         return;
