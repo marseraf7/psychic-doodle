@@ -19,7 +19,7 @@ test('csp-nets khớp NETS_COMMIT / REPOS của caro/rapfi/worker.js và commit 
   assert.strictEqual(/const NETS_COMMIT = '([0-9a-f]{40})'/.exec(worker)[1], NETS_COMMIT);
   assert.deepStrictEqual(JSON.parse(/const REPOS = (\[[^\]]*\]);/.exec(worker)[1].replace(/'/g, '"')), REPOS);
   const upd = fs.readFileSync(path.join(ROOT, 'server', 'deploy', 'update.sh'), 'utf8');
-  assert.ok(upd.includes(`rapfi-networks/${NETS_COMMIT}/mix9svq`), 'update.sh tải đúng commit đã ghim');
+  assert.ok(upd.includes(`\nNETS_COMMIT=${NETS_COMMIT}\n`), 'update.sh tải đúng commit đã ghim');
 });
 
 test('CSP connect-src: không mở cả origin CDN; mọi URL tải mạng của worker.js đều nằm trong một nguồn được phép', () => {
