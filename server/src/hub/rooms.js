@@ -321,6 +321,7 @@ class Rooms {
         xId: ux && ux.id, oId: uo && uo.id, xName: name(xPid), oName: name(oPid),
         winner: room.winner, reason: room.reason, moves,
       });
+      if (ux && uo && ux !== uo) this.fpOnSettle(room, room.lastShare); // soát chơi đẹp (fairplay.js)
     }
     const pool = R.poolOf(room);
     let d = null;

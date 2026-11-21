@@ -17,6 +17,7 @@ const { ClubStore } = require('./store-club.js');
 const { OTourStore } = require('./store-otour.js');
 const { StatsStore } = require('./store-stats.js'); // đọc ván cho thống kê / tổng kết
 const { LeagueStore } = require('./store-league.js'); // hạng đấu tuần
+const { FairplayStore } = require('./store-fairplay.js'); // soát chơi đẹp: rời tab, hàng chờ quản trị
 const { SyncStore } = require('./store-sync.js'); // tiến độ nhỏ theo tài khoản (thang nhân vật máy…)
 const { EvalCache } = require('./evalcache.js');
 
@@ -179,6 +180,7 @@ class Store {
       this.clubTalkUserGone(id); // tin chat + bài diễn đàn câu lạc bộ (store-club.js)
       this.lgUserGone(id); // hạng đấu tuần (store-league.js)
       this.kvUserGone(id); // tiến độ đồng bộ (store-sync.js)
+      this.fpPrune(); // soát chơi đẹp: bỏ dòng của ván đã xoá (store-fairplay.js)
       this.db.exec('COMMIT');
     } catch (e) {
       this.db.exec('ROLLBACK');
@@ -430,7 +432,7 @@ async function dummyCheckPassword(password) {
 
 // Phiên đăng nhập / thiết bị (store-sessions.js)
 // + chat / diễn đàn câu lạc bộ (store-club.js) + giải đấu offline (store-otour.js) + đọc ván cho thống kê (store-stats.js)
-for (const part of [Sessions, ClubStore, OTourStore, StatsStore, LeagueStore, SyncStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
+for (const part of [Sessions, ClubStore, OTourStore, StatsStore, LeagueStore, SyncStore, FairplayStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
   if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 

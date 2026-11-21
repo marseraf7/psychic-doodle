@@ -64,3 +64,12 @@ svg.ins-shape .so { fill: var(--o, #2f6fd2); }
 .lad-t { display: block; min-width: 0; }
 .lad-t b, .lad-t small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lad-t small { color: var(--muted); font-size: var(--fs-xs); }
+
+/* Soát chơi đẹp – trang quản trị (fairplay-admin.js) */
+.fp-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.fp-item { padding: 8px 10px; border-radius: 10px; background: rgba(127, 127, 127, 0.06); }
+.fp-main { min-width: 0; }
+.fp-main > b, .fp-main > small, .fp-side { display: block; }
+.fp-main > small, .fp-side { color: var(--muted); font-size: var(--fs-xs); margin-top: 2px; }
+.fp-side b { color: var(--fg, inherit); }
+.fp-act { gap: 8px; flex-wrap: wrap; margin-top: 6px; }
