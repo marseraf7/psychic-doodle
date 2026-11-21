@@ -10,11 +10,12 @@ const { audit } = require('./ui-audit');
 (async () => {
   const PORT = 8126;
   const { app, user, ok, shot, finish } = await setup(PORT);
-  const a = await user('vi', 'rc_ann', 390);
+  const a = await user('vi', 'rc_ann', 390, { timezoneId: 'America/New_York' }); // máy ở New York: máy chủ lưu múi giờ IANA
   await user('vi', 'rc_ben', 390);
   const ua = app.store.byUsername.get('rc_ann').id, ub = app.store.byUsername.get('rc_ben').id;
   const rec = (x, o, winner) => app.store.recordGame({ kind: 'quick', timeLimit: 0, clock: '3+2', rule: 'vn', xId: x, oId: o, xName: 'x', oName: 'o', winner, reason: 'win', moves: [[0, 0], [5, 5], [1, 0], [5, 6], [2, 0], [5, 7], [3, 0], [5, 8], [4, 0]] });
   rec(ua, ub, 1); rec(ub, ua, 2); rec(ua, ub, 2);
+  ok(app.store.users.get(ua).tzName === 'America/New_York', 'máy chủ lưu múi giờ thiết bị (tên IANA) – Tổng kết tính tháng / ngày theo đó');
   await a.evaluate(() => localStorage.setItem('caro.storm', JSON.stringify({ best: 23, runs: 4 })));
 
   await a.click('#tabbar [data-tab="more"]');

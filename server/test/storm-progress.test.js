@@ -172,12 +172,51 @@ test('Storm: trần lượt / ngày tính cả lượt đã nộp trong storm_ru
   hub.stormDaily().clear(); // như vừa khởi động lại: bộ đếm trong bộ nhớ rỗng
   const err = await c.req({ t: 'stormStart' }, 'error');
   assert.strictEqual(err.code, 'storm_limit');
-  // Lượt của hôm qua (giờ UTC) không tính
+  // Lượt của hôm qua (theo múi giờ thiết bị – chưa có thì giờ Việt Nam) không tính
   hub.store.db.prepare('UPDATE storm_runs SET at = at - 86400000 WHERE uid = ?').run(uc.id);
   await new Promise((r) => setTimeout(r, 5100)); // giới hạn 5 giây / lượt của kết nối
   assert.ok((await c.req({ t: 'stormStart' }, 'stormRun')).run);
   hub.store.deleteUser(uc);
   c.close();
+});
+
+test('Storm: "ngày" của trần lượt theo múi giờ thiết bị (tên IANA, đúng giờ mùa hè), không theo UTC', () => {
+  const hub = ctx.app.hub;
+  const limited = (u, t) => { try { hub.stormCap(u, t); return false; } catch (e) { assert.strictEqual(e.code, 'storm_limit'); return true; } };
+  // New York: 100 lượt lúc 18:00 ngày 1/11 (23:00 UTC). 20:00 cùng ngày (đã sang ngày 2/11 giờ UTC): vẫn hết lượt
+  const ny = { id: 'cap_ny', tzName: 'America/New_York', tz: -300 };
+  for (let i = 0; i < 100; i++) hub.store.stormAdd(ny.id, 1, Date.UTC(2026, 10, 1, 23));
+  assert.ok(limited(ny, Date.UTC(2026, 10, 2, 1)), '20:00 giờ New York: cùng ngày, hết lượt');
+  assert.ok(limited(ny, Date.UTC(2026, 10, 2, 4, 59)), '23:59 EST (ngày 25 giờ – đổi giờ lúc 02:00)');
+  assert.ok(!limited(ny, Date.UTC(2026, 10, 2, 5, 1)), '00:01 ngày 2/11 giờ New York: ngày mới');
+  // Việt Nam: 100 lượt lúc 23:50 – 00:10 hôm sau chơi tiếp được
+  const vn = { id: 'cap_vn', tzName: 'Asia/Ho_Chi_Minh' };
+  for (let i = 0; i < 100; i++) hub.store.stormAdd(vn.id, 1, Date.UTC(2026, 10, 2, 16, 50));
+  assert.ok(limited(vn, Date.UTC(2026, 10, 2, 16, 55)));
+  assert.ok(!limited(vn, Date.UTC(2026, 10, 2, 17, 10)));
+  // Bộ đếm trong bộ nhớ (lượt đã bắt đầu, chưa nộp) cũng theo ngày địa phương
+  const mem = { id: 'cap_mem', tzName: 'Europe/Berlin' };
+  for (let i = 0; i < 100; i++) hub.stormCap(mem, Date.UTC(2026, 2, 28, 23, 30)); // 00:30 CET 29/3 (ngày 23 giờ)
+  assert.ok(limited(mem, Date.UTC(2026, 2, 29, 21, 59)), '23:59 CEST cùng ngày');
+  assert.ok(!limited(mem, Date.UTC(2026, 2, 29, 22, 1)), '00:01 CEST 30/3');
+  for (const u of [ny, vn, mem]) { hub.store.db.prepare('DELETE FROM storm_runs WHERE uid = ?').run(u.id); hub.stormDaily().delete(u.id); }
+});
+
+test('Storm: đổi múi giờ liên tục không chơi quá 2 × trần trong 24 giờ (trần cuộn – như ca biên 23:59 / 00:01)', () => {
+  const hub = ctx.app.hub;
+  const limited = (u, t) => { try { hub.stormCap(u, t); return false; } catch (e) { return true; } };
+  const T = Date.UTC(2026, 10, 2, 12);
+  const u = { id: 'cap_sw', tz: 0 };
+  for (let i = 0; i < 100; i++) hub.store.stormAdd(u.id, 1, T - 10 * 60000); // 11:50 UTC
+  assert.ok(limited(u, T));
+  u.tz = -720; // UTC−12: lúc T là 00:00 ngày 2/11 – ngày mới bắt đầu sau 100 lượt kia
+  for (let i = 0; i < 100; i++) assert.ok(!limited(u, T), 'ngày địa phương mới: được 100 lượt');
+  assert.ok(limited(u, T), 'hết 100 lượt của ngày mới');
+  u.tz = 660; // UTC+11: lúc T + 1 giờ là 00:00 ngày 3/11 – lại "ngày mới", nhưng 24 giờ qua đã 200 lượt
+  assert.ok(limited(u, T + 3600000), 'trần cuộn 24 giờ: 2 × 100');
+  assert.ok(!limited(u, T + 24 * 3600000), '24 giờ sau: chơi lại được');
+  hub.store.db.prepare('DELETE FROM storm_runs WHERE uid = ?').run(u.id);
+  hub.stormDaily().delete(u.id);
 });
 
 test('hồ sơ công khai: chuỗi ngày / huy hiệu tự báo bị giới hạn (ngày tương lai, chuỗi vô lý, huy hiệu tài khoản chưa đạt)', async () => {

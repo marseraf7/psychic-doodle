@@ -28,11 +28,19 @@ test('rời tab: cộng vào phòng có trần, lưu kèm ván, nhiều thì và
     assert.strictEqual(room.fp[1].n, 13);
     hub.on_fpBlur(conn, { n: 'x', ms: -5 });
     assert.strictEqual(room.fp[1].n, 13, 'giá trị lạ: 0');
-    // Ván không tính điểm (giao hữu, đi lại, quá số ván tính điểm / cặp / ngày…): không lưu số lần rời tab
+    // Ván không tính điểm (giao hữu, đi lại, quá số ván tính điểm / cặp / ngày…): vẫn lưu số lần rời tab kèm ván, nhưng
+    // KHÔNG vào hàng chờ (dù rời tab nhiều) – chỉ vào khi ván bị báo cáo gian lận
     const s0 = record(app, { x: a.uid, o: b.uid });
     hub.fpOnSettle(room, s0, false);
-    assert.strictEqual(app.store.fpBlur(s0), null, 'ván không tính điểm: không lưu');
-    assert.strictEqual(app.store.fpQueue('all').length, 0);
+    assert.deepStrictEqual(app.store.fpBlur(s0), { x_n: 13, x_ms: 305000, o_n: 0, o_ms: 0 }, 'ván không tính điểm: vẫn lưu');
+    assert.strictEqual(app.store.fpQueue('all').length, 0, 'ván không tính điểm: không vào hàng chờ vì rời tab nhiều');
+    const tourRoom = { ...room, tour: { id: 'tx' }, fp: room.fp, gameNo: room.gameNo };
+    hub.tours.set('tx', { id: 'tx', format: 'arena', players: [{ uid: a.uid, score: 9 }] });
+    const sT = record(app, { x: a.uid, o: b.uid });
+    hub.fpOnSettle(tourRoom, sT, false);
+    assert.strictEqual(app.store.fpQueue('all').length, 0, 'ván không tính điểm của giải: không vào hàng chờ "bàn đầu"');
+    hub.tours.delete('tx');
+    const sU = s0;
     const share = record(app, { x: a.uid, o: b.uid });
     hub.fpOnSettle(room, share, true);
     assert.deepStrictEqual(app.store.fpBlur(share), { x_n: 13, x_ms: 305000, o_n: 0, o_ms: 0 });
@@ -57,10 +65,29 @@ test('rời tab: cộng vào phòng có trần, lưu kèm ván, nhiều thì và
     // Người thường không xem được
     const deny = await a.req({ t: 'fpQueue' }, 'fpQueue');
     assert.strictEqual(deny.code, 'admin_only');
-    // Báo cáo gian lận → ván gần nhất giữa hai người vào hàng chờ (mở lại nếu đã xem)
+    room.finish(1, 'resign'); // ván giả đã xong: báo cáo nhắm ván đã lưu gần nhất
+    // Báo cáo gian lận → ván gần nhất giữa hai người vào hàng chờ (mở lại nếu đã xem), kèm số lần rời tab của ván đó
     await a.req({ t: 'report', id: b.uid, reason: 'cheat' }, 'note').catch(() => null);
     const it = app.store.fpQueue('open')[0];
     assert.ok(it && it.why.split(',').includes('report'));
+    // Ván không tính điểm bị báo cáo: vào hàng chờ, kèm số lần rời tab
+    app.store.fpEnqueue(sU, 'report');
+    const itU = app.store.fpQueue('open').find((x) => x.share === sU);
+    assert.ok(itU && itU.why === 'report');
+    assert.deepStrictEqual([itU.x_n, itU.x_ms, itU.o_n, itU.o_ms], [13, 305000, 0, 0], 'báo cáo ván không tính điểm: kèm số lần rời tab');
+    // Báo cáo khi đang đấu với người đó: ván đang chơi (chưa lưu) vào hàng chờ lúc xong, kèm số lần rời tab, dù không tính điểm
+    const r3 = hub.makeRoom('casual', 1, 0, {});
+    hub.enter(r3, 'u_' + a.uid, 1);
+    hub.enter(r3, 'u_' + b.uid, 2);
+    r3.board.play(0, 0, 1);
+    r3.board.play(5, 5, 2);
+    hub.on_fpBlur(conn, { n: 1, ms: 2000 });
+    hub.fpReport(a.uid, b.uid);
+    const s3 = record(app, { x: a.uid, o: b.uid });
+    hub.fpOnSettle(r3, s3, false);
+    const it3 = app.store.fpQueue('open').find((x) => x.share === s3);
+    assert.ok(it3 && it3.why === 'report', 'ván đang chơi lúc báo cáo: vào hàng chờ khi xong');
+    assert.deepStrictEqual([it3.x_n, it3.x_ms], [1, 2000]);
     // Không có lần rời tab nào: không lưu
     const r2 = hub.makeRoom('casual', 1, 0, {});
     const s2 = record(app, { x: a.uid, o: b.uid });

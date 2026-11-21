@@ -29,9 +29,10 @@ class ProgressStore {
     return week;
   }
 
-  /** Số lượt Storm đã kiểm của uid từ thời điểm since (ms) – trần lượt / ngày không mất khi máy chủ khởi động lại. */
-  stormRunsSince(uid, since) {
-    return this.db.prepare('SELECT COUNT(*) AS n FROM storm_runs WHERE uid = ? AND at >= ?').get(uid, since).n;
+  /** Thời điểm nộp (ms) các lượt Storm đã kiểm của uid sau since – trần lượt / ngày không mất khi máy chủ khởi động lại
+   *  (hub/progress.js stormCap). Tối đa 1000 dòng (trần cuộn chỉ cần 200). */
+  stormRunTimes(uid, since) {
+    return this.db.prepare('SELECT at FROM storm_runs WHERE uid = ? AND at > ? ORDER BY at DESC LIMIT 1000').all(uid, since).map((r) => r.at);
   }
 
   stormPrune(now = Date.now()) {
