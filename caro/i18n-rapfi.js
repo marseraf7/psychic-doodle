@@ -16,9 +16,9 @@
     an_by_rapfi: 'Phân tích bởi Rapfi, máy cờ vô địch Gomocup',
     rapfi_loading: 'BOAT đang tải bộ não Rapfi (khoảng {mb} MB, chỉ tải lần đầu)…',
     rapfi_ready: 'BOAT đã sẵn sàng với Rapfi, máy cờ vô địch Gomocup ⛵',
-    rapfi_failed: 'Không tải được Rapfi nên BOAT dùng máy cờ sẵn có của game',
+    rapfi_failed: 'Không tải được Rapfi nên BOAT dùng máy cờ sẵn có của ứng dụng',
     rapfi_mt: 'Rapfi đa luồng',
-    rapfi_mt_d: 'BOAT và phần phân tích dùng nhiều lõi của máy để nghĩ sâu hơn. Tắt nếu máy nóng, chậm hoặc game bị giật.',
+    rapfi_mt_d: 'BOAT và phần phân tích dùng nhiều lõi của máy để nghĩ sâu hơn. Tắt nếu máy nóng, chậm hoặc ứng dụng bị giật.',
     rapfi_mt_na: 'Trình duyệt này chỉ chạy được Rapfi một luồng (chạy nhiều luồng hiện có trên Chrome và Edge ở máy tính).',
     rapfi_mt_lag: 'Máy có vẻ bị giật khi BOAT nghĩ bằng nhiều luồng. Hãy tắt «Rapfi đa luồng» ở Cài đặt › Cài đặt bàn cờ để chơi mượt hơn.',
   });

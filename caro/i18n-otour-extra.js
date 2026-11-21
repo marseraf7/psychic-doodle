@@ -20,7 +20,7 @@
     opt_pu_per_hint: 'Chỉ dùng khi giai đoạn trước là nhảy cầu (Nordic combined cá nhân kiểu Gundersen: 1 điểm = 4 giây).',
     pu_info_jump: 'mỗi điểm thua nhảy cầu = {s} giây',
     ds_pu_per: 'nếu giai đoạn trước là nhảy cầu: mỗi điểm thua = {s} giây',
-    by_assist: 'assist',
+    by_assist: 'kiến tạo',
     by_assist_hint: 'Người dừng ở vòng mà chỉ còn nhà vô địch về kịp',
     mtg_title: 'Phiên draft {n}',
     mtg_note: 'Mỗi người mở {n} gói, chọn một lá rồi chuyền phần còn lại.',

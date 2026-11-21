@@ -8,11 +8,11 @@
 
   X('vi', {
     srv_ot_stage_few: 'Giai đoạn {n} chỉ còn chưa tới 2 đội: hãy cho thêm đội đi tiếp hoặc vào thẳng.',
-    esp_race_n: 'Race {n}', esp_title_ps: 'Chi tiết các race',
+    esp_race_n: 'Lượt đua {n}', esp_title_ps: 'Chi tiết các lượt đua',
     sport_sailing: 'Đua thuyền buồm', tpl_americas_cup: 'Kiểu America’s Cup (đua thuyền buồm)',
-    tpl_americas_cup_d: 'Đội đầu danh sách là đội giữ cúp, vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng tròn 2 lượt (thắng mỗi race 1 điểm); 4 đội đầu vào bán kết, ai thắng 5 race trước thì đi tiếp (Bo9); chung kết đội thách đấu ai thắng 7 race trước (Bo13). Đội thắng gặp đội giữ cúp trong trận tranh cúp, ai thắng 7 race trước (Bo13) giành cúp. Mỗi race ghi bên vào sân và thời gian về đích.',
+    tpl_americas_cup_d: 'Đội đầu danh sách là đội giữ cúp, vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng tròn 2 lượt (thắng mỗi lượt đua 1 điểm); 4 đội đầu vào bán kết, ai thắng 5 lượt đua trước thì đi tiếp (Bo9); chung kết đội thách đấu ai thắng 7 lượt đua trước (Bo13). Đội thắng gặp đội giữ cúp trong trận tranh cúp, ai thắng 7 lượt đua trước (Bo13) giành cúp. Mỗi lượt đua ghi bên vào sân và thời gian về đích.',
     esp_port: 'Vào từ mạn trái', esp_stbd: 'Vào từ mạn phải', esp_side_pick_ps: 'Thuyền vào từ mạn trái', esp_sides: 'Cách gọi hai bên',
-    esp_st_finish: 'Thời gian về đích (giây)', esp_margin: 'Cách biệt về đích: {s} giây', esp_sum_ps: '{g} race · thời lượng trung bình {d} · vào từ mạn trái thắng {b}%',
+    esp_st_finish: 'Thời gian về đích (giây)', esp_margin: 'Cách biệt về đích: {s} giây', esp_sum_ps: '{g} lượt đua · thời lượng trung bình {d} · vào từ mạn trái thắng {b}%',
   });
 
   X('en', {

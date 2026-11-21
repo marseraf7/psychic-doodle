@@ -10,7 +10,7 @@
   X('vi', {
     tadv_settings: 'Cài đặt nâng cao',
     tadv_title: 'Cài đặt nâng cao',
-    tadv_back_quick: 'Về form nhanh',
+    tadv_back_quick: 'Về biểu mẫu nhanh',
     tadv_tab_basic: 'Thông tin cơ bản',
     tadv_tab_format: 'Thể thức',
     tadv_tab_games: 'Ván đấu',
