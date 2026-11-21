@@ -68,6 +68,7 @@ class Progress {
     const res = V.checkRun(r, { solved, wrong }, Date.now(), puzzles().byId);
     if (!res.ok) return conn.send({ t: 'stormResult', rejected: res.reason });
     const week = this.store.stormAdd(u.id, res.score);
+    this._stormView = null; // bảng tuần dựng lại
     const prog = this.store.progressGet(u.id) || P.clean({});
     prog.storm = { best: Math.max(prog.storm.best, res.score), runs: prog.storm.runs + 1, last: res.score };
     this.store.progressSet(u.id, prog);
@@ -75,9 +76,18 @@ class Progress {
     conn.send({ t: 'stormResult', score: res.score, best: prog.storm.best, week, rank: mine.rank, weekBest: mine.score });
   }
 
-  /** Bảng tuần (week mặc định: tuần này) – chỉ tên hiển thị / tên đăng nhập / điểm. */
+  /** Bảng tuần (week mặc định: tuần này) – chỉ tên hiển thị / tên đăng nhập / điểm. Giữ 5 giây (mỗi kết nối được hỏi
+   *  1 lần / giây – nhiều người mở bảng cùng lúc không phải dựng lại mỗi lần); có lượt mới thì dựng lại. */
   stormBoardView(week) {
     const w = /^\d{4}-W\d{2}$/.test(week || '') ? week : P.weekKey();
+    const c = this._stormView;
+    if (c && c.w === w && Date.now() - c.at < 5000) return c.v;
+    const v = this.stormBoardBuild(w);
+    this._stormView = { w, at: Date.now(), v };
+    return v;
+  }
+
+  stormBoardBuild(w) {
     const players = [];
     for (const r of this.store.stormBoard(w, BOARD_N)) {
       const u = this.store.users.get(r.uid);
@@ -110,7 +120,7 @@ class Progress {
     return {
       streak: p ? P.streakOf(p.habits.days, today) : 0, bestStreak: best,
       badges: p ? P.BADGE_IDS.filter((id) => p.habits.earned[id] && this.badgeReal(u, id, best)) : [],
-      storm: this.store.stormBestEver(u.id), stormWeek: this.store.stormMine(u.id, week).score,
+      storm: this.store.stormBestEver(u.id), stormWeek: this.store.stormWeekScore(u.id, week),
     };
   }
 

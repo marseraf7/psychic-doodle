@@ -56,6 +56,28 @@ test('tuần ISO theo giờ Việt Nam: đổi tuần lúc 00:00 thứ Hai UTC+7
   assert.strictEqual(P.weekKey(Date.parse('2025-12-29T00:00:00Z')), '2026-W01');
 });
 
+test('bảng Storm tuần: đúng thứ tự (điểm, rồi ai đạt trước) và nhanh với nhiều lượt (không O(n²))', () => {
+  const { Store } = require('../src/store.js');
+  const s = new Store(null);
+  const ins = s.db.prepare('INSERT INTO storm_runs (uid, week, score, at) VALUES (?, ?, ?, ?)');
+  s.db.exec('BEGIN');
+  for (let i = 0; i < 20000; i++) ins.run('u' + (i % 2000), '2026-W47', (i * 7919) % 60, 1000 + i);
+  // Ca biên: a và b cùng 70 điểm, b đạt trước; a có thêm lượt 70 muộn hơn; c điểm thấp hơn; tuần khác không tính
+  for (const [uid, score, at] of [['a', 70, 500], ['a', 70, 900], ['b', 70, 400], ['c', 69, 1], ['z', 99, 1]]) ins.run(uid, uid === 'z' ? '2026-W46' : '2026-W47', score, at);
+  s.db.exec('COMMIT');
+  const t0 = Date.now();
+  const board = s.stormBoard('2026-W47', 50);
+  const mine = s.stormMine('a', '2026-W47');
+  const ms = Date.now() - t0;
+  assert.deepStrictEqual(board.slice(0, 3).map((r) => [r.uid, r.score, r.at]), [['b', 70, 400], ['a', 70, 500], ['c', 69, 1]]);
+  assert.strictEqual(new Set(board.map((r) => r.uid)).size, board.length, 'mỗi người một dòng');
+  assert.deepStrictEqual(mine, { score: 70, rank: 2 });
+  assert.deepStrictEqual(s.stormMine('nobody', '2026-W47'), { score: 0, rank: null });
+  assert.strictEqual(s.stormWeekScore('a', '2026-W47'), 70);
+  assert.ok(ms < 1500, `20 000 lượt: bảng + hạng mất ${ms} ms`);
+  s.close();
+});
+
 test('huy hiệu: mã trong progress-merge.js khớp habits.js', () => {
   const src = require('fs').readFileSync(require('path').join(__dirname, '../../caro/habits.js'), 'utf8');
   const ids = [...src.matchAll(/\{ id: '([a-z0-9_]+)', icon:/g)].map((m) => m[1]);

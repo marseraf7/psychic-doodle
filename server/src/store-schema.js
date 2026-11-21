@@ -70,6 +70,7 @@ const SCHEMA = `
     at INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS storm_runs_week ON storm_runs (week, score);
   CREATE INDEX IF NOT EXISTS storm_runs_uid ON storm_runs (uid, at);
+  CREATE INDEX IF NOT EXISTS storm_runs_best ON storm_runs (week, uid, score DESC, at);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
 // Phiên đăng nhập: thông tin thiết bị (mục Thiết bị – store-sessions.js)

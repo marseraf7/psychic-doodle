@@ -33,22 +33,33 @@ class ProgressStore {
     this.db.prepare('DELETE FROM storm_runs WHERE week < ?').run(P.weekKey(now - RUNS_KEEP_WEEKS * 7 * 86400000));
   }
 
+  // Lượt tốt nhất của mỗi người trong tuần: điểm cao nhất, bằng điểm thì lượt sớm nhất (một lượt quét theo chỉ mục
+  // storm_runs_best). Bản trước dùng truy vấn con tương quan cho từng dòng – O(n²): 20 000 lượt / tuần mất ~16 giây, chặn
+  // cả máy chủ mỗi lần xem bảng / nộp lượt / mở hồ sơ.
+  static bestSql() {
+    return `SELECT uid, score, at FROM (SELECT uid, score, at, ROW_NUMBER() OVER (PARTITION BY uid ORDER BY score DESC, at ASC) AS rn
+      FROM storm_runs WHERE week = ?) WHERE rn = 1`;
+  }
+
   /** Bảng tuần: điểm cao nhất của mỗi người, cao → thấp (bằng điểm: ai đạt trước xếp trên). → [{ uid, score, at }]. */
   stormBoard(week, limit = 50) {
-    return this.db.prepare(`SELECT uid, MAX(score) AS score, MIN(at) AS at FROM storm_runs r WHERE week = ?
-      AND score = (SELECT MAX(score) FROM storm_runs WHERE week = r.week AND uid = r.uid) GROUP BY uid ORDER BY score DESC, at ASC LIMIT ?`)
+    return this.db.prepare(`${ProgressStore.bestSql()} ORDER BY score DESC, at ASC LIMIT ?`)
       .all(week, limit).map((r) => ({ uid: r.uid, score: r.score, at: r.at }));
   }
 
   /** Điểm tốt nhất của uid trong tuần (0 nếu chưa chơi) và hạng (null nếu chưa chơi). */
   stormMine(uid, week) {
-    const me = this.db.prepare('SELECT MAX(score) AS score, MIN(at) AS at FROM storm_runs r WHERE week = ? AND uid = ? AND score = (SELECT MAX(score) FROM storm_runs WHERE week = ? AND uid = ?)')
-      .get(week, uid, week, uid);
-    if (!me || me.score == null) return { score: 0, rank: null };
-    const above = this.db.prepare(`SELECT COUNT(*) AS n FROM (SELECT uid, MAX(score) AS s, MIN(at) AS a FROM storm_runs r WHERE week = ?
-      AND score = (SELECT MAX(score) FROM storm_runs WHERE week = r.week AND uid = r.uid) GROUP BY uid) WHERE s > ? OR (s = ? AND a < ?)`)
+    const me = this.db.prepare('SELECT score, at FROM storm_runs WHERE week = ? AND uid = ? ORDER BY score DESC, at ASC LIMIT 1').get(week, uid);
+    if (!me) return { score: 0, rank: null };
+    const above = this.db.prepare(`SELECT COUNT(*) AS n FROM (${ProgressStore.bestSql()}) WHERE score > ? OR (score = ? AND at < ?)`)
       .get(week, me.score, me.score, me.at).n;
     return { score: me.score, rank: above + 1 };
+  }
+
+  /** Chỉ điểm tốt nhất của uid trong tuần (hồ sơ – không cần hạng). */
+  stormWeekScore(uid, week) {
+    const r = this.db.prepare('SELECT MAX(score) AS s FROM storm_runs WHERE week = ? AND uid = ?').get(week, uid);
+    return (r && r.s) || 0;
   }
 
   /** Điểm Storm cao nhất mọi thời (đã kiểm). */
