@@ -1,6 +1,6 @@
 /*
  * Soát chơi đẹp v1 (nhẹ) – KHÔNG xử phạt tự động, chỉ gom dữ liệu cho quản trị viên tự quyết:
- *  (a) Rời tab / mất tiêu điểm trong ván online giữa hai tài khoản: trình duyệt người chơi báo (fpBlur – chỉ trong lượt của
+ *  (a) Rời tab / mất tiêu điểm trong ván online tính điểm giữa hai tài khoản: trình duyệt người chơi báo (fpBlur – chỉ trong lượt của
  *      mình, đã gom, tối đa 1 tin / 3 giây), máy chủ cộng vào phòng (có trần) rồi lưu kèm ván khi ván xong (fp_game).
  *  (b) Hàng chờ xem lại (fp_queue): ván rời tab nhiều (BLUR_N lần hoặc BLUR_MS), ván bàn đầu của giải (một trong hai người
  *      đang ở TOP_BOARDS hạng đầu giải), ván bị báo cáo gian lận (social.js on_report lý do 'cheat'). Máy chủ không chạy
@@ -38,10 +38,14 @@ class Fairplay {
     f.ms = Math.min(MAX_MS, f.ms + num(ms, STEP_MS));
   }
 
-  /** Ván vừa lưu (rooms.js settle, giữa hai tài khoản): lưu số lần rời tab, đưa vào hàng chờ nếu cần. */
-  fpOnSettle(room, share) {
+  /**
+   * Ván vừa lưu (rooms.js settle, giữa hai tài khoản): lưu số lần rời tab, đưa vào hàng chờ nếu cần. Chỉ ván tính điểm
+   * (rated – rooms.js isRatable): ván giao hữu / không tính điểm không lưu số lần rời tab (privacy.html). Ván bị báo cáo
+   * gian lận vẫn vào hàng chờ qua fpReport (không kèm số lần rời tab).
+   */
+  fpOnSettle(room, share, rated) {
     try {
-      if (!share) return;
+      if (!share || !rated) return;
       const fp = room.fp && room.fp.g === room.gameNo ? room.fp : null;
       if (fp && (fp[1].n || fp[2].n)) {
         this.store.fpSaveBlur(share, fp[1], fp[2]);

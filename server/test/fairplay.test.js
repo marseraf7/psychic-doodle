@@ -28,8 +28,13 @@ test('rời tab: cộng vào phòng có trần, lưu kèm ván, nhiều thì và
     assert.strictEqual(room.fp[1].n, 13);
     hub.on_fpBlur(conn, { n: 'x', ms: -5 });
     assert.strictEqual(room.fp[1].n, 13, 'giá trị lạ: 0');
+    // Ván không tính điểm (giao hữu, đi lại, quá số ván tính điểm / cặp / ngày…): không lưu số lần rời tab
+    const s0 = record(app, { x: a.uid, o: b.uid });
+    hub.fpOnSettle(room, s0, false);
+    assert.strictEqual(app.store.fpBlur(s0), null, 'ván không tính điểm: không lưu');
+    assert.strictEqual(app.store.fpQueue('all').length, 0);
     const share = record(app, { x: a.uid, o: b.uid });
-    hub.fpOnSettle(room, share);
+    hub.fpOnSettle(room, share, true);
     assert.deepStrictEqual(app.store.fpBlur(share), { x_n: 13, x_ms: 305000, o_n: 0, o_ms: 0 });
     assert.ok(room.fp[1].n >= BLUR_N);
     // Quản trị viên: hàng chờ
@@ -59,7 +64,7 @@ test('rời tab: cộng vào phòng có trần, lưu kèm ván, nhiều thì và
     // Không có lần rời tab nào: không lưu
     const r2 = hub.makeRoom('casual', 1, 0, {});
     const s2 = record(app, { x: a.uid, o: b.uid });
-    hub.fpOnSettle(r2, s2);
+    hub.fpOnSettle(r2, s2, true);
     assert.strictEqual(app.store.fpBlur(s2), null);
     // Xoá tài khoản: dòng của ván không còn bị bỏ
     app.store.deleteUser(app.store.users.get(a.uid));
