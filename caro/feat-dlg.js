@@ -69,7 +69,7 @@
       let x = L;
       const seg = ['w', 'd', 'l'].map((k) => {
         const w = (span * r[k]) / n;
-        const s = r[k] ? `<rect class="b-${k}" x="${x.toFixed(1)}" y="${y + pad}" width="${Math.max(0, w - 1).toFixed(1)}" height="${H - 2 * pad}" rx="3"><title>${esc(T('ins_wdl', { w: r.w, d: r.d, l: r.l }))}</title></rect>` : '';
+        const s = r[k] ? `<rect class="b-${esc(k)}" x="${x.toFixed(1)}" y="${y + pad}" width="${Math.max(0, w - 1).toFixed(1)}" height="${H - 2 * pad}" rx="3"><title>${esc(T('ins_wdl', { w: r.w, d: r.d, l: r.l }))}</title></rect>` : '';
         x += w;
         return s;
       }).join('');

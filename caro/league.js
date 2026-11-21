@@ -39,7 +39,7 @@
     if (!m) return;
     const rows = m.group.map((g) => {
       const zone = g.rank <= m.up && g.pts > 0 ? 'up' : g.rank > m.group.length - m.down ? 'down' : '';
-      return `<li class="${zone}${g.me ? ' me' : ''}"><span class="rk">${g.rank}</span>
+      return `<li class="${esc(zone + (g.me ? ' me' : ''))}"><span class="rk">${g.rank}</span>
         <span class="nm"><b>${esc(g.name)}</b><small>${esc(T('lg_games', { n: g.games }))}${zone ? ' · ' + esc(T(zone === 'up' ? 'lg_zone_up' : 'lg_zone_down')) : ''}</small></span>
         <span class="pt"><b>${g.pts}</b></span></li>`;
     }).join('');
