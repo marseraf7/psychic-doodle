@@ -4,6 +4,8 @@
  * Giải Offline: hiện trang nhúng sẵn có (embed.html) trong khung – bảng / nhánh đấu do ban tổ chức nhập kết quả.
  * Địa chỉ: /?bc=<mã giải> hoặc /?bc=o.<mã giải Offline> (máy chủ trả trang này kèm thẻ xem trước og – web.js),
  * hoặc /broadcast.html?bc=… (nhúng iframe được). &lang=vi|en|ru|zh &theme=light|dark như trang nhúng (embed-boot.js).
+ * Máy chủ: window.CARO_SERVER (config.js) – trong app (Capacitor) trang này nằm trong máy, phải hỏi đúng máy chủ chứ không
+ * phải đường dẫn tương đối; trên web để trống = cùng máy chủ.
  * miniSvg(moves, opts) dùng chung được (Node: module.exports) – kiểm thử ở caro/tests/broadcast.test.js.
  */
 (function (global) {
@@ -37,6 +39,7 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const $ = (id) => document.getElementById(id);
   const POLL_MS = 5000;
+  const base = () => String(global.CARO_SERVER || '').replace(/\/+$/, ''); // '' = cùng máy chủ với trang
   const q = new URLSearchParams(location.search);
   const key = (q.get('bc') || q.get('t') || (q.get('o') ? 'o.' + q.get('o') : '')).replace(/[^\w.-]/g, '').slice(0, 42);
   let data = null, timer = 0, frameSet = false;
@@ -69,7 +72,7 @@
       <a class="bc-link" href="${esc(data.url)}" target="_top">${esc(T('bc_to_tour'))}</a></header>`;
     if (data.kind === 'otour') {
       if (!frameSet) {
-        main.innerHTML = head + `<iframe class="bc-frame" title="${esc(data.name)}" src="${esc(data.embed)}&view=standings"></iframe>`;
+        main.innerHTML = head + `<iframe class="bc-frame" title="${esc(data.name)}" src="${esc(base() + data.embed)}&view=standings"></iframe>`;
         frameSet = true;
       }
       return;
@@ -87,7 +90,7 @@
     if (!key) { data = null; draw(); return; }
     if (!document.hidden) {
       try {
-        const r = await fetch('/api/v1/broadcast/' + encodeURIComponent(key), { cache: 'no-cache' });
+        const r = await fetch(base() + '/api/v1/broadcast/' + encodeURIComponent(key), { cache: 'no-cache' });
         data = r.ok ? await r.json() : r.status === 404 ? null : data;
       } catch (e) { /* mất mạng: giữ bản cũ, thử lại sau */ }
       draw();

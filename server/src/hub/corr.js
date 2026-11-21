@@ -16,6 +16,9 @@
  * Hết giờ: corrSweep(now) chạy mỗi phút (core.js sweep) – bên tới lượt quá hạn thì thua; chạy lại cũng không xử lý
  * hai lần (CSDL chỉ ghi khi trạng thái còn 'active' – store-corr.js corrPut). Nước / lời xin gửi tới sau hạn chót (trước
  * lượt quét) cũng xử lý hết giờ ngay (corrLate), không cho đánh tiếp.
+ * Máy chủ ngừng (tắt / sập / treo): corrBeat ghi nhịp sống vào CSDL lúc khởi động, mỗi lượt quét (1 phút) và lúc tắt; khoảng
+ * từ nhịp trước quá DOWN_MS thì dời hạn chót mọi ván đang chơi + lời mời thêm đúng khoảng đó (một lần cho mỗi khoảng –
+ * store-corr.js) trước khi quét hết giờ, nên không ai thua vì thời gian máy chủ không chạy.
  * Chống làm phiền: mỗi người chỉ có một lời mời đang chờ tới cùng một người (corr_invite_pending).
  */
 'use strict';
@@ -31,6 +34,7 @@ const DAYS = [1, 2, 3, 5, 7];
 const INVITE_DAYS = 7; // lời mời không trả lời sau 7 ngày thì hết hạn
 const MAX_OPEN = 30; // mỗi người tối đa 30 ván đang chơi + lời mời
 const COORD_LIMIT = 512; // như room.js
+const DOWN_MS = 2 * 60 * 1000; // nhịp sống ghi mỗi phút: cách nhịp trước hơn 2 phút = máy chủ đã ngừng (this.T.CORR_DOWN_MS ghi đè)
 
 class Corr {
   /** Ván nhìn từ phía người chơi (client tự biết mình là X hay O qua uid). */
@@ -231,6 +235,16 @@ class Corr {
   }
 
   /** Quét hết giờ (mỗi phút): lời mời quá 7 ngày hết hạn; ván quá hạn thì bên tới lượt thua (chưa đủ 2 nước: huỷ). */
+  /**
+   * Nhịp sống (khởi động, mỗi lượt quét, lúc tắt – core.js): máy chủ đã ngừng hơn DOWN_MS thì bù khoảng ngừng vào hạn chót
+   * mọi ván đang chơi (store-corr.js corrBeat). Dùng giờ thật (không phải `now` giả của bài thử corrSweep). → ms đã bù.
+   */
+  corrBeat(now = Date.now()) {
+    const gap = this.store.corrBeat(now, this.T.CORR_DOWN_MS ?? DOWN_MS);
+    if (gap) console.warn(`[corr] máy chủ đã ngừng ${Math.round(gap / 60000)} phút: dời hạn chót các ván theo lượt thêm chừng ấy`);
+    return gap;
+  }
+
   corrSweep(now = Date.now()) {
     let n = 0;
     for (const id of this.store.corrDue(now)) {
@@ -264,4 +278,4 @@ class Corr {
   }
 }
 
-module.exports = { Corr, DAYS };
+module.exports = { Corr, DAYS, DOWN_MS };

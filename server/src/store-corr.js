@@ -2,6 +2,7 @@
  * Ván chơi theo lượt (C1 – "Chơi theo lượt", như cờ thư của Lichess): mỗi ván một dòng trong bảng corr_games, dữ liệu
  * ván (nước đi, lời mời hoà / đi lại, kết quả) là JSON. Ván sống qua khởi động lại máy chủ; việc quét hết giờ đọc theo
  * chỉ mục (status, deadline). Bảng tạo khi mở (CREATE … IF NOT EXISTS – CSDL cũ tự có). Trộn vào Store.prototype (store.js).
+ * Bảng corr_meta (khoá → số): 'beat' = nhịp sống máy chủ ghi lần cuối (mỗi phút) – để bù thời gian máy chủ ngừng (corrBeat).
  */
 'use strict';
 
@@ -11,6 +12,7 @@ const SQL = `
   CREATE INDEX IF NOT EXISTS corr_games_x ON corr_games (x, status);
   CREATE INDEX IF NOT EXISTS corr_games_o ON corr_games (o, status);
   CREATE INDEX IF NOT EXISTS corr_games_due ON corr_games (status, deadline);
+  CREATE TABLE IF NOT EXISTS corr_meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
 `;
 
 class CorrStore {
@@ -67,6 +69,38 @@ class CorrStore {
   corrDue(now) {
     return this.corrDb().prepare("SELECT id FROM corr_games WHERE status IN ('active', 'invite') AND deadline IS NOT NULL AND deadline < ? LIMIT 500")
       .all(now).map((r) => r.id);
+  }
+
+  /** Nhịp sống (ms) máy chủ ghi lần cuối, hoặc null (CSDL mới). */
+  corrBeatAt() {
+    const r = this.corrDb().prepare("SELECT v FROM corr_meta WHERE k = 'beat'").get();
+    return r ? Number(r.v) : null;
+  }
+
+  /**
+   * Ghi nhịp sống now. Nếu từ nhịp trước tới now quá minGap (máy chủ tắt / sập / treo lâu): dời hạn chót mọi ván đang chơi
+   * và lời mời thêm đúng khoảng đó – người chơi không thua vì thời gian máy chủ ngừng. Dời + ghi nhịp mới trong cùng một
+   * giao dịch: chạy lại (lần quét sau, khởi động lại lần nữa) không bù hai lần cho cùng một khoảng. Bỏ qua deadline = 1
+   * (dấu "người chơi đã xoá tài khoản – huỷ ván" của corrUserGone). → số ms đã bù (0 nếu không bù).
+   */
+  corrBeat(now, minGap) {
+    const db = this.corrDb();
+    let gap = 0;
+    db.exec('BEGIN');
+    try {
+      const last = this.corrBeatAt();
+      if (last != null && now - last > minGap) {
+        gap = now - last;
+        db.prepare(`UPDATE corr_games SET deadline = deadline + ?, data = json_set(data, '$.deadline', deadline + ?)
+          WHERE status IN ('active', 'invite') AND deadline > 1`).run(gap, gap);
+      }
+      db.prepare("INSERT INTO corr_meta (k, v) VALUES ('beat', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").run(now);
+      db.exec('COMMIT');
+    } catch (e) {
+      db.exec('ROLLBACK');
+      throw e;
+    }
+    return gap;
   }
 
   /** Số lời mời đang chờ từ uid gửi tới other. */

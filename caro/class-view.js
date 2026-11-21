@@ -4,7 +4,8 @@
  * dấu ô / mũi tên (CaroApp.setMarks / setDrawLines). Chủ bài: đánh nước = thêm vào cây (tự lưu chương, học viên đang theo dõi
  * đi theo – clsSync), chế độ Dấu ô / Mũi tên, xoá từ nước này, đưa biến lên nhánh chính, thêm chương, nhập ván (chữ "h8 i9 …"
  * hoặc mã / link xem lại), quyền xem, chia sẻ link /?cls=<mã>, xoá bài. Học viên: "Theo giáo viên" (bật sẵn) hoặc tự thử nước
- * trên bản sao trong máy (không gửi lên).
+ * trên bản sao trong máy (không gửi lên). Khi chủ bài lưu, máy chủ chỉ gửi phần đổi (clsDelta – CaroClassTree.applyDelta);
+ * lỡ một lần (số phiên bản không khớp) thì mở lại bài lấy bản đầy đủ.
  *   window.CaroClassView = { get state() }
  */
 (function () {
@@ -93,7 +94,17 @@
     st.path = path;
     st.arrowFrom = null;
     show();
-    if (sync && owner()) N.send({ t: 'clsSync', id: st.s.id, chapter: st.ci, path });
+    if (sync && owner()) syncSoon();
+  }
+  /**
+   * Báo học viên chỗ giáo viên đang đứng (clsSync). Máy chủ chỉ nhận một tin mỗi 80 ms: bấm nhanh (▶ liên tục, lùi rồi đi
+   * nước ngay) thì gửi chỗ cuối cùng sau khi hết khoảng chờ – không bỏ mất tin cuối làm học viên đứng sai chỗ.
+   */
+  function syncSoon() {
+    clearTimeout(st.syncT);
+    const wait = 100 - (Date.now() - (st.syncAt || 0));
+    const fire = () => { if (!st.s || !owner()) return; st.syncAt = Date.now(); N.send({ t: 'clsSync', id: st.s.id, chapter: st.ci, path: st.path }); };
+    if (wait <= 0) fire(); else st.syncT = setTimeout(fire, wait);
   }
   /** Lưu chương (chủ bài) – gom các lần sửa liên tiếp. */
   function saveSoon() {
@@ -174,7 +185,7 @@
       const code = /(?:replay=)?([\w-]{6,20})\s*$/.exec(txt.trim());
       const parsed = window.CaroGameText && window.CaroGameText.parse(txt);
       if (parsed && parsed.moves.length) moves = parsed.moves;
-      else if (code) { try { const r = await fetch('/api/v1/game/' + code[1]); if (r.ok) moves = (await r.json()).moves; } catch (e) { /* mất mạng */ } }
+      else if (code) { try { const r = await fetch(N.base + '/api/v1/game/' + code[1]); if (r.ok) moves = (await r.json()).moves; } catch (e) { /* mất mạng */ } }
       if (!moves || !moves.length) return N.toast(T('cls_import_bad'));
       let p = st.path;
       for (const m of moves) { const q = Tr.addMove(ch.root, p, m); if (!q) break; p = q; }
@@ -193,7 +204,7 @@
   panel().addEventListener('change', (e) => {
     const k = e.target.dataset.k;
     if (!k || !st.s) return;
-    if (k === 'chapter') { st.ci = Number(e.target.value); st.path = []; App.extSet([]); show(); if (owner()) N.send({ t: 'clsSync', id: st.s.id, chapter: st.ci, path: [] }); return; }
+    if (k === 'chapter') { st.ci = Number(e.target.value); st.path = []; App.extSet([]); show(); if (owner()) syncSoon(); return; }
     if (k === 'follow') { st.follow = e.target.checked; return; }
     if (k === 'mode') { st.mode = e.target.value; st.arrowFrom = null; return; }
     if (k === 'rule') { chap().rule = e.target.value; saveSoon(); show(); return; }
@@ -209,18 +220,26 @@
     drawPanel();
   });
 
+  /** Bài vừa đổi (bản mới / phần thay đổi từ máy chủ): chủ bài giữ chỗ đang đứng; học viên đi theo nếu bật "Theo giáo viên". */
+  function updated() {
+    if (st.pendingCh != null && st.s.chapters[st.pendingCh]) { st.ci = st.pendingCh; st.path = []; st.pendingCh = null; }
+    if (!chap()) { st.ci = 0; st.path = []; }
+    if (!Tr.nodeAt(chap().root, st.path)) st.path = [];
+    follow();
+    show();
+  }
   N.on('clsStudy', (m) => {
-    if (st.s && st.s.id === m.study.id) {
-      // Bản mới từ máy chủ: chủ bài giữ chỗ đang đứng; học viên đi theo nếu bật "Theo giáo viên"
-      st.s = m.study;
-      if (st.pendingCh != null && m.study.chapters[st.pendingCh]) { st.ci = st.pendingCh; st.path = []; st.pendingCh = null; }
-      if (!chap()) { st.ci = 0; st.path = []; }
-      if (!Tr.nodeAt(chap().root, st.path)) st.path = [];
-      follow();
-      show();
-      return;
-    }
+    st.refetchAt = 0;
+    if (st.s && st.s.id === m.study.id) { st.s = m.study; updated(); return; }
     open(m.study, m.live);
+  });
+  // Chủ bài lưu: máy chủ chỉ gửi phần đổi (chương vừa sửa…); lỡ một lần (mất mạng chốc lát) thì lấy lại cả bài một lần
+  N.on('clsDelta', (m) => {
+    if (!st.s || st.s.id !== m.id) return;
+    const r = Tr.applyDelta(st.s, m);
+    if (r === 'ok') return updated();
+    // Một lần mỗi 2 giây (lần trước lỗi / mất tin thì lần lỡ sau vẫn hỏi lại được)
+    if (r === 'stale' && Date.now() - (st.refetchAt || 0) > 2000) { st.refetchAt = Date.now(); N.send({ t: 'clsOpen', id: m.id }); }
   });
   /** Đi theo chỗ giáo viên đang đứng (nếu nút đã có trong bản của mình – chưa có thì chờ bản mới của bài). */
   function follow() {

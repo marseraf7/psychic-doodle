@@ -4,6 +4,7 @@
  *  - Giải Arena công khai đang chạy: trang giải có nút "Tường thuật trực tiếp" → /?bc=<mã>.
  *  - Trang tường thuật (390 px): bàn nhỏ của ván đang đấu tự hiện nước mới (không tải lại), ván xong → kết quả gần đây +
  *    bảng xếp hạng, ván của vòng sau tự hiện; bấm bàn nhỏ → mở xem ván (/?room=<mã>). 0 lỗi hiển thị.
+ *  - Như trong app: broadcast.html ở nguồn khác máy chủ, CARO_SERVER trỏ về máy chủ → API hỏi đúng máy chủ.
  */
 'use strict';
 const { setup, sleep } = require('./helpers');
@@ -65,5 +66,29 @@ const { audit } = require('./ui-audit');
   ok(/^\/\?room=\d{6}$/.test(code), 'bàn nhỏ là link xem ván: ' + code);
   ok(!errs.length, 'trang tường thuật không có lỗi JS: ' + errs.join(' | '));
   await ctx.close();
+
+  // Như trong app (Capacitor): broadcast.html nằm trong máy (nguồn khác máy chủ), config.js của app trỏ CARO_SERVER về
+  // máy chủ → API phải hỏi máy chủ đó, không phải đường dẫn tương đối (trước đây hỏi API ở nguồn của app → 404, trang trống).
+  // Nguồn "app" http://app.local đọc file caro/; máy chủ http://server.test chuyển tới máy chủ thử (route – không đụng
+  // chặn mạng nội bộ của Chromium khi hai nguồn khác nhau cùng là localhost)
+  const fs = require('fs'), path = require('path');
+  const CARO = path.join(__dirname, '..', '..');
+  const appCtx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  await appCtx.route('http://app.local/**', (r) => {
+    const p = new URL(r.request().url()).pathname.replace(/^\/+/, '') || 'index.html';
+    if (p === 'config.js') return r.fulfill({ contentType: 'text/javascript', body: "window.CARO_SERVER = 'http://server.test';" });
+    const f = path.join(CARO, p);
+    if (!f.startsWith(CARO) || !fs.existsSync(f)) return r.fulfill({ status: 404, body: '' });
+    return r.fulfill({ contentType: p.endsWith('.js') ? 'text/javascript' : p.endsWith('.css') ? 'text/css' : 'text/html', body: fs.readFileSync(f) });
+  });
+  await appCtx.route('http://server.test/**', async (r) => r.fulfill({ response: await r.fetch({ url: r.request().url().replace('http://server.test', `http://localhost:${PORT}`) }) }));
+  const ap = await appCtx.newPage();
+  const apiHosts = [];
+  ap.on('request', (r) => { if (r.url().includes('/api/v1/broadcast/')) apiHosts.push(new URL(r.url()).host); });
+  await ap.goto(`http://app.local/broadcast.html?bc=${id}&lang=vi`);
+  for (let i = 0; i < 20 && !(await ap.$('.bc-head h1')); i++) await sleep(250);
+  ok((await ap.textContent('.bc-head h1').catch(() => '')).includes('Cúp Tường Thuật') && apiHosts.length && apiHosts.every((h) => h === 'server.test'),
+    'trong app: trang tường thuật hỏi API ở CARO_SERVER (' + apiHosts.join(', ') + ')');
+  await appCtx.close();
   await finish();
 })();

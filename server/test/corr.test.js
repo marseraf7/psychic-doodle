@@ -174,6 +174,48 @@ test('Chơi theo lượt: ván sống qua khởi động lại (CSDL trên đĩa
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+test('Chơi theo lượt: máy chủ ngừng lâu – hạn chót được dời đúng khoảng ngừng (một lần mỗi khoảng), không ai thua vì máy chủ', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-corr-down-'));
+  const file = path.join(dir, 'c.db');
+  const { Hub } = require('../src/hub/index.js');
+  const H = 3600000, now = Date.now();
+  let store = new Store(file);
+  const put = (id, status, deadline) => store.corrPut({ id, x: 'u1', o: 'u2', status, moves: [[0, 0], [1, 1], [2, 2]], updated: 1, deadline, days: 1, rule: 'vn' });
+  // Máy chủ tắt lúc now - 10 giờ; ván a còn 3 giờ lúc tắt (đã "quá hạn" 7 giờ theo đồng hồ), lời mời b, ván xong c,
+  // ván d của người đã xoá tài khoản (deadline = 1: huỷ ở lượt quét sau, không dời)
+  put('aaaaaaaaaaaa', 'active', now - 7 * H);
+  put('bbbbbbbbbbbb', 'invite', now + 2 * H);
+  put('cccccccccccc', 'done', null);
+  put('dddddddddddd', 'active', 1);
+  assert.strictEqual(store.corrBeat(now - 10 * H, 120000), 0, 'nhịp đầu tiên: chỉ ghi');
+  store.flush(); store.db.close();
+  // Khởi động lại: Hub bù 10 giờ trước lượt quét đầu tiên
+  store = new Store(file);
+  const hub = new Hub({ store });
+  try {
+    const a = store.corrGet('aaaaaaaaaaaa');
+    assert.ok(Math.abs(a.deadline - (now + 3 * H)) < 60000, 'ván đang chơi: còn đúng 3 giờ như lúc máy chủ tắt');
+    assert.ok(Math.abs(store.corrGet('bbbbbbbbbbbb').deadline - (now + 12 * H)) < 60000, 'lời mời cũng được dời');
+    assert.strictEqual(store.corrGet('cccccccccccc').deadline, null, 'ván xong không đổi');
+    assert.deepStrictEqual(store.corrDue(Date.now()), ['dddddddddddd'], 'cột deadline (chỉ mục quét) cũng được dời; ván d vẫn bị huỷ');
+    hub.sweep();
+    assert.strictEqual(store.corrGet('aaaaaaaaaaaa').status, 'active', 'lượt quét không xử thua vì thời gian máy chủ ngừng');
+    // Chạy lại (lượt quét sau, nhịp lúc tắt) không bù thêm
+    const d0 = store.corrGet('aaaaaaaaaaaa').deadline;
+    assert.strictEqual(hub.corrBeat(), 0);
+    const t0 = Date.now() + 60000;
+    assert.strictEqual(store.corrBeat(t0, 120000), 0, 'nhịp đều mỗi phút: không bù');
+    assert.strictEqual(store.corrGet('aaaaaaaaaaaa').deadline, d0, 'không dời hai lần cho cùng một khoảng');
+    // Treo giữa chừng (máy ảo bị dừng 30 phút): lượt quét kế tiếp bù 30 phút
+    const t1 = t0 + 30 * 60000;
+    assert.strictEqual(store.corrBeat(t1, 120000), 30 * 60000);
+    assert.strictEqual(store.corrGet('aaaaaaaaaaaa').deadline, d0 + 30 * 60000);
+  } finally {
+    hub.close(); store.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('Chơi theo lượt: luật chống cày điểm như ván trực tiếp (đi lại, tài khoản mới đầu hàng), nước gửi sau hạn chót, một lời mời / cặp, xoá tài khoản', async () => {
   const hub = ctx.app.hub;
   hub.T.THROTTLE_SCALE = 0;
