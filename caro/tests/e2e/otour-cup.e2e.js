@@ -41,7 +41,7 @@ const ST = require('../../../server/src/hub/stages.js');
   await boss.fill('#otg-edit [data-gk="dur"]', '28:22');
   await boss.click('[data-act="otGameSave"]'); await sleep(800);
   ok(m.esp && m.esp[0] && m.esp[0].st.red.finish === 1702, 'Lưu chi tiết race');
-  ok(/Cách biệt về đích: 18 giây/.test(await boss.textContent('.esp-games')) && /Vào từ mạn trái/.test(await boss.textContent('.esp-games')) && /Race 1/.test(await boss.textContent('.esp-games')), 'Thẻ race: "Race 1", cách biệt 18 giây, nhãn mạn trái');
+  ok(/Cách biệt về đích: 18 giây/.test(await boss.textContent('.esp-games')) && /Vào từ mạn trái/.test(await boss.textContent('.esp-games')) && /Lượt đua 1/.test(await boss.textContent('.esp-games')), 'Thẻ race: "Lượt đua 1", cách biệt 18 giây, nhãn mạn trái');
   ok(!/Diễn biến trận/.test(await boss.textContent('.score-panel')), 'Đua thuyền: không có diễn biến kiểu bóng đá (ghi điểm, thẻ)');
   await boss.$eval('.esp-game', (e) => e.scrollIntoView()).catch(() => {}); await sleep(200);
   await shot(boss, 'ot-cup-race.png');
