@@ -23,9 +23,14 @@ const stripQ = (u) => u.split('?')[0];
 function makeWorld(src) {
   const stores = new Map(); // tên cache -> Map(url -> response)
   const listeners = {};
-  const httpErrors = new Set(), netErrors = new Set(), fetched = [];
+  const httpErrors = new Set(), netErrors = new Set(), fetched = [], httpCache = new Set();
   async function fakeFetch(input) {
     const u = typeof input === 'string' ? abs(input) : input.url;
+    if (input && input.cache === 'only-if-cached') { // bộ nhớ HTTP của trình duyệt: không ra mạng
+      const p = new URL(u).pathname;
+      if (!httpCache.has(p)) return { ok: false, status: 504, url: u };
+      return { ok: true, status: 200, url: u, body: p + '#http', clone() { return { ...this }; } };
+    }
     fetched.push(u);
     const path = new URL(u).pathname;
     if (netErrors.has(path)) throw new Error('network down');
@@ -50,7 +55,7 @@ function makeWorld(src) {
     delete: async (name) => stores.delete(name),
     match: async (req, opts) => { for (const name of stores.keys()) { const r = await new FakeCache(name).match(req, opts); if (r) return r; } return undefined; },
   };
-  class FakeRequest { constructor(u, opts = {}) { this.url = abs(u); this.method = opts.method || 'GET'; this.mode = opts.mode || 'cors'; } }
+  class FakeRequest { constructor(u, opts = {}) { this.url = abs(u); this.method = opts.method || 'GET'; this.mode = opts.mode || 'cors'; this.cache = opts.cache || 'default'; } }
   const sandbox = { console, URL, fetch: fakeFetch, caches, Request: FakeRequest, location: { origin: ORIGIN } };
   sandbox.self = sandbox;
   sandbox.addEventListener = (name, fn) => { listeners[name] = fn; };
@@ -59,7 +64,7 @@ function makeWorld(src) {
   vm.runInNewContext(src || fs.readFileSync(__dirname + '/../sw.js', 'utf8'), sandbox);
   const fire = (name, event) => { let p = null; const e = { ...event, waitUntil: (q) => { p = q; }, respondWith: (q) => { p = q; } }; listeners[name](e); return p; };
   const cacheMap = async () => stores.get((await caches.keys())[0]) || new Map();
-  return { fire, cacheMap, httpErrors, netErrors, fetched };
+  return { fire, cacheMap, httpErrors, netErrors, fetched, httpCache, stores, caches };
 }
 
 test('SW: lúc cài chỉ lưu vỏ tối thiểu (trang, CSS, biểu tượng) – không tranh băng thông với lần tải đầu (A2)', async () => {
@@ -102,6 +107,20 @@ test('SW: gói chuỗi dịch của ngôn ngữ đang dùng được lưu trư�
   await w.fire('install', {});
   await w.fire('message', { data: { t: 'precache', lang: 'ru' } });
   assert.strictEqual(w.fetched.find((u) => u.includes('/b/i18n-')), abs('b/i18n-ru-0000000002.js'));
+});
+
+test('SW: lúc cài lưu luôn gói chuỗi dịch trang vừa nạp (có sẵn, không ra mạng) – mở lần đầu rồi mất mạng ngay vẫn có chữ', async () => {
+  const src = fs.readFileSync(__dirname + '/../sw.js', 'utf8').replace("const FILES = ['./',", "const FILES = ['./', 'b/i18n-vi-0000000001.js', 'b/i18n-ru-0000000002.js', 'b/i18n-zh-0000000003.js',");
+  const w = makeWorld(src);
+  w.httpCache.add('/b/i18n-vi-0000000001.js'); // trang vừa tải gói tiếng Việt (bộ nhớ HTTP – tên có mã băm, lưu lâu)
+  // Bản cũ của app (bộ đệm cũ) đã có gói tiếng Nga – tên có mã băm nên nội dung y hệt: chép sang, không tải lại
+  (await w.caches.open('caro-v1')).put('b/i18n-ru-0000000002.js', { ok: true, status: 200, body: 'ru-old', clone() { return { ...this }; } });
+  await w.fire('install', {});
+  const map = w.stores.get([...w.stores.keys()].find((k) => k !== 'caro-v1'));
+  assert.ok(map.has(abs('b/i18n-vi-0000000001.js')), 'gói đang dùng đã lưu lúc cài');
+  assert.ok(map.has(abs('b/i18n-ru-0000000002.js')), 'gói có ở bộ đệm cũ: chép sang');
+  assert.ok(!map.has(abs('b/i18n-zh-0000000003.js')), 'gói chưa có trên máy: để lượt precache');
+  assert.ok(!w.fetched.some((u) => u.includes('/b/i18n-')), 'lúc cài không tải gói chuỗi dịch qua mạng');
 });
 
 test('SW: không can thiệp và không lưu phản hồi /api/', async () => {
