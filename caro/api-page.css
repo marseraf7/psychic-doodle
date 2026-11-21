@@ -1,0 +1,16 @@
+/* Trang tài liệu API công khai (api.html – C4): bảng đường dẫn cuộn ngang được trên điện thoại, khối ví dụ. */
+.api-scroll { overflow-x: auto; margin: 8px 0; }
+.api-table { border-collapse: collapse; width: 100%; min-width: 0; font-size: 0.95rem; }
+.api-table th, .api-table td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line, #cbc1ad); }
+.api-table td:first-child { white-space: nowrap; }
+.api-table code, .card p code, .list code { font-size: 0.9em; overflow-wrap: anywhere; }
+/* Trang kỹ thuật: căn trái (căn đều hai bên làm giãn chữ quanh mã như "h8") */
+main .card p, main .card li { text-align: left; hyphens: manual; }
+/* Màn hẹp: mỗi đường dẫn thành một khối (đường dẫn trên, mô tả dưới) – không bóp cột mô tả, không cắt đường dẫn */
+@media (max-width: 640px) {
+  .api-table thead { display: none; }
+  .api-table tr, .api-table td { display: block; }
+  .api-table td:first-child { white-space: normal; overflow-wrap: anywhere; border-bottom: 0; padding-bottom: 0; font-weight: 600; }
+  .api-table td:last-child { padding-top: 2px; }
+}
+.api-pre { margin: 0; padding: 12px; border-radius: 8px; background: rgba(127, 127, 127, 0.12); overflow-x: auto; font-size: 0.85rem; line-height: 1.5; }

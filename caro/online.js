@@ -361,6 +361,7 @@
   document.querySelectorAll('.privacy-link').forEach((a) => { a.href = privacyUrl; });
   // Trang giấy phép mã nguồn mở (Rapfi GPL-3 …): như trang quyền riêng tư, app mở bản trên máy chủ
   document.querySelectorAll('.licenses-link').forEach((a) => { a.href = privacyUrl.replace('privacy.html', 'licenses.html'); });
+  document.querySelectorAll('.api-link').forEach((a) => { a.href = privacyUrl.replace('privacy.html', 'api.html'); }); // tài liệu API (C4)
 
   window.CaroOnline = {
     send, base, openAuth: ctx.openAuth, showBanner: ctx.showBanner, shareReplay, renderInvites: ctx.renderInvites, roomActive: ctx.roomActive, openReplay, fetchReplay, on, toast, openDlg, closeDlg, isOpen, render, srv, state: S,
