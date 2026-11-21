@@ -85,11 +85,13 @@ const GAME = [[0, 0], [1, 0], [0, 1], [1, 1]];
   await sleep(50);
   const k1 = await scr(0, 0);
   ok(Math.abs(k1[0] - k0[0] - 60) < 12 && Math.abs(k1[1] - k0[1] + 40) < 12, 'bàn đã quay: kéo thì bàn bám theo tay – ' + JSON.stringify({ k0, k1 }));
+  // Bàn được chọn bằng chạm (không phải Tab): mũi tên dời bàn, không bật khung chọn ô của chế độ bàn phím (a11y.js)
   const m0 = await scr(0, 0);
   await p.keyboard.press('ArrowLeft');
   await sleep(50);
   const m1 = await scr(0, 0);
-  ok(m1[0] > m0[0] + 10 && Math.abs(m1[1] - m0[1]) < 1, 'phím ←: nhìn sang trái màn hình (bàn trôi sang phải) dù bàn đã quay – ' + JSON.stringify({ m0, m1 }));
+  const ring = await p.evaluate(() => !document.getElementById('a11y-cursor').hidden);
+  ok(m1[0] > m0[0] + 10 && Math.abs(m1[1] - m0[1]) < 1 && !ring, 'phím ←: nhìn sang trái màn hình (bàn trôi sang phải) dù bàn đã quay, không hiện khung chọn ô – ' + JSON.stringify({ m0, m1, ring }));
 
   // ---------------------------------------------------------------- Đủ 4 lần thì về như cũ
   await openMenu();

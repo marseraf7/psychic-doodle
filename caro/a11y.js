@@ -1,7 +1,9 @@
 /*
  * Trợ năng (C5): chơi bằng bàn phím và chế độ không nhìn bàn (người dùng trình đọc màn hình).
- *  - Con trỏ bàn phím: bàn cờ nhận Tab (tabindex=0); khi bàn được chọn (hoặc bật "Luôn dùng phím mũi tên") thì
- *    mũi tên dời một khung viền tương phản cao trên ô, Enter / Space đánh vào ô đó (đúng lượt, đúng luật – CaroApp.tryPlay).
+ *  - Con trỏ bàn phím: bàn cờ nhận Tab (tabindex=0); khi bàn được chọn bằng Tab, hoặc đã gõ Enter / Space / K trên bàn
+ *    (hoặc bật "Luôn dùng phím mũi tên") thì mũi tên dời một khung viền tương phản cao trên ô (theo hướng trên màn hình,
+ *    kể cả khi bàn đã quay), Enter / Space đánh vào ô đó (đúng lượt, đúng luật – CaroApp.tryPlay). Bấm chuột / chạm vào
+ *    bàn thì về như cũ: mũi tên dời bàn (board-input.js).
  *    Mỗi lần dời đọc tên ô qua vùng aria-live (#a11y-live), vd. "h8: ô trống". Xem lại ván: mũi tên vẫn tua nước như cũ.
  *  - Phím tắt trên bàn cờ: ? (bảng phím tắt), U (đi lại), F (quay bàn), A (phân tích), L (nước vừa đi), T (đe doạ),
  *    K (đọc ô đang chọn), B (chế độ không nhìn bàn). N (ván mới), C (về giữa), Ctrl+Z vẫn do board-input.js lo.
@@ -234,11 +236,15 @@
     if (!app() || !boardOn() || document.querySelector('dialog[open]') || typing() || e.altKey) return;
     if (e.ctrlKey || e.metaKey) return; // Ctrl+Z: board-input.js
     const st = app();
-    const cursorOn = set.kb || set.blind || document.activeElement === canvas;
     const k = e.key;
+    const onBoard = document.activeElement === canvas;
+    // Bàn được chọn bằng chuột / chạm (không phải Tab): mũi tên vẫn dời bàn như cũ (board-input.js). Gõ Enter / Space / K
+    // trên bàn là muốn dùng bàn phím → bật chế độ bàn phím, từ đó mũi tên dời ô đang chọn (chạm / bấm chuột lại thì tắt).
+    if (onBoard && !st.replay && (k === 'Enter' || k === ' ' || k === 'k' || k === 'K')) kbMode = true;
+    // Mũi tên dời ô đang chọn khi: bật "Luôn dùng phím mũi tên", chế độ không nhìn bàn, hoặc bàn đang ở chế độ bàn phím
+    const cursorOn = set.kb || set.blind || (onBoard && kbMode);
     const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
-    // Gõ phím trên bàn đang được chọn (kể cả khi bàn được chọn bằng chuột trước đó): bật chế độ bàn phím, có ô đang chọn
-    if (cursorOn && !st.replay && (/^Arrow/.test(k) || k === 'Enter' || k === ' ') && (document.activeElement === canvas || set.kb || set.blind)) { kbMode = true; if (!cur) startCursor(); }
+    if (cursorOn && !st.replay && (/^Arrow/.test(k) || k === 'Enter' || k === ' ')) { kbMode = true; if (!cur) startCursor(); }
     if (/^Arrow/.test(k) && cursorOn && !st.replay) { stop(); return moveCursor(k, e.shiftKey); }
     if ((k === 'Enter' || k === ' ') && cursorOn && !st.replay && document.activeElement !== document.body && document.activeElement !== canvas) return; // nút đang được chọn: để nút tự xử lý
     if ((k === 'Enter' || k === ' ') && cursorOn && !st.replay && cur) { stop(); return playAt(cur[0], cur[1]); }

@@ -191,8 +191,11 @@
         const g = games.get(id);
         if (!g || !myTurn(g)) return;
         N.send({ t: 'corrMove', id, x, y, n: g.moves.length });
+        // Đổi lượt trước khi vẽ: extPlace vẽ dòng lượt qua render() – đổi sau thì "Đến lượt bạn" còn nguyên tới khi bản
+        // của máy chủ về (mạng / máy chậm). Chờ máy chủ: không đánh thêm nước; hạn chót của đối thủ tính từ lúc này.
+        g.turn = null;
+        g.deadline = Date.now() + g.days * 86400000;
         App.extPlace(x, y); // hiện ngay; bản của máy chủ (corrGame) dựng lại bàn chuẩn
-        g.turn = null; // chờ máy chủ: không đánh thêm nước nữa
         drawBar();
       },
       onExit: () => leave(),
