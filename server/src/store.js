@@ -16,6 +16,9 @@ const { Sessions, SESSION_TTL } = require('./store-sessions.js');
 const { ClubStore } = require('./store-club.js');
 const { OTourStore } = require('./store-otour.js');
 const { ProgressStore } = require('./store-progress.js');
+const { StatsStore } = require('./store-stats.js'); // đọc ván cho thống kê / tổng kết
+const { LeagueStore } = require('./store-league.js'); // hạng đấu tuần
+const { FairplayStore } = require('./store-fairplay.js'); // soát chơi đẹp: rời tab, hàng chờ quản trị
 const { EvalCache } = require('./evalcache.js');
 
 const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
@@ -46,6 +49,7 @@ class Store {
       try { this.index(this.upgrade(JSON.parse(row.data))); } catch (e) { console.error(`[store] BỎ QUA tài khoản hỏng id=${row.id}: ${e.message}`); }
     }
     this.pruneSessions(Date.now(), true);
+    this.progressMigrateKv(); // bảng user_kv của bản thử B9 → thang nằm trong user_progress (store-progress.js)
     if (legacyJson && !this.users.size) this.importLegacy(legacyJson);
   }
 
@@ -176,6 +180,8 @@ class Store {
       run('DELETE FROM reports WHERE reporter = ?', id);
       this.clubTalkUserGone(id); // tin chat + bài diễn đàn câu lạc bộ (store-club.js)
       this.progressUserGone(id); // tiến độ giải đố / Storm / chuỗi ngày + lượt Storm (store-progress.js)
+      this.lgUserGone(id); // hạng đấu tuần (store-league.js)
+      this.fpPrune(); // soát chơi đẹp: bỏ dòng của ván đã xoá (store-fairplay.js)
       this.db.exec('COMMIT');
     } catch (e) {
       this.db.exec('ROLLBACK');
@@ -249,7 +255,7 @@ class Store {
       // Chỉ giữ 10 trận gần nhất; trận không còn ai giữ thì xoá hẳn.
       for (const { game_id } of this.q.oldGames.all(uid, HISTORY_PER_USER)) {
         this.q.unlinkGame.run(uid, game_id);
-        if (!this.q.gameRefs.get(game_id).n) this.q.dropGame.run(game_id);
+        if (!this.q.gameRefs.get(game_id).n) { this.fpGameGone(game_id); this.q.dropGame.run(game_id); } // + số liệu chơi đẹp của ván (store-fairplay.js)
       }
     }
     return share;
@@ -427,7 +433,8 @@ async function dummyCheckPassword(password) {
 
 // Phiên đăng nhập / thiết bị (store-sessions.js)
 // + chat / diễn đàn câu lạc bộ (store-club.js) + giải đấu offline (store-otour.js) + tiến độ / Storm (store-progress.js)
-for (const part of [Sessions, ClubStore, OTourStore, ProgressStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
+// + đọc ván cho thống kê (store-stats.js) + hạng đấu tuần (store-league.js) + soát chơi đẹp (store-fairplay.js)
+for (const part of [Sessions, ClubStore, OTourStore, ProgressStore, StatsStore, LeagueStore, FairplayStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
   if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 

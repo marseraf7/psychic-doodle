@@ -55,3 +55,17 @@ test('máy đã gắn tài khoản A, B đăng nhập: không gửi tiến độ
   s.login('B');
   assert.strictEqual(s.sent.at(-1).data.pz.n, 5);
 });
+
+test('thang nhân vật máy (caro.ladder) đi cùng tiến độ: máy chưa gắn thì gửi lên; máy của A thì không trộn vào B', () => {
+  const ls = { 'caro.ladder': JSON.stringify({ r: { vn: 7 }, at: 5 }) };
+  const s = boot(ls);
+  s.login('A');
+  assert.deepStrictEqual(s.sent[0].data.ladder, { r: { vn: 7 }, at: 5 }, 'gửi thang trên máy');
+  s.reply(P.merge(s.sent[0].data, { ladder: { r: { free: 2 }, at: 9 } }));
+  assert.deepStrictEqual(JSON.parse(ls['caro.ladder']).r, { vn: 7, free: 2 }, 'gộp thang từ tài khoản');
+  // B đăng nhập trên máy của A: thang của A không lên B, máy nhận thang của B
+  s.login('B');
+  assert.strictEqual(Object.keys(s.sent.at(-1).data).length, 0);
+  s.reply(P.clean({ ladder: { r: { renju: 1 }, at: 3 } }));
+  assert.deepStrictEqual(JSON.parse(ls['caro.ladder']).r, { renju: 1 }, 'trên máy giờ là thang của B');
+});

@@ -321,6 +321,7 @@ class Rooms {
         xId: ux && ux.id, oId: uo && uo.id, xName: name(xPid), oName: name(oPid),
         winner: room.winner, reason: room.reason, moves,
       });
+      if (ux && uo && ux !== uo) this.fpOnSettle(room, room.lastShare); // soát chơi đẹp (fairplay.js)
     }
     const pool = R.poolOf(room);
     let d = null;
@@ -333,6 +334,7 @@ class Rooms {
       const at = Date.now();
       Perf.addRated(ux, pool, { result: resultOf(1), r: ux.pools[pool].r, opp: { name: uo.name, r: before.o }, share: room.lastShare, at });
       Perf.addRated(uo, pool, { result: resultOf(2), r: uo.pools[pool].r, opp: { name: ux.name, r: before.x }, share: room.lastShare, at });
+      this.leagueOnRated(room, ux, uo, moves); // hạng đấu tuần (league.js)
     }
     if (ux && uo && ux !== uo) {
       // Chuỗi thắng / chuỗi thua (ván giữa 2 tài khoản) — trước đây chỉ có chuỗi thắng nên hồ sơ
