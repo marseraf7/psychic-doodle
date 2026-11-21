@@ -1,6 +1,6 @@
 /*
  * Tiến độ người chơi lưu cả trên máy lẫn trong tài khoản (A5): Giải đố (caro.puzzles), Puzzle Storm (caro.storm),
- * chuỗi ngày chơi + huy hiệu (caro.habits). Dùng chung trình duyệt (progress-sync.js) và máy chủ (hub/progress.js).
+ * chuỗi ngày chơi + huy hiệu (caro.habits), thang nhân vật máy (caro.ladder – B9, cách gộp ở bot-ladder-core.js). Dùng chung trình duyệt (progress-sync.js) và máy chủ (hub/progress.js).
  *   clean(raw)        – chỉ giữ trường hợp lệ, cắt độ dài (dữ liệu từ máy người chơi: không tin)
  *   merge(a, b)       – gộp hai bản, KHÔNG BAO GIỜ làm mất tiến độ: số lớn nhất, hợp các tập (ngày chơi, huy hiệu,
  *                       nhân vật đã thắng), điểm giải đố lấy theo bên đã giải nhiều bài hơn
@@ -20,6 +20,8 @@
   const MAX_DAYS = 400;
   const int = (v, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0; };
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  // Thang nhân vật máy: làm sạch / gộp theo bot-ladder-core.js (trình duyệt: nạp sau file này – tra lúc gọi)
+  const LD = () => global.CaroLadderCore || (typeof require === 'function' ? require('./bot-ladder-core.js') : null);
 
   function clean(raw) {
     const r = isObj(raw) ? raw : {};
@@ -38,6 +40,7 @@
       },
       storm: { best: int(st.best, 1000), runs: int(st.runs, 1e6), last: int(st.last, 1000) },
       habits: { days, best: int(h.best, 1e5), games: int(h.games, 1e7), bots, earned, boatRapfi: !!h.boatRapfi },
+      ladder: LD().clean(r.ladder),
     };
   }
 
@@ -62,6 +65,7 @@
         days, best: Math.max(x.habits.best, y.habits.best, longest(days)), games: Math.max(x.habits.games, y.habits.games),
         bots: { ...x.habits.bots, ...y.habits.bots }, earned, boatRapfi: x.habits.boatRapfi || y.habits.boatRapfi,
       },
+      ladder: LD().merge(x.ladder, y.ladder), // bậc cao hơn mỗi luật
     };
   }
 
@@ -108,6 +112,8 @@
     if (c.pz.daily && !ok(c.pz.daily.d)) c.pz.daily = null;
     const span = Math.max(0, Math.round((toDate(max) - toDate(SINCE)) / 86400000) + 1);
     c.habits.best = Math.min(Math.max(c.habits.best, longest(c.habits.days)), span);
+    // Thang (bậc đã có trần RUNGS khi làm sạch): lúc đổi không ở tương lai
+    if (c.ladder.at > (now == null ? Date.now() : now) + 14 * 3600000) c.ladder.at = 0;
     return c;
   }
 

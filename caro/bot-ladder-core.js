@@ -1,12 +1,12 @@
 /*
- * Thang nhân vật máy – phần tính thuần (dùng chung trình duyệt: window.CaroLadderCore; máy chủ: server/src/hub/ladder.js).
+ * Thang nhân vật máy – phần tính thuần (dùng chung trình duyệt: window.CaroLadderCore; máy chủ: gộp trong caro/progress-merge.js – hub/progress.js).
  * Thang = 31 nhân vật của bots.js xếp theo sức cờ: mức 1 → 6 (trong mỗi mức: Gài bẫy, Nước đôi, Phòng thủ, Tấn công, rồi
  * Toàn diện – mạnh nhất mức), cuối cùng là trùm BOAT. Tiến độ theo từng luật: đã thắng tới bậc thứ mấy (bậc cao nhất từng
  * thắng). Không khoá ván: chỉ là tiến độ + huy hiệu (hết mỗi mức, hạ BOAT).
  *   order(bots)              → [id…] thứ tự thang
  *   win(state, id, rule, ids) → trạng thái mới sau khi thắng nhân vật id ở luật rule
  *   merge(a, b)              → gộp hai trạng thái (máy này + tài khoản): lấy bậc cao hơn mỗi luật
- *   clean(x)                 → trạng thái hợp lệ (dữ liệu từ ngoài vào)
+ *   clean(x)                 → trạng thái hợp lệ (dữ liệu từ ngoài vào; bậc ≤ RUNGS)
  *   badges(state, bots)      → huy hiệu đã có: ['tier1', …, 'boat']
  * state: { r: { vn: số bậc đã qua, free, std, renju }, at: lúc đổi gần nhất }
  */
@@ -14,13 +14,13 @@
   'use strict';
   const RULES = ['vn', 'free', 'std', 'renju'];
   const STYLE_ORDER = ['trap', 'dbl', 'def', 'atk', 'uni'];
-  const MAX_RUNG = 64;
+  const RUNGS = 31; // số bậc = số nhân vật của bots.js (bài thử bot-ladder-core.test.js kiểm khớp) – trần khi làm sạch
 
   function order(bots) {
     return bots.slice().sort((a, b) => a.tier - b.tier || STYLE_ORDER.indexOf(a.style) - STYLE_ORDER.indexOf(b.style)).map((b) => b.id);
   }
 
-  const int = (v) => Math.max(0, Math.min(MAX_RUNG, Math.floor(Number(v)) || 0));
+  const int = (v) => Math.max(0, Math.min(RUNGS, Math.floor(Number(v)) || 0));
 
   function clean(x) {
     const r = {};
@@ -60,7 +60,7 @@
     return out;
   }
 
-  const CaroLadderCore = { RULES, STYLE_ORDER, order, win, merge, clean, badges };
+  const CaroLadderCore = { RULES, RUNGS, STYLE_ORDER, order, win, merge, clean, badges };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroLadderCore;
   else global.CaroLadderCore = CaroLadderCore;
 })(typeof window !== 'undefined' ? window : globalThis);

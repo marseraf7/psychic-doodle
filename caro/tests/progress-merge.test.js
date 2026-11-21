@@ -29,3 +29,15 @@ test('gộp: đối xứng, gộp lại không đổi, không giảm số liệu
   }
   assert.strictEqual(ab.habits.best, 2, 'hai ngày liền nhau: chuỗi 2');
 });
+
+test('thang nhân vật máy (B9) trong tiến độ: làm sạch có trần số bậc, gộp lấy bậc cao hơn mỗi luật, lúc đổi không ở tương lai', () => {
+  const LC = require('../bot-ladder-core.js');
+  const c = P.clean({ ladder: { r: { vn: 1e9, free: '3', x: 5, std: -1 }, at: 7 } });
+  assert.deepStrictEqual(c.ladder, { r: { vn: LC.RUNGS, free: 3 }, at: 7 }, 'máy tự báo bậc 10⁹ → trần RUNGS');
+  assert.deepStrictEqual(P.clean({}).ladder, { r: {}, at: 0 });
+  const m = P.merge({ ladder: { r: { vn: 3, free: 1 }, at: 10 } }, { ladder: { r: { vn: 1, renju: 7 }, at: 5 } });
+  assert.deepStrictEqual(m.ladder, { r: { vn: 3, free: 1, renju: 7 }, at: 10 });
+  const now = Date.UTC(2026, 10, 20);
+  assert.strictEqual(P.sane({ ladder: { r: { vn: 2 }, at: now + 86400000 * 30 } }, now).ladder.at, 0);
+  assert.strictEqual(P.sane({ ladder: { r: { vn: 2 }, at: now - 1000 } }, now).ladder.at, now - 1000);
+});

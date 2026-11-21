@@ -2,13 +2,14 @@
  * Thang nhân vật máy (hộp "Thang nhân vật máy" – tab Xem thêm): 31 nhân vật xếp theo sức cờ, tiến độ "đã thắng tới bậc N"
  * theo từng luật, bậc đã qua / bậc kế tiếp / bậc chưa tới (chỉ hiển thị – không khoá ván), huy hiệu, nút "Thử thách tiếp".
  * Thắng một ván với máy (sự kiện caro:gameover của app-ai.js) thì cập nhật tiến độ. Lưu trên máy (localStorage 'caro.ladder')
- * và đồng bộ với tài khoản (máy chủ: server/src/hub/ladder.js – gộp lấy bậc cao hơn). Phần tính: bot-ladder-core.js.
+ * và đồng bộ với tài khoản CÙNG đường với tiến độ khác (progress-sync.js → hub/progress.js, gộp bằng progress-merge.js:
+ * lấy bậc cao hơn, có trần, máy dùng chung không trộn thang của tài khoản trước). Phần tính: bot-ladder-core.js.
  * API: window.CaroBotLadder = { open(rule?), state, next(rule) }
  */
 (function () {
   'use strict';
   const F = window.CaroFeat, LC = window.CaroLadderCore, Bots = window.CaroBots;
-  const N = window.CaroOnline;
+  const N = window.CaroOnline; // chỉ để hiện thông báo (toast)
   const T = window.I18N.t;
   const esc = F.esc;
   const KEY = 'caro.ladder';
@@ -18,24 +19,12 @@
   let rule = 'vn';
 
   let state;
-  try { state = LC.clean(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { state = LC.clean(null); }
+  function load() { try { state = LC.clean(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { state = LC.clean(null); } }
+  load();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* riêng tư */ } }
-
-  const signed = () => !!(N && N.state && N.state.me && !N.state.me.guest && N.connected);
-  // Máy chủ nhận tối đa 1 lần / giây: gom các lần gửi sát nhau thành một
-  let lastSync = 0, syncTimer = 0;
-  function sync() {
-    if (!signed()) return;
-    const wait = lastSync + 1200 - Date.now();
-    if (wait > 0) { clearTimeout(syncTimer); syncTimer = setTimeout(sync, wait); return; }
-    lastSync = Date.now();
-    N.send({ t: 'ladderSync', data: state });
-  }
-  if (N) {
-    N.on('ladder', (m) => { state = LC.merge(state, m.data); save(); if (dlg.isOpen()) render(); });
-    // vào lại / đăng nhập / đăng ký: gộp tiến độ máy này với tài khoản
-    for (const t of ['welcome', 'auth']) N.on(t, () => setTimeout(sync, 500));
-  }
+  // Đồng bộ tài khoản: progress-sync.js gom và gửi; bản gộp từ máy chủ ghi vào 'caro.ladder' rồi báo 'caro:progress'
+  const sync = () => { if (window.CaroProgressSync) window.CaroProgressSync.dirty(); };
+  window.addEventListener('caro:progress', () => { load(); if (dlg.isOpen()) render(); });
 
   /** Thắng một ván với máy: lên bậc (nếu nhân vật đó cao hơn bậc đã qua). */
   window.addEventListener('caro:gameover', (e) => {
@@ -63,7 +52,6 @@
     else if (window.CaroApp && window.CaroApp.local && LC.RULES.includes(window.CaroApp.local.rule)) rule = window.CaroApp.local.rule;
     render();
     dlg.open();
-    sync();
   }
 
   function render() {

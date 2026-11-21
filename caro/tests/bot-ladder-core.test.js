@@ -9,6 +9,7 @@ const ids = LC.order(Bots.BOTS);
 
 test('thứ tự thang: theo mức, trong mức Toàn diện cuối cùng, BOAT là bậc cuối', () => {
   assert.strictEqual(ids.length, 31);
+  assert.strictEqual(LC.RUNGS, ids.length, 'trần bậc khi làm sạch = số nhân vật (thêm nhân vật thì tăng RUNGS)');
   assert.strictEqual(ids[0], 'bom', 'mức 1, Gài bẫy');
   assert.strictEqual(ids[4], 'trinh', 'mức 1, Toàn diện mạnh nhất mức');
   assert.strictEqual(ids[30], 'boat');
@@ -30,7 +31,7 @@ test('thắng: lên bậc theo luật, thắng nhân vật thấp hơn không t�
 
 test('gộp + làm sạch dữ liệu từ ngoài vào', () => {
   assert.deepStrictEqual(LC.merge({ r: { vn: 3, free: 8 }, at: 2 }, { r: { vn: 5, std: 1 }, at: 7 }), { r: { vn: 5, free: 8, std: 1 }, at: 7 });
-  assert.deepStrictEqual(LC.clean({ r: { vn: '4', free: -3, x: 9, renju: 1e9 }, at: 'z' }), { r: { vn: 4, renju: 64 }, at: 0 });
+  assert.deepStrictEqual(LC.clean({ r: { vn: '4', free: -3, x: 9, renju: 1e9 }, at: 'z' }), { r: { vn: 4, renju: LC.RUNGS }, at: 0 });
   assert.deepStrictEqual(LC.clean('rác'), { r: {}, at: 0 });
   assert.deepStrictEqual(LC.merge(null, undefined), { r: {}, at: 0 });
 });
