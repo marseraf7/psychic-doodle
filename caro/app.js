@@ -308,6 +308,10 @@
     setCoords,
     rotateBoard: () => V.rotation.turn(), // bar-menu.js: quay bàn thêm 90° (board-rotate.js)
     getRotation: () => V.rotation.target() * 90,
+    unrot: (a, b) => V.rotation.unrot(a, b), // a11y.js: phím mũi tên theo hướng trên màn hình khi bàn đã quay
+    /** Trợ năng (a11y.js): đánh ô (x, y) như khi bấm – đúng lượt, đúng luật; trả false nếu chưa được đánh. */
+    tryPlay(x, y) { if (!canPlaceNow() || state.board.get(x, y) !== EMPTY) return false; play(x, y); return true; },
+    show: (x, y) => V.ensureVisible(x, y), // dời khung nhìn tới ô (con trỏ bàn phím)
     setDrafts: (list) => V.setDrafts(list), // draft-mode.js: quân nháp
     setDrawLines: (list, prev) => V.setDrawLines(list, prev), // draw-lines.js: đường vẽ chuột phải
     cellName,

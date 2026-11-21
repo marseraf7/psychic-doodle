@@ -1,9 +1,11 @@
 /*
  * Soát chơi đẹp v1 (nhẹ) – KHÔNG xử phạt tự động, chỉ gom dữ liệu cho quản trị viên tự quyết:
- *  (a) Rời tab / mất tiêu điểm trong ván online tính điểm giữa hai tài khoản: trình duyệt người chơi báo (fpBlur – chỉ trong lượt của
- *      mình, đã gom, tối đa 1 tin / 3 giây), máy chủ cộng vào phòng (có trần) rồi lưu kèm ván khi ván xong (fp_game).
- *  (b) Hàng chờ xem lại (fp_queue): ván rời tab nhiều (BLUR_N lần hoặc BLUR_MS), ván bàn đầu của giải (một trong hai người
- *      đang ở TOP_BOARDS hạng đầu giải), ván bị báo cáo gian lận (social.js on_report lý do 'cheat'). Máy chủ không chạy
+ *  (a) Rời tab / mất tiêu điểm trong ván online giữa hai tài khoản (tính điểm hay không): trình duyệt người chơi báo (fpBlur –
+ *      chỉ trong lượt của mình, đã gom, tối đa 1 tin / 3 giây), máy chủ cộng vào phòng (có trần) rồi lưu kèm ván khi ván xong
+ *      (fp_game); xoá cùng ván (store-fairplay.js fpGameGone / fpPrune).
+ *  (b) Hàng chờ xem lại (fp_queue). Ván tính điểm: rời tab nhiều (BLUR_N lần hoặc BLUR_MS), bàn đầu của giải (một trong hai
+ *      người đang ở TOP_BOARDS hạng đầu giải), bị báo cáo gian lận. Ván không tính điểm: CHỈ khi bị báo cáo gian lận (social.js
+ *      on_report lý do 'cheat'). Ván bị báo cáo luôn kèm số lần rời tab của ván đó (hàng chờ nối fp_game). Máy chủ không chạy
  *      được Rapfi nên phần so với máy cờ chạy trên trình duyệt của quản trị viên khi mở hàng chờ (fairplay-admin.js, bộ phân
  *      tích song song an-pool.js) rồi gửi kết quả về (fpResult) – tỉ lệ trùng nước máy cờ, mức tụt khả năng thắng trung bình.
  *  (c) Trang quản trị: fpQueue / fpResult / fpMark (requireAdmin, như admin.js / playban.js).
@@ -11,7 +13,7 @@
  */
 'use strict';
 const { E } = require('../msg.js');
-const { uidOf } = require('./shared.js');
+const { uidOf, userPid } = require('./shared.js');
 
 const MAX_N = 200, MAX_MS = 3600 * 1000; // trần mỗi bên mỗi ván
 const STEP_N = 3, STEP_MS = 5 * 60 * 1000; // trần mỗi tin
@@ -39,19 +41,21 @@ class Fairplay {
   }
 
   /**
-   * Ván vừa lưu (rooms.js settle, giữa hai tài khoản): lưu số lần rời tab, đưa vào hàng chờ nếu cần. Chỉ ván tính điểm
-   * (rated – rooms.js isRatable): ván giao hữu / không tính điểm không lưu số lần rời tab (privacy.html). Ván bị báo cáo
-   * gian lận vẫn vào hàng chờ qua fpReport (không kèm số lần rời tab).
+   * Ván vừa lưu (rooms.js settle, giữa hai tài khoản): lưu số lần rời tab kèm ván (cả ván không tính điểm – để ván bị báo cáo
+   * gian lận luôn có số liệu), đưa vào hàng chờ nếu cần. Lý do "rời tab nhiều" / "bàn đầu giải" chỉ với ván tính điểm (rated –
+   * rooms.js isRatable); ván không tính điểm chỉ vào hàng chờ khi bị báo cáo (privacy.html). Báo cáo lúc đang đấu với người
+   * đó (fpReport đánh dấu room.fpRep): ván này vào hàng chờ khi xong.
    */
   fpOnSettle(room, share, rated) {
     try {
-      if (!share || !rated) return;
+      if (!share) return;
       const fp = room.fp && room.fp.g === room.gameNo ? room.fp : null;
       if (fp && (fp[1].n || fp[2].n)) {
         this.store.fpSaveBlur(share, fp[1], fp[2]);
-        if ([1, 2].some((s) => fp[s].n >= BLUR_N || fp[s].ms >= BLUR_MS)) this.store.fpEnqueue(share, 'blur');
+        if (rated && [1, 2].some((s) => fp[s].n >= BLUR_N || fp[s].ms >= BLUR_MS)) this.store.fpEnqueue(share, 'blur');
       }
-      if (room.tour && this.fpTopBoard(room)) this.store.fpEnqueue(share, 'tour_top');
+      if (rated && room.tour && this.fpTopBoard(room)) this.store.fpEnqueue(share, 'tour_top');
+      if (room.fpRep === room.gameNo) this.store.fpEnqueue(share, 'report');
     } catch (e) {
       console.error('[fairplay] lỗi lưu ván:', e);
     }
@@ -69,9 +73,14 @@ class Fairplay {
     return [1, 2].some((s) => top.has(uidOf(room.seats[s])));
   }
 
-  /** Bị báo cáo gian lận (social.js): đưa ván gần nhất giữa hai người (hoặc ván gần nhất của người bị báo cáo) vào hàng chờ. */
+  /**
+   * Bị báo cáo gian lận (social.js): đang đấu với nhau thì đánh dấu ván đang chơi (vào hàng chờ khi xong – fpOnSettle); không thì
+   * đưa ván gần nhất giữa hai người (hoặc ván gần nhất của người bị báo cáo) vào hàng chờ. Số lần rời tab đi kèm (fp_game).
+   */
   fpReport(reporterUid, targetUid) {
     try {
+      const room = this.roomFor(userPid(reporterUid));
+      if (room && room.inProgress && room.sideOf(userPid(targetUid))) { room.fpRep = room.gameNo; return; }
       const games = this.store.statsGames(targetUid, 30);
       const g = games.find((x) => x.x_id === reporterUid || x.o_id === reporterUid) || games[0];
       if (g) this.store.fpEnqueue(g.share, 'report');

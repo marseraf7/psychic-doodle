@@ -73,7 +73,7 @@ const { setup, sleep, exportText, pickTpl } = require('./helpers.js');
   await yard(99); await yard(1); await yard(1);
   ok(by.st[0].done && by.st[0].backyard.status === 'champion', 'Backyard: có nhà vô địch sau vòng một mình');
   const t3 = await tab();
-  ok(/Vô địch:/.test(t3) && (await boss.$$('.pill[title]')).length === 29 && /assist/.test(t3), 'Backyard: 29 người dừng ở vòng 2 được ghi assist');
+  ok(/Vô địch:/.test(t3) && (await boss.$$('.pill[title]')).length === 29 && /kiến tạo/.test(t3), 'Backyard: 29 người dừng ở vòng 2 được ghi kiến tạo');
   await shot(boss, 'ot-extra-backyard.png');
   await exportOk('Backyard', /km/);
   await finish();

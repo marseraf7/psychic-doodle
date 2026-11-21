@@ -152,3 +152,14 @@ test('SW: mở trang kèm ?replay= khi mất mạng vẫn có vỏ ứng dụng 
   const res = await w.fire('fetch', { request: { method: 'GET', url: abs('?replay=AbC123'), mode: 'navigate' } });
   assert.ok(res && res.ok === true, 'điều hướng mất mạng: dùng bản index đã lưu (ignoreSearch)');
 });
+
+test('SW: mở link /?bc= (tường thuật giải – C3) ra trang tường thuật đã lưu, không phải Trang chủ', async () => {
+  const w = makeWorld();
+  await w.fire('install', {});
+  await w.fire('message', { data: { t: 'precache', lang: 'vi' } });
+  w.netErrors.add('/');
+  const res = await w.fire('fetch', { request: { method: 'GET', url: abs('?bc=abc123'), mode: 'navigate' } });
+  assert.ok(res && res.body === '/broadcast.html', 'điều hướng ?bc=: broadcast.html (đã nhận ' + (res && res.body) + ')');
+  const home = await w.fire('fetch', { request: { method: 'GET', url: abs('?replay=AbC123'), mode: 'navigate' } });
+  assert.strictEqual(home.body, '/', 'link khác vẫn ra trang chính');
+});

@@ -37,7 +37,7 @@
   I.extend('en', {
     lg_zones_few: 'A group needs at least 3 players before anyone moves up or down.',
     lg_title: 'Weekly league',
-    lg_need_account: 'Sign in to join the weekly league.',
+    lg_need_account: 'Log in to join the weekly league.',
     lg_div_bronze: 'Bronze',
     lg_div_silver: 'Silver',
     lg_div_gold: 'Gold',

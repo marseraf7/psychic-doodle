@@ -8,18 +8,18 @@
 
   X('vi', {
     srv_ot_stage_few: 'Giai đoạn {n} chỉ còn chưa tới 2 đội: hãy cho thêm đội đi tiếp hoặc vào thẳng.',
-    esp_race_n: 'Race {n}', esp_title_ps: 'Chi tiết các race',
+    esp_race_n: 'Lượt đua {n}', esp_title_ps: 'Chi tiết các lượt đua',
     sport_sailing: 'Đua thuyền buồm', tpl_americas_cup: 'Kiểu America’s Cup (đua thuyền buồm)',
-    tpl_americas_cup_d: 'Đội đầu danh sách là đội giữ cúp, vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng tròn 2 lượt (thắng mỗi race 1 điểm); 4 đội đầu vào bán kết, ai thắng 5 race trước thì đi tiếp (Bo9); chung kết đội thách đấu ai thắng 7 race trước (Bo13). Đội thắng gặp đội giữ cúp trong trận tranh cúp, ai thắng 7 race trước (Bo13) giành cúp. Mỗi race ghi bên vào sân và thời gian về đích.',
+    tpl_americas_cup_d: 'Đội đầu danh sách là đội giữ cúp, vào thẳng trận tranh cúp. 5 đội thách đấu đá vòng tròn 2 lượt (thắng mỗi lượt đua 1 điểm); 4 đội đầu vào bán kết, ai thắng 5 lượt đua trước thì đi tiếp (Bo9); chung kết đội thách đấu ai thắng 7 lượt đua trước (Bo13). Đội thắng gặp đội giữ cúp trong trận tranh cúp, ai thắng 7 lượt đua trước (Bo13) giành cúp. Mỗi lượt đua ghi bên vào sân và thời gian về đích.',
     esp_port: 'Vào từ mạn trái', esp_stbd: 'Vào từ mạn phải', esp_side_pick_ps: 'Thuyền vào từ mạn trái', esp_sides: 'Cách gọi hai bên',
-    esp_st_finish: 'Thời gian về đích (giây)', esp_margin: 'Cách biệt về đích: {s} giây', esp_sum_ps: '{g} race · thời lượng trung bình {d} · vào từ mạn trái thắng {b}%',
+    esp_st_finish: 'Thời gian về đích (giây)', esp_margin: 'Cách biệt về đích: {s} giây', esp_sum_ps: '{g} lượt đua · thời lượng trung bình {d} · vào từ mạn trái thắng {b}%',
   });
 
   X('en', {
     srv_ot_stage_few: 'Stage {n} would have fewer than 2 teams: let more teams advance or enter directly.',
     esp_race_n: 'Race {n}', esp_title_ps: 'Race details',
     sport_sailing: 'Sailing', tpl_americas_cup: 'America’s Cup style (sailing)',
-    tpl_americas_cup_d: 'The first team listed is the defender and goes straight to the match. 5 challengers race a double round robin (1 point per race win); the top 4 reach the semi-finals, first to 5 wins (Bo9); the challenger final is first to 7 (Bo13). The winner meets the defender in the match, first to 7 (Bo13) takes the cup. Each race records the entry side and finishing times.',
+    tpl_americas_cup_d: 'The first team listed is the defender and goes straight to the match. 5 challengers race a double round robin (1 point per race win); the top 4 reach the semifinals, first to 5 wins (Bo9); the challenger final is first to 7 (Bo13). The winner meets the defender in the match, first to 7 (Bo13) takes the cup. Each race records the entry side and finishing times.',
     esp_port: 'Port entry', esp_stbd: 'Starboard entry', esp_side_pick_ps: 'Boat entering from port', esp_sides: 'Side names',
     esp_st_finish: 'Finishing time (seconds)', esp_margin: 'Finishing margin: {s} seconds', esp_sum_ps: '{g} races · average duration {d} · port entry wins {b}%',
   });

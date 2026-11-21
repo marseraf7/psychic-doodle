@@ -20,8 +20,8 @@
     rc_best: 'Thắng đẹp nhất: trước {name} ({r} điểm)',
     rc_best_anon: 'Thắng đẹp nhất: trước một đối thủ {r} điểm',
     rc_opp: 'Đối thủ gặp nhiều nhất: {name} ({n} ván)',
-    rc_note: 'Tính trên các ván đã lưu của tài khoản. Câu đố và Storm lấy từ thiết bị này. Tên đối thủ chỉ hiện khi cả hai công khai lịch sử đấu. Tháng, năm tính theo giờ Việt Nam (UTC+7).',
-    rc_note_local: 'Tính trên các ván lưu trên thiết bị này.',
+    rc_note: 'Tính trên các ván đã lưu của tài khoản. Câu đố và Storm lấy từ thiết bị này. Tên đối thủ chỉ hiện khi cả hai công khai lịch sử đấu. Tháng, năm và số ngày có chơi tính theo múi giờ của thiết bị.',
+    rc_note_local: 'Tính trên các ván lưu trên thiết bị này. Tháng, năm và số ngày có chơi tính theo múi giờ của thiết bị.',
     rc_share: 'Chia sẻ ảnh tổng kết',
   });
   I.extend('en', {
@@ -42,8 +42,8 @@
     rc_best: 'Best win: against {name} ({r} points)',
     rc_best_anon: 'Best win: against an opponent rated {r}',
     rc_opp: 'Most played opponent: {name} ({n} games)',
-    rc_note: 'Based on the games saved on your account. Puzzles and Storm come from this device. Opponent names are shown only if both of you share your game history publicly. Months and years follow Vietnam time (UTC+7).',
-    rc_note_local: 'Based on the games saved on this device.',
+    rc_note: 'Based on the games saved on your account. Puzzles and Storm come from this device. Opponent names are shown only if both of you share your game history publicly. Months, years and days played follow your device\'s time zone.',
+    rc_note_local: 'Based on the games saved on this device. Months, years and days played follow your device\'s time zone.',
     rc_share: 'Share recap image',
   });
   I.extend('ru', {
@@ -64,8 +64,8 @@
     rc_best: 'Лучшая победа: над {name} ({r} очков)',
     rc_best_anon: 'Лучшая победа: над соперником с рейтингом {r}',
     rc_opp: 'Самый частый соперник: {name} (партий: {n})',
-    rc_note: 'По партиям, сохранённым в аккаунте. Задачи и Storm — с этого устройства. Имена соперников показываются, только если вы оба открыли историю партий для всех. Месяцы и годы — по времени Вьетнама (UTC+7).',
-    rc_note_local: 'По партиям, сохранённым на этом устройстве.',
+    rc_note: 'По партиям, сохранённым в аккаунте. Задачи и Storm — с этого устройства. Имена соперников показываются, только если вы оба открыли историю партий для всех. Месяцы, годы и дни с партиями считаются по часовому поясу устройства.',
+    rc_note_local: 'По партиям, сохранённым на этом устройстве. Месяцы, годы и дни с партиями считаются по часовому поясу устройства.',
     rc_share: 'Поделиться картинкой итогов',
   });
   I.extend('zh', {
@@ -86,8 +86,8 @@
     rc_best: '最佳胜局：战胜 {name}（{r} 分）',
     rc_best_anon: '最佳胜局：战胜一位 {r} 分的对手',
     rc_opp: '最常遇到的对手：{name}（{n} 盘）',
-    rc_note: '基于账号保存的对局。谜题和 Storm 来自本设备。只有双方都公开对局记录时才显示对手的名字。月份和年份按越南时间（UTC+7）计算。',
-    rc_note_local: '基于本设备保存的对局。',
+    rc_note: '基于账号保存的对局。谜题和 Storm 来自本设备。只有双方都公开对局记录时才显示对手的名字。月份、年份和下棋天数按设备时区计算。',
+    rc_note_local: '基于本设备保存的对局。月份、年份和下棋天数按设备时区计算。',
     rc_share: '分享总结图片',
   });
 })();

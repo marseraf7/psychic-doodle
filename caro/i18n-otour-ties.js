@@ -62,9 +62,9 @@
   });
 
   X('en', {
-    opt_tbm_lines: 'Other places also settled by tiebreakers',
+    opt_tbm_lines: 'Other places also settled by tie-breakers',
     opt_tbm_lines_hint: 'Besides the qualifying line. Enter places separated by spaces: 1 for first place; 1 2 as in the 2021 Rumble. A game that only orders two places not separated by any line is not played.',
-    ds_tbm_lines: 'tiebreakers also at places {list}',
+    ds_tbm_lines: 'tie-breakers also at places {list}',
     esp_side_tb: 'Side choice: {name} (lower total time of games won; without durations, the head-to-head winner).',
     pick_day: 'Seed 1 semifinal plays', pick_day_note: 'The seed 1 semifinal is played {when}.',
     pick_day_first: 'first',
@@ -77,8 +77,8 @@
     ds_fresh_slot: 'group A winner meets the first seeded team, group B winner the second',
     br_dmg: 'Damage',
     br_tb_dmg_note: 'Still tied: total damage.',
-    opt_dmg: 'Enter total damage per match (last tiebreaker)',
-    ds_dmg: 'total damage entered as the last tiebreaker',
+    opt_dmg: 'Enter total damage per match (last tie-breaker)',
+    ds_dmg: 'total damage entered as the last tie-breaker',
     pair_faceit: 'FACEIT 2018 style (rounds 1–2 drawn; rounds 3–5 by Buchholz – total wins of opponents faced, highest vs lowest)',
     ds_faceit: 'FACEIT 2018 style pairing (Buchholz on opponents\' wins)',
     opt_rec_bo_last: 'Separate Bo only for 2–2 matches (both teams facing a decider)',
@@ -141,8 +141,8 @@
     ot_seed_mode: 'Посев по',
     ot_seed_rating: 'Рейтингу (Эло, мировой рейтинг…)',
     ot_seed_ballot: 'Голосованию команд',
-    ot_seed_hint_rating: 'Одна команда на строку: "Название: очки". У кого больше очков — выше; команды без очков остаются внизу в прежнем порядке.',
-    ot_seed_hint_ballot: 'Одна анкета на строку: команда ранжирует остальных от сильной к слабой: "Голосующая: Команда A > Команда B > …". Сила считается по модели Брэдли — Терри (основа Эло) по всем парным сравнениям.',
+    ot_seed_hint_rating: 'Одна команда на строку: «Название: очки». У кого больше очков — выше; команды без очков остаются внизу в прежнем порядке.',
+    ot_seed_hint_ballot: 'Одна анкета на строку: команда ранжирует остальных от сильной к слабой: «Голосующая: Команда A > Команда B > …». Сила считается по модели Брэдли — Терри (основа Эло) по всем парным сравнениям.',
     ot_seed_ph_rating: 'Команда 1: 1850\nКоманда 2: 1790',
     ot_seed_ph_ballot: 'Команда 1: Команда 3 > Команда 2 > Команда 4\nКоманда 2: Команда 1 > Команда 3 > Команда 4',
     ot_seed_apply: 'Распределить посев',

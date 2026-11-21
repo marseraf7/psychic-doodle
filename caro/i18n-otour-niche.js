@@ -141,7 +141,7 @@
     by_alive: 'still running',
     by_yards: 'Loops',
     by_yard_n: 'Loop {n}',
-    by_form_hint: 'Untick runners who did not finish within the hour.',
+    by_form_hint: 'Uncheck runners who did not finish within the hour.',
     by_solo: 'Only one runner left: they must finish this loop alone to win.',
     ds_backyard: 'Backyard Ultra: each loop {km} km in {min} minutes, the last runner must complete one more loop alone',
     race_poker: 'Poker with bounties',

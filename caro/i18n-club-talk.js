@@ -42,18 +42,18 @@
 
   // ================================================================ Русский
   X('ru', {
-    talk_chat: 'Чат клуба', talk_chat_empty: 'Сообщений пока нет – поздоровайтесь!', talk_chat_ph: 'Написать всему клубу…', talk_send: 'Отправить',
+    talk_chat: 'Чат клуба', talk_chat_empty: 'Сообщений пока нет — поздоровайтесь!', talk_chat_ph: 'Написать всему клубу…', talk_send: 'Отправить',
     talk_delete: 'Удалить', talk_edit: 'Изменить', talk_edited: 'изменено',
     talk_chat_readonly: 'В этом чате пишут только руководители.', talk_muted_me: 'Вам запрещено писать в чате и на форуме клуба.',
     talk_forum: 'Форум', talk_topic_new: 'Новая тема', talk_forum_empty: 'Тем пока нет.', talk_posts_n: 'сообщений: {n}',
     talk_page: 'Стр. {a}/{b}', talk_pinned: 'Закреплено', talk_locked: 'Закрыто',
     talk_pin: 'Закрепить', talk_unpin: 'Открепить', talk_lock: 'Закрыть тему', talk_unlock: 'Открыть', talk_topic_delete: 'Удалить тему',
     talk_topic_delete_q: 'Удалить тему со всеми сообщениями?', talk_post_delete_q: 'Удалить сообщение?',
-    talk_reply: 'Ответить', talk_locked_hint: 'Тема закрыта – ответить нельзя.', talk_forum_readonly: 'Этот форум доступен только для чтения.',
+    talk_reply: 'Ответить', talk_locked_hint: 'Тема закрыта — ответить нельзя.', talk_forum_readonly: 'Этот форум доступен только для чтения.',
     talk_title: 'Заголовок', talk_content: 'Текст', talk_post: 'Опубликовать',
     talk_mute: 'Запретить писать (чат, форум)', talk_unmute: 'Разрешить писать',
     srv_club_talk_denied: 'Здесь писать нельзя (выключено / только руководители / вам запрещено)',
-    srv_club_topic_short: 'Заголовок – от 3 символов, текст не может быть пустым', srv_club_topic_limit: 'На форуме уже {n} тем – удалите старые',
+    srv_club_topic_short: 'Заголовок — от 3 символов, текст не может быть пустым', srv_club_topic_limit: 'На форуме уже {n} тем — удалите старые',
     srv_club_topic_gone: 'Темы больше нет', srv_club_topic_locked: 'Тема закрыта',
   });
 

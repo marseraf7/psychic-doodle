@@ -16,9 +16,9 @@
     an_by_rapfi: 'Phân tích bởi Rapfi, máy cờ vô địch Gomocup',
     rapfi_loading: 'BOAT đang tải bộ não Rapfi (khoảng {mb} MB, chỉ tải lần đầu)…',
     rapfi_ready: 'BOAT đã sẵn sàng với Rapfi, máy cờ vô địch Gomocup ⛵',
-    rapfi_failed: 'Không tải được Rapfi nên BOAT dùng máy cờ sẵn có của game',
+    rapfi_failed: 'Không tải được Rapfi nên BOAT dùng máy cờ sẵn có của ứng dụng',
     rapfi_mt: 'Rapfi đa luồng',
-    rapfi_mt_d: 'BOAT và phần phân tích dùng nhiều lõi của máy để nghĩ sâu hơn. Tắt nếu máy nóng, chậm hoặc game bị giật.',
+    rapfi_mt_d: 'BOAT và phần phân tích dùng nhiều lõi của máy để nghĩ sâu hơn. Tắt nếu máy nóng, chậm hoặc ứng dụng bị giật.',
     rapfi_mt_na: 'Trình duyệt này chỉ chạy được Rapfi một luồng (chạy nhiều luồng hiện có trên Chrome và Edge ở máy tính).',
     rapfi_mt_lag: 'Máy có vẻ bị giật khi BOAT nghĩ bằng nhiều luồng. Hãy tắt «Rapfi đa luồng» ở Cài đặt › Cài đặt bàn cờ để chơi mượt hơn.',
   });
@@ -34,23 +34,23 @@
     rapfi_loading: 'BOAT is downloading its Rapfi brain (~{mb} MB, first time only)…',
     rapfi_ready: 'BOAT is ready with Rapfi – the Gomocup champion engine ⛵',
     rapfi_failed: 'Could not load Rapfi – BOAT uses the game\'s own engine',
-    rapfi_mt: 'Multi-threaded Rapfi',
+    rapfi_mt: 'Multithreaded Rapfi',
     rapfi_mt_d: 'BOAT and analysis use several CPU cores to think deeper. Turn off if the device gets hot, slow or the game stutters.',
     rapfi_mt_na: 'This browser runs Rapfi on a single thread (multi-threading is available in desktop Chrome / Edge).',
-    rapfi_mt_lag: 'Your device seems to stutter while BOAT thinks on several threads. Turn off “Multi-threaded Rapfi” in Settings › Board settings for smoother play.',
+    rapfi_mt_lag: 'Your device seems to stutter while BOAT thinks on several threads. Turn off “Multithreaded Rapfi” in Settings › Board settings for smoother play.',
   });
 
   X('ru', {
     an_loading_engine: 'Загружаем движок анализа…',
     licenses: 'Лицензии открытого ПО',
-    boat_elo_rapfi: 'Rapfi – движок-чемпион Gomocup (вьетнамские правила: Rapfi-CARO)',
+    boat_elo_rapfi: 'Rapfi — движок-чемпион Gomocup (вьетнамские правила: Rapfi-CARO)',
     badge_beat_boat_rapfi: 'Потопить BOAT–Rapfi',
-    badge_beat_boat_rapfi_d: 'Победить BOAT, когда играет Rapfi – движок-чемпион Gomocup',
+    badge_beat_boat_rapfi_d: 'Победить BOAT, когда играет Rapfi — движок-чемпион Gomocup',
     an_refining_rapfi: 'Быстрый результат · Rapfi (движок-чемпион Gomocup) уточняет… {p}%',
-    an_by_rapfi: 'Анализ: Rapfi – движок-чемпион Gomocup',
+    an_by_rapfi: 'Анализ: Rapfi — движок-чемпион Gomocup',
     rapfi_loading: 'BOAT загружает мозг Rapfi (~{mb} МБ, только в первый раз)…',
-    rapfi_ready: 'BOAT готов с Rapfi – движком-чемпионом Gomocup ⛵',
-    rapfi_failed: 'Не удалось загрузить Rapfi – BOAT играет собственным движком игры',
+    rapfi_ready: 'BOAT готов с Rapfi — движком-чемпионом Gomocup ⛵',
+    rapfi_failed: 'Не удалось загрузить Rapfi — BOAT играет собственным движком игры',
     rapfi_mt: 'Многопоточный Rapfi',
     rapfi_mt_d: 'BOAT и анализ используют несколько ядер процессора, чтобы думать глубже. Отключите, если устройство греется, тормозит или игра подвисает.',
     rapfi_mt_na: 'В этом браузере Rapfi работает в одном потоке (многопоточность доступна в Chrome / Edge на компьютере).',
@@ -78,7 +78,7 @@
   if (!window.CARO_NO_RAPFI) {
     X('vi', { bot_boat_desc: 'Trùm cuối, "Best of All Time". Chạy Rapfi (máy cờ vô địch Gomocup, giấy phép GPL-3) ngay trên máy bạn: luật tự do, tiêu chuẩn và Renju cần tải khoảng 10 MB ở lần đầu; luật Việt Nam dùng Rapfi-CARO, tức Rapfi được Caro x Gomoku dạy thêm luật chặn hai đầu. Gần như bất khả chiến bại.' });
     X('en', { bot_boat_desc: 'The final boss – Best of All Time. Runs Rapfi – the Gomocup champion engine (GPL-3) – right on your device: freestyle, standard and Renju need a ~10 MB download the first time; the Vietnamese rule uses Rapfi-CARO – Rapfi taught the both-ends-blocked rule by Caro. Nearly unbeatable.' });
-    X('ru', { bot_boat_desc: 'Финальный босс – Best of All Time. Играет движком Rapfi – чемпионом Gomocup (GPL-3) – прямо на вашем устройстве: для свободных, стандартных правил и Рэндзю в первый раз загрузка ~10 МБ; во вьетнамских правилах – Rapfi-CARO, Rapfi, которого Caro x Gomoku научил правилу блока с двух концов. Почти непобедим.' });
+    X('ru', { bot_boat_desc: 'Финальный босс — Best of All Time. Играет движком Rapfi — чемпионом Gomocup (GPL-3) — прямо на вашем устройстве: для свободных, стандартных правил и Рэндзю в первый раз загрузка ~10 МБ; во вьетнамских правилах — Rapfi-CARO, Rapfi, которого Caro x Gomoku научил правилу блока с двух концов. Почти непобедим.' });
     X('zh', { bot_boat_desc: '最终头目——Best of All Time（史上最强）。在你的设备上运行 Gomocup 冠军引擎 Rapfi（GPL-3）：自由、标准与连珠规则首次需下载约 10 MB；越南规则使用 Rapfi-CARO——由 Caro 教会“两端被堵不算赢”规则的 Rapfi。几乎无法战胜。' });
   }
 })();

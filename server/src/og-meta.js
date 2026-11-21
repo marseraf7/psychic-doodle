@@ -1,7 +1,7 @@
 /*
  * Thẻ xem trước link chia sẻ (Open Graph) cho Zalo / Messenger / Facebook / Telegram (A3): trang chính mở bằng link
  * ?replay= (ván đã lưu), ?room= (ván đang đấu / lời mời vào phòng), ?t= (giải đấu), ?o= (giải đấu Offline), ?club= (CLB),
- * ?u= (hồ sơ kỳ thủ). Máy chủ chèn <meta property="og:…"> vào <head> (web.js → serveIndex) để ứng dụng chat hiện tiêu đề,
+ * ?u= (hồ sơ kỳ thủ), ?bc= (tường thuật giải – C3, trang broadcast.html), ?cls= (bài Lớp học – C2). Máy chủ chèn <meta property="og:…"> vào <head> (web.js → serveIndex) để ứng dụng chat hiện tiêu đề,
  * mô tả, ảnh ngay khi dán link – người nhận không cần đăng nhập vẫn thấy.
  * File này chỉ dựng chữ + HTML (không đọc dữ liệu): dữ liệu lấy từ hub/og.js (đã kiểm quyền xem như khách chưa đăng nhập).
  * Mọi giá trị đều được thoát HTML; chữ người dùng tự đặt (tên giải, tên CLB…) bị cắt ngắn, bỏ xuống dòng.
@@ -23,6 +23,8 @@ const S = {
     ot_d: 'Giải đấu · {n} đội / kỳ thủ · Xem nhánh đấu và kết quả',
     club_t: 'CLB {name}', club_d: 'Câu lạc bộ Caro · {n} thành viên',
     user_d: 'Elo {r} · {g} ván · Xem hồ sơ kỳ thủ',
+    bc_t: 'Tường thuật: {name}', bc_d: '{n} ván đang đấu · Xem trực tiếp, bảng xếp hạng, kết quả',
+    cls_d: 'Bài học Caro · {n} chương · Thế cờ, biến, lời bình',
     home_d: 'Chơi Caro / Gomoku miễn phí với bạn bè hoặc máy – ngay trên trình duyệt',
   },
   en: {
@@ -34,6 +36,8 @@ const S = {
     ot_d: 'Tournament · {n} teams / players · Bracket and results',
     club_t: '{name} club', club_d: 'Gomoku club · {n} members',
     user_d: 'Rating {r} · {g} games · View player profile',
+    bc_t: 'Live: {name}', bc_d: '{n} games in progress · Watch live, standings and results',
+    cls_d: 'Gomoku study · chapters: {n} · Positions, variations, comments',
     home_d: 'Play Gomoku free with friends or the computer – right in your browser',
   },
   ru: {
@@ -45,6 +49,8 @@ const S = {
     ot_d: 'Турнир · команд / игроков: {n} · Сетка и результаты',
     club_t: 'Клуб {name}', club_d: 'Клуб гомоку · участников: {n}',
     user_d: 'Рейтинг {r} · партий: {g} · Профиль игрока',
+    bc_t: 'Трансляция: {name}', bc_d: 'Идущих партий: {n} · Смотрите вживую, таблица и результаты',
+    cls_d: 'Урок гомоку · глав: {n} · Позиции, варианты, комментарии',
     home_d: 'Играйте в гомоку бесплатно с друзьями или компьютером прямо в браузере',
   },
   zh: {
@@ -56,6 +62,8 @@ const S = {
     ot_d: '比赛 · {n} 支队伍 / 棋手 · 对阵图与结果',
     club_t: '{name} 俱乐部', club_d: '五子棋俱乐部 · {n} 名成员',
     user_d: '等级分 {r} · {g} 局 · 查看棋手资料',
+    bc_t: '直播：{name}', bc_d: '{n} 局进行中 · 实时观看、排名与结果',
+    cls_d: '五子棋课程 · {n} 章 · 局面、变化与评注',
     home_d: '在浏览器中免费与好友或电脑下五子棋',
   },
 };
@@ -103,6 +111,8 @@ function texts(info, lang) {
     case 'live': return { title: t('live_t', { x: name(info.x), o: name(info.o) }), desc: t('live_d', { n: info.n | 0 }) };
     case 'room': return { title: t('room_t', { code: clip(info.code, 6) }), desc: t('room_d') };
     case 'tour': return { title: clip(info.name, 90), desc: t('tour_d', { n: info.n | 0 }) };
+    case 'cls': return { title: clip(info.name, 90), desc: t('cls_d', { n: info.n | 0 }) }; // bài Lớp học (C2)
+    case 'bc': return { title: t('bc_t', { name: clip(info.name, 80) }), desc: t('bc_d', { n: info.n | 0 }) }; // tường thuật giải (C3)
     case 'otour': return { title: clip(info.name, 90), desc: t('ot_d', { n: info.n | 0 }) };
     case 'club': return { title: t('club_t', { name: clip(info.name, 60) }), desc: info.intro ? clip(info.intro, 200) : t('club_d', { n: info.n | 0 }) };
     case 'user': return { title: `${name(info.name)} (@${clip(info.username, 20)})`, desc: t('user_d', { r: info.rating | 0, g: info.games | 0 }) };

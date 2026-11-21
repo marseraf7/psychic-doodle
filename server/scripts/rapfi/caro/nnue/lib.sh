@@ -15,12 +15,15 @@ nap() { sleep "$1" & wait $!; }
 # Tự đấu một lô: selfplay_batch <thư mục engine> <file ra .binpack.lz4> <hạt giống> <file log> [file khai cuộc]
 # Ghi file tạm rồi đổi tên; trả 0 khi được file hợp lệ. Rapfi nạp mạng hỏng không thoát lỗi mà lặng lẽ chơi bằng bảng
 # cổ điển – log có "Failed to load" / "Evaluator … disabled" cũng coi là lỗi.
+# Số nút mỗi nước NGẪU NHIÊN trong [NODES·3/4, NODES·5/4] (điều tra 21/11/2026): với số nút cố định Rapfi tự đấu là tất
+# định – cùng khai cuộc (sau xoay / lật) ra đúng một ván, nên lô dùng sách ~600 thế phần lớn là ván trùng hệt. Khai cuộc:
+# file cân bằng (openings/selfplay.txt → WORK/openings.txt); không có file thì Rapfi tự sinh (đặt quân cả sát mép bàn).
 selfplay_batch() {
-  local eng="$1" out="$2" seed="$3" lg="$4" op=""
+  local eng="$1" out="$2" seed="$3" lg="$4" op="" n="${NODES:-40000}"
   [ -n "${5:-}" ] && op="--opening $5"
   # shellcheck disable=SC2086
   if (cd "$eng" && ./pbrain-rapfi selfplay --rule caro -n "${GAMES:-200}" --boardsize 20 $op \
-    --budget-unit nodes --budget-distribution fixed --budget-value "${NODES:-40000}" \
+    --budget-unit nodes --budget-distribution uniform --budget-min $((n * 3 / 4)) --budget-max $((n * 5 / 4)) \
     --seed "$seed" -o "$out.tmp" --report-interval 3600000 > "$lg" 2>&1) && [ -s "$out.tmp" ] &&
     ! grep -qE 'Failed to load|Evaluator .* disabled' "$lg"; then
     mv "$out.tmp" "$out"

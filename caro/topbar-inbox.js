@@ -6,7 +6,7 @@
  *    điện thoại). Bong bóng chat đã ẩn thì có nút "Hiện lại bong bóng chat" ở cuối danh sách.
  *  - Thông báo: lời mời kết bạn đang chờ (Chấp nhận / Từ chối ngay tại chỗ), lời thách đấu nhận qua tin nhắn, lời mời
  *    kết bạn của mình vừa được chấp nhận, tin gửi toàn câu lạc bộ (club-manage.js của máy chủ), giải đấu: tới trận /
- *    kết quả khi giải kết thúc (tour-notes.js của máy chủ). Lời mời kết bạn lấy từ
+ *    kết quả khi giải kết thúc (tour-notes.js của máy chủ), chơi theo lượt: lời mời / tới lượt / xin hoà / kết thúc (corr.js). Lời mời kết bạn lấy từ
  *    máy chủ; các loại sau ghi lại trên máy này (mỗi tài khoản tối đa 30 mục, localStorage) – mở bảng là đánh dấu đã xem.
  *   window.CaroTopInbox = { refresh() }
  */
@@ -58,8 +58,8 @@
       <button type="button" class="tb-link sm" data-deny="${esc(p.id)}">${esc(T('nt_deny'))}</button></span></span></li>`).join('');
     const tour = (n) => (n.k === 'tour_match' ? T('nt_tour_match', { name: n.name, opp: n.opp })
       : n.place ? T('nt_tour_place', { name: n.name, n: n.place }) : T('nt_tour_done', { name: n.name, winner: n.winner || '—' }));
-    const title = (n) => (n.k === 'ot_invite' ? T('nt_ot_invite', { name: n.name }) : n.k === 'club' ? T('nt_club', { club: n.name }) : /^tour_/.test(n.k) ? tour(n) : T(n.k === 'invite' ? 'nt_invite' : 'nt_accepted', { name: n.name }));
-    const items = readLog().map((n, i) => `<li class="tb-nt${n.read ? '' : ' unread'}"><button type="button" data-item="${i}">${n.k === 'ot_invite' ? '<span class="tb-club">✉️</span>' : n.k === 'club' ? `<span class="tb-club">${esc(n.icon || '♟️')}</span>` : /^tour_/.test(n.k) ? `<span class="tb-club">${n.k === 'tour_result' && n.place === 1 ? '🏆' : '♟️'}</span>` : avatar(n)}
+    const title = (n) => (/^corr_/.test(n.k) ? T('nt_' + n.k, { name: n.name }) : n.k === 'ot_invite' ? T('nt_ot_invite', { name: n.name }) : n.k === 'club' ? T('nt_club', { club: n.name }) : /^tour_/.test(n.k) ? tour(n) : T(n.k === 'invite' ? 'nt_invite' : 'nt_accepted', { name: n.name }));
+    const items = readLog().map((n, i) => `<li class="tb-nt${n.read ? '' : ' unread'}"><button type="button" data-item="${i}">${/^corr_/.test(n.k) ? '<span class="tb-club">📅</span>' : n.k === 'ot_invite' ? '<span class="tb-club">✉️</span>' : n.k === 'club' ? `<span class="tb-club">${esc(n.icon || '♟️')}</span>` : /^tour_/.test(n.k) ? `<span class="tb-club">${n.k === 'tour_result' && n.place === 1 ? '🏆' : '♟️'}</span>` : avatar(n)}
       <span class="tb-pop-t"><b>${esc(title(n))}</b>${n.k === 'club' ? `<span class="tb-nt-text">${esc(n.text)}</span>` : ''}<small>${esc(ago(n.at))}</small></span></button></li>`).join('');
     return `<div class="tb-pop-h"><b>${esc(T('tb_notif'))}</b></div>
       <ul class="tb-pop-list">${req + items || `<li class="tb-pop-empty">${esc(T('nt_none'))}</li>`}</ul>`;
@@ -109,6 +109,7 @@
       toggle(null);
       if (!n) return;
       if (n.k === 'invite') openChat(n.id);
+      else if (/^corr_/.test(n.k)) { if (window.CaroCorr) (n.k === 'corr_invite' ? window.CaroCorr.openList() : window.CaroCorr.open(n.id)); } // chơi theo lượt (corr.js)
       else if (n.k === 'ot_invite') { if (window.CaroOTour) window.CaroOTour.open(n.id); } // lời mời đăng ký giải offline
       else if (n.k === 'club') { if (window.CaroTour && window.CaroTour.openClub) window.CaroTour.openClub(n.id); }
       else if (/^tour_/.test(n.k)) { if (window.CaroTour) window.CaroTour.open(n.id); }
@@ -147,6 +148,7 @@
   });
   // Thông báo lưu của giải (tour-notes.js của máy chủ): tới trận (giải offline), kết quả khi giải kết thúc
   N.on('notes', (m) => {
+    for (const x of m.items) if (/^corr_/.test(x.k)) writeLog([{ k: x.k, id: x.id, name: x.name, at: x.at, read: false }, ...readLog()]); // chơi theo lượt (corr.js)
     for (const x of m.items) if (x.k === 'ot_invite') writeLog([{ k: x.k, id: x.id, name: x.name, at: x.at, read: false }, ...readLog()]);
     for (const x of m.items) if (/^tour_/.test(x.k)) writeLog([{ k: x.k, id: x.id, name: x.name, opp: x.opp, place: x.place, winner: x.winner, at: x.at, read: false }, ...readLog()]);
     draw();

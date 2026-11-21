@@ -58,7 +58,7 @@
     ex_better_ok: 'Good! As strong as the engine’s move (winning chance {w}%).',
     ex_better_no: 'Not better yet: winning chance {w}% (engine’s move: {b}%).',
     ex_better_lost: 'This position is already hard to save: even the engine’s move keeps only {b}%. Try an earlier move.',
-    an_quick: 'Quick analysis: {s} — tap to review',
+    an_quick: 'Quick analysis: {s} – tap to review',
     an_quick_acc: 'accuracy {a}%',
     an_quick_clean: 'no mistakes',
   });
@@ -114,7 +114,7 @@
     ex_better_ok: '很好！与引擎着法一样好（胜率 {w}%）。',
     ex_better_no: '还不够好：胜率 {w}%（引擎着法：{b}%）。',
     ex_better_lost: '此局面已难挽回：即使引擎着法也只剩 {b}%。试试更早的一手。',
-    an_quick: '快速分析：{s} — 点击复盘',
+    an_quick: '快速分析：{s}——点击复盘',
     an_quick_acc: '准确率 {a}%',
     an_quick_clean: '没有失误',
   });

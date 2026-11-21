@@ -5,6 +5,7 @@ const { hashPassword, checkPassword, dummyCheckPassword } = require('../store.js
 const { sessionId } = require('../store-sessions.js');
 const { codeHash, codeMatches } = require('../code-hash.js');
 const { E, note } = require('../msg.js');
+const { validZone } = require('../local-time.js');
 const { weakPassword, isOffensiveName } = require('../moderation.js');
 const { cleanPublicName, USERNAME_RE, EMAIL_RE, RESET_TTL_MS, VERIFY_TTL_MS, VERIFY_MAIL, RESET_MAIL, cleanName, userPid, uidOf, compareVersions } = require('./shared.js');
 
@@ -16,6 +17,8 @@ class Auth {
     // Múi giờ của máy (phút lệch so với UTC): nhật ký hoạt động trên hồ sơ tính ngày theo giờ của người chơi
     const tz = client && Number(client.tz);
     conn.tz = Number.isInteger(tz) && tz >= -720 && tz <= 840 ? tz : null;
+    // Tên múi giờ IANA (vd. 'Europe/Berlin' – đúng giờ mùa hè): Tổng kết tháng / năm, trần lượt Storm / ngày (local-time.js)
+    conn.tzName = conn.tz != null && client && validZone(client.tzName) ? client.tzName : null;
     if ((platform === 'android' || platform === 'ios') && this.minAppVersion &&
         compareVersions(String(client.version || '0'), this.minAppVersion) < 0) {
       return conn.send({ t: 'updateRequired', min: this.minAppVersion, url: this.updateUrls[platform] || '' });

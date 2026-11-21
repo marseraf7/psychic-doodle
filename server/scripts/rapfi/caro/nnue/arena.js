@@ -6,15 +6,21 @@
  * Số khai cuộc lớn hơn số khai cuộc còn lại của bộ (64 thế 32–95): phần thiếu sinh ngẫu nhiên có hạt giống cố định (5 quân
  * X-O-X-O-X quanh tâm như bộ có sẵn, không trùng nhau – cùng số thì cùng bộ, hai lần đấu chọn so được với nhau); mỗi thế vẫn đánh 2 ván đổi
  * bên nên thế lệch cũng công bằng.
+ * ARENA_OPENINGS_FILE=<file> (khuyên dùng – điều tra 21/11/2026): khai cuộc lấy từ file (mỗi dòng một thế "h8i9…" trên bàn
+ * 20×20, vd. openings/arena.txt – bộ cân bằng, để riêng, không có trong dữ liệu tự đấu), bắt đầu từ dòng FROM. Bộ cũ
+ * (openings.json + 5 quân ngẫu nhiên) lệch: ~68 % cặp "mỗi bên thắng một ván cầm X", không nói gì về sức mạnh.
  * Loại sớm (ARENA_EARLY=1, mặc định): sau ít nhất 1/2 số cặp, cận trên Elo 95% của A < 0 (A chắc chắn yếu hơn) thì dừng.
+ * ARENA_SPRT="elo0,elo1" (vd. "0,15"): kiểm định SPRT (sprt.js, α = β = 0,05) sau mỗi cặp, dừng khi nhận H0 / H1.
  * In mỗi ván một dòng JSON { k, aIsX, winner: 'A' | 'B' | null, n }, cuối cùng dòng tổng { a, b, draws, games, score,
- * elo, lo, hi } (score = tỉ lệ điểm của A; elo ± 95% tính theo cặp – sprt.js).
+ * elo, lo, hi, split, llr, verdict } (score = tỉ lệ điểm của A; elo ± 95% tính theo cặp – sprt.js; split = số cặp mỗi bên
+ * thắng một ván – càng nhiều thì bộ khai cuộc càng lệch; verdict 'H1' | 'H0' | null khi có ARENA_SPRT).
  */
 'use strict';
 const path = require('path');
 const C = require('../../../../../caro/rules.js');
 const OPEN = require('../../../openings.json').vn;
 const S = require('../../../sprt.js');
+const L = require('./openings-lib.js');
 const DRIVER = path.join(__dirname, '../../driver.js');
 
 const [dirA, dirB, NOPEN, MS, FROM = '32', SHARD = '0', NSHARD = '1'] = process.argv.slice(2);
@@ -49,14 +55,25 @@ function extraOpenings(count, have) {
   return out;
 }
 
-(async () => {
+/**
+ * Khai cuộc đấu chọn (toạ độ game, quân đầu quanh (0, 0)): từ ARENA_OPENINGS_FILE nếu có (toạ độ bàn 20×20 → trừ OFF), không
+ * thì bộ cũ openings.json từ khai cuộc `from` + khai cuộc 5 quân sinh thêm cho đủ `count`.
+ */
+function openings(count, from, file = process.env.ARENA_OPENINGS_FILE) {
+  if (file) return L.readFile(file).slice(from, from + count).map((mv) => mv.map(([x, y]) => [x - OFF, y - OFF]));
+  const base = OPEN.slice(from, from + count);
+  return base.concat(extraOpenings(Math.max(0, count - base.length), OPEN));
+}
+
+if (require.main === module) (async () => {
   const A = engine(dirA), B = engine(dirB);
   await A.init(); await B.init();
   const tally = { a: 0, b: 0, draws: 0, games: 0 };
-  const base = OPEN.slice(+FROM, +FROM + +NOPEN);
-  const ops = base.concat(extraOpenings(Math.max(0, +NOPEN - base.length), OPEN));
+  const ops = openings(+NOPEN, +FROM);
   const pairs = S.tally();
   const early = process.env.ARENA_EARLY !== '0' && +NSHARD === 1;
+  const sprt = +NSHARD === 1 ? S.parse(process.env.ARENA_SPRT) : null;
+  let split = 0, sm = null;
   for (let k = +SHARD; k < ops.length; k += +NSHARD) {
     const pts = [];
     for (const aIsX of [true, false]) {
@@ -78,12 +95,18 @@ function extraOpenings(count, have) {
       console.log(JSON.stringify({ k: +FROM + k, aIsX, winner, n: mv.length }));
     }
     pairs.pair(pts[0], pts[1]);
+    if (pts[0] + pts[1] === 1 && pts[0] !== 0.5) split++;
+    sm = S.summary(pairs, sprt || undefined);
+    if (sprt && sm.verdict) break;
     // Đã đánh ≥ nửa số cặp mà A chắc chắn yếu hơn: dừng, khỏi tốn thời gian đấu nốt
-    if (early && k + 1 >= ops.length / 2 && S.summary(pairs).hi < 0) break;
+    if (early && k + 1 >= ops.length / 2 && sm.hi < 0) break;
   }
-  const sm = S.summary(pairs);
+  sm = S.summary(pairs, sprt || undefined);
   const r1 = (x) => (Number.isFinite(x) ? Math.round(x * 10) / 10 : null);
-  console.log(JSON.stringify({ ...tally, score: (tally.a + tally.draws / 2) / Math.max(1, tally.games), elo: r1(sm.elo), lo: r1(sm.lo), hi: r1(sm.hi) }));
+  console.log(JSON.stringify({ ...tally, score: (tally.a + tally.draws / 2) / Math.max(1, tally.games), elo: r1(sm.elo), lo: r1(sm.lo), hi: r1(sm.hi),
+    split, llr: sprt ? Math.round(sm.llr * 100) / 100 : null, verdict: sprt ? sm.verdict : null }));
   A.quit(); B.quit();
   setTimeout(() => process.exit(0), 300);
 })();
+
+module.exports = { openings, extraOpenings, OFF };

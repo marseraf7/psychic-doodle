@@ -13,6 +13,8 @@
  *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz,
  *    /api/storm/leaderboard?week=2026-W47 (Puzzle Storm tuần – mặc định tuần này)
  *    – cho phép gọi từ trang khác (CORS), giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
+ *  - /?bc=<mã giải>, /broadcast.html : trang Tường thuật giải (broadcast-page.js – thẻ og, nhúng iframe được).
+ *  - /api/v1/*             : API công khai v1 (JSON, CORS, ETag, OpenAPI ở /api/v1/openapi.json – api-v1-http.js, tài liệu caro/api.html).
  *  - /mcp                  : connector MCP cho Claude (mcp/index.js; tắt bằng CARO_MCP=0).
  */
 'use strict';
@@ -24,9 +26,11 @@ const { sendStatic } = require('./static-file.js');
 const { Rum } = require('./rum.js');
 const { rapfiNetSources } = require('./csp-nets.js');
 const Og = require('./og-meta.js'); // thẻ xem trước link chia sẻ (A3)
+const { makeApiV1 } = require('./api-v1-http.js'); // API công khai v1 + OpenAPI (C4)
+const { makeBroadcastPage } = require('./broadcast-page.js'); // Tường thuật giải đấu (C3)
 
 // Tham số link chia sẻ có thẻ xem trước riêng (hub/og.js)
-const LINK_KEYS = ['replay', 'room', 't', 'o', 'club', 'u'];
+const LINK_KEYS = ['replay', 'room', 't', 'o', 'club', 'u', 'cls']; // cls: Lớp học / Nghiên cứu (C2)
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
@@ -120,6 +124,8 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (map.size > 10000) for (const [k, v] of map) if (v.reset < now) map.delete(k);
     return ++h.n > limit ? Math.ceil((h.reset - now) / 1000) : 0;
   }
+  const apiV1 = makeApiV1({ hub, hit, clientIp, origin }); // /api/v1/* (api-v1-http.js)
+  const broadcastPage = makeBroadcastPage({ hub, staticDir: STATIC_DIR, csp: CSP, origin }); // /?bc= · /broadcast.html
   let indexHtml = null; // { mtime, text }
   /** Gửi nội dung có sẵn trong bộ nhớ (bản gộp). */
   function sendText(res, req, body, type, cache) {
@@ -298,6 +304,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     // cả tiến trình. Không đường hợp lệ nào chứa chúng: từ chối trước khi chạm tới fs
     if (/[\x00-\x1f\x7f]/.test(url)) { res.writeHead(400); return res.end(); }
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+    if (apiV1(req, res, url, u.searchParams)) return;
     if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
       return res.end();
@@ -344,6 +351,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (url === '/api/og/card.png') return serveCardPng(req, res);
     if (/^\/api\/og\/room\/\d{6}\.png$/.test(url)) return serveRoomPng(url.slice(13, 19), req, res);
     if (url.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
+    if (((url === '/' || url === '/index.html') && u.searchParams.get('bc')) || url === '/broadcast.html') return broadcastPage(req, res, u.searchParams);
     if ((url === '/' || url === '/index.html') && LINK_KEYS.some((k) => u.searchParams.get(k))) return serveIndex(req, res, u.searchParams);
     // ?bundle=0: phục vụ index gốc (từng file) để so tốc độ trên cùng máy (docs/do-toc-do-tai-laplace-19-11-2026.md)
     if (B && (url === '/' || url === '/index.html') && u.searchParams.get('bundle') !== '0' && B.current()) return serveIndex(req, res, null);

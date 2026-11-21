@@ -36,7 +36,7 @@
     ds_golf_sf_modified: 'chấm điểm Modified Stableford (albatross / eagle / birdie / par / bogey / double bogey: {list})',
     ds_golf_hcp: 'có tính handicap',
     // Omnium
-    om_note: 'Bốn đua con: Scratch, Tempo, Loại dần, Points race. Ba đua đầu tính điểm theo hạng; points race cộng điểm sprint và điểm vòng hơn / kém.',
+    om_note: 'Bốn đua con: Scratch, Tempo, Loại dần, Đua tính điểm. Ba đua đầu tính điểm theo hạng; đua tính điểm cộng điểm sprint và điểm vòng hơn / kém.',
     opt_om_rank: 'Điểm theo hạng (3 đua đầu)',
     opt_om_rank_hint: 'Mặc định như UCI: 40, 38, 36 … giảm 2 tới hạng 20; hạng sau đó mỗi người 1 điểm, bỏ cuộc 0 điểm.',
     opt_om_lap: 'Điểm mỗi vòng hơn / kém',
@@ -45,7 +45,7 @@
     om_ev_0: 'Scratch',
     om_ev_1: 'Tempo',
     om_ev_2: 'Loại dần',
-    om_ev_3: 'Points race',
+    om_ev_3: 'Đua tính điểm',
     om_sp: 'Sprint',
     om_lap: 'Vòng',
     om_races: 'Các đua con',

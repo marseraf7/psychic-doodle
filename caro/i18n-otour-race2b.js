@@ -18,7 +18,7 @@
     tpl_barracuda: 'Golf Modified Stableford',
     tpl_barracuda_d: '90 người, 4 vòng nhập từng lỗ, chấm điểm albatross +8, eagle +5, birdie +2, par 0, bogey −1, double bogey −3; cắt sau vòng 2 (70 người + đồng hạng).',
     tpl_omnium: 'Omnium xe đạp lòng chảo',
-    tpl_omnium_d: '20 người, 4 đua con: Scratch, Tempo, Loại dần, Points race (mang điểm 3 đua đầu, mỗi vòng hơn / kém ±20).',
+    tpl_omnium_d: '20 người, 4 đua con: Scratch, Tempo, Loại dần, Đua tính điểm (mang điểm 3 đua đầu, mỗi vòng hơn / kém ±20).',
     tpl_massstart: 'Mass start trượt băng tốc độ',
     tpl_massstart_d: '36 người, 2 bán kết (8 người đầu mỗi lượt vào chung kết); 16 vòng, điểm giữa đua ở vòng 4, 8, 12 (3-2-1), về đích 60-40-20-10-6-3.',
     tpl_biathlon_pursuit: 'Biathlon: Sprint → Pursuit',

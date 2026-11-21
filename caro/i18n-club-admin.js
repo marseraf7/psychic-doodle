@@ -57,7 +57,7 @@
     club_requests_none: 'No pending requests.', club_declined: 'Declined ({n})',
     club_declined_clear: 'Allow again', club_declined_clear_t: 'Remove from the declined list – they can request again',
     club_banned: 'Banned ({n})', club_unban: 'Unban',
-    club_officers: 'Officer permissions', club_officers_hint: 'Promote officers from the member list (⋯ button), then tick permissions here. Only the owner can grant "Permissions".',
+    club_officers: 'Officer permissions', club_officers_hint: 'Promote officers from the member list (⋯ button), then check permissions here. Only the owner can grant "Permissions".',
     club_officers_none: 'No officers yet.', club_transfer_hint: 'Transfer ownership: use ⋯ next to a member on the club page.',
     cperm_public: 'Public', cperm_settings: 'Settings', cperm_tours: 'Tournaments', cperm_mod: 'Moderation', cperm_requests: 'Requests',
     cperm_broadcast: 'Messages', cperm_kick: 'Kick / ban', cperm_admin: 'Permissions',
@@ -86,7 +86,7 @@
     club_bc_ph: 'Текст сообщения…', club_bc_send: 'Отправить', club_bc_wait: 'Следующее сообщение можно отправить примерно через {h} ч.',
     club_bc_confirm: 'Отправить сообщение {n} участникам?', club_bc_sent: 'Сообщение отправлено', club_bc_in: 'Новое сообщение от {club}',
     club_requests_none: 'Нет ожидающих заявок.', club_declined: 'Отклонённые ({n})',
-    club_declined_clear: 'Разрешить снова', club_declined_clear_t: 'Убрать из отклонённых – можно подать заявку снова',
+    club_declined_clear: 'Разрешить снова', club_declined_clear_t: 'Убрать из отклонённых — можно подать заявку снова',
     club_banned: 'Заблокированные ({n})', club_unban: 'Разблокировать',
     club_officers: 'Права руководителей', club_officers_hint: 'Назначьте руководителя в списке участников (кнопка ⋯), затем отметьте права здесь. Право «Права» даёт только владелец.',
     club_officers_none: 'Руководителей пока нет.', club_transfer_hint: 'Передать клуб: кнопка ⋯ рядом с участником на странице клуба.',
@@ -96,8 +96,8 @@
     cperm_mod_t: 'Модерировать чат и форум клуба', cperm_requests_t: 'Принимать / отклонять заявки', cperm_broadcast_t: 'Отправлять сообщения всем участникам',
     cperm_kick_t: 'Исключать, блокировать и разблокировать', cperm_admin_t: 'Назначать / снимать руководителей и их права',
     nt_club: 'Сообщение от {club}',
-    srv_club_banned: 'Вы заблокированы в этом клубе', srv_club_request_declined: 'Ваша заявка отклонена – дождитесь пересмотра',
-    srv_club_msg_wait: 'Клуб может отправлять сообщение всем раз в 12 часов – попробуйте примерно через {h} ч',
+    srv_club_banned: 'Вы заблокированы в этом клубе', srv_club_request_declined: 'Ваша заявка отклонена — дождитесь пересмотра',
+    srv_club_msg_wait: 'Клуб может отправлять сообщение всем раз в 12 часов — попробуйте примерно через {h} ч',
   });
 
   // ================================================================ 中文

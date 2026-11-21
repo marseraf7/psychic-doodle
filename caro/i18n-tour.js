@@ -375,7 +375,7 @@
     srv_tour_kicked: 'Организаторы исключили вас из {name}',
     srv_tour_cancelled: 'Турнир {name} отменён',
     srv_tour_finished: 'Турнир {name} завершён, победитель: {winner}',
-    lb_unranked: 'Вас пока нет в рейтинге: рейтинг ещё неточный (отклонение {rd}, нужно ≤ {need}) – сыграйте ещё несколько рейтинговых партий',
+    lb_unranked: 'Вас пока нет в рейтинге: рейтинг ещё неточный (отклонение {rd}, нужно ≤ {need}) — сыграйте ещё несколько рейтинговых партий',
   });
 
   // ================================================================ 中文
@@ -390,7 +390,7 @@
     back: '返回',
     room_info_hint_tour: '这是赛事对局。比赛结束前离开将判负。',
     tour_next_auto: '下一局将自动配对',
-    cd_days: '{d}天{h}小时',
+    cd_days: '{d} 天 {h} 小时',
     minutes_n: '{n} 分钟',
     unrated_short: '不计 Elo',
     players_n: '{n}/{max} 人',
@@ -415,7 +415,7 @@
     tour_playing: '你有正在进行的对局',
     tour_to_game: '进入对局',
     tour_waiting_pair: '等待下一轮配对…',
-    tour_paused_note: '你已暂停——点击"继续"参加配对',
+    tour_paused_note: '你已暂停——点击“继续”参加配对',
     tour_out: '你已被淘汰',
     tour_next_vs: '下一场：对阵 {name}',
     tour_next_wait: '等待对手决出',

@@ -64,9 +64,9 @@ async function account(app, url, username) {
 }
 
 /** Ván giả lưu thẳng vào CSDL (thắng: 1 = X, 2 = O, 3 = hoà). */
-function record(app, { x, o, winner = 1, moves, rule = 'vn', clock = '3+2', timeLimit = 0, reason = 'win' }) {
+function record(app, { x, o, winner = 1, moves, rule = 'vn', clock = '3+2', timeLimit = 0, reason = 'win', kind = 'quick' }) {
   moves = moves || [[0, 0], [5, 5], [1, 0], [5, 6], [2, 0], [5, 7], [3, 0], [5, 8], [4, 0]];
-  return app.hub.store.recordGame({ kind: 'quick', timeLimit, clock, rule, xId: x, oId: o, xName: 'x', oName: 'o', winner, reason, moves });
+  return app.hub.store.recordGame({ kind, timeLimit, clock, rule, xId: x, oId: o, xName: 'x', oName: 'o', winner, reason, moves });
 }
 
 module.exports = { Client, boot, guest, account, record, PASS };

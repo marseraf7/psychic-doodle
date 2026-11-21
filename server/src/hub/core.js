@@ -45,6 +45,8 @@ class Hub {
     this.lobbyTimer = null;
     this.loadClubs();
     this.loadTours();
+    // Ván theo lượt (corr.js): máy chủ vừa ngừng bao lâu thì dời hạn chót thêm chừng ấy, trước lượt quét hết giờ đầu tiên
+    this.safeTimer('corrBeat', () => this.corrBeat());
     this.sweeper = setInterval(() => this.safeTimer('sweep', () => this.sweep()), 60 * 1000);
     this.sweeper.unref?.();
   }
@@ -52,6 +54,7 @@ class Hub {
   close() {
     this.closed = true; // máy chủ đang tắt: bỏ qua các sự kiện đến muộn (CSDL sắp đóng)
     clearInterval(this.sweeper);
+    this.safeTimer('corrBeat', () => this.corrBeat()); // nhịp cuối: lần khởi động sau bù đúng thời gian máy chủ tắt
     this.stopMatching();
     clearTimeout(this.lobbyTimer);
     clearInterval(this.tourTimer);
@@ -61,6 +64,7 @@ class Hub {
     // ván vào CSDL đã đóng và làm sập tiến trình ("statement has been finalized")
     for (const room of this.rooms.values()) { clearTimeout(room.clockTimer); clearTimeout(room.watchTimer); }
     for (const t of this.forfeitTimers.values()) clearTimeout(t);
+    for (const id of [...(this.clsPend || new Map()).keys()]) this.clsUnqueue(id); // classroom.js
   }
 
   /** Chạy một việc hẹn giờ của hub (quét dọn, nhịp giải đấu, ghép trận, đẩy cập nhật…):
@@ -133,7 +137,13 @@ class Hub {
     if (conn.pid) this.detach(conn);
     conn.pid = pid;
     const u = uidOf(pid) && this.store.users.get(uidOf(pid));
-    if (u && conn.tz != null && u.tz !== conn.tz) { u.tz = conn.tz; this.store.touch(u); } // múi giờ cho nhật ký hoạt động
+    // Múi giờ thiết bị (nhật ký hoạt động, Tổng kết, trần Storm / ngày): số phút lệch + tên IANA nếu máy gửi; máy chỉ gửi số phút
+    // thì bỏ tên cũ (không để tên của máy khác lệch với số phút của máy này)
+    if (u && conn.tz != null && (u.tz !== conn.tz || (u.tzName || null) !== conn.tzName)) {
+      u.tz = conn.tz;
+      if (conn.tzName) u.tzName = conn.tzName; else delete u.tzName;
+      this.store.touch(u);
+    }
     if (u) this.maybeBindAdmin(u); // tên trong cấu hình quản trị mà chưa gắn với ai → gắn quyền theo ID (H-S4)
     const first = !this.isOnline(pid);
     if (!this.byPid.has(pid)) this.byPid.set(pid, new Set());
@@ -255,6 +265,7 @@ class Hub {
       if (this.isAdmin(uidOf(pid))) conn.send({ t: 'adminCount', n: this.pendingCount() });
       this.clubInbox(conn, uidOf(pid)); // tin gửi toàn CLB chưa nhận (club-manage.js)
       this.deliverNotes(conn, uidOf(pid)); // kết quả giải / tới trận khi đang offline (tour-notes.js)
+      this.corrWelcome(conn, uidOf(pid)); // ván chơi theo lượt đang chờ (corr.js – C1)
     }
   }
 
@@ -359,6 +370,8 @@ class Hub {
     this.store.pruneSessions(now); // phiên hết hạn (kèm IP, trình duyệt của mục Thiết bị): xoá mỗi ngày một lần
     this.evalSweep(now); // bộ nhớ điểm dùng chung (evals.js): dọn mỗi giờ một lần
     this.safeTimer('league', () => this.leagueTick(now)); // hạng đấu tuần: sang tuần mới thì chốt tuần cũ (league.js)
+    this.safeTimer('corrBeat', () => this.corrBeat(now)); // nhịp sống + bù thời gian máy chủ treo (corr.js) – trước khi quét hết giờ
+    this.corrSweep(now); // ván chơi theo lượt quá hạn (corr.js – C1)
     for (const room of [...this.rooms.values()]) {
       for (const p of [...room.players]) {
         const off = this.offlineAt.get(p.id);

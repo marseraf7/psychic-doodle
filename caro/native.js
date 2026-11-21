@@ -15,6 +15,12 @@
   const P = Cap.Plugins || {};
   const platform = Cap.getPlatform();
   document.documentElement.classList.add('native', 'native-' + platform);
+  // Trang chính trong app được mở bằng /?bc=… (link tường thuật bấm trong app): web thì máy chủ trả broadcast.html, app thì
+  // tự chuyển sang trang đó (không thì link tường thuật mở ra Trang chủ)
+  try {
+    const bc0 = new URLSearchParams(location.search || '').get('bc');
+    if (bc0 && /\/(index\.html)?$/.test(location.pathname || '/')) { location.replace('/broadcast.html?bc=' + encodeURIComponent(bc0)); return; }
+  } catch (e) { /* địa chỉ lạ: bỏ qua */ }
 
   // ------------------------------------------------------------ Chia sẻ & sao chép
   if (P.Share) {
@@ -79,16 +85,20 @@
 
   // ------------------------------------------------------------ Link sâu (H-A5)
   // Link mời phòng / xem lại / giải đấu / câu lạc bộ trên web đều dùng tham số truy vấn
-  // (?room= ?replay= ?t= ?o= ?club= ?u=) và mã web đã xử lý chúng từ location.search. Trong app,
+  // (?room= ?replay= ?t= ?o= ?club= ?u= ?cls=; ?bc= mở broadcast.html) và mã web đã xử lý chúng từ location.search. Trong app,
   // link https của máy chủ (App Links / Universal Links) hoặc link scheme riêng mở app qua
   // sự kiện appUrlOpen: chép đúng các tham số đó vào địa chỉ của app rồi nạp lại trang —
   // phần còn lại để mã web sẵn có xử lý như khi mở link trên trình duyệt.
   let routeLink = null;
   if (P.App) {
-    const LINK_KEYS = ['room', 'replay', 't', 'o', 'club', 'u']; // như share-link.js (A3)
+    const LINK_KEYS = ['room', 'replay', 't', 'o', 'club', 'u', 'cls']; // như share-link.js (A3) + bài Lớp học ?cls= (classroom.js – C2)
     routeLink = (url) => {
       try {
         const u = new URL(String(url));
+        // Tường thuật giải ?bc= (C3): trên web máy chủ trả broadcast.html cho /?bc=; trong app không có máy chủ đổi trang
+        // nên mở thẳng broadcast.html trong app (trang đó hỏi API ở CARO_SERVER)
+        const bc = u.searchParams.get('bc');
+        if (bc) { location.assign('/broadcast.html?bc=' + encodeURIComponent(bc)); return; }
         const qs = new URLSearchParams();
         for (const k of LINK_KEYS) { const v = u.searchParams.get(k); if (v) qs.set(k, v); }
         if (![...qs.keys()].length) return;

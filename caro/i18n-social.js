@@ -33,7 +33,7 @@
     lb_you: 'Hạng của bạn: #{rank} · {rating} điểm',
     lb_empty: 'Chưa có ai được xếp hạng',
     lb_hint: 'Điểm Glicko-2 (giống Lichess) bắt đầu từ 1200, tính riêng cho từng loại thời gian. Dấu ? là điểm còn tạm. Chỉ tính các ván giữa hai tài khoản.',
-    lb_games: '{n} trận',
+    lb_games: '{n} ván',
     rating_short: '{n} điểm',
     stats3: '{w} thắng · {l} thua · {d} hoà',
     h2h_line: 'Đối đầu: {w} thắng · {l} thua · {d} hoà',
