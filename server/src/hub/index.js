@@ -26,6 +26,7 @@
  *   evals.js       – bộ nhớ điểm dùng chung cho phân tích ván bằng Rapfi (evalcache.js)
  *   avatar.js      – ảnh đại diện của tài khoản (kiểm ảnh: ../avatar.js; phục vụ ảnh: web.js)
  *   lobby.js       – ping (độ trễ máy chủ, số người online / số ván đang đấu), tìm kỳ thủ theo tên
+ *   league.js      – Hạng đấu tuần: điểm từ ván tính điểm, nhóm 30 người, lên / xuống bậc cuối tuần (chốt tuần không lặp)
  *   insights.js    – Thống kê cá nhân: thắng / hoà / thua theo màu, luật, loại thời gian, sức đối thủ, khai cuộc, độ dài ván
  * Mỗi phần là một lớp chỉ chứa phương thức; ở đây gộp tất cả vào Hub.prototype.
  * Tin nhắn loại X do phương thức on_X xử lý. Không phụ thuộc thư viện WebSocket:
@@ -81,9 +82,10 @@ const { Evals } = require('./evals.js');
 const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { Insights } = require('./insights.js');
+const { League } = require('./league.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart, Insights]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart, Insights, League]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

@@ -149,7 +149,7 @@
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
     $('profile-body').innerHTML = `
       <div class="who pf-who">${window.CaroAvatar.html(p)}
-        <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
+        <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.league && window.CaroLeague ? `<span class="pf-league" title="${esc(T('lg_title'))}">${window.CaroLeague.emblem(p.league.div).replace('lg-emb', 'lg-emb sm')}${esc(window.CaroLeague.divName(p.league.div))}</span>` : ''}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
         <div class="row pf-act">${actions.join('')}</div></div>
       ${window.CaroProfileBio ? window.CaroProfileBio.html(p) : ''}
       <div class="pf-pools">${pools}</div>

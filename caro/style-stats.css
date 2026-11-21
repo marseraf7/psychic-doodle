@@ -39,3 +39,14 @@ svg.ins-shape .so { fill: var(--o, #2f6fd2); }
 .feat-tag.up { background: rgba(47, 154, 76, 0.18); }
 .feat-tag.down { background: rgba(210, 56, 47, 0.16); }
 .feat-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+
+/* Hạng đấu tuần (league.js) */
+.lg-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; min-width: 0; }
+.lg-head > div { min-width: 0; }
+.lg-head b, .lg-head small { display: block; }
+.lg-head small { color: var(--muted); font-size: var(--fs-xs); }
+.lg-emb { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--c);
+  color: #fff; font-weight: 700; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18); }
+.lg-emb.sm { width: 20px; height: 20px; flex-basis: 20px; font-size: var(--fs-xs); vertical-align: middle; margin-right: 4px; }
+.lg-rules { margin: 0; padding-left: 18px; font-size: var(--fs-sm); color: var(--muted); display: grid; gap: 4px; }
+.pf-league { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; font-size: var(--fs-xs); }
