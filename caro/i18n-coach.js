@@ -20,6 +20,11 @@
     coach_hint_vcf: 'Gợi ý: bạn có chuỗi bốn liên tiếp để thắng.',
     coach_hint_three: 'Gợi ý: đối thủ đang có 3 mở – chặn trước khi thành 4 mở (quanh ô {move}).',
     coach_hint_attack: 'Gợi ý: không có đe doạ gấp, hãy tìm nước tạo thế tấn công.',
+    // Luật Việt Nam (4 mở là thắng): 3 mở của đối thủ đã là đe doạ thắng ngay; ô tạo nhiều ô thắng ngay là nước đôi
+    coach_no_block3: 'Không chặn 3 mở của đối thủ: đối thủ đánh {move} thành 4 mở là thắng.',
+    coach_allow_double: 'Để đối thủ đánh {move} thành nước đôi: hai đe doạ thắng cùng lúc, không chặn kịp.',
+    coach_hint_open3: 'Gợi ý: đối thủ đang có 3 mở – đánh {move} là thành 4 mở và thắng.',
+    coach_hint_double: 'Gợi ý: đối thủ sắp có nước đôi – để ý quanh ô {move}.',
   });
   I.extend('en', {
     coach_title: 'Coach',
@@ -39,6 +44,10 @@
     coach_hint_vcf: 'Hint: you have a winning sequence of fours.',
     coach_hint_three: 'Hint: the opponent has an open three – block it before it becomes an open four (near {move}).',
     coach_hint_attack: 'Hint: nothing urgent, look for a move that builds an attack.',
+    coach_no_block3: 'The opponent’s open three was not blocked: {move} makes an open four and wins.',
+    coach_allow_double: 'Allowed the opponent a double threat at {move}: two winning threats at once, too many to block.',
+    coach_hint_open3: 'Hint: the opponent has an open three – {move} would make an open four and win.',
+    coach_hint_double: 'Hint: the opponent is close to a double threat – watch the area near {move}.',
   });
   I.extend('ru', {
     coach_title: 'Тренер',
@@ -58,6 +67,10 @@
     coach_hint_vcf: 'Подсказка: у вас есть выигрывающая серия четвёрок.',
     coach_hint_three: 'Подсказка: у соперника открытая тройка — закройте её, пока она не стала открытой четвёркой (рядом с {move}).',
     coach_hint_attack: 'Подсказка: срочных угроз нет, ищите ход для атаки.',
+    coach_no_block3: 'Открытая тройка соперника не закрыта: ход {move} даёт ему открытую четвёрку и победу.',
+    coach_allow_double: 'Сопернику оставлена двойная угроза на {move}: две угрозы победы сразу, обе не закрыть.',
+    coach_hint_open3: 'Подсказка: у соперника открытая тройка — ход {move} даст ему открытую четвёрку и победу.',
+    coach_hint_double: 'Подсказка: сопернику не хватает хода до двойной угрозы — следите за полем рядом с {move}.',
   });
   I.extend('zh', {
     coach_title: '教练',
@@ -77,5 +90,9 @@
     coach_hint_vcf: '提示：你有连续冲四取胜的手段。',
     coach_hint_three: '提示：对手有活三——在它变成活四之前挡住（{move} 附近）。',
     coach_hint_attack: '提示：没有紧急威胁，找一步能发起进攻的着法。',
+    coach_no_block3: '没有挡住对手的活三：对手下 {move} 即成活四获胜。',
+    coach_allow_double: '让对手在 {move} 形成双重威胁：同时有两处取胜威胁，挡不过来。',
+    coach_hint_open3: '提示：对手有活三——对手下 {move} 即成活四获胜。',
+    coach_hint_double: '提示：对手快要形成双重威胁——留意 {move} 附近。',
   });
 })();

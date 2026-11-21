@@ -112,3 +112,49 @@ test('luật Việt Nam: bỏ lỡ thắng ngay vẫn nhận ra', () => {
   const r = CO.explain(moves.concat([[20, 20]]), moves.length, { cls: 'miss', best: [4, 0], len: 1 }, 'vn');
   assert.strictEqual(r[0].k, 'miss_win');
 });
+
+test('luật Việt Nam: năm bị chặn hai đầu không phải thắng – không nói "bỏ lỡ thắng" / "không chặn bốn"', () => {
+  // X: (1..4, 0), O chặn (0, 0) và (6, 0): X đánh (5, 0) thành năm bị chặn hai đầu – không thắng theo luật Việt Nam
+  const moves = seq([[1, 0], [2, 0], [3, 0], [4, 0]], [[0, 0], [6, 0], [10, 10], [-10, 10]]);
+  const r = CO.explain(moves.concat([[20, 20]]), moves.length, { cls: 'miss', best: [5, 0], len: 3 }, 'vn');
+  assert.ok(!keys(r).includes('miss_win'), keys(r).join());
+  assert.ok(!keys(r).includes('best_double'));
+  // Cùng thế ở luật tự do (năm là thắng) thì đúng là bỏ lỡ thắng
+  assert.strictEqual(CO.explain(moves.concat([[20, 20]]), moves.length, { cls: 'miss', best: [5, 0], len: 1 }, 'free')[0].k, 'miss_win');
+  // Bốn của O bị chặn hai đầu (X ở hai bên): không có gì để "không chặn"
+  const m2 = seq([[0, 5], [5, 5], [20, 0], [-20, 0], [0, 20]], [[1, 5], [2, 5], [3, 5], [4, 5]]);
+  const r2 = CO.explain(m2.concat([[30, 30]]), m2.length, { cls: 'mistake', best: [9, 9], len: 3 }, 'vn');
+  assert.ok(!keys(r2).includes('no_block'), keys(r2).join());
+  assert.notStrictEqual(CO.hint(m2, 1, 'vn').k, 'hint_four', 'gợi ý không nói O đang có bốn');
+});
+
+test('luật Việt Nam (4 mở là thắng): 3 mở không bị gọi là "bốn"; ô tạo nhiều đe doạ là nước đôi', () => {
+  // O có 3 mở (0..2, 5): ở luật VN đánh (3, 5) / (−1, 5) là 4 mở – thắng ngay
+  const r = CO.explain(THREE.concat([[0, -20]]), THREE.length, { cls: 'blunder', best: [3, 5], len: 1 }, 'vn');
+  assert.strictEqual(r[0].k, 'no_block3', keys(r).join());
+  assert.ok(same(r[0].at, [3, 5]) || same(r[0].at, [-1, 5]));
+  assert.strictEqual(CO.hint(THREE, 1, 'vn').k, 'hint_open3');
+  // O có bốn thật (bị chặn một đầu): vẫn là "không chặn bốn"
+  const four = seq([[20, 0], [-1, 5], [0, 20], [0, -20]], [[0, 5], [1, 5], [2, 5], [3, 5]]);
+  assert.strictEqual(CO.explain(four.concat([[30, 30]]), four.length, { cls: 'blunder', best: [4, 5], len: 1 }, 'vn')[0].k, 'no_block');
+  assert.strictEqual(CO.hint(four, 1, 'vn').k, 'hint_four');
+  // O có 2 quân hai hướng (1, 5)(2, 5) và (0, 6)(0, 7): (0, 5) thành hai 3 mở = nước đôi (luật VN: hai ô thắng ngay)
+  const two = seq([[20, 0], [-20, 0], [0, 20], [0, -20]], [[1, 5], [2, 5], [0, 6], [0, 7]]);
+  const r2 = CO.explain(two.concat([[30, 30]]), two.length, { cls: 'mistake', best: [0, 5], len: 3 }, 'vn');
+  assert.strictEqual(r2[0].k, 'allow_double', keys(r2).join());
+  assert.strictEqual(CO.hint(two, 1, 'vn').k, 'hint_double');
+  assert.ok(!CO.openFourWin(boardOf(four, 'vn'), [4, 5], C.O) && CO.openFourWin(boardOf(THREE, 'vn'), [3, 5], C.O));
+});
+
+test('Renju: quân đen (X) không "thắng" bằng sáu quân (dài), ô cấm 4-4 không tính là nước tạo bốn', () => {
+  // X: (0..3, 0) + (5, 0), O chặn (−1, 0): ô (4, 0) thành 6 quân liền – đen không thắng
+  const moves = seq([[0, 0], [1, 0], [2, 0], [3, 0], [5, 0]], [[-1, 0], [10, 10], [-10, 10], [10, -10], [-10, -10]]);
+  const r = CO.explain(moves.concat([[20, 20]]), moves.length, { cls: 'miss', best: [4, 0], len: 3 }, 'renju');
+  assert.ok(!keys(r).includes('miss_win'), keys(r).join());
+  // X: hàng (1..3, 0) và cột (0, 1..3), O chặn (−1, 0) và (0, −1): (0, 0) là 4-4 – cấm với đen
+  const m2 = seq([[1, 0], [2, 0], [3, 0], [0, 1], [0, 2], [0, 3]], [[-1, 0], [0, -1], [10, 10], [-10, 10], [10, -10], [-10, -10]]);
+  const b = boardOf(m2, 'renju');
+  assert.ok(C.forbidden(b, 0, 0, C.X), 'thế thử: (0, 0) đúng là ô cấm');
+  assert.ok(!CO.openFourMakers(b, C.X).some((c) => same(c, [0, 0])));
+  assert.ok(CO.openFourMakers(boardOf(m2, 'free'), C.X).some((c) => same(c, [0, 0])), 'luật tự do thì (0, 0) là bốn kép');
+});

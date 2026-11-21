@@ -34,6 +34,28 @@
     return out;
   }
 
+  /**
+   * Ô thắng w của p chỉ thắng nhờ "4 mở" (luật Việt Nam: 4 quân hai đầu trống là thắng), không có hướng nào thành năm –
+   * tức p đang có 3 mở chứ chưa có bốn. Dùng để không gọi 3 mở là "bốn" trong lời giải thích.
+   */
+  function openFourWin(board, [x, y], p) {
+    if (board.get(x, y) !== C.EMPTY) return false;
+    board.put(x, y, p);
+    let four = false, five = false;
+    for (const [dx, dy] of C.DIRS) {
+      const c = C.lineWin(board, x, y, dx, dy, p);
+      if (c) { if (c.length >= 5) five = true; else four = true; }
+    }
+    board.remove(x, y);
+    return four && !five;
+  }
+
+  /** Trong các ô thắng ngay: ô thành năm nếu có (đối thủ có bốn thật), không thì ô đầu (3 mở thành 4 mở – luật VN). */
+  function pickWin(board, cells, p) {
+    const five = cells.find((c) => !openFourWin(board, c, p));
+    return five ? { at: five, three: false } : { at: cells[0], three: true };
+  }
+
   /** m nằm cùng hàng / cột / chéo với một trong các ô cells, cách ≤ 4 ô (chặn trên đúng đường đe doạ). */
   const onLine = (m, cells) => cells.some(([x, y]) => {
     const dx = Math.abs(m[0] - x), dy = Math.abs(m[1] - y);
@@ -69,7 +91,16 @@
     // Đối thủ chưa có bốn / ba mở nhưng có chuỗi bốn liên tiếp (VCF) sau nước này
     const vcfAfter = won || foursAfter.length || threesAfter.length ? null : A.forced(board, q, A.MAX_DEPTH, { deadline: Date.now() + 400 });
     board.undo();
-    if (foursAfter.length) out.push({ k: 'no_block', at: foursAfter[0] }); // nước của p không thêm quân cho q: bốn này đã có từ trước
+    // Luật Việt Nam: 4 mở đã là thắng, nên "ô tạo ≥ 2 ô thắng ngay" là ô tạo nước đôi (từ 2 quân / 3 bị chặn…), không
+    // phải "3 mở thành 4 mở"; còn ô thắng ngay có thể là 3 mở thành 4 mở (không phải bốn) – dùng câu riêng
+    const vn = board.rule === 'vn';
+    if (foursAfter.length) {
+      // nước của p không thêm quân cho q: bốn / 3 mở này đã có từ trước
+      board.play(m[0], m[1], p);
+      const w = pickWin(board, foursAfter, q);
+      board.undo();
+      out.push({ k: w.three ? 'no_block3' : 'no_block', at: w.at });
+    } else if (threesAfter.length && vn) out.push({ k: 'allow_double', at: threesAfter[0] });
     else if (threesAfter.length && onLine(m, threesBefore)) out.push({ k: 'wrong_end', at: threesAfter[0] });
     else if (threesAfter.length) out.push({ k: 'ignore_three', at: threesAfter[0] });
     else if (vcfAfter) out.push({ k: 'allow_vcf', at: vcfAfter.move, n: vcfAfter.len });
@@ -94,10 +125,10 @@
     const q = C.other(p);
     if (A.immediateWins(board, p).length) return { k: 'hint_win' };
     const f = A.immediateWins(board, q);
-    if (f.length) return { k: 'hint_four', at: f[0] };
+    if (f.length) { const w = pickWin(board, f, q); return { k: w.three ? 'hint_open3' : 'hint_four', at: w.at }; }
     if (A.forced(board, p, 4, { deadline: Date.now() + 200 })) return { k: 'hint_vcf' };
     const t = openFourMakers(board, q, 1);
-    if (t.length) return { k: 'hint_three', at: t[0] };
+    if (t.length) return { k: board.rule === 'vn' ? 'hint_double' : 'hint_three', at: t[0] };
     return { k: 'hint_attack' };
   }
 
@@ -106,7 +137,7 @@
     return (list || []).map((e) => T('coach_' + e.k, { move: e.at ? name(e.at) : '', n: e.n || 0, d: e.d || 0 })).join(' ');
   }
 
-  const CaroCoach = { explain, hint, text, openFourMakers, onLine };
+  const CaroCoach = { explain, hint, text, openFourMakers, onLine, openFourWin };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroCoach;
   else global.CaroCoach = CaroCoach;
 })(typeof window !== 'undefined' ? window : globalThis);
