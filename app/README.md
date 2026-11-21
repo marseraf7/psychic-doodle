@@ -29,6 +29,10 @@ Mỗi lần đẩy code, GitHub Actions ([`.github/workflows/app.yml`](../.githu
   che (Android 15 bắt buộc tràn viền), bàn phím không che ô nhập tin nhắn, và sao chép link mời vào
   bộ nhớ tạm, vào phòng công khai từ danh sách và tìm trận nhanh (thẻ "đang tìm" vẫn hiện khi đóng bảng
   bằng nút Back) với bản web, và vào giải đấu Arena bằng giao diện app (tham gia → giải bắt đầu → tự vào ván). Ảnh chụp màn hình ở artifact `android-34-e2e-screenshots`, `android-35-e2e-screenshots`.
+  Mỗi bước có hạn giờ (in `— Bước: …`); bước treo hay kiểm tra thất bại thì test chẩn đoán ngay: ảnh màn hình,
+  logcat (lọc + đầy đủ), `dumpsys activity top`, pid app, socket DevTools của WebView, target CDP, provider app phụ
+  thuộc – file `apiNN-loiK*.{png,txt}` trong cùng artifact (kèm `server.log`). Gắn WebView có hạn giờ và thử lại với
+  pid mới (Playwright tự nó chờ mãi: `webview.page()` không có hạn giờ).
   Máy ảo trên CI rất chậm: ngay sau khi khởi động, Android có thể hiện hộp thoại "Pixel Launcher isn't responding"
   đè lên app, làm chạm / Back thật rơi vào hộp thoại. Test tắt hộp thoại báo lỗi (`hide_error_dialogs`), dẹp hộp
   thoại hệ thống trước mỗi lần chạm / Back thật, và chỉ chạm khi khung WebView và bố cục trang đã khớp nhau
@@ -143,3 +147,6 @@ phải làm trên Mac của bạn.
 | `android/`, `ios/` | Dự án gốc Android Studio / Xcode (do Capacitor tạo) |
 | `assets/` | Ảnh gốc để tạo biểu tượng và màn hình khởi động (`npx @capacitor/assets generate`) |
 | `tests/android-e2e.js` | Kiểm thử chơi chéo app ⟷ web trên máy ảo Android |
+| `tests/android-attach.js` | Hạn giờ từng bước, gắn WebView có thử lại (unit test: `server/test/android-attach.test.js`) |
+| `tests/android-device.js` | Lệnh adb, chờ máy ảo khởi động, dẹp hộp thoại hệ thống, đo khung WebView |
+| `tests/android-diag.js` | Chẩn đoán khi test lỗi / treo (ảnh, logcat, dumpsys, socket DevTools, target CDP) |
