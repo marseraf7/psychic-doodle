@@ -17,6 +17,7 @@ const { ClubStore } = require('./store-club.js');
 const { OTourStore } = require('./store-otour.js');
 const { ProgressStore } = require('./store-progress.js');
 const { CorrStore } = require('./store-corr.js'); // ván chơi theo lượt (C1)
+const { ClassStore } = require('./store-class.js'); // lớp học / nghiên cứu (C2)
 const { EvalCache } = require('./evalcache.js');
 
 const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
@@ -177,6 +178,7 @@ class Store {
       run('DELETE FROM reports WHERE reporter = ?', id);
       this.clubTalkUserGone(id); // tin chat + bài diễn đàn câu lạc bộ (store-club.js)
       this.corrUserGone(id); // lời mời chơi theo lượt (store-corr.js)
+      this.clsUserGone(id); // bài nghiên cứu của người đó (store-class.js)
       this.progressUserGone(id); // tiến độ giải đố / Storm / chuỗi ngày + lượt Storm (store-progress.js)
       this.db.exec('COMMIT');
     } catch (e) {
@@ -429,7 +431,7 @@ async function dummyCheckPassword(password) {
 
 // Phiên đăng nhập / thiết bị (store-sessions.js)
 // + chat / diễn đàn câu lạc bộ (store-club.js) + giải đấu offline (store-otour.js) + tiến độ / Storm (store-progress.js)
-for (const part of [Sessions, ClubStore, OTourStore, ProgressStore, CorrStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
+for (const part of [Sessions, ClubStore, OTourStore, ProgressStore, CorrStore, ClassStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
   if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 

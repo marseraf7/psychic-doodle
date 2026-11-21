@@ -25,6 +25,7 @@
  *   api.js         – số liệu máy chủ cho quản trị viên, API công khai chỉ đọc
  *   corr.js        – Chơi theo lượt (C1): ván 1–7 ngày mỗi nước, lưu CSDL (store-corr.js), quét hết giờ mỗi phút
  *   broadcast.js   – Tường thuật giải đấu (C3): bàn đang đấu, bảng xếp hạng, kết quả gần đây cho caro/broadcast.html
+ *   classroom.js   – Lớp học / Nghiên cứu (C2): chương, cây nước có biến, lời bình, dấu / mũi tên, theo dõi giáo viên
  *   api-v1.js      – API công khai v1 (C4): hồ sơ, biểu đồ điểm, ván gần đây, ván dạng chữ, giải, bảng xếp hạng, bài đố của ngày
  *   og.js          – dữ liệu thẻ xem trước link chia sẻ (Zalo / Messenger): ván, phòng, giải, CLB, hồ sơ
  *   progress.js    – tiến độ Giải đố / Storm / chuỗi ngày / huy hiệu trong tài khoản, Storm có kiểm + bảng tuần
@@ -83,6 +84,7 @@ const { Disputes } = require('./disputes.js');
 const { Api } = require('./api.js');
 const { Corr } = require('./corr.js'); // Chơi theo lượt (C1)
 const { Broadcast } = require('./broadcast.js'); // Tường thuật giải đấu (C3)
+const { Classroom } = require('./classroom.js'); // Lớp học / Nghiên cứu (C2)
 const { ApiV1 } = require('./api-v1.js'); // API công khai v1 (C4 – HTTP ở ../api-v1-http.js)
 const { Og } = require('./og.js'); // thẻ xem trước link chia sẻ (A3)
 const { Progress } = require('./progress.js'); // tiến độ trong tài khoản + Puzzle Storm có kiểm (A5)
@@ -91,7 +93,7 @@ const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, ApiV1, Corr, Broadcast, Og, Progress, Disputes, Evals, Lobby, AvatarPart]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, ApiV1, Corr, Broadcast, Classroom, Og, Progress, Disputes, Evals, Lobby, AvatarPart]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

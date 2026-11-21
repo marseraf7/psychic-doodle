@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="pages.css">
   <link rel="stylesheet" href="topbar.css">
   <link rel="stylesheet" href="chat-bubbles.css">
+  <link rel="stylesheet" href="class.css">
   <link rel="stylesheet" href="corr.css">
   <link rel="stylesheet" href="a11y.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
@@ -363,6 +364,8 @@
           <button type="button" class="li" data-fwd="open-tours"><svg class="ico li-ic" aria-hidden="true"><use href="#i-trophy"/></svg><span class="li-t" data-i18n="tours_title"></span><i class="count tour-badge" hidden></i><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
           <button type="button" class="li" data-fwd="open-clubs"><svg class="ico li-ic" aria-hidden="true"><use href="#i-users"/></svg><span class="li-t" data-i18n="clubs_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
           <button type="button" class="li" data-fwd="open-join"><svg class="ico li-ic" aria-hidden="true"><use href="#i-key"/></svg><span class="li-t" data-i18n="join_by_code"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+          <!-- Lớp học / Nghiên cứu (classroom.js – C2) -->
+          <button type="button" class="li" id="more-cls"><svg class="ico li-ic" aria-hidden="true"><use href="#i-cap"/></svg><span class="li-t" data-i18n="cls_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
           <!-- Chơi theo lượt (corr.js – C1) -->
           <button type="button" class="li" id="more-corr"><svg class="ico li-ic" aria-hidden="true"><use href="#i-cal"/></svg><span class="li-t" data-i18n="corr_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         </div>
@@ -1151,6 +1154,7 @@
   <script src="i18n-perf.js"></script>
   <script src="i18n-topbar.js"></script>
   <script src="i18n-chat.js"></script>
+  <script src="i18n-class.js"></script>
   <script src="i18n-broadcast.js"></script>
   <script src="i18n-corr.js"></script>
   <script src="i18n-api.js"></script>
@@ -1350,5 +1354,9 @@
   <script src="a11y.js"></script>
   <script src="corr.js"></script>
   <script src="tour-broadcast.js"></script>
+  <script src="game-text.js"></script>
+  <script src="class-tree.js"></script>
+  <script src="classroom.js"></script>
+  <script src="class-view.js"></script>
 </body>
 </html>
