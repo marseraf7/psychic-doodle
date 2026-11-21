@@ -4,7 +4,11 @@
  * Lưu CSDL (store-class.js). Ai có tài khoản cũng tạo được; chủ / quản lý CLB có thêm "Lớp của CLB" (chỉ thành viên CLB xem).
  * Quyền xem: public (ai cũng thấy, có trong danh sách) · unlisted (ai có link) · club (thành viên CLB) · private (chỉ chủ bài).
  * Chỉ chủ bài sửa. Theo dõi trực tiếp: người mở bài nhận clsSync khi chủ bài đi tới nước / chương khác (bàn của học viên đi
- * theo nếu bật "Theo giáo viên"), và bản mới của bài khi chủ bài lưu chương.
+ * theo nếu bật "Theo giáo viên"), và phần thay đổi khi chủ bài lưu: clsDelta { id, from, ver, ops } – chỉ chương vừa sửa
+ * (ops: { k: 'ch', i, c } · { k: 'del', i } · { k: 'meta', title, desc, vis }), không gửi lại cả bài (tới 512 KB) cho mọi
+ * người theo dõi. Mỗi lần lưu tăng s.ver; máy khách có ver khác `from` (lỡ một lần) thì mở lại bài (clsOpen) lấy bản đầy đủ
+ * (CaroClassTree.applyDelta). Trần chi phí phát: chuỗi JSON dựng một lần cho mọi người; mỗi bài tối đa một lần phát mỗi
+ * PUSH_MS (lần lưu đầu gửi ngay, các lần lưu sau trong cửa sổ gom lại – chương sửa nhiều lần chỉ gửi bản cuối).
  * Tin nhắn: clsList · clsCreate { title, vis, club } · clsOpen { id } · clsLeave { id } · clsMeta { id, title, desc, vis } ·
  *   clsChapter { id, idx, chapter } (lớn hơn 12 000 ký tự: clsChapterPart { id, idx, k, n, d }) · clsChapterDel { id, idx } · clsDelete { id } · clsSync { id, chapter, path }
  */
@@ -21,6 +25,15 @@ const MAX_BYTES = 512 * 1024; // cả bài sau khi làm sạch
 const MAX_DESC = 4000;
 const PART = 12000; // ký tự mỗi phần khi chương lớn hơn một tin WebSocket
 const MAX_PARTS = 64; // 64 × 12 000 ≈ 768 KB (sau đó vẫn kiểm MAX_BYTES)
+const PUSH_MS = 300; // cửa sổ gom các lần lưu của một bài trước khi phát cho người theo dõi (this.T.CLS_PUSH_MS ghi đè)
+
+/** Thêm thao tác op vào danh sách ops đang chờ phát: chương sửa lại (chưa có thao tác xoá chương nào sau đó) chỉ giữ bản cuối. */
+function mergeOp(ops, op) {
+  if (op.k === 'ch') {
+    for (let j = ops.length - 1; j >= 0 && ops[j].k !== 'del'; j--) if (ops[j].k === 'ch' && ops[j].i === op.i) { ops.splice(j, 1); break; }
+  }
+  ops.push(op);
+}
 
 class Classroom {
   clsFollowers(id) {
@@ -49,19 +62,56 @@ class Classroom {
     for (const c of this.clubs.values()) if (c.status === 'approved' && (c.owner === uid || c.members[uid] === 'officer')) out.push({ id: c.id, name: c.name });
     return out;
   }
-  clsSave(s) {
+  /** Lưu bài (s đọc mới từ CSDL, đã sửa) và phát thao tác op (phần vừa đổi) cho người đang mở bài. */
+  clsSave(s, op) {
     s.updated = Date.now();
+    const from = s.ver || 0;
+    s.ver = from + 1;
     if (Buffer.byteLength(JSON.stringify(s)) > MAX_BYTES) throw E('cls_too_big');
     this.store.clsPut(s);
-    this.clsPush(s);
+    this.clsQueue(s, from, op);
   }
-  /** Gửi bản mới cho người đang mở bài (bỏ người không còn kết nối / không còn quyền xem). */
-  clsPush(s, msg = { t: 'clsStudy', study: s }) {
+  /**
+   * Phát thay đổi: không có cửa sổ gom đang mở thì gửi ngay và mở cửa sổ PUSH_MS; trong cửa sổ thì gom vào một clsDelta
+   * gửi lúc đóng cửa sổ (from = ver đã phát lần trước). Một bài sửa liên tục: tối đa một lần phát mỗi PUSH_MS.
+   */
+  clsQueue(s, from, op) {
+    if (!this.clsPend) this.clsPend = new Map();
+    const p = this.clsPend.get(s.id);
+    if (p) { p.s = s; p.ver = s.ver; mergeOp(p.ops, op); return; }
+    this.clsFlush(s, from, s.ver, [op]);
+    const q = { s: null, from: s.ver, ver: s.ver, ops: [], timer: null };
+    const tick = () => this.safeTimer('clsPush', () => {
+      if (!q.ops.length) { this.clsPend.delete(s.id); return; }
+      this.clsFlush(q.s, q.from, q.ver, q.ops);
+      q.from = q.ver; q.ops = [];
+      q.timer = setTimeout(tick, this.T.CLS_PUSH_MS ?? PUSH_MS); // còn sửa tiếp: giữ nhịp tối đa một lần mỗi cửa sổ
+      q.timer.unref?.();
+    });
+    q.timer = setTimeout(tick, this.T.CLS_PUSH_MS ?? PUSH_MS);
+    q.timer.unref?.();
+    this.clsPend.set(s.id, q);
+  }
+  /** Gửi một clsDelta cho người theo dõi bài: JSON dựng một lần, cùng chuỗi cho mọi kết nối. */
+  clsFlush(s, from, ver, ops) {
+    const set = this.clsFollowers(s.id);
+    if (!set.size) return;
+    const raw = JSON.stringify({ t: 'clsDelta', id: s.id, from, ver, ops });
+    this.clsPush(s, raw);
+  }
+  /** Gửi tin (đối tượng, hoặc chuỗi JSON dựng sẵn) cho người đang mở bài (bỏ người không còn kết nối / không còn quyền xem). */
+  clsPush(s, msg) {
     const set = this.clsFollowers(s.id);
     for (const pid of [...set]) {
       if (!this.isOnline(pid) || !this.clsCanView(s, uidOf(pid))) { set.delete(pid); continue; }
-      this.send(pid, msg);
+      if (typeof msg !== 'string') { this.send(pid, msg); continue; }
+      for (const c of this.byPid.get(pid)) this.sendRaw(c, msg);
     }
+  }
+  /** Huỷ cửa sổ gom đang chờ của bài (bài bị xoá / máy chủ tắt). */
+  clsUnqueue(id) {
+    const p = this.clsPend && this.clsPend.get(id);
+    if (p) { clearTimeout(p.timer); this.clsPend.delete(id); }
   }
 
   on_clsList(conn) {
@@ -96,6 +146,7 @@ class Classroom {
     const s = this.store.clsGet(id);
     if (!s || !this.clsCanView(s, uidOf(conn.pid))) throw E('cls_not_found');
     this.clsFollowers(s.id).add(conn.pid);
+    if (!s.ver) s.ver = 0; // bài lưu trước khi có số phiên bản
     conn.send({ t: 'clsStudy', study: s, live: (this.clsLive && this.clsLive.get(s.id)) || null });
   }
 
@@ -109,7 +160,7 @@ class Classroom {
     if (title != null) { const t = cleanPublicName(title, 80); if (t.length >= 3) s.title = t; }
     if (desc != null) s.desc = cleanRich(desc, MAX_DESC);
     if (vis != null && VIS.includes(vis) && (vis !== 'club' || s.club)) s.vis = vis;
-    this.clsSave(s);
+    this.clsSave(s, { k: 'meta', title: s.title, desc: s.desc, vis: s.vis });
   }
 
   on_clsChapter(conn, { id, idx, chapter } = {}) {
@@ -124,7 +175,7 @@ class Classroom {
     const ch = Tree.clean(chapter, cleanRich);
     if (!ch.name) ch.name = String(idx + 1);
     s.chapters[idx] = ch;
-    this.clsSave(s);
+    this.clsSave(s, { k: 'ch', i: idx, c: ch });
   }
 
   /**
@@ -158,12 +209,13 @@ class Classroom {
     if (!Number.isInteger(idx) || !s.chapters[idx] || s.chapters.length <= 1) throw E('bad_message');
     s.chapters.splice(idx, 1);
     if (s.live && s.live.chapter >= s.chapters.length) s.live = { chapter: 0, path: [] };
-    this.clsSave(s);
+    this.clsSave(s, { k: 'del', i: idx });
   }
 
   on_clsDelete(conn, { id } = {}) {
     const { s } = this.clsMine(conn, id);
     this.store.clsDel(s.id);
+    this.clsUnqueue(s.id);
     this.clsPush(s, { t: 'clsGone', id: s.id });
     if (this.clsFollow) this.clsFollow.delete(s.id);
   }
@@ -182,4 +234,4 @@ class Classroom {
   }
 }
 
-module.exports = { Classroom, VIS, MAX_CHAPTERS, PART };
+module.exports = { Classroom, VIS, MAX_CHAPTERS, PART, PUSH_MS, mergeOp };

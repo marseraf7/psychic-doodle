@@ -8,6 +8,16 @@ const { ctx, account, until, Client } = require('./otour-client.js');
 const uidOf = (c) => c.msgs.filter((m) => m.t === 'welcome').pop().me.uid;
 const errs = (c) => c.msgs.filter((m) => m.t === 'error').map((m) => m.code);
 const last = (c, t) => c.msgs.filter((m) => m.t === t).pop();
+const Tr = require('../../caro/class-tree.js');
+/** Bài như máy khách đang thấy: bản đầy đủ (clsStudy) mới nhất + các phần đổi (clsDelta) sau đó – như caro/class-view.js. */
+function view(c) {
+  let s = null;
+  for (const m of c.msgs) {
+    if (m.t === 'clsStudy') s = structuredClone(m.study);
+    else if (m.t === 'clsDelta' && s && s.id === m.id) assert.notStrictEqual(Tr.applyDelta(s, structuredClone(m)), 'stale', 'không lỡ phần đổi nào');
+  }
+  return s;
+}
 
 async function create(c, o) {
   const n = c.msgs.filter((m) => m.t === 'clsCreated').length;
@@ -32,8 +42,9 @@ test('Lớp học: tạo, mở, sửa chương (làm sạch), theo dõi trực t
   await until(() => errs(s1).includes('cls_not_found'));
   // Chủ bài lưu chương: nước trùng ô bị bỏ, lời bình làm sạch; học viên nhận bản mới
   t.send({ t: 'clsChapter', id, idx: 0, chapter: { name: 'Mở đầu', rule: 'vn', root: { ch: [{ m: [0, 0], c: '**Nước đầu**\u0007', s: [{ k: 'm', x: 1, y: 1 }], ch: [{ m: [0, 0] }, { m: [1, 0], ch: [] }] }] } } });
-  await until(() => last(s1, 'clsStudy').study.chapters[0].name === 'Mở đầu');
-  const ch = last(s1, 'clsStudy').study.chapters[0];
+  await until(() => view(s1).chapters[0].name === 'Mở đầu');
+  assert.ok(!s1.msgs.some((m) => m.t === 'clsStudy' && m.study.chapters[0].name === 'Mở đầu'), 'chỉ gửi phần đổi, không gửi cả bài');
+  const ch = view(s1).chapters[0];
   assert.strictEqual(ch.root.ch[0].c, '**Nước đầu**');
   assert.deepStrictEqual(ch.root.ch[0].ch.map((n) => n.m), [[1, 0]]);
   // Theo dõi: giáo viên đi tới nước 2 → học viên nhận clsSync; đường không tồn tại → lỗi
@@ -50,11 +61,11 @@ test('Lớp học: tạo, mở, sửa chương (làm sạch), theo dõi trực t
   assert.deepStrictEqual(last(late, 'clsStudy').live, { chapter: 0, path: [0, 0] });
   // Thêm chương, xoá chương (không xoá chương cuối cùng)
   t.send({ t: 'clsChapter', id, idx: 1, chapter: { name: 'Hai' } });
-  await until(() => last(s1, 'clsStudy').study.chapters.length === 2);
+  await until(() => view(s1).chapters.length === 2);
   t.send({ t: 'clsChapter', id, idx: 5, chapter: {} });
   await until(() => errs(t).filter((e) => e === 'bad_message').length === 2);
   t.send({ t: 'clsChapterDel', id, idx: 1 });
-  await until(() => last(s1, 'clsStudy').study.chapters.length === 1);
+  await until(() => view(s1).chapters.length === 1);
   t.send({ t: 'clsChapterDel', id, idx: 0 });
   await until(() => errs(t).filter((e) => e === 'bad_message').length === 3);
   // Riêng tư: người khác không mở được, danh sách công khai không có
@@ -183,4 +194,61 @@ test('Lớp học: link /?cls= có thẻ xem trước og khi bài công khai / c
   hub.store.clsPut(s);
   assert.doesNotMatch(await page(), /Hoa nguyệt/, 'bài riêng tư: không có thẻ og');
   t.close();
+});
+
+test('Lớp học: 50 người theo dõi – lưu chương chỉ phát chương vừa sửa (một chuỗi JSON), gom lần lưu dồn dập, có số phiên bản', async () => {
+  const hub = ctx.app.hub;
+  hub.T.THROTTLE_SCALE = 0;
+  const t = await account();
+  const id = await create(t, { title: 'Bài đông học viên', vis: 'unlisted' });
+  // Chương 0 to (~100 KB lời bình) để thấy khác biệt: trước đây mỗi lần lưu gửi cả bài cho từng người
+  const big = { name: 'To', root: { ch: [] } };
+  let node = big.root;
+  for (let i = 0; i < 50; i++) { const k = { m: [i % 20, Math.floor(i / 20) * 2], c: 'b'.repeat(1990), ch: [] }; node.ch.push(k); node = k; }
+  const text = JSON.stringify(big), P = 12000, n = Math.ceil(text.length / P);
+  for (let k = 0; k < n; k++) t.send({ t: 'clsChapterPart', id, idx: 0, k, n, d: text.slice(k * P, (k + 1) * P) });
+  await until(() => hub.store.clsGet(id).chapters[0].name === 'To', 5000);
+  await new Promise((r) => setTimeout(r, (hub.T.CLS_PUSH_MS ?? 300) + 50)); // cửa sổ gom của lần lưu trên đóng
+  const fans = await Promise.all(Array.from({ length: 50 }, () => Client.open()));
+  for (const c of [t, ...fans]) c.send({ t: 'clsOpen', id });
+  await until(() => [t, ...fans].every((c) => last(c, 'clsStudy')), 10000);
+  const v0 = last(fans[0], 'clsStudy').study.ver;
+  assert.ok(Number.isInteger(v0) && v0 >= 1, 'bài có số phiên bản');
+  const fullBytes = JSON.stringify(last(fans[0], 'clsStudy').study).length;
+  assert.ok(fullBytes > 90000);
+  const realRaw = hub.sendRaw, realSend = hub.send;
+  const raws = [];
+  let objs = 0;
+  hub.sendRaw = function (c, raw) { if (raw.startsWith('{"t":"clsDelta"')) raws.push(raw); return realRaw.call(this, c, raw); };
+  hub.send = function (pid, obj) { if (obj && String(obj.t).startsWith('cls')) objs++; return realSend.call(this, pid, obj); };
+  try {
+    t.send({ t: 'clsChapter', id, idx: 1, chapter: { name: 'Hai' } });
+    await until(() => fans.every((c) => view(c).chapters.length === 2), 5000);
+    assert.strictEqual(raws.length, 51, 'mỗi kết nối một tin');
+    assert.strictEqual(new Set(raws).size, 1, 'cùng một chuỗi JSON cho mọi người');
+    assert.ok(raws[0].length < 1000 && raws[0].length * 50 < fullBytes, `phần đổi ${raws[0].length} B (cả bài ${fullBytes} B)`);
+    assert.strictEqual(objs, 0, 'không gửi đối tượng riêng cho từng người');
+    const d = JSON.parse(raws[0]);
+    assert.deepStrictEqual([d.from, d.ver, d.ops.length, d.ops[0].k, d.ops[0].i], [v0, v0 + 1, 1, 'ch', 1]);
+    // Lưu dồn dập trong cửa sổ gom: người theo dõi nhận ít tin hơn số lần lưu, chương sửa nhiều lần chỉ gửi bản cuối
+    raws.length = 0;
+    for (let i = 0; i < 6; i++) t.send({ t: 'clsChapter', id, idx: 1, chapter: { name: 'Lần ' + i } });
+    t.send({ t: 'clsMeta', id, title: 'Bài đông học viên 2' });
+    await until(() => fans.every((c) => view(c).chapters[1].name === 'Lần 5' && view(c).title === 'Bài đông học viên 2'), 5000);
+    const per = raws.length / 51;
+    assert.ok(per <= 2, `mỗi người ${per} tin cho 7 lần lưu`);
+    const ops = raws.map((r) => JSON.parse(r)).pop().ops;
+    assert.ok(ops.filter((o) => o.k === 'ch').length <= 1, 'chương sửa nhiều lần chỉ gửi bản cuối');
+    assert.strictEqual(view(fans[7]).ver, hub.store.clsGet(id).ver);
+    // Xoá chương: phần đổi { k: 'del' }; người lỡ tin mở lại bài thì nhận bản đầy đủ đúng phiên bản
+    await new Promise((r) => setTimeout(r, (hub.T.CLS_PUSH_MS ?? 300) + 50));
+    t.send({ t: 'clsChapterDel', id, idx: 0 });
+    await until(() => fans.every((c) => view(c).chapters.length === 1 && view(c).chapters[0].name === 'Lần 5'), 5000);
+    fans[3].send({ t: 'clsOpen', id });
+    await until(() => last(fans[3], 'clsStudy').study.ver === hub.store.clsGet(id).ver);
+  } finally {
+    hub.sendRaw = realRaw;
+    hub.send = realSend;
+    [t, ...fans].forEach((c) => c.close());
+  }
 });

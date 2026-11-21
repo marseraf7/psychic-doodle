@@ -4,7 +4,8 @@
  *  - Giáo viên: Xem thêm › Lớp học → tạo bài → bàn cờ + khung bài; bấm bàn cờ = thêm nước; lời bình (trình soạn có định dạng),
  *    dấu ô; tự lưu lên máy chủ.
  *  - Học viên (khách, mở link /?cls=<mã> ở 390 px): thấy cây nước + lời bình; "Theo giáo viên": giáo viên lùi nước → bàn học
- *    viên đi theo; học viên tự thử nước → chỉ trên máy mình (máy chủ không đổi). 0 lỗi hiển thị.
+ *    viên đi theo; giáo viên đi biến mới ngay sau khi lùi → học viên nhận phần đổi (clsDelta) và đi theo; học viên tự thử
+ *    nước → chỉ trên máy mình (máy chủ không đổi). 0 lỗi hiển thị.
  */
 'use strict';
 const { setup, sleep } = require('./helpers');
@@ -59,11 +60,15 @@ const { audit } = require('./ui-audit');
   await t.click('#cls-panel [data-a="prev"]');
   for (let i = 0; i < 20 && (await s.evaluate(() => window.CaroApp.board.moves.length)) !== 2; i++) await sleep(150);
   ok(await s.evaluate(() => window.CaroApp.board.moves.length === 2), 'theo giáo viên: bàn học viên lùi theo (2 nước)');
+  // Giáo viên đi biến mới: học viên nhận phần đổi (clsDelta – chỉ chương vừa sửa) rồi đi theo tới nước mới
+  await click(t, 2, 2); // ngay sau khi lùi (dưới 80 ms): tin clsSync cuối vẫn tới học viên
+  for (let i = 0; i < 20 && (await s.evaluate(() => window.CaroApp.board.moves.length)) !== 3; i++) await sleep(150);
+  ok(await s.evaluate(() => window.CaroApp.board.moves.length === 3 && window.CaroApp.board.moves[2].x === 2 && window.CaroApp.board.moves[2].y === 2), 'biến mới của giáo viên: học viên nhận phần đổi và đi theo');
   // Học viên tự thử nước: không đổi bài trên máy chủ, thôi đi theo
   await click(s, 2, -2); // ô ở nửa trên (khung bài che nửa dưới màn hình điện thoại)
-  ok(await s.evaluate(() => window.CaroApp.board.moves.length === 3 && !window.CaroClassView.state.follow), 'học viên tự thử nước: chỉ trên máy mình, tắt "Theo giáo viên"');
+  ok(await s.evaluate(() => window.CaroApp.board.moves.length === 4 && !window.CaroClassView.state.follow), 'học viên tự thử nước: chỉ trên máy mình, tắt "Theo giáo viên"');
   await sleep(300);
-  ok(app.hub.store.clsGet(id).chapters[0].root.ch[0].ch[0].ch.length === 1, 'máy chủ không nhận nước thử của học viên');
+  ok(app.hub.store.clsGet(id).chapters[0].root.ch[0].ch[0].ch.length === 2, 'máy chủ không nhận nước thử của học viên (chỉ biến của giáo viên)');
   ok((await audit(t, '#cls-panel')).length === 0, 'khung bài của giáo viên (1200px): 0 lỗi hiển thị');
   ok(!errs.length, 'học viên: không có lỗi JS ' + errs.join(' | '));
   await ctx.close();

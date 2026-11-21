@@ -80,3 +80,18 @@ test('Làm sạch: bỏ nước trùng ô / sai kiểu / ngoài phạm vi / sau 
   assert.deepStrictEqual(Tr.clean(null).root, { ch: [] });
   assert.match(Tr.clean({ id: '../x' }).id, /^[a-z0-9]+$/);
 });
+
+test('applyDelta: áp phần đổi theo số phiên bản; lỡ một lần → stale (lấy lại cả bài); tin cũ → old', () => {
+  const s = { ver: 3, title: 'A', desc: '', vis: 'unlisted', chapters: [Tr.newChapter('1', 'vn', 'a'), Tr.newChapter('2', 'vn', 'b')] };
+  const c = Tr.newChapter('Mới', 'free', 'c');
+  assert.strictEqual(Tr.applyDelta(s, { from: 3, ver: 4, ops: [{ k: 'ch', i: 2, c }, { k: 'meta', title: 'B', desc: 'x', vis: 'public' }] }), 'ok');
+  assert.deepStrictEqual([s.ver, s.chapters.length, s.chapters[2].name, s.title, s.vis], [4, 3, 'Mới', 'B', 'public']);
+  assert.strictEqual(Tr.applyDelta(s, { from: 4, ver: 5, ops: [{ k: 'del', i: 0 }] }), 'ok');
+  assert.deepStrictEqual(s.chapters.map((x) => x.id), ['b', 'c']);
+  assert.strictEqual(Tr.applyDelta(s, { from: 3, ver: 4, ops: [] }), 'old', 'tin đã có');
+  assert.strictEqual(Tr.applyDelta(s, { from: 6, ver: 7, ops: [] }), 'stale', 'lỡ bản 6');
+  assert.strictEqual(Tr.applyDelta(s, { from: 5, ver: 6, ops: [{ k: 'ch', i: 9, c }] }), 'stale', 'chỉ số lạ');
+  assert.strictEqual(Tr.applyDelta(s, { from: 5, ver: 6, ops: [{ k: 'zzz' }] }), 'stale');
+  assert.strictEqual(Tr.applyDelta(s, null), 'stale');
+  assert.strictEqual(Tr.applyDelta({ chapters: [c] }, { from: 0, ver: 1, ops: [{ k: 'ch', i: 0, c: Tr.newChapter('x') }] }), 'ok', 'bài cũ chưa có ver = 0');
+});

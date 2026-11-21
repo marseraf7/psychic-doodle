@@ -61,6 +61,7 @@ class Hub {
     // ván vào CSDL đã đóng và làm sập tiến trình ("statement has been finalized")
     for (const room of this.rooms.values()) { clearTimeout(room.clockTimer); clearTimeout(room.watchTimer); }
     for (const t of this.forfeitTimers.values()) clearTimeout(t);
+    for (const id of [...(this.clsPend || new Map()).keys()]) this.clsUnqueue(id); // classroom.js
   }
 
   /** Chạy một việc hẹn giờ của hub (quét dọn, nhịp giải đấu, ghép trận, đẩy cập nhật…):

@@ -6,6 +6,8 @@
  *   đường (path): mảng chỉ số con từ gốc, vd. [0, 0, 1] = nước 1 chính, nước 2 chính, nước 3 theo biến thứ hai.
  * clean(chương) làm sạch dữ liệu từ máy khách: trần số nút / hình / độ dài lời bình, nước phải hợp lệ (ô trống, trong
  * phạm vi), không đi tiếp sau nước thắng. Máy chủ (hub/classroom.js) gọi với cleanText = cleanRich của hub/shared.js.
+ * applyDelta(bài, tin clsDelta) áp phần thay đổi máy chủ phát khi chủ bài lưu (hub/classroom.js): 'ok' đã áp · 'old' tin cũ
+ * (bản đang có mới hơn) · 'stale' lỡ một lần phát (ver của mình khác from) → máy khách mở lại bài lấy bản đầy đủ.
  * UMD: trình duyệt window.CaroClassTree, Node module.exports.
  */
 (function (global) {
@@ -115,7 +117,23 @@
     return ch;
   }
 
-  const api = { LIMITS, newChapter, nodeAt, movesAt, addMove, remove, promote, next, prev, count, toggleShape, clean };
+  /** Áp tin clsDelta { from, ver, ops } vào bài study (sửa tại chỗ). → 'ok' | 'old' | 'stale'. */
+  function applyDelta(study, m) {
+    const cur = study.ver || 0;
+    if (!m || !Number.isInteger(m.ver) || !Array.isArray(m.ops)) return 'stale';
+    if (m.ver <= cur) return 'old';
+    if (m.from !== cur) return 'stale';
+    for (const op of m.ops) {
+      if (op.k === 'ch' && Number.isInteger(op.i) && op.i >= 0 && op.i <= study.chapters.length && op.c) study.chapters[op.i] = op.c;
+      else if (op.k === 'del' && study.chapters[op.i] && study.chapters.length > 1) study.chapters.splice(op.i, 1);
+      else if (op.k === 'meta') { study.title = op.title; study.desc = op.desc; study.vis = op.vis; }
+      else return 'stale'; // thao tác lạ / không khớp bản đang có: lấy lại cả bài
+    }
+    study.ver = m.ver;
+    return 'ok';
+  }
+
+  const api = { LIMITS, newChapter, nodeAt, movesAt, addMove, remove, promote, next, prev, count, toggleShape, clean, applyDelta };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else global.CaroClassTree = api;
 })(typeof window !== 'undefined' ? window : globalThis);
