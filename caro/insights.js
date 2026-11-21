@@ -140,7 +140,7 @@
     prog = { done: 0, total: games.filter((g) => !AN.get(IC.hash(g.moves))).length, f: 0 };
     const p = AN.batch(games, (done, total, f) => { prog = { done, total, f }; if (dlg.isOpen()) render(); });
     render();
-    await p;
+    try { await p; } catch (err) { /* Worker / máy phân tích lỗi giữa chừng: dừng lượt, ván đã xong vẫn giữ */ }
     prog = null;
     if (cur && cur.owner.local) cur = localData();
     if (dlg.isOpen()) render();

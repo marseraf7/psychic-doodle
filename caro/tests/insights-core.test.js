@@ -20,6 +20,21 @@ test('khoá khai cuộc giống nhau khi dời / xoay / lật bàn, khác khi kh
   assert.deepStrictEqual(IC.openingKey(a).cells.map((c) => c[2]), [1, 2, 1, 2], 'X đi trước, luân phiên');
 });
 
+test('khoá khai cuộc: đủ 8 phép đối xứng (4 xoay × lật) + dời cho cùng khoá và cùng hình; đổi màu quân thì khác', () => {
+  const a = [[3, 7], [4, 8], [5, 7], [3, 9]]; // không đối xứng: mỗi phép cho một thế khác
+  const syms = [];
+  for (let r = 0, m = a; r < 4; r++, m = rot(m)) syms.push(m, flipX(m));
+  assert.strictEqual(new Set(syms.map((m) => JSON.stringify(m))).size, 8, 'thế thử có 8 ảnh khác nhau');
+  const o = IC.openingKey(a);
+  for (const [i, m] of syms.entries()) {
+    const s = IC.openingKey(shift(m, i * 3 - 7, 11 - i));
+    assert.strictEqual(s.key, o.key, 'phép ' + i);
+    assert.deepStrictEqual(s.cells.map((c) => c.join()).sort(), o.cells.map((c) => c.join()).sort(), 'hình khai cuộc phép ' + i);
+  }
+  // Cùng các ô nhưng X / O đổi chỗ: khai cuộc khác
+  assert.notStrictEqual(IC.openingKey([a[1], a[0], a[3], a[2]]).key, o.key);
+});
+
 test('nhóm sức đối thủ và độ dài ván', () => {
   assert.strictEqual(IC.band(1500, 1250), 'much_weaker');
   assert.strictEqual(IC.band(1500, 1400), 'weaker');

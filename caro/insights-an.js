@@ -39,7 +39,7 @@
   });
 
   let job = 0;
-  const state = { running: false };
+  const state = { running: false, inPool: false }; // inPool: lượt hàng loạt đang chấm trên bể Worker (an-pool.js)
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const idle = () => new Promise((r) => (window.requestIdleCallback ? window.requestIdleCallback(() => r(), { timeout: 1500 }) : setTimeout(r, 200)));
   // Đang có ván online chưa xong: nhường CPU cho đồng hồ / bàn cờ
@@ -62,7 +62,9 @@
         prog(0);
         let res = null;
         if (Pool) {
-          const evals = await Pool.evaluate({ moves: g.moves, rule: g.rule || 'vn', ms, onProgress: prog });
+          state.inPool = true;
+          let evals;
+          try { evals = await Pool.evaluate({ moves: g.moves, rule: g.rule || 'vn', ms, onProgress: prog }); } finally { state.inPool = false; }
           if (my !== job || !evals) break; // bị huỷ (hoặc bảng phân tích vừa giành bộ phân tích)
           res = A.analyzeGame(g.moves, { rule: g.rule || 'vn', ms, evals });
         } else {
@@ -82,7 +84,9 @@
     if (!state.running) return;
     job++;
     state.running = false;
-    if (window.CaroAnPool) window.CaroAnPool.cancel();
+    // Chỉ dừng bể Worker khi chính lượt hàng loạt đang chấm: đang chờ lúc rảnh / chờ ván online xong thì bể có thể đang
+    // chạy cho bảng phân tích (study.js) – huỷ nhầm sẽ làm hỏng lượt phân tích đó
+    if (state.inPool && window.CaroAnPool) window.CaroAnPool.cancel();
   }
 
   window.CaroInsightsAn = { get, put, batch, cancel, get running() { return state.running; } };
