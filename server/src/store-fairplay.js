@@ -58,6 +58,11 @@ class FairplayStore {
   }
   fpOpenCount() { return this.fp().prepare("SELECT COUNT(*) AS n FROM fp_queue WHERE status = 'open'").get().n; }
 
+  /** Ván id sắp bị xoá (quá số ván giữ lại mỗi người – store.js recordGame): xoá số liệu rời tab + dòng hàng chờ của ván. */
+  fpGameGone(id) {
+    for (const t of ['fp_game', 'fp_queue']) this.fp().prepare(`DELETE FROM ${t} WHERE share = (SELECT share FROM games WHERE id = ?)`).run(id);
+  }
+
   /** Sau khi xoá tài khoản (ván không còn ai giữ đã bị xoá): bỏ các dòng của ván không còn. */
   fpPrune() {
     this.fp().prepare('DELETE FROM fp_game WHERE share NOT IN (SELECT share FROM games)').run();

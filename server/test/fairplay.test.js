@@ -86,3 +86,20 @@ test('bàn đầu của giải: người trong top 3 (Arena theo điểm, giải
     assert.strictEqual(hub.fpTopBoard(room('khong', 'a', 'b')), false);
   } finally { hub.close(); store.close(); }
 });
+
+test('ván cũ tự xoá (quá 300 ván mỗi người): số lần rời tab + dòng hàng chờ của ván đó xoá theo (như chính sách quyền riêng tư)', () => {
+  const { Store } = require('../src/store.js');
+  const s = new Store(null);
+  const g = (n) => s.recordGame({ kind: 'quick', timeLimit: 0, clock: '3+2', rule: 'vn', xId: 'ua', oId: 'ub', xName: 'a', oName: 'b', winner: 1, reason: 'win', moves: [[0, n], [1, n]] });
+  const first = g(0);
+  s.fpSaveBlur(first, { n: 9, ms: 100000 }, { n: 0, ms: 0 });
+  s.fpEnqueue(first, 'blur');
+  const keep = g(1);
+  s.fpSaveBlur(keep, { n: 1, ms: 1000 }, { n: 0, ms: 0 });
+  for (let i = 2; i <= 300; i++) g(i); // ván thứ 301: ván đầu không còn ai giữ → xoá
+  assert.ok(!s.gameByShare(first), 'ván đầu đã bị xoá');
+  assert.strictEqual(s.fpBlur(first), null, 'số lần rời tab của ván đã xoá không còn');
+  assert.strictEqual(s.fp().prepare('SELECT COUNT(*) AS n FROM fp_queue WHERE share = ?').get(first).n, 0);
+  assert.deepStrictEqual(s.fpBlur(keep), { x_n: 1, x_ms: 1000, o_n: 0, o_ms: 0 }, 'ván còn giữ: còn nguyên');
+  s.close();
+});

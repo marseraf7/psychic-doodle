@@ -255,7 +255,7 @@ class Store {
       // Chỉ giữ 10 trận gần nhất; trận không còn ai giữ thì xoá hẳn.
       for (const { game_id } of this.q.oldGames.all(uid, HISTORY_PER_USER)) {
         this.q.unlinkGame.run(uid, game_id);
-        if (!this.q.gameRefs.get(game_id).n) this.q.dropGame.run(game_id);
+        if (!this.q.gameRefs.get(game_id).n) { this.fpGameGone(game_id); this.q.dropGame.run(game_id); } // + số liệu chơi đẹp của ván (store-fairplay.js)
       }
     }
     return share;
