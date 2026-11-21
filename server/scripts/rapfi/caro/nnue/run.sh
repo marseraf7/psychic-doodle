@@ -4,14 +4,14 @@
 #                                                                       install-service.sh)
 # Song song:
 #   - Tự đấu: SP_PROCS tiến trình Rapfi-CARO (thư mục engines/best – bảng cổ điển lúc đầu, mạng tốt nhất về sau) sinh ván
-#     vào data/ (mỗi lô GAMES ván, NODES nút mỗi nước; nửa số lô bắt đầu từ khai cuộc thật openings.txt).
+#     vào data/ (mỗi lô GAMES ván, ~NODES nút mỗi nước, mọi lô bắt đầu từ khai cuộc cân bằng openings.txt).
 #   - Mỗi vòng (khi có thêm ít nhất ROUND_GAMES ván): huấn luyện tiếp ITERS bước trên WINDOW file dữ liệu mới nhất → xuất
-#     mạng nets/rN.bin.lz4 → đấu với mạng tốt nhất (arena.js, ARENA_OPENINGS × 2 ván, ARENA_MS ms / nước) → điểm ≥ PROMOTE
-#     thì thay mạng tốt nhất (tự đấu dùng mạng mới từ lô sau) và đo với engine của game (boat-match.js, như README).
-#     400 ván (64 khai cuộc để riêng + 136 khai cuộc sinh cố định, × 2), ngưỡng 0,52 (≈ +14 Elo): mỗi vòng tự đấu – học
-#     chỉ hơn mạng cũ chừng +15–30 Elo, ngưỡng cũ 0,57 / 128 ván (≈ +50 Elo) loại cả 9 ứng viên 25–27/10 (50–55,5 %, gộp
-#     ~+20 Elo) nên mạng tốt nhất đứng yên, tự đấu mãi bằng mạng cũ. Mạng ngang sức lọt ngưỡng ~20% lần – vô hại (không
-#     yếu đi); mạng chắc chắn yếu hơn bị loại sớm sau nửa số ván (arena.js).
+#     mạng nets/rN.bin.lz4 → đấu với mạng tốt nhất (arena.js, tối đa ARENA_OPENINGS × 2 ván trên bộ khai cuộc cân bằng để
+#     riêng openings/arena.txt, ARENA_MS ms / nước, SPRT ARENA_SPRT) → SPRT nhận H1 (hoặc hết ván mà điểm ≥ PROMOTE) thì
+#     thay mạng tốt nhất (tự đấu dùng mạng mới từ lô sau) và đo với engine của game (boat-match.js, như README).
+#     Lịch sử: 128 ván / 57 % (đến 27/10) rồi 400 ván / 52 % trên openings.json + khai cuộc 5 quân ngẫu nhiên – bộ đó lệch
+#     (~68 % cặp chia đôi, đo 21/11/2026) nên kết quả 50–55 % của các ứng viên chỉ là nhiễu. Xem
+#     docs/nnue-caro-dieu-tra-21-11-2026.md.
 #   - Tốc độ học giảm dần: LR × LR_DECAY sau mỗi LR_EVERY vòng, không dưới LR_MIN.
 # Repo dữ liệu chung (đặt DATA_REPO, vd. https://github.com/marseraf7/caro-nnue-data.git – xem lib.sh và README):
 #   - huấn luyện thêm trên ván các trợ lý đẩy lên (worker.sh); mặc định máy này thôi tự đấu, dồn mọi lõi cho huấn luyện
@@ -48,9 +48,10 @@ LR=${LR:-0.001}
 LR_DECAY=${LR_DECAY:-0.8}
 LR_EVERY=${LR_EVERY:-5}
 LR_MIN=${LR_MIN:-0.0001}
-ARENA_OPENINGS=${ARENA_OPENINGS:-200}      # khai cuộc 32–95 của openings.json (không dùng cho tự đấu) + sinh thêm cố định, × 2 ván
+ARENA_OPENINGS=${ARENA_OPENINGS:-400}      # số khai cuộc tối đa (× 2 ván đổi bên) của bộ cân bằng để riêng openings/arena.txt
 ARENA_MS=${ARENA_MS:-300}
-PROMOTE=${PROMOTE:-0.52}
+ARENA_SPRT=${ARENA_SPRT:-0,15}            # SPRT H0 Elo ≤ 0 / H1 Elo ≥ 15 (α = β = 0,05): H1 thì thay mạng, H0 thì giữ
+PROMOTE=${PROMOTE:-0.52}                  # hết số ván mà SPRT chưa kết luận: thay khi điểm ≥ PROMOTE
 VS_OPENINGS=${VS_OPENINGS:-16}             # đo với engine của game: số khai cuộc (× 2 ván)
 LOG="$WORK/logs/progress.log"
 # Chỉ một run.sh mỗi WORK: hai bản cùng chạy sẽ cùng học tiếp / ghi đè một vòng (vd. dịch vụ + tmux quên tắt)
@@ -70,7 +71,7 @@ selfplay_worker() { # $1 = số hiệu
   while [ ! -f "$WORK/STOP" ]; do
     b=$((b + 1))
     out="$WORK/data/sp-$(date +%s)-$1-$b.binpack.lz4"; op=""
-    [ $((b % 2)) -eq 0 ] && op="$WORK/openings.txt"
+    [ -s "$WORK/openings.txt" ] && op="$WORK/openings.txt"
     # Mỗi lô đọc lại engines/best: thay mạng tốt nhất thì lô sau dùng ngay. Lỗi 3 lô liền (vd. mạng hỏng): dùng bản cổ
     # điển, cứ 10 lô thử lại best một lần
     eng=best
@@ -132,16 +133,19 @@ evaluate() {
   cp "$net" "$C/caro-nnue.bin.lz4"; node "$HERE/make-config.js" "$C" caro-nnue.bin.lz4
   # Rapfi nạp mạng hỏng thì lặng lẽ chơi bằng bảng cổ điển: phải thấy "weight loaded" mới cho đấu
   if ! net_loads "$C"; then log "$label: Rapfi-CARO không nạp được mạng $net – bỏ qua"; return; fi
-  bg bash -c 'exec node "$1/arena.js" "$2" "$3/engines/best" "$4" "$5" > "$6/arena.out" 2>> "$6/arena.err"' _ "$HERE" "$C" "$WORK" "$ARENA_OPENINGS" "$ARENA_MS" "$R"
+  # Bộ khai cuộc cân bằng để riêng (không có trong dữ liệu tự đấu) + SPRT – điều tra 21/11/2026: bộ cũ (openings.json +
+  # 5 quân ngẫu nhiên) có ~68 % cặp "mỗi bên thắng một ván cầm X", không phân biệt được hai mạng hơn kém 15–30 Elo
+  bg bash -c 'ARENA_OPENINGS_FILE="$1/openings/arena.txt" ARENA_SPRT="$7" exec node "$1/arena.js" "$2" "$3/engines/best" "$4" "$5" 0 > "$6/arena.out" 2>> "$6/arena.err"' _ "$HERE" "$C" "$WORK" "$ARENA_OPENINGS" "$ARENA_MS" "$R" "$ARENA_SPRT"
   res=$(tail -1 "$R/arena.out")
   score=$(echo "$res" | python3 -c "import json,sys; print(json.loads(sys.stdin.read())['score'])" 2> /dev/null || echo 0)
+  verdict=$(echo "$res" | python3 -c "import json,sys; print(json.loads(sys.stdin.read()).get('verdict') or '')" 2> /dev/null)
   # Elo ± 95% tính theo cặp ván đổi bên (arena.js – sprt.js)
   res="$res $(echo "$res" | python3 -c "
 import json, sys
 d = json.loads(sys.stdin.read())
 f = lambda x: '?' if x is None else f'{x:+.0f}'
-print(f'≈ {f(d.get(\"elo\"))} Elo (95%: {f(d.get(\"lo\"))}…{f(d.get(\"hi\"))})')" 2> /dev/null)"
-  if python3 -c "import sys; sys.exit(0 if float('$score') >= $PROMOTE else 1)"; then
+print(f'≈ {f(d.get(\"elo\"))} Elo (95%: {f(d.get(\"lo\"))}…{f(d.get(\"hi\"))}) · SPRT {d.get(\"verdict\") or \"chưa kết luận\"} · {d.get(\"split\")} cặp chia đôi')" 2> /dev/null)"
+  if [ "$verdict" = H1 ] || { [ -z "$verdict" ] && python3 -c "import sys; sys.exit(0 if float('$score') >= $PROMOTE else 1)"; }; then
     cp "$net" "$WORK/engines/best/caro-nnue.bin.lz4.new" && mv "$WORK/engines/best/caro-nnue.bin.lz4.new" "$WORK/engines/best/caro-nnue.bin.lz4"
     node "$HERE/make-config.js" "$WORK/engines/best" caro-nnue.bin.lz4
     cp "$net" "$WORK/nets/best.bin.lz4"; echo "$label" > "$WORK/nets/best.label"
@@ -225,7 +229,9 @@ while [ ! -f "$WORK/STOP" ]; do
     if [ $(( $(count_games) - last_games )) -lt "$ROUND_GAMES" ]; then nap 300; continue; fi
     round=$((round + 1)); R="$WORK/runs/r$round"; mkdir -p "$R/train"
     last_games=$(count_games); echo "$last_games" > "$WORK/runs/last_games"
-    data_files "$WINDOW" "${DATA_DIRS[@]}" | while read -r f; do ln -sf "$f" "$R/train/"; done
+    # Làm sạch (bỏ ván trùng sau xoay / lật và ván lỗi VALUE_NONE – clean-binpack.py) rồi chép vào R/train
+    mapfile -t files < <(data_files "$WINDOW" "${DATA_DIRS[@]}")
+    log "Vòng $round: làm sạch dữ liệu – $(python3 "$HERE/clean-binpack.py" "$R/train" "${files[@]}")"
     prev=$(ls -t "$WORK"/runs/r*/ckpts/ckpt_mix9svq_*.pt 2> /dev/null | grep -v ema | head -1)
     lr=$(python3 -c "print(max($LR_MIN, $LR * $LR_DECAY ** (($round - 1) // $LR_EVERY)))")
     python3 "$HERE/make-train-config.py" "$R" "$R/train" "$BATCH" "$ITERS" "$lr" "$prev" "$ITERS" "$TEMP_SAVE"

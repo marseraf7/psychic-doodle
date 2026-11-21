@@ -13,7 +13,13 @@ Ghi chú các tham số bắt buộc (đều đã kiểm – Laplace cũng tìm 
   - codebook_size 65536 như mạng chính thức: 16384 (mặc định) cho file sai độ dài, Rapfi không nạp
   - kmeans_init false: khởi tạo k-means xong sau vài bước làm đổi bộ chỉ số loss giữa chừng, bộ huấn luyện dừng lỗi
   - data_pipelines line_encoding: mix9svq cần đặc trưng theo đường
+Tuỳ chọn qua biến môi trường (mặc định như cũ – chưa đo, đừng bật mà không đấu chọn):
+  VALUE_LAMBDA  trộn nhãn giá trị: (1 − λ)·kết quả ván + λ·tỉ lệ thắng suy từ điểm tìm kiếm (value_td_lambda, giảm dần về
+                cuối ván). 0 = chỉ kết quả ván.
+  WINRATE_SCALE hệ số đổi điểm → tỉ lệ thắng của bộ huấn luyện (mặc định của nó 200). Điểm trong ván do Rapfi-CARO bảng cổ
+                điển sinh ra theo thang 400 (ScalingFactor của model-caro.bin, đo 21/11/2026); ván do mạng NNUE sinh: 200.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -24,9 +30,13 @@ temp_every = sys.argv[8] if len(sys.argv) > 8 and sys.argv[8] else "5000"
 val_data = sys.argv[9] if len(sys.argv) > 9 and sys.argv[9] else ""
 val_every = sys.argv[10] if len(sys.argv) > 10 and sys.argv[10] else "100000000"
 
+lam = os.environ.get("VALUE_LAMBDA", "")
+extra = ""
+if lam and float(lam) > 0:
+    extra = f", value_td_lambda: {float(lam)}, winrate_model_args: {{scaling_factor: {float(os.environ.get('WINRATE_SCALE', '400'))}}}"
 cfg = f"""rundir: {rundir}
 dataset_type: packed_binary
-dataset_args: {{rules: [caro], boardsizes: 20, apply_symmetry: true}}
+dataset_args: {{rules: [caro], boardsizes: 20, apply_symmetry: true{extra}}}
 train_datas: [{data}]
 data_pipelines: {{line_encoding: {{line_length: 11}}}}
 model_type: mix9svq

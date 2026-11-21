@@ -3,10 +3,16 @@
 Mục tiêu: BOAT luật Việt Nam thắng engine của game **trên 90%** (hiện tại, bảng đánh giá cổ điển: ~73–78% – xem
 `../README.md`). Ba luật kia mạnh nhờ mạng NNUE "mix9svq" của Rapfi; luật Việt Nam chưa có mạng nào nên phải tự luyện:
 Rapfi-CARO tự đấu sinh ván → bộ huấn luyện [pytorch-nnue-trainer](https://github.com/dhbloo/pytorch-nnue-trainer) (của tác
-giả Rapfi; tải về khi cài, thêm luật caro bằng `trainer-add-caro.py`) học mạng mix9svq → mạng mới đấu với mạng tốt nhất,
-thắng ≥ 57% trong 128 ván (khai cuộc 32–95 của `openings.json`, không có trong dữ liệu tự đấu) thì thay và tự đấu
-tiếp bằng mạng mới (càng về sau dữ liệu càng tốt); tốc độ học giảm dần theo vòng. Đã kiểm trọn vòng trên máy 4 lõi: Rapfi-CARO nạp
-và chơi được bằng mạng luyện ra.
+giả Rapfi; tải về khi cài, thêm luật caro bằng `trainer-add-caro.py`) học mạng mix9svq → mạng mới đấu với mạng tốt nhất
+trên bộ khai cuộc cân bằng để riêng `openings/arena.txt`, SPRT nhận H1 thì thay và tự đấu tiếp bằng mạng mới; tốc độ học
+giảm dần theo vòng. Đã kiểm trọn vòng trên máy 4 lõi (10/2026): Rapfi-CARO nạp và chơi được bằng mạng luyện ra.
+
+> **Điều tra 21/11/2026** (`docs/nnue-caro-dieu-tra-21-11-2026.md`): các lần luyện 10/2026 không ra mạng tốt chủ yếu vì
+> **dữ liệu hỏng**, không phải vì bộ huấn luyện: (1) ~6 % ván bị xử thua sai khi Rapfi-CARO chưa xong độ sâu 1 (điểm
+> VALUE_NONE) và ghi một nước vô nghĩa – sửa bằng `rapfi-caro-selfplay.patch`; (2) tự đấu số nút cố định là tất định,
+> nửa số lô từ sách ~600 thế gần như toàn ván trùng – nay số nút ngẫu nhiên + 6.409 khai cuộc cân bằng; (3) khai cuộc
+> lệch (X thắng 67–74 %) làm đấu chọn chỉ còn nhiễu (68 % cặp chia đôi) – nay bộ cân bằng + SPRT. Dữ liệu cũ trong repo
+> dữ liệu nên bỏ (hoặc ít nhất qua `clean-binpack.py`); lần chạy tới: mục "Lần chạy tới" dưới.
 
 ## Cần gì
 
@@ -85,10 +91,12 @@ mạng vừa xuất, bỏ dữ liệu ván và điểm kiểm tra cũ) để Kag
   vào học): đó mới là thước đo. Kaggle chấm val_loss mỗi lần lưu điểm kiểm tra; 2 lần liền không tốt hơn thì **dừng sớm**
   (học thêm chỉ phí giờ GPU) và xuất mạng ở điểm có val_loss thấp nhất; phiên sau học tiếp từ điểm đó.
   `progress.log` ghi cả hai: `loss giá trị 0.30 · val 0.58 (dừng sớm)`.
-- **Đấu chọn 400 ván, ngưỡng 52 %** (≈ +14 Elo; trước 27/10: 128 ván / 57 %). Mỗi vòng tự đấu – học thường chỉ hơn mạng
-  cũ +15–30 Elo; ngưỡng cũ (≈ +50 Elo) loại cả 9 ứng viên 25–27/10 (50–55,5 %, gộp lại ~+20 Elo) nên mạng tốt nhất đứng
-  yên và tự đấu mãi bằng mạng cũ. Log ghi Elo ± 95% tính theo cặp ván, vd. `≈ +21 Elo (95%: -3…+45)`; mạng chắc chắn yếu
-  hơn bị loại sớm sau nửa số ván. Muốn đấu lại một mạng Kaggle theo cách mới: xoá `~/caro-nnue/runs/cand-<nhãn>`.
+- **Đấu chọn: SPRT [0, 15] trên `openings/arena.txt`** (406 khai cuộc cân bằng, không có trong dữ liệu tự đấu, mỗi thế 2 ván
+  đổi bên, tối đa `ARENA_OPENINGS` = 400 cặp, 300 ms / nước): nhận H1 thì thay mạng, H0 thì giữ; hết ván chưa kết luận thì
+  thay khi điểm ≥ 52 %. Log ghi Elo ± 95 % theo cặp, kết luận SPRT và số cặp "chia đôi" (mỗi bên thắng một ván cầm X – càng
+  nhiều thì khai cuộc càng lệch). Trước 21/11: 128 ván / 57 % rồi 400 ván / 52 % trên `openings.json` + khai cuộc 5 quân
+  ngẫu nhiên – bộ đó 68 % cặp chia đôi nên các kết quả 50–55,5 % của 9 ứng viên 25–27/10 chỉ là nhiễu. Muốn đấu lại một
+  mạng Kaggle theo cách mới: xoá `~/caro-nnue/runs/cand-<nhãn>`.
 - **Kaggle học tiếp** (Add Input = phiên trước) mặc định tốc độ học 0.0003 thay vì 0.001 (0.001 làm val_loss tăng vọt sau
   vài nghìn bước); đặt `%env LR=…` để đổi.
 - train_loss giảm mạnh mà val_loss / đấu chọn đứng yên = **thiếu ván mới**, không phải lỗi: thêm ván tự đấu (mục dưới)
@@ -156,11 +164,25 @@ Sau đó Claude đo lại (bản WebAssembly như trên điện thoại), dựng
 | `make-train-config.py` | `config.yaml` của bộ huấn luyện (mix9svq) – dùng chung cho máy luyện và Kaggle |
 | `trainer-add-caro.py` | Thêm luật caro vào bộ huấn luyện (mã luật 7 trong dữ liệu, bit 8 trong file mạng) |
 | `make-config.js` | `config.toml` cho Rapfi-CARO (giống app: `caro/rapfi/worker.js`), có / không mạng NNUE |
-| `make-openings.js` | Khai cuộc cho tự đấu: sách luật Việt Nam, ván Gomocup (tuỳ chọn); loại mọi thế trùng `openings.json` (bộ đo) |
-| `arena.js` | Đấu hai bản Rapfi-CARO (khai cuộc 32+; 0–31 để dành đo với engine của game) |
+| `make-openings.js` | Khai cuộc: sách luật Việt Nam, ván Gomocup, khai cuộc ngẫu nhiên quanh tâm (`RANDOM`, `SEED`); loại thế trùng `openings.json` và `EXCLUDE` |
+| `balance-openings.js` | Lọc khai cuộc cân bằng bằng Rapfi-CARO (giữ \|điểm\| ≤ cửa sổ) |
+| `openings/selfplay.txt`, `openings/arena.txt` | Bộ khai cuộc cân bằng dựng sẵn: tự đấu (setup.sh chép vào `~/caro-nnue/openings.txt`) và đấu chọn (để riêng) |
+| `openings-lib.js` | Hàm chung: chuỗi thế ↔ nước, dời vào giữa bàn, khai cuộc ngẫu nhiên |
+| `rapfi-caro-selfplay.patch` | Bản vá tự đấu (chỉ bản dựng luyện mạng): VALUE_NONE → tìm lại ×4 nút, vẫn không có thì bỏ ván |
+| `clean-binpack.py` | Làm sạch dữ liệu: bỏ ván trùng (sau xoay / lật), ván lỗi VALUE_NONE, khác luật / cỡ bàn (kaggle-train.py, run.sh tự gọi) |
+| `arena.js` | Đấu hai bản Rapfi-CARO (`ARENA_OPENINGS_FILE`, `ARENA_SPRT`; không đặt file thì bộ cũ: khai cuộc 32+ của `openings.json`) |
 
-## Công cụ thêm (C6, 21/11/2026)
+## Lần chạy tới (sau điều tra 21/11/2026)
 
-- `selfplay-vn.js` – tự đấu luật Việt Nam bằng Rapfi-CARO WebAssembly của app (không cần dựng bản gốc), ghi điểm tìm kiếm `ev`;
-  `EVAL=1 node ../games-to-binpack.js` ghi điểm đó vào `.binpack`.
-- `sprt.js` – Elo ± 95 % và SPRT cho đấu chọn. Kế hoạch đầy đủ + số đo: `docs/nnue-caro-ke-hoach.md`.
+Chi tiết, số đo và lý do: `docs/nnue-caro-dieu-tra-21-11-2026.md` (thay cho `docs/nnue-caro-ke-hoach.md` của đợt C6).
+
+1. Mọi máy: `git pull && bash server/scripts/rapfi/caro/nnue/setup.sh` (dựng lại Rapfi-CARO có bản vá tự đấu, chép bộ khai
+   cuộc cân bằng). Trợ lý: `setup.sh --engine-only` tự chạy trong `worker.sh`.
+2. Repo dữ liệu: chuyển `data/` cũ sang `old/` (không học nữa), xoá `best/` – tự đấu thế hệ 0 bằng **bảng cổ điển c4**
+   (nhanh ~60 ván / phút / lõi ở 40.000 nút, đo 21/11; mạng cũ học từ dữ liệu hỏng, không dùng).
+3. Thế hệ 0: **≥ 1.000.000 ván** (~35 triệu thế) – vd. 3 notebook Kaggle CPU × 11 giờ + máy luyện `TRAIN=0`.
+4. Kaggle GPU **phiên mới, không Add Input** (điểm kiểm tra cũ học trên dữ liệu hỏng): `%env WINDOW=6000` rồi chạy
+   `kaggle-train.py` như trên (`CLEAN=1` mặc định, lô 256, LR 0.001, dừng sớm theo val_loss).
+5. Nhận mạng: máy luyện đấu chọn với bảng cổ điển (SPRT [0, 15], `openings/arena.txt`, 300 ms / nước). Chỉ khi nhận H1 mới
+   tự đấu bằng mạng đó (thế hệ 1, thêm ≥ 1.000.000 ván) rồi luyện tiếp. Ghi vào báo cáo: số ván trước / sau làm sạch,
+   val_loss từng điểm kiểm tra, W / D / L, LLR, Elo ± 95 %, số cặp chia đôi.

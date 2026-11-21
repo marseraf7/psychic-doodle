@@ -31,13 +31,16 @@ if ! command -v node > /dev/null || [ "$(node -p 'process.versions.node.split(".
   $SUDO apt-get install -y nodejs
 fi
 
-say "2/5 Dựng Rapfi-CARO bản gốc (gói nguồn Rapfi kèm repo + bản vá luật Việt Nam)"
-# Dựng lại khi bản vá đổi (sau git pull) – so SHA-256 của gói nguồn + bản vá với lần dựng trước
-SRC_SHA=$(cat "$ROOT/caro/rapfi/build/rapfi-src-3c94c2a.tar.gz" "$ROOT/caro/rapfi/build/rapfi-caro.patch" | sha256sum | cut -d' ' -f1)
+say "2/5 Dựng Rapfi-CARO bản gốc (gói nguồn Rapfi kèm repo + bản vá luật Việt Nam + bản vá tự đấu)"
+# Dựng lại khi bản vá đổi (sau git pull) – so SHA-256 của gói nguồn + hai bản vá với lần dựng trước.
+# rapfi-caro-selfplay.patch (chỉ cho bản dựng luyện mạng, không vào app): thế mà Rapfi-CARO chưa xong độ sâu 1 trong số nút
+# cho phép (điểm VALUE_NONE) thì tìm lại với số nút ×4 thay vì xử thua bên tới lượt và ghi một nước vô nghĩa (21/11/2026).
+SRC_SHA=$(cat "$ROOT/caro/rapfi/build/rapfi-src-3c94c2a.tar.gz" "$ROOT/caro/rapfi/build/rapfi-caro.patch" \
+  "$HERE/rapfi-caro-selfplay.patch" | sha256sum | cut -d' ' -f1)
 if [ ! -x "$WORK/bin/pbrain-rapfi" ] || [ "$(cat "$WORK/bin/source.sha256" 2> /dev/null)" != "$SRC_SHA" ]; then
   SRC="$(mktemp -d)"
   tar xzf "$ROOT/caro/rapfi/build/rapfi-src-3c94c2a.tar.gz" -C "$SRC" --strip-components=1
-  (cd "$SRC" && patch -s -p1 < "$ROOT/caro/rapfi/build/rapfi-caro.patch")
+  (cd "$SRC" && patch -s -p1 < "$ROOT/caro/rapfi/build/rapfi-caro.patch" && patch -s -p1 < "$HERE/rapfi-caro-selfplay.patch")
   # Native: tối ưu cho đúng CPU của máy này (AVX2 / AVX512 nếu có)
   (cd "$SRC/Rapfi" && CC=clang CXX=clang++ cmake --preset x64-clang-Native > "$WORK/logs/build-rapfi.log" 2>&1 &&
     cmake --build build/x64-clang-Native -j"$(nproc)" >> "$WORK/logs/build-rapfi.log" 2>&1) ||
@@ -57,7 +60,9 @@ for e in classic best; do
     node "$HERE/make-config.js" "$WORK/engines/$e"
   fi
 done
-node "$HERE/make-openings.js" "$WORK/openings.txt"
+# Khai cuộc tự đấu: bộ cân bằng dựng sẵn trong repo (make-openings.js + balance-openings.js – README), không trùng bộ đấu
+# chọn openings/arena.txt
+cp "$HERE/openings/selfplay.txt" "$WORK/openings.txt"
 
 if [ $ENGINE_ONLY = 1 ]; then
   printf 'START 20\nINFO rule 8\nINFO timeout_turn 300\nBEGIN\nEND\n' | (cd "$WORK/engines/classic" && timeout 30 ./pbrain-rapfi) | grep -E '^[0-9]+,[0-9]+$' > /dev/null &&
