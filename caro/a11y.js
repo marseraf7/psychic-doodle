@@ -30,6 +30,7 @@
   let cur = null; // [x, y] ô đang chọn
   let used = false; // đã dùng bàn phím / chế độ không nhìn bàn ở phiên này → đọc nước mới
   let seen = -1; // số nước đã đọc
+  let kbMode = false; // đang dùng bàn phím (Tab / phím) – bấm chuột / chạm thì ẩn khung viền, không làm phiền người dùng chuột
 
   // ------------------------------------------------------------ Vùng đọc, khung con trỏ, khung không nhìn bàn
   const live = document.createElement('div');
@@ -74,7 +75,7 @@
 
   /** Vẽ khung viền lên ô đang chọn (theo toạ độ màn hình – bàn đã dời / phóng / quay vẫn đúng). */
   function placeRing() {
-    const show = !!cur && boardOn() && !set.blind && (set.kb || document.activeElement === canvas);
+    const show = !!cur && boardOn() && !set.blind && (set.kb || (document.activeElement === canvas && kbMode));
     ring.hidden = !show;
     if (!show) return;
     const [sx, sy] = app().screenOf(cur[0], cur[1]);
@@ -236,6 +237,8 @@
     const cursorOn = set.kb || set.blind || document.activeElement === canvas;
     const k = e.key;
     const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+    // Gõ phím trên bàn đang được chọn (kể cả khi bàn được chọn bằng chuột trước đó): bật chế độ bàn phím, có ô đang chọn
+    if (cursorOn && !st.replay && (/^Arrow/.test(k) || k === 'Enter' || k === ' ') && (document.activeElement === canvas || set.kb || set.blind)) { kbMode = true; if (!cur) startCursor(); }
     if (/^Arrow/.test(k) && cursorOn && !st.replay) { stop(); return moveCursor(k, e.shiftKey); }
     if ((k === 'Enter' || k === ' ') && cursorOn && !st.replay && document.activeElement !== document.body && document.activeElement !== canvas) return; // nút đang được chọn: để nút tự xử lý
     if ((k === 'Enter' || k === ' ') && cursorOn && !st.replay && cur) { stop(); return playAt(cur[0], cur[1]); }
@@ -251,7 +254,9 @@
     }[k.length === 1 ? k.toLowerCase() : k];
     if (act && !(st.replay && k !== '?')) { stop(); act(); }
   }, true);
-  canvas.addEventListener('focus', () => { startCursor(); announce(cellText(cur[0], cur[1])); });
+  // Chọn bàn bằng Tab (focus-visible) mới hiện khung + đọc ô; bấm chuột vào bàn chỉ là đánh như thường
+  canvas.addEventListener('focus', () => { if (!canvas.matches(':focus-visible')) return; kbMode = true; startCursor(); announce(cellText(cur[0], cur[1])); });
+  window.addEventListener('pointerdown', () => { if (kbMode) { kbMode = false; placeRing(); } }, true);
   canvas.addEventListener('blur', placeRing);
   window.addEventListener('caro:page', () => { live.textContent = ''; setTimeout(placeRing, 0); }); // trang khác: bỏ thông báo cũ của bàn cờ
   window.addEventListener('langchange', () => { if (set.blind) buildPanel(); });

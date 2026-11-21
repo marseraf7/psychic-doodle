@@ -130,7 +130,8 @@ const { audit } = require('./ui-audit');
   const first = room.actor === a.uid ? a : b;
   const second = first === a ? b : a;
   for (const q of [first, second]) { await q.evaluate(() => window.CaroApp.toBoard()); await sleep(200); }
-  await second.focus('#board'); // người kia cũng dùng bàn phím → được đọc nước đối thủ
+  await second.focus('#board'); // người kia cũng dùng bàn phím (K: đọc ô đang chọn) → được đọc nước đối thủ
+  await second.keyboard.press('k');
   await first.focus('#board');
   await first.keyboard.press('Enter');
   await waitLive(second, /X đánh h8/, 'online: người kia nghe "X đánh h8"');

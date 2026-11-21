@@ -13,7 +13,7 @@
   const esc = App.esc;
   const $ = (id) => document.getElementById(id);
   const S = N.state;
-  const POOLS = ['bullet', 'blitz', 'rapid', 'classical'];
+  const POOLS = ['bullet', 'blitz', 'rapid', 'classical', 'corr']; // corr: Chơi theo lượt (C1)
 
   let profile = null, chartPool = null;
   function openProfile(id, username) {
@@ -25,7 +25,7 @@
   N.on('profile', (m) => {
     profile = m.profile;
     // Biểu đồ: loại thời gian chơi nhiều nhất có dữ liệu
-    chartPool = POOLS.filter((p) => (profile.history[p] || []).length).sort((a, b) => profile.pools[b].n - profile.pools[a].n)[0] || profile.main;
+    chartPool = POOLS.filter((p) => (profile.history[p] || []).length && profile.pools[p]).sort((a, b) => profile.pools[b].n - profile.pools[a].n)[0] || profile.main;
     renderProfile();
   });
   const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang]);
@@ -120,13 +120,15 @@
     const st = p.stats || { wins: 0, losses: 0, draws: 0 };
     const total = st.wins + st.losses + (st.draws || 0);
     const pct = (n) => (total ? Math.round((n / total) * 100) : 0);
-    const pools = POOLS.map((k) => {
+    // Theo lượt (corr): chỉ hiện khi đã chơi – lưới 4 ô giữ gọn với người chưa chơi
+    const shown = POOLS.filter((k) => p.pools[k] && (k !== 'corr' || p.pools[k].n));
+    const pools = shown.map((k) => {
       const x = p.pools[k];
       // Điểm tạm: chú thích ngay ở số điểm (title) và một dòng ghi chú dưới hàng điểm (loi-01)
       return `<button type="button" class="pf-pool${k === chartPool ? ' on' : ''}" data-pool="${k}"${x.prov ? ` title="${esc(T('profile_prov_note'))}"` : ''}>
         <small>${esc(T('pool_' + k))}</small><b>${x.r}${x.prov ? '?' : ''}</b><small>${esc(T('lb_games', { n: x.n }))}</small></button>`;
     }).join('');
-    const anyProv = POOLS.some((k) => p.pools[k].prov);
+    const anyProv = shown.some((k) => p.pools[k].prov);
     const recent = (p.recent || []).map((g) => `<li>
         <span class="res ${esc(g.result)}">${esc(T('res_' + g.result))}</span>
         <div class="pn"><b>${esc(T('vs', { name: g.opponent || T('deleted_player') }))}</b>
