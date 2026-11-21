@@ -15,7 +15,8 @@ Microsoft Terminology Collection; quy ước dịch thuật ngữ cờ của FID
 - **LanguageTool** (mã nguồn mở, LGPL): mặc định gọi máy chủ công khai `api.languagetool.org` (giới hạn 20 lần/phút, công
   cụ tự chia nhỏ và chờ). Muốn chạy riêng: `docker run -p 8010:8010 erikvl87/languagetool` rồi thêm
   `--server http://localhost:8010`. Báo cáo có nhiều chỗ báo nhầm (tên khai cuộc tiếng Nhật, tên riêng, viết tắt cột như
-  `BH`, `Поб`): chỉ sửa lỗi thật.
+  `BH`, `Поб`): chỉ sửa lỗi thật. Báo nhầm đã soát thì thêm vào `server/scripts/i18n-lt-allow.json` (`rules`: tắt hẳn một quy
+  tắc cho một ngôn ngữ; `words`: từ đúng; `skip`: `ngôn-ngữ.khoá.QUY_TẮC`) để lần sau báo cáo chỉ còn chỗ mới.
 - LanguageTool **chưa hỗ trợ tiếng Việt**. Tiếng Việt được giữ chất lượng bằng bài thử (kiểu dấu thanh, thuật ngữ) và bảng
   thuật ngữ dưới đây.
 - Bài thử `i18n-quality` bắt: thiếu khoá ở một ngôn ngữ, biến `{x}` lệch giữa các ngôn ngữ, khoá trùng tên giữa hai file

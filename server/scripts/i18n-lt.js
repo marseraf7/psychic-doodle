@@ -17,6 +17,10 @@ const OFF = ['UPPERCASE_SENTENCE_START', 'PUNCTUATION_PARAGRAPH_END', 'WHITESPAC
   'ARROWS', 'MULTIPLICATION_SIGN', 'PLUS_MINUS', 'DOUBLE_PUNCTUATION', 'EN_UNPAIRED_BRACKETS', 'UNPAIRED_BRACKETS', 'RU_UNPAIRED_BRACKETS',
   'Cap_Letters_Name', 'TOO_LONG_SENTENCE', 'SENTENCE_WHITESPACE'];
 // Tên riêng / thuật ngữ cờ – không báo sai chính tả
+// Danh sách báo nhầm đã soát (tên khai cuộc, tên nhân vật, thuật ngữ thể thao…): server/scripts/i18n-lt-allow.json
+//   { "rules": { "en": ["QUY_TẮC"] }, "words": { "en": ["từ", "^mẫu.*"] }, "skip": ["en.khoá.QUY_TẮC"] }
+const ALLOW = JSON.parse(fs.readFileSync(require('path').join(__dirname, 'i18n-lt-allow.json'), 'utf8'));
+const allowWord = (lang, w) => (ALLOW.words[lang] || []).some((p) => new RegExp('^(?:' + p + ')$', 'u').test(w));
 const NAMES = /^(Caro|Gomoku|Renju|Glicko|Lichess|Challonge|MyLeague|Rapfi|Buchholz|Sonneborn|Berger|Koya|FIDE|Elo|Bo\d+|Swiss|PDF|PNG|URL|API|Muse|Gemini|DeepSeek|OpenRouter|Anthropic|OpenAI|Zalo|Messenger|Gomocup|VCF|VCT|NNUE|ARO|TPR|APRO|SB|BH)/;
 
 const args = process.argv.slice(2);
@@ -43,7 +47,8 @@ function chunks(dict) {
 }
 
 async function check(lang, text) {
-  const body = new URLSearchParams({ text, language: CODE[lang], disabledRules: OFF.join(','), level: 'default' });
+  const off = [...OFF, ...(ALLOW.rules[lang] || [])];
+  const body = new URLSearchParams({ text, language: CODE[lang], disabledRules: off.join(','), level: 'default' });
   for (let n = 0; n < 4; n++) {
     const res = await fetch(SERVER + '/v2/check', { method: 'POST', body, signal: AbortSignal.timeout(60000) }).catch(() => null);
     if (res && res.ok) return (await res.json()).matches || [];
@@ -65,7 +70,8 @@ async function check(lang, text) {
         const sp = c.spans.find((x) => m.offset >= x.at && m.offset < x.at + x.len);
         if (!sp) continue;
         const word = sp.s.substr(m.offset - sp.at, m.length);
-        if (m.rule.issueType === 'misspelling' && NAMES.test(word)) continue;
+        if (m.rule.issueType === 'misspelling' && (NAMES.test(word) || /[À-ɏḀ-ỿ]/.test(word) || allowWord(lang, word))) continue; // tên riêng tiếng Việt
+        if (ALLOW.skip.includes(`${lang}.${sp.k}.${m.rule.id}`)) continue;
         found.push({ k: sp.k, word, msg: m.message, fix: (m.replacements || []).slice(0, 3).map((r) => r.value), rule: m.rule.id, s: sp.s });
       }
       if (WAIT) await sleep(WAIT);

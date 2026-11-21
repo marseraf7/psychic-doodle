@@ -111,7 +111,7 @@
     more_play: 'Play',
     more_tools: 'Tools',
     more_community: 'Community',
-    more_about: 'Caro x Gomoku is made with love for Vietnamese caro and Gomoku players everywhere.',
+    more_about: 'Caro x Gomoku is made with love for Vietnamese Caro and Gomoku players everywhere.',
 
     set_sound: 'Sound',
     set_look: 'Appearance',
