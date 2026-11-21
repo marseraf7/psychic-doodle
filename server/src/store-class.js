@@ -39,7 +39,8 @@ class ClassStore {
     const pick = (rows) => rows.map((r) => { try { const s = JSON.parse(r.data); return { id: s.id, title: s.title, ownerName: s.ownerName, owner: s.owner, vis: s.vis, club: s.club || null, clubName: s.clubName || null, chapters: s.chapters.length, updated: s.updated }; } catch (e) { return null; } }).filter(Boolean);
     const mine = uid ? pick(db.prepare('SELECT data FROM class_studies WHERE owner = ? ORDER BY updated DESC LIMIT 100').all(uid)) : [];
     const pub = pick(db.prepare("SELECT data FROM class_studies WHERE vis = 'public' ORDER BY updated DESC LIMIT ?").all(limit));
-    const club = clubs.length ? pick(db.prepare(`SELECT data FROM class_studies WHERE club IN (${clubs.map(() => '?').join(',')}) ORDER BY updated DESC LIMIT ?`).all(...clubs, limit)) : [];
+    // Chỉ bài đang để "Lớp của CLB": bài CLB đã chuyển riêng tư / link không hiện tên trong danh sách của thành viên
+    const club = clubs.length ? pick(db.prepare(`SELECT data FROM class_studies WHERE vis = 'club' AND club IN (${clubs.map(() => '?').join(',')}) ORDER BY updated DESC LIMIT ?`).all(...clubs, limit)) : [];
     return { mine, pub, club };
   }
 

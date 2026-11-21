@@ -113,8 +113,13 @@ class Classroom {
   }
 
   on_clsChapter(conn, { id, idx, chapter } = {}) {
-    const { s } = this.clsMine(conn, id);
     this.throttle(conn, 'clsChapter', 150);
+    this.clsChapterSave(conn, id, idx, chapter);
+  }
+
+  /** Lưu một chương (đã qua giới hạn tần suất ở nơi gọi). */
+  clsChapterSave(conn, id, idx, chapter) {
+    const { s } = this.clsMine(conn, id);
     if (!Number.isInteger(idx) || idx < 0 || idx > s.chapters.length || idx >= MAX_CHAPTERS) throw E('bad_message');
     const ch = Tree.clean(chapter, cleanRich);
     if (!ch.name) ch.name = String(idx + 1);
@@ -124,21 +129,28 @@ class Classroom {
 
   /**
    * Chương lớn hơn một tin WebSocket (16 KB – server.js maxPayload): máy khách chia JSON thành nhiều phần ≤ PART ký tự
-   * (k = số thứ tự, n = tổng số phần); đủ phần thì ghép lại và lưu như clsChapter. Mỗi kết nối giữ một chương đang ghép.
+   * (k = số thứ tự, n = tổng số phần); đủ phần thì ghép lại và lưu như clsChapter. Mỗi kết nối giữ một chương đang ghép
+   * (tối đa MAX_PARTS × PART ký tự, mất khi đóng kết nối hoặc khi bắt đầu chương khác).
+   * Giới hạn tần suất + kiểm chủ bài (đọc cả bài từ CSDL) chỉ một lần mỗi chương ghép mới, không phải mỗi phần: trước đây
+   * mỗi phần đọc + giải JSON cả bài (tới 512 KB), và gửi n = 1 liên tục thì lưu chương không qua giới hạn clsChapter.
    */
   on_clsChapterPart(conn, { id, idx, k, n, d } = {}) {
-    this.clsMine(conn, id);
     if (!Number.isInteger(n) || n < 1 || n > MAX_PARTS || !Number.isInteger(k) || k < 0 || k >= n || typeof d !== 'string' || d.length > PART) throw E('bad_message');
     const key = id + ':' + idx;
-    if (!conn.clsBuf || conn.clsBuf.key !== key || conn.clsBuf.n !== n) conn.clsBuf = { key, n, parts: [] };
-    conn.clsBuf.parts[k] = d;
-    if (conn.clsBuf.parts.filter((x) => typeof x === 'string').length < n) return;
-    const text = conn.clsBuf.parts.join('');
+    if (!conn.clsBuf || conn.clsBuf.key !== key || conn.clsBuf.n !== n) {
+      conn.clsBuf = null;
+      this.throttle(conn, 'clsChapter', 150); // chung lượt với clsChapter: một chương mỗi 150 ms dù gửi cả hay chia phần
+      this.clsMine(conn, id);
+      conn.clsBuf = { key, n, parts: [], got: 0 };
+    }
+    const buf = conn.clsBuf;
+    if (typeof buf.parts[k] !== 'string') buf.got++;
+    buf.parts[k] = d;
+    if (buf.got < n) return;
     conn.clsBuf = null;
     let chapter;
-    try { chapter = JSON.parse(text); } catch (e) { throw E('bad_message'); }
-    conn.throttle = { ...(conn.throttle || {}), clsChapter: 0 }; // phần cuối không bị chặn "quá nhanh"
-    this.on_clsChapter(conn, { id, idx, chapter });
+    try { chapter = JSON.parse(buf.parts.join('')); } catch (e) { throw E('bad_message'); }
+    this.clsChapterSave(conn, id, idx, chapter);
   }
 
   on_clsChapterDel(conn, { id, idx } = {}) {

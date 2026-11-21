@@ -121,8 +121,50 @@ test('Lớp của CLB: chỉ chủ / quản lý CLB tạo được, chỉ thành
   mem.send({ t: 'clsList' });
   await until(() => last(mem, 'clsList'));
   assert.ok(last(mem, 'clsList').club.some((x) => x.id === id && x.clubName === 'CLB Thử'));
+  // Chủ bài chuyển riêng tư: thành viên CLB không còn thấy tên bài trong danh sách
+  own.send({ t: 'clsMeta', id, vis: 'private' });
+  await until(() => hub.store.clsGet(id).vis === 'private');
+  const nl = mem.msgs.filter((m) => m.t === 'clsList').length;
+  await new Promise((r) => setTimeout(r, 350));
+  mem.send({ t: 'clsList' });
+  await until(() => mem.msgs.filter((m) => m.t === 'clsList').length > nl);
+  assert.ok(!last(mem, 'clsList').club.some((x) => x.id === id), 'bài riêng tư không hiện trong danh sách CLB');
   hub.store.clsUserGone(uidOf(own));
   assert.strictEqual(hub.store.clsGet(id), null);
   hub.clubs.delete(club.id);
   [own, mem, out].forEach((c) => c.close());
+});
+
+test('Lớp học: chia phần không vượt giới hạn tần suất lưu chương, không đọc lại cả bài mỗi phần', async () => {
+  const hub = ctx.app.hub;
+  const t = await account();
+  hub.T.THROTTLE_SCALE = 0;
+  const id = await create(t, { title: 'Bài chia phần', vis: 'unlisted' });
+  hub.T.THROTTLE_SCALE = 1;
+  const realGet = hub.store.clsGet;
+  let reads = 0;
+  hub.store.clsGet = function (...a) { reads++; return realGet.apply(this, a); };
+  try {
+    // Gửi liên tục chương 1 phần (n = 1): chỉ lần đầu được lưu, các lần sau "quá nhanh" (như clsChapter)
+    const n0 = errs(t).length;
+    for (let i = 0; i < 10; i++) t.send({ t: 'clsChapterPart', id, idx: 0, k: 0, n: 1, d: JSON.stringify({ name: 'Lần ' + i }) });
+    await until(() => errs(t).length - n0 >= 9);
+    assert.strictEqual(errs(t).slice(n0).filter((e) => e === 'too_fast').length, 9, 'n = 1 liên tục không lưu 10 lần');
+    assert.strictEqual(hub.store.clsGet.call(hub.store, id).chapters[0].name, 'Lần 0');
+    // Một chương nhiều phần: kiểm chủ bài một lần lúc bắt đầu + một lần lúc lưu, không phải mỗi phần
+    await new Promise((r) => setTimeout(r, 200));
+    const big = { name: 'Nhiều phần', root: { ch: [{ m: [0, 0], c: 'q'.repeat(1900), ch: [] }] } };
+    let node = big.root.ch[0];
+    for (let i = 1; i < 40; i++) { const k = { m: [i % 20, Math.floor(i / 20) * 2 + 1], c: 'q'.repeat(1900), ch: [] }; node.ch.push(k); node = k; }
+    const text = JSON.stringify(big), P = 12000, n = Math.ceil(text.length / P);
+    assert.ok(n >= 6);
+    reads = 0;
+    for (let k = 0; k < n; k++) t.send({ t: 'clsChapterPart', id, idx: 0, k, n, d: text.slice(k * P, (k + 1) * P) });
+    await until(() => realGet.call(hub.store, id).chapters[0].name === 'Nhiều phần', 5000);
+    assert.ok(reads <= 3, 'đọc bài ' + reads + ' lần cho ' + n + ' phần');
+  } finally {
+    hub.store.clsGet = realGet;
+    hub.T.THROTTLE_SCALE = 0;
+    t.close();
+  }
 });
