@@ -29,6 +29,11 @@ class ProgressStore {
     return week;
   }
 
+  /** Số lượt Storm đã kiểm của uid từ thời điểm since (ms) – trần lượt / ngày không mất khi máy chủ khởi động lại. */
+  stormRunsSince(uid, since) {
+    return this.db.prepare('SELECT COUNT(*) AS n FROM storm_runs WHERE uid = ? AND at >= ?').get(uid, since).n;
+  }
+
   stormPrune(now = Date.now()) {
     this.db.prepare('DELETE FROM storm_runs WHERE week < ?').run(P.weekKey(now - RUNS_KEEP_WEEKS * 7 * 86400000));
   }

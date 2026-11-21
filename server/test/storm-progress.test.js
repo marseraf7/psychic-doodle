@@ -164,6 +164,22 @@ test('máy chủ: đồng bộ tiến độ, Storm có kiểm, bảng tuần, AP
   a.close(); b.close();
 });
 
+test('Storm: trần lượt / ngày tính cả lượt đã nộp trong storm_runs (khởi động lại máy chủ không đặt lại bộ đếm)', async () => {
+  const hub = ctx.app.hub;
+  const c = await account();
+  const uc = [...hub.store.users.values()].at(-1);
+  for (let i = 0; i < 100; i++) hub.store.stormAdd(uc.id, 1);
+  hub.stormDaily().clear(); // như vừa khởi động lại: bộ đếm trong bộ nhớ rỗng
+  const err = await c.req({ t: 'stormStart' }, 'error');
+  assert.strictEqual(err.code, 'storm_limit');
+  // Lượt của hôm qua (giờ UTC) không tính
+  hub.store.db.prepare('UPDATE storm_runs SET at = at - 86400000 WHERE uid = ?').run(uc.id);
+  await new Promise((r) => setTimeout(r, 5100)); // giới hạn 5 giây / lượt của kết nối
+  assert.ok((await c.req({ t: 'stormStart' }, 'stormRun')).run);
+  hub.store.deleteUser(uc);
+  c.close();
+});
+
 test('hồ sơ công khai: chuỗi ngày / huy hiệu tự báo bị giới hạn (ngày tương lai, chuỗi vô lý, huy hiệu tài khoản chưa đạt)', async () => {
   const hub = ctx.app.hub;
   const a = await account();
