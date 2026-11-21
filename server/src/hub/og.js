@@ -2,7 +2,7 @@
  * Dữ liệu cho thẻ xem trước link chia sẻ (A3 – Zalo / Messenger): web.js hỏi ogInfo(tham số link) khi trả trang chính,
  * og-meta.js dựng chữ + HTML. Chỉ trả đúng phần KHÁCH CHƯA ĐĂNG NHẬP xem được (cùng luật kiểm quyền với trang thật):
  *   ?replay=<mã> ván đã lưu · ?room=<mã> ván đang đấu xem được (công khai / ghép nhanh) hoặc lời mời phòng (chỉ mã phòng,
- *   không lộ tên người trong phòng riêng) · ?t= giải đấu · ?o= giải Offline · ?club= CLB · ?u=<tên đăng nhập> hồ sơ.
+ *   không lộ tên người trong phòng riêng) · ?t= giải đấu · ?o= giải Offline · ?club= CLB · ?u=<tên đăng nhập> hồ sơ · ?bc= tường thuật giải (C3).
  * Không tìm thấy / không được xem → null (trang chính giữ thẻ mặc định, không lộ là có tồn tại).
  */
 'use strict';
@@ -30,6 +30,11 @@ class Og {
         return { info: { kind: 'live', x: nm(1), o: nm(2), n: room.board.moves.length }, url, image: `/api/og/room/${code}.png` };
       }
       return { info: { kind: 'room', code }, url, image: '/api/og/card.png' };
+    }
+    if ((v = get('bc'))) { // Tường thuật giải đấu (C3 – broadcast.js): giải trực tuyến hoặc "o.<mã>" giải Offline
+      const d = this.bcData(v);
+      if (!d) return null;
+      return { info: { kind: 'bc', name: d.name, n: d.kind === 'tour' ? d.boards.length : 0 }, url: '/?bc=' + v, image: '/api/og/card.png' };
     }
     if ((v = get('t'))) {
       const t = this.tours.get(v) || this.tourBySlug(v);

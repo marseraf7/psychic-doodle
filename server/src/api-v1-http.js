@@ -47,6 +47,7 @@ function makeApiV1({ hub, hit, clientIp, origin }) {
     [/^\/tournament\/([0-9a-f]{6,20})$/, (m) => hub.v1Tour(m[1]), 10],
     [/^\/tournament\/([0-9a-f]{6,20})\/standings$/, (m) => hub.v1Standings(m[1]), 10],
     [/^\/leaderboard$/, (m, q) => hub.v1Leaderboard(q.get('pool')), 60],
+    [/^\/broadcast\/((?:o\.)?[\w-]{1,40})$/, (m) => hub.bcData(m[1]), 5],
     [/^\/puzzle\/daily$/, (m, q) => hub.v1Puzzle(q.get('date')), 600],
     [/^\/openapi\.json$/, (m, q, req) => (spec && spec.base === origin(req) ? spec.body : (spec = { base: origin(req), body: openapi(origin(req)) }).body), 3600],
   ];

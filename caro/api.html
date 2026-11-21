@@ -53,6 +53,7 @@
           <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Thông tin giải công khai</td></tr>
           <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Bảng xếp hạng của giải</td></tr>
           <tr><td><code>GET /api/v1/leaderboard</code></td><td>50 người đứng đầu (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Tường thuật giải: ván đang đấu, bảng xếp hạng, kết quả gần đây (<code>key</code> = mã giải, giải Offline: <code>o.</code> + mã)</td></tr>
           <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Bài đố của ngày (đổi lúc 0:00 giờ Việt Nam; <code>?date=YYYY-MM-DD</code>)</td></tr>
           <tr><td><code>GET /api/v1/openapi.json</code></td><td>Tài liệu OpenAPI 3.1</td></tr>
           </tbody>
@@ -96,6 +97,7 @@ curl -H 'If-None-Match: W/"…"' 'https://&lt;tên-miền&gt;/api/v1/leaderboard
           <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Public tournament info</td></tr>
           <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Tournament standings</td></tr>
           <tr><td><code>GET /api/v1/leaderboard</code></td><td>Top 50 players (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Tournament broadcast: games in progress, standings, recent results (<code>key</code> = tournament id; offline: <code>o.</code> + id)</td></tr>
           <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Puzzle of the day (changes at 0:00 Vietnam time; <code>?date=YYYY-MM-DD</code>)</td></tr>
           <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1 document</td></tr>
           </tbody>
@@ -139,6 +141,7 @@ curl -H 'If-None-Match: W/"…"' 'https://&lt;your-domain&gt;/api/v1/leaderboard
           <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Сведения об открытом турнире</td></tr>
           <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Турнирная таблица</td></tr>
           <tr><td><code>GET /api/v1/leaderboard</code></td><td>Топ-50 игроков (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Трансляция турнира: идущие партии, таблица, последние результаты (<code>key</code> = код турнира; офлайн: <code>o.</code> + код)</td></tr>
           <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Задача дня (меняется в 0:00 по времени Вьетнама; <code>?date=YYYY-MM-DD</code>)</td></tr>
           <tr><td><code>GET /api/v1/openapi.json</code></td><td>Документ OpenAPI 3.1</td></tr>
           </tbody>
@@ -182,6 +185,7 @@ curl -H 'If-None-Match: W/"…"' 'https://&lt;домен&gt;/api/v1/leaderboard?
           <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>公开赛事信息</td></tr>
           <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>赛事排名</td></tr>
           <tr><td><code>GET /api/v1/leaderboard</code></td><td>前 50 名玩家（<code>?pool=bullet|blitz|rapid|classical</code>）</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>赛事直播：进行中的对局、排名、最近结果（<code>key</code> = 赛事代码；线下赛事：<code>o.</code> + 代码）</td></tr>
           <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>每日谜题（越南时间 0:00 更换；<code>?date=YYYY-MM-DD</code>）</td></tr>
           <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1 文档</td></tr>
           </tbody>
