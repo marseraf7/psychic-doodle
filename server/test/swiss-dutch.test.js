@@ -93,3 +93,33 @@ test('mô phỏng 10 người × 5 vòng: không ai gặp lại, không ai đư�
     }
   }
 });
+
+test('miễn đấu – thêm ca: nhiều người đã được miễn, ai cũng đã gặp nhau, ai cũng đã được miễn, người vào muộn', () => {
+  // Nhiều người đã được miễn (p05–p07): người thấp nhất chưa từng được miễn là p04
+  const o7 = P.slice(0, 7);
+  const r1 = swissPairs(o7, new Set(), { p05: 1, p06: 1, p07: 1 }, 'dutch', sc({ 0: o7 }));
+  assert.strictEqual(r1.bye, 'p04');
+  assert.strictEqual(r1.pairs.length, 3);
+  // Ba người đã gặp hết nhau (C đã được miễn): không tránh được gặp lại – vẫn miễn cho B (thấp nhất chưa được miễn),
+  // A–C gặp lại (ít cặp gặp lại nhất), không ai bị bỏ sót
+  const all = playedOf([['A', 'B'], ['A', 'C'], ['B', 'C']]);
+  const r2 = swissPairs(['A', 'B', 'C'], all, { C: 1 }, 'dutch', sc({ 1: ['A', 'B', 'C'] }));
+  assert.deepStrictEqual(r2, { pairs: [['A', 'C']], bye: 'B' });
+  // Ai cũng đã được miễn: người thấp nhất được miễn lần nữa, phần còn lại không gặp lại nếu được
+  const o5 = ['A', 'B', 'C', 'D', 'E'];
+  const r3 = swissPairs(o5, playedOf([['A', 'B'], ['C', 'D']]), { A: 1, B: 1, C: 1, D: 1, E: 1 }, 'dutch', sc({ 1: o5 }));
+  assert.strictEqual(r3.bye, 'E');
+  assert.ok(r3.pairs.every(([a, b]) => !['A|B', 'C|D'].includes(key(a, b))), JSON.stringify(r3.pairs));
+  // Người vào muộn (E: chưa đấu, 0 điểm, chưa được miễn): được miễn, bốn người còn lại không gặp lại
+  const played = playedOf([['A', 'C'], ['B', 'D']]);
+  const r4 = swissPairs(o5, played, {}, 'dutch', sc({ 1: ['A', 'B'], 0: ['C', 'D', 'E'] }));
+  assert.strictEqual(r4.bye, 'E');
+  assert.deepStrictEqual(r4.pairs, [['A', 'B'], ['C', 'D']]);
+  // Người vào muộn đứng giữa bảng (đã có điểm thưởng vào muộn), người thấp nhất đã được miễn: miễn cho người kế trên
+  // chưa được miễn mà phần còn lại vẫn ghép được không gặp lại
+  const p2 = playedOf([['A', 'B'], ['C', 'E'], ['A', 'D']]);
+  const r5 = swissPairs(o5, p2, { E: 1 }, 'dutch', sc({ 1: ['A', 'B', 'C', 'D', 'E'] }));
+  assert.notStrictEqual(r5.bye, 'E', 'E đã được miễn');
+  assert.ok(r5.pairs.every(([a, b]) => !p2.has(key(a, b))), JSON.stringify(r5));
+  assert.strictEqual(r5.pairs.length * 2 + 1, 5);
+});
