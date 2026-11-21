@@ -40,14 +40,18 @@ class LeagueStore {
 
   lgMember(week, uid) { return row(this.lg().prepare('SELECT * FROM league_week WHERE week = ? AND uid = ?').get(week, uid)); }
 
-  /** Vào nhóm của tuần (nếu chưa có): nhóm còn chỗ đầu tiên của bậc mình, hết chỗ thì mở nhóm mới. */
+  /**
+   * Vào nhóm của tuần (nếu chưa có): nhóm mới nhất của bậc mình nếu còn chỗ, hết chỗ thì mở nhóm mới. Nhóm lấp lần lượt nên
+   * chỉ nhóm cuối có thể còn chỗ (trừ chỗ trống do xoá tài khoản – bỏ qua). Hai lần tra theo chỉ mục league_week_grp
+   * (O(log n)); bản trước đếm mọi nhóm của bậc mỗi lần vào – 50 000 người / tuần là O(n²), mất nhiều phút.
+   */
   lgJoin(week, uid, size) {
     const have = this.lgMember(week, uid);
     if (have) return have;
     const { div } = this.lgDiv(uid);
-    const groups = this.lg().prepare('SELECT grp, COUNT(*) AS n FROM league_week WHERE week = ? AND div = ? GROUP BY grp ORDER BY grp').all(week, div);
-    const open = groups.find((g) => g.n < size);
-    const grp = open ? open.grp : groups.length ? groups[groups.length - 1].grp + 1 : 0;
+    const last = this.lg().prepare('SELECT MAX(grp) AS g FROM league_week WHERE week = ? AND div = ?').get(week, div).g;
+    const n = last == null ? 0 : this.lg().prepare('SELECT COUNT(*) AS n FROM league_week WHERE week = ? AND div = ? AND grp = ?').get(week, div, last).n;
+    const grp = last == null ? 0 : n < size ? last : last + 1;
     this.lg().prepare('INSERT INTO league_week (week, uid, div, grp) VALUES (?, ?, ?, ?)').run(week, uid, div, grp);
     return this.lgMember(week, uid);
   }
@@ -88,7 +92,7 @@ class LeagueStore {
   /** Xoá tài khoản (store.deleteUser gọi). */
   lgUserGone(uid) {
     for (const t of ['league_div', 'league_week', 'league_hist']) this.lg().prepare(`DELETE FROM ${t} WHERE uid = ?`).run(uid);
-    this.lg().prepare('DELETE FROM league_pairs WHERE a = ? OR b = ?').run(uid, uid);
+    this.lg().prepare('DELETE FROM league_pairs WHERE a = ? OR b = ?').run(uid, uid); // quét bảng: 200 000 cặp ~10 ms, chỉ khi xoá tài khoản
   }
 }
 

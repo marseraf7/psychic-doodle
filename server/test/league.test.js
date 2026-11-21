@@ -148,3 +148,44 @@ test('chốt tuần một lần, qua khởi động lại; thông báo cho ngư�
   assert.strictEqual(store.lgHist('p0').length, 0);
   hub.close(); store.close();
 });
+
+test('hai tiến trình cùng một CSDL chốt cùng tuần: chỉ một bên chốt + gửi thông báo, bên kia thấy đã chốt', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-lg2-'));
+  const file = path.join(dir, 'caro.db');
+  const { Hub } = require('../src/hub/index.js');
+  const s1 = new Store(file), s2 = new Store(file);
+  const h1 = new Hub({ store: s1 }), h2 = new Hub({ store: s2 });
+  const notes = [];
+  h1.pushNote = (uid) => notes.push(['h1', uid]);
+  h2.pushNote = (uid) => notes.push(['h2', uid]);
+  const W = at('2026-11-18T05:00:00Z');
+  h1.leagueTick(W);
+  for (let i = 0; i < 6; i++) { s1.lgJoin('2026-W47', 'q' + i, 30); s1.lgAddPoints('2026-W47', 'q' + i, (6 - i) * 4, W + i); }
+  // Tiến trình 2 đã đọc "tuần đang mở = W47" trước khi tiến trình 1 chốt
+  assert.strictEqual(s2.lgState('week'), '2026-W47');
+  const next = at('2026-11-23T05:00:00Z');
+  const r1 = h1.leagueClose('2026-W47', next);
+  const r2 = h2.leagueClose('2026-W47', next);
+  assert.strictEqual(r1.length, 6);
+  assert.deepStrictEqual(r2, [], 'bên sau không chốt lần hai');
+  assert.strictEqual(notes.length, 6);
+  assert.ok(notes.every((n) => n[0] === 'h1'));
+  assert.strictEqual(s2.lgHist('q0').length, 1);
+  h1.close(); h2.close(); s1.close(); s2.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('quy mô: 15 000 người vào nhóm trong một tuần – mỗi lần vào tra theo chỉ mục, không đếm lại mọi nhóm (O(n²))', () => {
+  const s = new Store(null);
+  const t = Date.now();
+  s.db.exec('BEGIN');
+  for (let i = 0; i < 15000; i++) s.lgJoin('2026-W47', 'z' + i, LC.GROUP);
+  s.db.exec('COMMIT');
+  const ms = Date.now() - t;
+  const groups = s.db.prepare("SELECT grp, COUNT(*) AS n FROM league_week WHERE week = '2026-W47' GROUP BY grp").all();
+  assert.strictEqual(groups.length, 500, 'nhóm lấp đầy lần lượt: 15 000 / 30');
+  assert.ok(groups.every((g) => g.n === LC.GROUP));
+  // Bản cũ (đếm mọi nhóm của bậc mỗi lần vào): ~8 giây trên máy CI; bản mới ~1 giây
+  assert.ok(ms < 5000, `15 000 lần vào nhóm mất ${ms} ms`);
+  s.close();
+});
