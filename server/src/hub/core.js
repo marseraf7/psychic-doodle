@@ -45,6 +45,8 @@ class Hub {
     this.lobbyTimer = null;
     this.loadClubs();
     this.loadTours();
+    // Ván theo lượt (corr.js): máy chủ vừa ngừng bao lâu thì dời hạn chót thêm chừng ấy, trước lượt quét hết giờ đầu tiên
+    this.safeTimer('corrBeat', () => this.corrBeat());
     this.sweeper = setInterval(() => this.safeTimer('sweep', () => this.sweep()), 60 * 1000);
     this.sweeper.unref?.();
   }
@@ -52,6 +54,7 @@ class Hub {
   close() {
     this.closed = true; // máy chủ đang tắt: bỏ qua các sự kiện đến muộn (CSDL sắp đóng)
     clearInterval(this.sweeper);
+    this.safeTimer('corrBeat', () => this.corrBeat()); // nhịp cuối: lần khởi động sau bù đúng thời gian máy chủ tắt
     this.stopMatching();
     clearTimeout(this.lobbyTimer);
     clearInterval(this.tourTimer);
@@ -361,6 +364,7 @@ class Hub {
     this.store.pruneSessions(now); // phiên hết hạn (kèm IP, trình duyệt của mục Thiết bị): xoá mỗi ngày một lần
     this.evalSweep(now); // bộ nhớ điểm dùng chung (evals.js): dọn mỗi giờ một lần
     this.safeTimer('league', () => this.leagueTick(now)); // hạng đấu tuần: sang tuần mới thì chốt tuần cũ (league.js)
+    this.safeTimer('corrBeat', () => this.corrBeat(now)); // nhịp sống + bù thời gian máy chủ treo (corr.js) – trước khi quét hết giờ
     this.corrSweep(now); // ván chơi theo lượt quá hạn (corr.js – C1)
     for (const room of [...this.rooms.values()]) {
       for (const p of [...room.players]) {
