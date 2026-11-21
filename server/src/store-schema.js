@@ -1,5 +1,6 @@
 /*
  * Cấu trúc CSDL SQLite của store.js: bảng, chỉ mục, cột thêm sau (CSDL tạo từ bản cũ), và các câu lệnh dựng sẵn.
+ * Bảng thêm sau chỉ cần CREATE … IF NOT EXISTS (CSDL cũ tự có khi mở): user_progress, storm_runs – store-progress.js (A5).
  *   openDb(file)       – mở file (null = chỉ trong bộ nhớ), tạo bảng, thêm cột còn thiếu
  *   prepareQueries(db) – các câu lệnh SQL dùng trong store.js / store-sessions.js (this.q)
  */
@@ -64,6 +65,11 @@ const SCHEMA = `
     at INTEGER NOT NULL, text TEXT NOT NULL, edited INTEGER);
   CREATE INDEX IF NOT EXISTS club_posts_topic ON club_posts (topic, id);
   CREATE INDEX IF NOT EXISTS club_posts_uid ON club_posts (uid);
+  CREATE TABLE IF NOT EXISTS user_progress (uid TEXT PRIMARY KEY, data TEXT NOT NULL, updated INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS storm_runs (id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT NOT NULL, week TEXT NOT NULL, score INTEGER NOT NULL,
+    at INTEGER NOT NULL);
+  CREATE INDEX IF NOT EXISTS storm_runs_week ON storm_runs (week, score);
+  CREATE INDEX IF NOT EXISTS storm_runs_uid ON storm_runs (uid, at);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
 // Phiên đăng nhập: thông tin thiết bị (mục Thiết bị – store-sessions.js)

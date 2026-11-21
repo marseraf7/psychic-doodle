@@ -1,6 +1,6 @@
 /*
  * Giải đố: bài tính điểm (Elo riêng, chọn độ khó), chuỗi đúng liên tiếp, bài của ngày, luyện theo chủ đề VCF / VCT;
- * thống kê lưu trên máy (caro.puzzles), tải puzzles.json khi cần. Dùng Trainer (study-trainer.js).
+ * thống kê lưu trên máy (caro.puzzles) và đồng bộ với tài khoản (progress-sync.js), tải puzzles.json khi cần. Dùng Trainer (study-trainer.js).
  * Gắn window.CaroPuzzles; study.js đưa các hàm này ra CaroStudy như cũ.
  */
 (function () {
@@ -28,7 +28,12 @@
         diff: DIFFS.includes(+s.diff) ? +s.diff : 0 };
     } catch (e) { return { r: 1000, n: 0, ok: 0, best: 0, daily: null, recent: [], diff: 0 }; }
   }
-  function savePz() { try { localStorage.setItem(PZ_STORE, JSON.stringify(pz)); } catch (e) { /* riêng tư */ } }
+  function savePz() {
+    try { localStorage.setItem(PZ_STORE, JSON.stringify(pz)); } catch (e) { /* riêng tư */ }
+    if (window.CaroProgressSync) window.CaroProgressSync.dirty(); // đồng bộ với tài khoản (progress-sync.js)
+  }
+  // Tiến độ vừa gộp với tài khoản (progress-sync.js): đọc lại
+  window.addEventListener('caro:progress', () => { pz = loadPz(); if ($('puzzle-dlg').open) renderPzStats(); });
 
   async function loadPuzzles() {
     if (puzzles) return puzzles;

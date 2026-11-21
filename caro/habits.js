@@ -1,7 +1,8 @@
 /*
  * Thói quen hằng ngày: chuỗi ngày chơi liên tiếp + huy hiệu cột mốc (như chess.com).
  * Ngày "có chơi" = hết một ván (với máy, 2 người, online) hoặc giải xong một bài đố / bài học.
- * Lưu trên máy (localStorage 'caro.habits'); huy hiệu online lấy từ thống kê tài khoản do máy chủ gửi.
+ * Lưu trên máy (localStorage 'caro.habits') và đồng bộ với tài khoản (progress-sync.js); huy hiệu online lấy từ thống kê
+ * tài khoản do máy chủ gửi. Hồ sơ công khai hiện chuỗi ngày + huy hiệu (profile-badges.js).
  */
 (function () {
   'use strict';
@@ -22,7 +23,12 @@
     return { days: Array.isArray(s.days) ? s.days.slice(-120) : [], best: +s.best || 0, games: +s.games || 0, bots: s.bots || {}, earned: s.earned || {} };
   }
   let H = load();
-  function save() { try { localStorage.setItem(STORE, JSON.stringify(H)); } catch (e) { /* riêng tư */ } }
+  function save() {
+    try { localStorage.setItem(STORE, JSON.stringify(H)); } catch (e) { /* riêng tư */ }
+    if (window.CaroProgressSync) window.CaroProgressSync.dirty(); // đồng bộ với tài khoản (progress-sync.js)
+  }
+  // Tiến độ vừa gộp với tài khoản (progress-sync.js): đọc lại
+  window.addEventListener('caro:progress', () => { H = load(); if (N && N.isOpen('habits-dlg')) render(); });
 
   /** Chuỗi ngày hiện tại: tính lùi từ hôm nay (hoặc hôm qua nếu hôm nay chưa chơi). */
   function streak() {

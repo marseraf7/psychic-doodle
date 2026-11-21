@@ -10,7 +10,8 @@
  *    trình duyệt giữ lâu (đường dẫn đổi khi người chơi đổi ảnh).
  *  - /api/stats            : số kỳ thủ đang kết nối và số ván đang đấu (số thật – hub/lobby.js); update.sh --auto
  *    dùng để không khởi động lại máy chủ khi đang có ván.
- *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz
+ *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz,
+ *    /api/storm/leaderboard?week=2026-W47 (Puzzle Storm tuần – mặc định tuần này)
  *    – cho phép gọi từ trang khác (CORS), giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
  *  - /mcp                  : connector MCP cho Claude (mcp/index.js; tắt bằng CARO_MCP=0).
  */
@@ -265,11 +266,12 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     const now = Date.now();
     const wait = hit(apiHits, clientIp(req), API_RATE, 60000, now);
     if (wait) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });
-    const key = url + '?' + (query.get('pool') || '');
+    const key = url + '?' + (query.get('pool') || query.get('week') || '');
     const c = apiCache.get(key);
     if (c && now - c.at < API_CACHE_MS) return json(res, c.status, c.body, { 'cache-control': 'public, max-age=60' });
     let status = 200, body;
     if (url === '/api/leaderboard') body = hub.publicLeaderboard(query.get('pool'));
+    else if (url === '/api/storm/leaderboard') body = hub.publicStormBoard(query.get('week')); // Puzzle Storm tuần (hub/progress.js)
     else {
       body = hub.publicPlayer(url.slice('/api/player/'.length));
       if (!body) { status = 404; body = { error: 'not_found' }; }
@@ -319,7 +321,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       const c = hub.counts();
       return json(res, 200, { players: c.players, games: c.games }, { 'cache-control': 'no-cache' });
     }
-    if (url === '/api/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
+    if (url === '/api/leaderboard' || url === '/api/storm/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
     // Lược đồ JSON cấu hình giải đấu Offline (chatbot AI / công cụ ngoài – caro/otour-spec-io.js) + các mẫu giải làm ví dụ
     if (url === '/api/otour/schema.json') return json(res, 200, otourSchema(), { 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' });
     // Trang giải công khai dạng JSON (nhúng / website ngoài): giới hạn theo IP, giữ 10 giây

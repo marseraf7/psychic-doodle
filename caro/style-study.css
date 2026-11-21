@@ -233,6 +233,22 @@ dialog div.dlg { padding: 16px 18px 18px; }
 .pz-stats b { display: block; font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }
 .pz-stats small { font-size: var(--fs-xs); color: var(--muted); }
 .pz-modes { display: grid; gap: 8px; }
+/* Bảng xếp hạng Puzzle Storm tuần (storm-board.js): hạng · tên (cắt "…") · số bài; dòng của mình tô nhẹ */
+.storm-board { margin-top: 12px; }
+.storm-board[hidden] { display: none; }
+.storm-board h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; min-width: 0; }
+.storm-board h3 > .ellip, .sb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 2px; }
+.sb-list li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
+.sb-list li.me { background: rgba(127, 127, 127, 0.12); font-weight: var(--fw-semibold); }
+.sb-rank { flex: none; width: 2.2em; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sb-name { flex: 1; cursor: pointer; }
+.sb-score { flex: none; font-variant-numeric: tabular-nums; }
+.sb-me { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--muted); }
+/* Thành tích trong hồ sơ (profile-badges.js) */
+.pf-badges { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.pf-badges li { display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border-radius: 999px; background: rgba(127, 127, 127, 0.1); font-size: var(--fs-sm); }
+.pf-badges li > .ellip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pz-mode {
   display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left;
   border: 1px solid var(--panel-border); border-radius: 14px; transition: background-color 0.15s, transform 0.1s;

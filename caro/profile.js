@@ -152,6 +152,7 @@
         <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
         <div class="row pf-act">${actions.join('')}</div></div>
       ${window.CaroProfileBio ? window.CaroProfileBio.html(p) : ''}
+      ${window.CaroProfileBadges ? window.CaroProfileBadges.html(p) : ''}
       <div class="pf-pools">${pools}</div>
       ${anyProv ? `<p class="hint prov-note">${esc(T('profile_prov_note'))}</p>` : ''}
       <div class="pf-chart">${chartSvg(p.history[chartPool])}</div>
