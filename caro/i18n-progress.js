@@ -26,7 +26,7 @@
     sb_score: '{n} puzzles',
     sb_me: 'You: {n} puzzles, rank {rank}',
     sb_me_none: 'You have no Storm runs this week',
-    sb_guest: 'Sign in to join the leaderboard',
+    sb_guest: 'Log in to join the leaderboard',
     storm_rank: 'Added to the weekly board: rank {rank} ({n} puzzles)',
     storm_rejected: 'This run was not added to the leaderboard',
     storm_old_ver: 'The puzzles on this device differ from the server’s: this run won’t count for the leaderboard. Reload the page to update.',

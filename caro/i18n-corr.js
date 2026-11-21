@@ -111,7 +111,7 @@
     corr_res_abort: 'Game aborted',
     corr_by_timeout: 'on time',
     corr_by_resign: 'by resignation',
-    corr_need_account: 'Sign in to play correspondence games',
+    corr_need_account: 'Log in to play correspondence games',
     corr_busy: 'You are in a live online game; open this after it ends',
     nt_corr_invite: '{name} challenges you to a correspondence game',
     nt_corr_turn: 'Your move in the game with {name}',

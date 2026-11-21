@@ -19,7 +19,7 @@
     srv_ot_stage_few: 'Stage {n} would have fewer than 2 teams: let more teams advance or enter directly.',
     esp_race_n: 'Race {n}', esp_title_ps: 'Race details',
     sport_sailing: 'Sailing', tpl_americas_cup: 'America’s Cup style (sailing)',
-    tpl_americas_cup_d: 'The first team listed is the defender and goes straight to the match. 5 challengers race a double round robin (1 point per race win); the top 4 reach the semi-finals, first to 5 wins (Bo9); the challenger final is first to 7 (Bo13). The winner meets the defender in the match, first to 7 (Bo13) takes the cup. Each race records the entry side and finishing times.',
+    tpl_americas_cup_d: 'The first team listed is the defender and goes straight to the match. 5 challengers race a double round robin (1 point per race win); the top 4 reach the semifinals, first to 5 wins (Bo9); the challenger final is first to 7 (Bo13). The winner meets the defender in the match, first to 7 (Bo13) takes the cup. Each race records the entry side and finishing times.',
     esp_port: 'Port entry', esp_stbd: 'Starboard entry', esp_side_pick_ps: 'Boat entering from port', esp_sides: 'Side names',
     esp_st_finish: 'Finishing time (seconds)', esp_margin: 'Finishing margin: {s} seconds', esp_sum_ps: '{g} races · average duration {d} · port entry wins {b}%',
   });

@@ -105,7 +105,7 @@
     home_bot_hint: 'You play X, the computer plays a {style} style. Beat the top level to unlock a stronger one.',
     home_intro: 'Caro x Gomoku is free with no ads: play the computer, friends or online opponents, solve puzzles and learn openings.',
     home_offline: 'No server: you can play the computer or 2 players on one device.',
-    home_about: 'Caro x Gomoku is a free, ad-free website and app for playing Caro (Vietnamese five-in-a-row) and Gomoku: play friends or matched opponents online, play against computer characters, analyze your games, solve puzzles and learn openings. Google Sign-In is used only to create and sign in to your player account.',
+    home_about: 'Caro x Gomoku is a free, ad-free website and app for playing Caro (Vietnamese five-in-a-row) and Gomoku: play friends or matched opponents online, play against computer characters, analyze your games, solve puzzles and learn openings. Google Sign-In is used only to create and log in to your player account.',
     home_credit: 'A product of the Youth Union chapter of the University of the Ministry of Internal Affairs of the Russian Federation',
   
     more_play: 'Play',
@@ -128,7 +128,7 @@
     barlabels_off: 'Icons only',
     set_matchui: 'Match layout',
     mu_you: 'You',
-    matchui_drag_hint: 'Drag the toolbar and the Takeback button right in the preview — changes apply to real games immediately.',
+    matchui_drag_hint: 'Drag the toolbar and the Takeback button right in the preview – changes apply to real games immediately.',
     matchui_reset: 'Reset to default',
     focus_mode: 'Focus mode',
     menu: 'Menu',

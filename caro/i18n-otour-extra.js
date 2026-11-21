@@ -162,7 +162,7 @@
     mtg_pack_n: '第 {n} 包：{d}',
     mtg_pass_left: '向左传',
     mtg_pass_right: '向右传',
-    mtg_pod_n: 'Pod {n} – 座位',
+    mtg_pod_n: 'Pod {n}——座位',
     mtg_deck_n: '{n} 张',
     mtg_deck_wait: '未交牌表',
     mtg_need_deck: '录入成绩前须提交牌表',

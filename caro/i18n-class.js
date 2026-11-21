@@ -24,7 +24,7 @@
     cls_mine: 'My studies', cls_club_list: 'Club classes', cls_public: 'Public studies', cls_none: 'No studies yet',
     cls_title_f: 'Title', cls_vis: 'Who can see it', cls_club: 'Club class', cls_no_club: 'None (my own study)',
     cls_vis_public: 'Public', cls_vis_unlisted: 'Anyone with the link', cls_vis_private: 'Only me', cls_vis_club: 'Club members',
-    cls_chapters_n: '{n} chapters', cls_create: 'Create study', cls_need_account: 'Sign in to create studies; anyone can view public ones',
+    cls_chapters_n: '{n} chapters', cls_create: 'Create study', cls_need_account: 'Log in to create studies; anyone can view public ones',
     cls_mode: 'Clicking the board will', cls_mode_move: 'Play a move', cls_mode_mark: 'Mark a cell', cls_mode_arrow: 'Draw an arrow (2 cells)',
     cls_del_move: 'Delete from here', cls_promote: 'Make main line', cls_add_chapter: 'Add chapter', cls_import: 'Import game',
     cls_del_chapter: 'Delete chapter', cls_delete: 'Delete study', cls_save_comment: 'Save comment', cls_follow: 'Follow the teacher',
@@ -44,10 +44,10 @@
     cls_mode: 'Нажатие на доску', cls_mode_move: 'Ход', cls_mode_mark: 'Отметка клетки', cls_mode_arrow: 'Стрелка (2 клетки)',
     cls_del_move: 'Удалить отсюда', cls_promote: 'Сделать главной линией', cls_add_chapter: 'Добавить главу', cls_import: 'Импорт партии',
     cls_del_chapter: 'Удалить главу', cls_delete: 'Удалить исследование', cls_save_comment: 'Сохранить комментарий', cls_follow: 'Следить за учителем',
-    cls_leave: 'Выйти', cls_share: 'Поделиться', cls_chapter: 'Глава', cls_moves: 'Ходы', cls_empty: 'Ходов пока нет – нажмите на доску',
+    cls_leave: 'Выйти', cls_share: 'Поделиться', cls_chapter: 'Глава', cls_moves: 'Ходы', cls_empty: 'Ходов пока нет — нажмите на доску',
     cls_copied: 'Ссылка скопирована', cls_chapter_name: 'Название главы', cls_del_chapter_q: 'Удалить эту главу?', cls_delete_q: 'Удалить всё исследование?',
     cls_import_q: 'Вставьте ходы (например, h8 i9 i8) или код / ссылку на просмотр партии', cls_import_bad: 'Не удалось прочитать партию', cls_gone: 'Исследование удалено',
-    srv_cls_not_found: 'Исследование не найдено (или нет доступа)', srv_cls_too_big: 'Исследование слишком большое – вынесите часть в другую главу или исследование',
+    srv_cls_not_found: 'Исследование не найдено (или нет доступа)', srv_cls_too_big: 'Исследование слишком большое — вынесите часть в другую главу или исследование',
     srv_cls_too_many: 'Не больше {n} исследований на человека', srv_cls_title_short: 'В названии нужно не меньше 3 символов',
   });
   X('zh', {

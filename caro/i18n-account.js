@@ -121,7 +121,7 @@
     account_settings: 'Account',
     change_password: 'Change password',
     set_password: 'Set password',
-    set_password_hint: 'Your Google account has no password yet. Set one to sign in with your username.',
+    set_password_hint: 'Your Google account has no password yet. Set one to log in with your username.',
     current_password: 'Current password',
     new_password: 'New password',
     confirm_password: 'Repeat new password',
