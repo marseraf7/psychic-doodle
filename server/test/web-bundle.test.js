@@ -119,6 +119,9 @@ test('máy chủ: trang chính, sw.js và khối từ bản gộp; khối lưu l
   assert.strictEqual(chunk.body.toString(), text(name));
   assert.ok((await get(on, '/sw.js')).body.toString().includes('-b' + B.key));
   assert.strictEqual((await get(on, '/b/core-0000000000.js')).status, 404, 'khối không có: 404');
+  // ?bundle=0 (so tốc độ – docs/do-toc-do-tai-laplace) kèm tham số link chia sẻ (?t= …): vẫn là trang gốc từng file
+  const raw = (await get(on, '/?bundle=0&t=abc123')).body.toString();
+  assert.ok(!raw.includes('src="b/core-') && raw.includes('<script src="app.js"></script>'), '?bundle=0&t=…: không gộp');
   const off = makeHandler({ store, hub: {}, bundle: false });
   // Không gộp: trang chính đọc file gốc (luồng file – kiểm qua bản gộp tắt không dựng gì)
   assert.strictEqual((await get(off, '/' + name)).status, 404);

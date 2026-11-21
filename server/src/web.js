@@ -221,7 +221,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       if (!indexHtml || indexHtml.mtime !== st.mtimeMs) {
         try { indexHtml = { mtime: st.mtimeMs, text: fs.readFileSync(file, 'utf8') }; } catch (e) { res.writeHead(503); return res.end(); } // đang cập nhật code (L-S4)
       }
-      const b = B && B.current();
+      const b = B && !(query && query.get('bundle') === '0') && B.current(); // ?bundle=0: trang gốc từng file (cả khi có link chia sẻ)
       let html = b ? b.html : indexHtml.text;
       let og = null;
       try { og = query && typeof hub.ogInfo === 'function' ? hub.ogInfo(query) : null; } catch (e) { og = null; } // dữ liệu lạ: trang thường
