@@ -554,6 +554,8 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `devices.js`, `i18n-devices.js` | Thiết bị: nơi tài khoản đang đăng nhập, đăng xuất từ xa |
 | `timectl.js`, `tc-picker.js`, `local-clock.js`, `setup.css` | Mức thời gian cho phép (dùng chung máy chủ); bộ chọn thời gian; đồng hồ tổng khi chơi trên máy; giao diện Thiết lập ván đấu |
 | `player-strips.js`, `game.css`, `puzzle-home.js`, `pages.css` | Thẻ người chơi + thanh công cụ màn chơi; thẻ Câu đố hôm nay; kiểu danh sách của tab Câu đố / Học tập / Xem |
+| `feat-dlg.js`, `style-stats.css` | Khung chung cho trang tính năng mở dạng hộp (tạo `<dialog>` lúc cần, hàng ở tab Xem thêm) + biểu đồ thanh thắng / hoà / thua, đường độ chính xác |
+| `insights-core.js`, `insights-an.js`, `insights.js`, `i18n-insights.js` | Thống kê cá nhân: thắng / hoà / thua theo màu, luật, loại thời gian, sức đối thủ, khai cuộc (chuẩn hoá xoay / lật), độ dài ván; độ chính xác + kiểu lỗi (kết quả phân tích lưu trên máy), "Phân tích N ván gần nhất" chạy nền. Máy chủ: `server/src/hub/insights.js` |
 | `index.html`, `style.css`, `style-online.css`, `style-tour.css`, `style-study.css`, `style-extras.css` | Giao diện (`style.css`: phông, biến màu, biểu tượng, khung chung; các file `style-*.css` nạp ngay sau theo đúng thứ tự cũ: online, giải đấu & CLB, giải đố + phân tích, phần còn lại) |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |
 | `watchdog.js` | Canh khởi động: nạp đầu tiên; trang đã nạp xong mà chưa khởi động (file bị chặn / lỗi) hoặc quá 60 giây thì hiện thông báo (4 ngôn ngữ) kèm nút tải lại |

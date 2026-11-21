@@ -144,6 +144,8 @@
     }
     const sameRoom = S.room && S.room.players.some((q) => q.id === 'u_' + p.id); // đang đấu với chính mình
     if (p.canHistory) actions.push(`<button type="button" class="ghost sm" data-hist>${esc(T('hist_open'))}</button>`);
+    // Thống kê cá nhân (insights.js) – cùng quyền xem với Lịch sử đấu
+    if (p.canHistory && window.CaroInsights) actions.push(`<button type="button" class="ghost sm" data-insights>${esc(T('ins_btn'))}</button>`);
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
     $('profile-body').innerHTML = `
       <div class="who pf-who">${window.CaroAvatar.html(p)}
@@ -175,6 +177,7 @@
     body.querySelectorAll('[data-pool]').forEach((b) => { b.onclick = () => { chartPool = b.dataset.pool; renderProfile(); }; });
     body.querySelectorAll('[data-replay]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); N.openReplay(b.dataset.replay); }; });
     body.querySelectorAll('[data-hist]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroHistory.open(p.id, p.name); }; });
+    body.querySelectorAll('[data-insights]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroInsights.open(p.self ? undefined : p.id); }; });
     body.querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendAdd', id: b.dataset.add }); b.disabled = true; }; });
     body.querySelectorAll('[data-accept-pf]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendRespond', id: b.dataset.acceptPf, accept: true }); b.disabled = true; }; });
     body.querySelectorAll('[data-unfriend]').forEach((b) => {
