@@ -96,3 +96,32 @@ test('Tường thuật giải Offline: trả đường dẫn trang nhúng; nháp
   assert.strictEqual(hub.bcData('o.khongco'), null);
   org.close();
 });
+
+test('Tường thuật: nhiều người cùng xem dùng lại bản vừa dựng – không duyệt lại mọi phòng mỗi lần, cả lớp chung một IP không bị 429; riêng tư vẫn ẩn ngay', async () => {
+  const hub = ctx.app.hub;
+  const org = await account();
+  hub.admins.add(hub.store.users.get(uidOf(org)).username); // giải của quản trị viên không phải chờ duyệt
+  hub.adminIds.add(uidOf(org));
+  const soon = Date.now() + 5 * 60 * 1000;
+  const { id } = await org.req({ t: 'tourCreate', name: 'Cúp lớp học', format: 'bracket', startsAt: soon, timeLimit: 30, offline: true,
+    stages: [{ type: 'single' }] }, 'tourCreated');
+  hub.T.BC_CACHE_MS = 60000;
+  const real = hub.publicTour;
+  let built = 0;
+  hub.publicTour = function (...a) { built++; return real.apply(this, a); };
+  try {
+    assert.ok(hub.bcData(id), 'giải công khai có dữ liệu');
+    built = 0;
+    hub.bcCache.clear();
+    let last;
+    for (let i = 0; i < 140; i++) last = await fetch(`${base()}/api/v1/broadcast/${id}`);
+    assert.strictEqual(last.status, 200, 'quá 120 lần / phút từ một IP vẫn xem được bản vừa dựng');
+    assert.strictEqual(built, 1, 'dựng một lần cho mọi người xem (đã dựng ' + built + ' lần)');
+    hub.tours.get(id).access = 'private';
+    assert.strictEqual(hub.bcData(id), null, 'chuyển riêng tư: ẩn ngay, không trả bản cũ');
+  } finally {
+    hub.publicTour = real;
+    delete hub.T.BC_CACHE_MS;
+    org.close();
+  }
+});

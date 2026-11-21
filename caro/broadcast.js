@@ -51,6 +51,15 @@
       <span class="bc-p"><span class="ellip"><b class="bc-os">O</b> ${esc(b.o)}</span></span>
       <small>${esc(T('bc_moves', { n: b.moves.length }))} · ${esc(done)}</small></a>`;
   }
+  let said = ''; // câu đã đọc lần trước (#bc-say)
+  /** Báo cho trình đọc màn hình khi trạng thái / vòng / số bàn đang đấu đổi (không đọc lại cả trang mỗi lần hỏi lại). */
+  function say() {
+    const el = $('bc-say');
+    if (!el || !data) return;
+    const live = data.kind === 'tour' ? data.boards.filter((b) => !b.winner).length : 0;
+    const text = [data.name, status(data.status), data.round ? T('bc_round', { n: data.round }) : '', live ? T('bc_moves_live', { n: live }) : ''].filter(Boolean).join(' · ');
+    if (text !== said) el.textContent = said = text;
+  }
   function draw() {
     const main = $('bc');
     if (!data) { main.innerHTML = `<p class="hint">${esc(T('bc_not_found'))}</p>`; return; }
@@ -82,6 +91,7 @@
         data = r.ok ? await r.json() : r.status === 404 ? null : data;
       } catch (e) { /* mất mạng: giữ bản cũ, thử lại sau */ }
       draw();
+      say();
     }
     if (!data || data.kind !== 'otour') timer = setTimeout(poll, POLL_MS);
   }

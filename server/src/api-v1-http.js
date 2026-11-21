@@ -37,7 +37,7 @@ function makeApiV1({ hub, hit, clientIp, origin }) {
     json(req, res, status, { error: code, message: MSG[code] || code });
   };
 
-  /** [mẫu đường dẫn, hàm → { body } | { text } | null, thời gian giữ (giây)] */
+  /** [mẫu đường dẫn, hàm → { body } | { text } | null, thời gian giữ (giây), free(m) → true: không tính lượt theo IP] */
   const ROUTES = [
     [/^\/player\/([^/]+)$/, (m) => hub.v1Player(m[1]), 60],
     [/^\/player\/([^/]+)\/rating-history$/, (m) => hub.v1Ratings(m[1]), 60],
@@ -47,7 +47,8 @@ function makeApiV1({ hub, hit, clientIp, origin }) {
     [/^\/tournament\/([0-9a-f]{6,20})$/, (m) => hub.v1Tour(m[1]), 10],
     [/^\/tournament\/([0-9a-f]{6,20})\/standings$/, (m) => hub.v1Standings(m[1]), 10],
     [/^\/leaderboard$/, (m, q) => hub.v1Leaderboard(q.get('pool')), 60],
-    [/^\/broadcast\/((?:o\.)?[\w-]{1,40})$/, (m) => hub.bcData(m[1]), 5],
+    // Tường thuật: trang hỏi lại 5 giây một lần – bản máy chủ vừa dựng (bcFresh) thì không tính lượt (cả lớp chung một IP)
+    [/^\/broadcast\/((?:o\.)?[\w-]{1,40})$/, (m) => hub.bcData(m[1]), 5, (m) => hub.bcFresh(m[1])],
     [/^\/puzzle\/daily$/, (m, q) => hub.v1Puzzle(q.get('date')), 600],
     [/^\/openapi\.json$/, (m, q, req) => (spec && spec.base === origin(req) ? spec.body : (spec = { base: origin(req), body: openapi(origin(req)) }).body), 3600],
   ];
@@ -60,12 +61,12 @@ function makeApiV1({ hub, hit, clientIp, origin }) {
       return true;
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') { fail(req, res, 405, 'method_not_allowed'); return true; }
-    const wait = hit(hits, clientIp(req), RATE, 60000, Date.now());
-    if (wait) { fail(req, res, 429, 'too_many_requests', { 'retry-after': String(wait) }); return true; }
     const sub = url.slice('/api/v1'.length) || '/';
-    for (const [re, fn, maxAge] of ROUTES) {
+    for (const [re, fn, maxAge, free] of ROUTES) {
       const m = re.exec(sub);
       if (!m) continue;
+      const wait = free && free(m) ? 0 : hit(hits, clientIp(req), RATE, 60000, Date.now());
+      if (wait) { fail(req, res, 429, 'too_many_requests', { 'retry-after': String(wait) }); return true; }
       let out;
       try { out = fn(m, query, req); } catch (e) { console.error('[api-v1]', sub, e.message); fail(req, res, 400, 'bad_request'); return true; }
       if (out == null) fail(req, res, 404, 'not_found');
@@ -73,6 +74,8 @@ function makeApiV1({ hub, hit, clientIp, origin }) {
       else json(req, res, 200, out, maxAge);
       return true;
     }
+    const wait = hit(hits, clientIp(req), RATE, 60000, Date.now()); // đường lạ vẫn tính lượt (dò đường không miễn phí)
+    if (wait) { fail(req, res, 429, 'too_many_requests', { 'retry-after': String(wait) }); return true; }
     fail(req, res, 404, 'not_found');
     return true;
   };

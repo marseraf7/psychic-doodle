@@ -7,6 +7,9 @@
  *   bảng / nhánh đấu đúng như trang giải.
  * Chỉ giải người chưa đăng nhập xem được (cùng luật với trang giải công khai – api.js publicTour / otour.js publicOTour);
  * bàn của giải CLB / riêng tư không lộ ra (watch.js canWatch). Phục vụ ở /api/v1/broadcast/<key> (api-v1-http.js).
+ * Nhiều người cùng xem (mỗi trang hỏi lại 5 giây một lần): bản đã dựng của giải trực tuyến dùng lại CACHE_MS (không duyệt lại
+ * mọi phòng cho từng người xem); quyền xem vẫn kiểm mỗi lần nên giải vừa chuyển riêng tư thôi hiện ngay.
+ * bcFresh(key): có bản dựng còn mới (api-v1-http.js không tính lượt giới hạn theo IP – cả lớp chung một IP vẫn xem được).
  */
 'use strict';
 const { uidOf } = require('./shared.js');
@@ -14,8 +17,18 @@ const { uidOf } = require('./shared.js');
 const MAX_BOARDS = 24;
 const MAX_RESULTS = 15;
 const RECENT_MS = 90 * 1000; // ván vừa xong còn hiện trên lưới bàn 90 giây (thấy kết quả trước khi sang vòng sau)
+const CACHE_MS = 1000; // dùng lại bản đã dựng (hub.T.BC_CACHE_MS đổi được khi thử)
+const CACHE_MAX = 200;
 
 class Broadcast {
+  bcCacheMs() { return this.T && Number.isFinite(this.T.BC_CACHE_MS) ? this.T.BC_CACHE_MS : CACHE_MS; }
+
+  /** Có bản dựng còn mới của key không (chỉ giải trực tuyến – giải Offline trả gọn, không cần). */
+  bcFresh(key) {
+    const c = this.bcCache && this.bcCache.get(String(key || '').slice(0, 42));
+    return !!c && Date.now() - c.at < this.bcCacheMs();
+  }
+
   bcData(key) {
     key = String(key || '').slice(0, 42);
     if (key.startsWith('o.')) {
@@ -27,6 +40,19 @@ class Broadcast {
     }
     const t = /^[0-9a-f]{6,20}$/.test(key) ? this.tours.get(key) : this.tourBySlug(key);
     if (!t || !this.canSeeTour(t, null)) return null;
+    const cache = this.bcCache || (this.bcCache = new Map());
+    const hit = cache.get(key);
+    if (hit && hit.id === t.id && Date.now() - hit.at < this.bcCacheMs()) return hit.data;
+    const data = this.bcBuild(t);
+    if (!data) return null;
+    cache.delete(key);
+    cache.set(key, { at: Date.now(), id: t.id, data });
+    if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value);
+    return data;
+  }
+
+  /** Dựng dữ liệu tường thuật của giải trực tuyến t (đã kiểm quyền xem). */
+  bcBuild(t) {
     const pub = this.publicTour(t.id);
     if (!pub) return null;
     const name = (u) => this.player(t, u)?.name || '?';

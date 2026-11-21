@@ -13,7 +13,9 @@
   <link rel="stylesheet" href="broadcast.css">
 </head>
 <body>
-  <main id="bc" class="bc" aria-live="polite"></main>
+  <main id="bc" class="bc"></main>
+  <!-- Trình đọc màn hình: chỉ đọc khi trạng thái / vòng đổi – không đọc lại cả trang mỗi lần tự cập nhật (5 giây) -->
+  <p id="bc-say" class="bc-sr" aria-live="polite"></p>
   <script src="i18n.js"></script>
   <script src="i18n-broadcast.js"></script>
   <script src="broadcast.js"></script>
