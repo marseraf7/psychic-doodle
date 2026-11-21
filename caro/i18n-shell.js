@@ -238,7 +238,7 @@
     home_create: '创建房间',
     home_challenge: '挑战好友',
     home_vs_bot: '与电脑对弈',
-    home_hero_hint: '点一下即可与{name}（~{elo}）下一局。',
+    home_hero_hint: '点一下即可与 {name}（~{elo}）下一局。',
     home_hero_hide: '隐藏',
     home_pvp: '双人同机',
     home_resume: '继续对局',

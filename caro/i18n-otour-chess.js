@@ -273,7 +273,7 @@
     lad_white: '白方',
     lad_black: '黑方',
     lad_game: '第 {n} 局',
-    lad_win: '{name}胜',
+    lad_win: '{name} 胜',
     lad_draw: '和棋',
     lad_draw_arm: '和棋（黑方胜）',
     lad_bid: '出价（执黑所需秒数）',

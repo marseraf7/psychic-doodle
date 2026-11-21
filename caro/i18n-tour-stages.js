@@ -382,7 +382,7 @@
     bracket: '对阵表',
     third_place: '季军赛',
     standings: '排名',
-    wdl: '{w}胜 {d}和 {l}负',
+    wdl: '{w} 胜 {d} 和 {l} 负',
     fmt_arena: '竞技场',
     hint_arena: '在赛事时间内连续对局：一局结束即与积分相近的选手配对。可随时加入或暂停。',
     fmt_single: '单败淘汰',

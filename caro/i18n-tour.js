@@ -390,7 +390,7 @@
     back: '返回',
     room_info_hint_tour: '这是赛事对局。比赛结束前离开将判负。',
     tour_next_auto: '下一局将自动配对',
-    cd_days: '{d}天{h}小时',
+    cd_days: '{d} 天 {h} 小时',
     minutes_n: '{n} 分钟',
     unrated_short: '不计 Elo',
     players_n: '{n}/{max} 人',
