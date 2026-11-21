@@ -4,6 +4,7 @@
  *  - Đổi sang tiếng Trung lúc đang dùng: tải thêm đúng gói tiếng Trung rồi mới đổi chữ.
  *  - Đo thực địa: rum.js gửi số đo, /api/rum có số của lượt mở trang.
  *  - ?perf=1: ô số đo hiện "Bản gộp"; ?bundle=0&perf=1: trang gốc từng file, ô số đo hiện "Từng file".
+ *  - A2: CPU chậm 4× – việc CPU dài nhất dưới ngưỡng; service worker đăng ký sau khi tải xong, lúc rảnh lưu nốt, mất mạng vẫn chơi.
  *   node caro/tests/e2e/bundle-load.e2e.js
  */
 'use strict';
@@ -59,5 +60,70 @@ const { setup, gotoRetry } = require('./helpers');
   ok(/Cách nạp mã: Từng file/.test(await box('?bundle=0&perf=1')), '?bundle=0: trang gốc từng file');
   ok(!(await box('')), 'không có ?perf=1: không hiện ô số đo');
   await ctx.close();
+
+  // 4. Tải nguội trên máy chậm (A2): CPU chậm 4 lần (CDP) – việc CPU dài nhất dưới ngưỡng rộng (đo thật ~60–85 ms; ngưỡng
+  //    rộng để không chập chờn trên máy CI), trang vẫn dựng xong. Chỉ Chromium (CDP).
+  if ((process.env.E2E_BROWSER || 'chromium') === 'chromium') {
+    const longest = [];
+    for (let i = 0; i < 3; i++) {
+      const c = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+      await c.addInitScript(() => {
+        localStorage.setItem('caro.lang', 'vi');
+        window.__lt = 0;
+        try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__lt = Math.max(window.__lt, e.duration); }).observe({ type: 'longtask', buffered: true }); } catch (e) { /* không hỗ trợ */ }
+      });
+      const pg = await c.newPage();
+      await (await c.newCDPSession(pg)).send('Emulation.setCPUThrottlingRate', { rate: 4 });
+      await gotoRetry(pg, URL, { waitUntil: 'load' });
+      await sleep(2000);
+      longest.push(await pg.evaluate(() => (window.CaroShell && window.CaroShell.current === 'home' ? Math.round(window.__lt) : -1)));
+      await c.close();
+    }
+    longest.sort((a, b) => a - b);
+    ok(longest[0] >= 0 && longest[1] < 250, `CPU chậm 4×: việc CPU dài nhất (trung vị 3 lần) ${longest[1]} ms < 250 ms – [${longest.join(', ')}]`);
+
+    // 5. Service worker (A2): chỉ đăng ký sau khi trang tải xong; lúc rảnh lưu nốt phần còn lại (gói chuỗi dịch, dữ liệu
+    //    câu đố…) → lần sau mất mạng vẫn mở được và chơi được
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await c.addInitScript(() => {
+      localStorage.setItem('caro.lang', 'vi');
+      document.addEventListener('DOMContentLoaded', () => {
+        window.__regAtDcl = 'pending';
+        navigator.serviceWorker.getRegistration().then((r) => { window.__regAtDcl = r ? 'yes' : 'no'; });
+      });
+    });
+    const pg = await c.newPage();
+    const pErr = [];
+    pg.on('pageerror', (e) => pErr.push(e.message));
+    await gotoRetry(pg, URL);
+    let st = null;
+    for (let i = 0; i < 100; i++) {
+      await sleep(200);
+      st = await pg.evaluate(async () => {
+        const keys = await caches.keys();
+        const k = keys.find((x) => /^caro-v\d+/.test(x));
+        if (!k || !navigator.serviceWorker.controller) return null;
+        const urls = (await (await caches.open(k)).keys()).map((r) => r.url);
+        const files = JSON.parse(/const FILES = (\[[^\]]*\]);/.exec(await (await fetch('sw.js')).text())[1]);
+        const miss = files.filter((f) => !urls.includes(new URL(f, location.href).href));
+        return { n: files.length - miss.length, all: files.length, miss: miss.slice(0, 3), pack: ['vi', 'en', 'ru', 'zh'].every((l) => urls.some((u) => u.includes('/b/i18n-' + l + '-'))), puzzles: urls.some((u) => u.endsWith('/puzzles.json')), reg: window.__regAtDcl, sw: window.CaroSW.status() };
+      });
+      if (st && st.pack && st.puzzles && st.n >= st.all) break;
+    }
+    ok(st && st.reg === 'no', 'lần mở đầu: chưa đăng ký service worker lúc DOMContentLoaded (' + (st && st.reg) + ')');
+    ok(st && st.pack && st.puzzles && st.n >= st.all, 'lúc rảnh: service worker lưu nốt cả 4 gói chuỗi dịch, câu đố… (' + (st && st.n + '/' + st.all + (st.miss.length ? ', thiếu ' + st.miss.join(' ') : '')) + ' file)');
+    ok(st && st.sw.state === 'active' && st.sw.controller && /\/$/.test(st.sw.scope), 'CaroSW.status(): active, có controller, scope ' + (st && st.sw.scope));
+    await c.setOffline(true);
+    await pg.reload().catch(() => {});
+    let offOk = false;
+    for (let i = 0; i < 40 && !offOk; i++) { await sleep(200); offOk = await pg.evaluate(() => !!(window.CaroShell && window.CaroShell.current === 'home' && window.I18N.t('home_resume') !== 'home_resume')).catch(() => false); }
+    ok(offOk, 'mất mạng, tải lại: Trang chủ hiện đủ chữ từ bộ nhớ đệm');
+    await pg.evaluate(() => window.CaroApp.startPreset({ mode: 'ai', human: 1, moves: [[0, 0]] }));
+    let moved = false;
+    for (let i = 0; i < 60 && !moved; i++) { await sleep(100); moved = await pg.evaluate(() => window.CaroApp.local.moves >= 2); }
+    ok(moved, 'mất mạng: vẫn chơi được với máy');
+    ok(!pErr.length, 'offline: không lỗi JS' + (pErr.length ? ': ' + pErr.join(' | ') : ''));
+    await c.close();
+  }
   await finish();
 })();

@@ -68,6 +68,7 @@ class Api {
     return {
       id: u.id, username: u.username, name: u.name, createdAt: u.created || null, online: this.isOnline(userPid(u.id)),
       rating: u.rating, perfs, count: { ...u.stats, rated: u.rated }, tours: u.tours,
+      progress: this.progressOf(u), // chuỗi ngày, huy hiệu, Puzzle Storm (progress.js)
     };
   }
 

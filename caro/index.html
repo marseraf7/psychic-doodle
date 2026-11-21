@@ -415,7 +415,7 @@
         <button id="banner-leave" type="button" class="ghost online-only" data-i18n="btn_leave"></button>
         <button id="banner-analyze" type="button" class="ghost local-only" hidden><svg class="ico i-in" aria-hidden="true"><use href="#i-analyze"/></svg> <span data-i18n="an_btn"></span></button>
         <button id="banner-new" type="button" class="primary local-only" data-i18n="btn_new"></button>
-        <button id="banner-share" type="button" class="ghost online-only" data-i18n="share_game" hidden></button>
+        <button id="banner-share" type="button" class="primary online-only" hidden><svg class="ico i-in" aria-hidden="true"><use href="#i-share"/></svg><span data-i18n="share_game"></span></button>
         <button id="banner-quick" type="button" class="ghost online-only" data-i18n="qm_again" hidden></button>
         <button id="banner-tour" type="button" class="primary online-only" data-i18n="tour_view" hidden></button>
         <button id="banner-rematch" type="button" class="primary online-only" data-i18n="rematch"></button>
@@ -457,6 +457,8 @@
       </div>
       <h3 class="list-h" data-i18n="set_more"></h3>
       <div class="list">
+        <!-- Cài ứng dụng (pwa-install.js): ẩn trong app, khi đã cài, khi trình duyệt không cài được -->
+        <button type="button" class="li" id="set-install" hidden><svg class="ico li-ic" aria-hidden="true"><use href="#i-phone"/></svg><span class="li-t" data-i18n="inst_title"></span><span class="li-v" id="set-install-v"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <button type="button" class="li" data-open="habits"><svg class="ico li-ic" aria-hidden="true"><use href="#i-medal2"/></svg><span class="li-t" data-i18n="habits_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <a class="li privacy-link" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-shield"/></svg><span class="li-t" data-i18n="privacy"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
         <a class="li licenses-link" href="licenses.html" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-info"/></svg><span class="li-t" data-i18n="licenses"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
@@ -690,6 +692,8 @@
         <button type="button" class="pz-mode" data-open="habits"><svg class="ico" aria-hidden="true"><use href="#i-medal2"/></svg><span><b data-i18n="habits_title"></b><small data-i18n="habits_sub"></small></span></button>
         <button type="button" class="pz-mode" data-pz="daily"><svg class="ico" aria-hidden="true"><use href="#i-cal"/></svg><span><b data-i18n="pz_daily"></b><small id="pz-daily-sub" data-i18n="pz_daily_d"></small></span></button>
       </div>
+      <!-- Bảng xếp hạng Puzzle Storm tuần (storm-board.js) -->
+      <section class="card storm-board" id="storm-board" hidden></section>
     </div>
   </dialog>
 
@@ -1069,6 +1073,7 @@
 
   <script src="config.js"></script>
   <script src="native.js"></script>
+  <script src="sched.js"></script>
   <script src="i18n.js"></script>
   <script src="i18n-online.js"></script>
   <script src="i18n-online-msg.js"></script>
@@ -1124,6 +1129,9 @@
   <script src="i18n-bots-uni.js"></script>
   <script src="i18n-demos.js"></script>
   <script src="i18n-shell.js"></script>
+  <script src="i18n-share.js"></script>
+  <script src="i18n-install.js"></script>
+  <script src="i18n-progress.js"></script>
   <script src="i18n-tc.js"></script>
   <script src="i18n-history.js"></script>
   <script src="i18n-local.js"></script>
@@ -1176,12 +1184,16 @@
   <script src="app-status.js"></script>
   <script src="app.js"></script>
   <script src="shell.js"></script>
+  <script src="sw-boot.js"></script>
   <script src="confirm.js"></script>
+  <script src="share-link.js"></script>
   <script src="online-auth.js"></script>
   <script src="challenge-msg.js"></script>
   <script src="online-friends.js"></script>
   <script src="online-room.js"></script>
   <script src="online.js"></script>
+  <script src="progress-merge.js"></script>
+  <script src="progress-sync.js"></script>
   <script src="avatar.js"></script>
   <script src="social.js"></script>
   <script src="local-games.js"></script>
@@ -1285,11 +1297,13 @@
   <script src="perf-box.js"></script>
   <script src="rum.js"></script>
   <script src="storm.js"></script>
+  <script src="storm-board.js"></script>
   <script src="share.js"></script>
   <script src="swap.js"></script>
   <script src="watch.js"></script>
   <script src="profile.js"></script>
   <script src="profile-bio.js"></script>
+  <script src="profile-badges.js"></script>
   <script src="bot-picker.js"></script>
   <script src="player-strips.js"></script>
   <script src="learn-demos.js"></script>
@@ -1306,6 +1320,7 @@
   <script src="draw-lines.js"></script>
   <script src="bar-menu.js"></script>
   <script src="settings-ui.js"></script>
+  <script src="pwa-install.js"></script>
   <script src="more.js"></script>
   <script src="home.js"></script>
   <script src="home-hero.js"></script>

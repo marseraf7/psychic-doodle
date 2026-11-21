@@ -396,36 +396,19 @@
   if (window.ResizeObserver) new ResizeObserver(() => resize()).observe(canvas);
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
 
+  // Khởi động chia nhỏ (A2 – tải lần đầu): ở đây chỉ làm việc các file nạp sau cần ngay (chữ giao diện, ván đã lưu –
+  // home.js đọc CaroApp.local). Kích thước + màu bàn cờ không đọc ở đây (bắt trình duyệt tính bố cục giữa chừng): lần
+  // báo đầu tiên của ResizeObserver (ngay sau lần tính bố cục đầu) gọi resize(), màu đọc ở lần vẽ đầu (board-view.js).
   window.I18N.apply();
-  readColors();
   load();
-  resize();
-  updateUI();
-  if (state.winner) setTimeout(showBanner, 300);
-  maybeAI();
-  resetClock();
-
-  // Chạy offline (chỉ khi được phục vụ qua http/https).
-  // (Trong ứng dụng điện thoại các file đã nằm sẵn trong app, không cần service worker.)
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.CaroNative) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-    // sw.js lấy file từ bộ nhớ đệm trước: bản mới cài xong thì trang đang mở vẫn chạy bản cũ. Đang ở các trang (không giữa
-    // ván online) thì tải lại luôn để dùng bản mới; đang chơi thì để lần mở sau. Lần cài đầu (chưa có bản cũ) không tải lại.
-    // Đang gõ dở (ô đang focus, hoặc ô có chữ – form đăng ký, chat…) thì hoãn tới lần chuyển trang / quay lại app sau.
-    const hadCtl = !!navigator.serviceWorker.controller;
-    let updateReady = false;
-    const typing = () => {
-      const a = document.activeElement;
-      if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return true;
-      return [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]), textarea')]
-        .some((i) => i.value && i.offsetParent !== null && i.defaultValue !== i.value);
-    };
-    const tryUpdate = () => {
-      if (!updateReady || state.online || !(window.CaroShell && window.CaroShell.visible) || typing()) return;
-      location.reload();
-    };
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadCtl) { updateReady = true; tryUpdate(); } });
-    window.addEventListener('caro:page', () => setTimeout(tryUpdate, 0));
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) tryUpdate(); });
-  }
+  if (!window.ResizeObserver) window.CaroSched.afterPaint(resize);
+  // Dòng lượt / tỉ số, máy đánh, đồng hồ: nhường luồng cho trình duyệt trước (scheduler.yield) – việc khởi động này không
+  // dồn chung một việc CPU dài với cả khối mã. Các file khác không cần những bước này đã chạy (đều tự gọi lại khi cần).
+  window.CaroSched.yield().then(() => {
+    updateUI();
+    if (state.winner) setTimeout(showBanner, 300);
+    maybeAI();
+    resetClock();
+  });
+  // Service worker (chơi offline, cập nhật bản mới): sw-boot.js
 })();

@@ -207,7 +207,7 @@
         html += `<div class="podium">${t.podium.map((p, i) => `<div class="pl p${i + 1}"><span>${icon('medal', 'm' + (i + 1))}</span><b>${esc(p.name)}</b></div>`).join('')}</div>`;
       }
       if (t.desc) html += `<div class="tdesc rich">${R ? R.render(t.desc) : esc(t.desc)}</div>`;
-      const acts = [`<button type="button" class="ghost" data-act="otShare">${icon('link')}${esc(T('share'))}</button>`];
+      const acts = [`<button type="button" class="primary" data-act="otShare">${icon('link')}${esc(T('share'))}</button>`];
       if (t.canManage && t.status === 'draft' && !t.multi) acts.push(`<button type="button" class="primary" data-act="otStart" ${t.players.length < 2 ? 'disabled' : ''}>${icon('play')}${esc(T('ot_start'))}</button>`);
       if (t.canManage) acts.push(`<button type="button" class="ghost danger" data-act="otDelete">${icon('trash')}${esc(T('ot_delete'))}</button>`);
       html += `<div class="row tactions">${acts.join('')}</div>`;

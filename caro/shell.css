@@ -190,6 +190,12 @@ html:not(.caro-ready) #page-home > .pg-body { visibility: hidden; animation: car
 .home-foot p { margin: 0 0 6px; font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; }
 .home-foot .home-credit { color: var(--text); font-weight: var(--fw-medium); }
 .home-foot a { color: inherit; }
+/* Thẻ cài ứng dụng ở Trang chủ (pwa-install.js, từ lần mở thứ 2): chữ xuống dòng được, nút không co, ✕ ẩn hẳn */
+.install-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--panel); }
+.install-card[hidden] { display: none; }
+.install-card .ic-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.install-card .ic-t small { color: var(--muted); font-size: var(--fs-xs); }
+.install-card button { flex: none; }
 /* Thẻ người mới (home-hero.js): một nút chính lớn "Chơi với máy" + gợi ý, ✕ ẩn hẳn */
 .home-hero { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 14px 44px 12px 14px; border-radius: 12px; background: var(--panel); }
 .home-hero[hidden] { display: none; }

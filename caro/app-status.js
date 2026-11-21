@@ -43,7 +43,13 @@
       const show = mine && !(!o && state.mode === 'pvp');
       const bar = document.querySelector('.bar.top');
       bar.classList.toggle('my-turn', show);
-      if (show && !cueMine) { bar.classList.remove('turn-pulse'); void bar.offsetWidth; bar.classList.add('turn-pulse'); }
+      // Hiệu ứng nhún: gắn class, chạy xong thì tự bỏ (lần sau gắn lại là chạy lại) – không dùng mẹo đọc offsetWidth để
+      // chạy lại hiệu ứng (bắt trình duyệt tính bố cục ngay giữa lúc chạy mã, A2)
+      if (show && !cueMine) {
+        bar.classList.add('turn-pulse');
+        const done = (e) => { if (e.animationName !== 'turn-pulse') return; bar.classList.remove('turn-pulse'); bar.removeEventListener('animationend', done); };
+        bar.addEventListener('animationend', done);
+      }
       cueMine = show;
       const n = o ? o.room.moves.length : state.board.moves.length;
       const key = over ? 'end' + n : mine ? 'turn' + n : '';

@@ -24,7 +24,7 @@ const vm = require('vm');
 const crypto = require('crypto');
 
 const LANGS = ['vi', 'en', 'ru', 'zh'];
-const CHUNK = 320 * 1024; // một khối lớn quá là một việc CPU dài lúc khởi động – chia vài khối để trình duyệt kịp xen việc khác
+const CHUNK = 200 * 1024; // một khối lớn quá là một việc CPU dài lúc khởi động (mỗi khối defer chạy thành một việc riêng) – A2: 320 → 200 KB, việc dài nhất @4× ~80 → ~60 ms
 const TAG = /<script src="([^"]+)"><\/script>/g;
 const TAG_LINE = /^([ \t]*)<script src="[^"]+"><\/script>[ \t]*\r?\n/gm; // cả dòng chứa thẻ (bỏ dòng, không để dòng trống)
 
@@ -141,7 +141,8 @@ function build(dir) {
   const fm = /const FILES = \[([\s\S]*?)\];/.exec(sw);
   const cm = /const CACHE = '([^']+)';/.exec(sw);
   if (!fm || !cm) throw new Error('sw.js không có FILES / CACHE');
-  const list = [...fm[1].matchAll(/'([^']*)'/g)].map((m) => m[1]);
+  // Bỏ chú thích trước (chú thích trong FILES có thể nhắc tên trong dấu nháy – vd. bộ đệm 'caro-rapfi-nets-*' – không phải file)
+  const list = [...fm[1].replace(/\/\/.*$/gm, '').matchAll(/'([^']*)'/g)].map((m) => m[1]);
   const gone = new Set(names);
   const next = list.filter((f) => !gone.has(f)).concat([...files.keys()]);
   const sw2 = sw.replace(fm[0], () => `const FILES = ${JSON.stringify(next)};`)

@@ -125,6 +125,7 @@ class Bracket {
     if (t.offline) return this.runOffline(t); // trận ngoài đời: chờ ban tổ chức nhập tỉ số (tour-score.js)
     for (let guard = 0; guard < 500 && t.status === 'running'; guard++) {
       const st = this.curStage(t);
+      if (!st) return; // chưa bốc thăm giai đoạn nào (dữ liệu cũ / dựng tay): không có trận để mở
       let changed = false;
       for (const m of ST.playable(st)) {
         if (m.hold) continue; // ván mất kết nối chờ ban tổ chức quyết định
