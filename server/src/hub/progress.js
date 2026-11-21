@@ -15,9 +15,11 @@ const crypto = require('crypto');
 const { E } = require('../msg.js');
 const P = require('../../../caro/progress-merge.js');
 const V = require('../storm-verify.js');
+const LT = require('../local-time.js');
 
 const RUN_TTL = V.DURATION + V.MAX_BONUS + V.GRACE + 60 * 1000;
-const RUNS_PER_DAY = 100; // mỗi tài khoản – chặn máy tự động chơi liên tục
+const RUNS_PER_DAY = 100; // mỗi tài khoản, mỗi ngày theo giờ thiết bị – chặn máy tự động chơi liên tục (stormCap)
+const DAY_MS = 86400000;
 const BOARD_N = 50;
 
 let PUZZLES = null; // caro/puzzles.json – nạp khi cần
@@ -31,7 +33,7 @@ function puzzles() {
 
 class Progress {
   stormRuns() { return this._stormRuns || (this._stormRuns = new Map()); } // uid → lượt đang chơi { id, ids, at }
-  stormDaily() { return this._stormDaily || (this._stormDaily = new Map()); } // uid → { day, n }
+  stormDaily() { return this._stormDaily || (this._stormDaily = new Map()); } // uid → [lúc bắt đầu lượt (ms), …] trong 24 giờ qua
 
   on_progressSync(conn, { data }) {
     const u = this.requireUser(conn);
@@ -47,18 +49,31 @@ class Progress {
   on_stormStart(conn) {
     const u = this.requireUser(conn);
     this.throttle(conn, 'stormStart', 5000);
-    const day = new Date().toISOString().slice(0, 10);
-    const d = this.stormDaily().get(u.id);
-    // Số lượt đã bắt đầu hôm nay (bộ nhớ) – khởi động lại máy chủ thì mất, nên lấy ít nhất bằng số lượt đã nộp + kiểm hôm
-    // nay trong storm_runs: không ai chơi quá trần bằng cách chờ máy chủ khởi động lại
-    const n = Math.max(d && d.day === day ? d.n : 0, this.store.stormRunsSince(u.id, Date.parse(day + 'T00:00:00Z')));
-    if (n >= RUNS_PER_DAY) throw E('storm_limit', { n: RUNS_PER_DAY });
-    this.stormDaily().set(u.id, { day, n: n + 1 });
+    this.stormCap(u);
     const seed = crypto.randomBytes(4).readUInt32LE(0);
     const run = { id: crypto.randomBytes(8).toString('hex'), ids: V.stormList(puzzles().list, seed), at: Date.now() };
     this.stormRuns().set(u.id, run); // một lượt mỗi người: lượt mới thay lượt cũ
     for (const [k, r] of this.stormRuns()) if (Date.now() - r.at > RUN_TTL) this.stormRuns().delete(k);
     conn.send({ t: 'stormRun', run: run.id, ids: run.ids });
+  }
+
+  /**
+   * Trần RUNS_PER_DAY lượt / ngày, "ngày" theo múi giờ THIẾT BỊ đã lưu của tài khoản (local-time.js: tên IANA – đúng giờ mùa hè –
+   * hoặc số phút lệch; chưa có thì giờ Việt Nam): đếm từ 00:00 hôm nay giờ địa phương. Đếm lượt đã bắt đầu trong 24 giờ qua
+   * (bộ nhớ); bộ nhớ chưa có người này (máy chủ vừa khởi động lại) thì lấy lượt đã nộp + kiểm trong storm_runs: chờ máy chủ
+   * khởi động lại không được thêm lượt. Đổi múi giờ (sửa giờ máy, đổi sang múi giờ vừa qua nửa đêm) làm "hôm nay" bắt đầu muộn hơn → thêm trần cuộn
+   * 2 × RUNS_PER_DAY trong 24 giờ gần nhất: đổi múi giờ thế nào cũng không quá ~2 lần trần trong 24 giờ thật – bằng đúng ca
+   * biên không đổi múi giờ (100 lượt lúc 23:59 + 100 lượt lúc 00:01). Bảng Storm tuần vẫn theo tuần chung giờ Việt Nam.
+   */
+  stormCap(u, now = Date.now()) {
+    const since = LT.dayStart(now, LT.tzOf(u));
+    const map = this.stormDaily();
+    const list = (map.get(u.id) || this.store.stormRunTimes(u.id, now - DAY_MS)).filter((t) => t > now - DAY_MS);
+    const today = list.filter((t) => t >= since).length;
+    if (today >= RUNS_PER_DAY || list.length >= 2 * RUNS_PER_DAY) throw E('storm_limit', { n: RUNS_PER_DAY });
+    list.push(now);
+    map.set(u.id, list);
+    if (map.size > 5000) for (const [k, l] of map) if (!l.length || l[l.length - 1] <= now - DAY_MS) map.delete(k); // người đã nghỉ
   }
 
   on_stormEnd(conn, { run, solved, wrong }) {
