@@ -1,7 +1,7 @@
 {
   "name": "Caro x Gomoku",
   "short_name": "Caro",
-  "description": "Caro x Gomoku – Vietnamese caro and Gomoku online: infinite board, play friends, AI and puzzles",
+  "description": "Caro x Gomoku – Vietnamese Caro and Gomoku online: infinite board, play friends, AI and puzzles",
   "lang": "vi",
   "start_url": "./",
   "scope": "./",

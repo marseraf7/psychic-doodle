@@ -27,9 +27,9 @@ const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex'
 // Email xác minh địa chỉ (chỉ email đã xác minh mới dùng để khôi phục mật khẩu)
 const VERIFY_MAIL = {
   vi: { subject: 'Mã xác minh email Caro x Gomoku', body: (u, c) => `Xin chào ${u},\n\nMã xác minh email của bạn là: ${c}\nMã có hiệu lực trong 30 phút.\n\nNếu bạn không thêm email này vào tài khoản Caro x Gomoku, hãy bỏ qua thư này.` },
-  en: { subject: 'Caro x Gomoku email verification code', body: (u, c) => `Hi ${u},\n\nYour email verification code is: ${c}\nIt expires in 30 minutes.\n\nIf you did not add this email to a Caro account, you can ignore this message.` },
+  en: { subject: 'Caro x Gomoku email verification code', body: (u, c) => `Hi ${u},\n\nYour email verification code is: ${c}\nIt expires in 30 minutes.\n\nIf you did not add this email to a Caro x Gomoku account, you can ignore this message.` },
   ru: { subject: 'Код подтверждения почты Caro x Gomoku', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код подтверждения почты: ${c}\nКод действует 30 минут.\n\nЕсли вы не добавляли эту почту в аккаунт Caro x Gomoku, просто проигнорируйте письмо.` },
-  zh: { subject: 'Caro x Gomoku 邮箱验证码', body: (u, c) => `${u}，你好：\n\n你的邮箱验证码是：${c}\n验证码 30 分钟内有效。\n\n如果你没有在 Caro 账号中添加此邮箱，请忽略此邮件。` },
+  zh: { subject: 'Caro x Gomoku 邮箱验证码', body: (u, c) => `${u}，你好：\n\n你的邮箱验证码是：${c}\n验证码 30 分钟内有效。\n\n如果你没有在 Caro x Gomoku 账号中添加此邮箱，请忽略此邮件。` },
 };
 // Email đặt lại mật khẩu theo ngôn ngữ người dùng đang chọn
 const RESET_MAIL = {

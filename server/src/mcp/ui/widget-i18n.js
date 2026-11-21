@@ -46,7 +46,7 @@ globalThis.CARO_MCP_I18N = {
   zh: {
     your_move: '轮到你', thinking: '电脑正在思考…', you_win: '你赢了！', you_lose: '电脑获胜',
     draw: '和棋', undo: '悔棋', new_game: '新对局', full: '玩完整版', you: '你：{side}', move_n: '第 {n} 手',
-    easy: '简单', normal: '普通', hard: '困难', rule_vn: '越南卡罗', rule_free: '自由规则', rule_std: '标准规则',
+    easy: '简单', normal: '普通', hard: '困难', rule_vn: '越南五子棋', rule_free: '自由规则', rule_std: '标准规则',
     rule_renju: '连珠', puzzle: '题目 #{id}', daily: '每日一题', goal: '{side} 先走，{n} 步内取胜',
     tap_key: '点击关键一步', correct: '正确！这就是关键一步。', wrong: '不对，再试一次。',
     reveal: '查看答案', next: '下一题', solution: '答案：{move}', hint: '{side} 的推荐着法：{move}',
@@ -54,6 +54,6 @@ globalThis.CARO_MCP_I18N = {
     r_win: '立即连成一线获胜。', r_block: '挡住对手的直接取胜。',
     r_forced: '开始必胜进攻，{n} 步内取胜。', r_defend: '最佳防守，但对手已有必胜进攻。',
     r_search: '找到的最强着法。胜率：{p}%。', r_opening: '开局：下在棋盘中央。',
-    board: '卡罗棋盘', last: '上一手',
+    board: '五子棋棋盘', last: '上一手',
   },
 };

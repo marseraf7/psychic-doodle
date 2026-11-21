@@ -103,7 +103,9 @@
    "overlines",
    "royale",
    "takeback",
-   "takebacks"
+   "takebacks",
+   "[Rr]epechage",
+   "±X"
   ],
   "ru": [
    "Баунти",
@@ -283,6 +285,9 @@
   "en.dispute_help_bracket.FROM_X_Y",
   "en.ds_mtg.EN_A_VS_AN",
   "en.ds_tb_pubg_k.THE_SUPERLATIVE",
+  "en.ewc_g_br.EN_MULTITOKEN_SPELLING_TWO",
+  "en.ewc_g_br_mp.EN_MULTITOKEN_SPELLING_TWO",
+  "en.ewc_g_br_rush.EN_MULTITOKEN_SPELLING_TWO",
   "en.ex_great.EN_A_VS_AN",
   "en.ex_miss.EN_A_VS_AN",
   "en.gr_note_afl8.CD_NN",
