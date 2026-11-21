@@ -59,6 +59,33 @@ test('Glicko-2: điểm tạm, rd tăng dần khi lâu không chơi, loại th�
   assert.strictEqual(R.provisional(R.upgradePools({ rating: 1200, rated: 0 }).pools.rapid), true);
 });
 
+test('Điểm Chơi theo lượt (corr) của tài khoản đã có: bắt đầu từ điểm chính nhưng rd cao – hiệu chỉnh nhanh', () => {
+  // Tài khoản đã có bảng điểm ván trực tiếp (chưa có corr): corr = điểm chính, rd ADDED_POOL_RD (không phải 100)
+  const live = { rating: 1700, rated: 80, pools: {} };
+  for (const p of ['bullet', 'blitz', 'rapid', 'classical']) live.pools[p] = { r: 1700, rd: 60, vol: 0.06, n: 50, at: 1 };
+  R.upgradePools(live);
+  assert.deepStrictEqual([live.pools.corr.r, live.pools.corr.rd, live.pools.corr.n], [1700, R.ADDED_POOL_RD, 0]);
+  assert.ok(R.ADDED_POOL_RD >= 250 && R.ADDED_POOL_RD <= 350);
+  assert.strictEqual(live.pools.blitz.rd, 60, 'loại cũ giữ nguyên');
+  assert.strictEqual(R.provisional(live.pools.corr), true, 'điểm tạm (?) tới khi chơi vài ván');
+  // Tài khoản chỉ có Elo cũ: ván trực tiếp mượn rd theo số ván (100), corr vẫn rd cao
+  const old = R.upgradePools({ rating: 1650, rated: 40 });
+  assert.deepStrictEqual([old.pools.rapid.rd, old.pools.corr.r, old.pools.corr.rd], [100, 1650, R.ADDED_POOL_RD]);
+  // Bảng corr tạo bằng bản trước (rd 100) mà chưa chơi ván nào: nâng rd; đã chơi thì giữ
+  const prev = { rating: 1500, rated: 30, pools: { ...structuredClone(live.pools), corr: { r: 1500, rd: 100, vol: 0.06, n: 0, at: 0 } } };
+  assert.strictEqual(R.upgradePools(prev).pools.corr.rd, R.ADDED_POOL_RD);
+  const played = { rating: 1500, rated: 30, pools: { ...structuredClone(live.pools), corr: { r: 1520, rd: 90, vol: 0.06, n: 3, at: 5 } } };
+  assert.strictEqual(R.upgradePools(played).pools.corr.rd, 90);
+  // Hiệu chỉnh nhanh: thắng ván đầu trước người ngang điểm đã chắc chắn → tăng nhiều hơn hẳn so với rd 100
+  const opp = () => ({ rating: 1700, pools: { corr: { r: 1700, rd: 60, vol: 0.06, n: 40, at: Date.now() } } });
+  const a = R.upgradePools({ rating: 1700, rated: 80, pools: structuredClone(live.pools) });
+  delete a.pools.corr; R.upgradePools(a);
+  const d = R.rateGame(a, R.upgradePools(opp()), 'corr', 1).a;
+  const b = R.upgradePools({ rating: 1700, rated: 80, pools: { ...structuredClone(live.pools), corr: { r: 1700, rd: 100, vol: 0.06, n: 5, at: Date.now() } } });
+  const d100 = R.rateGame(b, R.upgradePools(opp()), 'corr', 1).a;
+  assert.ok(d > 2 * d100, `ván đầu +${d} (rd ${R.ADDED_POOL_RD}) so với +${d100} (rd 100)`);
+});
+
 // ---------------------------------------------------------------- Phòng: Swap2 + đồng hồ (không cần mạng)
 function room2(opts) {
   const r = new Room({ code: '1', password: '1', ...opts });

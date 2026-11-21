@@ -40,12 +40,29 @@ function poolOf({ timeLimit, clock, clockSpec }) {
 
 const newPool = (r = START, rd = RD_MAX) => ({ r, rd, vol: VOL, n: 0, at: 0 });
 
-/** Bổ sung bảng điểm cho tài khoản cũ (chỉ có Elo): mọi loại bắt đầu từ điểm Elo cũ. */
+/*
+ * rd khởi đầu của loại điểm MỚI THÊM cho tài khoản đã có (hiện là 'corr' – Chơi theo lượt, C1): bắt đầu từ điểm chính
+ * (u.rating) cho gần đúng sức cờ, nhưng rd cao như người mới (tài khoản mới: RD_MAX 350; Elo cũ ít ván: 200) để vài ván
+ * đầu kéo điểm về đúng nhanh – chơi theo lượt (nghĩ nhiều ngày) khác hẳn ván trực tiếp, điểm chính chỉ là đoán ban đầu.
+ * Trước đây dùng rd của Elo cũ (100 nếu ≥ 20 ván): ván đầu chỉ xê dịch ~10 điểm, mất hàng chục ván mới hiệu chỉnh xong.
+ */
+const ADDED_POOL_RD = 300;
+// Loại khác hẳn ván trực tiếp: không mượn độ chắc chắn (rd thấp) của điểm Elo cũ dù tài khoản chưa có bảng điểm nào
+const SEPARATE_POOLS = ['corr'];
+
+/**
+ * Bổ sung bảng điểm cho tài khoản cũ: tài khoản chỉ có Elo – các loại ván trực tiếp bắt đầu từ điểm Elo cũ (rd theo số
+ * ván đã chơi); loại mới thêm cho tài khoản đã có bảng điểm, hoặc loại riêng (corr) – từ điểm chính với rd ADDED_POOL_RD.
+ */
 function upgradePools(u) {
   if (!u.pools || typeof u.pools !== 'object') u.pools = {};
+  const had = POOLS.some((p) => u.pools[p]); // đã có bảng điểm Glicko-2 (loại mới thêm sau, vd. corr)
   const legacyRd = u.rated >= 20 ? 100 : u.rated > 0 ? 200 : RD_MAX;
   for (const p of POOLS) {
-    if (!u.pools[p]) u.pools[p] = newPool(typeof u.rating === 'number' ? u.rating : START, legacyRd);
+    const added = had || SEPARATE_POOLS.includes(p);
+    if (!u.pools[p]) u.pools[p] = newPool(typeof u.rating === 'number' ? u.rating : START, added ? Math.max(legacyRd, ADDED_POOL_RD) : legacyRd);
+    // Loại riêng tạo bằng bản trước (rd của Elo cũ) mà chưa chơi ván nào: nâng rd lên như loại mới thêm
+    else if (SEPARATE_POOLS.includes(p) && !u.pools[p].n && !u.pools[p].at && u.pools[p].rd < ADDED_POOL_RD) u.pools[p].rd = ADDED_POOL_RD;
     // Bảng điểm thiếu trường / không phải số (dữ liệu cũ, sửa tay): bổ sung – thiếu "vol" thì sau một ván mọi số thành NaN mãi
     const d = newPool(), q = u.pools[p];
     for (const k of Object.keys(d)) if (typeof q[k] !== 'number' || !Number.isFinite(q[k])) q[k] = d[k];
@@ -138,4 +155,4 @@ function ratingIn(u, pool, now = Date.now()) {
   return { r: Math.round(p.r), prov: provisional(p, now), n: p.n };
 }
 
-module.exports = { POOLS, CLOCKS, START, PROVISIONAL_RD, RANKABLE_RD, MAX_DELTA, rankable, parseClock, poolOf, newPool, upgradePools, decayedRd, glicko, rateGame, mainPool, mainRating, provisional, ratingIn };
+module.exports = { POOLS, CLOCKS, START, ADDED_POOL_RD, PROVISIONAL_RD, RANKABLE_RD, MAX_DELTA, rankable, parseClock, poolOf, newPool, upgradePools, decayedRd, glicko, rateGame, mainPool, mainRating, provisional, ratingIn };
