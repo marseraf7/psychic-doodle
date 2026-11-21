@@ -23,6 +23,7 @@
  *   disputes.js    – ván giải đấu mất kết nối: ban tổ chức công nhận / huỷ kết quả / cho đấu lại
  *   playban.js     – chống bỏ ván: ghi cư xử, cấm tìm trận tạm thời
  *   api.js         – số liệu máy chủ cho quản trị viên, API công khai chỉ đọc
+ *   api-v1.js      – API công khai v1 (C4): hồ sơ, biểu đồ điểm, ván gần đây, ván dạng chữ, giải, bảng xếp hạng, bài đố của ngày
  *   og.js          – dữ liệu thẻ xem trước link chia sẻ (Zalo / Messenger): ván, phòng, giải, CLB, hồ sơ
  *   progress.js    – tiến độ Giải đố / Storm / chuỗi ngày / huy hiệu trong tài khoản, Storm có kiểm + bảng tuần
  *   evals.js       – bộ nhớ điểm dùng chung cho phân tích ván bằng Rapfi (evalcache.js)
@@ -78,6 +79,7 @@ const { Profile } = require('./profile.js');
 const { Playban } = require('./playban.js');
 const { Disputes } = require('./disputes.js');
 const { Api } = require('./api.js');
+const { ApiV1 } = require('./api-v1.js'); // API công khai v1 (C4 – HTTP ở ../api-v1-http.js)
 const { Og } = require('./og.js'); // thẻ xem trước link chia sẻ (A3)
 const { Progress } = require('./progress.js'); // tiến độ trong tài khoản + Puzzle Storm có kiểm (A5)
 const { Evals } = require('./evals.js');
@@ -85,7 +87,7 @@ const { Lobby } = require('./lobby.js');
 const { AvatarPart } = require('./avatar.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Og, Progress, Disputes, Evals, Lobby, AvatarPart]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, ApiV1, Og, Progress, Disputes, Evals, Lobby, AvatarPart]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);
