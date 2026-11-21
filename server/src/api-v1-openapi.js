@@ -11,7 +11,9 @@ const obj = (props, required) => ({ type: 'object', properties: props, ...(requi
 const S = { type: 'string' }, I = { type: 'integer' }, B = { type: 'boolean' }, N = { type: ['string', 'null'] };
 const move = { type: 'array', items: I, minItems: 2, maxItems: 2, description: '[x, y] – x sang phải, y xuống dưới; (0, 0) là h8' };
 const result = { type: ['string', 'null'], enum: ['x', 'o', 'draw', null] };
-const game = obj({ id: S, createdAt: I, kind: N, rule: S, opening: S, clock: N, timeLimit: I, x: S, o: S, result, termination: N, moves: { type: 'array', items: move } });
+const head = { id: S, createdAt: I, kind: N, rule: S, opening: S, clock: N, timeLimit: I, x: S, o: S, result, termination: N };
+const game = obj({ ...head, moves: { type: 'array', items: move } });
+const listGame = obj({ ...head, moveCount: I }); // danh sách ván: số nước (nước đi đầy đủ ở /game/{id})
 
 function openapi(base = '') {
   return {
@@ -24,7 +26,7 @@ function openapi(base = '') {
     paths: {
       '/player/{username}': { get: { summary: 'Public profile', parameters: [userParam], responses: { 200: ok('Profile', obj({ username: S, name: S, createdAt: { type: ['integer', 'null'] }, perfs: { type: 'object' }, count: { type: 'object' }, tournaments: { type: 'object' }, historyPublic: B, url: S })), 404: err, 429: err } } },
       '/player/{username}/rating-history': { get: { summary: 'Rating history per pool', parameters: [userParam], responses: { 200: ok('Points [time ms, rating]', obj({ username: S, history: { type: 'object', additionalProperties: { type: 'array', items: { type: 'array', items: I } } } })), 404: err, 429: err } } },
-      '/player/{username}/games': { get: { summary: 'Recent games (only when the player’s game history is public)', parameters: [userParam, { name: 'max', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 } }], responses: { 200: ok('Games, newest first', obj({ username: S, hidden: B, games: { type: 'array', items: game } })), 404: err, 429: err } } },
+      '/player/{username}/games': { get: { summary: 'Recent games (only when the player’s game history is public)', parameters: [userParam, { name: 'max', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 } }], responses: { 200: ok('Games, newest first', obj({ username: S, hidden: B, games: { type: 'array', items: listGame } })), 404: err, 429: err } } },
       '/game/{id}': { get: { summary: 'One saved game (by share id)', parameters: [{ name: 'id', in: 'path', required: true, schema: S }], responses: { 200: ok('Game', { allOf: [game, obj({ notation: { type: 'array', items: S }, url: S })] }), 404: err, 429: err } } },
       '/game/{id}.txt': { get: { summary: 'Game as PGN-like text in Caro notation', parameters: [{ name: 'id', in: 'path', required: true, schema: S }], responses: { 200: ok('Text', S, 'text/plain'), 404: err, 429: err } } },
       '/tournament/{id}': { get: { summary: 'Public tournament info', parameters: [{ name: 'id', in: 'path', required: true, schema: S }], responses: { 200: ok('Tournament', obj({ id: S, name: S, format: S, status: S, startsAt: I, players: I, podium: { type: 'array', items: S }, url: S })), 404: err, 429: err } } },

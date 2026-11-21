@@ -54,7 +54,7 @@ class ApiV1 {
     return u ? { username: u.username, history: this.store.ratingPoints(u.id) } : null;
   }
 
-  /** Ván gần đây (mới nhất trước), chỉ khi lịch sử đấu công khai. */
+  /** Ván gần đây (mới nhất trước), chỉ khi lịch sử đấu công khai. store.history chỉ có số nước (moveCount) – nước đi ở v1Game. */
   v1Games(username, max) {
     const u = this.v1User(username);
     if (!u) return null;
@@ -62,7 +62,7 @@ class ApiV1 {
     const n = Math.max(1, Math.min(MAX_GAMES, Number(max) || 20));
     const games = this.store.history(u.id, n).map((g) => ({
       id: g.share, createdAt: g.created, kind: g.kind, rule: g.rule || 'vn', opening: g.opening || 'free', clock: g.clock || null,
-      timeLimit: g.time_limit || 0, x: g.x_name, o: g.o_name, result: resultOf(g.winner), termination: g.reason || null, moves: g.moves,
+      timeLimit: g.time_limit || 0, x: g.x_name, o: g.o_name, result: resultOf(g.winner), termination: g.reason || null, moveCount: g.moves,
     }));
     return { username: u.username, hidden: false, games };
   }
