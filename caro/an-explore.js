@@ -83,7 +83,7 @@
   function start(opts) {
     const base = opts.base.slice();
     st = { base, line: base.slice(), backTo: opts.backTo, rule: opts.rule, goal: opts.goal || null, p: opts.p, best: opts.best,
-      ev: null, evSeq: 0, msg: '', msgCls: '', judged: false, refAfter: null, over: false };
+      ev: null, evSeq: 0, msg: '', msgCls: '', judged: false, refAfter: null, over: false, hint: opts.hint || '' };
     const ctrl = {
       moves: base, rule: st.rule,
       get canPlay() { return !!st; },
@@ -159,6 +159,7 @@
     }
     const ok = same || after >= st.refAfter - BETTER_SLACK;
     st.msg = ok ? T('ex_better_ok', { w: pct(after) }) : T('ex_better_no', { w: pct(after), b: pct(st.refAfter) });
+    if (!ok && st.hint) st.msg += ' ' + st.hint; // gợi ý của huấn luyện viên (coach-ui.js) – không lộ đáp án
     st.msgCls = ok ? 'solved' : 'wrong';
     window.CaroSound && window.CaroSound.play(ok ? 'win' : 'lose');
     if (ok) window.dispatchEvent(new CustomEvent('caro:solved', { detail: { kind: 'better', clean: true } }));

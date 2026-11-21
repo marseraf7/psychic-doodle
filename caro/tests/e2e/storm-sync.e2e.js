@@ -100,6 +100,21 @@ const { audit } = require('./ui-audit');
   await shot(b, 'storm-board.png');
   const a5 = await audit(b);
   ok(a5.length === 0, 'tab Câu đố + bảng tuần: 0 lỗi hiển thị ở 390px' + (a5.length ? ' – ' + JSON.stringify(a5.slice(0, 3)) : ''));
+  // 3b. Bộ câu đố trên máy khác bản máy chủ (thiếu bài máy chủ phát): chơi như lượt trên máy, báo rõ, không nộp lượt lệch
+  await sleep(5200); // máy chủ: 1 lượt / 5 giây mỗi kết nối
+  await b.evaluate(() => {
+    const St = window.CaroStudy, real = St.loadPuzzles;
+    St.loadPuzzles = async () => (await real()).filter((q, i) => i % 2); // máy "cũ": thiếu nửa bộ bài
+    window.__sent = [];
+    window.CaroStorm.start();
+  });
+  const oldVer = await until(() => b.evaluate(() => [...document.querySelectorAll('#toasts .toast')].map((t) => t.textContent).find((t) => /khác bản trên máy chủ/.test(t)) || ''));
+  ok(oldVer && await b.evaluate(() => window.__sent.includes('stormStart') && !!window.CaroApp.ext), 'Storm: bộ câu đố khác máy chủ – báo rõ, vẫn chơi được (lượt trên máy)');
+  await b.evaluate(() => { const real = Date.now; Date.now = () => real() + 5 * 60 * 1000; }); // cho hết giờ
+  await sleep(1500);
+  ok(await b.evaluate(() => !window.__sent.includes('stormEnd')), 'Storm (bộ câu đố khác máy chủ): không nộp lượt có số thứ tự lệch');
+  await b.evaluate(() => { const d = document.getElementById('puzzle-dlg'); if (d.open) d.close(); window.CaroShell.go('puzzles'); });
+
   const api = await (await fetch(URL + 'api/storm/leaderboard')).json();
   ok(api.players[0] && api.players[0].username === NAME && !('uid' in api.players[0]) && !('id' in api.players[0]), 'API công khai: bảng tuần có tên, không có id');
 

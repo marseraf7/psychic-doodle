@@ -1,11 +1,12 @@
 /*
  * Tiến độ người chơi lưu cả trên máy lẫn trong tài khoản (A5): Giải đố (caro.puzzles), Puzzle Storm (caro.storm),
- * chuỗi ngày chơi + huy hiệu (caro.habits). Dùng chung trình duyệt (progress-sync.js) và máy chủ (hub/progress.js).
+ * chuỗi ngày chơi + huy hiệu (caro.habits), thang nhân vật máy (caro.ladder – B9, cách gộp ở bot-ladder-core.js). Dùng chung trình duyệt (progress-sync.js) và máy chủ (hub/progress.js).
  *   clean(raw)        – chỉ giữ trường hợp lệ, cắt độ dài (dữ liệu từ máy người chơi: không tin)
  *   merge(a, b)       – gộp hai bản, KHÔNG BAO GIỜ làm mất tiến độ: số lớn nhất, hợp các tập (ngày chơi, huy hiệu,
  *                       nhân vật đã thắng), điểm giải đố lấy theo bên đã giải nhiều bài hơn
  *   streakOf(days, today) – chuỗi ngày chơi liên tiếp tính lùi từ hôm nay (hoặc hôm qua nếu hôm nay chưa chơi)
- *   weekKey(at)       – tuần ISO tính theo giờ Việt Nam (UTC+7, đổi tuần lúc 00:00 thứ Hai) – bảng xếp hạng Storm tuần
+ *   weekKey(at)       – tuần ISO tính theo giờ Việt Nam (UTC+7, đổi tuần lúc 00:00 thứ Hai) – DÙNG CHUNG cho bảng Storm tuần
+ *                       và Hạng đấu tuần (server/src/league-core.js); weekStart(key) / weekEnd(key): mốc đầu / cuối tuần (ms)
  *   sane(p, now)      – máy chủ: bỏ ngày chơi / ngày đạt huy hiệu ở tương lai hoặc trước khi có tính năng (SINCE), chuỗi
  *                       ngày dài nhất không vượt số ngày từ SINCE – hồ sơ công khai không hiện số vô lý do máy tự báo
  *   BADGE_IDS         – mã huy hiệu (đúng như habits.js – bài thử kiểm khớp)
@@ -20,6 +21,8 @@
   const MAX_DAYS = 400;
   const int = (v, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0; };
   const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+  // Thang nhân vật máy: làm sạch / gộp theo bot-ladder-core.js (trình duyệt: nạp sau file này – tra lúc gọi)
+  const LD = () => global.CaroLadderCore || (typeof require === 'function' ? require('./bot-ladder-core.js') : null);
 
   function clean(raw) {
     const r = isObj(raw) ? raw : {};
@@ -38,6 +41,7 @@
       },
       storm: { best: int(st.best, 1000), runs: int(st.runs, 1e6), last: int(st.last, 1000) },
       habits: { days, best: int(h.best, 1e5), games: int(h.games, 1e7), bots, earned, boatRapfi: !!h.boatRapfi },
+      ladder: LD().clean(r.ladder),
     };
   }
 
@@ -62,6 +66,7 @@
         days, best: Math.max(x.habits.best, y.habits.best, longest(days)), games: Math.max(x.habits.games, y.habits.games),
         bots: { ...x.habits.bots, ...y.habits.bots }, earned, boatRapfi: x.habits.boatRapfi || y.habits.boatRapfi,
       },
+      ladder: LD().merge(x.ladder, y.ladder), // bậc cao hơn mỗi luật
     };
   }
 
@@ -97,6 +102,16 @@
     return `${y}-W${String(w).padStart(2, '0')}`;
   }
 
+  /** Thứ Hai 00:00 giờ Việt Nam bắt đầu tuần key ('2026-W47'), ms UTC; NaN nếu key sai dạng. */
+  function weekStart(key) {
+    const m = /^(\d{4})-W(\d{2})$/.exec(String(key));
+    if (!m) return NaN;
+    const jan4 = Date.UTC(+m[1], 0, 4);
+    const w1 = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * 86400000; // thứ Hai của tuần 1 (tuần chứa 4/1)
+    return w1 + (+m[2] - 1) * 7 * 86400000 - 7 * 3600000;
+  }
+  const weekEnd = (key) => weekStart(key) + 7 * 86400000;
+
   // Chuỗi ngày chơi + huy hiệu có từ 29/10/2026 (habits.js): ngày sớm hơn không thể là thật (lùi 1 ngày cho múi giờ)
   const SINCE = '2026-10-28';
   function sane(p, now) {
@@ -108,10 +123,12 @@
     if (c.pz.daily && !ok(c.pz.daily.d)) c.pz.daily = null;
     const span = Math.max(0, Math.round((toDate(max) - toDate(SINCE)) / 86400000) + 1);
     c.habits.best = Math.min(Math.max(c.habits.best, longest(c.habits.days)), span);
+    // Thang (bậc đã có trần RUNGS khi làm sạch): lúc đổi không ở tương lai
+    if (c.ladder.at > (now == null ? Date.now() : now) + 14 * 3600000) c.ladder.at = 0;
     return c;
   }
 
-  const P = { clean, merge, sane, streakOf, longest, weekKey, BADGE_IDS, SINCE };
+  const P = { clean, merge, sane, streakOf, longest, weekKey, weekStart, weekEnd, BADGE_IDS, SINCE };
   if (typeof module !== 'undefined' && module.exports) module.exports = P;
   else global.CaroProgress = P;
 })(typeof window !== 'undefined' ? window : globalThis);

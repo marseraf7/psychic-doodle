@@ -88,6 +88,7 @@ class Profile {
         rating: u.rating, main: R.mainPool(u), pools, history: this.store.ratingPoints(u.id),
         stats: u.stats, rated: u.rated, streak: u.wstreak, lstreak: u.lstreak, tours: u.tours, recent, canHistory, histVis: this.histVisOf(u),
         perf: u.perf || {}, activity: Perf.activity(u), // thống kê sâu theo loại + hoạt động 30 ngày
+        league: this.leagueBadge(u.id), // bậc hạng đấu tuần (league.js)
         bio: u.bio || '', // giới thiệu bản thân (đánh dấu như Markdown; trình duyệt dựng HTML an toàn)
         progress: this.progressOf(u), // chuỗi ngày chơi, huy hiệu, Puzzle Storm (progress.js – A5)
         self: meUid === u.id, friend: !!(me && me.friends.includes(u.id)), h2h: me && me.id !== u.id ? this.store.h2h(me.id, u.id) : null,

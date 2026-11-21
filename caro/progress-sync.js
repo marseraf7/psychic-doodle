@@ -1,6 +1,6 @@
 /*
  * Đồng bộ tiến độ với tài khoản (A5): Giải đố (caro.puzzles – puzzles.js), Puzzle Storm (caro.storm – storm.js), chuỗi
- * ngày chơi + huy hiệu (caro.habits – habits.js). Vẫn lưu trên máy như cũ (khách, mất mạng: chỉ trên máy).
+ * ngày chơi + huy hiệu (caro.habits – habits.js), thang nhân vật máy (caro.ladder – bot-ladder.js). Vẫn lưu trên máy như cũ (khách, mất mạng: chỉ trên máy).
  *  – Đăng nhập (tin welcome có tài khoản): gửi bản trên máy; máy chủ gộp với bản đã lưu (progress-merge.js – không bao giờ
  *    mất tiến độ: số lớn nhất, hợp các tập) và trả lại; máy gộp lần nữa, ghi vào localStorage rồi báo 'caro:progress' để các
  *    module đọc lại.
@@ -15,7 +15,7 @@
   'use strict';
   const P = window.CaroProgress;
   const N = window.CaroOnline;
-  const KEYS = { pz: 'caro.puzzles', storm: 'caro.storm', habits: 'caro.habits' };
+  const KEYS = { pz: 'caro.puzzles', storm: 'caro.storm', habits: 'caro.habits', ladder: 'caro.ladder' };
   const read = (k) => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
   const OWNER = 'caro.progressOwner'; // tài khoản (uid) mà tiến độ trên máy đang thuộc về
   const owner = () => { try { return localStorage.getItem(OWNER) || ''; } catch (e) { return ''; } };

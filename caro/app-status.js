@@ -25,6 +25,10 @@
      * Trình đọc màn hình: chỉ đọc khi tới lượt mình và khi ván kết thúc (dòng "Lượt…" không tự đọc mỗi nước đi nữa).
      */
     let cueMine = false, cueKey = '';
+    // Hiệu ứng nhún "tới lượt bạn" (style-extras.css: 0,5 giây) – bỏ class khi chạy xong hoặc quá PULSE_MS
+    const PULSE_MS = 1500;
+    let pulseTimer = 0;
+    const endPulse = (bar) => { clearTimeout(pulseTimer); bar.classList.remove('turn-pulse'); };
     function turnCue() {
       const o = state.online;
       let mine = false, over = false;
@@ -47,8 +51,14 @@
       // chạy lại hiệu ứng (bắt trình duyệt tính bố cục ngay giữa lúc chạy mã, A2)
       if (show && !cueMine) {
         bar.classList.add('turn-pulse');
-        const done = (e) => { if (e.animationName !== 'turn-pulse') return; bar.classList.remove('turn-pulse'); bar.removeEventListener('animationend', done); };
-        bar.addEventListener('animationend', done);
+        // Một hàm nghe duy nhất cho thanh (gắn một lần) + hẹn giờ dự phòng: hiệu ứng không chạy (giảm chuyển động, thanh
+        // đang ẩn) thì animationend không bao giờ tới – trước đây mỗi lượt gắn thêm một hàm nghe, dồn mãi
+        if (!bar.dataset.pulseOn) {
+          bar.dataset.pulseOn = '1';
+          bar.addEventListener('animationend', (e) => { if (e.animationName === 'turn-pulse') endPulse(bar); });
+        }
+        clearTimeout(pulseTimer);
+        pulseTimer = setTimeout(() => endPulse(bar), PULSE_MS);
       }
       cueMine = show;
       const n = o ? o.room.moves.length : state.board.moves.length;

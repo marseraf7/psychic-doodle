@@ -266,7 +266,7 @@
     // Nước chưa chính xác / sai lầm chấm theo khả năng thắng: "Tìm nước tốt hơn" – đi thử, nước đầu so với nước của máy
     const canBetter = !canRetry && EX && m.best && ['inacc', 'mistake', 'blunder', 'miss'].includes(m.cls);
     el.innerHTML = `<span class="an-badge" style="--c:${meta.color}">${meta.text || '•'}</span>
-      <span><b>${esc(T('an_move', { n: idx }))} ${glyph(m.p)} ${esc(App.cellName(m.x, m.y))} · ${esc(T('cls_' + m.cls))}</b> — ${esc(text)}</span>
+      <span><b>${esc(T('an_move', { n: idx }))} ${glyph(m.p)} ${esc(App.cellName(m.x, m.y))} · ${esc(T('cls_' + m.cls))}</b> — ${esc(text)}</span>${window.CaroCoachUI ? window.CaroCoachUI.html(r.data.moves, idx - 1, m, r.data.rule) : ''}
       ${canRetry ? `<button type="button" class="primary sm" data-retry="${idx - 1}">${ico('retry')} ${esc(T('an_retry'))}</button>` : ''}
       ${canBetter ? `<button type="button" class="primary sm" data-better="${idx - 1}">${ico('retry')} ${esc(T('an_better'))}</button>` : ''}
       ${EX && !an.pv ? `<button type="button" class="ghost sm" data-pv="${idx - 1}">${ico('bulb')} ${esc(T('an_pv'))}</button>` : ''}
@@ -365,7 +365,8 @@
     if (!res || !r || !EX) return;
     const m = res.moves[i];
     an.pv = null;
-    EX.start({ base: r.data.moves.slice(0, i), backTo: i + 1, rule: r.data.rule, goal: 'better', p: m.p, best: m.best });
+    const hint = window.CaroCoachUI ? window.CaroCoachUI.hint(r.data.moves.slice(0, i), m.p, r.data.rule) : ''; // coach-ui.js
+    EX.start({ base: r.data.moves.slice(0, i), backTo: i + 1, rule: r.data.rule, goal: 'better', p: m.p, best: m.best, hint });
   }
 
   /** "Thử lại": đặt lại thế cờ trước nước i, cho người chơi tìm nước tốt hơn. */

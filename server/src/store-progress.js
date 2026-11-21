@@ -1,5 +1,5 @@
 /*
- * Tiến độ trong tài khoản (A5) – bảng user_progress (Giải đố, Storm, chuỗi ngày, huy hiệu: một bản JSON mỗi người, gộp
+ * Tiến độ trong tài khoản (A5) – bảng user_progress (Giải đố, Storm, chuỗi ngày, huy hiệu, thang nhân vật máy: một bản JSON mỗi người, gộp
  * bằng caro/progress-merge.js) và storm_runs (mỗi lượt Puzzle Storm máy chủ đã kiểm: điểm + tuần – bảng xếp hạng tuần).
  * Trộn vào Store.prototype (store.js).
  */
@@ -27,6 +27,11 @@ class ProgressStore {
     this.db.prepare('INSERT INTO storm_runs (uid, week, score, at) VALUES (?, ?, ?, ?)').run(uid, week, score, at);
     if (Math.random() < 0.02) this.stormPrune(at);
     return week;
+  }
+
+  /** Số lượt Storm đã kiểm của uid từ thời điểm since (ms) – trần lượt / ngày không mất khi máy chủ khởi động lại. */
+  stormRunsSince(uid, since) {
+    return this.db.prepare('SELECT COUNT(*) AS n FROM storm_runs WHERE uid = ? AND at >= ?').get(uid, since).n;
   }
 
   stormPrune(now = Date.now()) {
@@ -66,6 +71,32 @@ class ProgressStore {
   stormBestEver(uid) {
     const r = this.db.prepare('SELECT MAX(score) AS s FROM storm_runs WHERE uid = ?').get(uid);
     return (r && r.s) || 0;
+  }
+
+  /**
+   * Thang nhân vật máy (B9) từng lưu ở bảng riêng user_kv (khoá 'ladder') trước khi gộp vào tiến độ: CSDL nào còn bảng đó thì
+   * gộp vào user_progress (progress-merge.js – lấy bậc cao hơn, có trần) rồi xoá bảng. Một lần, trong giao dịch; không có
+   * bảng thì không làm gì.
+   */
+  progressMigrateKv() {
+    if (!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_kv'").get()) return 0;
+    let n = 0;
+    this.db.exec('BEGIN');
+    try {
+      for (const r of this.db.prepare("SELECT uid, v FROM user_kv WHERE k = 'ladder'").all()) {
+        if (!this.users.has(r.uid)) continue; // tài khoản đã xoá
+        let v = null;
+        try { v = JSON.parse(r.v); } catch (e) { continue; } // dòng hỏng: bỏ
+        this.progressSet(r.uid, P.merge(this.progressGet(r.uid), { ladder: v }));
+        n++;
+      }
+      this.db.exec('DROP TABLE user_kv');
+      this.db.exec('COMMIT');
+    } catch (e) {
+      this.db.exec('ROLLBACK');
+      throw e;
+    }
+    return n;
   }
 
   /** Xoá tài khoản: tiến độ + lượt Storm (store.js deleteUser). */

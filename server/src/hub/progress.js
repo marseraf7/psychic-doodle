@@ -49,7 +49,9 @@ class Progress {
     this.throttle(conn, 'stormStart', 5000);
     const day = new Date().toISOString().slice(0, 10);
     const d = this.stormDaily().get(u.id);
-    const n = d && d.day === day ? d.n : 0;
+    // Số lượt đã bắt đầu hôm nay (bộ nhớ) – khởi động lại máy chủ thì mất, nên lấy ít nhất bằng số lượt đã nộp + kiểm hôm
+    // nay trong storm_runs: không ai chơi quá trần bằng cách chờ máy chủ khởi động lại
+    const n = Math.max(d && d.day === day ? d.n : 0, this.store.stormRunsSince(u.id, Date.parse(day + 'T00:00:00Z')));
     if (n >= RUNS_PER_DAY) throw E('storm_limit', { n: RUNS_PER_DAY });
     this.stormDaily().set(u.id, { day, n: n + 1 });
     const seed = crypto.randomBytes(4).readUInt32LE(0);
