@@ -36,7 +36,8 @@ class Progress {
   on_progressSync(conn, { data }) {
     const u = this.requireUser(conn);
     this.throttle(conn, 'progressSync', 2000);
-    const merged = P.merge(this.store.progressGet(u.id), data);
+    // sane: ngày ở tương lai / trước khi có tính năng bị bỏ, chuỗi dài nhất trong giới hạn (dữ liệu máy tự báo)
+    const merged = P.sane(P.merge(this.store.progressGet(u.id), data));
     // Điểm Storm cao nhất: ít nhất bằng điểm đã kiểm trên máy chủ
     merged.storm.best = Math.max(merged.storm.best, this.store.stormBestEver(u.id));
     this.store.progressSet(u.id, merged);
@@ -94,17 +95,42 @@ class Progress {
 
   publicStormBoard(week) { return this.stormBoardView(week); }
 
-  /** Phần tiến độ hiện ở trang hồ sơ: chuỗi ngày (theo ngày của người đó), huy hiệu đã đạt, Storm. */
+  /**
+   * Phần tiến độ hiện ở trang hồ sơ: chuỗi ngày (theo ngày của người đó), huy hiệu đã đạt, Storm. Chuỗi ngày / huy hiệu do
+   * máy tự báo: làm sạch lại (P.sane), huy hiệu kiểm được bằng dữ liệu tài khoản (online, điểm, giải, chuỗi ngày) chỉ hiện
+   * khi tài khoản đạt thật – tự sửa localStorage không làm hồ sơ công khai hiện "điểm 1800" hay "chuỗi 30 ngày".
+   */
   progressOf(u) {
-    const p = this.store.progressGet(u.id);
+    const raw = this.store.progressGet(u.id);
+    const p = raw && P.sane(raw);
     const tz = Number.isInteger(u.tz) ? u.tz : 0;
     const today = new Date(Date.now() + tz * 60000).toISOString().slice(0, 10);
     const week = P.weekKey();
+    const best = p ? Math.max(p.habits.best, P.streakOf(p.habits.days, today)) : 0;
     return {
-      streak: p ? P.streakOf(p.habits.days, today) : 0, bestStreak: p ? p.habits.best : 0,
-      badges: p ? P.BADGE_IDS.filter((id) => p.habits.earned[id]) : [],
+      streak: p ? P.streakOf(p.habits.days, today) : 0, bestStreak: best,
+      badges: p ? P.BADGE_IDS.filter((id) => p.habits.earned[id] && this.badgeReal(u, id, best)) : [],
       storm: this.store.stormBestEver(u.id), stormWeek: this.store.stormMine(u.id, week).score,
     };
+  }
+
+  /** Huy hiệu có điều kiện kiểm được trên máy chủ (như habits.js): tài khoản đạt thật chưa. Huy hiệu khác (chơi với máy, bài
+   *  học, giải đố – chỉ có trên máy) giữ như máy báo. */
+  badgeReal(u, id, bestStreak) {
+    const s = u.stats || {};
+    const peak = () => Object.values(this.store.ratingPoints(u.id)).flat().reduce((m, x) => Math.max(m, x[1] || 0), u.rating || 0);
+    switch (id) {
+      case 'daily_3': return bestStreak >= 3;
+      case 'daily_7': return bestStreak >= 7;
+      case 'daily_30': return bestStreak >= 30;
+      case 'online_10': return (s.wins | 0) >= 10;
+      case 'online_100': return (s.wins | 0) + (s.losses | 0) + (s.draws | 0) >= 100;
+      case 'win_streak_5': return !!(u.wstreak && u.wstreak.best >= 5);
+      case 'rating_1500': return peak() >= 1500;
+      case 'rating_1800': return peak() >= 1800;
+      case 'tour_win': return !!(u.tours && u.tours.won >= 1);
+      default: return true;
+    }
   }
 }
 

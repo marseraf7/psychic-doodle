@@ -141,3 +141,31 @@ test('máy chủ: đồng bộ tiến độ, Storm có kiểm, bảng tuần, AP
   assert.strictEqual(hub.store.stormBestEver(u.id), 0);
   a.close(); b.close();
 });
+
+test('hồ sơ công khai: chuỗi ngày / huy hiệu tự báo bị giới hạn (ngày tương lai, chuỗi vô lý, huy hiệu tài khoản chưa đạt)', async () => {
+  const hub = ctx.app.hub;
+  const a = await account();
+  const ua = [...hub.store.users.values()].at(-1);
+  const today = new Date().toISOString().slice(0, 10);
+  const day = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+  const future = Array.from({ length: 30 }, (_, i) => day(i + 3)); // 30 ngày ở tương lai (đồng hồ máy sai / tự sửa)
+  const earned = Object.fromEntries(P.BADGE_IDS.map((id) => [id, today]));
+  earned.first_game = day(400); // ngày đạt ở tương lai
+  const r = await a.req({ t: 'progressSync', data: { habits: { days: ['2020-01-01', today, ...future], best: 99999, games: 3, earned } } }, 'progress');
+  assert.deepStrictEqual(r.data.habits.days, [today], 'ngày tương lai / trước khi có tính năng bị bỏ');
+  assert.ok(r.data.habits.best <= Math.round((Date.now() - Date.parse(P.SINCE)) / 86400000) + 2, 'chuỗi dài nhất không vượt số ngày có tính năng');
+  assert.strictEqual(r.data.habits.earned.first_game, undefined);
+  const prof = (await a.req({ t: 'profile', username: ua.username }, 'profile')).profile.progress;
+  for (const id of ['online_10', 'online_100', 'win_streak_5', 'rating_1800', 'tour_win', 'daily_30']) {
+    assert.ok(!prof.badges.includes(id), 'huy hiệu tài khoản chưa đạt không hiện: ' + id);
+  }
+  assert.ok(prof.badges.includes('beat_boat'), 'huy hiệu chỉ có trên máy: giữ như máy báo');
+  assert.ok(prof.bestStreak < 1000);
+  // Đạt thật (thống kê tài khoản): hiện
+  ua.stats.wins = 12;
+  ua.tours.won = 1;
+  await new Promise((res) => setTimeout(res, 350)); // giới hạn 300 ms / lần xem hồ sơ
+  const prof2 = (await a.req({ t: 'profile', username: ua.username }, 'profile')).profile.progress;
+  assert.ok(prof2.badges.includes('online_10') && prof2.badges.includes('tour_win'));
+  a.close();
+});

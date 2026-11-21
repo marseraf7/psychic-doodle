@@ -6,6 +6,8 @@
  *                       nhân vật đã thắng), điểm giải đố lấy theo bên đã giải nhiều bài hơn
  *   streakOf(days, today) – chuỗi ngày chơi liên tiếp tính lùi từ hôm nay (hoặc hôm qua nếu hôm nay chưa chơi)
  *   weekKey(at)       – tuần ISO tính theo giờ Việt Nam (UTC+7, đổi tuần lúc 00:00 thứ Hai) – bảng xếp hạng Storm tuần
+ *   sane(p, now)      – máy chủ: bỏ ngày chơi / ngày đạt huy hiệu ở tương lai hoặc trước khi có tính năng (SINCE), chuỗi
+ *                       ngày dài nhất không vượt số ngày từ SINCE – hồ sơ công khai không hiện số vô lý do máy tự báo
  *   BADGE_IDS         – mã huy hiệu (đúng như habits.js – bài thử kiểm khớp)
  * Viết dạng UMD (window.CaroProgress / module.exports), không đụng DOM.
  */
@@ -95,7 +97,21 @@
     return `${y}-W${String(w).padStart(2, '0')}`;
   }
 
-  const P = { clean, merge, streakOf, longest, weekKey, BADGE_IDS };
+  // Chuỗi ngày chơi + huy hiệu có từ 29/10/2026 (habits.js): ngày sớm hơn không thể là thật (lùi 1 ngày cho múi giờ)
+  const SINCE = '2026-10-28';
+  function sane(p, now) {
+    const c = clean(p);
+    const max = keyOf((now == null ? Date.now() : now) + 14 * 3600000); // múi giờ sớm nhất: UTC+14
+    const ok = (d) => d >= SINCE && d <= max;
+    c.habits.days = c.habits.days.filter(ok);
+    for (const k of Object.keys(c.habits.earned)) if (!ok(c.habits.earned[k])) delete c.habits.earned[k];
+    if (c.pz.daily && !ok(c.pz.daily.d)) c.pz.daily = null;
+    const span = Math.max(0, Math.round((toDate(max) - toDate(SINCE)) / 86400000) + 1);
+    c.habits.best = Math.min(Math.max(c.habits.best, longest(c.habits.days)), span);
+    return c;
+  }
+
+  const P = { clean, merge, sane, streakOf, longest, weekKey, BADGE_IDS, SINCE };
   if (typeof module !== 'undefined' && module.exports) module.exports = P;
   else global.CaroProgress = P;
 })(typeof window !== 'undefined' ? window : globalThis);
