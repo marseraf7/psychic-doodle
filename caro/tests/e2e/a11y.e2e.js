@@ -71,6 +71,47 @@ const { audit } = require('./ui-audit');
   await p.keyboard.press('f'); await p.keyboard.press('f'); await p.keyboard.press('f');
   await sleep(500);
 
+  // ---- Chọn bàn bằng chuột (kéo) rồi bấm mũi tên: dời bàn như cũ; gõ K trên bàn mới sang chế độ bàn phím
+  const h8 = () => p.evaluate(() => window.CaroApp.screenOf(0, 0));
+  const cursor = () => p.evaluate(() => window.CaroA11y.cursor());
+  const ringOn = () => p.evaluate(() => !document.getElementById('a11y-cursor').hidden);
+  const nMv = (await moves(p)).length;
+  const bb = await p.locator('#board').boundingBox();
+  await p.mouse.move(bb.x + bb.width / 2, bb.y + bb.height / 2);
+  await p.mouse.down();
+  await p.mouse.move(bb.x + bb.width / 2 + 30, bb.y + bb.height / 2, { steps: 4 });
+  await sleep(120); // dừng tay trước khi thả: không trượt theo quán tính
+  await p.mouse.up();
+  await sleep(100);
+  const curA = await cursor();
+  const sA = await h8();
+  await p.keyboard.press('ArrowRight');
+  await sleep(100);
+  const sB = await h8();
+  ok(await p.evaluate(() => document.activeElement === document.getElementById('board')), 'kéo bàn bằng chuột: bàn cờ được chọn');
+  ok(sB[0] < sA[0] - 10 && Math.abs(sB[1] - sA[1]) < 1 && JSON.stringify(await cursor()) === JSON.stringify(curA) && !(await ringOn()),
+    'bàn chọn bằng chuột: mũi tên → dời bàn (bàn trôi sang trái; không dời ô đang chọn, không hiện khung viền) – ' + JSON.stringify({ sA, sB }));
+  await p.keyboard.press('k');
+  await waitLive(p, /: (ô trống|quân [XO])/, 'K: đọc ô đang chọn');
+  ok(await ringOn(), 'K: sang chế độ bàn phím, hiện khung viền');
+  const curK = await cursor();
+  await p.keyboard.press('ArrowLeft');
+  await sleep(100);
+  const sC = await h8();
+  const curL = await cursor();
+  ok(curL[0] === curK[0] - 1 && curL[1] === curK[1] && Math.abs(sC[0] - sB[0]) < 1, 'chế độ bàn phím: mũi tên ← dời ô đang chọn sang trái, bàn đứng yên – ' + JSON.stringify({ curK, curL, sB, sC }));
+  // Bàn đã quay 90° (theo chiều kim đồng hồ): mũi tên dời ô theo hướng trên màn hình như khi dời bàn
+  await p.keyboard.press('f');
+  await sleep(400);
+  await p.keyboard.press('ArrowRight');
+  await sleep(100);
+  const curR = await cursor();
+  const [ra, rb] = [await p.evaluate((c) => window.CaroApp.screenOf(c[0], c[1]), curL), await p.evaluate((c) => window.CaroApp.screenOf(c[0], c[1]), curR)];
+  ok(rb[0] - ra[0] > 10 && Math.abs(rb[1] - ra[1]) < 1, 'bàn đã quay: mũi tên → dời ô đang chọn sang phải màn hình – ' + JSON.stringify({ curL, curR, ra, rb }));
+  await p.keyboard.press('f'); await p.keyboard.press('f'); await p.keyboard.press('f');
+  await sleep(500);
+  ok((await moves(p)).length === nMv && (await p.evaluate(() => window.CaroApp.getRotation())) === rot0, 'dời bàn / ô bằng phím không đánh thêm nước; quay đủ 4 lần về như cũ');
+
   // ---- Chế độ không nhìn bàn: B, gõ lệnh, đọc nước đe doạ
   await p.evaluate(() => window.CaroApp.startPreset({ mode: 'pvp', rule: 'free', moves: [[0, 0], [0, 3], [1, 0], [1, 3], [2, 0], [2, 3]] }));
   await sleep(300);
