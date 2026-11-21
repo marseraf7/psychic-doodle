@@ -53,11 +53,22 @@
 
   if (N) N.on('stormBoard', (m) => { data = { week: m.week, players: m.players || [], me: m.me }; render(); });
   // Tên trong bảng: mở hồ sơ theo tên đăng nhập (profile.js)
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('#storm-board [data-pf-name]');
-    if (!a || !window.CaroProfile) return;
+  function openName(a) {
+    if (!window.CaroProfile) return;
     if (!N.connected) { N.toast(T('not_connected')); return; }
     window.CaroProfile.openName(a.dataset.pfName);
+  }
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('#storm-board [data-pf-name]');
+    if (a) openName(a);
+  });
+  // span role="button": bàn phím (Enter / Space) cũng mở được như nút thật
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const a = e.target.closest && e.target.closest('#storm-board [data-pf-name]');
+    if (!a) return;
+    e.preventDefault(); // Space: không cuộn trang
+    openName(a);
   });
   window.addEventListener('caro:page', (e) => { if (e.detail.id === 'puzzles') load(); });
   window.addEventListener('caro:stormresult', () => load());
