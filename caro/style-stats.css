@@ -73,3 +73,8 @@ svg.ins-shape .so { fill: var(--o, #2f6fd2); }
 .fp-main > small, .fp-side { color: var(--muted); font-size: var(--fs-xs); margin-top: 2px; }
 .fp-side b { color: var(--fg, inherit); }
 .fp-act { gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+/* Tổng kết tháng / năm (recap.js) */
+.rc-nav { gap: 8px; align-items: center; margin: 6px 0 10px; }
+.rc-period { min-width: 0; text-align: center; flex: 1 1 auto; }
+.rc-facts { margin: 6px 0 10px; }

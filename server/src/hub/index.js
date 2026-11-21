@@ -29,6 +29,7 @@
  *   league.js      – Hạng đấu tuần: điểm từ ván tính điểm, nhóm 30 người, lên / xuống bậc cuối tuần (chốt tuần không lặp)
  *   ladder.js      – Thang nhân vật máy: đồng bộ tiến độ (bậc đã thắng theo luật) giữa các thiết bị của tài khoản
  *   fairplay.js    – Soát chơi đẹp: rời tab trong ván, hàng chờ quản trị viên xem (không xử phạt tự động)
+ *   recap.js       – Tổng kết tháng / năm của chính mình (số ván, thắng đẹp nhất, chuỗi thắng, đối thủ gặp nhiều nhất)
  *   insights.js    – Thống kê cá nhân: thắng / hoà / thua theo màu, luật, loại thời gian, sức đối thủ, khai cuộc, độ dài ván
  * Mỗi phần là một lớp chỉ chứa phương thức; ở đây gộp tất cả vào Hub.prototype.
  * Tin nhắn loại X do phương thức on_X xử lý. Không phụ thuộc thư viện WebSocket:
@@ -87,9 +88,10 @@ const { Insights } = require('./insights.js');
 const { League } = require('./league.js');
 const { Ladder } = require('./ladder.js');
 const { Fairplay } = require('./fairplay.js');
+const { Recap } = require('./recap.js');
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart, Insights, League, Ladder, Fairplay]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, Disputes, Evals, Lobby, AvatarPart, Insights, League, Ladder, Fairplay, Recap]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);
