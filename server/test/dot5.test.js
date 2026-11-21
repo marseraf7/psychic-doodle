@@ -84,6 +84,7 @@ test('mục 74c: giải tán CLB phải huỷ giao hữu đang chờ và chặn 
   assert.strictEqual((await B.owner.req({ t: 'clubDisband', id: B.id }, 'error')).code, 'club_has_running_tour',
     'CLB có giao hữu đang chạy không giải tán được');
   assert.ok(ctx.app.hub.clubs.has(B.id), 'CLB B còn nguyên');
+  m2.status = 'scheduled'; // trả lại trạng thái thật (dựng 'running' mà chưa bốc thăm: nhịp giải không có trận để mở)
   [A.owner, B.owner, A2.owner].forEach((k) => k.close());
 });
 

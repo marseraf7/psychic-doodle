@@ -62,21 +62,26 @@ class TourRun {
   tourTick() {
     if (this.closed) return;
     const now = Date.now();
+    // Mỗi giải một try/catch: một giải lỗi dữ liệu bất ngờ chỉ ghi log, không chặn nhịp của các giải sau trong vòng lặp
     for (const t of this.tours.values()) {
-      if (t.status === 'scheduled') {
-        if (this.inCheckin(t, now) && !t.checkinNotified) {
-          t.checkinNotified = true;
-          this.saveTour(t);
-          this.notifyPlayers(t, 'tour_checkin_open');
-          this.pushTour(t);
-        }
-        if (now >= t.startsAt) this.startTour(t);
-      } else if (t.status === 'running') {
-        if (t.disputes) this.tickDisputes(t, now);
-        if (t.status !== 'running') continue;
-        if (t.format === 'arena') this.tickArena(t, now);
-        else this.runBracket(t, now);
+      try { this.tourTickOne(t, now); } catch (e) { console.error(`[hub] nhịp giải ${t.id} lỗi:`, e); }
+    }
+  }
+
+  tourTickOne(t, now) {
+    if (t.status === 'scheduled') {
+      if (this.inCheckin(t, now) && !t.checkinNotified) {
+        t.checkinNotified = true;
+        this.saveTour(t);
+        this.notifyPlayers(t, 'tour_checkin_open');
+        this.pushTour(t);
       }
+      if (now >= t.startsAt) this.startTour(t);
+    } else if (t.status === 'running') {
+      if (t.disputes) this.tickDisputes(t, now);
+      if (t.status !== 'running') return;
+      if (t.format === 'arena') this.tickArena(t, now);
+      else this.runBracket(t, now);
     }
   }
 
