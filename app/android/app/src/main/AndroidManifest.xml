@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- M-A2: tắt sao lưu tự động — token phiên đăng nhập nằm trong local storage của WebView;
          để allowBackup=true thì bản sao lưu / chuyển máy có thể mang token sang thiết bị khác. -->
     <application
@@ -50,6 +51,21 @@
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Tắt EmojiCompat tự khởi động (androidx.emoji2, kéo vào qua appcompat): nó tải phông emoji từ provider
+             com.google.android.gms.fonts (FontsProvider của Google Play Services). Khi tiến trình
+             com.google.android.gms.persistent chết, Android giết luôn app vì "depends on provider … FontsProvider"
+             (lỗi CI Android 34, 21/11/2026; người dùng thật có GMS hỏng / đang cập nhật cũng bị). App chỉ hiện chữ
+             trong WebView – WebView tự vẽ emoji bằng phông hệ thống, không cần EmojiCompat. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+                tools:node="remove" />
         </provider>
     </application>
 

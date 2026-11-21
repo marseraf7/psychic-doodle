@@ -7,14 +7,18 @@
 'use strict';
 const { _android: android, chromium } = require('playwright');
 const { execFileSync } = require('child_process');
+const fs = require('fs');
+const { until, sleep, parseDevtoolsSockets, parsePidof, createStepWatch, attachWebView } = require('./android-attach');
+const { createDiagnose, providerDependents } = require('./android-diag');
 
 const PKG = 'io.github.marseraf7.caro';
 const SHOTS = process.env.SHOTS_DIR || '.';
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+try { fs.mkdirSync(SHOTS, { recursive: true }); } catch (e) { /* bỏ qua */ }
 let failed = 0;
+let pendingDiag = ''; // kiểm tra đầu tiên thất bại: chẩn đoán ở bước kế tiếp (lúc màn hình còn đúng trạng thái lỗi)
 const check = (label, ok, extra = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${extra ? ' | ' + extra : ''}`);
-  if (!ok) failed++;
+  if (!ok) { failed++; if (!pendingDiag && failed <= 3) pendingDiag = label; }
 };
 /**
  * Chẩn đoán khi app không vào được ván giải: trạng thái kết nối / phòng của app và web, lỗi máy chủ đã trả về,
@@ -37,209 +41,105 @@ async function tourDiag(app, web, id) {
   console.log('Chẩn đoán giải:', JSON.stringify({ app: await side(app), web: await side(web), tour: brief }));
 }
 
-async function until(fn, ms = 15000, step = 250) {
-  const t0 = Date.now();
-  for (;;) {
-    try { const v = await fn(); if (v) return v; } catch (e) { /* thử lại */ }
-    if (Date.now() - t0 > ms) return null;
-    await sleep(step);
-  }
-}
-/**
- * Lệnh adb có giới hạn thời gian: trên máy ảo CI yếu, một lệnh (dumpsys, uiautomator…) có lúc treo mãi – lệnh đồng bộ
- * treo thì chặn cả tiến trình Node (không hẹn giờ nào chạy được), job bị huỷ sau 45 phút mà không có thông tin gì.
- * Quá 30 giây: thử lại 1 lần rồi báo lỗi.
- */
-function adb(...args) {
-  for (let i = 0; ; i++) {
-    try { return execFileSync('adb', args, { encoding: 'utf8', timeout: 30000, maxBuffer: 64 << 20 }); } catch (e) {
-      if (e.code !== 'ETIMEDOUT' || i >= 1) throw e;
-      console.log('adb treo quá 30 giây, thử lại: adb ' + args.join(' '));
-    }
-  }
-}
+const { adb, waitBoot, systemDialog, dismissSystemDialogs, realTap, pressBack, screenState, dumpLogcat, systemBars,
+  webViewBounds, stableTapPoint, screenRect } = require('./android-device');
+
+waitBoot(PKG);
 const API = Number(adb('shell', 'getprop', 'ro.build.version.sdk').trim());
 const shot = (name) => execFileSync('sh', ['-c', `adb exec-out screencap -p > ${SHOTS}/api${API}-${name}.png`], { timeout: 30000 });
-/**
- * Máy ảo trên CI rất yếu: ngay sau khi khởi động, màn hình chính (Pixel Launcher) có lúc bị treo và Android hiện hộp
- * thoại "… isn't responding" đè lên app. Khi đó chạm / Back thật (adb input) rơi vào hộp thoại chứ không tới app
- * (bàn phím không hiện, Back không đóng được hộp thoại của app…). Trước mỗi thao tác thật: bấm "Wait" để dẹp hộp thoại.
- */
-const SYS_DIALOG = /Application Not Responding|isn't responding|has stopped|keeps stopping/;
-/**
- * Dòng mCurrentFocus của hộp thoại hệ thống đang hiện ('' nếu không có). dumpsys có thể in NHIỀU dòng mCurrentFocus (mỗi màn
- * hình một dòng – Android 34: dòng đầu là "mCurrentFocus=null", hộp treo nằm ở dòng sau): phải xét mọi dòng, không chỉ dòng đầu
- * (lỗi CI 13/11/2026: hộp "Pixel Launcher isn't responding" không được dẹp nên bàn phím không hiện / không tìm được trận).
- */
-function systemDialogLine() {
-  try { return (adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*/g) || []).find((l) => SYS_DIALOG.test(l)) || ''; } catch (e) { return ''; }
-}
-const systemDialog = () => !!systemDialogLine();
-function dismissSystemDialogs() {
-  for (let i = 0; i < 5 && systemDialog(); i++) {
-    console.log('Dẹp hộp thoại hệ thống: ' + systemDialogLine().trim());
-    let done = false;
-    try {
-      adb('shell', 'uiautomator', 'dump', '/sdcard/sys.xml');
-      const xml = adb('shell', 'cat', '/sdcard/sys.xml');
-      // "Wait" giữ ứng dụng bị treo lại (không đóng Launcher); không có thì "Close app" / "OK"
-      const node = ['Wait', 'Close app', 'OK'].map((t) => xml.match(new RegExp(`text="${t}"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"`))).find(Boolean);
-      if (node) {
-        const [, l, t, r, b] = node.map(Number);
-        adb('shell', 'input', 'tap', String((l + r) >> 1), String((t + b) >> 1));
-        done = true;
-      }
-    } catch (e) { /* thử cách khác */ }
-    if (!done) adb('shell', 'input', 'keyevent', '4'); // không gọi pressBack(): tránh gọi lại chính hàm này
-    execFileSync('sleep', ['1']);
-  }
-}
-/** Chạm thật (màn hình máy ảo) – dẹp hộp thoại hệ thống trước. */
-function realTap(x, y) { dismissSystemDialogs(); adb('shell', 'input', 'tap', String(x), String(y)); }
-/** Nút Back thật – dẹp hộp thoại hệ thống trước (không thì Back chỉ đóng hộp thoại đó). */
-function pressBack() { dismissSystemDialogs(); adb('shell', 'input', 'keyevent', '4'); }
-/** Màn hình đang hiện gì – activity trên cùng, cửa sổ giữ focus, các gói / chữ trên màn hình (in khi kiểm tra thất bại). */
-function screenState() {
-  const out = [];
-  try { out.push((adb('shell', 'dumpsys', 'activity', 'activities').match(/topResumedActivity[^\n]*/) || [''])[0].trim()); } catch (e) { /* bỏ qua */ }
-  try { out.push(...(adb('shell', 'dumpsys', 'window').match(/mCurrentFocus=[^\n]*|mFocusedApp=[^\n]*/g) || []).map((x) => x.trim())); } catch (e) { /* bỏ qua */ }
-  try {
-    adb('shell', 'uiautomator', 'dump', '/sdcard/kb.xml');
-    const xml = adb('shell', 'cat', '/sdcard/kb.xml');
-    const pk = [...new Set([...xml.matchAll(/package="([^"]+)"/g)].map((m) => m[1]))];
-    const tx = [...new Set([...xml.matchAll(/text="([^"]{2,60})"/g)].map((m) => m[1]))].slice(0, 25);
-    out.push('gói trên màn hình: ' + pk.join(', '), 'chữ: ' + tx.join(' | '));
-  } catch (e) { out.push('uiautomator lỗi: ' + e.message.slice(0, 120)); }
-  return out.join('\n  ');
-}
-/** In nhật ký hệ thống Android liên quan tới app / WebView / bàn phím / cửa sổ (khi test dừng vì lỗi). */
-function dumpLogcat(reason) {
-  try {
-    const re = /caro|chromium|cr_|AndroidRuntime|ActivityManager|ActivityTaskManager|WindowManager|InputMethod|ImeTracker|InputDispatcher|DEBUG|libc|WebView|died|ANR|lowmemory|lmkd|Capacitor/i;
-    const lines = adb('logcat', '-d', '-v', 'time', '-t', '4000').split('\n').filter((l) => re.test(l));
-    console.log(`LOGCAT (${reason}) – ${lines.length} dòng liên quan, 200 dòng cuối:`);
-    for (const l of lines.slice(-200)) console.log('  ' + l);
-  } catch (e) { console.log('LOGCAT lỗi: ' + e.message); }
-}
 
-/** Vị trí thanh hệ thống / bàn phím trên màn hình (pixel), đọc từ dumpsys window. */
-function systemBars() {
-  const d = adb('shell', 'dumpsys', 'window');
-  const frame = (type, needVisible) => {
-    const re = new RegExp(`type=${type}[^\\n]*?frame=\\[(-?\\d+),(-?\\d+)\\]\\[(-?\\d+),(-?\\d+)\\][^\\n]*`, 'g');
-    let m, best = null;
-    while ((m = re.exec(d))) {
-      if (needVisible && !/visible=true/.test(m[0])) continue;
-      const f = { l: +m[1], t: +m[2], r: +m[3], b: +m[4] };
-      if (f.b > f.t) best = f;
-    }
-    return best;
-  };
-  return { status: frame('statusBars'), nav: frame('navigationBars'), ime: frame('ime', true) };
+let browser = null, web = null, finished = false; // bản web (mở sau) – để chẩn đoán chụp cả trang web
+const diagnose = createDiagnose({
+  adb, pkg: PKG, dir: SHOTS, prefix: `api${API}`, parseDevtoolsSockets, screenState,
+  screencap: (file) => execFileSync('sh', ['-c', `adb exec-out screencap -p > '${file}'`], { timeout: 30000 }),
+  webPage: () => web,
+});
+/** Dừng test vì lỗi / treo: chẩn đoán (có hạn giờ) rồi thoát mã 1. Gọi lần thứ hai thì thoát luôn. */
+let dying = false;
+async function die(reason, step) {
+  if (dying) process.exit(1);
+  dying = true;
+  watch.done(); // hạn giờ của bước đang chạy không được cắt ngang lúc chẩn đoán
+  console.log('FAIL ' + reason);
+  setTimeout(() => { console.log('Chẩn đoán quá 4 phút – thoát'); process.exit(1); }, 4 * 60000);
+  try { await diagnose(reason, step); } catch (e) { console.log('Chẩn đoán lỗi: ' + e.message); }
+  process.exit(1);
 }
-/** Khung của WebView trên màn hình (pixel).
- *  Cách 1: uiautomator (cần màn hình "đứng yên", đôi khi không chụp được cây giao diện).
- *  Cách 2: cây View của activity trong `dumpsys activity top` – toạ độ tương đối với view cha, cộng dồn lên. */
-function webViewFromUiautomator() {
-  try { adb('shell', 'uiautomator', 'dump', '/sdcard/ui.xml'); } catch (e) { return null; }
-  let xml = '';
-  try { xml = adb('shell', 'cat', '/sdcard/ui.xml'); } catch (e) { return null; }
-  adb('shell', 'rm', '-f', '/sdcard/ui.xml'); // không đọc nhầm file cũ ở lần sau
-  const m = xml.match(/class="android\.webkit\.WebView"[^>]*?bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
-  return m ? { l: +m[1], t: +m[2], r: +m[3], b: +m[4] } : null;
-}
-function webViewFromDumpsys() {
-  const lines = adb('shell', 'dumpsys', 'activity', 'top').split('\n');
-  const stack = []; // [{ indent, x, y }] tổ tiên của dòng đang xét, toạ độ tuyệt đối
-  for (const line of lines) {
-    const m = line.match(/^(\s*)([\w.$]+)\{[^}]*?\s(-?\d+),(-?\d+)-(-?\d+),(-?\d+)/);
-    if (!m) continue;
-    const indent = m[1].length;
-    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
-    const px = stack.length ? stack[stack.length - 1].x : 0, py = stack.length ? stack[stack.length - 1].y : 0;
-    const l = px + +m[3], t = py + +m[4], r = px + +m[5], b = py + +m[6];
-    if (/WebView$/.test(m[2]) && b > t) return { l, t, r, b };
-    stack.push({ indent, x: l, y: t });
+// Mỗi bước một hạn giờ: bước nào treo (evaluate / kết nối DevTools không trả lời…) thì dừng ngay, báo tên bước + chẩn đoán
+const watch = createStepWatch({ onTimeout: ({ name, ms }) => die(`bước «${name}» treo quá ${Math.round(ms / 1000)} giây`, name) });
+/** Sang bước mới: nếu kiểm tra trước vừa thất bại thì chẩn đoán trước (màn hình còn ở trạng thái lỗi), rồi đặt hạn giờ. */
+async function step(name, ms) {
+  if (pendingDiag) {
+    const label = pendingDiag;
+    pendingDiag = '';
+    watch.step('chẩn đoán', 5 * 60000);
+    await diagnose('kiểm tra thất bại: ' + label);
   }
-  return null;
-}
-function webViewBounds() {
-  for (let i = 0; i < 3; i++) {
-    const wv = webViewFromUiautomator() || webViewFromDumpsys();
-    if (wv) return wv;
-    execFileSync('sleep', ['1']);
-  }
-  throw new Error('Không đo được khung WebView (uiautomator và dumpsys activity top)');
-}
-/**
- * Điểm chạm (pixel màn hình) vào giữa một phần tử, chỉ trả về khi hình học đã ổn định: chiều cao trang khớp khung
- * WebView và vị trí phần tử không đổi giữa 2 lần đo liền nhau. Sau khi bàn phím mở / đóng, khung WebView co giãn
- * và bố cục trang cập nhật lệch nhau một lúc – đo đúng lúc đó thì chạm trượt khỏi phần tử.
- */
-async function stableTapPoint(app, sel, ms = 10000) {
-  const t0 = Date.now();
-  let prev = null, cur = null;
-  while (Date.now() - t0 < ms) {
-    const wv = webViewBounds();
-    const r = await app.evaluate((q) => {
-      const b = document.querySelector(q).getBoundingClientRect();
-      return { x: b.left + b.width / 2, y: b.top + b.height / 2, ih: innerHeight, dpr: devicePixelRatio };
-    }, sel);
-    cur = { x: Math.round(wv.l + r.x * r.dpr), y: Math.round(wv.t + r.y * r.dpr), wv, css: { x: Math.round(r.x), y: Math.round(r.y), ih: r.ih } };
-    const fits = Math.abs(r.ih * r.dpr - (wv.b - wv.t)) <= 3 * r.dpr; // trang và khung WebView cùng kích thước
-    if (fits && prev && prev.x === cur.x && prev.y === cur.y) return cur;
-    prev = fits ? cur : null;
-    await sleep(300);
-  }
-  return { ...cur, unstable: true };
-}
-/** Toạ độ màn hình (pixel) của một phần tử trong app. */
-async function screenRect(app, sel) {
-  const wv = webViewBounds();
-  const r = await app.evaluate((sel) => {
-    const b = document.querySelector(sel).getBoundingClientRect();
-    return { t: b.top, b: b.bottom, dpr: window.devicePixelRatio };
-  }, sel);
-  return { top: wv.t + r.t * r.dpr, bottom: wv.t + r.b * r.dpr };
+  watch.step(name, ms);
 }
 
 (async () => {
+  watch.step('tìm máy ảo', 120000);
   const [device] = await android.devices();
   if (!device) throw new Error('Không thấy máy ảo Android');
   console.log('Thiết bị:', device.model(), device.serial());
-  // Lưới an toàn: cả bài thường xong trong ~10 phút; quá 30 phút thì in trạng thái màn hình rồi dừng (thay vì bị huỷ câm)
-  setTimeout(() => {
-    console.log('FAIL kiểm thử treo quá 30 phút:\n  ' + screenState());
-    process.exit(1);
-  }, 30 * 60000).unref();
+  // Lưới an toàn cuối: cả bài thường xong trong ~10 phút; quá 30 phút thì chẩn đoán rồi dừng (thay vì bị huỷ câm)
+  setTimeout(() => die('kiểm thử treo quá 30 phút', watch.current() && watch.current().name), 30 * 60000).unref();
   // Không để hộp thoại báo lỗi / "không phản hồi" của hệ thống che app (máy ảo CI chậm, vừa khởi động xong)
   try { adb('shell', 'settings', 'put', 'global', 'hide_error_dialogs', '1'); } catch (e) { /* bản Android cũ */ }
   // Mở app: dẹp hộp thoại hệ thống, mở, kiểm tra app đã lên trên cùng (thử tối đa 3 lần)
   const onTop = () => { try { return adb('shell', 'dumpsys', 'activity', 'activities').match(/topResumedActivity[^\n]*/)?.[0].includes(PKG); } catch (e) { return false; } };
-  for (let i = 0; i < 3; i++) {
-    dismissSystemDialogs();
-    console.log(`Mở app (lần ${i + 1})`);
-    adb('shell', 'am', 'force-stop', PKG);
-    adb('shell', 'monkey', '-p', PKG, '-c', 'android.intent.category.LAUNCHER', '1');
-    if (await until(() => onTop() && !systemDialog(), 20000, 500)) break;
-    console.log('App chưa lên màn hình – mở lại:\n  ' + screenState());
-  }
-  const webview = await device.webView({ pkg: PKG }, { timeout: 60000 });
-  const app = await webview.page();
+  const launch = async (tries = 3) => {
+    for (let i = 0; i < tries; i++) {
+      dismissSystemDialogs();
+      console.log(`Mở app (lần ${i + 1})`);
+      adb('shell', 'am', 'force-stop', PKG);
+      adb('shell', 'monkey', '-p', PKG, '-c', 'android.intent.category.LAUNCHER', '1');
+      if (await until(() => onTop() && !systemDialog(), 20000, 500)) return true;
+      console.log('App chưa lên màn hình – mở lại:\n  ' + screenState());
+    }
+    return false;
+  };
+  await step('mở app', 4 * 60000);
+  await launch();
+  // Gắn vào WebView qua DevTools (socket webview_devtools_remote_<pid>): pid đọc lại mỗi lần, có hạn giờ; quá hạn thì mở
+  // lại app (tiến trình mới) rồi gắn lại – Playwright tự nó chờ mãi (webview.page() không có hạn giờ)
+  await step('gắn WebView của app (DevTools)', 8 * 60000);
+  const pidOf = () => { try { return parsePidof(adb('shell', 'pidof', PKG)); } catch (e) { return null; } };
+  const sockets = () => { try { return parseDevtoolsSockets(adb('shell', 'cat', '/proc/net/unix')); } catch (e) { return []; } };
+  const attached = await attachWebView({
+    device, pidOf, sockets, relaunch: () => launch(2),
+    ready: (p) => p.evaluate(() => document.readyState),
+    attempts: 3, pidMs: 20000, socketMs: 45000, pageMs: 60000, readyMs: 15000,
+  });
+  const app = attached.page;
+  const appPid = attached.pid;
   const errors = [];
   app.on('pageerror', (e) => errors.push('APP ' + e.message));
   app.on('console', (m) => m.type() === 'error' && errors.push('APP console ' + m.text()));
-  await until(() => app.evaluate(() => !!window.CaroApp && !!window.CaroOnline), 30000);
+  // App bị Android giết / crash giữa chừng: báo ngay (kèm chẩn đoán) thay vì lỗi "Target page has been closed" khó hiểu
+  app.on('close', () => { if (!dying && !finished) die(`trang của app bị đóng (tiến trình pid ${appPid} chết?)`, watch.current() && watch.current().name); });
+  app.on('crash', () => { if (!dying && !finished) die('trang của app bị crash (renderer WebView chết)', watch.current() && watch.current().name); });
+  await step('app nạp xong mã game', 60000);
+  if (!(await until(() => app.evaluate(() => !!window.CaroApp && !!window.CaroOnline), 30000))) throw new Error('App chưa nạp xong mã game (CaroApp / CaroOnline) sau 30 giây');
 
+  await step('thông tin app + plugin gốc', 60000);
   const info = await app.evaluate(() => ({ native: !!window.CaroNative, platform: window.CaroNative && window.CaroNative.platform,
     server: window.CARO_SERVER, plugins: Object.keys(window.Capacitor.Plugins), lang: window.I18N.lang }));
   console.log('App:', JSON.stringify(info));
+  // App không được phụ thuộc (kết nối stable) provider ở tiến trình khác, nhất là FontsProvider của GMS: GMS chết là app
+  // bị giết theo (AndroidManifest.xml tắt EmojiCompat). Chỉ ghi nhật ký – kết nối ngắn có thể đã nhả lúc đo.
+  try {
+    const deps = providerDependents(adb('shell', 'dumpsys', 'activity', 'providers'), PKG);
+    console.log('Provider app đang phụ thuộc:', deps.length ? JSON.stringify(deps) : 'không có');
+  } catch (e) { console.log('Không đọc được dumpsys activity providers: ' + e.message.split('\n')[0]); }
   check('chạy trong app Android thật (Capacitor native)', info.native && info.platform === 'android');
   check('các plugin gốc có mặt', ['App', 'Share', 'Clipboard', 'Haptics', 'SocialLogin'].every((p) => info.plugins.includes(p)), info.plugins.join(','));
   check('Chia sẻ dùng bảng chia sẻ gốc', await app.evaluate(() => typeof navigator.share === 'function' && window.Capacitor.isPluginAvailable('Share')));
   console.log(`Android API ${API} · WebView ${await app.evaluate(() => (navigator.userAgent.match(/Chrome\/([\d.]+)/) || [])[1])}`);
 
   // Tràn viền (Android 15+): thanh trên / dưới của game không được nằm dưới thanh trạng thái / điều hướng
+  await step('thanh hệ thống không che thanh của game', 3 * 60000);
   {
     const bars = systemBars();
     console.log('Thanh hệ thống:', JSON.stringify(bars), '· WebView:', JSON.stringify(webViewBounds()));
@@ -259,14 +159,16 @@ async function screenRect(app, sel) {
   }
 
   // Bản web trên máy chạy CI
-  const browser = await chromium.launch();
-  const web = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
+  await step('mở bản web', 2 * 60000);
+  browser = await chromium.launch();
+  web = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
   web.on('pageerror', (e) => errors.push('WEB ' + e.message));
   await web.goto('http://localhost:8790/');
   await until(() => web.evaluate(() => !!window.CaroOnline));
 
   // App: tạo tài khoản bằng giao diện (gõ vào ô nhập trong WebView)
   // Mở app là vào Trang chủ (khung 5 tab); thẻ tài khoản nằm ở tab Xem thêm
+  await step('app đăng ký tài khoản', 3 * 60000);
   check('mở app vào Trang chủ', await app.isVisible('#page-home'));
   await app.click('#tabbar [data-tab="more"]');
   check('app kết nối máy chủ', !!(await until(() => app.evaluate(() => window.CaroOnline.connected), 45000)));
@@ -279,6 +181,7 @@ async function screenRect(app, sel) {
   check('app đăng ký tài khoản', !!appMe && appMe.username === 'android_1');
 
   // Web: tài khoản + kết bạn + nhắn tin
+  await step('web đăng ký, kết bạn, nhắn tin', 3 * 60000);
   await web.click('#tabbar [data-tab="more"]');
   await until(() => web.evaluate(() => window.CaroOnline.connected));
   await web.click('#go-register');
@@ -297,6 +200,7 @@ async function screenRect(app, sel) {
     [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Hello from web'))))));
 
   // Bàn phím: mở hộp chat, chạm vào ô nhập → bàn phím hiện, ô nhập phải nằm trên bàn phím
+  await step('bàn phím + hộp chat + Back', 5 * 60000);
   {
     // Ghi lại mọi lần mất focus (kèm nơi gọi) để biết do mã JS hay do WebView mất focus
     await app.evaluate(() => {
@@ -370,6 +274,7 @@ async function screenRect(app, sel) {
   }
 
   // App tạo phòng, đi trước; web vào bằng mã phòng
+  await step('app tạo phòng, web vào', 3 * 60000);
   await app.check('input[name="room-side"][value="first"]');
   await app.click('#create-room');
   const room = await until(() => app.evaluate(() => window.CaroOnline.state.room));
@@ -386,6 +291,7 @@ async function screenRect(app, sel) {
   check('web vào phòng của app', !!(await until(() => app.evaluate(() => window.CaroOnline.state.room.players.length === 2))));
   await sleep(600); // camera về giữa bàn cờ
 
+  await step('chạm bàn cờ, chat nhanh, đánh tới khi thắng', 4 * 60000);
   // Chạm thật vào giữa bàn cờ trên điện thoại = ô (0, 0). Màn hình cảm ứng mặc định "chạm 2 lần để đánh".
   // Chạm cảm ứng thật qua Chrome DevTools (Input.dispatchTouchEvent → pointer "touch" trong WebView)
   const box = await app.evaluate(() => { const r = document.getElementById('board').getBoundingClientRect(); return { x: r.width / 2, y: r.height / 2 }; });
@@ -426,6 +332,7 @@ async function screenRect(app, sel) {
   await sleep(800);
   shot('win');
 
+  await step('Back thẻ kết quả / thông tin phòng, tái đấu, lịch sử', 3 * 60000);
   // Nút Back thật của Android: đóng thẻ kết quả, mở Cài đặt rồi Back đóng Cài đặt
   pressBack();
   check('Back ẩn thẻ kết quả', !!(await until(() => app.evaluate(() => document.getElementById('banner').hidden))));
@@ -452,6 +359,7 @@ async function screenRect(app, sel) {
 
   shot('rematch');
 
+  await step('phòng công khai', 3 * 60000);
   // Phòng công khai: web tạo phòng công khai, app thấy trong "Phòng đang chờ" và chạm "Vào" (không cần mật khẩu)
   await web.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
   await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
@@ -467,6 +375,7 @@ async function screenRect(app, sel) {
   await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
   await until(() => app.evaluate(() => !window.CaroOnline.state.room));
 
+  await step('tìm trận nhanh', 3 * 60000);
   // Tìm trận nhanh: app bấm "Tìm trận", đóng bảng bằng Back (thẻ "đang tìm" nổi trên màn chơi), web tìm trận → được ghép
   await app.evaluate(() => { window.CaroShell.open('home'); window.CaroHome.pane('quick'); });
   await app.locator('#qm-start').scrollIntoViewIfNeeded();
@@ -484,12 +393,14 @@ async function screenRect(app, sel) {
   check('hết thẻ đang tìm sau khi ghép', !!(await until(() => app.isHidden('.qm-float'))));
   shot('matched');
 
+  await step('giải đấu Arena', 4 * 60000);
   // Giải đấu: web (quản trị viên, ADMIN_USERNAMES=web_1 trong CI) tạo giải Arena; app mở trang giải bằng giao diện,
   // bấm Tham gia; bắt đầu giải -> app tự vào ván của giải
   await web.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
   await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
   await until(() => app.evaluate(() => !window.CaroOnline.state.room));
   const tourId = await web.evaluate(() => new Promise((resolve) => {
+    setTimeout(() => resolve(null), 15000); // máy chủ không trả lời: báo thất bại thay vì chờ mãi
     window.CaroOnline.on('tourCreated', (m) => resolve(m.id));
     window.CaroOnline.send({ t: 'tourCreate', name: 'Arena CI', format: 'arena', startsAt: Date.now() + 120000, timeLimit: 30, minutes: 15 });
   }));
@@ -520,6 +431,7 @@ async function screenRect(app, sel) {
   check('bắt đầu giải: app tự vào ván với web', tourOk);
   check('hộp thoại giải tự đóng để vào bàn cờ', !!(await until(() => app.evaluate(() => !document.getElementById('tour-dlg').open))));
   shot('tour-game');
+  await step('kết thúc', 2 * 60000);
   await web.screenshot({ path: `${SHOTS}/api${API}-web-vs-android.png` });
   console.log('Lỗi JS:', errors.length ? errors : 'không có');
   // Mạng của máy ảo đôi khi mất vài giây (ERR_ADDRESS_UNREACHABLE…): trình duyệt ghi lần kết nối WebSocket hỏng vào console.
@@ -528,8 +440,11 @@ async function screenRect(app, sel) {
   const net = errors.filter((e) => NETWORK.test(e)).length;
   if (net) console.log(`(mạng máy ảo chập chờn: ${net} lần kết nối hỏng – không tính là lỗi JS)`);
   check('không có lỗi JS', !errors.some((e) => !NETWORK.test(e)));
+  if (pendingDiag) { const label = pendingDiag; pendingDiag = ''; await diagnose('kiểm tra thất bại: ' + label); }
+  finished = true;
   await browser.close();
   await device.close();
+  watch.done();
   console.log(failed ? `✗ ${failed} kiểm tra thất bại` : '✓ Tất cả kiểm tra đều đạt');
   process.exit(failed ? 1 : 0);
-})().catch((e) => { console.error(e); dumpLogcat('lỗi dừng test'); process.exit(1); });
+})().catch((e) => { console.error(e); die('lỗi dừng test: ' + String(e && e.message || e).split('\n')[0], watch.current() && watch.current().name); });
