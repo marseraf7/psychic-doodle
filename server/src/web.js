@@ -30,7 +30,7 @@ const { makeApiV1 } = require('./api-v1-http.js'); // API công khai v1 + OpenAP
 const { makeBroadcastPage } = require('./broadcast-page.js'); // Tường thuật giải đấu (C3)
 
 // Tham số link chia sẻ có thẻ xem trước riêng (hub/og.js)
-const LINK_KEYS = ['replay', 'room', 't', 'o', 'club', 'u'];
+const LINK_KEYS = ['replay', 'room', 't', 'o', 'club', 'u', 'cls']; // cls: Lớp học / Nghiên cứu (C2)
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;

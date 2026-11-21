@@ -168,3 +168,19 @@ test('Lớp học: chia phần không vượt giới hạn tần suất lưu ch�
     t.close();
   }
 });
+
+test('Lớp học: link /?cls= có thẻ xem trước og khi bài công khai / có link; bài riêng tư không lộ tên', async () => {
+  const hub = ctx.app.hub;
+  hub.T.THROTTLE_SCALE = 0;
+  const t = await account();
+  const id = await create(t, { title: 'Bài <Hoa nguyệt>', vis: 'unlisted' });
+  const page = async () => (await fetch(`http://127.0.0.1:${ctx.app.server.address().port}/?cls=${id}&lang=en`)).text();
+  const html = await page();
+  assert.match(html, /<meta property="og:title" content="Bài Hoa nguyệt – /);
+  assert.match(html, /og:description" content="Gomoku study · chapters: 1/);
+  const s = hub.store.clsGet(id);
+  s.vis = 'private';
+  hub.store.clsPut(s);
+  assert.doesNotMatch(await page(), /Hoa nguyệt/, 'bài riêng tư: không có thẻ og');
+  t.close();
+});

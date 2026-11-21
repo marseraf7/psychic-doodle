@@ -2,7 +2,8 @@
  * Dữ liệu cho thẻ xem trước link chia sẻ (A3 – Zalo / Messenger): web.js hỏi ogInfo(tham số link) khi trả trang chính,
  * og-meta.js dựng chữ + HTML. Chỉ trả đúng phần KHÁCH CHƯA ĐĂNG NHẬP xem được (cùng luật kiểm quyền với trang thật):
  *   ?replay=<mã> ván đã lưu · ?room=<mã> ván đang đấu xem được (công khai / ghép nhanh) hoặc lời mời phòng (chỉ mã phòng,
- *   không lộ tên người trong phòng riêng) · ?t= giải đấu · ?o= giải Offline · ?club= CLB · ?u=<tên đăng nhập> hồ sơ · ?bc= tường thuật giải (C3).
+ *   không lộ tên người trong phòng riêng) · ?t= giải đấu · ?o= giải Offline · ?club= CLB · ?u=<tên đăng nhập> hồ sơ · ?bc= tường thuật giải (C3) ·
+ *   ?cls= bài Lớp học / Nghiên cứu (C2 – chỉ bài công khai / có link: classroom.js clsCanView như khách).
  * Không tìm thấy / không được xem → null (trang chính giữ thẻ mặc định, không lộ là có tồn tại).
  */
 'use strict';
@@ -35,6 +36,11 @@ class Og {
       const d = this.bcData(v);
       if (!d) return null;
       return { info: { kind: 'bc', name: d.name, n: d.kind === 'tour' ? d.boards.length : 0 }, url: '/?bc=' + v, image: '/api/og/card.png' };
+    }
+    if ((v = get('cls'))) { // Lớp học / Nghiên cứu (C2): bài riêng tư / CLB không lộ ra (như khách chưa đăng nhập)
+      const s = this.store.clsGet(v);
+      if (!s || !this.clsCanView(s, null)) return null;
+      return { info: { kind: 'cls', name: s.title, n: (s.chapters || []).length }, url: '/?cls=' + s.id, image: '/api/og/card.png' };
     }
     if ((v = get('t'))) {
       const t = this.tours.get(v) || this.tourBySlug(v);
