@@ -147,6 +147,7 @@ class Social {
         .map((m) => `[${new Date(m.created).toISOString()}] ${this.store.users.get(m.sender)?.username || m.sender}: ${m.text}`).join('\n');
     }
     this.store.addReport(me.id, targetUid || String(id).slice(0, 40), reason, context);
+    if (reason === 'cheat' && targetUid) this.fpReport(me.id, targetUid); // hàng chờ soát chơi đẹp (fairplay.js)
     conn.send(note('reported'));
   }
 

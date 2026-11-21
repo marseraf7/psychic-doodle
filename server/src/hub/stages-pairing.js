@@ -88,9 +88,13 @@ function takeBye(order, byes) {
 /**
  * Ghép một vòng Thụy Sĩ: cùng điểm gặp nhau, không gặp lại; số lẻ thì người thấp nhất chưa được miễn đấu được miễn.
  * mode 'dutch' + score (uid → điểm): nửa trên gặp nửa dưới trong mỗi nhóm điểm (candidates).
+ * Người miễn đấu (FIDE C.04.1 + C.04.3 tiêu chí tuyệt đối C.1–C.2): "không gặp lại" đứng trên "người thấp nhất được miễn" –
+ * nếu miễn đấu cho người thấp nhất làm phần còn lại buộc phải gặp lại thì thử người kế trên (vẫn ưu tiên người chưa từng
+ * được miễn), tối đa BYE_TRIES người. Trước đây chọn người miễn đấu trước rồi mới ghép nên có ván gặp lại không cần thiết
+ * (server/test/swiss-dutch.test.js).
  */
+const BYE_TRIES = 8;
 function swissPairs(order, played, byes, mode, score) {
-  const { list, bye } = takeBye(order, byes);
   const key = (x, y) => (x < y ? x + '|' + y : y + '|' + x);
   // Giới hạn số bước tìm (mô phỏng 30–36 người, 15 vòng: cần tới ~10⁶ bước, chậm nhất ~0,1 giây)
   let budget = 1000000;
@@ -107,7 +111,20 @@ function swissPairs(order, played, byes, mode, score) {
     }
     return null;
   };
-  let pairs = dfs(list, 0);
+  const first = takeBye(order, byes);
+  if (first.bye !== null) {
+    // Người miễn đấu: từ dưới lên, người chưa được miễn trước – lấy người đầu tiên để phần còn lại ghép được không gặp lại
+    const noBye = [...order].reverse().filter((u) => !byes[u]);
+    const tries = [first.bye, ...noBye.filter((u) => u !== first.bye)].slice(0, BYE_TRIES);
+    for (const [k, bye] of tries.entries()) {
+      budget = k ? 100000 : 1000000;
+      const pairs = dfs(order.filter((u) => u !== bye), 0);
+      if (pairs) return { pairs, bye };
+    }
+  }
+  const { list, bye } = first;
+  budget = 1000000;
+  let pairs = first.bye === null ? dfs(list, 0) : null;
   // Không tránh được gặp lại: cho phép ít cặp gặp lại nhất có thể (1, 2, …)
   for (let allow = 1; !pairs && allow <= list.length / 2; allow++) { budget = 20000; pairs = dfs(list, allow); }
   if (!pairs) { // hết thời gian tìm: ghép lần lượt theo thứ hạng

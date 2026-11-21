@@ -144,12 +144,14 @@
     }
     const sameRoom = S.room && S.room.players.some((q) => q.id === 'u_' + p.id); // đang đấu với chính mình
     if (p.canHistory) actions.push(`<button type="button" class="ghost sm" data-hist>${esc(T('hist_open'))}</button>`);
+    // Thống kê cá nhân (insights.js) – cùng quyền xem với Lịch sử đấu
+    if (p.canHistory && window.CaroInsights) actions.push(`<button type="button" class="ghost sm" data-insights>${esc(T('ins_btn'))}</button>`);
     if (!p.self && p.status === 'playing' && !sameRoom) actions.push(`<button type="button" class="primary sm" data-watch-uid="${esc(p.id)}">${esc(T('watch'))}</button>`);
     // Chia sẻ hồ sơ (link ?u=<tên đăng nhập> – khách mở xem được ngay, Zalo / Messenger hiện thẻ xem trước)
     actions.push(`<button type="button" class="primary sm" data-pf-share>${esc(T('sl_share_profile'))}</button>`);
     $('profile-body').innerHTML = `
       <div class="who pf-who">${window.CaroAvatar.html(p)}
-        <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
+        <div><b>${esc(p.name)}</b><small><span class="st ${esc(p.status)}"></span> @${esc(p.username)}${p.league && window.CaroLeague ? `<span class="pf-league" title="${esc(T('lg_title'))}">${window.CaroLeague.emblem(p.league.div).replace('lg-emb', 'lg-emb sm')}${esc(window.CaroLeague.divName(p.league.div))}</span>` : ''}${p.created ? ' · ' + esc(T('member_since', { d: date(p.created) })) : ''}</small></div>
         <div class="row pf-act">${actions.join('')}</div></div>
       ${window.CaroProfileBio ? window.CaroProfileBio.html(p) : ''}
       ${window.CaroProfileBadges ? window.CaroProfileBadges.html(p) : ''}
@@ -181,6 +183,7 @@
       b.onclick = () => window.CaroShareLink.send({ url: window.CaroShareLink.url('u', p.username), title: p.name, text: T('sl_text_user', { name: p.name }) });
     });
     body.querySelectorAll('[data-hist]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroHistory.open(p.id, p.name); }; });
+    body.querySelectorAll('[data-insights]').forEach((b) => { b.onclick = () => { N.closeDlg('profile-dlg'); window.CaroInsights.open(p.self ? undefined : p.id); }; });
     body.querySelectorAll('[data-add]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendAdd', id: b.dataset.add }); b.disabled = true; }; });
     body.querySelectorAll('[data-accept-pf]').forEach((b) => { b.onclick = () => { N.send({ t: 'friendRespond', id: b.dataset.acceptPf, accept: true }); b.disabled = true; }; });
     body.querySelectorAll('[data-unfriend]').forEach((b) => {

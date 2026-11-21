@@ -1,0 +1,80 @@
+/*
+ * Trang tính năng mở dạng hộp (feat-dlg.js): Thống kê cá nhân, Hạng đấu tuần, Thang nhân vật máy, Tổng kết, Soát chơi đẹp.
+ * Biểu đồ dùng chung kiểu svg.chart (style-extras.css); ở đây thêm thanh thắng / hoà / thua và các khối riêng.
+ */
+.feat-body { min-width: 0; }
+.feat-body h3 { margin: 16px 0 6px; font-size: var(--fs-md); }
+.feat-body h4 { margin: 10px 0 4px; font-size: var(--fs-sm); color: var(--muted); }
+.ins-who { margin: 0 0 8px; font-weight: 600; }
+svg.chart.bars rect.b-w { fill: #2f9a4c; }
+svg.chart.bars rect.b-d { fill: #8b8b8b; }
+svg.chart.bars rect.b-l { fill: #d2382f; }
+.pf-stats.ins-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ins-act { margin-top: 8px; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ins-ops { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ins-ops li { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.ins-op { display: block; min-width: 0; flex: 1 1 auto; }
+.ins-op b, .ins-op small { display: block; }
+.ins-op small { color: var(--muted); font-size: var(--fs-xs); }
+.feat-body .ellip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+svg.ins-shape { width: 44px; height: 44px; flex: 0 0 44px; }
+svg.ins-shape .gl line { stroke: var(--grid); stroke-width: 0.6; }
+svg.ins-shape .sx { fill: var(--x, #d2382f); }
+svg.ins-shape .so { fill: var(--o, #2f6fd2); }
+
+/* Danh sách dạng bảng nhỏ (hạng đấu tuần, thang nhân vật máy, hàng chờ soát chơi đẹp) */
+.feat-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.feat-list li { display: grid; grid-template-columns: minmax(28px, auto) minmax(0, 1fr) minmax(48px, auto); gap: 8px; align-items: center;
+  padding: 6px 8px; border-radius: 10px; background: rgba(127, 127, 127, 0.06); }
+.feat-list li.me { outline: 2px solid var(--accent); }
+.feat-list li.up { background: rgba(47, 154, 76, 0.12); }
+.feat-list li.down { background: rgba(210, 56, 47, 0.1); }
+.feat-list li.locked { opacity: 0.6; }
+.feat-list .rk { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+.feat-list .nm { min-width: 0; }
+.feat-list .nm b, .feat-list .nm small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feat-list .nm small { color: var(--muted); font-size: var(--fs-xs); }
+.feat-list .pt { font-variant-numeric: tabular-nums; text-align: right; }
+.feat-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: var(--fs-xs); background: rgba(127, 127, 127, 0.14); }
+.feat-tag.up { background: rgba(47, 154, 76, 0.18); }
+.feat-tag.down { background: rgba(210, 56, 47, 0.16); }
+.feat-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+
+/* Hạng đấu tuần (league.js) */
+.lg-head { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; min-width: 0; }
+.lg-head > div { min-width: 0; }
+.lg-head b, .lg-head small { display: block; }
+.lg-head small { color: var(--muted); font-size: var(--fs-xs); }
+.lg-emb { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--c);
+  color: #fff; font-weight: 700; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18); }
+.lg-emb.sm { width: 20px; height: 20px; flex-basis: 20px; font-size: var(--fs-xs); vertical-align: middle; margin-right: 4px; }
+.lg-rules { margin: 0; padding-left: 18px; font-size: var(--fs-sm); color: var(--muted); display: grid; gap: 4px; }
+.pf-league { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; font-size: var(--fs-xs); }
+
+/* Lời giải thích của huấn luyện viên trong bảng phân tích (coach-ui.js) */
+.an-coach { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); border-radius: 6px; background: rgba(127, 127, 127, 0.08);
+  font-size: var(--fs-sm); flex-basis: 100%; }
+
+/* Thang nhân vật máy (bot-ladder.js) */
+.lad-tabs { gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.lad-tabs .on { outline: 2px solid var(--accent); }
+.lad-sum { margin: 6px 0; }
+.lad-list { margin-top: 10px; }
+.lad-nm { display: flex; gap: 8px; align-items: center; }
+.lad-t { display: block; min-width: 0; }
+.lad-t b, .lad-t small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lad-t small { color: var(--muted); font-size: var(--fs-xs); }
+
+/* Soát chơi đẹp – trang quản trị (fairplay-admin.js) */
+.fp-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.fp-item { padding: 8px 10px; border-radius: 10px; background: rgba(127, 127, 127, 0.06); }
+.fp-main { min-width: 0; }
+.fp-main > b, .fp-main > small, .fp-side { display: block; }
+.fp-main > small, .fp-side { color: var(--muted); font-size: var(--fs-xs); margin-top: 2px; }
+.fp-side b { color: var(--fg, inherit); }
+.fp-act { gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+/* Tổng kết tháng / năm (recap.js) */
+.rc-nav { gap: 8px; align-items: center; margin: 6px 0 10px; }
+.rc-period { min-width: 0; text-align: center; flex: 1 1 auto; }
+.rc-facts { margin: 6px 0 10px; }
