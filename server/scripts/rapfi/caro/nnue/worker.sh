@@ -71,10 +71,10 @@ total=0; b=0
 while [ ! -f "$WORK/STOP" ]; do
   sync_best
   b=$((b + 1)); PIDS=(); outs=()
-  # Mỗi tiến trình một lô; nửa số lô bắt đầu từ khai cuộc thật (openings.txt), nửa từ bàn trống
+  # Mỗi tiến trình một lô, bắt đầu từ khai cuộc cân bằng (openings.txt – setup.sh chép từ openings/selfplay.txt)
   for i in $(seq 1 "$SP_PROCS"); do
     out="$WORK/data/sp-$(date +%s)-$WORKER-$b$i-$NET_LABEL.binpack.lz4"; outs+=("$out")
-    op=""; [ $(( (b + i) % 2 )) -eq 0 ] && op="$WORK/openings.txt"
+    op=""; [ -s "$WORK/openings.txt" ] && op="$WORK/openings.txt"
     selfplay_batch "$WORK/engines/best" "$out" $(( RANDOM * 32768 + RANDOM + i )) "$WORK/logs/selfplay-$i.log" "$op" &
     PIDS+=($!)
   done

@@ -10,6 +10,9 @@ Biến môi trường (đặt bằng %env trước ô trên nếu muốn đổi)
   HOURS       giờ huấn luyện tối đa (mặc định 9 – phiên Kaggle dừng ở 12 giờ, chừa thời gian cài đặt / xuất / đẩy)
   BATCH 256 · LR 0.001 (học tiếp từ phiên trước: 0.0003) · WINDOW 3000 (số file dữ liệu mới nhất, mỗi file 200 ván) · SAVE_EVERY 5000 bước · TEMP_SAVE 1000 bước (lưu tạm)
   VAL_MOD 40 · VAL_FILES 30 · PATIENCE 2 – xem "Ván kiểm tra" dưới
+  CLEAN 1     làm sạch dữ liệu trước khi học (clean-binpack.py: bỏ ván trùng sau xoay / lật – kể cả ván của val có trong tập
+              học – và ván lỗi VALUE_NONE; điều tra 21/11/2026). CLEAN=0: học thẳng trên file tải về như trước.
+  VALUE_LAMBDA 0 · WINRATE_SCALE 400 – trộn nhãn giá trị với điểm tìm kiếm (make-train-config.py)
 Ván kiểm tra: khoảng 1/VAL_MOD số file (chọn theo mã băm tên file – phiên nào cũng đúng những file đó, không bao giờ đưa
 vào học), lấy tối đa VAL_FILES file mới nhất. Mỗi lần lưu điểm kiểm tra, bộ huấn luyện chấm loss trên các ván này
 (val_loss). train_loss chỉ đo trên ván đã học nên giảm mãi (thuộc lòng); val_loss mới cho biết mạng có mạnh lên với ván
@@ -222,6 +225,23 @@ def stalled():
     return min(v for _, v in h[-PATIENCE:]) >= before
 
 
+def clean_data(files, val_files):
+    """Làm sạch (clean-binpack.py) vào TMP/clean/{val,train}: val trước để ván trùng với val bị bỏ khỏi tập học."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("clean_binpack", HERE / "clean-binpack.py")
+    cb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cb)
+    root = TMP / "clean"
+    shutil.rmtree(root, ignore_errors=True)
+    seen = set()
+    sv = cb.clean(val_files, str(root / "val"), seen=seen)
+    st = cb.clean(files, str(root / "train"), seen=seen)
+    say(f"Làm sạch: tập học {st['games']} ván → {st['kept']} (trùng {st['dup']}, lỗi VALUE_NONE {st['bad_eval']}, khác luật / "
+        f"cỡ {st['other']}) · val {sv['games']} → {sv['kept']}")
+    pick = lambda d: sorted(str(p) for p in (root / d).glob("*")) if (root / d).exists() else []
+    return pick("train"), pick("val")
+
+
 def train(tr, files, val_files, load_from=""):
     gpu = subprocess.run([sys.executable, "-c", "import torch,sys; sys.exit(0 if torch.cuda.is_available() else 1)"]).returncode == 0
     train_dir = RUN / "train"
@@ -377,6 +397,10 @@ if __name__ == "__main__":
     files, val_files = fetch_data()
     if not files:
         sys.exit("Repo dữ liệu chưa có ván nào (data/…/sp-*.binpack.lz4)")
+    if os.environ.get("CLEAN", "1") != "0":
+        files, val_files = clean_data(files, val_files)
+        if not files:
+            sys.exit("Làm sạch xong không còn ván nào để học")
     prev = resume_previous()
     if prev:
         LR = LR_RESUME

@@ -1,0 +1,59 @@
+--- a/Rapfi/command/selfplay.cpp
++++ b/Rapfi/command/selfplay.cpp
+@@ -381,6 +381,30 @@
+         Search::Engine.waitForIdle();
+         auto mainThread = Search::Engine.main();
+ 
++        // Rapfi-CARO (NNUE training data): in caro a depth-1 search can exhaust a small budget
++        // (the threat search tries every defence), leaving the root value VALUE_NONE and an
++        // unsorted root move. Upstream then adjudicates the game as a loss for the side to move
++        // and records that move. Retry with a larger budget instead; if the value is still
++        // missing, drop the game (result RESULT_UNKNOWN, not written by the caller).
++        for (int retry = 0; retry < 3 && !mainThread->rootMoves.empty()
++                            && mainThread->rootMoves[0].value == VALUE_NONE;
++             retry++) {
++            budget *= 4;
++            if (cfg.searchBudget.unit == BudgetUnit::NODES)
++                options.maxNodes = budget;
++            else
++                options.setTimeControl(static_cast<int64_t>(budget)
++                                           + std::max(Search::TimeCfg.turnTimeReserved, 0),
++                                       0);
++            Search::Engine.startThinking(board, options);
++            Search::Engine.waitForIdle();
++            mainThread = Search::Engine.main();
++        }
++        if (!mainThread->rootMoves.empty() && mainThread->rootMoves[0].value == VALUE_NONE) {
++            gameEntry.result = RESULT_UNKNOWN;
++            return gameEntry;
++        }
++
+         // We might have no legal move in Renju mode, which is regarded as loss
+         if (mainThread->rootMoves.empty()) {
+             searchValue = mated_in(0);
+@@ -820,6 +844,7 @@
+     SearchBudgetSampler                budgetSampler(cfg.searchBudget);
+     std::uniform_int_distribution<int> boardSizeDis(cfg.boardSizeMin, cfg.boardSizeMax);
+     size_t                             totalGamePly = 0;
++    size_t                             droppedGames = 0;
+ 
+     Time startTime = now(), lastTime = startTime;
+     for (size_t i = 0; i < cfg.numGames;) {
+@@ -833,7 +858,9 @@
+         applyOpening(board, cfg, prng);
+ 
+         GameEntry gameEntry = playOneGame(board, cfg, activeBudgetPrng, budgetSampler);
+-        if (dataWriter)
++        if (gameEntry.result == RESULT_UNKNOWN)
++            droppedGames++;  // Rapfi-CARO: no search value even after retries (see playOneGame)
++        else if (dataWriter)
+             dataWriter->writeGame(gameEntry);
+ 
+         // Print out generation progress over time
+@@ -848,4 +875,6 @@
+     }
+ 
+     MESSAGEL("Completed playing " << cfg.numGames << " games.");
++    if (droppedGames)
++        MESSAGEL("Dropped " << droppedGames << " games without a search value (not written).");
+ }
