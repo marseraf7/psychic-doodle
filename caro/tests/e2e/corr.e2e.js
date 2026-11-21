@@ -22,6 +22,19 @@ const { audit } = require('./ui-audit');
     return false;
   }
   const home = (p) => p.evaluate(() => window.CaroShell.open('home'));
+  // Giữ lại tin "corrGame" máy chủ gửi về A (mạng / máy chậm như trên CI): dòng lượt phải đổi ngay khi đánh, không chờ
+  // bản của máy chủ. holdA: null = chuyển tiếp ngay; mảng = các tin corrGame đang giữ (releaseA() gửi tiếp theo đúng thứ tự)
+  let holdA = null, releaseA = () => {};
+  await a.routeWebSocket(/\/ws$/, (ws) => {
+    const server = ws.connectToServer();
+    ws.onMessage((m) => server.send(m));
+    server.onMessage((m) => { if (holdA && typeof m === 'string' && m.startsWith('{"t":"corrGame"')) holdA.push(m); else ws.send(m); });
+    server.onClose(() => ws.close());
+    ws.onClose(() => server.close());
+    releaseA = () => { const q = holdA || []; holdA = null; q.forEach((m) => ws.send(m)); };
+  });
+  await a.reload(); // kết nối lại qua móc ở trên (vẫn đăng nhập bằng mã lưu trên máy)
+  await waitFor(a, () => !!(window.CaroOnline.state.me && !window.CaroOnline.state.me.guest && window.CaroOnline.connected), 'A đăng nhập lại sau khi tải trang');
 
   // A thách đấu từ Xem thêm › Chơi theo lượt
   await a.click('#tabbar [data-tab="more"]');
@@ -55,8 +68,13 @@ const { audit } = require('./ui-audit');
   ok(await a.evaluate(() => document.body.classList.contains('ext') && !!document.querySelector('#ext-bar [data-corr="resign"]')), 'mở ván: bàn cờ + thanh dưới có Đầu hàng');
   ok((await a.textContent('#turn')).includes('Đến lượt bạn'), 'dòng lượt: "Đến lượt bạn · còn …"');
   const [sx, sy] = await a.evaluate(() => window.CaroApp.screenOf(0, 0));
+  holdA = [];
   await a.mouse.click(sx, sy);
   await waitFor(b, (gid) => (window.CaroCorr.games.find((g) => g.id === gid) || { moves: [] }).moves.length === 1, 'B nhận nước của A', id);
+  ok((await a.textContent('#turn')).includes('Chờ corr_b đánh'), 'vừa đánh, máy chủ chưa trả lời A: dòng lượt đã là "Chờ … đánh" – ' + (await a.textContent('#turn')));
+  ok(await a.evaluate(() => window.CaroApp.board.moves.length === 1), 'vừa đánh: nước của A hiện ngay trên bàn');
+  releaseA();
+  await waitFor(a, (gid) => window.CaroCorr.games.find((g) => g.id === gid).moves.length === 1, 'A nhận bản của máy chủ', id);
   ok((await a.textContent('#turn')).includes('Chờ corr_b đánh'), 'sau khi đánh: "Chờ … đánh"');
   await shot(a, 'corr-board-390.png');
   ok((await audit(a, '#ext-bar')).length === 0 && (await audit(a, 'header.bar.top')).length === 0, 'thanh dưới + thanh trên của ván 390px: 0 lỗi hiển thị');
