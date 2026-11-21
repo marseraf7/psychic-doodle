@@ -94,3 +94,11 @@ test('API v1: mọi câu trả lời mẫu khớp lược đồ OpenAPI (kiểu,
   assert.deepStrictEqual(bad, [], 'câu trả lời lệch lược đồ:\n' + bad.join('\n'));
   [a, b, boss].forEach((c) => c.close());
 });
+
+test('API v1: openapi.json / ván .txt có địa chỉ gốc lấy từ Host – chưa đặt PUBLIC_URL thì chỉ trình duyệt giữ (private)', async () => {
+  const r = await get('/openapi.json');
+  assert.match(r.headers.get('cache-control'), /^private, max-age=3600$/);
+  const ids = ctx.app.hub.store.history(ctx.app.hub.store.users.values().next().value.id, 1);
+  if (ids[0]) assert.match((await get('/game/' + ids[0].share + '.txt')).headers.get('cache-control'), /^private, max-age=3600$/);
+  assert.match((await get('/leaderboard')).headers.get('cache-control'), /^public, max-age=60$/, 'đường khác vẫn public');
+});
