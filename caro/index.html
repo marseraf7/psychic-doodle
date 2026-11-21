@@ -24,6 +24,7 @@
   <link rel="stylesheet" href="pages.css">
   <link rel="stylesheet" href="topbar.css">
   <link rel="stylesheet" href="chat-bubbles.css">
+  <link rel="stylesheet" href="a11y.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="watchdog.js"></script>
   <script src="theme.js"></script>
@@ -460,6 +461,8 @@
         <!-- Cài ứng dụng (pwa-install.js): ẩn trong app, khi đã cài, khi trình duyệt không cài được -->
         <button type="button" class="li" id="set-install" hidden><svg class="ico li-ic" aria-hidden="true"><use href="#i-phone"/></svg><span class="li-t" data-i18n="inst_title"></span><span class="li-v" id="set-install-v"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <button type="button" class="li" data-open="habits"><svg class="ico li-ic" aria-hidden="true"><use href="#i-medal2"/></svg><span class="li-t" data-i18n="habits_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
+        <!-- Trợ năng: bàn phím, chế độ không nhìn bàn (a11y.js) -->
+        <button type="button" class="li" id="set-a11y"><svg class="ico li-ic" aria-hidden="true"><use href="#i-key"/></svg><span class="li-t" data-i18n="a11y_title"></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev"/></svg></button>
         <a class="li privacy-link" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-shield"/></svg><span class="li-t" data-i18n="privacy"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
         <a class="li licenses-link" href="licenses.html" target="_blank" rel="noopener"><svg class="ico li-ic" aria-hidden="true"><use href="#i-info"/></svg><span class="li-t" data-i18n="licenses"></span><svg class="ico chev" aria-hidden="true"><use href="#i-ext"/></svg></a>
       </div>
@@ -1141,6 +1144,7 @@
   <script src="i18n-perf.js"></script>
   <script src="i18n-topbar.js"></script>
   <script src="i18n-chat.js"></script>
+  <script src="i18n-a11y.js"></script>
   <script src="timectl.js"></script>
   <script src="local-clock.js"></script>
   <script src="tc-picker.js"></script>
@@ -1332,5 +1336,7 @@
   <script src="online-count.js"></script>
   <script src="presence.js"></script>
   <script src="chat-bubbles.js"></script>
+  <script src="a11y-coords.js"></script>
+  <script src="a11y.js"></script>
 </body>
 </html>
