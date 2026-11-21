@@ -137,11 +137,11 @@ test('Chơi theo lượt: quét hết giờ – bên tới lượt thua; chạy 
   assert.deepStrictEqual([g.status, g.winner, g.reason], ['done', 2, 'timeout']);
   assert.strictEqual(ub.stats.wins >= 1 && ua.stats.losses >= 1, true);
   assert.strictEqual(ua.stats.wins, before.wa, 'không cộng hai lần');
-  assert.strictEqual(ua.pools.corr.n, before.n + 1);
-  // corrFinish gọi lại trên bản cũ (giả lập người chơi đánh đúng lúc quét): không ghi, không tính điểm lần nữa
+  assert.strictEqual(ua.pools.corr.n, before.n, 'hết giờ khi chưa tới 10 nước: không tính điểm (như ván trực tiếp)');
+  // corrFinish gọi lại trên bản cũ (giả lập người chơi đánh đúng lúc quét): không ghi, không tính điểm / thống kê lần nữa
   const stale = { ...g, status: 'active' };
   assert.strictEqual(hub.corrFinish(stale, 1, 'win'), false);
-  assert.strictEqual(ua.pools.corr.n, before.n + 1);
+  assert.strictEqual(ua.pools.corr.n, before.n);
   // Chưa đủ 2 nước: huỷ, không ai thua
   const id3 = await newGame(a, b, { days: 1 });
   const lossesB = ub.stats.losses;
@@ -172,4 +172,59 @@ test('Chơi theo lượt: ván sống qua khởi động lại (CSDL trên đĩa
   s2.corrUserGone('u1');
   s2.db.close();
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('Chơi theo lượt: luật chống cày điểm như ván trực tiếp (đi lại, tài khoản mới đầu hàng), nước gửi sau hạn chót, một lời mời / cặp, xoá tài khoản', async () => {
+  const hub = ctx.app.hub;
+  hub.T.THROTTLE_SCALE = 0;
+  const a = await account(), b = await account();
+  const ua = hub.store.users.get(uidOf(a)), ub = hub.store.users.get(uidOf(b));
+  // Có đi lại (đã đồng ý) rồi thắng 5 quân: không tính điểm
+  const id = await newGame(a, b);
+  await move(a, id, 0, 0, b);
+  a.send({ t: 'corrTakeback', id });
+  await until(() => lastGame(b, id).takebackOffer === uidOf(a));
+  b.send({ t: 'corrTakeback', id });
+  await until(() => lastGame(a, id).moves.length === 0);
+  await move(a, id, 0, 0, b);
+  for (let i = 1; i < 5; i++) { await move(b, id, i * 3, 5, a); await move(a, id, i, 0, b); }
+  assert.strictEqual(lastGame(a, id).status, 'done');
+  assert.strictEqual(lastGame(a, id).delta, null, 'có đi lại: không tính điểm');
+  assert.strictEqual(ua.pools.corr.n, 0);
+  // Tài khoản mới (dưới 7 ngày) đầu hàng sau vài nước: không tính điểm
+  const id2 = await newGame(a, b);
+  await move(a, id2, 0, 0, b);
+  await move(b, id2, 1, 1, a);
+  b.send({ t: 'corrResign', id: id2 });
+  await until(() => lastGame(a, id2).status === 'done');
+  assert.strictEqual(lastGame(a, id2).delta, null, 'tài khoản mới đầu hàng: không tính điểm');
+  // Nước gửi tới sau hạn chót (lượt quét chưa chạy): xử lý hết giờ ngay, không đánh được
+  const id3 = await newGame(a, b, { rated: false });
+  await move(a, id3, 0, 0, b);
+  await move(b, id3, 1, 1, a);
+  const g3 = hub.store.corrGet(id3);
+  g3.deadline = Date.now() - 1000;
+  hub.store.corrPut(g3);
+  a.send({ t: 'corrMove', id: id3, x: 2, y: 2, n: 2 });
+  await until(() => lastGame(b, id3).status === 'done');
+  assert.deepStrictEqual([lastGame(b, id3).reason, lastGame(b, id3).winner, lastGame(b, id3).moves.length], ['timeout', 2, 2]);
+  assert.ok(errs(a).includes('game_over'));
+  // Mỗi cặp chỉ một lời mời đang chờ (không chiếm hết 30 chỗ của người khác)
+  a.send({ t: 'corrCreate', username: nameOf(b), days: 2 });
+  await until(() => b.msgs.some((m) => m.t === 'corrGame' && m.game.status === 'invite' && m.game.from === uidOf(a)));
+  a.send({ t: 'corrCreate', username: nameOf(b), days: 3 });
+  await until(() => errs(a).includes('corr_invite_pending'));
+  assert.strictEqual(hub.store.corrCount(ub.id), 1);
+  // Xoá tài khoản: ván đang chơi huỷ ở lượt quét kế tiếp (đối thủ không mất điểm), tên người đã xoá bỏ khỏi ván
+  const id4 = await newGame(b, a);
+  await move(b, id4, 0, 0, a);
+  await move(a, id4, 1, 1, b);
+  const lossesA = ua.stats.losses;
+  hub.store.deleteUser(ub);
+  assert.strictEqual(hub.corrSweep(Date.now()), 1, 'quét ngay sau khi xoá: huỷ ván đang chơi');
+  const g4 = hub.store.corrGet(id4);
+  assert.deepStrictEqual([g4.status, g4.reason, ua.stats.losses], ['done', 'abort', lossesA]);
+  assert.strictEqual(g4.xName, '', 'tên người đã xoá bị bỏ');
+  assert.strictEqual(hub.store.corrGet(id).oName, '', 'cả ở ván đã xong');
+  a.close(); b.close();
 });

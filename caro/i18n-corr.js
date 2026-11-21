@@ -60,6 +60,7 @@
     srv_corr_not_found: 'Không thấy ván theo lượt này',
     srv_corr_self: 'Không thể tự thách đấu chính mình',
     srv_corr_too_many: 'Tối đa {n} ván theo lượt cùng lúc',
+    srv_corr_invite_pending: 'Bạn đã có một lời mời đang chờ người này trả lời',
     srv_corr_takeback_turn: 'Chỉ xin đi lại được nước mình vừa đánh',
   });
   X('en', {
@@ -120,6 +121,7 @@
     srv_corr_not_found: 'Correspondence game not found',
     srv_corr_self: 'You cannot challenge yourself',
     srv_corr_too_many: 'At most {n} correspondence games at a time',
+    srv_corr_invite_pending: 'You already have a challenge waiting for this player’s answer',
     srv_corr_takeback_turn: 'You can only take back your own last move',
   });
   X('ru', {
@@ -180,6 +182,7 @@
     srv_corr_not_found: 'Партия по переписке не найдена',
     srv_corr_self: 'Нельзя вызвать самого себя',
     srv_corr_too_many: 'Не больше {n} партий по переписке одновременно',
+    srv_corr_invite_pending: 'Этот игрок ещё не ответил на ваш прошлый вызов',
     srv_corr_takeback_turn: 'Отменить можно только свой последний ход',
   });
   X('zh', {
@@ -240,6 +243,7 @@
     srv_corr_not_found: '找不到这局通讯对局',
     srv_corr_self: '不能向自己发起挑战',
     srv_corr_too_many: '最多同时进行 {n} 局通讯对局',
+    srv_corr_invite_pending: '你向该棋手发出的挑战仍在等待回复',
     srv_corr_takeback_turn: '只能撤回自己刚走的一步',
   });
 })();

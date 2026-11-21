@@ -69,9 +69,22 @@ class CorrStore {
       .all(now).map((r) => r.id);
   }
 
-  /** Xoá tài khoản: xoá lời mời, ván đang chơi của người đó bị huỷ ở lần quét sau (đối thủ không mất điểm). */
+  /** Số lời mời đang chờ từ uid gửi tới other. */
+  corrInvitesFrom(uid, other) {
+    return this.corrDb().prepare(`SELECT COUNT(*) AS n FROM corr_games WHERE status = 'invite' AND ((x = ? AND o = ?) OR (x = ? AND o = ?))
+      AND json_extract(data, '$.from') = ?`).get(uid, other, other, uid, uid).n;
+  }
+
+  /**
+   * Xoá tài khoản: xoá lời mời; ván đang chơi đặt hạn chót đã qua → lượt quét sau (≤ 1 phút) huỷ ván (đối thủ không mất
+   * điểm); tên người đã xoá bỏ khỏi mọi ván (như bảng games – store.js deleteUser).
+   */
   corrUserGone(uid) {
-    this.corrDb().prepare("DELETE FROM corr_games WHERE (x = ? OR o = ?) AND status = 'invite'").run(uid, uid);
+    const db = this.corrDb();
+    db.prepare("DELETE FROM corr_games WHERE (x = ? OR o = ?) AND status = 'invite'").run(uid, uid);
+    db.prepare("UPDATE corr_games SET deadline = 1, data = json_set(data, '$.deadline', 1) WHERE (x = ? OR o = ?) AND status = 'active'").run(uid, uid);
+    db.prepare("UPDATE corr_games SET data = json_set(data, '$.xName', '') WHERE x = ?").run(uid);
+    db.prepare("UPDATE corr_games SET data = json_set(data, '$.oName', '') WHERE o = ?").run(uid);
   }
 }
 

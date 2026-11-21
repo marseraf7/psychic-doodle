@@ -22,7 +22,7 @@
 
   const meId = () => (N.state.me && !N.state.me.guest ? N.state.me.uid || N.state.me.id : null);
   const signedIn = () => !!meId() && N.connected;
-  const oppName = (g) => (g.x === meId() ? g.oName : g.xName);
+  const oppName = (g) => (g.x === meId() ? g.oName : g.xName) || T('deleted_player'); // đối thủ đã xoá tài khoản: tên bị bỏ (store-corr.js)
   const mySide = (g) => (g.x === meId() ? 1 : 2);
   const myTurn = (g) => g.status === 'active' && g.turn === meId();
   /** "còn 2 ngày 3 giờ" từ hạn chót. */

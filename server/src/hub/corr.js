@@ -2,7 +2,10 @@
  * Chơi theo lượt (C1 – như cờ thư "Correspondence" của Lichess, ý tưởng – không dùng mã của họ): mỗi nước có 1 / 2 / 3 /
  * 5 / 7 ngày. Chỉ tài khoản (không cho khách). Ván lưu trong CSDL (store-corr.js) nên sống qua khởi động lại máy chủ.
  * Luật kiểm như ván trực tiếp (caro/rules.js: ô trống, nước cấm Renju, thắng theo luật đã chọn, trần toạ độ / số nước).
- * Điểm: loại riêng 'corr' (rating.js) khi cả hai đồng ý "Tính điểm" và ván có ≥ 2 nước; ván cũng vào Lịch sử đấu.
+ * Điểm: loại riêng 'corr' (rating.js) khi cả hai đồng ý "Tính điểm", ván có ≥ 2 nước và qua cùng luật chống cày điểm như
+ * ván trực tiếp (rooms.js isRatable: có đi lại, kết thúc sớm dưới 10 nước, quá 5 ván / cặp / ngày, tài khoản mới thua bằng
+ * đầu hàng / hết giờ, ván lặp lại). Ván cũng vào Lịch sử đấu. Hạng đấu tuần (league.js) và thống kê sâu theo loại (perf.js)
+ * chỉ tính ván trực tiếp; Thống kê / Tổng kết (insights.js, recap.js) có ván theo lượt dưới loại "Theo lượt".
  * Tin nhắn (client → máy chủ):
  *   corrCreate  { username, days, rated, rule, side: 'x' | 'o' | 'random' } → mời; người được mời nhận thông báo lưu
  *   corrAnswer  { id, accept }      corrList {}      corrOpen { id }
@@ -11,7 +14,9 @@
  * Máy chủ → client: { t: 'corrGame', game }, { t: 'corrList', games }; thông báo lưu (tour-notes.js pushNote):
  *   corr_invite · corr_turn · corr_end – người offline nhận khi vào lại, chuông Thông báo (topbar-inbox.js).
  * Hết giờ: corrSweep(now) chạy mỗi phút (core.js sweep) – bên tới lượt quá hạn thì thua; chạy lại cũng không xử lý
- * hai lần (CSDL chỉ ghi khi trạng thái còn 'active' – store-corr.js corrPut).
+ * hai lần (CSDL chỉ ghi khi trạng thái còn 'active' – store-corr.js corrPut). Nước / lời xin gửi tới sau hạn chót (trước
+ * lượt quét) cũng xử lý hết giờ ngay (corrLate), không cho đánh tiếp.
+ * Chống làm phiền: mỗi người chỉ có một lời mời đang chờ tới cùng một người (corr_invite_pending).
  */
 'use strict';
 const crypto = require('crypto');
@@ -52,6 +57,13 @@ class Corr {
     return { me, g };
   }
 
+  /** Đã quá hạn chót mà lượt quét chưa chạy: xử lý hết giờ ngay (như corrSweep) – trả true nếu ván không còn chơi tiếp được. */
+  corrLate(g, now = Date.now()) {
+    if (!g.deadline || g.deadline >= now || (g.status !== 'active' && g.status !== 'invite')) return false;
+    this.corrExpire(g, now);
+    return true;
+  }
+
   on_corrCreate(conn, { username, days, rated, rule, side } = {}) {
     const me = this.requireUser(conn);
     this.throttle(conn, 'corrCreate', 2000);
@@ -60,6 +72,8 @@ class Corr {
     if (u.id === me.id) throw E('corr_self');
     if (!DAYS.includes(Number(days))) throw E('bad_message');
     if (this.store.corrCount(me.id) >= MAX_OPEN || this.store.corrCount(u.id) >= MAX_OPEN) throw E('corr_too_many', { n: MAX_OPEN });
+    // Một lời mời đang chờ cho mỗi cặp (người gửi → người nhận): không gửi 30 lời mời chiếm hết chỗ của người khác
+    if (this.store.corrInvitesFrom(me.id, u.id)) throw E('corr_invite_pending');
     const meX = side === 'x' ? true : side === 'o' ? false : Math.random() < 0.5;
     const now = Date.now();
     const g = {
@@ -74,7 +88,7 @@ class Corr {
 
   on_corrAnswer(conn, { id, accept } = {}) {
     const { me, g } = this.corrMine(conn, id);
-    if (g.status !== 'invite' || g.from === me.id) throw E('corr_not_found');
+    if (g.status !== 'invite' || g.from === me.id || this.corrLate(g)) throw E('corr_not_found');
     const now = Date.now();
     g.updated = now;
     if (accept) { g.status = 'active'; g.lastAt = now; g.deadline = now + g.days * DAY; }
@@ -104,7 +118,7 @@ class Corr {
 
   on_corrMove(conn, { id, x, y, n } = {}) {
     const { me, g } = this.corrMine(conn, id);
-    if (g.status !== 'active') throw E('game_over');
+    if (g.status !== 'active' || this.corrLate(g)) throw E('game_over');
     if (Number.isInteger(n) && n !== g.moves.length) return conn.send({ t: 'corrGame', game: this.corrView(g) }); // nước gửi lại / bàn cũ
     const side = g.moves.length % 2 ? Caro.O : Caro.X;
     if ((side === Caro.X ? g.x : g.o) !== me.id) throw E('not_your_turn');
@@ -129,13 +143,13 @@ class Corr {
 
   on_corrResign(conn, { id } = {}) {
     const { me, g } = this.corrMine(conn, id);
-    if (g.status !== 'active') throw E('cannot_resign');
+    if (g.status !== 'active' || this.corrLate(g)) throw E('cannot_resign');
     this.corrFinish(g, me.id === g.x ? Caro.O : Caro.X, 'resign');
   }
 
   on_corrDraw(conn, { id } = {}) {
     const { me, g } = this.corrMine(conn, id);
-    if (g.status !== 'active') throw E('game_over');
+    if (g.status !== 'active' || this.corrLate(g)) throw E('game_over');
     if (g.drawOffer && g.drawOffer !== me.id) return this.corrFinish(g, DRAW, 'draw'); // đối thủ đã xin: đồng ý
     if (g.drawOffer === me.id) return;
     g.drawOffer = me.id;
@@ -148,10 +162,11 @@ class Corr {
   /** Xin đi lại (người vừa đánh xin rút nước của mình) / đồng ý khi đối thủ xin. */
   on_corrTakeback(conn, { id } = {}) {
     const { me, g } = this.corrMine(conn, id);
-    if (g.status !== 'active' || !g.moves.length) throw E('game_over');
+    if (g.status !== 'active' || !g.moves.length || this.corrLate(g)) throw E('game_over');
     const lastBy = g.moves.length % 2 ? g.x : g.o; // người đánh nước cuối
     if (g.takebackOffer && g.takebackOffer !== me.id) {
       g.moves.pop(); // đồng ý: bỏ nước cuối của người xin, lượt về họ
+      g.takebacks = (g.takebacks || 0) + 1; // có đi lại: không tính điểm (như ván trực tiếp – rooms.js isRatable)
       g.takebackOffer = null;
       g.drawOffer = null;
       g.lastAt = g.updated = Date.now();
@@ -167,7 +182,7 @@ class Corr {
 
   on_corrDecline(conn, { id, what } = {}) {
     const { me, g } = this.corrMine(conn, id);
-    if (g.status !== 'active') return;
+    if (g.status !== 'active' || this.corrLate(g)) return;
     const k = what === 'draw' ? 'drawOffer' : 'takebackOffer';
     if (!g[k] || g[k] === me.id) return;
     g[k] = null;
@@ -188,13 +203,16 @@ class Corr {
     if (!this.store.corrPut(g, was)) return false;
     const ux = this.store.users.get(g.x), uo = this.store.users.get(g.o);
     const counted = reason !== 'abort' && ux && uo;
+    // Luật chống cày điểm của ván trực tiếp (trước khi ghi ván: so với các ván trước của cặp này)
+    const rated = !!(counted && g.rated && g.moves.length >= 2 && this.isRatable({ reason, winner, takebacks: g.takebacks || 0, tour: null }, ux, uo, g.moves));
     if (counted && g.moves.length) {
       g.share = this.store.recordGame({ kind: 'corr', timeLimit: 0, rule: g.rule, xId: g.x, oId: g.o, xName: g.xName, oName: g.oName,
         winner, reason, moves: g.moves });
     }
-    if (counted && g.rated && g.moves.length >= 2) {
+    if (rated) {
       const d = this.rate(ux, uo, winner === DRAW ? 0.5 : winner === Caro.X ? 1 : 0, 'corr');
       g.delta = { x: d.a, o: d.b };
+      this.store.bumpRated(ux.id, uo.id); // đếm vào "5 ván / cặp / ngày" chung với ván trực tiếp
     }
     if (g.share || g.delta) this.store.corrPut(g);
     if (counted) {
@@ -203,6 +221,7 @@ class Corr {
         this.store.touch(u);
       }
       this.store.addH2h(ux.id, uo.id, winner === DRAW ? null : winner === Caro.X ? ux.id : uo.id);
+      for (const u of [ux, uo]) { const pid = userPid(u.id); this.send(pid, { t: 'me', me: this.meView(pid) }); } // điểm / thống kê mới
     }
     for (const [uid, opp, side] of [[g.x, g.oName, Caro.X], [g.o, g.xName, Caro.O]]) {
       this.pushNote(uid, { k: 'corr_end', id: g.id, name: opp, res: winner === DRAW ? 'draw' : winner === side ? 'win' : 'loss', reason });
@@ -217,18 +236,23 @@ class Corr {
     for (const id of this.store.corrDue(now)) {
       const g = this.store.corrGet(id);
       if (!g || !g.deadline || g.deadline >= now) continue;
-      if (g.status === 'invite') {
-        g.status = 'done'; g.reason = 'expired'; g.deadline = null; g.updated = now;
-        if (this.store.corrPut(g, 'invite')) { n++; this.corrPush(g); }
-        continue;
-      }
-      if (g.status !== 'active') continue;
-      const gone = !this.store.users.get(g.x) || !this.store.users.get(g.o);
-      const loser = g.moves.length % 2 ? Caro.O : Caro.X;
-      const ok = gone || g.moves.length < 2 ? this.corrFinish(g, null, 'abort') : this.corrFinish(g, Caro.other(loser), 'timeout');
-      if (ok) n++;
+      if (this.corrExpire(g, now)) n++;
     }
     return n;
+  }
+
+  /** Ván / lời mời g đã quá hạn: lời mời hết hạn; ván thì bên tới lượt thua (chưa đủ 2 nước / có người đã xoá tài khoản: huỷ). */
+  corrExpire(g, now) {
+    if (g.status === 'invite') {
+      g.status = 'done'; g.reason = 'expired'; g.deadline = null; g.updated = now;
+      if (!this.store.corrPut(g, 'invite')) return false;
+      this.corrPush(g);
+      return true;
+    }
+    if (g.status !== 'active') return false;
+    const gone = !this.store.users.get(g.x) || !this.store.users.get(g.o);
+    const loser = g.moves.length % 2 ? Caro.O : Caro.X;
+    return gone || g.moves.length < 2 ? this.corrFinish(g, null, 'abort') : this.corrFinish(g, Caro.other(loser), 'timeout');
   }
 
   /** Vào lại (welcome): báo số ván đang chờ mình (Trang chủ hiện thẻ "Ván đang chờ bạn"). */
