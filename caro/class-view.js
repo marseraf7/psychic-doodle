@@ -185,7 +185,7 @@
       const code = /(?:replay=)?([\w-]{6,20})\s*$/.exec(txt.trim());
       const parsed = window.CaroGameText && window.CaroGameText.parse(txt);
       if (parsed && parsed.moves.length) moves = parsed.moves;
-      else if (code) { try { const r = await fetch('/api/v1/game/' + code[1]); if (r.ok) moves = (await r.json()).moves; } catch (e) { /* mất mạng */ } }
+      else if (code) { try { const r = await fetch(N.base + '/api/v1/game/' + code[1]); if (r.ok) moves = (await r.json()).moves; } catch (e) { /* mất mạng */ } }
       if (!moves || !moves.length) return N.toast(T('cls_import_bad'));
       let p = st.path;
       for (const m of moves) { const q = Tr.addMove(ch.root, p, m); if (!q) break; p = q; }

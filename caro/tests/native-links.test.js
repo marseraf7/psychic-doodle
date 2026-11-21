@@ -59,3 +59,30 @@ test('H-A5: nạp lại trang sau khi mở link khởi động không mở lại
   await new Promise((r) => setImmediate(r));
   assert.deepStrictEqual(assigns, [], 'link khởi động đã xử lý trong phiên này thì bỏ qua');
 });
+
+test('C3: link tường thuật ?bc= (cả ?cls=) mở trong app – ?bc= vào thẳng broadcast.html của app', () => {
+  assigns.length = 0;
+  listeners.appUrlOpen({ url: 'https://caroxo.duckdns.org/?bc=o.cup-2026' });
+  listeners.appUrlOpen({ url: 'io.github.marseraf7.caro://open?bc=abc123&utm_source=zalo' });
+  listeners.appUrlOpen({ url: 'https://caroxo.duckdns.org/?cls=0123456789ab' });
+  assert.deepStrictEqual(assigns, ['/broadcast.html?bc=o.cup-2026', '/broadcast.html?bc=abc123', '/?cls=0123456789ab']);
+});
+
+test('C3: trang chính của app mở bằng /?bc= (link bấm trong app) tự chuyển sang broadcast.html', () => {
+  const replaced = [];
+  const loc = Object.getOwnPropertyDescriptor(globalThis, 'location');
+  Object.defineProperty(globalThis, 'location', { value: { assign: (u) => assigns.push(u), replace: (u) => replaced.push(u), pathname: '/', search: '?bc=t9x' }, configurable: true });
+  try {
+    delete require.cache[require.resolve('../native.js')];
+    require('../native.js');
+    assert.deepStrictEqual(replaced, ['/broadcast.html?bc=t9x']);
+    // Trang khác (broadcast.html đã có ?bc=) không chuyển lại
+    replaced.length = 0;
+    globalThis.location.pathname = '/broadcast.html';
+    delete require.cache[require.resolve('../native.js')];
+    require('../native.js');
+    assert.deepStrictEqual(replaced, []);
+  } finally {
+    Object.defineProperty(globalThis, 'location', loc);
+  }
+});
