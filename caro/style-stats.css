@@ -54,3 +54,13 @@ svg.ins-shape .so { fill: var(--o, #2f6fd2); }
 /* Lời giải thích của huấn luyện viên trong bảng phân tích (coach-ui.js) */
 .an-coach { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); border-radius: 6px; background: rgba(127, 127, 127, 0.08);
   font-size: var(--fs-sm); flex-basis: 100%; }
+
+/* Thang nhân vật máy (bot-ladder.js) */
+.lad-tabs { gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.lad-tabs .on { outline: 2px solid var(--accent); }
+.lad-sum { margin: 6px 0; }
+.lad-list { margin-top: 10px; }
+.lad-nm { display: flex; gap: 8px; align-items: center; }
+.lad-t { display: block; min-width: 0; }
+.lad-t b, .lad-t small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lad-t small { color: var(--muted); font-size: var(--fs-xs); }
