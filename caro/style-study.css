@@ -103,12 +103,12 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 
 /* Danh sách nước đi: 2 cột (X | O) với số thứ tự, nước đang xem tô nền màu nhấn */
 .an-moves {
-  display: grid; grid-template-columns: 2.6em 1fr 1fr; align-content: start; flex: 1; min-height: 0; overflow-y: auto;
+  display: grid; grid-template-columns: minmax(2.6em, max-content) 1fr 1fr; align-content: start; flex: 1; min-height: 0; overflow-y: auto;
   border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); scrollbar-width: thin;
   font-variant-numeric: tabular-nums;
 }
-.an-no { padding: 5px 6px; color: var(--muted); text-align: right; background: color-mix(in srgb, var(--text) 5%, transparent); }
-.an-mv { display: flex; align-items: center; gap: 4px; padding: 5px 8px; border-radius: 0; text-align: left; font-weight: var(--fw-medium); min-height: 30px; }
+.an-no { padding: 5px 6px; color: var(--muted); text-align: right; white-space: nowrap; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.an-mv { display: flex; align-items: center; gap: 4px; padding: 5px 8px; white-space: nowrap; border-radius: 0; text-align: left; font-weight: var(--fw-medium); min-height: 30px; }
 .an-mv b { font-weight: var(--fw-bold); }
 @media (hover: hover) { .an-mv:not(.empty):hover { background: rgba(127, 127, 127, 0.14); } }
 .an-mv.cur { background: var(--accent); color: #fff; }
@@ -167,7 +167,8 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
   .an-graph { height: 56px; }
   .an-now { order: 2; min-height: 0; }
   .an-moves { order: 3; display: flex; flex: none; overflow-x: auto; overflow-y: hidden; white-space: nowrap; min-height: 38px; }
-  .an-no { display: flex; align-items: center; background: none; padding: 5px 2px 5px 8px; }
+  /* Số thứ tự không co: co lại thì "109." đè lên tên ô bên cạnh (máy có cỡ chữ lớn / phông khác) */
+  .an-no { display: flex; flex: none; align-items: center; background: none; padding: 5px 2px 5px 8px; }
   .an-mv { border-radius: 8px; padding: 5px 7px; flex: none; }
   .an-mv.empty { display: none; }
   .an-players { order: 4; grid-template-columns: 1fr 1fr; gap: 8px; }

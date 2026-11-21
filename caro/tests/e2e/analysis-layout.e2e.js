@@ -77,6 +77,14 @@ const SIZES = [
       if (text && tw < 0.6 * bodyBox.w) issues.push(`nhận xét bị ép hẹp (${Math.round(tw)} / ${Math.round(bodyBox.w)} px)`);
       const moves = box(document.getElementById('an-moves'));
       if (!moves || moves.h < 36) issues.push(`danh sách nước đi quá thấp (${moves ? Math.round(moves.h) : 0} px)`);
+      // Số thứ tự nước không đè / không bị ép đè lên tên ô (điện thoại: danh sách cuộn ngang – trước đây ô số co lại)
+      const cells = [...document.querySelectorAll('#an-moves > .an-no, #an-moves > .an-mv:not(.empty)')];
+      for (let i = 0; i + 1 < cells.length; i++) {
+        const a = box(cells[i]), b = box(cells[i + 1]);
+        if (a && b && hit(a, b)) { issues.push(`số nước / tên ô đè nhau (${cells[i].textContent} – ${cells[i + 1].textContent})`); break; }
+      }
+      const cut = cells.find((c) => c.scrollWidth > c.clientWidth + 1);
+      if (cut) issues.push(`chữ trong danh sách nước đi bị cắt (${cut.textContent})`);
       const scrollable = body.scrollHeight > body.clientHeight + 1 ? getComputedStyle(body).overflowY : 'vừa';
       if (body.scrollHeight > body.clientHeight + 1 && !/auto|scroll/.test(scrollable)) issues.push('nội dung dài hơn bảng mà không cuộn được');
       return { issues, better: !!now.querySelector('[data-better],[data-retry]'), moves: moves && Math.round(moves.h), scroll: scrollable };
