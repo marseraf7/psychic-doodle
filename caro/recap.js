@@ -13,8 +13,7 @@
   const esc = F.esc;
   const dlg = F.dialog('recap-dlg', 'rc_title', 'star');
   const body = dlg.body;
-  const now = new Date();
-  const per = { kind: 'month', y: now.getFullYear(), m: now.getMonth() + 1 };
+  const per = { kind: 'month', ...RC.vnMonth(Date.now()) }; // kỳ theo giờ Việt Nam (recap-core.js)
   let data = null, lastReq = 0, reqTimer = 0;
 
   const signed = () => !!(N && N.connected && N.state.me && !N.state.me.guest);
@@ -54,6 +53,8 @@
     load();
   }
 
+  // Đối thủ để lịch sử đấu riêng tư: máy chủ không gửi tên (recap-core.js) – chỉ ghi điểm
+  const bestText = (b) => (b.name ? T('rc_best', { name: b.name, r: b.r }) : T('rc_best_anon', { r: b.r }));
   const tile = (big, small) => `<div><b>${esc(big)}</b><small>${esc(small)}</small></div>`;
   function render() {
     const tabs = ['month', 'year'].map((k) => `<button type="button" class="ghost sm${per.kind === k ? ' on' : ''}" data-rk="${k}" aria-pressed="${per.kind === k}">${esc(T('rc_t_' + k))}</button>`).join('');
@@ -64,7 +65,7 @@
     const facts = [];
     if (d.rule) facts.push(`<li>${esc(T('rc_fav_rule', { rule: T('grule_s_' + d.rule.k), n: d.rule.n }))}</li>`);
     if (d.pool) facts.push(`<li>${esc(T('rc_fav_pool', { pool: T('pool_' + d.pool.k), n: d.pool.n }))}</li>`);
-    if (d.best) facts.push(`<li>${esc(T('rc_best', { name: d.best.name, r: d.best.r }))}</li>`);
+    if (d.best) facts.push(`<li>${esc(bestText(d.best))}</li>`);
     if (d.opp) facts.push(`<li>${esc(T('rc_opp', { name: d.opp.name, n: d.opp.n }))}</li>`);
     body.innerHTML = `<div class="row lad-tabs">${tabs}</div>${nav}
       ${d.n ? '' : `<p class="hint">${esc(T('rc_empty'))}</p>`}
@@ -104,7 +105,7 @@
     g.textAlign = 'left'; g.font = font(36, 500);
     const lines = [];
     if (d.rule) lines.push(T('rc_fav_rule', { rule: T('grule_s_' + d.rule.k), n: d.rule.n }));
-    if (d.best) lines.push(T('rc_best', { name: d.best.name, r: d.best.r }));
+    if (d.best) lines.push(bestText(d.best));
     if (d.opp) lines.push(T('rc_opp', { name: d.opp.name, n: d.opp.n }));
     lines.slice(0, 3).forEach((s, i) => g.fillText(fit('• ' + s, W - 180), 90, 1100 + i * 60));
     return new Promise((res) => cv.toBlob(res, 'image/png'));

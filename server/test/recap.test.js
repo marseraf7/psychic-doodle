@@ -26,6 +26,8 @@ test('recap: gom ván trong kỳ; đối thủ gặp nhiều nhất theo quyền
     await new Promise((res) => setTimeout(res, 1050));
     const r2 = await a.req({ t: 'recap', from: now - 86400000, to: now + 86400000 }, 'recap');
     assert.strictEqual(r2.data.opp, null);
+    assert.strictEqual(r2.data.best.name, null, 'thắng đẹp nhất: không lộ tên đối thủ để lịch sử riêng tư (thẻ PNG chia sẻ ra ngoài)');
+    assert.ok(r2.data.best.r > 0);
     await new Promise((res) => setTimeout(res, 1050));
     const old = await a.req({ t: 'recap', from: now - 40 * 86400000, to: now - 30 * 86400000 }, 'recap');
     assert.strictEqual(old.data.n, 0, 'kỳ khác: không có ván');

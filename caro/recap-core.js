@@ -1,17 +1,29 @@
 /*
  * Tổng kết tháng / năm – phần tính thuần (trình duyệt: window.CaroRecapCore; máy chủ: server/src/hub/recap.js).
- *   range(kind, y, m)  → { from, to } (ms) – tháng m (1–12) hoặc cả năm y theo giờ máy người xem
+ *   range(kind, y, m)  → { from, to } (ms) – tháng m (1–12) hoặc cả năm y theo giờ Việt Nam (UTC+7)
+ *   vnMonth(at)        → { y, m } – tháng theo giờ Việt Nam của thời điểm at
  *   summarize(games)   → số ván, thắng / hoà / thua, luật + loại thời gian chơi nhiều nhất, thắng đẹp nhất (đối thủ điểm cao
- *                        nhất bị mình thắng), chuỗi thắng dài nhất (theo thứ tự thời gian), đối thủ gặp nhiều nhất (chỉ khi
+ *                        nhất bị mình thắng; tên chỉ khi cả hai công khai lịch sử đấu), chuỗi thắng dài nhất (theo thứ tự thời gian), đối thủ gặp nhiều nhất (chỉ khi
  *                        cả hai để công khai lịch sử đấu), số ngày có chơi
  * games: [{ at, id? (thứ tự lưu – khi cùng thời điểm), rule, pool, res: 'win' | 'loss' | 'draw', share?, opp: { id, name, r, pub } | null }]
  */
 (function (global) {
   'use strict';
 
+  // Giờ Việt Nam (UTC+7, không đổi giờ mùa hè) – như tuần của Hạng đấu tuần / bảng Storm tuần (progress-merge.js weekKey):
+  // tháng / năm / "ngày có chơi" giống nhau trên máy chủ (thường chạy UTC) và mọi trình duyệt, không theo giờ máy
+  const VN = 7 * 3600000;
+  const DAY = 86400000;
+
   function range(kind, y, m) {
-    if (kind === 'year') return { from: new Date(y, 0, 1).getTime(), to: new Date(y + 1, 0, 1).getTime() };
-    return { from: new Date(y, m - 1, 1).getTime(), to: new Date(y, m, 1).getTime() };
+    if (kind === 'year') return { from: Date.UTC(y, 0, 1) - VN, to: Date.UTC(y + 1, 0, 1) - VN };
+    return { from: Date.UTC(y, m - 1, 1) - VN, to: Date.UTC(y, m, 1) - VN };
+  }
+
+  /** Năm và tháng (1–12) theo giờ Việt Nam của thời điểm at (ms) – kỳ mặc định khi mở hộp Tổng kết. */
+  function vnMonth(at) {
+    const d = new Date(at + VN);
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1 };
   }
 
   function top(counts) {
@@ -29,12 +41,13 @@
       out[g.res === 'win' ? 'w' : g.res === 'draw' ? 'd' : 'l']++;
       rules[g.rule || 'vn'] = (rules[g.rule || 'vn'] || 0) + 1;
       if (g.pool) pools[g.pool] = (pools[g.pool] || 0) + 1;
-      const d = new Date(g.at || 0);
-      days.add(d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate());
+      days.add(Math.floor(((g.at || 0) + VN) / DAY)); // ngày theo giờ Việt Nam
       run = g.res === 'win' ? run + 1 : 0;
       out.streak = Math.max(out.streak, run);
       const o = g.opp;
-      if (g.res === 'win' && o && o.r > 0 && (!out.best || o.r > out.best.r)) out.best = { name: o.name, r: o.r, at: g.at, share: g.share || null };
+      // Tên đối thủ chỉ khi cả hai công khai lịch sử đấu (như "đối thủ gặp nhiều nhất"): thẻ PNG được chia sẻ ra ngoài –
+      // không lộ kết quả ván của người để lịch sử đấu riêng tư; không thì chỉ ghi điểm (name: null)
+      if (g.res === 'win' && o && o.r > 0 && (!out.best || o.r > out.best.r)) out.best = { name: o.pub ? o.name : null, r: o.r, at: g.at, share: g.share || null };
       if (o && o.id && o.pub) {
         const e = opps[o.id] || (opps[o.id] = { name: o.name, n: 0 });
         e.n++;
@@ -49,7 +62,7 @@
     return out;
   }
 
-  const CaroRecapCore = { range, summarize };
+  const CaroRecapCore = { range, vnMonth, summarize, VN };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroRecapCore;
   else global.CaroRecapCore = CaroRecapCore;
 })(typeof window !== 'undefined' ? window : globalThis);
