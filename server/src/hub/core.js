@@ -133,7 +133,13 @@ class Hub {
     if (conn.pid) this.detach(conn);
     conn.pid = pid;
     const u = uidOf(pid) && this.store.users.get(uidOf(pid));
-    if (u && conn.tz != null && u.tz !== conn.tz) { u.tz = conn.tz; this.store.touch(u); } // múi giờ cho nhật ký hoạt động
+    // Múi giờ thiết bị (nhật ký hoạt động, Tổng kết, trần Storm / ngày): số phút lệch + tên IANA nếu máy gửi; máy chỉ gửi số phút
+    // thì bỏ tên cũ (không để tên của máy khác lệch với số phút của máy này)
+    if (u && conn.tz != null && (u.tz !== conn.tz || (u.tzName || null) !== conn.tzName)) {
+      u.tz = conn.tz;
+      if (conn.tzName) u.tzName = conn.tzName; else delete u.tzName;
+      this.store.touch(u);
+    }
     if (u) this.maybeBindAdmin(u); // tên trong cấu hình quản trị mà chưa gắn với ai → gắn quyền theo ID (H-S4)
     const first = !this.isOnline(pid);
     if (!this.byPid.has(pid)) this.byPid.set(pid, new Set());

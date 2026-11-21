@@ -61,7 +61,10 @@
       // Tên khách mặc định theo ngôn ngữ đang chọn (vd. "Guest-3F2A"), nếu chưa tự đặt tên.
       const guestName = LS.get('caro.guestName') || `${T('guest')}-${guestKey.slice(0, 4).toUpperCase()}`;
       // Bản app điện thoại gửi kèm phiên bản để máy chủ báo khi cần cập nhật
-      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null, tz: -new Date().getTimezoneOffset() };
+      // Múi giờ thiết bị: số phút lệch UTC + tên IANA (máy chủ tính ngày / tháng đúng giờ mùa hè – Tổng kết, trần Storm / ngày)
+      let tzName = null;
+      try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { tzName = null; }
+      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null, tz: -new Date().getTimezoneOffset(), tzName };
       ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName, client }));
     };
     ws.onmessage = (e) => {

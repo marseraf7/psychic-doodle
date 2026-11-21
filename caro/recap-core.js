@@ -1,29 +1,36 @@
 /*
  * Tổng kết tháng / năm – phần tính thuần (trình duyệt: window.CaroRecapCore; máy chủ: server/src/hub/recap.js).
- *   range(kind, y, m)  → { from, to } (ms) – tháng m (1–12) hoặc cả năm y theo giờ Việt Nam (UTC+7)
- *   vnMonth(at)        → { y, m } – tháng theo giờ Việt Nam của thời điểm at
- *   summarize(games)   → số ván, thắng / hoà / thua, luật + loại thời gian chơi nhiều nhất, thắng đẹp nhất (đối thủ điểm cao
+ *   range(kind, y, m)  → { from, to } (ms) – tháng m (1–12) hoặc cả năm y theo múi giờ của máy đang chạy (trình duyệt: múi giờ
+ *                        thiết bị; Date cục bộ nên đổi giờ mùa hè đúng) – cho khách / dữ liệu trên máy
+ *   localMonth(at)     → { y, m } – tháng theo múi giờ thiết bị của thời điểm at (kỳ mặc định khi mở hộp)
+ *   localDay(at)       → 'YYYY-MM-DD' theo múi giờ thiết bị
+ *   summarize(games, dayOf = localDay) → số ván, thắng / hoà / thua, luật + loại thời gian chơi nhiều nhất, thắng đẹp nhất (đối thủ điểm cao
  *                        nhất bị mình thắng; tên chỉ khi cả hai công khai lịch sử đấu), chuỗi thắng dài nhất (theo thứ tự thời gian), đối thủ gặp nhiều nhất (chỉ khi
- *                        cả hai để công khai lịch sử đấu), số ngày có chơi
+ *                        cả hai để công khai lịch sử đấu), số ngày có chơi (dayOf(at) → khoá ngày; máy chủ truyền hàm theo
+ *                        múi giờ thiết bị đã lưu của tài khoản – server/src/local-time.js, vì máy chủ thường chạy UTC)
  * games: [{ at, id? (thứ tự lưu – khi cùng thời điểm), rule, pool, res: 'win' | 'loss' | 'draw', share?, opp: { id, name, r, pub } | null }]
  */
 (function (global) {
   'use strict';
 
-  // Giờ Việt Nam (UTC+7, không đổi giờ mùa hè) – như tuần của Hạng đấu tuần / bảng Storm tuần (progress-merge.js weekKey):
-  // tháng / năm / "ngày có chơi" giống nhau trên máy chủ (thường chạy UTC) và mọi trình duyệt, không theo giờ máy
-  const VN = 7 * 3600000;
-  const DAY = 86400000;
+  // Tháng / năm / "ngày có chơi" theo múi giờ THIẾT BỊ (quyết định của chủ dự án). Tuần của Hạng đấu tuần / bảng Storm tuần
+  // vẫn theo giờ Việt Nam chung (progress-merge.js weekKey) – không dùng ở đây.
+  const pad = (n) => String(n).padStart(2, '0');
 
   function range(kind, y, m) {
-    if (kind === 'year') return { from: Date.UTC(y, 0, 1) - VN, to: Date.UTC(y + 1, 0, 1) - VN };
-    return { from: Date.UTC(y, m - 1, 1) - VN, to: Date.UTC(y, m, 1) - VN };
+    if (kind === 'year') return { from: new Date(y, 0, 1).getTime(), to: new Date(y + 1, 0, 1).getTime() };
+    return { from: new Date(y, m - 1, 1).getTime(), to: new Date(y, m, 1).getTime() };
   }
 
-  /** Năm và tháng (1–12) theo giờ Việt Nam của thời điểm at (ms) – kỳ mặc định khi mở hộp Tổng kết. */
-  function vnMonth(at) {
-    const d = new Date(at + VN);
-    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1 };
+  /** Năm và tháng (1–12) theo múi giờ thiết bị của thời điểm at (ms) – kỳ mặc định khi mở hộp Tổng kết. */
+  function localMonth(at) {
+    const d = new Date(at);
+    return { y: d.getFullYear(), m: d.getMonth() + 1 };
+  }
+
+  function localDay(at) {
+    const d = new Date(at);
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
 
   function top(counts) {
@@ -32,7 +39,8 @@
     return best;
   }
 
-  function summarize(games) {
+  function summarize(games, dayOf) {
+    const dayKey = typeof dayOf === 'function' ? dayOf : localDay;
     const list = (games || []).filter((g) => g && ['win', 'loss', 'draw'].includes(g.res)).sort((a, b) => (a.at || 0) - (b.at || 0) || (a.id || 0) - (b.id || 0)); // cùng mili-giây: theo thứ tự lưu
     const out = { n: list.length, w: 0, d: 0, l: 0, rule: null, pool: null, best: null, streak: 0, opp: null, days: 0 };
     const rules = {}, pools = {}, opps = {}, days = new Set();
@@ -41,7 +49,7 @@
       out[g.res === 'win' ? 'w' : g.res === 'draw' ? 'd' : 'l']++;
       rules[g.rule || 'vn'] = (rules[g.rule || 'vn'] || 0) + 1;
       if (g.pool) pools[g.pool] = (pools[g.pool] || 0) + 1;
-      days.add(Math.floor(((g.at || 0) + VN) / DAY)); // ngày theo giờ Việt Nam
+      days.add(dayKey(g.at || 0)); // ngày theo múi giờ thiết bị
       run = g.res === 'win' ? run + 1 : 0;
       out.streak = Math.max(out.streak, run);
       const o = g.opp;
@@ -62,7 +70,7 @@
     return out;
   }
 
-  const CaroRecapCore = { range, vnMonth, summarize, VN };
+  const CaroRecapCore = { range, localMonth, localDay, summarize };
   if (typeof module !== 'undefined' && module.exports) module.exports = CaroRecapCore;
   else global.CaroRecapCore = CaroRecapCore;
 })(typeof window !== 'undefined' ? window : globalThis);

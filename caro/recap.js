@@ -13,7 +13,7 @@
   const esc = F.esc;
   const dlg = F.dialog('recap-dlg', 'rc_title', 'star');
   const body = dlg.body;
-  const per = { kind: 'month', ...RC.vnMonth(Date.now()) }; // kỳ theo giờ Việt Nam (recap-core.js)
+  const per = { kind: 'month', ...RC.localMonth(Date.now()) }; // kỳ theo múi giờ thiết bị (recap-core.js)
   let data = null, lastReq = 0, reqTimer = 0;
 
   const signed = () => !!(N && N.connected && N.state.me && !N.state.me.guest);
@@ -33,9 +33,11 @@
     const { from, to } = RC.range(per.kind, per.y, per.m);
     if (signed()) {
       render();
-      // Máy chủ nhận tối đa 1 lần / giây: bấm đổi kỳ nhanh thì chỉ gửi kỳ cuối cùng
+      // Máy chủ nhận tối đa 1 lần / giây: bấm đổi kỳ nhanh thì chỉ gửi kỳ cuối cùng. Gửi kỳ (kind, y, m): máy chủ tự tính theo
+      // múi giờ thiết bị đã lưu của tài khoản (đúng giờ mùa hè); from / to cho máy chủ bản cũ
       clearTimeout(reqTimer);
-      reqTimer = setTimeout(() => { lastReq = Date.now(); N.send({ t: 'recap', from, to }); }, Math.max(0, lastReq + 1100 - Date.now()));
+      const ask = { t: 'recap', kind: per.kind, y: per.y, m: per.kind === 'month' ? per.m : undefined, from, to };
+      reqTimer = setTimeout(() => { lastReq = Date.now(); N.send(ask); }, Math.max(0, lastReq + 1100 - Date.now()));
       return;
     }
     // Khách / offline: ván lưu trên máy
@@ -45,7 +47,9 @@
     data = RC.summarize(games);
     render();
   }
-  if (N) N.on('recap', (m) => { data = m.data; if (dlg.isOpen()) render(); });
+  // Trả lời của kỳ đã bỏ qua (bấm đổi kỳ trong lúc chờ): không hiện nhầm
+  const stale = (m) => m.kind && (m.kind !== per.kind || m.y !== per.y || (per.kind === 'month' && m.m !== per.m));
+  if (N) N.on('recap', (m) => { if (stale(m)) return; data = m.data; if (dlg.isOpen()) render(); });
 
   function open(kind) {
     if (kind === 'year' || kind === 'month') per.kind = kind;
