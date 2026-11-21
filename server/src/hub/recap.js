@@ -22,7 +22,7 @@ class Recap {
     const mePub = this.histVisOf(me) === 'public';
     const games = this.store.statsGames(me.id, 300, from).filter((g) => g.created < to).map((g) => {
       const side = g.x_id === me.id ? 1 : 2;
-      const pool = g.time_limit || g.clock ? R.poolOf({ timeLimit: g.time_limit, clock: g.clock }) : null;
+      const pool = g.kind === 'corr' ? 'corr' : g.time_limit || g.clock ? R.poolOf({ timeLimit: g.time_limit, clock: g.clock }) : null; // corr: chơi theo lượt
       const ou = this.store.users.get(side === 1 ? g.o_id : g.x_id);
       const opp = ou ? { id: ou.id, name: ou.name, r: Math.round(R.ratingIn(ou, pool || 'classical').r), pub: mePub && this.histVisOf(ou) === 'public' } : null;
       return { id: g.id, at: g.created, rule: g.rule || 'vn', pool, share: g.share, res: g.winner === DRAW ? 'draw' : g.winner === side ? 'win' : 'loss', opp };

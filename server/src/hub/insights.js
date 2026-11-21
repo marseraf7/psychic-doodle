@@ -30,7 +30,8 @@ class Insights {
     const rows = this.store.statsGames(u.id, LIMIT);
     const games = rows.map((g) => {
       const side = g.x_id === u.id ? 1 : 2;
-      const pool = g.time_limit || g.clock ? R.poolOf({ timeLimit: g.time_limit, clock: g.clock }) : 'none';
+      // Ván chơi theo lượt (corr.js): loại riêng "Theo lượt" – không gộp vào "không giới hạn giờ", sức đối thủ theo điểm corr
+      const pool = g.kind === 'corr' ? 'corr' : g.time_limit || g.clock ? R.poolOf({ timeLimit: g.time_limit, clock: g.clock }) : 'none';
       const opp = this.store.users.get(side === 1 ? g.o_id : g.x_id);
       const b = opp && pool !== 'none' ? IC.band(R.ratingIn(u, pool).r, R.ratingIn(opp, pool).r) : 'unknown';
       return {
