@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Tường thuật giải đấu Caro trực tiếp">
+  <title>Caro x Gomoku</title>
+  <!-- Tường thuật giải đấu (C3): lưới bàn nhỏ các ván đang đấu, bảng xếp hạng, kết quả gần đây – tự cập nhật (broadcast.js).
+       Địa chỉ: /?bc=<mã giải> | /?bc=o.<mã giải Offline> (máy chủ thêm thẻ og – web.js / broadcast-page.js) hoặc
+       /broadcast.html?bc=…; nhúng iframe được; &lang=vi|en|ru|zh &theme=light|dark (embed-boot.js). -->
+  <script src="embed-boot.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="broadcast.css">
+</head>
+<body>
+  <main id="bc" class="bc"></main>
+  <!-- Trình đọc màn hình: chỉ đọc khi trạng thái / vòng đổi – không đọc lại cả trang mỗi lần tự cập nhật (5 giây) -->
+  <p id="bc-say" class="sr-only" aria-live="polite"></p>
+  <script src="i18n.js"></script>
+  <script src="i18n-broadcast.js"></script>
+  <script src="broadcast.js"></script>
+</body>
+</html>

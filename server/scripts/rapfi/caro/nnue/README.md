@@ -158,3 +158,9 @@ Sau đó Claude đo lại (bản WebAssembly như trên điện thoại), dựng
 | `make-config.js` | `config.toml` cho Rapfi-CARO (giống app: `caro/rapfi/worker.js`), có / không mạng NNUE |
 | `make-openings.js` | Khai cuộc cho tự đấu: sách luật Việt Nam, ván Gomocup (tuỳ chọn); loại mọi thế trùng `openings.json` (bộ đo) |
 | `arena.js` | Đấu hai bản Rapfi-CARO (khai cuộc 32+; 0–31 để dành đo với engine của game) |
+
+## Công cụ thêm (C6, 21/11/2026)
+
+- `selfplay-vn.js` – tự đấu luật Việt Nam bằng Rapfi-CARO WebAssembly của app (không cần dựng bản gốc), ghi điểm tìm kiếm `ev`;
+  `EVAL=1 node ../games-to-binpack.js` ghi điểm đó vào `.binpack`.
+- `sprt.js` – Elo ± 95 % và SPRT cho đấu chọn. Kế hoạch đầy đủ + số đo: `docs/nnue-caro-ke-hoach.md`.

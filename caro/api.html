@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Caro x Gomoku – API công khai</title>
+  <meta name="theme-color" content="#f6f3ec" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#16191e" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style-extras.css">
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="policy-page.css">
+  <link rel="stylesheet" href="api-page.css">
+</head>
+<body>
+<!-- Tài liệu API công khai v1 (C4) – 4 ngôn ngữ, đổi ngôn ngữ bằng privacy.js. Sinh từ một bảng (giữ 4 bản khớp nhau);
+     máy chủ: server/src/api-v1-http.js, server/src/hub/api-v1.js, server/src/api-v1-openapi.js -->
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="icon.svg" alt=""><span id="brand-label">Caro x Gomoku</span></a>
+    <nav class="langs" aria-label="Language"><a href="#vi" lang="vi">VI</a><a href="#en" lang="en">EN</a><a href="#ru" lang="ru">RU</a><a href="#zh" lang="zh-CN">中文</a></nav>
+    <a class="back" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg><span id="back-label">Về game</span></a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="vi" lang="vi" data-title="Caro x Gomoku – API công khai" data-back="Về game" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>API công khai (v1)</h1>
+      <p class="meta">Dữ liệu chỉ đọc dạng JSON cho website, bot Discord / Telegram, công cụ thống kê.</p>
+      <ul class="chips"><li>Chỉ đọc</li><li>Không cần khoá</li><li>CORS mở</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>Quy tắc chung</h2>
+      <ul class="list"><li><span>Địa chỉ gốc: <code>/api/v1</code> (cùng tên miền với trang này).</span></li><li><span>Mỗi IP tối đa <strong>120 lần / phút</strong>; quá thì trả <code>429</code> kèm <code>Retry-After</code> (giây).</span></li><li><span>Mọi câu trả lời có <code>ETag</code>: gửi lại trong <code>If-None-Match</code> để nhận <code>304</code> (không phải tải lại).</span></li><li><span>Lỗi luôn có dạng <code>{"error": "not_found", "message": "Not found"}</code>.</span></li><li><span>Không có dữ liệu riêng: email, bạn bè, người đã chặn, thiết bị. Ván gần đây chỉ trả khi người chơi để Lịch sử đấu ở chế độ Công khai; giải riêng tư / CLB / nháp không xem được.</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>Ký hiệu ô</h2>
+      <p>Bàn cờ không giới hạn. Tên ô theo khung 15×15 quanh tâm: cột a…o từ trái sang, hàng 1…15 từ dưới lên, ô giữa là <code>h8</code>; ra ngoài khung vẫn đếm tiếp (cột p, q…, hàng 16…, hàng 0, -1…). Trong JSON, nước đi là <code>[x, y]</code>: x tăng sang phải, y tăng xuống dưới, <code>[0, 0]</code> = h8.</p>
+    </div>
+    <div class="card">
+      <h2>Các đường dẫn</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">Đường dẫn</th><th scope="col">Trả về</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>Hồ sơ công khai: điểm từng loại thời gian, số ván thắng / thua / hoà, thành tích giải</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>Biểu đồ điểm: <code>[thời điểm ms, điểm]</code> theo loại</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>Ván gần đây (<code>?max=1…50</code>); lịch sử đấu không công khai → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>Một ván theo mã chia sẻ (như link xem lại)</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Ván dạng chữ kiểu PGN theo ký hiệu Caro</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Thông tin giải công khai</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Bảng xếp hạng của giải</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>50 người đứng đầu (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Tường thuật giải: ván đang đấu, bảng xếp hạng, kết quả gần đây (<code>key</code> = mã giải, giải Offline: <code>o.</code> + mã)</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Bài đố của ngày (đổi lúc 0:00 giờ Việt Nam; <code>?date=YYYY-MM-DD</code>)</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>Tài liệu OpenAPI 3.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Mô tả đầy đủ (OpenAPI 3.1): <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>Ví dụ</h2>
+      <pre class="api-pre">curl https://&lt;tên-miền&gt;/api/v1/player/an_nguyen
+curl https://&lt;tên-miền&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;tên-miền&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
+  <section id="en" lang="en" data-title="Caro x Gomoku – Public API" data-back="Back to game" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Public API (v1)</h1>
+      <p class="meta">Read-only JSON data for websites, Discord / Telegram bots and stats tools.</p>
+      <ul class="chips"><li>Read-only</li><li>No key needed</li><li>Open CORS</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>General rules</h2>
+      <ul class="list"><li><span>Base URL: <code>/api/v1</code> (same domain as this page).</span></li><li><span>Each IP may make <strong>120 requests / minute</strong>; beyond that you get <code>429</code> with <code>Retry-After</code> (seconds).</span></li><li><span>Every response carries an <code>ETag</code>: send it back in <code>If-None-Match</code> to get <code>304</code> (no re-download).</span></li><li><span>Errors always look like <code>{"error": "not_found", "message": "Not found"}</code>.</span></li><li><span>No private data: email, friends, blocked players, devices. Recent games are returned only when the player’s game history is Public; private / club / draft tournaments are not available.</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>Cell notation</h2>
+      <p>The board is unlimited. Cells are named on a 15×15 frame around the center: columns a…o from left to right, rows 1…15 from bottom to top, the center is <code>h8</code>; beyond the frame the counting continues (columns p, q…, rows 16…, rows 0, -1…). In JSON a move is <code>[x, y]</code>: x grows to the right, y grows downward, <code>[0, 0]</code> = h8.</p>
+    </div>
+    <div class="card">
+      <h2>Endpoints</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">Path</th><th scope="col">Returns</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>Public profile: rating per time control, wins / losses / draws, tournament results</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>Rating history: <code>[time ms, rating]</code> per pool</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>Recent games (<code>?max=1…50</code>); non-public game history → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>One game by share id (like a replay link)</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Game as PGN-like text in Caro notation</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Public tournament info</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Tournament standings</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>Top 50 players (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Tournament broadcast: games in progress, standings, recent results (<code>key</code> = tournament id; offline: <code>o.</code> + id)</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Puzzle of the day (changes at 0:00 Vietnam time; <code>?date=YYYY-MM-DD</code>)</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1 document</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Full description (OpenAPI 3.1): <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>Examples</h2>
+      <pre class="api-pre">curl https://&lt;your-domain&gt;/api/v1/player/an_nguyen
+curl https://&lt;your-domain&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;your-domain&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
+  <section id="ru" lang="ru" data-title="Caro x Gomoku – открытый API" data-back="К игре" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Открытый API (v1)</h1>
+      <p class="meta">Данные только для чтения в формате JSON для сайтов, ботов Discord / Telegram и статистики.</p>
+      <ul class="chips"><li>Только чтение</li><li>Без ключа</li><li>Открытый CORS</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>Общие правила</h2>
+      <ul class="list"><li><span>Базовый адрес: <code>/api/v1</code> (тот же домен, что и у этой страницы).</span></li><li><span>С одного IP – не больше <strong>120 запросов в минуту</strong>; сверх этого ответ <code>429</code> с заголовком <code>Retry-After</code> (секунды).</span></li><li><span>Каждый ответ содержит <code>ETag</code>: отправьте его в <code>If-None-Match</code>, чтобы получить <code>304</code> (без повторной загрузки).</span></li><li><span>Ошибки всегда имеют вид <code>{"error": "not_found", "message": "Not found"}</code>.</span></li><li><span>Никаких личных данных: email, друзья, заблокированные, устройства. Последние партии выдаются, только если история партий игрока открыта для всех; закрытые, клубные и черновые турниры недоступны.</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>Обозначение клеток</h2>
+      <p>Доска не ограничена. Клетки называются по рамке 15×15 вокруг центра: столбцы a…o слева направо, ряды 1…15 снизу вверх, центр – <code>h8</code>; за рамкой счёт продолжается (столбцы p, q…, ряды 16…, ряды 0, -1…). В JSON ход – это <code>[x, y]</code>: x растёт вправо, y растёт вниз, <code>[0, 0]</code> = h8.</p>
+    </div>
+    <div class="card">
+      <h2>Адреса</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">Адрес</th><th scope="col">Что возвращает</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>Открытый профиль: рейтинг по контролю времени, победы / поражения / ничьи, турниры</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>История рейтинга: <code>[время в мс, рейтинг]</code> по видам</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>Последние партии (<code>?max=1…50</code>); если история закрыта → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>Одна партия по коду ссылки (как ссылка на просмотр)</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Партия текстом в стиле PGN в обозначениях Caro</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Сведения об открытом турнире</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Турнирная таблица</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>Топ-50 игроков (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Трансляция турнира: идущие партии, таблица, последние результаты (<code>key</code> = код турнира; офлайн: <code>o.</code> + код)</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Задача дня (меняется в 0:00 по времени Вьетнама; <code>?date=YYYY-MM-DD</code>)</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>Документ OpenAPI 3.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Полное описание (OpenAPI 3.1): <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>Примеры</h2>
+      <pre class="api-pre">curl https://&lt;домен&gt;/api/v1/player/an_nguyen
+curl https://&lt;домен&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;домен&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
+  <section id="zh" lang="zh-CN" data-title="Caro x Gomoku – 公开 API" data-back="返回游戏" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>公开 API（v1）</h1>
+      <p class="meta">只读 JSON 数据，可用于网站、Discord / Telegram 机器人和统计工具。</p>
+      <ul class="chips"><li>只读</li><li>无需密钥</li><li>开放 CORS</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>通用规则</h2>
+      <ul class="list"><li><span>基础地址：<code>/api/v1</code>（与本页同一域名）。</span></li><li><span>每个 IP 每分钟最多 <strong>120 次请求</strong>；超出时返回 <code>429</code> 并附带 <code>Retry-After</code>（秒）。</span></li><li><span>每个响应都带有 <code>ETag</code>：在 <code>If-None-Match</code> 中发回即可得到 <code>304</code>（无需重新下载）。</span></li><li><span>错误格式始终为 <code>{"error": "not_found", "message": "Not found"}</code>。</span></li><li><span>不含私人数据：邮箱、好友、已屏蔽的玩家、设备。仅当玩家的对局记录设为公开时才返回最近对局；私密、俱乐部和草稿赛事不可查看。</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>格子记法</h2>
+      <p>棋盘无边界。格子按中心周围的 15×15 框命名：列 a…o 从左到右，行 1…15 从下到上，中心为 <code>h8</code>；超出此框继续计数（列 p、q…，行 16…，行 0、-1…）。JSON 中一步棋为 <code>[x, y]</code>：x 向右增大，y 向下增大，<code>[0, 0]</code> = h8。</p>
+    </div>
+    <div class="card">
+      <h2>接口</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">路径</th><th scope="col">返回</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>公开资料：各时限等级分、胜 / 负 / 和、赛事成绩</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>等级分历史：按类别的 <code>[时间 ms, 等级分]</code></td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>最近对局（<code>?max=1…50</code>）；对局记录未公开 → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>按分享码获取一局（同回放链接）</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>以 Caro 记法输出的类 PGN 文本</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>公开赛事信息</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>赛事排名</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>前 50 名玩家（<code>?pool=bullet|blitz|rapid|classical</code>）</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>赛事直播：进行中的对局、排名、最近结果（<code>key</code> = 赛事代码；线下赛事：<code>o.</code> + 代码）</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>每日谜题（越南时间 0:00 更换；<code>?date=YYYY-MM-DD</code>）</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1 文档</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>完整说明（OpenAPI 3.1）： <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>示例</h2>
+      <pre class="api-pre">curl https://&lt;域名&gt;/api/v1/player/an_nguyen
+curl https://&lt;域名&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;域名&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
+  <footer class="foot"><span id="foot-brand">Caro x Gomoku</span><a href="/api/v1/openapi.json">OpenAPI 3.1</a></footer>
+</main>
+<script src="privacy.js"></script>
+</body>
+</html>

@@ -7,7 +7,8 @@
  */
 'use strict';
 
-const POOLS = ['bullet', 'blitz', 'rapid', 'classical'];
+// corr: Chơi theo lượt (C1 – 1–7 ngày mỗi nước, hub/corr.js) – loại riêng, không trộn với ván trực tiếp
+const POOLS = ['bullet', 'blitz', 'rapid', 'classical', 'corr'];
 // Đồng hồ tổng 'phút+giây cộng': các mức cho phép nằm ở caro/timectl.js (dùng chung với trình duyệt)
 const TC = require('../../caro/timectl.js');
 const CLOCKS = TC.CLOCK_PRESETS; // các ô chọn nhanh (mọi mức hợp lệ khác vẫn dùng được)

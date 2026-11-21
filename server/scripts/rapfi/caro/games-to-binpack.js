@@ -5,12 +5,15 @@
  * Mỗi ván đặt vào bàn 20×20 (dời cho khung bao các quân vào giữa); ván rộng hơn bàn thì bỏ. Ghi luật caro (mã 7 trong dữ
  * liệu), kết quả theo bên đi trước, không có điểm đánh giá (tuner học theo kết quả). Đuôi .bin để tuner tự nhận
  * (`--dataset-file-extensions` mặc định .bin,.lz4); tuner đọc file không nén khi không thấy mã LZ4 ở đầu.
+ * EVAL=1 (C6): ván có "ev" (selfplay-vn.js / selfplay.js – điểm tìm kiếm của thế trước nước i, góc nhìn bên tới lượt) thì ghi
+ * điểm vào PackedMove (isNoEval = 0, kẹp vào int16) làm nhãn phụ; thế không có điểm vẫn để isNoEval = 1.
  */
 'use strict';
 const fs = require('fs');
 const C = require('../../../../caro/rules.js');
 
 const SIZE = 20, RULE_CARO = 7;
+const EVAL = process.env.EVAL === '1';
 const [out, ...inputs] = process.argv.slice(2);
 if (!out || !inputs.length) {
   console.error('Dùng: node games-to-binpack.js <ra.bin> <vào.jsonl> …');
@@ -21,7 +24,7 @@ if (!out || !inputs.length) {
 const enc = (x, y) => (x << 5) | y;
 
 /** Một ván → Buffer theo PackedEntryHead (8 byte) + PackedMove (4 byte mỗi nước), hoặc null nếu không dùng được. */
-function pack(all, w) {
+function pack(all, w, ev) {
   // Ván phải hợp lệ theo luật Việt Nam (không ô trùng). Ván Gomocup (luật Caro của Gomocup cần đủ 5 quân) thường có bên
   // thắng sớm hơn theo luật Việt Nam (4 quân trống hai đầu): cắt ván ở nước đó – các thế trước vẫn là thế thật
   const b = new C.Board('vn');
@@ -49,8 +52,9 @@ function pack(all, w) {
   for (let i = 0; i < n; i++) {
     const [x, y] = moves[i];
     // PackedMove: isFirst:1 isLast:1 isNoEval:1 isPass:1 reserved:2 move:10, rồi eval int16
-    buf.writeUInt16LE(1 | (1 << 1) | (1 << 2) | (enc(x - ox, y - oy) << 6), 8 + 4 * i);
-    buf.writeInt16LE(0, 10 + 4 * i);
+    const e = EVAL && ev && Number.isFinite(ev[i]) ? Math.max(-32000, Math.min(32000, Math.round(ev[i]))) : null;
+    buf.writeUInt16LE(1 | (1 << 1) | (e == null ? 1 << 2 : 0) | (enc(x - ox, y - oy) << 6), 8 + 4 * i);
+    buf.writeInt16LE(e == null ? 0 : e, 10 + 4 * i);
   }
   return buf;
 }
@@ -61,7 +65,7 @@ for (const f of inputs) {
   for (const line of fs.readFileSync(f, 'utf8').split('\n')) {
     if (!line.trim()) continue;
     const g = JSON.parse(line);
-    const buf = pack(g.m, g.w);
+    const buf = pack(g.m, g.w, g.ev);
     if (buf) { parts.push(buf); games++; } else skipped++;
   }
 }

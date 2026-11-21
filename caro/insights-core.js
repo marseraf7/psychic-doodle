@@ -15,7 +15,7 @@
   const K = global.CaroEvalKey || (typeof require === 'function' ? require('./eval-key.js') : null);
 
   const RULES = ['vn', 'free', 'std', 'renju'];
-  const POOLS = ['bullet', 'blitz', 'rapid', 'classical', 'none'];
+  const POOLS = ['bullet', 'blitz', 'rapid', 'classical', 'corr', 'none']; // corr: chơi theo lượt (C1 – máy chủ insights.js)
   const BANDS = ['much_weaker', 'weaker', 'equal', 'stronger', 'much_stronger', 'unknown'];
   const LENS = ['l1', 'l2', 'l3', 'l4']; // < 20 · 20–39 · 40–59 · ≥ 60 nước
   const OPEN_K = 4; // khai cuộc: 4 nước đầu

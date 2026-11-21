@@ -15,19 +15,21 @@ test('insights: của mình – thắng / thua theo màu, mã nước đi + ván
   record(app, { x: a.uid, o: b.uid, winner: 1 });
   record(app, { x: b.uid, o: a.uid, winner: 1, rule: 'free', clock: null, timeLimit: 0 });
   record(app, { x: a.uid, o: b.uid, winner: 3, moves: [[0, 0], [1, 1], [1, 0], [2, 0], [3, 3], [4, 4]] });
+  record(app, { x: a.uid, o: b.uid, winner: 1, kind: 'corr', clock: null, timeLimit: 0 }); // chơi theo lượt (C1)
   const m = await a.req({ t: 'insights' }, 'insights');
   assert.strictEqual(m.owner.self, true);
-  assert.strictEqual(m.data.n, 3);
-  assert.deepStrictEqual(m.data.total, { w: 1, d: 1, l: 1 });
-  assert.deepStrictEqual(m.data.color[1], { w: 1, d: 1, l: 0 });
+  assert.strictEqual(m.data.n, 4);
+  assert.deepStrictEqual(m.data.pool.corr, { w: 1, d: 0, l: 0 }, 'ván theo lượt: loại riêng, không gộp vào "không giới hạn giờ"');
+  assert.deepStrictEqual(m.data.total, { w: 2, d: 1, l: 1 });
+  assert.deepStrictEqual(m.data.color[1], { w: 2, d: 1, l: 0 });
   assert.deepStrictEqual(m.data.color[2], { w: 0, d: 0, l: 1 });
   assert.deepStrictEqual(m.data.pool.none, { w: 0, d: 0, l: 1 }, 'ván không giới hạn giờ');
   assert.ok(m.data.band.equal, 'hai tài khoản mới cùng điểm: ngang sức');
-  assert.strictEqual(m.games.length, 3);
-  const [h, side] = m.games[0];
+  assert.strictEqual(m.games.length, 4);
+  const [h, side] = m.games[1];
   assert.strictEqual(h, IC.hash([[0, 0], [1, 1], [1, 0], [2, 0], [3, 3], [4, 4]]), 'mã nước đi giống cách tính trên trình duyệt');
   assert.strictEqual(side, 1);
-  assert.strictEqual(m.recent.length, 3);
+  assert.strictEqual(m.recent.length, 4);
   assert.ok(Array.isArray(m.recent[0].moves));
   a.close(); b.close();
 });
