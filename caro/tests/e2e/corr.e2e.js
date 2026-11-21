@@ -74,6 +74,11 @@ const { audit } = require('./ui-audit');
   await b.mouse.click(bx, by);
   await waitFor(a, (gid) => window.CaroCorr.games.find((g) => g.id === gid).moves.length === 2, 'A nhận nước của B (bàn đồng bộ)', id);
   ok(await a.evaluate(() => window.CaroApp.board.moves.length === 2), 'bàn của A tự cập nhật nước mới');
+  // Phím tắt A (phân tích – a11y.js) giữa ván theo lượt đang chơi: không mở bảng phân tích (máy gợi ý nước = gian lận)
+  await a.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
+  await a.keyboard.press('a');
+  await sleep(300);
+  ok(await a.evaluate(() => !window.CaroApp.replay && document.body.classList.contains('ext')), 'phím A giữa ván theo lượt: không mở phân tích');
 
   // A xin hoà → B đồng ý
   await a.click('#ext-bar [data-corr="draw"]');
