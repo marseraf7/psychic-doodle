@@ -27,13 +27,18 @@ class League {
     return res;
   }
 
-  /** Chốt tuần week: xếp hạng từng nhóm, đổi bậc, ghi lịch sử – một giao dịch, chỉ một lần. */
+  /**
+   * Chốt tuần week: xếp hạng từng nhóm, đổi bậc, ghi lịch sử – một giao dịch, chỉ một lần. BEGIN IMMEDIATE giữ khoá ghi
+   * từ đầu và kiểm 'done:<tuần>' BÊN TRONG giao dịch: hai tiến trình cùng mở một CSDL (chạy song song / khởi động lại chồng
+   * nhau) thì tiến trình sau thấy tuần đã chốt, không chốt và không gửi thông báo lần hai.
+   */
   leagueClose(week, now = Date.now()) {
     const S = this.store;
-    if (S.lgState('done:' + week)) return [];
-    const res = LC.rollover(S.lgWeekMembers(week));
-    S.lg().exec('BEGIN');
+    let res;
+    S.lg().exec('BEGIN IMMEDIATE');
     try {
+      if (S.lgState('done:' + week)) { S.lg().exec('COMMIT'); return []; }
+      res = LC.rollover(S.lgWeekMembers(week));
       for (const r of res) { S.lgAddHist(r, week); S.lgSetDiv(r.uid, r.next); }
       S.lgSetState('done:' + week, now);
       S.lgPrune(LC.weekKey(LC.weekStart(week) - KEEP_WEEKS * 7 * 86400000));
