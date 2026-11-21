@@ -38,7 +38,10 @@ Biết **có nên và làm được không** việc đưa Cờ Caro thành Mini 
 - `caro/config.js`: bản GitHub Pages tự trỏ `CARO_SERVER` về `https://caroxo.duckdns.org` => đã có mô hình "giao diện tĩnh
   ở nơi khác + máy chủ chính", rất gần mô hình Mini App.
 - Chia sẻ: `caro/share.js` dùng `navigator.share({files})` (PNG / GIF ván cờ), `caro/otour-share.js` cho giải; link xem lại
-  `/?replay=<mã>` có thẻ `og:*` + ảnh `/api/replay/<mã>.png` (1200x630) do `serveIndex` trong `web.js` tạo.
+  `/?replay=<mã>` có thẻ `og:*` + ảnh `/api/replay/<mã>.png` (1200x630) do `serveIndex` trong `web.js` tạo. Từ A3
+  (sau khi viết hướng dẫn này): cả `?room=` `?t=` `?o=` `?club=` `?u=` (hồ sơ) cũng có thẻ `og:*` 4 ngôn ngữ
+  (`server/src/og-meta.js` + `server/src/hub/og.js`, ảnh `/api/og/card.png`, `/api/og/room/<mã>.png`); nút chia sẻ chung
+  `caro/share-link.js`.
 - Không dùng `confirm()` / `prompt()` / `alert()` gốc (đã có `CaroConfirm`) vì WebView Zalo / Messenger chặn chúng.
 - Mẫu hồ sơ nộp cổng duyệt khác: `docs/claude-directory/` (connector MCP của Claude: `listing.md`, `SUBMISSION.md`, ảnh chụp,
   mô tả 4 ngôn ngữ). Tốc độ tải: `docs/do-toc-do-tai-laplace-19-11-2026.md` và `GET /api/rum`.
@@ -149,14 +152,15 @@ hiện trạng, (2) bảng từ khoá có số liệu, (3) danh sách thay đổ
 - `caro/index.html` (SPA, `lang="vi"` cố định): `<title>Caro x Gomoku</title>`; **một** `meta description` (tiếng Anh + một
   câu tiếng Việt); **chưa có** `og:*`, `twitter:*`, `canonical`, `hreflang`, JSON-LD (đếm `og:` trong file = 0). Ngôn ngữ đổi
   bằng JS (`caro/i18n.js`, khoá `caro.lang` ở `localStorage`) nên bot chỉ thấy một bản; vi / en / ru / zh dùng chung một URL.
-- Thẻ `og:*` hiện **chỉ** do `serveIndex` trong `server/src/web.js` thêm khi mở `/?replay=<mã>` (tiêu đề, mô tả, ảnh
-  `/api/replay/<mã>.png`, `og:url`). Trang gốc `/` không có.
+- Thẻ `og:*` do `serveIndex` trong `server/src/web.js` thêm khi mở link chia sẻ: `/?replay=<mã>` (ảnh `/api/replay/<mã>.png`)
+  và, từ A3, `?room=` `?t=` `?o=` `?club=` `?u=<tên đăng nhập>` (chữ 4 ngôn ngữ theo `?lang=` / Accept-Language –
+  `server/src/og-meta.js`; chỉ phần khách chưa đăng nhập xem được – `server/src/hub/og.js`). Trang gốc `/` vẫn không có.
 - `caro/manifest.webmanifest`: `name "Caro x Gomoku"`, `short_name "Caro"`, `lang "vi"`, mô tả tiếng Anh.
 - **Không có** `robots.txt` và `sitemap.xml` trong `caro/`, và `web.js` không có route nào cho chúng (đã tìm `robots|sitemap`:
   không khớp). `/robots.txt` có thể rơi về trang chính hoặc 404: **Laplace kiểm thực tế**.
 - Không có `noindex` ở trang chính; chỉ `caro/embed.html` có `<meta name="robots" content="noindex">`.
 - Route tham số do JS xử lý: `/?t=<mã giải>`, `/?o=`, `/?club=`, `/?replay=<mã>` (`caro/tour.js`, `caro/online.js`,
-  `caro/embed-run.js`). Hồ sơ người chơi nằm trong giao diện, chưa thấy URL riêng (**Laplace xác nhận**).
+  `caro/embed-run.js`). Hồ sơ người chơi: từ A3 có URL `/?u=<tên đăng nhập>` (`caro/share-link.js`, `caro/profile.js`).
 - `caro/privacy.html` (+ `privacy.js`): trang riêng tư, đã có.
 - Hai bản cùng nội dung: `https://caroxo.duckdns.org` (máy chủ chính) và GitHub Pages `https://marseraf7.github.io/…`
   (`.github/workflows/pages.yml` đăng thư mục `caro/`; `caro/config.js` trỏ API về máy chủ chính); thêm tên miền phụ
