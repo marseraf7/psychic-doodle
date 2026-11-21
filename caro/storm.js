@@ -76,8 +76,15 @@
     const sr = await serverRun();
     const pool = list.filter((q) => q.len <= 3 && !q.rule);
     const byId = new Map(pool.map((q) => [q.id, q]));
+    // Lượt có kiểm: máy chủ kiểm bài thứ i theo danh sách của nó – bỏ bài máy này không có thì số thứ tự lệch, mọi lời giải
+    // sau đó bị từ chối. Bộ câu đố trên máy khác bản máy chủ (service worker còn bản cũ…): chơi như lượt trên máy, báo rõ
+    let ids = sr ? sr.ids.map((id) => byId.get(id)) : null;
+    if (ids && (!ids.length || ids.some((q) => !q))) {
+      ids = null;
+      window.CaroOnline?.toast(T('storm_old_ver'), 5000);
+    }
     s = { list: pool, endAt: Date.now() + DURATION, solved: 0, wrong: 0, combo: 0, maxCombo: 0, used: new Set(), over: false, bonus: null,
-      run: sr && sr.run, ids: sr ? sr.ids.map((id) => byId.get(id)).filter(Boolean) : null, idx: 0, good: [] };
+      run: ids ? sr.run : null, ids, idx: 0, good: [] };
     clearInterval(ticker);
     ticker = setInterval(tick, 250);
     next();
