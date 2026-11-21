@@ -25,6 +25,7 @@
   const tabOf = (id) => (pages[id] && pages[id].parent) || id;
 
   let cur = null; // trang đang hiện
+  const shown = new Set(); // trang đã từng hiện (go: về đầu trang)
   let last = 'home'; // trang xem gần nhất (để nút ‹ trên bàn cờ quay về)
   let visible = !shell.hidden; // index.html hiện sẵn khung (Trang chủ) để mạng chậm không thấy bàn cờ trống
 
@@ -58,7 +59,9 @@
       shell.hidden = false;
       body.classList.add('shell-on');
     }
-    pages[id].el.querySelector('.pg-body')?.scrollTo?.(0, 0);
+    // Về đầu trang – chỉ khi trang đã từng hiện (lần đầu vốn ở đầu; scrollTo bắt trình duyệt tính bố cục ngay, A2)
+    if (shown.has(id)) pages[id].el.querySelector('.pg-body')?.scrollTo?.(0, 0);
+    shown.add(id);
     emit(id);
   }
 

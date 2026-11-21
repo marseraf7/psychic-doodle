@@ -254,7 +254,7 @@
       b.push(`<button type="button" class="ghost" data-act="pause" data-v="${t.me && t.me.paused ? 0 : 1}">${esc(T(t.me && t.me.paused ? 'tour_resume' : 'tour_pause'))}</button>`);
     }
     if (mine && (t.status === 'scheduled' || t.status === 'running')) b.push(`<button type="button" class="ghost" data-act="leave">${esc(T('tour_withdraw'))}</button>`);
-    if (t.status !== 'pending' && t.status !== 'rejected') b.push(`<button type="button" class="ghost" data-act="share">${icon('link')}${esc(T('share'))}</button>`);
+    if (t.status !== 'pending' && t.status !== 'rejected') b.push(`<button type="button" class="primary" data-act="share">${icon('link')}${esc(T('share'))}</button>`);
     if (can(t, 'run') && t.status === 'scheduled') b.push(`<button type="button" class="ghost" data-act="start">${icon('play')}${esc(T('tour_start_now'))}</button>`);
     if (can(t, 'run') && ['draft', 'pending', 'scheduled', 'running'].includes(t.status)) b.push(`<button type="button" class="ghost danger" data-act="cancel">${esc(T('tour_cancel'))}</button>`);
     if (!me() && (t.status === 'scheduled' || t.status === 'running')) b.push(`<span class="hint">${esc(T('tour_login_hint'))}</span>`);
@@ -282,9 +282,9 @@
     u.searchParams.set(param, id);
     return u.toString();
   }
-  async function share(url, title) {
-    if (navigator.share && matchMedia('(pointer: coarse)').matches) return navigator.share({ title, url }).catch(() => {});
-    try { await navigator.clipboard.writeText(url); O.toast(T('copied')); } catch (e) { await window.CaroConfirm.prompt(T('share'), url, { max: 500 }); }
+  /** Chia sẻ link (share-link.js): bảng chia sẻ của máy, hoặc sao chép kèm lời nhắn theo ngôn ngữ đang dùng. */
+  async function share(url, title, text) {
+    return window.CaroShareLink.send({ url, title, text: text || T('sl_text_tour', { name: title }) });
   }
   function bind(body) {
     body.onclick = async (e) => {

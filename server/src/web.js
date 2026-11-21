@@ -4,12 +4,14 @@
  *  - /api/replay/<mã>      : ván đã lưu (JSON) – dùng cho link xem lại.
  *  - /api/replay/<mã>.png  : ảnh xem trước bàn cờ (1200×630, giữ trong bộ nhớ 300 ảnh gần nhất; vẽ ảnh mới bị
  *    giới hạn 20 ảnh / phút mỗi IP và 10 ảnh / giây cả máy chủ để không ai làm treo máy chủ bằng cách xin ảnh liên tục).
- *  - /?replay=<mã>         : trang chính kèm thẻ og:* (tiêu đề, ảnh) để link chia sẻ hiện ảnh xem trước.
+ *  - /?replay=<mã>, ?room=, ?t=, ?o=, ?club=, ?u= : trang chính kèm thẻ og:* (tiêu đề, mô tả, ảnh) để link chia sẻ hiện
+ *    xem trước trong Zalo / Messenger (og-meta.js + hub/og.js). /api/og/card.png: ảnh chung; /api/og/room/<mã>.png: ván đang đấu.
  *  - /api/avatar/<id tài khoản>?v=<phiên bản> : ảnh đại diện (đã kiểm khi tải lên – avatar.js); đúng phiên bản thì
  *    trình duyệt giữ lâu (đường dẫn đổi khi người chơi đổi ảnh).
  *  - /api/stats            : số kỳ thủ đang kết nối và số ván đang đấu (số thật – hub/lobby.js); update.sh --auto
  *    dùng để không khởi động lại máy chủ khi đang có ván.
- *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz
+ *  - API công khai chỉ đọc (như Lichess API): /api/player/<tên đăng nhập>, /api/leaderboard?pool=blitz,
+ *    /api/storm/leaderboard?week=2026-W47 (Puzzle Storm tuần – mặc định tuần này)
  *    – cho phép gọi từ trang khác (CORS), giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
  *  - /mcp                  : connector MCP cho Claude (mcp/index.js; tắt bằng CARO_MCP=0).
  */
@@ -21,6 +23,10 @@ const { makeBundle } = require('./web-bundle.js');
 const { sendStatic } = require('./static-file.js');
 const { Rum } = require('./rum.js');
 const { rapfiNetSources } = require('./csp-nets.js');
+const Og = require('./og-meta.js'); // thẻ xem trước link chia sẻ (A3)
+
+// Tham số link chia sẻ có thẻ xem trước riêng (hub/og.js)
+const LINK_KEYS = ['replay', 'room', 't', 'o', 'club', 'u'];
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
@@ -204,8 +210,11 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     res.end(req.method === 'HEAD' ? undefined : img.buf);
   }
 
-  /** Trang chính; mở bằng link ?replay=<mã> thì thêm thẻ og để mạng xã hội hiện ảnh bàn cờ. */
-  function serveIndex(req, res, share) {
+  /**
+   * Trang chính; mở bằng link chia sẻ (?replay= ?room= ?t= ?o= ?club= ?u=) thì thêm thẻ og (og-meta.js, dữ liệu hub/og.js)
+   * để Zalo / Messenger / Facebook hiện tiêu đề, mô tả, ảnh ngay khi dán link.
+   */
+  function serveIndex(req, res, query) {
     const file = path.join(STATIC_DIR, 'index.html');
     fs.stat(file, (err, st) => { try {
       if (err) { res.writeHead(404); return res.end(); }
@@ -214,27 +223,39 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       }
       const b = B && B.current();
       let html = b ? b.html : indexHtml.text;
-      const g = share ? store.gameByShare(share) : null;
-      if (g) {
-        const base = origin(req);
-        const title = `${g.x_name || '?'} ✕ vs ${g.o_name || '?'} ◯ – Caro x Gomoku`;
-        const result = g.winner === 1 ? `${g.x_name} thắng` : g.winner === 2 ? `${g.o_name} thắng` : 'Hoà';
-        const desc = `${result} · ${g.moves.length} nước`;
-        const meta = [
-          ['og:type', 'website'], ['og:site_name', 'Caro x Gomoku'], ['og:title', title], ['og:description', desc],
-          ['og:image', `${base}/api/replay/${g.share}.png`], ['og:image:width', '1200'], ['og:image:height', '630'],
-          ['og:url', `${base}/?replay=${g.share}`],
-        ].map(([k, v]) => `<meta property="${k}" content="${escHtml(v)}">`).join('\n  ');
-        html = html.replace('<head>', `<head>\n  ${meta}\n  <meta name="twitter:card" content="summary_large_image">`);
-      }
+      let og = null;
+      try { og = query && typeof hub.ogInfo === 'function' ? hub.ogInfo(query) : null; } catch (e) { og = null; } // dữ liệu lạ: trang thường
+      if (og) html = Og.inject(html, { ...og, lang: Og.pickLang(query, req.headers['accept-language']), base: origin(req) });
       const body = Buffer.from(html);
       // Chưa đặt PUBLIC_URL thì đường dẫn ảnh lấy theo tên miền trình duyệt gửi lên: không cho bộ nhớ đệm dùng chung (CDN) giữ lại
       res.writeHead(200, { 'content-type': MIME['.html'], 'content-length': body.length,
-        'cache-control': !g || process.env.PUBLIC_URL ? 'no-cache' : 'private, no-store', vary: 'host' });
+        'cache-control': !og || process.env.PUBLIC_URL ? 'no-cache' : 'private, no-store', vary: og ? 'host, accept-language' : 'host' });
       res.end(req.method === 'HEAD' ? undefined : body);
     } catch (e) { // callback hẹn sau: guardHttp không với tới
       console.error('[web] trang chính lỗi', e); if (!res.headersSent) { res.writeHead(500); res.end(); } else res.destroy();
     } });
+  }
+
+  /** Ảnh xem trước chung (link giải, CLB, hồ sơ, lời mời phòng): bàn cờ trang trí, vẽ một lần. */
+  let cardPng = null;
+  const CARD_MOVES = [[0, 0], [0, 1], [1, 1], [1, 2], [2, 2], [-1, 1], [3, 3], [2, 1], [4, 4]]; // X thắng đường chéo
+  function serveCardPng(req, res) {
+    if (!cardPng) cardPng = boardPng(CARD_MOVES, 'vn');
+    res.writeHead(200, { 'content-type': 'image/png', 'content-length': cardPng.length, 'cache-control': 'public, max-age=86400', 'access-control-allow-origin': '*' });
+    res.end(req.method === 'HEAD' ? undefined : cardPng);
+  }
+  /** Ảnh ván đang đấu (link ?room= của phòng xem được): thế cờ lúc hỏi – không lưu, cùng giới hạn vẽ như ảnh ván đã lưu. */
+  function serveRoomPng(code, req, res) {
+    const r = typeof hub.ogRoomMoves === 'function' ? hub.ogRoomMoves(code) : null;
+    if (!r) return serveCardPng(req, res);
+    const now = Date.now();
+    if (pngGlobal.reset < now) { pngGlobal.n = 0; pngGlobal.reset = now + 1000; }
+    const wait = hit(pngHits, clientIp(req), PNG_PER_IP, 60000, now) || (++pngGlobal.n > PNG_GLOBAL_PER_S ? 1 : 0);
+    if (wait) { res.writeHead(429, { 'retry-after': String(wait), 'content-type': 'text/plain; charset=utf-8' }); return res.end('too many requests'); }
+    let png;
+    try { png = boardPng(r.moves, r.rule); } catch (e) { return serveCardPng(req, res); }
+    res.writeHead(200, { 'content-type': 'image/png', 'content-length': png.length, 'cache-control': 'public, max-age=30', 'access-control-allow-origin': '*' });
+    res.end(req.method === 'HEAD' ? undefined : png);
   }
 
   const tourCache = new Map(); // trang giải công khai (JSON) đã dựng gần đây
@@ -245,11 +266,12 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     const now = Date.now();
     const wait = hit(apiHits, clientIp(req), API_RATE, 60000, now);
     if (wait) return json(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });
-    const key = url + '?' + (query.get('pool') || '');
+    const key = url + '?' + (query.get('pool') || query.get('week') || '');
     const c = apiCache.get(key);
     if (c && now - c.at < API_CACHE_MS) return json(res, c.status, c.body, { 'cache-control': 'public, max-age=60' });
     let status = 200, body;
     if (url === '/api/leaderboard') body = hub.publicLeaderboard(query.get('pool'));
+    else if (url === '/api/storm/leaderboard') body = hub.publicStormBoard(query.get('week')); // Puzzle Storm tuần (hub/progress.js)
     else {
       body = hub.publicPlayer(url.slice('/api/player/'.length));
       if (!body) { status = 404; body = { error: 'not_found' }; }
@@ -299,7 +321,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       const c = hub.counts();
       return json(res, 200, { players: c.players, games: c.games }, { 'cache-control': 'no-cache' });
     }
-    if (url === '/api/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
+    if (url === '/api/leaderboard' || url === '/api/storm/leaderboard' || /^\/api\/player\/[a-z0-9_.]{3,20}$/i.test(url)) return serveApi(url, u.searchParams, req, res);
     // Lược đồ JSON cấu hình giải đấu Offline (chatbot AI / công cụ ngoài – caro/otour-spec-io.js) + các mẫu giải làm ví dụ
     if (url === '/api/otour/schema.json') return json(res, 200, otourSchema(), { 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' });
     // Trang giải công khai dạng JSON (nhúng / website ngoài): giới hạn theo IP, giữ 10 giây
@@ -319,8 +341,10 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       if (tourCache.size > 500) tourCache.delete(tourCache.keys().next().value);
       return json(res, entry.status, entry.body, { 'cache-control': 'public, max-age=10' });
     }
+    if (url === '/api/og/card.png') return serveCardPng(req, res);
+    if (/^\/api\/og\/room\/\d{6}\.png$/.test(url)) return serveRoomPng(url.slice(13, 19), req, res);
     if (url.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
-    if ((url === '/' || url === '/index.html') && u.searchParams.get('replay')) return serveIndex(req, res, u.searchParams.get('replay'));
+    if ((url === '/' || url === '/index.html') && LINK_KEYS.some((k) => u.searchParams.get(k))) return serveIndex(req, res, u.searchParams);
     // ?bundle=0: phục vụ index gốc (từng file) để so tốc độ trên cùng máy (docs/do-toc-do-tai-laplace-19-11-2026.md)
     if (B && (url === '/' || url === '/index.html') && u.searchParams.get('bundle') !== '0' && B.current()) return serveIndex(req, res, null);
     if (B && url === '/sw.js' && B.current()) return sendText(res, req, B.current().sw, MIME['.js'], 'no-cache');
