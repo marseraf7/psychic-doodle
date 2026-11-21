@@ -48,7 +48,7 @@ const { setup, sleep, pickTpl } = require('./helpers.js');
   for (let k = 0; k < ranks.length; k++) await ranks[k].fill(String(k + 1));
   await boss.click('.plug-form button.primary'); await sleep(900);
   ok(om.st[0].events[0].done, 'Máy chủ ghi Scratch');
-  ok(/Scratch/.test(await boss.textContent('.ot-tab')) && /Points race/.test(await boss.textContent('.ot-tab')), 'Bảng tổng: cột 4 đua con');
+  ok(/Scratch/.test(await boss.textContent('.ot-tab')) && /Đua tính điểm/.test(await boss.textContent('.ot-tab')), 'Bảng tổng: cột 4 đua con');
   await shot(boss, 'ot-race2-omnium.png');
 
   // ---------- 3. Mass start
