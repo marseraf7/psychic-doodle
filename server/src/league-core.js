@@ -1,7 +1,6 @@
 /*
  * Hạng đấu tuần – phần tính thuần (không CSDL, không mạng), dùng ở hub/league.js:
- *   weekKey(ms)            – tuần ISO theo giờ Việt Nam (UTC+7): '2026-W47'. Tuần bắt đầu 00:00 thứ Hai giờ Việt Nam.
- *   weekEnd(key)           – thời điểm (ms, UTC) kết thúc tuần đó (00:00 thứ Hai tuần sau, giờ Việt Nam)
+ *   weekKey / weekStart / weekEnd – tuần ISO giờ Việt Nam, dùng chung với Storm (caro/progress-merge.js)
  *   gamePoints(o)          – điểm của một ván tính điểm, kèm các luật chống cày điểm
  *   rollover(members)      – xếp hạng từng nhóm cuối tuần → lên hạng / giữ hạng / xuống hạng
  * Bậc: Đồng → Bạc → Vàng → Bạch kim → Kim cương → Cao thủ. Mỗi nhóm tối đa GROUP người (người có ván tính điểm đầu tiên
@@ -18,31 +17,9 @@ const PTS = { win: 4, draw: 2, loss: 0 };
 // Gặp lại cùng đối thủ trong tuần: ván thứ 1, 2 đủ điểm; 3, 4 nửa điểm; từ ván 5 không có điểm
 const SAME_OPP = [1, 1, 0.5, 0.5];
 const SUSPECT_RUN = 3; // ≥ 3 ván liền giữa hai người cùng một người thắng: coi là đáng ngờ, cả tuần không có điểm nữa
-const TZ_MS = 7 * 3600 * 1000;
-const DAY = 86400000;
 
-/** Tuần ISO 8601 (thứ Hai là ngày đầu tuần; tuần 1 chứa ngày thứ Năm đầu tiên của năm) theo giờ UTC+7. */
-function weekKey(ms) {
-  const d = new Date(Math.floor((ms + TZ_MS) / DAY) * DAY); // ngày theo giờ Việt Nam (00:00 UTC của "ngày VN")
-  const dow = (d.getUTCDay() + 6) % 7; // 0 = thứ Hai
-  const thu = new Date(d.getTime() + (3 - dow) * DAY); // thứ Năm cùng tuần quyết định năm ISO
-  const y = thu.getUTCFullYear();
-  const jan4 = new Date(Date.UTC(y, 0, 4));
-  const w1 = jan4.getTime() - ((jan4.getUTCDay() + 6) % 7) * DAY; // thứ Hai của tuần 1
-  const w = Math.floor((d.getTime() - w1) / (7 * DAY)) + 1;
-  return `${y}-W${String(w).padStart(2, '0')}`;
-}
-
-/** Thứ Hai 00:00 (giờ VN) bắt đầu tuần key, tính ra ms UTC. */
-function weekStart(key) {
-  const m = /^(\d{4})-W(\d{2})$/.exec(String(key));
-  if (!m) return NaN;
-  const y = +m[1], w = +m[2];
-  const jan4 = Date.UTC(y, 0, 4);
-  const w1 = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * DAY;
-  return w1 + (w - 1) * 7 * DAY - TZ_MS;
-}
-const weekEnd = (key) => weekStart(key) + 7 * DAY;
+// Tuần ISO 8601 theo giờ Việt Nam (UTC+7, sang tuần lúc 00:00 thứ Hai): một hàm chung với bảng Storm tuần (A5)
+const { weekKey, weekStart, weekEnd } = require('../../caro/progress-merge.js');
 
 /**
  * Điểm của một ván cho một người. o: { result: 'win' | 'draw' | 'loss', moves: số nước, reason, prior: [kết quả các ván

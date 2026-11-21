@@ -24,6 +24,10 @@ test('tuần ISO theo giờ Việt Nam (UTC+7)', () => {
   assert.strictEqual(LC.weekStart('2026-W48'), at('2026-11-22T17:00:00Z'));
   assert.strictEqual(LC.weekEnd('2026-W47'), at('2026-11-22T17:00:00Z'));
   assert.ok(Number.isNaN(LC.weekStart('xx')));
+  // Một hàm tuần chung với bảng Storm tuần (A5) – hai bảng luôn sang tuần cùng lúc
+  const P = require('../../caro/progress-merge.js');
+  assert.strictEqual(LC.weekKey, P.weekKey);
+  assert.strictEqual(LC.weekStart, P.weekStart);
 });
 
 test('điểm: thắng / hoà, gặp lại cùng đối thủ giảm dần, ván ngắn / bỏ ván, chuỗi đáng ngờ', () => {

@@ -5,7 +5,8 @@
  *   merge(a, b)       – gộp hai bản, KHÔNG BAO GIỜ làm mất tiến độ: số lớn nhất, hợp các tập (ngày chơi, huy hiệu,
  *                       nhân vật đã thắng), điểm giải đố lấy theo bên đã giải nhiều bài hơn
  *   streakOf(days, today) – chuỗi ngày chơi liên tiếp tính lùi từ hôm nay (hoặc hôm qua nếu hôm nay chưa chơi)
- *   weekKey(at)       – tuần ISO tính theo giờ Việt Nam (UTC+7, đổi tuần lúc 00:00 thứ Hai) – bảng xếp hạng Storm tuần
+ *   weekKey(at)       – tuần ISO tính theo giờ Việt Nam (UTC+7, đổi tuần lúc 00:00 thứ Hai) – DÙNG CHUNG cho bảng Storm tuần
+ *                       và Hạng đấu tuần (server/src/league-core.js); weekStart(key) / weekEnd(key): mốc đầu / cuối tuần (ms)
  *   sane(p, now)      – máy chủ: bỏ ngày chơi / ngày đạt huy hiệu ở tương lai hoặc trước khi có tính năng (SINCE), chuỗi
  *                       ngày dài nhất không vượt số ngày từ SINCE – hồ sơ công khai không hiện số vô lý do máy tự báo
  *   BADGE_IDS         – mã huy hiệu (đúng như habits.js – bài thử kiểm khớp)
@@ -101,6 +102,16 @@
     return `${y}-W${String(w).padStart(2, '0')}`;
   }
 
+  /** Thứ Hai 00:00 giờ Việt Nam bắt đầu tuần key ('2026-W47'), ms UTC; NaN nếu key sai dạng. */
+  function weekStart(key) {
+    const m = /^(\d{4})-W(\d{2})$/.exec(String(key));
+    if (!m) return NaN;
+    const jan4 = Date.UTC(+m[1], 0, 4);
+    const w1 = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * 86400000; // thứ Hai của tuần 1 (tuần chứa 4/1)
+    return w1 + (+m[2] - 1) * 7 * 86400000 - 7 * 3600000;
+  }
+  const weekEnd = (key) => weekStart(key) + 7 * 86400000;
+
   // Chuỗi ngày chơi + huy hiệu có từ 29/10/2026 (habits.js): ngày sớm hơn không thể là thật (lùi 1 ngày cho múi giờ)
   const SINCE = '2026-10-28';
   function sane(p, now) {
@@ -117,7 +128,7 @@
     return c;
   }
 
-  const P = { clean, merge, sane, streakOf, longest, weekKey, BADGE_IDS, SINCE };
+  const P = { clean, merge, sane, streakOf, longest, weekKey, weekStart, weekEnd, BADGE_IDS, SINCE };
   if (typeof module !== 'undefined' && module.exports) module.exports = P;
   else global.CaroProgress = P;
 })(typeof window !== 'undefined' ? window : globalThis);
