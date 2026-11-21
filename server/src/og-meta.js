@@ -71,15 +71,19 @@ function fill(str, vars) {
   return str.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
 }
 
-/** Ngôn ngữ của thẻ: ?lang= → Accept-Language → vi. */
+/** Ngôn ngữ của thẻ: ?lang= → Accept-Language (theo trọng số q, q=0 là không nhận) → vi. */
 function pickLang(query, acceptLang) {
   const q = query && query.get && String(query.get('lang') || '').slice(0, 2).toLowerCase();
   if (LANGS.includes(q)) return q;
-  for (const part of String(acceptLang || '').split(',')) {
-    const l = part.trim().slice(0, 2).toLowerCase();
-    if (LANGS.includes(l)) return l;
+  let best = null, bestQ = 0;
+  for (const part of String(acceptLang || '').slice(0, 1000).split(',').slice(0, 30)) {
+    const [tag, ...params] = part.split(';');
+    const l = tag.trim().slice(0, 2).toLowerCase();
+    const qp = params.map((x) => /^\s*q\s*=\s*([\d.]+)\s*$/i.exec(x)).find(Boolean);
+    const w = qp ? Number(qp[1]) : 1;
+    if (LANGS.includes(l) && Number.isFinite(w) && w > bestQ) { best = l; bestQ = w; } // bằng trọng số: giữ cái viết trước
   }
-  return 'vi';
+  return best || 'vi';
 }
 
 /**

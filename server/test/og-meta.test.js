@@ -33,6 +33,11 @@ test('og-meta: chọn ngôn ngữ theo ?lang= rồi Accept-Language, mặc đị
   assert.strictEqual(Og.pickLang(q('lang=ru'), 'en-US'), 'ru');
   assert.strictEqual(Og.pickLang(q(''), 'fr-FR,zh-CN;q=0.8'), 'zh');
   assert.strictEqual(Og.pickLang(q('lang=xx'), ''), 'vi');
+  // Theo trọng số q (không theo thứ tự viết); q=0 là "không nhận"; chuỗi rác / quá dài không làm lỗi
+  assert.strictEqual(Og.pickLang(q(''), 'en-US;q=0.2, ru;q=0.9'), 'ru');
+  assert.strictEqual(Og.pickLang(q(''), 'zh;q=0, en;q=0.5'), 'en');
+  assert.strictEqual(Og.pickLang(q(''), 'fr, *;q=0.5'), 'vi');
+  assert.strictEqual(Og.pickLang(q(''), ';;;,q=,en;q=abc,' + 'x'.repeat(5000)), 'en');
   const keys = Object.keys(Og.STRINGS.vi);
   for (const l of Og.LANGS) assert.deepStrictEqual(Object.keys(Og.STRINGS[l]).sort(), [...keys].sort(), 'đủ khoá: ' + l);
   const infos = [
