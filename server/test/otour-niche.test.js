@@ -15,7 +15,7 @@ const E = require('../../caro/tour-estimate.js');
 const TP = require('../../caro/otour-templates.js');
 const IO = require('../../caro/otour-spec-io.js');
 const { SPORTS } = require('../../caro/otour-sports.js');
-const { until } = require('./otour-client.js');
+const { ctx, until, otFresh } = require('./otour-client.js');
 const { startTpl, playAllServer } = require('./otour-tplrun.js');
 
 const off = (list) => ST.normalizeStages(list, { offline: true });
@@ -199,7 +199,10 @@ test('Các mẫu đợt 25 chạy trọn qua máy chủ (BLAST Bounty, Shoot Out
     const { org, t, id, so } = await startTpl(tid);
     for (let g = 0; t.status === 'running' && g < 80; g++) {
       const st = t.st[0], ev = st.events.find((e) => !e.done);
-      const v = (await org.req({ t: 'otGet', id }, 'ot', (x) => x.id === id && x.tour)).tour.stageViews[0];
+      // Bản trang giải đúng lượt này (bỏ bản đẩy cũ còn trên đường tới – otFresh): danh sách còn lại như máy chủ đang có
+      const left = (sv) => JSON.stringify((sv.poker || sv.backyard).alive.map((p) => p.uid));
+      const want = left(ctx.app.hub.otShared(t).stageViews[0]);
+      const v = (await otFresh(org, id, (x) => left(x.tour.stageViews[0]) === want)).tour.stageViews[0];
       const alive = (v.poker ? v.poker.alive : v.backyard.alive).map((p) => p.uid).sort((a, b) => so(a) - so(b));
       const rows = v.poker ? [{ uid: alive[alive.length - 1], by: alive[0] }] : alive.map((uid, k) => ({ uid, done: k === 0 || g < 3 }));
       org.send({ t: 'otRace', id, event: ev.i, rows });
