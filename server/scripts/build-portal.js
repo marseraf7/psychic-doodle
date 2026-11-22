@@ -2,7 +2,7 @@
 /*
  * Đóng gói bản cổng game (PORTAL_MODE) – thư mục tĩnh tự đủ + file ZIP để tải lên CrazyGames / itch.io:
  *   node server/scripts/build-portal.js crazygames|itch [--server https://máy-chủ] [--out thư-mục] [--zip file.zip] [--test]
- * Máy chủ online (WebSocket, API): --server, không có thì CARO_SERVER_URL, rồi PUBLIC_URL, mặc định https://caroxo.duckdns.org
+ * Máy chủ online (WebSocket, API): --server, không có thì CARO_SERVER_URL, rồi PUBLIC_URL, mặc định tên miền chính (server/src/site.js)
  * (chỉ giao thức + tên miền; http chỉ nhận khi --test – bài thử trên máy). Mặc định ra dist/portal-<cổng>/ và
  * dist/caro-<cổng>.zip ở gốc repo (dist/ không đưa lên git).
  *
@@ -39,7 +39,7 @@ const SKIP = new Set(['tests', 'README.md', 'sw.js', 'config.js', path.join('rap
 /** Địa chỉ máy chủ: chỉ giao thức + tên miền (+ cổng); http chỉ khi allowHttp. */
 function serverOriginOf(raw, allowHttp) {
   let u;
-  try { u = new URL(raw || 'https://caroxo.duckdns.org'); } catch (e) { throw new Error('Địa chỉ máy chủ không hợp lệ: ' + raw); }
+  try { u = new URL(raw || require('../src/site.js').DEFAULT_ORIGIN); } catch (e) { throw new Error('Địa chỉ máy chủ không hợp lệ: ' + raw); }
   if (!['https:', 'http:'].includes(u.protocol) || u.pathname !== '/' || u.search || u.hash) {
     throw new Error('Địa chỉ máy chủ chỉ gồm giao thức + tên miền (+ cổng), ví dụ https://caro.example.com');
   }

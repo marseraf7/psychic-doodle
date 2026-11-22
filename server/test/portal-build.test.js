@@ -89,7 +89,7 @@ test('tham số sai: báo lỗi rõ; http chỉ cho bài thử', () => {
   assert.strictEqual(serverOriginOf('http://localhost:8080', true), 'http://localhost:8080');
   assert.throws(() => serverOriginOf('https://caro.example.com/app'), /chỉ gồm giao thức/);
   assert.throws(() => serverOriginOf('rác'), /không hợp lệ/);
-  assert.strictEqual(serverOriginOf(undefined), 'https://caroxo.duckdns.org');
+  assert.strictEqual(serverOriginOf(undefined), require('../src/site.js').DEFAULT_ORIGIN);
   assert.throws(() => portalHtml('<html lang="vi"><head></head><body></body></html>', 'itch'), /thiếu/);
 });
 

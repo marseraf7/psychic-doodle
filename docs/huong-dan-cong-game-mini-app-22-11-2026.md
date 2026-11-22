@@ -12,7 +12,7 @@ node server/scripts/build-portal.js itch --server https://<tên miền máy ch�
 ```
 
 - Ra `dist/portal-<cổng>/` (thư mục tĩnh, `index.html` ở gốc, đường dẫn tương đối) và `dist/caro-<cổng>.zip` (tải file
-  ZIP này lên cổng). Không có `--server` thì lấy `CARO_SERVER_URL`, rồi `PUBLIC_URL`, mặc định `https://caroxo.duckdns.org`.
+  ZIP này lên cổng). Không có `--server` thì lấy `CARO_SERVER_URL`, rồi `PUBLIC_URL`, mặc định tên miền chính khai trong `server/src/site.js`.
 - Script in số file, tổng dung lượng, phần tải ban đầu so với giới hạn của cổng; vượt giới hạn hoặc còn đường dẫn tuyệt đối
   thì báo lỗi. Đo 22/11/2026: ~400 file, ~13 MB (ZIP ~5 MB), tải ban đầu ~2,5 MB.
 - Bản cổng: chơi khách mặc định, không đăng nhập / đăng ký, không link ra ngoài, không chat tự do (còn chat nhanh câu mẫu),
