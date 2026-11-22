@@ -51,7 +51,7 @@
   };
   setTimeout(finish, 8000);
   if (!ls) return finish();
-  // credentials 'same-origin': gửi cookie vé caro_mig (máy chủ chỉ trả dữ liệu cho đúng trình duyệt đã bắt đầu chuyển)
+  // credentials 'same-origin': gửi cookie vé caro_mig_… (máy chủ chỉ trả dữ liệu cho đúng trình duyệt đã bắt đầu chuyển)
   fetch((window.CARO_SERVER || '') + '/api/migrate/' + m[1], { cache: 'no-store', credentials: 'same-origin' })
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => { if (d) restore(d, had, ls); })

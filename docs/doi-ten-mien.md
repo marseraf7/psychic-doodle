@@ -7,7 +7,7 @@ Kế hoạch: `docs/ke-hoach-tiep-can-toan-cau-21-11-2026.md` (Đợt 0, bước
 
 - Cả tên cũ lẫn tên mới cùng trỏ về **một máy chủ**; máy chủ phân biệt theo tên trình duyệt gọi (header Host).
 - Người mở tên cũ bằng trình duyệt: thấy trang "Đang chuyển…" (không phải app) → trang gỡ bản app cũ (service worker,
-  bộ nhớ đệm), ghé qua tên mới lấy **vé** (`/api/migrate/begin` – máy chủ đặt cookie `caro_mig` 15 phút ở tên mới rồi đưa về
+  bộ nhớ đệm), ghé qua tên mới lấy **vé** (`/api/migrate/begin` – máy chủ đặt cookie `caro_mig_<…>` 15 phút, mỗi lượt / tab một cookie ở tên mới rồi đưa về
   tên cũ), gom dữ liệu trên máy (đăng nhập, khoá khách, cài đặt, tiến độ, ván lưu trên máy – tối đa ~500 KB), gửi lên
   máy chủ kèm vé lấy **mã dùng một lần** (128 bit, 10 phút), rồi sang `https://TEN_MOI/<cùng đường dẫn>?…&mig=<mã>`. Ở tên
   mới, app lấy dữ liệu một lần (máy chủ xoá ngay) – **chỉ trình duyệt có cookie vé của lượt đó lấy được**, nên link

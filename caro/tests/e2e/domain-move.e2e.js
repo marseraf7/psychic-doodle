@@ -90,10 +90,10 @@ const { setup } = require('./helpers');
   // Mã chuyển một lần, chỉ cho trình duyệt có cookie vé (begin) của chính lượt đó
   const begin = await fetch(NEW + '/api/migrate/begin?from=' + encodeURIComponent(`127.0.0.1:${PORT}`) + '&p=/', { redirect: 'manual' });
   const ticket = new URL(begin.headers.get('location')).searchParams.get('migt');
-  ok(begin.status === 302 && /^caro_mig=[\w-]{22}; Path=\/api\/migrate;.*HttpOnly/.test(begin.headers.get('set-cookie') || ''), 'begin: cookie vé HttpOnly ở tên mới');
+  ok(begin.status === 302 && /^caro_mig_[\w-]{8}=[\w-]{22}; Path=\/api\/migrate;.*HttpOnly/.test(begin.headers.get('set-cookie') || ''), 'begin: cookie vé HttpOnly ở tên mới');
   const r = await fetch(OLD + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: ticket, keys: { 'caro.token': oldA['caro.token'], 'caro.lang': 'en' } }) });
   const { code } = await r.json();
-  const cookie = { headers: { cookie: 'caro_mig=' + ticket } };
+  const cookie = { headers: { cookie: `caro_mig_${ticket.slice(0, 8)}=${ticket}` } };
   const foreign = await fetch(NEW + '/api/migrate/' + code);
   const first = await fetch(NEW + '/api/migrate/' + code, cookie), again = await fetch(NEW + '/api/migrate/' + code, cookie);
   ok(foreign.status === 403 && first.status === 200 && again.status === 404, 'mã chuyển: thiếu cookie vé → 403; đúng vé: một lần');

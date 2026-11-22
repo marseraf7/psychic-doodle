@@ -16,10 +16,10 @@
  * https://tên-mới/?mig=<mã> cho người khác → máy người đó nhận token / khoá khách của kẻ gửi. Vì vậy mã gắn với MỘT trình
  * duyệt: bước đầu luôn đi qua tên MỚI –
  *   1. trang chuyển (tên cũ) → GET https://tên-mới/api/migrate/begin?from=<tên cũ>&p=<đường dẫn>: máy chủ tạo vé 128 bit,
- *      đặt cookie caro_mig=<vé> (HttpOnly, SameSite=Lax, chỉ đường /api/migrate, 15 phút) ở tên MỚI, rồi 302 về đúng tên
+ *      đặt cookie caro_mig_<8 ký tự đầu>=<vé> (HttpOnly, SameSite=Lax, chỉ đường /api/migrate, 15 phút) ở tên MỚI, rồi 302 về đúng tên
  *      cũ đã khai ở MOVED_FROM (không phải tên lạ – không lộ vé) kèm ?migt=<vé>;
  *   2. trang chuyển đọc vé, gửi POST /api/migrate { t: vé, keys } → mã → sang tên mới ?mig=<mã>;
- *   3. GET /api/migrate/<mã> chỉ trả khi cookie caro_mig của trình duyệt đúng vé đã gắn với mã (sai / thiếu: 403, mã vẫn
+ *   3. GET /api/migrate/<mã> chỉ trả khi cookie vé của trình duyệt đúng vé đã gắn với mã (sai / thiếu: 403, mã vẫn
  *      giữ cho chủ thật) và xoá cookie. Kẻ gửi link không đặt được cookie ở máy người khác, cũng không đọc được vé của họ.
  * Bảo mật khác: mã 128 bit ngẫu nhiên, dùng một lần, hết hạn sau 10 phút; mỗi IP tối đa 10 lần gửi / 10 phút và 60 lần
  * lấy / phút; tổng bộ nhớ ≤ 32 MB; thân ≤ 512 KB; chỉ nhận khoá caro.* là chuỗi; KHÔNG ghi log nội dung. Đường dẫn mang
@@ -39,6 +39,10 @@ const GET_PER_IP = 60; // lần lấy / phút / IP
 const KEY_RE = /^caro\.[\w.-]{1,80}$/;
 const CODE_RE = /^[A-Za-z0-9_-]{22}$/; // mã và vé: 128 bit base64url
 const COOKIE = 'caro_mig';
+// Mỗi lượt một cookie riêng (caro_mig_<8 ký tự đầu của vé>=<vé>): nhiều tab của tên cũ cùng chuyển (service worker nghỉ
+// hưu tải lại mọi tab) không ghi đè vé của nhau – không thì tab chậm bị 403, app ở tên mới tạo khoá khách mới trước khi
+// tab kia mang khoá khách cũ tới (khoá đã có thì không ghi đè → mất danh tính khách)
+const cookieName = (ticket) => COOKIE + '_' + ticket.slice(0, 8);
 const COOKIE_S = 15 * 60; // vé sống 15 phút (đủ cho trang chuyển + mã 10 phút)
 const FROM_RE = /^(\[[0-9a-f:.]+\]|[a-z0-9.-]{1,253})(:\d{1,5})?$/i;
 // Máy đọc link / máy tìm kiếm: nhận 301 thẳng (thấy ngay tên mới). Không có "zalo" / "telegram": trình duyệt trong app có chữ đó
@@ -85,7 +89,7 @@ function cookieOf(req, name) {
   }
   return '';
 }
-const clearCookie = () => `${COOKIE}=; Path=/api/migrate; Max-Age=0; HttpOnly; SameSite=Lax`;
+const clearCookie = (ticket) => `${cookieName(ticket)}=; Path=/api/migrate; Max-Age=0; HttpOnly; SameSite=Lax`;
 
 /** Làm sạch dữ liệu gửi lên: chỉ khoá caro.* có giá trị chuỗi. → { keys } hoặc null. */
 function cleanPayload(obj) {
@@ -165,12 +169,12 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
     if (!e) return send(res, 404, { error: 'not_found' });
     // Mã chỉ cho đúng trình duyệt đã đi bước begin (cookie vé). Sai / thiếu: không xoá mã (người khác cầm được mã – vd. từ
     // lịch sử trình duyệt – không làm hỏng lượt chuyển của chủ thật), mã vẫn hết hạn sau 10 phút
-    const have = Buffer.from(cookieOf(req, COOKIE)), want = Buffer.from(e.ticket);
+    const have = Buffer.from(cookieOf(req, cookieName(e.ticket))), want = Buffer.from(e.ticket);
     if (have.length !== want.length || !crypto.timingSafeEqual(have, want)) return send(res, 403, { error: 'wrong_browser' });
     box.delete(code);
     total -= e.buf.length;
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': e.buf.length, 'cache-control': 'no-store',
-      'set-cookie': clearCookie() });
+      'set-cookie': clearCookie(e.ticket) });
     res.end(e.buf);
   }
 
@@ -190,7 +194,7 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
     back.searchParams.set('migt', ticket);
     const secure = to.startsWith('https:') ? '; Secure' : '';
     res.writeHead(302, { location: back.href, 'cache-control': 'no-store',
-      'set-cookie': `${COOKIE}=${ticket}; Path=/api/migrate; Max-Age=${COOKIE_S}; HttpOnly; SameSite=Lax${secure}` });
+      'set-cookie': `${cookieName(ticket)}=${ticket}; Path=/api/migrate; Max-Age=${COOKIE_S}; HttpOnly; SameSite=Lax${secure}` });
     res.end();
   }
 

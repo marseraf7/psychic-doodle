@@ -38,7 +38,7 @@ async function serve(opts = {}) {
 }
 const HTML = { accept: 'text/html,application/xhtml+xml', 'user-agent': 'Mozilla/5.0 Chrome/130' };
 const TICKET = 'T'.repeat(22); // vé (begin) của trình duyệt chủ dữ liệu
-const MINE = { cookie: 'other=1; caro_mig=' + TICKET };
+const MINE = { cookie: 'other=1; caro_mig_TTTTTTTT=' + TICKET + '; caro_mig_AAAAAAAA=' + 'A'.repeat(21) + 'B' };
 
 test('tên cũ: người mở trang → trang chuyển (noindex, nạp migrate-out.js); máy đọc link / file / API → 301 kèm CORS', () => withEnv(async () => {
   const s = await serve();
@@ -96,7 +96,7 @@ test('mã chuyển: chỉ nhận ở tên cũ, lấy được đúng một lần
     r = await s.req('GET', '/api/migrate/' + code, { host: 'new.test', headers: MINE });
     assert.strictEqual(r.status, 200);
     assert.strictEqual(r.headers['cache-control'], 'no-store');
-    assert.match(r.headers['set-cookie'][0], /^caro_mig=; Path=\/api\/migrate; Max-Age=0/, 'xoá cookie vé');
+    assert.match(r.headers['set-cookie'][0], /^caro_mig_TTTTTTTT=; Path=\/api\/migrate; Max-Age=0/, 'xoá cookie vé của đúng lượt này');
     assert.strictEqual(r.headers['access-control-allow-origin'], undefined, 'không mở CORS');
     assert.deepStrictEqual(JSON.parse(r.body), { v: 1, keys: { 'caro.token': 'tok', 'caro.guestKey': 'g'.repeat(32) } });
     assert.strictEqual((await s.req('GET', '/api/migrate/' + code, { host: 'new.test', headers: MINE })).status, 404, 'dùng một lần');
@@ -175,8 +175,8 @@ test('chống đăng nhập hộ (login CSRF): mã do người khác tạo khôn
     g = await s.req('GET', '/api/migrate/' + code, { host: 'new.test', headers: MINE });
     assert.strictEqual(g.status, 403, 'cookie vé của lượt khác: không nhận');
     assert.strictEqual(s.handle.size(), 1, 'mã không bị xoá khi sai vé');
-    g = await s.req('GET', '/api/migrate/' + code, { host: 'new.test', headers: { cookie: 'caro_mig=' + 'A'.repeat(22) } });
-    assert.strictEqual(g.status, 200, 'đúng trình duyệt đã bắt đầu: nhận');
+    g = await s.req('GET', '/api/migrate/' + code, { host: 'new.test', headers: { cookie: 'caro_mig_AAAAAAAA=' + 'A'.repeat(22) + '; caro_mig_TTTTTTTT=' + TICKET } });
+    assert.strictEqual(g.status, 200, 'đúng trình duyệt đã bắt đầu (cookie của lượt khác bên cạnh không sao): nhận');
   } finally { await s.close(); }
 }));
 
@@ -192,7 +192,7 @@ test('begin (tên mới): đặt cookie vé, 302 về đúng tên cũ đã khai 
     const t = loc.searchParams.get('migt');
     assert.match(t, /^[A-Za-z0-9_-]{22}$/);
     assert.strictEqual(loc.hash, '#x');
-    assert.strictEqual(r.headers['set-cookie'][0], `caro_mig=${t}; Path=/api/migrate; Max-Age=900; HttpOnly; SameSite=Lax`);
+    assert.strictEqual(r.headers['set-cookie'][0], `caro_mig_${t.slice(0, 8)}=${t}; Path=/api/migrate; Max-Age=900; HttpOnly; SameSite=Lax`);
     assert.strictEqual(r.headers['cache-control'], 'no-store');
     // Cổng của tên cũ giữ nguyên (bài thử e2e: 127.0.0.1:<cổng>)
     r = await s.req('GET', '/api/migrate/begin?from=old.test:8443&p=/', { host: 'new.test' });
