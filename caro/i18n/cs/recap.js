@@ -1,0 +1,23 @@
+// Tiếng Séc – bản dịch của caro/i18n-recap.js (docs/van-phong-4-ngon-ngu.md, mục Čeština).
+window.I18N.extend('cs', {
+  rc_title: 'Souhrn',
+  rc_t_month: 'Měsíc',
+  rc_t_year: 'Rok',
+  rc_year: 'Rok {y}',
+  rc_prev: 'Předchozí období',
+  rc_next: 'Další období',
+  rc_empty: 'V tomto období zatím žádné partie.',
+  rc_dl: 'Remízy / prohry',
+  rc_streak: 'Nejdelší série výher',
+  rc_days: 'Odehrané dny',
+  rc_pz: 'Vyřešené úlohy',
+  rc_storm: 'Rekord ve Stormu',
+  rc_fav_rule: 'Oblíbená pravidla: {rule} (partie: {n})',
+  rc_fav_pool: 'Oblíbené tempo: {pool} (partie: {n})',
+  rc_best: 'Nejcennější výhra: proti hráči {name} ({r} bodů)',
+  rc_best_anon: 'Nejcennější výhra: proti soupeři s ratingem {r}',
+  rc_opp: 'Nejčastější soupeř: {name} (partie: {n})',
+  rc_note: 'Podle partií uložených na tvém účtu. Úlohy a Storm pocházejí z tohoto zařízení. Jména soupeřů se zobrazí, jen pokud oba sdílíte historii her veřejně. Měsíce, roky a odehrané dny se řídí časovým pásmem tvého zařízení.',
+  rc_note_local: 'Podle partií uložených v tomto zařízení. Měsíce, roky a odehrané dny se řídí časovým pásmem tvého zařízení.',
+  rc_share: 'Sdílet obrázek souhrnu',
+});

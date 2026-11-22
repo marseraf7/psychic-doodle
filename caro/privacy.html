@@ -295,7 +295,50 @@
     </div>
   </section>
 
-  <!-- @lang-slot cs: mục tiếng Séc – <section id="cs" lang="cs" data-label="CS" …> -->
+  <section id="cs" lang="cs" data-label="CS" data-title="Caro x Gomoku – Zásady ochrany osobních údajů" data-back="Zpět do hry" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Zásady ochrany osobních údajů</h1>
+      <p class="meta">Platí pro Caro x Gomoku na webu a v aplikacích pro Android / iOS.</p>
+      <span class="updated">Aktualizováno: 2026-11-20</span>
+      <ul class="chips"><li>Bez reklam</li><li>Bez sledování</li><li>Data nikdy neprodáváme</li><li>Účet smažeš kdykoli</li></ul>
+    </header>
+    <div class="card">
+      <h2>Jaká data ukládáme</h2>
+      <ul class="list">
+        <li><b>Hra proti počítači, ve 2 nebo jako host:</b> účet není potřeba. Nastavení, aktuální partie a postup v lekcích, úlohách a tréninku se ukládají jen v tvém zařízení. Pokud si zvolíš <b>Historii v tomto zařízení</b>, zůstávají i tyto partie (tahy, výsledky, analýza) jen v úložišti prohlížeče / aplikace v daném zařízení – nikdy se neposílají na server; jednotlivé partie nebo všechny smažeš v Historii her nebo v Nastavení. Tvé zařízení si také pamatuje ID a jméno hosta (posílají se na server, když hraješ online) a pokud máš účet, i tvou přihlašovací relaci.</li>
+        <li><b>Účty:</b> uživatelské jméno, zobrazované jméno, heslo (ukládá se jen jako hash scrypt), e-mailová adresa, pokud ji přidáš a ověříš, ID účtu Google, pokud se přihlašuješ přes Google, a časové pásmo zařízení (jeho název a posun vůči UTC – aby se dny a měsíce v tvých statistikách aktivity, měsíčním / ročním souhrnu a denním limitu pokusů v Puzzle Storm počítaly v místním čase).</li>
+        <li><b>Online hra:</b> tvých posledních 300 partií (tahy, jména hráčů, výsledky), statistiky, ratingy Glicko-2 pro každé tempo a jejich historie (pro graf ve veřejném profilu), série výher, výsledky turnajů, vzájemné bilance, přátelé a zablokovaní hráči a posledních 100 zpráv s každým přítelem.</li>
+        <li><b>Kluby a turnaje:</b> kluby, které založíš nebo do nichž vstoupíš, a tvá role; turnaje, které vytvoříš nebo do nichž se přihlásíš, s tvým skóre a výsledky partií (ostatní je vidí na stránce turnaje / klubu).</li>
+        <li><b>Fair play v online partiích:</b> když hraješ online s účtem, aplikace počítá, kolikrát <i>během svého tahu</i> opustíš kartu nebo přepneš do jiné aplikace, a celkovou dobu mimo (ne co otevřeš), a tato čísla posílá na server. Server je ukládá s partií (hodnocenou i nehodnocenou), aby si je správci mohli prohlédnout při kontrole partie – spolu se srovnáním tahů s enginem. Hodnocená partie se kontroluje, když je nahlášena za podvádění, hraje se na přední desce turnaje nebo obsahuje hodně přepínání karet; nehodnocená partie se kontroluje jen při nahlášení za podvádění. Hlášení podvádění vždy obsahuje čísla dané partie. Nic se netrestá automaticky; čísla se mažou spolu s partií.</li>
+        <li><b>Hlášení:</b> když někoho nahlásíš, přiloží se pro moderátory tvé poslední zprávy s tímto hráčem.</li>
+        <li><b>Zařízení:</b> při každém přihlášení server uloží k dané relaci typ zařízení (prohlížeč a operační systém, přečtené z User-Agent), IP adresu a čas poslední aktivity, abys viděl, kde je tvůj účet přihlášen (Účet → Zařízení), a mohl se vzdáleně odhlásit. Údaje se smažou, když se zařízení odhlásí, když relace vyprší (180 dní) nebo když smažeš účet.</li>
+        <li><b>Analýza partií enginem Rapfi při přihlášení:</b> kvůli sdílení hodnocení (pozice, kterou už někdo ohodnotil, se použije znovu místo nového výpočtu) posílá aplikace na server pozice analyzované partie – jen rozmístění kamenů, bez jmen hráčů a bez určení partie – a hodnocení z tvého zařízení. Server uchovává tvá hodnocení s anonymním kódem odvozeným z tvého účtu pomocí tajného klíče uloženého na serveru zvlášť (ne tvé jméno ani ID účtu; bez tohoto klíče nelze kód přiřadit k tvému účtu, a to ani ze zálohy dat) nejvýše 30 dní a maže je, když smažeš účet; hodnocení, která dva různí lidé spočítali shodně, se uchovávají bez vazby na kohokoli. Když nejsi přihlášen, analýza běží jen v tvém zařízení.</li>
+        <li><b>Avatar (nepovinný):</b> pokud vybereš obrázek, ořízne se na čtverec a před nahráním se v zařízení zmenší na 128×128 (max. 10 KB). Server ho uloží k tvému účtu a ukazuje ho ostatním hráčům (profil, seznamy přátel, hledání hráčů). Kdykoli ho odebereš z karty účtu; smazáním účtu se smaže také. Používej jen obrázky, ke kterým máš práva.</li>
+        <li><b>Stav pro přátele:</b> když jsi přihlášen, tví přátelé vidí, že jsi online, jakou online partii hraješ (typ, tempo, pravidla) nebo že hraješ proti počítači / řešíš úlohy / učíš se (hlásí to tvé zařízení a uchovává se jen v paměti serveru, dokud jsi online, nikdy se neukládá), a kdy jsi byl naposledy online. Čas posledního online se ukládá k tvému účtu, vidí ho jen přátelé a smaže se, když smažeš účet. Lidé, kteří nejsou tví přátelé, nic z toho nevidí.</li>
+        <li><b>Měření rychlosti stránek:</b> při každém otevření stránky pošle aplikace serveru několik čísel o rychlosti (doby načítání, zpoždění reakce na klepnutí, zda byla použita sloučená verze) a typ prohlížeče (např. Chrome, Zalo, Messenger – server ho přečte z User-Agent a pak zahodí; User-Agent ani tvou IP adresu neukládá). Tato čísla nejsou spojena s tvým účtem, slučují se jen s čísly všech ostatních pro výpočet průměrů, drží se v paměti a po restartu serveru se ztratí.</li>
+        <li>Kromě Zařízení se IP adresy drží jen v paměti kvůli ochraně proti hádání hesel a spamu, nikdy se neukládají dlouhodobě. Žádné reklamy, žádné sledování, žádný prodej ani sdílení dat s třetími stranami.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2 id="claude-cs">Konektor Caro x Gomoku pro Claude</h2>
+      <ul class="list">
+        <li><b>Co přijímá:</b> když konektor používáš v Claude (server <b>https://caroxo.duckdns.org/mcp</b>), server přijímá jen to, co nástroj potřebuje: seznam tahů pozice, pravidla, obtížnost, číslo úlohy nebo veřejné uživatelské jméno, které chceš vyhledat. Účet není potřeba. Server nedostává tvé jméno, e-mail ani obsah tvé konverzace.</li>
+        <li><b>Co ukládá:</b> nic. Server spočítá tah a hned odpoví; partie ani dotazy neukládá. IP adresa (obvykle jedna z adres Claude) zůstává v paměti asi 1 minutu kvůli omezení počtu dotazů a nezapisuje se do logu.</li>
+        <li><b>Co vrací:</b> pozice, tahy, úlohy a pravidla; žebříček a profily hráčů obsahují jen veřejná data, která už web zobrazuje (žádná ID účtů, e-maily ani stav online).</li>
+        <li><b>Sdílení:</b> žádná data se nesdílejí s třetími stranami ani se jim neprodávají a nejsou zde žádné reklamy. Tvou konverzaci s Claude zpracovává Anthropic podle zásad společnosti Anthropic.</li>
+      </ul>
+      <p>Návod k nastavení a použití: <a href="connector.html">connector.html</a>. Nahlásit problém: <a href="https://github.com/marseraf7/psychic-doodle/issues">https://github.com/marseraf7/psychic-doodle/issues</a>.</p>
+    </div>
+    <div class="card">
+      <h2 id="delete-cs">Smazání účtu</h2>
+      <p class="steps">Otevři hru → <b>Online</b> → <b>Účet</b> → <b>Smazat účet</b> a zadej heslo (nebo uživatelské jméno, pokud používáš jen přihlášení přes Google). Účet se smaže okamžitě, včetně relací, přátel, zpráv, ratingů a jejich historie, vzájemných bilancí, e-mailu a tvé historie.</p>
+      <p class="note">Partie, které jsi odehrál s ostatními, zůstávají v jejich historii, ale <b>bez tvého jména a ID účtu</b>. Hlášení, která na tebe podali jiní hráči, se uchovávají, aby moderátoři mohli řešit zneužívání.</p>
+    </div>
+    <div class="card">
+      <h2>Kontakt</h2>
+      <p>Dotazy nebo žádosti týkající se dat: <a class="mail" href="mailto:chidoandhthbnv@gmail.com">chidoandhthbnv@gmail.com</a>.</p>
+    </div>
+  </section>
 
   <section id="zh-Hant" lang="zh-Hant" data-label="繁體" data-title="Caro x Gomoku – 隱私政策" data-back="返回遊戲" data-brand="Caro x Gomoku">
     <header class="hero">

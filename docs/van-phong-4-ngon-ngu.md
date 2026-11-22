@@ -265,48 +265,65 @@ trình duyệt, bản gộp, SEO, og, thư, widget MCP đều đọc từ đó. 
 
 ### Thuật ngữ – Čeština (cs)
 
+- **Xưng hô: "ty"** (thân mật, kiểu ứng dụng chơi game; thống nhất toàn bộ): "Jsi na tahu", "Vyber soupeře", "Zkus to znovu".
+  Nút và nhãn dùng **động từ nguyên mẫu** theo chuẩn giao diện Séc ("Uložit", "Vytvořit turnaj", "Odeslat výzvu"); gợi ý,
+  hướng dẫn dùng mệnh lệnh ngôi "ty" ("Klepni…", "Zadej…"). Không dùng "vy" (trừ khi nói với cả hai người chơi: "Hrajte…").
+- **Tránh giống (giới tính) ở thì quá khứ khi nói với người dùng**: tiếng Séc chia "vyhrál / vyhrála". Viết thì hiện tại hoặc
+  danh từ: "Vítězíš!" (không "Vyhrál jsi"), "Došel ti čas", "Prohra", "Opouštíš místnost". Câu nói của nhân vật máy được dùng
+  giống của nhân vật. Ngôi thứ ba với tên (người, giải) cũng tránh quá khứ: "{name} se vzdává", "{name}: zrušeno".
+- **Số nhiều**: i18n chưa có quy tắc số nhiều (tiếng Séc: 1 hráč, 2–4 hráči, 5+ hráčů). Không viết "{n} hráčů" khi n có thể là
+  1–4; dùng mẫu **"Nhãn: {n}"** ("Hráči: {n}", "Tahy: {n}", "Partie: {n}") hoặc viết tắt đơn vị ("{n} s", "{n} min", "{n} h",
+  "{n} d", "{n} b."). Cách 6 (giới từ "při {n} hráčích", "v posledních {n} kolech") và số lớn cố định ("posledních 300 partií")
+  thì giữ được. Số thứ tự viết "{n}. kolo", "{rank}. místo".
+- Dấu ngoặc kép Séc „…“; số thập phân dùng dấu phẩy (0,5; 6,706 km); phần trăm có dấu cách ("{p} %"); gạch ngang "–" có dấu cách.
+- Tên game "Caro x Gomoku" giữ nguyên. **"Caro" giữ chữ Latin** + giải thích lần đầu: "Caro (vietnamské piškvorky)"; luật:
+  "vietnamské Caro" / "vietnamská pravidla". Tên nhân vật máy, tên 26 khai cuộc (Kansei, Kagetsu…) giữ như bản tiếng Anh.
+- Nguồn đối chiếu: cs.wikipedia "Renju" (přesah, dvojitá trojka, dvojitá čtyřka, černý / bílý), cs.wikipedia "Piškvorky"
+  (Česká federace piškvorek a renju – ČFPR, giải học sinh pIšQworky, "zahájení SWAP / SWAP 2", piškvorky thi đấu "gomoku").
+  Thuật ngữ thể thao theo cách dùng của báo chí thể thao Séc (pavouk, nasazení, volný los, kontumace, prezence).
+
 | English | Čeština | Không dùng / ghi chú |
 | --- | --- | --- |
-| Gomoku (game) |  |  |
-| Renju |  |  |
-| Caro (Vietnamese variant – "blocked at both ends" does not win) |  |  |
-| Freestyle / standard Gomoku |  |  |
-| stone / piece; Black / White (X / O) |  |  |
-| first player / second player |  |  |
-| move (a stone placed) |  |  |
-| forbidden move (Renju) |  |  |
-| double three (3×3) |  |  |
-| double four (4×4) |  |  |
-| overline (6+) |  |  |
-| four-three (4×3) |  |  |
-| open three / open four |  |  |
-| VCF / VCT (forcing win) |  |  |
-| opening (26 Renju openings, Swap2, Soosõrv…) |  |  |
-| takeback |  |  |
-| resign / draw / time out |  |  |
-| time control, increment, byo-yomi |  |  |
-| rating (Elo) |  |  |
-| engine (AI) / computer opponent (bot character) |  |  |
-| puzzle |  |  |
-| replay / game review / analysis |  |  |
-| tournament |  |  |
-| match / game |  |  |
-| round / matchday |  |  |
-| stage / group |  |  |
-| bracket |  |  |
-| seed |  |  |
-| bye |  |  |
-| tie-breaker |  |  |
-| standings |  |  |
-| round robin |  |  |
-| single elimination |  |  |
-| double elimination |  |  |
-| grand final / bracket reset |  |  |
-| Swiss |  |  |
-| check-in |  |  |
-| walkover / forfeit |  |  |
-| organizer |  |  |
-| club |  |  |
+| Gomoku (game) | piškvorky (thi đấu: gomoku) | "gomoku" chỉ giữ trong tên riêng |
+| Renju | renju (viết thường giữa câu; đầu nhãn: Renju) | |
+| Caro (Vietnamese variant – "blocked at both ends" does not win) | vietnamské Caro, Caro (vietnamské piškvorky) | phiên âm "Káro" |
+| Freestyle / standard Gomoku | volné piškvorky (volná pravidla) / standardní piškvorky (přesně 5) | freestyle |
+| stone / piece; Black / White (X / O) | kámen; černý / bílý (X / O giữ nguyên; křížek / kolečko không dùng) | figurka |
+| first player / second player | začínající (hráč) / druhý hráč; "začíná", "hraje druhý" | |
+| move (a stone placed) | tah; "Tah {n}", "Jsi na tahu", "Na tahu: {p}" | krok |
+| forbidden move (Renju) | zakázaný tah; ô cấm: zakázané pole | nepovolený tah |
+| double three (3×3) | dvojitá trojka (3×3) | 3-3 (trong chữ dùng 3×3) |
+| double four (4×4) | dvojitá čtyřka (4×4) | |
+| overline (6+) | přesah | dlouhá řada |
+| four-three (4×3) | čtyři-tři (4×3) | |
+| open three / open four | otevřená trojka / otevřená čtyřka | volná trojka |
+| VCF / VCT (forcing win) | VCF (série čtyřek) / VCT (série hrozeb); vynucená výhra | |
+| opening (26 Renju openings, Swap2, Soosõrv…) | zahájení; pravidlo zahájení; Swap2, Soosõrv, Taraguchi | otevření |
+| takeback | vrácení tahu; nút "Zpět", "↶ Vrátit tah" | undo |
+| resign / draw / time out | vzdát (se) / remíza / vypršení času, "došel čas" | |
+| time control, increment, byo-yomi | tempo (hry), přídavek, byo-yomi; "Čas na tah" | časová kontrola |
+| rating (Elo) | rating (Elo); "body" chỉ cho điểm giải | ELO viết hoa toàn bộ |
+| engine (AI) / computer opponent (bot character) | engine / počítač, postava počítače (bot khi nói thân mật) | motor |
+| puzzle | úloha (Puzzle Storm giữ tên) | hádanka, puzzle (đứng riêng) |
+| replay / game review / analysis | záznam, přehrát / rozbor / analýza | replay |
+| tournament | turnaj; offline: akce (event) | |
+| match / game | zápas / partie | hra (= trò chơi) |
+| round / matchday | kolo / hrací den | |
+| stage / group | fáze / skupina | etapa (chỉ cho đua xe đạp) |
+| bracket | pavouk (nhánh: pavouk vítězů / pavouk poražených) | braket |
+| seed | nasazení, nasazený hráč | seed |
+| bye | volný los | bye |
+| tie-breaker | pomocné hodnocení; trận phụ: tie-breaker / rozstřel | |
+| standings | pořadí, tabulka | |
+| round robin | každý s každým (dvoukolově = 2 lượt) | round robin |
+| single elimination | vyřazovací systém | K.O. systém |
+| double elimination | dvojitá eliminace | |
+| grand final / bracket reset | superfinále / rozhodující zápas | grand final |
+| Swiss | švýcarský systém | |
+| check-in | prezence; "Potvrdit prezenci" | check-in |
+| walkover / forfeit | kontumace (výhra kontumačně) / prohra kontumací, vzdání | |
+| organizer | pořadatel (người cùng tổ chức: spolupořadatel) | organizátor |
+| club | klub (funkcionář = officer, vlastník = owner) | |
 
 ### Thuật ngữ – 繁體中文 (zh-Hant)
 
