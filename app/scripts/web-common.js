@@ -5,6 +5,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { DEFAULT_ORIGIN } = require('../../server/src/site.js'); // tên miền chính (một chỗ – scripts/set-domain.js)
 
 const CARO = path.resolve(__dirname, '..', '..', 'caro');
 // Không chép: bài thử, service worker (app tự có file), config.js (mỗi bản tự ghi), README
@@ -13,12 +14,12 @@ const SKIP = new Set(['tests', 'README.md', 'sw.js', 'config.js']);
 function fail(msg) { console.error('✗ ' + msg); process.exit(1); }
 
 /**
- * Địa chỉ máy chủ online từ CARO_SERVER_URL (mặc định https://caroxo.duckdns.org), chỉ gồm giao thức + tên miền (+ cổng).
+ * Địa chỉ máy chủ online từ CARO_SERVER_URL (mặc định tên miền chính – server/src/site.js), chỉ gồm giao thức + tên miền (+ cổng).
  * http chỉ cho phép khi allowHttp (bản thử nghiệm) – Android, iOS và bản phát hành desktop đều bắt buộc https/wss.
  */
 function serverOrigin(env, allowHttp) {
   let server;
-  try { server = new URL(env.CARO_SERVER_URL || 'https://caroxo.duckdns.org'); } catch (e) { fail('CARO_SERVER_URL không hợp lệ'); }
+  try { server = new URL(env.CARO_SERVER_URL || DEFAULT_ORIGIN); } catch (e) { fail('CARO_SERVER_URL không hợp lệ'); }
   if (!['https:', 'http:'].includes(server.protocol) || server.pathname !== '/' || server.search || server.hash) {
     fail('CARO_SERVER_URL chỉ gồm giao thức + tên miền (+ cổng), ví dụ https://caro.example.com');
   }

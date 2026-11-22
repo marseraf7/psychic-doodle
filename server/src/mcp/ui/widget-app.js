@@ -19,7 +19,7 @@ const fmt = (m) => `[${m[0]},${m[1]}]`;
 const S = {
   mode: 'play', rule: 'vn', moves: [], winner: null, line: null, draw: false, toMove: 'X', you: 'X', difficulty: 'normal',
   hint: null, reasonCode: null, puzzle: null, verdict: null, solution: null, answer: null, busy: false, error: null,
-  site: 'https://caroxo.duckdns.org', view: null, fresh: -1,
+  site: '', view: null, fresh: -1,
 };
 
 const app = new App({ name: 'Caro x Gomoku', version: '1.0.0' }, {}, { autoResize: true });
@@ -113,7 +113,7 @@ function setOpt(key, val) {
   render();
 }
 
-function openSite() { app.openLink({ url: S.site }).catch(() => {}); }
+function openSite() { if (S.site) app.openLink({ url: S.site }).catch(() => {}); } // site: máy chủ gửi kèm kết quả (texts.js site())
 
 // ---------------------------------------------------------------- Vẽ
 const occupied = (x, y) => S.moves.some((m) => m[0] === x && m[1] === y);

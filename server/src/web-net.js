@@ -50,7 +50,8 @@ const APP_WS_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://lo
 // WS_ALLOWED_ORIGINS trên máy chủ:
 //  - bản giao diện tĩnh trên GitHub Pages (caro/config.js trỏ về máy chủ chính, #110 P3): tải nhanh ở nơi khó vào
 //    máy chủ (đo từ Nga: Pages hiện ngay, máy chủ chính > 5 phút);
-//  - tên miền phụ caroxo.ddnsgeek.com (cùng máy chủ với caroxo.duckdns.org).
+//  - tên miền phụ caroxo.ddnsgeek.com (cùng máy chủ với tên miền chính – site.js).
+// Tên miền mới khi chuyển (MOVED_TO) cũng được nhận như PUBLIC_URL (wsOriginAllowed).
 const OWN_WS_ORIGINS = ['https://marseraf7.github.io', 'https://caroxo.ddnsgeek.com'];
 function wsOriginAllowed(req) {
   const raw = String((req.headers && req.headers.origin) || '').trim().replace(/\/+$/, '');
@@ -59,7 +60,9 @@ function wsOriginAllowed(req) {
   if (APP_WS_ORIGINS.includes(raw) || OWN_WS_ORIGINS.includes(raw) || extras.includes(raw)) return true;
   let o;
   try { o = new URL(raw); } catch (e) { return false; }
-  if (process.env.PUBLIC_URL) { try { if (new URL(process.env.PUBLIC_URL).origin === o.origin) return true; } catch (e) { /* PUBLIC_URL sai định dạng: bỏ qua */ } }
+  for (const env of [process.env.PUBLIC_URL, process.env.MOVED_TO]) {
+    if (env) { try { if (new URL(env).origin === o.origin) return true; } catch (e) { /* sai định dạng: bỏ qua */ } }
+  }
   return o.host === String((req.headers && req.headers.host) || '');
 }
 

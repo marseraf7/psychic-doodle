@@ -4,6 +4,7 @@
 // cổng công bố của container cũng giả được XFF để qua mặt giới hạn theo IP.
 // Chạy: npm test
 'use strict';
+const { DEFAULT_HOST: SITE_HOST, DEFAULT_ORIGIN: SITE_ORIGIN } = require('../src/site.js'); // tên miền của game (một chỗ – set-domain.js)
 const test = require('node:test');
 const assert = require('node:assert');
 const WebSocket = require('ws');
@@ -30,15 +31,15 @@ test('M-S1: Origin cùng host / của app / khai thêm thì qua, Origin lạ và
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'không-phải-url' })), false, 'Origin rác: chặn');
     // #110 P3: bản tĩnh chính thức trên GitHub Pages được phép sẵn (không cần đặt WS_ALLOWED_ORIGINS trên máy chủ);
     // tên miền giống nhưng khác (tài khoản GitHub khác, http) thì vẫn chặn
-    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'https://marseraf7.github.io' })), true, 'bản GitHub Pages chính thức: qua');
-    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'https://caroxo.ddnsgeek.com' })), true, 'tên miền phụ caroxo.ddnsgeek.com: qua');
-    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'https://evil.github.io' })), false, 'GitHub Pages của người khác: chặn');
-    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'https://evil.ddnsgeek.com' })), false, 'tên miền ddnsgeek của người khác: chặn');
-    assert.strictEqual(wsOriginAllowed(req({ host: 'caroxo.duckdns.org', origin: 'http://marseraf7.github.io' })), false, 'http (không mã hoá): chặn');
+    assert.strictEqual(wsOriginAllowed(req({ host: SITE_HOST, origin: 'https://marseraf7.github.io' })), true, 'bản GitHub Pages chính thức: qua');
+    assert.strictEqual(wsOriginAllowed(req({ host: SITE_HOST, origin: 'https://caroxo.ddnsgeek.com' })), true, 'tên miền phụ caroxo.ddnsgeek.com: qua');
+    assert.strictEqual(wsOriginAllowed(req({ host: SITE_HOST, origin: 'https://evil.github.io' })), false, 'GitHub Pages của người khác: chặn');
+    assert.strictEqual(wsOriginAllowed(req({ host: SITE_HOST, origin: 'https://evil.ddnsgeek.com' })), false, 'tên miền ddnsgeek của người khác: chặn');
+    assert.strictEqual(wsOriginAllowed(req({ host: SITE_HOST, origin: 'http://marseraf7.github.io' })), false, 'http (không mã hoá): chặn');
   });
-  withEnv({ WS_ALLOWED_ORIGINS: 'https://example.org', PUBLIC_URL: 'https://caroxo.duckdns.org' }, () => {
+  withEnv({ WS_ALLOWED_ORIGINS: 'https://example.org', PUBLIC_URL: SITE_ORIGIN }, () => {
     assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'https://example.org' })), true, 'Origin khai qua env: qua');
-    assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: 'https://caroxo.duckdns.org' })), true, 'Origin của PUBLIC_URL: qua');
+    assert.strictEqual(wsOriginAllowed(req({ host: 'x', origin: SITE_ORIGIN })), true, 'Origin của PUBLIC_URL: qua');
   });
 });
 

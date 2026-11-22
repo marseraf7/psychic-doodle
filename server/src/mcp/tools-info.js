@@ -108,7 +108,7 @@ function register(server, { uri, hub }) {
 
   server.registerTool('caro_leaderboard', {
     title: 'Caro leaderboard',
-    description: 'Show the public leaderboard of the Caro x Gomoku online server (caroxo.duckdns.org): rank, username, display '
+    description: 'Show the public leaderboard of the Caro x Gomoku online server: rank, username, display '
       + 'name, rating and games. Optionally for one time control (bullet, blitz, rapid, classical). Use it when the user asks '
       + 'who the top Caro players are.',
     inputSchema: {
@@ -134,7 +134,7 @@ function register(server, { uri, hub }) {
     title: 'Caro player profile',
     description: 'Look up a public player profile on the Caro x Gomoku online server by username: display name, ratings per '
       + 'time control, games played and join date. Use it when the user asks about a specific player.',
-    inputSchema: { username: z.string().describe('Username on caroxo.duckdns.org (3–20 letters, digits, "_" or ".").') },
+    inputSchema: { username: z.string().describe('Username on the Caro x Gomoku server (3–20 letters, digits, "_" or ".").') },
     annotations: { ...RO, openWorldHint: true },
   }, async (args) => {
     try {

@@ -15,7 +15,7 @@
 'use strict';
 const { McpServer, createMcpHandler } = require('@modelcontextprotocol/server');
 const { registerAppResource, RESOURCE_MIME_TYPE } = require('@modelcontextprotocol/ext-apps/server');
-const { Thinker } = require('./think.js');
+const { Thinker, requestCtx } = require('./think.js');
 const W = require('./widget.js');
 const T = require('./texts.js');
 const { nodeHandler } = require('./http.js');
@@ -26,7 +26,7 @@ const VERSION = '1.0.0';
 const UI_URI = 'ui://caro/board-v1.html';
 
 const INSTRUCTIONS = 'Caro x Gomoku: play Caro (Gomoku, five in a row) against the computer, get move suggestions and puzzles, '
-  + 'and read public rankings from caroxo.duckdns.org. Games are stateless: pass the full list of moves ([x, y] pairs, X first) '
+  + 'and read public rankings from the Caro x Gomoku online server. Games are stateless: pass the full list of moves ([x, y] pairs, X first) '
   + 'to play_caro and suggest_caro_move on every call.';
 
 /** Một McpServer đầy đủ tool + tài nguyên widget (dựng mới cho mỗi yêu cầu – rẻ, không I/O). */
@@ -44,7 +44,7 @@ function buildServer({ hub, thinker }) {
   }, async () => ({
     contents: [{
       uri: UI_URI, mimeType: RESOURCE_MIME_TYPE, text: W.widgetHtml(),
-      _meta: { ui: { prefersBorder: true, domain: W.uiDomain(), csp: { connectDomains: [], resourceDomains: [] } } },
+      _meta: { ui: { prefersBorder: true, domain: W.uiDomain(W.serverUrl((requestCtx.getStore() || {}).host)), csp: { connectDomains: [], resourceDomains: [] } } },
     }],
   }));
   return server;

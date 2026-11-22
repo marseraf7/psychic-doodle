@@ -41,10 +41,15 @@ function widgetHtml() {
   return cached;
 }
 
-/** Địa chỉ công khai của máy chủ MCP (CARO_MCP_URL, hoặc PUBLIC_URL + /mcp, mặc định tên miền chính). */
-function serverUrl() {
+/** Địa chỉ công khai của máy chủ MCP (CARO_MCP_URL, hoặc MOVED_TO / PUBLIC_URL + /mcp, mặc định tên miền chính – site.js).
+ *  Lưu ý khi đổi tên miền: ui.domain (dưới đây) là băm của địa chỉ này nên ĐỔI THEO – hồ sơ Claude Directory phải khai lại
+ *  địa chỉ /mcp mới (docs/doi-ten-mien.md). */
+function serverUrl(host) {
   if (process.env.CARO_MCP_URL) return process.env.CARO_MCP_URL;
-  return String(process.env.PUBLIC_URL || 'https://caroxo.duckdns.org').replace(/\/+$/, '') + '/mcp';
+  const Site = require('../site.js');
+  // Yêu cầu tới một tên máy của game (vd. tên miền cũ trong lúc chuyển): băm đúng địa chỉ Claude đang dùng để nối
+  if (host && Site.siteHosts().includes(host)) return 'https://' + host + '/mcp';
+  return Site.canonicalOrigin() + '/mcp';
 }
 
 function uiDomain(url = serverUrl()) {

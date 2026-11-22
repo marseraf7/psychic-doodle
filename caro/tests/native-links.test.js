@@ -4,6 +4,7 @@
 // tham số ?room= ?replay= ?t= ?club= vào địa chỉ của app để mã web sẵn có xử lý tiếp.
 // Chạy: node --test caro/tests/native-links.test.js
 'use strict';
+const { DEFAULT_HOST: SITE_HOST, DEFAULT_ORIGIN: SITE_ORIGIN } = require('../../server/src/site.js'); // tên miền của game (một chỗ – set-domain.js)
 const test = require('node:test');
 const assert = require('node:assert');
 
@@ -16,7 +17,7 @@ global.window = {
     Plugins: {
       App: {
         addListener: (name, fn) => { listeners[name] = fn; },
-        getLaunchUrl: async () => ({ url: 'https://caroxo.duckdns.org/?room=123456' }),
+        getLaunchUrl: async () => ({ url: SITE_ORIGIN + '/?room=123456' }),
         minimizeApp: async () => {}, exitApp: async () => {},
       },
     },
@@ -42,10 +43,10 @@ test('H-A5: link khởi động (getLaunchUrl) được đưa vào app', async (
 
 test('H-A5: appUrlOpen chép đúng các tham số link, bỏ qua link không liên quan', () => {
   assigns.length = 0;
-  listeners.appUrlOpen({ url: 'https://caroxo.duckdns.org/?replay=AbC123' });
+  listeners.appUrlOpen({ url: SITE_ORIGIN + '/?replay=AbC123' });
   listeners.appUrlOpen({ url: 'io.github.marseraf7.caro://open?t=XYZ&club=Q7' });
-  listeners.appUrlOpen({ url: 'https://caroxo.duckdns.org/' }); // không có tham số link
-  listeners.appUrlOpen({ url: 'https://caroxo.duckdns.org/?utm_source=chat' }); // tham số lạ
+  listeners.appUrlOpen({ url: SITE_ORIGIN + '/' }); // không có tham số link
+  listeners.appUrlOpen({ url: SITE_ORIGIN + '/?utm_source=chat' }); // tham số lạ
   window.CaroNative.routeLink('không phải link');
   assert.deepStrictEqual(assigns, ['/?replay=AbC123', '/?t=XYZ&club=Q7'],
     'chỉ các link phòng/xem lại/giải/câu lạc bộ mới điều hướng; link lạ và tham số lạ bị bỏ qua');
@@ -62,9 +63,9 @@ test('H-A5: nạp lại trang sau khi mở link khởi động không mở lại
 
 test('C3: link tường thuật ?bc= (cả ?cls=) mở trong app – ?bc= vào thẳng broadcast.html của app', () => {
   assigns.length = 0;
-  listeners.appUrlOpen({ url: 'https://caroxo.duckdns.org/?bc=o.cup-2026' });
+  listeners.appUrlOpen({ url: SITE_ORIGIN + '/?bc=o.cup-2026' });
   listeners.appUrlOpen({ url: 'io.github.marseraf7.caro://open?bc=abc123&utm_source=zalo' });
-  listeners.appUrlOpen({ url: 'https://caroxo.duckdns.org/?cls=0123456789ab' });
+  listeners.appUrlOpen({ url: SITE_ORIGIN + '/?cls=0123456789ab' });
   assert.deepStrictEqual(assigns, ['/broadcast.html?bc=o.cup-2026', '/broadcast.html?bc=abc123', '/?cls=0123456789ab']);
 });
 

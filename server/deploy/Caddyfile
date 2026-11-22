@@ -1,18 +1,26 @@
 # install.sh tự cài file này. Cài tay: chép vào /etc/caddy/Caddyfile, thay tên miền, rồi: systemctl reload caddy
+# Đổi sang tên miền mới (giữ tên cũ để chuyển dữ liệu người chơi + 301): move-domain.sh thay dòng tên miền bằng
+# "tên-mới, tên-cũ-1, tên-cũ-2 {" – máy chủ Node phân biệt theo header Host (docs/doi-ten-mien.md).
 # Caddy tự xin / gia hạn chứng chỉ HTTPS miễn phí và tự chuyển tiếp WebSocket.
 # Các header bảo mật nội dung (CSP, chống nhúng iframe, nosniff…) do máy chủ Node tự gửi.
 caro.ten-mien-cua-ban.com {
 	encode zstd gzip
 	header {
-		# includeSubDomains: chỉ phủ các tên miền con CỦA tên miền này (vd. *.caroxo.duckdns.org – cùng chủ, không dịch vụ
-		# HTTP nào khác), không đụng tên miền cha / tên miền khác. KHÔNG thêm "preload": duckdns.org là tên miền dùng chung,
-		# danh sách preload của trình duyệt khó gỡ ra và không dành cho tên miền con kiểu này (I-13, rà soát 20/11/2026).
+		# includeSubDomains: chỉ phủ các tên miền con CỦA tên miền này (cùng chủ, không dịch vụ HTTP nào khác), không đụng
+		# tên miền cha / tên miền khác. KHÔNG thêm "preload": tên miền dùng chung (duckdns.org…) không được vào danh sách
+		# preload, và danh sách đó rất khó gỡ ra (I-13, rà soát 20/11/2026).
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		-Server
 	}
-	# Máy chủ chỉ nhận GET (file tĩnh) và WebSocket: chặn yêu cầu có thân lớn
-	request_body {
+	# Máy chủ chỉ nhận GET (file tĩnh), WebSocket và vài POST nhỏ: chặn yêu cầu có thân lớn. Riêng /api/migrate (chuyển dữ
+	# liệu trình duyệt sang tên miền mới – domain-move.js, tối đa 512 KB) được lớn hơn.
+	@small not path /api/migrate
+	request_body @small {
 		max_size 16KB
+	}
+	@migrate path /api/migrate
+	request_body @migrate {
+		max_size 600KB
 	}
 	reverse_proxy 127.0.0.1:8080
 	log {

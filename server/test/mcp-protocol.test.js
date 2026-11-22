@@ -3,6 +3,7 @@
 // yêu cầu lớn), đường /mcp trong web.js và công tắc CARO_MCP=0.
 // Chạy: npm test
 'use strict';
+const { DEFAULT_HOST: SITE_HOST, DEFAULT_ORIGIN: SITE_ORIGIN } = require('../src/site.js'); // tên miền của game (một chỗ – set-domain.js)
 const test = require('node:test');
 const assert = require('node:assert');
 const http = require('http');
@@ -61,7 +62,7 @@ test('MCP: bắt tay + tools/list (title, readOnlyHint, tên ≤ 64) + resources
     const c = rr.contents[0];
     assert.match(c.text, /globalThis\.McpExtApps=\{/);
     assert.match(c.text, /CARO_MCP_I18N/);
-    assert.strictEqual(c._meta.ui.domain, W.uiDomain('https://caroxo.duckdns.org/mcp'));
+    assert.strictEqual(c._meta.ui.domain, W.uiDomain(SITE_ORIGIN + '/mcp'));
     assert.match(c._meta.ui.domain, /^[0-9a-f]{32}\.claudemcpcontent\.com$/);
   } finally { await client.close(); await s.stop(); }
 });
@@ -101,7 +102,7 @@ test('MCP HTTP: Origin lạ bị chặn 403, Origin của Claude được CORS, 
   assert.ok(originAllowed('https://claude.ai', req()));
   assert.ok(originAllowed('https://abc123.claudemcpcontent.com', req()));
   assert.ok(originAllowed('http://localhost:6274', req()));
-  assert.ok(originAllowed('https://caroxo.duckdns.org', req(null, 'caroxo.duckdns.org')));
+  assert.ok(originAllowed(SITE_ORIGIN, req(null, SITE_HOST)));
   // DNS rebinding: Origin trùng Host lạ không còn được nhận
   assert.ok(!originAllowed('https://evil.example', req(null, 'evil.example')));
   assert.ok(!originAllowed('https://claude.ai.evil.com', req()));
@@ -132,7 +133,7 @@ test('MCP HTTP: giới hạn theo IP trả 429 kèm lời nhắn và Retry-After
 
 // Review 20/11/2026: thân quá cỡ trước đây vẫn được đọc (và bỏ đi) tới hết – một yêu cầu gửi mãi không dứt giữ kết nối
 // và băng thông. Nay báo 413 ngay khi vượt giới hạn (kể cả khi khai content-length quá cỡ) và đóng kết nối.
-// Review 20/11/2026 (DNS rebinding): Host phải thuộc danh sách (CARO_PUBLIC_HOST, mặc định caroxo.duckdns.org; localhost);
+// Review 20/11/2026 (DNS rebinding): Host phải thuộc danh sách (CARO_PUBLIC_HOST, tên miền của game – site.js; localhost);
 // trang lạ trỏ tên miền của nó về máy chủ thì Host = tên miền lạ → 403 kèm lời nhắn rõ.
 test('MCP HTTP: Host không thuộc danh sách → 403; Origin của chính tên miền lạ cũng bị chặn', async () => {
   const s = await start();
@@ -150,7 +151,7 @@ test('MCP HTTP: Host không thuộc danh sách → 403; Origin của chính tên
     assert.match(JSON.parse(r.body).error.message, /Host/);
     r = await ask({ host: 'evil.example' });
     assert.strictEqual(r.status, 403, 'không có Origin nhưng Host lạ: vẫn chặn');
-    r = await ask({ host: 'caroxo.duckdns.org', origin: 'https://caroxo.duckdns.org', 'mcp-protocol-version': '2025-06-18' });
+    r = await ask({ host: SITE_HOST, origin: SITE_ORIGIN, 'mcp-protocol-version': '2025-06-18' });
     assert.notStrictEqual(r.status, 403, 'tên miền công khai mặc định được nhận');
     process.env.CARO_PUBLIC_HOST = 'caro.example.org';
     try {

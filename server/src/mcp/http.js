@@ -2,7 +2,7 @@
  * Connector MCP – lớp HTTP (Node http → Request / Response chuẩn web của SDK MCP) kèm các lớp chặn cho một điểm vào
  * công khai, không đăng nhập:
  *  - Host + Origin (chống DNS rebinding theo đặc tả MCP Streamable HTTP): Host phải là tên miền của game (CARO_PUBLIC_HOST,
- *    mặc định caroxo.duckdns.org) hoặc localhost; không có Origin (máy chủ gọi máy chủ, như Claude) thì cho qua; có thì chỉ
+ *    cộng các tên máy của game – site.js: PUBLIC_URL / tên miền mặc định, MOVED_TO, MOVED_FROM) hoặc localhost; không có Origin (máy chủ gọi máy chủ, như Claude) thì cho qua; có thì chỉ
  *    nhận Claude, chính tên miền này, localhost (MCP Inspector khi thử) và CARO_MCP_ORIGINS.
  *  - CORS cho các Origin được nhận; OPTIONS trả 204.
  *  - Giới hạn theo IP (cửa sổ 1 phút, CARO_MCP_RATE, mặc định 240 – rộng vì mọi người dùng Claude đi chung vài IP của
@@ -14,6 +14,7 @@
 'use strict';
 
 const { requestCtx } = require('./think.js');
+const Site = require('../site.js'); // tên miền của game (một chỗ duy nhất)
 
 const MAX_BODY = 64 * 1024;
 const CLAUDE_ORIGIN = /^https:\/\/([a-z0-9-]+\.)*(claude\.ai|claude\.com|claudemcpcontent\.com)$/i;
@@ -27,14 +28,13 @@ function rpcError(res, status, message, extra = {}) {
 
 const LOCAL_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 /**
- * Tên máy (không cổng, chữ thường) được nhận ở header Host: CARO_PUBLIC_HOST (phẩy ngăn cách; mặc định caroxo.duckdns.org),
- * tên máy của PUBLIC_URL, localhost (thử / MCP Inspector). Chống DNS rebinding: trang lạ trỏ tên miền của nó về máy chủ thì
+ * Tên máy (không cổng, chữ thường) được nhận ở header Host: CARO_PUBLIC_HOST (phẩy ngăn cách, thêm vào), các tên máy của game
+ * (site.js siteHosts: PUBLIC_URL hoặc tên miền mặc định, tên miền mới MOVED_TO, tên cũ MOVED_FROM – connector cũ vẫn chạy khi đổi tên miền), localhost (thử / MCP Inspector). Chống DNS rebinding: trang lạ trỏ tên miền của nó về máy chủ thì
  * Host là tên miền lạ – trước đây so Origin với chính Host nên lọt qua.
  */
 function publicHosts() {
-  const list = String(process.env.CARO_PUBLIC_HOST || 'caroxo.duckdns.org').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-  try { if (process.env.PUBLIC_URL) list.push(new URL(process.env.PUBLIC_URL).hostname.toLowerCase()); } catch (e) { /* PUBLIC_URL sai: bỏ qua */ }
-  return list;
+  const list = String(process.env.CARO_PUBLIC_HOST || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  return list.concat(Site.siteHosts());
 }
 /** Tên máy của một giá trị Host ("a.b:443", "[::1]:80") – chữ thường, bỏ cổng. */
 const hostName = (h) => { const m = /^(\[[0-9a-f:.]+\]|[^:]+)(?::\d{1,5})?$/i.exec(String(h || '').trim()); return m ? m[1].toLowerCase() : ''; };
@@ -92,7 +92,7 @@ function nodeHandler(fetchHandler, opts = {}) {
   }
 
   return async function handle(req, res) {
-    if (!hostAllowed(req.headers.host)) return rpcError(res, 403, 'This MCP server only answers on its own host name (Host header not allowed). Connect to https://caroxo.duckdns.org/mcp.');
+    if (!hostAllowed(req.headers.host)) return rpcError(res, 403, 'This MCP server only answers on its own host name (Host header not allowed). Connect to ' + Site.canonicalOrigin() + '/mcp.');
     const origin = req.headers.origin;
     if (origin && !originAllowed(origin)) return rpcError(res, 403, `Origin ${String(origin).slice(0, 100)} is not allowed to use this MCP server.`);
     if (origin) {
@@ -133,7 +133,7 @@ function nodeHandler(fetchHandler, opts = {}) {
     let resp;
     try {
       // Việc máy cờ của yêu cầu này (think.js) biết IP (giới hạn mỗi IP) và tín hiệu huỷ (khách đóng kết nối → bỏ việc)
-      resp = await requestCtx.run({ key: String(ip || ''), signal: ac.signal },
+      resp = await requestCtx.run({ key: String(ip || ''), signal: ac.signal, host: hostName(req.headers.host) },
         () => fetchHandler(new Request(`http://${host}${req.url}`, { method: req.method, headers, body, signal: ac.signal })));
     } catch (e) {
       if (ac.signal.aborted) return res.destroy();

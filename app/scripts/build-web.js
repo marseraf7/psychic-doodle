@@ -2,7 +2,7 @@
  * Dựng thư mục www cho ứng dụng từ giao diện web (../caro) – hai bản dùng chung một mã nguồn (phần chép chung với
  * app desktop: web-common.js).
  * Biến môi trường:
- *   CARO_SERVER_URL            máy chủ online (mặc định https://caroxo.duckdns.org) – phải là https
+ *   CARO_SERVER_URL            máy chủ online (mặc định tên miền chính – server/src/site.js) – phải là https
  *   CARO_APP_TEST=1            bản thử nghiệm: cho phép máy chủ http (chỉ dùng khi kiểm thử)
  */
 'use strict';
