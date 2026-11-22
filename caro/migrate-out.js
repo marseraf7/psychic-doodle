@@ -79,7 +79,7 @@
   cleanup().then(() => {
     const keys = collect();
     if (!keys) return go('');
-    return fetch('/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ v: 1, keys }), credentials: 'omit', cache: 'no-store' })
+    return fetch((window.CARO_SERVER || '') + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ v: 1, keys }), credentials: 'omit', cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => go(j && /^[A-Za-z0-9_-]{22}$/.test(j.code) ? j.code : ''), () => go(''));
   });

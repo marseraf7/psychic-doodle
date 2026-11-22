@@ -50,7 +50,7 @@
   };
   setTimeout(finish, 8000);
   if (!ls) return finish();
-  fetch('/api/migrate/' + m[1], { cache: 'no-store', credentials: 'omit' })
+  fetch((window.CARO_SERVER || '') + '/api/migrate/' + m[1], { cache: 'no-store', credentials: 'omit' })
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => { if (d) restore(d, had, ls); })
     .catch(() => {})

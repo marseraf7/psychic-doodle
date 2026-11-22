@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Chuyển máy chủ đang chạy sang tên miền mới, GIỮ tên cũ để chuyển dữ liệu người chơi + chuyển hướng 301 (docs/doi-ten-mien.md):
 #   sudo bash /opt/caro/server/deploy/move-domain.sh <tên-mới> <tên-cũ> [tên-cũ-2 …]
-#   ví dụ: sudo bash /opt/caro/server/deploy/move-domain.sh caro.example.com caroxo.duckdns.org caroxo.ddnsgeek.com
+#   ví dụ: sudo bash /opt/caro/server/deploy/move-domain.sh caro.example.com ten-cu.duckdns.org caroxo.ddnsgeek.com
 # Làm: /etc/caro/caro.env đặt PUBLIC_URL = MOVED_TO = https://<tên-mới>, MOVED_FROM = các tên cũ; /etc/caddy/Caddyfile dựng lại
 # từ mẫu với "tên-mới, tên-cũ… {" (Caddy tự xin chứng chỉ cho cả hai); kiểm cấu hình, nạp lại Caddy, khởi động lại máy chủ.
 # Trước khi chạy: bản ghi DNS của tên mới đã trỏ về máy này (A / AAAA). Chạy lại nhiều lần vẫn an toàn.
