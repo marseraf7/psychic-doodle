@@ -35,6 +35,7 @@
  *   league.js      – Hạng đấu tuần: điểm từ ván tính điểm, nhóm 30 người, lên / xuống bậc cuối tuần (chốt tuần không lặp)
  *   fairplay.js    – Soát chơi đẹp: rời tab trong ván, hàng chờ quản trị viên xem (không xử phạt tự động)
  *   recap.js       – Tổng kết tháng / năm của chính mình (số ván, thắng đẹp nhất, chuỗi thắng, đối thủ gặp nhiều nhất)
+ *   sources.js     – Nguồn người chơi (src / ref trong hello): người mới, D1 / D7, số ván theo nguồn – bảng cho quản trị viên
  *   insights.js    – Thống kê cá nhân: thắng / hoà / thua theo màu, luật, loại thời gian, sức đối thủ, khai cuộc, độ dài ván
  * Mỗi phần là một lớp chỉ chứa phương thức; ở đây gộp tất cả vào Hub.prototype.
  * Tin nhắn loại X do phương thức on_X xử lý. Không phụ thuộc thư viện WebSocket:
@@ -99,9 +100,10 @@ const { Insights } = require('./insights.js');
 const { League } = require('./league.js');
 const { Fairplay } = require('./fairplay.js');
 const { Recap } = require('./recap.js');
+const { Sources } = require('./sources.js'); // nguồn người chơi (Đợt 0)
 const { compareVersions, verifyGoogleToken } = require('./shared.js');
 
-for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, ApiV1, Corr, Broadcast, Classroom, Og, Progress, Disputes, Evals, Lobby, AvatarPart, Insights, League, Fairplay, Recap]) {
+for (const part of [Auth, Social, History, Devices, Rooms, Challenges, Matchmaking, Clubs, ClubManage, ClubTalk, ClubBattle, Tournaments, TourRun, Arena, Bracket, BracketMark, TourReg, TourScore, TourManage, TourFun, TourTpl, TourNotes, TourOpts, TourImg, TourArrange, OTour, OTourRun, OTourUndo, OTourRace, OTourLeague, OTourSched, OTourGames, OTourNext, OTourMulti, OTourLazy, OTourDisc, OTourAi, TourPush, Admin, Watch, Profile, Playban, Api, ApiV1, Corr, Broadcast, Classroom, Og, Progress, Disputes, Evals, Lobby, AvatarPart, Insights, League, Fairplay, Recap, Sources]) {
   for (const name of Object.getOwnPropertyNames(part.prototype)) {
     if (name === 'constructor') continue;
     if (Object.prototype.hasOwnProperty.call(Hub.prototype, name)) throw new Error('Hub: trùng phương thức ' + name);

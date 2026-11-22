@@ -64,7 +64,8 @@
       // Múi giờ thiết bị: số phút lệch UTC + tên IANA (máy chủ tính ngày / tháng đúng giờ mùa hè – Tổng kết, trần Storm / ngày)
       let tzName = null;
       try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || null; } catch (e) { tzName = null; }
-      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null, tz: -new Date().getTimezoneOffset(), tzName };
+      const client = { platform: (window.CaroNative && window.CaroNative.platform) || 'web', version: window.CARO_APP_VERSION || null, tz: -new Date().getTimezoneOffset(), tzName,
+        ...(window.CaroSrc ? window.CaroSrc.hello() : {}) }; // nguồn (web / pwa / app / telegram…) + mã giới thiệu – src-track.js
       ws.send(JSON.stringify({ t: 'hello', token: LS.get('caro.token'), guestKey, guestName, client }));
     };
     ws.onmessage = (e) => {

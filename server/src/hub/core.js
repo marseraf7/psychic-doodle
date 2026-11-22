@@ -145,6 +145,7 @@ class Hub {
       this.store.touch(u);
     }
     if (u) this.maybeBindAdmin(u); // tên trong cấu hình quản trị mà chưa gắn với ai → gắn quyền theo ID (H-S4)
+    this.srcSeen(conn, pid); // nguồn người chơi: lần đầu thấy + hoạt động trong ngày (sources.js)
     const first = !this.isOnline(pid);
     if (!this.byPid.has(pid)) this.byPid.set(pid, new Set());
     this.byPid.get(pid).add(conn);

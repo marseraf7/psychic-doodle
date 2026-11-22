@@ -1,5 +1,6 @@
 /* Tài khoản: chào hỏi, đăng ký / đăng nhập / Google, đổi tên, mật khẩu, email, quên mật khẩu, xoá tài khoản. */
 'use strict';
+const { cleanSrc, cleanRef } = require('./sources.js');
 const crypto = require('crypto');
 const { hashPassword, checkPassword, dummyCheckPassword } = require('../store.js');
 const { sessionId } = require('../store-sessions.js');
@@ -19,6 +20,9 @@ class Auth {
     conn.tz = Number.isInteger(tz) && tz >= -720 && tz <= 840 ? tz : null;
     // Tên múi giờ IANA (vd. 'Europe/Berlin' – đúng giờ mùa hè): Tổng kết tháng / năm, trần lượt Storm / ngày (local-time.js)
     conn.tzName = conn.tz != null && client && validZone(client.tzName) ? client.tzName : null;
+    // Nguồn (web / pwa / app / telegram…) + mã giới thiệu lần mở đầu – thống kê theo nguồn (sources.js)
+    conn.src = cleanSrc(client && client.src);
+    conn.srcRef = cleanRef(client && client.ref);
     if ((platform === 'android' || platform === 'ios') && this.minAppVersion &&
         compareVersions(String(client.version || '0'), this.minAppVersion) < 0) {
       return conn.send({ t: 'updateRequired', min: this.minAppVersion, url: this.updateUrls[platform] || '' });

@@ -323,6 +323,7 @@ class Rooms {
       });
       if (ux && uo && ux !== uo) this.fpOnSettle(room, room.lastShare, rated); // soát chơi đẹp (fairplay.js) – hàng chờ "rời tab nhiều" / "bàn đầu" chỉ ván tính điểm
     }
+    if (moves.length) this.srcGames([xPid, oPid]); // thống kê nguồn: số ván (sources.js)
     const pool = R.poolOf(room);
     let d = null;
     if (rated) {
