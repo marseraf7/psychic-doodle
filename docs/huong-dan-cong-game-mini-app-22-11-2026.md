@@ -79,7 +79,7 @@ Minh làm ở dev.vk.ru (Mini Apps → Create app / Создать прилож�
    đều là `https://<tên miền>/?host=vk` (VK tự thêm `vk_*` + `sign`).
 3. Bật app, gắn vào cộng đồng VK của game (Community → Apps / Приложения). Khoá bí mật (Защищённый ключ) giữ ở chỗ an
    toàn – MVP không dùng, không gửi qua chat.
-4. Link sâu: `https://vk.com/app<id>#room-123456` (VK truyền phần sau `#` trong tham số `hash`).
+4. Link sâu: `https://vk.com/app<id>#room-123456` (VK truyền phần sau `#` trong tham số `hash`; app nhận cả khi VK đưa thẳng vào `location.hash` – Laplace kiểm bản nào đúng).
 
 Laplace kiểm: mở trên vk.com (máy tính – iframe), m.vk.com, app VK Android; chơi trọn ván với máy; giao diện đổi theo
 chế độ tối của VK; link `#room-…` vào đúng phòng.
