@@ -22,8 +22,11 @@ Game cờ caro (Caro x Gomoku) chạy trên web, chơi mượt trên cả điệ
 - **Thời gian mỗi nước**: không giới hạn / 10 / 20 / 30 giây – hết giờ mà chưa đánh thì thua
   (offline: tạm dừng khi mở Cài đặt; online: máy chủ đếm giờ, người tạo phòng/người thách đấu chọn).
 - **Giao diện** Sáng / Tối / Theo hệ thống.
-- **Ngôn ngữ**: Tiếng Việt, English, Русский, 中文 (lần đầu tự chọn theo ngôn ngữ trình duyệt,
-  không khớp thì dùng tiếng Việt; đổi trong Cài đặt). Bản dịch nằm trong `i18n.js` (lõi) và các file `i18n-<chủ đề>.js`.
+- **Ngôn ngữ**: Tiếng Việt, English, Русский, 简体中文, 繁體中文, 日本語, 한국어, Čeština (danh sách: `langs.js`; lần đầu tự
+  chọn theo ngôn ngữ trình duyệt – zh-TW / zh-HK → phồn thể – không khớp thì dùng tiếng Việt; đổi trong Cài đặt). Bản dịch
+  vi / en / ru / zh nằm trong `i18n.js` (lõi) và các file `i18n-<chủ đề>.js`; ngôn ngữ thêm sau (zh-Hant, ja, ko, cs) mỗi
+  ngôn ngữ một thư mục `i18n/<mã>/` (`core.js` + `<chủ đề>.js` soi gương từng file gốc, thiếu khoá thì tiếng Anh) –
+  quy trình ở `docs/van-phong-4-ngon-ngu.md`.
 - Chế độ "chạm 2 lần để đánh" (bật sẵn trên điện thoại) để tránh bấm nhầm.
 - **Không dùng tài nguyên bên ngoài** (không CDN, không Google Fonts, không quảng cáo/analytics):
   mọi thứ nằm trong thư mục này, nên không bị chặn ở Việt Nam hay Nga.
@@ -529,10 +532,13 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |
 | `puzzles.json` | 363 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải, chủ đề VCF / VCT, luật nếu khác luật Việt Nam) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
+| `langs.js`, `i18n/<mã>/*.js` | Danh sách 8 ngôn ngữ (mã, tên tự gọi, `<html lang>`, Intl, hreflang, dự phòng), nhận ra ngôn ngữ trình duyệt (`CaroLangs.fromTag`) – dùng chung với máy chủ (`server/src/langs.js`). `i18n/<mã>/`: chuỗi của ngôn ngữ thư mục (zh-Hant, ja, ko, cs) – bản gộp xếp vào gói ngôn ngữ, trang từng file do `i18n.js` tự chèn |
 | `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `i18n-demos.js`, `i18n-shell.js`, `i18n-tc.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-shell.js`: khung trang, Trang chủ, Cài đặt; `i18n-tc.js`: thời gian, Thiết lập ván đấu; `i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật, `i18n-demos.js`: phụ đề phim minh hoạ); giao diện Sáng/Tối/Hệ thống |
 | `i18n-online.js`, `i18n-online-msg.js`, `i18n-play.js`, `i18n-replay.js`, `i18n-analysis.js`, `i18n-account.js`, `i18n-social.js`, `i18n-tour.js`, `i18n-tour-stages.js`, `i18n-club.js`, `i18n-study.js`, `i18n-puzzles.js`, `i18n-bots-old.js`, `i18n-learn.js` | Chuỗi 4 ngôn ngữ tách từ `i18n.js` theo chủ đề: phòng / sảnh / thách đấu; trong ván (hoà, Swap2, xem, phát lại, chia sẻ); tài khoản; bạn bè, tin nhắn, xếp hạng, hồ sơ; giải đấu; thể thức + khiếu nại; CLB; phân tích ván + Thử lại; giải đố + Storm; 6 nhân vật máy đầu tiên + mở khoá đối thủ; học chơi + huy hiệu. Nạp ngay sau `i18n.js` |
 | `online.js`, `online-auth.js`, `online-friends.js`, `online-room.js`, `config.js` | Chế độ online (lõi kết nối trong `online.js`; tài khoản / đăng nhập, bạn bè + lời mời, phòng + kết thúc ván ở 3 file `online-*.js`): kết nối máy chủ (ping mỗi 10 giây, trượt 2 lần liên tiếp thì tự kết nối lại; quá 10 giây chưa có "welcome" cũng kết nối lại; máy chủ cũ chưa có lệnh ping thì thôi ping, không báo lỗi), tài khoản, bạn bè, phòng, thách đấu |
 | `native.js` | Chỉ có tác dụng trong ứng dụng Android / iOS ([`app/`](../app/README.md)): nút Back, chia sẻ, rung, đăng nhập Google gốc |
+| `host-detect.js`, `host.css`, `i18n-host.js`, `portal.js`, `portal-crazygames.js` | Chạy trong nền tảng khác. Bản cổng game (`window.CARO_PORTAL` = `crazygames` \| `itch`, đặt lúc đóng gói bởi [`server/scripts/build-portal.js`](../server/scripts/build-portal.js)): khách mặc định, ẩn đăng nhập / link ra ngoài / chat tự do, không service worker, tiếng Anh mặc định, `CARO_SRC`; SDK CrazyGames v3 mức Basic (loading / gameplay start–stop, muteAudio). `portal*.js` chỉ có trong gói bản cổng |
+| `host.js`, `host-telegram.js`, `host-vk.js`, `vendor/vk-bridge.js` | Mini App Telegram / VK (`window.CARO_HOST`, `CaroHost`): `host-detect.js` nhận ra nền tảng trước khi thư viện nạp, chèn `telegram-web-app.js` (chính thức) hoặc VK Bridge (tự phục vụ, MIT), link sâu `startapp` / `#hash` → `?room=` `?replay=` `?t=` `?o=`…; ready / expand, nút Back của Telegram, giao diện sáng / tối theo nền tảng, link ra ngoài qua `openLink`; VKWebAppInit. Máy chủ: [`server/src/host-embed.js`](../server/src/host-embed.js) |
 | `confirm.js` | Hộp xác nhận trong app (`CaroConfirm.ask` → Promise) thay `confirm()` gốc cho luồng ván online: đầu hàng, rời phòng, đăng xuất, bỏ ván dở, nhận thách đấu khi đang bận, Berserk |
 | `match.js` | Tìm trận nhanh, danh sách phòng công khai đang chờ |
 | `gamex.js` | Thao tác phụ trong ván: đếm ngược nước đầu, +15 giây, xin đi lại, Berserk |
@@ -572,4 +578,6 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `recap-core.js`, `recap.js`, `i18n-recap.js` | Tổng kết tháng / năm: số ván, luật / thời gian chơi nhiều nhất, thắng đẹp nhất, chuỗi thắng dài nhất, đối thủ gặp nhiều nhất (chỉ khi cả hai công khai), giải đố, kỷ lục Storm; thẻ PNG để chia sẻ. Máy chủ: `server/src/hub/recap.js` |
 | `index.html`, `style.css`, `style-online.css`, `style-tour.css`, `style-study.css`, `style-extras.css` | Giao diện (`style.css`: phông, biến màu, biểu tượng, khung chung; các file `style-*.css` nạp ngay sau theo đúng thứ tự cũ: online, giải đấu & CLB, giải đố + phân tích, phần còn lại) |
 | `sw.js`, `manifest.webmanifest`, `icon.svg` | Chạy offline, cài như ứng dụng |
+| `src-track.js`, `src-admin.js`, `i18n-src.js` | Nguồn người chơi: `src-track.js` gửi kèm hello `src` (`window.CARO_SRC` của lớp chạy trong app khác, không thì app / desktop / pwa / embed / web) + `ref` (?ref= / utm_source của lần mở đầu, lưu `caro.ref`); `src-admin.js`: bảng cho quản trị viên ở tab Xem thêm – 30 ngày theo nguồn: người mới, D1, D7, ván / người (máy chủ `hub/sources.js`) |
+| `migrate-in.js`, `migrate-out.js` | Chuyển tên miền không mất dữ liệu (`docs/doi-ten-mien.md`): ở tên cũ, trang chuyển của máy chủ (`server/src/domain-move.js`) gỡ service worker, gửi các khoá `caro.*` (≤ 500 KB) lấy mã dùng một lần rồi sang tên mới `?mig=<mã>`; ở tên mới, `migrate-in.js` (nạp đầu tiên trong `<head>`) dừng nạp trang, khôi phục các khoá chưa có, mở lại trang không kèm `?mig=` |
 | `watchdog.js` | Canh khởi động: nạp đầu tiên; trang đã nạp xong mà chưa khởi động (file bị chặn / lỗi) hoặc quá 60 giây thì hiện thông báo (4 ngôn ngữ) kèm nút tải lại |

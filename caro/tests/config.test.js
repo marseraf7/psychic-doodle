@@ -1,5 +1,6 @@
 // Kiểm thử chọn máy chủ online theo nơi đăng giao diện (caro/config.js). Chạy: node --test caro/tests/config.test.js
 'use strict';
+const { DEFAULT_HOST: SITE_HOST, DEFAULT_ORIGIN: SITE_ORIGIN } = require('../../server/src/site.js'); // tên miền của game (một chỗ – set-domain.js)
 const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
@@ -16,11 +17,11 @@ function serverFor(hostname) {
 }
 
 test('bản GitHub Pages tự trỏ về máy chủ chính', () => {
-  assert.equal(serverFor('marseraf7.github.io'), 'https://caroxo.duckdns.org');
+  assert.equal(serverFor('marseraf7.github.io'), SITE_ORIGIN);
 });
 
 test('mọi nơi khác để trống (dùng máy chủ tại chỗ)', () => {
-  assert.equal(serverFor('caroxo.duckdns.org'), '');
+  assert.equal(serverFor(SITE_HOST), '');
   assert.equal(serverFor('localhost'), '');
   assert.equal(serverFor(''), '');
 });

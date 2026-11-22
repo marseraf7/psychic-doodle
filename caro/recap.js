@@ -22,7 +22,7 @@
   const local = () => ({ pz: +read('caro.puzzles').ok || 0, storm: +read('caro.storm').best || 0 });
 
   function label() {
-    const loc = { vi: 'vi-VN', en: 'en-US', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang];
+    const loc = (window.I18N.lang === 'en' ? 'en-US' : window.I18N.locale);
     try {
       return per.kind === 'year' ? T('rc_year', { y: per.y }) : new Date(per.y, per.m - 1, 1).toLocaleDateString(loc, { month: 'long', year: 'numeric' });
     } catch (e) { return per.m + '/' + per.y; }

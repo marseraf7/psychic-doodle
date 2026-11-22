@@ -1,6 +1,7 @@
 /*
  * Chữ trên widget bàn cờ của connector MCP – đủ 4 ngôn ngữ (vi, en, ru, zh), theo docs/van-phong-4-ngon-ngu.md.
  * Chọn theo hostContext.locale của Claude; ngôn ngữ khác dùng tiếng Anh. Biến {x} giữ nguyên ở cả 4 ngôn ngữ.
+ * ja, ko, cs, zh-Hant: mục widget của server/src/i18n/<mã>.js (widget.js chèn thêm vào sau bảng này).
  * Nạp vào widget.html (widget.js gộp thành một file HTML).
  */
 globalThis.CARO_MCP_I18N = {

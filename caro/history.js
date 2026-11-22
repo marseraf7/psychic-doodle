@@ -19,7 +19,7 @@
   const S = N.state;
   const VIS = ['public', 'friends', 'private'];
 
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang]);
+  const locale = () => window.I18N.locale;
   const when = (ms) => {
     try { return new Date(ms).toLocaleString(locale(), { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }); }
     catch (e) { return new Date(ms).toLocaleString(); }

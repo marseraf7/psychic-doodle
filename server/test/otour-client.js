@@ -53,7 +53,14 @@ async function account() {
   return c;
 }
 const until = async (fn, ms = 3000) => { const t0 = Date.now(); while (!fn()) { if (Date.now() - t0 > ms) throw new Error('Hết giờ: ' + fn); await new Promise((r) => setTimeout(r, 10)); } };
+/**
+ * otGet rồi chờ bản trang giải ĐÚNG trạng thái hiện tại (ok(m) – điều kiện của bản mới). Không lấy "tin 'ot' đầu tiên":
+ * người đang xem còn nhận bản đẩy của nhịp gom (otPush) dựng TRƯỚC thay đổi vừa làm; bản đó có thể tới SAU khi đã gửi otGet
+ * vì giải nén permessage-deflate chạy ở luồng phụ của libuv – máy bận thì trễ hơn cả các vòng chờ setTimeout của bài thử
+ * (nguyên nhân bài thử chập chờn otour-niche "đợt 25" và otour-private 8a, rà soát 22/11/2026).
+ */
+const otFresh = (c, id, ok = () => true, ms) => c.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && !!m.tour && ok(m), ms);
 const teams = (n, p = 'Đội') => Array.from({ length: n }, (_, i) => `${p} ${i + 1}`);
 const real = (u) => typeof u === 'string' && u !== '-';
 
-module.exports = { ctx, Client, account, until, teams, real };
+module.exports = { ctx, Client, account, until, otFresh, teams, real };

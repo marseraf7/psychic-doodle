@@ -1,6 +1,8 @@
 /* Tài khoản: chào hỏi, đăng ký / đăng nhập / Google, đổi tên, mật khẩu, email, quên mật khẩu, xoá tài khoản. */
 'use strict';
+const { cleanSrc, cleanRef } = require('./sources.js');
 const crypto = require('crypto');
+const Langs = require('../langs.js');
 const { hashPassword, checkPassword, dummyCheckPassword } = require('../store.js');
 const { sessionId } = require('../store-sessions.js');
 const { codeHash, codeMatches } = require('../code-hash.js');
@@ -19,6 +21,9 @@ class Auth {
     conn.tz = Number.isInteger(tz) && tz >= -720 && tz <= 840 ? tz : null;
     // Tên múi giờ IANA (vd. 'Europe/Berlin' – đúng giờ mùa hè): Tổng kết tháng / năm, trần lượt Storm / ngày (local-time.js)
     conn.tzName = conn.tz != null && client && validZone(client.tzName) ? client.tzName : null;
+    // Nguồn (web / pwa / app / telegram…) + mã giới thiệu lần mở đầu – thống kê theo nguồn (sources.js)
+    conn.src = cleanSrc(client && client.src);
+    conn.srcRef = cleanRef(client && client.ref);
     if ((platform === 'android' || platform === 'ios') && this.minAppVersion &&
         compareVersions(String(client.version || '0'), this.minAppVersion) < 0) {
       return conn.send({ t: 'updateRequired', min: this.minAppVersion, url: this.updateUrls[platform] || '' });
@@ -216,7 +221,7 @@ class Auth {
     const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
     me.emailPending = { email, hash: codeHash('email', code), expires: Date.now() + VERIFY_TTL_MS, tries: 0 };
     this.store.touch(me);
-    const mail = VERIFY_MAIL[lang] || VERIFY_MAIL.vi;
+    const mail = Langs.pick(VERIFY_MAIL, lang);
     Promise.resolve().then(() => this.sendMail(email, mail.subject, mail.body(me.username, code))).catch(() => {});
     sendMe();
     conn.send(note('email_code_sent', { email }));
@@ -255,7 +260,7 @@ class Auth {
     if (u && u.email) {
       const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
       this.store.setReset(u.id, code, RESET_TTL_MS);
-      const mail = RESET_MAIL[lang] || RESET_MAIL.vi;
+      const mail = Langs.pick(RESET_MAIL, lang);
       // Gửi thư chạy nền: nếu chờ gửi xong mới trả lời thì thời gian trả lời sẽ lộ ra
       // tài khoản có email hay không.
       Promise.resolve().then(() => this.sendMail(u.email, mail.subject, mail.body(u.username, code))).catch(() => {});

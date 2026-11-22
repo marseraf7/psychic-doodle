@@ -29,22 +29,36 @@ function sdkScript() {
 // Chặn chuỗi "</script" trong mã nhúng để không đóng thẻ <script> sớm
 const inline = (js) => js.replace(/<\/script/gi, '<\\/script');
 
+/** Chữ widget của ngôn ngữ thư mục (ja, ko, cs, zh-Hant – mục widget của server/src/i18n/<mã>.js) + hàm nhận ra ngôn ngữ
+ *  của caro/langs.js (zh-TW → zh-Hant…). Khoá thiếu: widget-app.js lấy tiếng Anh. */
+function dirLangs() {
+  const Langs = require('../langs.js');
+  const add = Langs.DIR.map((l) => [l, Langs.serverTexts(l).widget]).filter(([, w]) => w)
+    .map(([l, w]) => `globalThis.CARO_MCP_I18N[${JSON.stringify(l)}] = ${JSON.stringify(w)};`);
+  return `\n${add.join('\n')}\nglobalThis.CARO_MCP_LANG = ${Langs.fromTag.toString()};\n`;
+}
+
 let cached = null;
 function widgetHtml() {
   if (!cached) {
     cached = read('widget.html')
       .replace('/*CSS*/', () => read('widget.css'))
       .replace('/*SDK*/', () => inline(sdkScript()))
-      .replace('/*I18N*/', () => inline(read('widget-i18n.js')))
+      .replace('/*I18N*/', () => inline(read('widget-i18n.js') + dirLangs()))
       .replace('/*APP*/', () => inline(read('widget-app.js')));
   }
   return cached;
 }
 
-/** Địa chỉ công khai của máy chủ MCP (CARO_MCP_URL, hoặc PUBLIC_URL + /mcp, mặc định tên miền chính). */
-function serverUrl() {
+/** Địa chỉ công khai của máy chủ MCP (CARO_MCP_URL, hoặc MOVED_TO / PUBLIC_URL + /mcp, mặc định tên miền chính – site.js).
+ *  Lưu ý khi đổi tên miền: ui.domain (dưới đây) là băm của địa chỉ này nên ĐỔI THEO – hồ sơ Claude Directory phải khai lại
+ *  địa chỉ /mcp mới (docs/doi-ten-mien.md). */
+function serverUrl(host) {
   if (process.env.CARO_MCP_URL) return process.env.CARO_MCP_URL;
-  return String(process.env.PUBLIC_URL || 'https://caroxo.duckdns.org').replace(/\/+$/, '') + '/mcp';
+  const Site = require('../site.js');
+  // Yêu cầu tới một tên máy của game (vd. tên miền cũ trong lúc chuyển): băm đúng địa chỉ Claude đang dùng để nối
+  if (host && Site.siteHosts().includes(host)) return 'https://' + host + '/mcp';
+  return Site.canonicalOrigin() + '/mcp';
 }
 
 function uiDomain(url = serverUrl()) {

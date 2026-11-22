@@ -1,0 +1,20 @@
+// Tiếng Trung phồn thể – bản dịch của caro/i18n-fairplay.js (docs/van-phong-4-ngon-ngu.md, mục 繁體中文).
+window.I18N.extend('zh-Hant', {
+  fp_title: '公平對局審查',
+  fp_hint: '需要複查的對局。資料僅供參考：系統不會自動處罰，由管理員決定。',
+  fp_open_n: '待複查：{n} 盤',
+  fp_empty: '此清單中沒有對局。',
+  fp_st_open: '待複查',
+  fp_st_reviewed: '已複查',
+  fp_st_dismissed: '已忽略',
+  fp_st_all: '全部',
+  fp_why_blur: '頻繁離開頁面',
+  fp_why_tour_top: '比賽前排對局',
+  fp_why_report: '被檢舉作弊',
+  fp_blur: '離開頁面 {n} 次，共 {s} 秒',
+  fp_stats: '與引擎一致 {m}% · 平均損失 {l}% · 準確率 {a}%（{n} 手）',
+  fp_analyze: '與引擎對比',
+  fp_running: '分析中…',
+  fp_mark_reviewed: '已複查',
+  fp_mark_dismissed: '忽略',
+});

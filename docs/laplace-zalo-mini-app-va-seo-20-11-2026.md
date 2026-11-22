@@ -290,3 +290,16 @@ E. Đo lường
 Hai mục riêng: "Báo cáo Zalo Mini App" (bảng 1.6) và "Báo cáo SEO" (bảng 2.6), kèm ảnh chụp. Kẹt vì cần tài khoản / quyền của
 Minh thì **dừng phần đó, ghi rõ, làm tiếp phần còn lại**. Claude đọc báo cáo, mở các mục P0 thành PR và báo ngày để Laplace đo
 lại sau 4 tuần.
+
+## Phụ lục – SEO nền đã làm (Claude, Đợt 0, 22/11/2026)
+
+- `server/src/seo.js`: trang chính do máy chủ trả có `canonical` về tên miền chính (`server/src/site.js` – cả khi mở bằng
+  `caroxo.ddnsgeek.com` hay tên cũ sau khi đổi tên miền), `hreflang` vi / en / ru / zh-Hans + `x-default` theo URL `?lang=xx`
+  (app hiện đúng ngôn ngữ đó, không lưu lựa chọn); trang chủ thêm `og:*` / `twitter:card` mặc định và JSON-LD
+  `WebApplication` + `VideoGame` (miễn phí, `inLanguage`). Link chia sẻ: canonical theo nội dung (`/?t=…`), og như cũ.
+  Mã sẵn cho ja / ko / cs / zh-Hant (`HREFLANG`) – bật khi có chuỗi.
+- `/robots.txt` (cho tất cả, chặn `/api/migrate/`, trỏ sitemap) và `/sitemap.xml` (trang chủ + bản từng ngôn ngữ, trang
+  tĩnh, giải / giải Offline / CLB / tường thuật công khai, hồ sơ đầu bảng; ≤ 2000 địa chỉ, dựng lại mỗi giờ).
+- Bản GitHub Pages: `caro/index.html` có `<link rel="canonical">` về tên miền chính, **không** `noindex` – bản sao để tải
+  nhanh ở nơi khó vào máy chủ; canonical chéo đủ để gom điểm về tên miền chính, còn `noindex` + `canonical` cùng lúc là hai
+  tín hiệu ngược nhau (Google khuyên không dùng chung). Laplace kiểm lại bằng Search Console khi có quyền.

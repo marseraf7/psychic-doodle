@@ -28,7 +28,7 @@ test('og-meta: mọi giá trị đều được thoát HTML, chữ người dùn
   assert.strictEqual(Og.inject(PAGE, { info: null }), PAGE, 'không có dữ liệu: giữ nguyên trang');
 });
 
-test('og-meta: chọn ngôn ngữ theo ?lang= rồi Accept-Language, mặc định tiếng Việt; đủ 4 ngôn ngữ, đủ biến', () => {
+test('og-meta: chọn ngôn ngữ theo ?lang= rồi Accept-Language, mặc định tiếng Việt; đủ ngôn ngữ, đủ biến', () => {
   const q = (s) => new URLSearchParams(s);
   assert.strictEqual(Og.pickLang(q('lang=ru'), 'en-US'), 'ru');
   assert.strictEqual(Og.pickLang(q(''), 'fr-FR,zh-CN;q=0.8'), 'zh');
@@ -38,8 +38,14 @@ test('og-meta: chọn ngôn ngữ theo ?lang= rồi Accept-Language, mặc đị
   assert.strictEqual(Og.pickLang(q(''), 'zh;q=0, en;q=0.5'), 'en');
   assert.strictEqual(Og.pickLang(q(''), 'fr, *;q=0.5'), 'vi');
   assert.strictEqual(Og.pickLang(q(''), ';;;,q=,en;q=abc,' + 'x'.repeat(5000)), 'en');
+  // Ngôn ngữ thư mục: ?lang=zh-Hant / zh-TW, Accept-Language ja → mã của langs.js
+  assert.strictEqual(Og.pickLang(q('lang=zh-Hant'), ''), 'zh-Hant');
+  assert.strictEqual(Og.pickLang(q('lang=zh-TW'), ''), 'zh-Hant');
+  assert.strictEqual(Og.pickLang(q(''), 'ja-JP,ja;q=0.9'), 'ja');
+  assert.strictEqual(Og.pickLang(q(''), 'zh-HK'), 'zh-Hant');
   const keys = Object.keys(Og.STRINGS.vi);
-  for (const l of Og.LANGS) assert.deepStrictEqual(Object.keys(Og.STRINGS[l]).sort(), [...keys].sort(), 'đủ khoá: ' + l);
+  // 4 ngôn ngữ gốc đủ khoá; ngôn ngữ thư mục (server/src/i18n/<mã>.js) chưa đủ thì lấy tiếng Anh – bài thử i18n-langs.test.js
+  for (const l of ['vi', 'en', 'ru', 'zh']) assert.deepStrictEqual(Object.keys(Og.STRINGS[l]).sort(), [...keys].sort(), 'đủ khoá: ' + l);
   const infos = [
     { kind: 'replay', x: 'An', o: 'Bình', winner: 1, n: 30 }, { kind: 'replay', x: 'An', o: 'Bình', winner: 3, n: 30 },
     { kind: 'replay', x: 'An', o: 'Bình', winner: null, n: 3 }, { kind: 'live', x: 'An', o: 'Bình', n: 7 }, { kind: 'room', code: '123456' },

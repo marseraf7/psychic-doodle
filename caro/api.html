@@ -201,8 +201,185 @@ curl -H 'If-None-Match: W/"…"' 'https://&lt;域名&gt;/api/v1/leaderboard?pool
     </div>
   </section>
 
+  <section id="ja" lang="ja" data-label="日本語" data-title="Caro x Gomoku – 公開API" data-back="ゲームに戻る" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>公開API（v1）</h1>
+      <p class="meta">Webサイト、Discord／Telegramのボット、統計ツール向けの読み取り専用JSONデータ。</p>
+      <ul class="chips"><li>読み取り専用</li><li>キー不要</li><li>CORS開放</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>共通のルール</h2>
+      <ul class="list"><li><span>ベースURL：<code>/api/v1</code>（このページと同じドメイン）。</span></li><li><span>1つのIPから<strong>1分あたり120リクエスト</strong>まで。超えると <code>429</code> と <code>Retry-After</code>（秒）が返ります。</span></li><li><span>すべての応答に <code>ETag</code> が付きます。<code>If-None-Match</code> で送り返すと <code>304</code> が返ります（再ダウンロード不要）。</span></li><li><span>エラーは常に <code>{"error": "not_found", "message": "Not found"}</code> の形式です。</span></li><li><span>個人データは含みません：メールアドレス、フレンド、ブロックしたプレイヤー、端末。最近の対局は、プレイヤーが対局履歴を「公開」にしている場合だけ返します。非公開・クラブ限定・下書きの大会は見られません。</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>マスの表記</h2>
+      <p>盤面は無限です。マスは中央の周りの15×15の枠で名前を付けます：列は左から右へa…o、行は下から上へ1…15、中央は <code>h8</code>。枠の外も続けて数えます（列p、q…、行16…、行0、-1…）。JSONでは手は <code>[x, y]</code> で、xは右へ、yは下へ増え、<code>[0, 0]</code> = h8 です。</p>
+    </div>
+    <div class="card">
+      <h2>エンドポイント</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">パス</th><th scope="col">返す内容</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>公開プロフィール：持ち時間ごとのレーティング、勝ち／負け／引き分け、大会の成績</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>レーティングの推移：種類ごとの <code>[時刻 ms, レーティング]</code></td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>最近の対局（<code>?max=1…50</code>）。対局履歴が非公開なら → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>共有コードで1局を取得（再生リンクと同じ）</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Caroの表記によるPGN風テキストの対局</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>公開大会の情報</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>大会の順位表</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>上位50人（<code>?pool=bullet|blitz|rapid|classical</code>）</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>大会の中継：進行中の対局、順位表、最近の結果（<code>key</code> = 大会のコード。オフライン大会：<code>o.</code> + コード）</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>今日の1問（ベトナム時間の0:00に更新。<code>?date=YYYY-MM-DD</code>）</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1のドキュメント</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>詳しい仕様（OpenAPI 3.1）： <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>例</h2>
+      <pre class="api-pre">curl https://&lt;ドメイン&gt;/api/v1/player/an_nguyen
+curl https://&lt;ドメイン&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;ドメイン&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
+  <section id="ko" lang="ko" data-label="한국어" data-title="Caro x Gomoku – 공개 API" data-back="게임으로 돌아가기" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>공개 API (v1)</h1>
+      <p class="meta">웹사이트, Discord / Telegram 봇, 통계 도구를 위한 읽기 전용 JSON 데이터.</p>
+      <ul class="chips"><li>읽기 전용</li><li>키 필요 없음</li><li>CORS 허용</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>공통 규칙</h2>
+      <ul class="list"><li><span>기본 URL: <code>/api/v1</code> (이 페이지와 같은 도메인).</span></li><li><span>IP 하나당 <strong>분당 요청 120회</strong>까지. 넘으면 <code>429</code>와 <code>Retry-After</code>(초)를 돌려줍니다.</span></li><li><span>모든 응답에 <code>ETag</code>가 붙습니다. <code>If-None-Match</code>로 다시 보내면 <code>304</code>를 돌려줍니다(다시 내려받을 필요 없음).</span></li><li><span>오류는 항상 <code>{"error": "not_found", "message": "Not found"}</code> 형식입니다.</span></li><li><span>개인 데이터는 포함하지 않습니다: 이메일 주소, 친구, 차단한 플레이어, 기기. 최근 대국은 플레이어가 대국 기록을 “전체 공개”로 했을 때만 돌려줍니다. 비공개·클럽 전용·임시 저장 대회는 볼 수 없습니다.</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>칸 표기</h2>
+      <p>판은 무한합니다. 칸은 가운데를 둘러싼 15×15 틀로 이름을 붙입니다: 열은 왼쪽에서 오른쪽으로 a…o, 행은 아래에서 위로 1…15, 가운데는 <code>h8</code>. 틀 밖으로도 계속 셉니다(열 p, q…, 행 16…, 행 0, -1…). JSON에서 수는 <code>[x, y]</code>이며 x는 오른쪽으로, y는 아래쪽으로 커지고 <code>[0, 0]</code> = h8입니다.</p>
+    </div>
+    <div class="card">
+      <h2>엔드포인트</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">경로</th><th scope="col">돌려주는 내용</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>공개 프로필: 시간 설정별 레이팅, 승 / 패 / 무, 대회 성적</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>레이팅 변화: 종류별 <code>[시각 ms, 레이팅]</code></td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>최근 대국 (<code>?max=1…50</code>). 대국 기록이 비공개면 → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>공유 코드로 대국 하나 가져오기 (다시 보기 링크와 같음)</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Caro 표기의 PGN 형식 텍스트 대국</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>공개 대회 정보</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>대회 순위표</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>상위 50명 (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>대회 중계: 진행 중인 대국, 순위표, 최근 결과 (<code>key</code> = 대회 코드. 오프라인 대회: <code>o.</code> + 코드)</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>오늘의 퍼즐 (베트남 시간 0:00에 갱신. <code>?date=YYYY-MM-DD</code>)</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1 문서</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>자세한 명세 (OpenAPI 3.1): <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>예시</h2>
+      <pre class="api-pre">curl https://&lt;도메인&gt;/api/v1/player/an_nguyen
+curl https://&lt;도메인&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;도메인&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
+  <section id="cs" lang="cs" data-label="CS" data-title="Caro x Gomoku – veřejné API" data-back="Zpět do hry" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Veřejné API (v1)</h1>
+      <p class="meta">Data JSON jen pro čtení pro weby, boty pro Discord / Telegram a statistické nástroje.</p>
+      <ul class="chips"><li>Jen pro čtení</li><li>Bez klíče</li><li>Otevřený CORS</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>Obecná pravidla</h2>
+      <ul class="list"><li><span>Základní adresa: <code>/api/v1</code> (stejná doména jako tato stránka).</span></li><li><span>Z jedné IP adresy max. <strong>120 požadavků za minutu</strong>; při překročení přijde <code>429</code> s <code>Retry-After</code> (sekundy).</span></li><li><span>Každá odpověď nese <code>ETag</code>: pošli ho zpět v <code>If-None-Match</code> a dostaneš <code>304</code> (bez opětovného stahování).</span></li><li><span>Chyby mají vždy tvar <code>{"error": "not_found", "message": "Not found"}</code>.</span></li><li><span>Žádná soukromá data: e-mail, přátelé, zablokovaní hráči, zařízení. Poslední partie se vracejí, jen když má hráč historii her nastavenou jako Veřejnou; soukromé, klubové a rozpracované turnaje nejsou dostupné.</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>Značení polí</h2>
+      <p>Deska je neomezená. Pole se pojmenovávají v rámci 15×15 kolem středu: sloupce a…o zleva doprava, řady 1…15 zdola nahoru, střed je <code>h8</code>; za rámcem se počítá dál (sloupce p, q…, řady 16…, řady 0, -1…). V JSON je tah <code>[x, y]</code>: x roste doprava, y roste dolů, <code>[0, 0]</code> = h8.</p>
+    </div>
+    <div class="card">
+      <h2>Koncové body</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">Cesta</th><th scope="col">Vrací</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>Veřejný profil: rating podle tempa, výhry / prohry / remízy, výsledky turnajů</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>Vývoj ratingu: <code>[čas ms, rating]</code> podle kategorie</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>Poslední partie (<code>?max=1…50</code>); neveřejná historie her → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>Jedna partie podle kódu sdílení (jako odkaz na záznam)</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Partie jako text podobný PGN ve značení Caro</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Informace o veřejném turnaji</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Pořadí turnaje</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>Top 50 hráčů (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Přenos turnaje: probíhající partie, pořadí, poslední výsledky (<code>key</code> = kód turnaje; offline: <code>o.</code> + kód)</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Úloha dne (mění se v 0:00 vietnamského času; <code>?date=YYYY-MM-DD</code>)</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>Dokument OpenAPI 3.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Úplný popis (OpenAPI 3.1): <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>Příklady</h2>
+      <pre class="api-pre">curl https://&lt;tvoje-domena&gt;/api/v1/player/an_nguyen
+curl https://&lt;tvoje-domena&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;tvoje-domena&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
+  <section id="zh-Hant" lang="zh-Hant" data-label="繁體" data-title="Caro x Gomoku – 公開 API" data-back="返回遊戲" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>公開 API（v1）</h1>
+      <p class="meta">唯讀 JSON 資料，可用於網站、Discord / Telegram 機器人和統計工具。</p>
+      <ul class="chips"><li>唯讀</li><li>無需金鑰</li><li>開放 CORS</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>通用規則</h2>
+      <ul class="list"><li><span>基礎網址：<code>/api/v1</code>（與本頁同一網域）。</span></li><li><span>每個 IP 每分鐘最多 <strong>120 次請求</strong>；超出時返回 <code>429</code> 並附帶 <code>Retry-After</code>（秒）。</span></li><li><span>每個回應都帶有 <code>ETag</code>：在 <code>If-None-Match</code> 中發回即可得到 <code>304</code>（無需重新下載）。</span></li><li><span>錯誤格式始終為 <code>{"error": "not_found", "message": "Not found"}</code>。</span></li><li><span>不含私人資料：電子郵件、好友、已封鎖的玩家、裝置。僅當玩家的對局記錄設為公開時才返回最近對局；私密、俱樂部和草稿賽事不可檢視。</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>格子記法</h2>
+      <p>棋盤無邊界。格子按中心周圍的 15×15 框命名：列 a…o 從左到右，行 1…15 從下到上，中心為 <code>h8</code>；超出此框繼續計數（列 p、q…，行 16…，行 0、-1…）。JSON 中一步棋為 <code>[x, y]</code>：x 向右增大，y 向下增大，<code>[0, 0]</code> = h8。</p>
+    </div>
+    <div class="card">
+      <h2>端點</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">路徑</th><th scope="col">返回</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>公開資料：各時限等級分、勝 / 負 / 和、賽事成績</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>等級分歷史：按類別的 <code>[時間 ms, 等級分]</code></td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>最近對局（<code>?max=1…50</code>）；對局記錄未公開 → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>按分享碼取得一局（同重播連結）</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>以 Caro 記法輸出的類 PGN 文字</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>公開賽事資訊</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>賽事排名</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>前 50 名玩家（<code>?pool=bullet|blitz|rapid|classical</code>）</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>賽事直播：進行中的對局、排名、最近結果（<code>key</code> = 賽事代碼；線下賽事：<code>o.</code> + 代碼）</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>每日謎題（越南時間 0:00 更換；<code>?date=YYYY-MM-DD</code>）</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1 文件</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>完整說明（OpenAPI 3.1）： <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>範例</h2>
+      <pre class="api-pre">curl https://&lt;網域&gt;/api/v1/player/an_nguyen
+curl https://&lt;網域&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;網域&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
+
   <footer class="foot"><span id="foot-brand">Caro x Gomoku</span><a href="/api/v1/openapi.json">OpenAPI 3.1</a></footer>
 </main>
+<script src="langs.js"></script>
 <script src="privacy.js"></script>
 </body>
 </html>

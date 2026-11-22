@@ -78,11 +78,10 @@ Với `https://caroxo.duckdns.org/mcp` là `27dc7540d83edbb744a080c849b084aa.cla
 
 ## 5. Rủi ro đã biết
 
-- **Tên miền duckdns.org**: `caroxo.duckdns.org` là tên miền phụ miễn phí của DuckDNS – chủ dự án "giữ" nó bằng token
-  DuckDNS, không phải tên miền riêng đã đăng ký. Người duyệt có thể đánh giá thấp độ tin cậy hoặc tính "tên miền khớp
-  dịch vụ"; nếu tài khoản DuckDNS mất / hết hạn, connector chết và người khác có thể chiếm tên. Khuyên: mua tên miền
-  riêng (vd. `caroxo.com`), chuyển máy chủ sang đó, đặt `PUBLIC_URL` + `CARO_MCP_URL`, rồi nộp bằng URL mới (slug và URL
-  khó đổi sau khi đã đăng).
+- **Tên miền**: tên miền phụ miễn phí (DuckDNS) làm người duyệt đánh giá thấp độ tin cậy; mất tài khoản DuckDNS thì
+  connector chết và người khác có thể chiếm tên. Khi đã mua tên miền riêng: làm theo `docs/doi-ten-mien.md`
+  (`bash scripts/set-domain.sh <tên-miền>` sửa cả file này, kể cả `ui.domain` ở mục 4), rồi nộp / sửa listing bằng URL
+  mới (slug và URL khó đổi sau khi đã đăng). Connector ở địa chỉ cũ vẫn chạy trong lúc chuyển (máy chủ nhận cả tên cũ).
 - **Tải máy chủ**: mọi người dùng Claude gọi tới từ vài IP của Anthropic, nên giới hạn theo IP để rộng (240 / phút);
   việc tốn CPU bị chặn bằng hàng đợi máy cờ (1 luồng, tối đa 6 việc chờ, mỗi việc ≤ 1,3 giây nghĩ, huỷ cứng sau 6 giây).
   Khi đông, người dùng thấy "engine is busy" thay vì làm chậm ván online. Máy chủ mạnh hơn thì tăng `CARO_MCP_WORKERS`.

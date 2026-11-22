@@ -1,6 +1,7 @@
 /* Hằng số và hàm tiện ích dùng chung cho các phần của Hub. */
 'use strict';
 const crypto = require('crypto');
+const Langs = require('../langs.js'); // ngôn ngữ thư mục: thư theo server/src/i18n/<mã>.js
 
 const USERNAME_RE = /^[a-z0-9_.]{3,20}$/;
 const OFFLINE_FORFEIT_MS = 90 * 1000; // mất kết nối quá 90s khi đang đánh -> xử thua
@@ -38,6 +39,12 @@ const RESET_MAIL = {
   ru: { subject: 'Код для сброса пароля Caro x Gomoku', body: (u, c) => `Здравствуйте, ${u}!\n\nВаш код для сброса пароля: ${c}\nКод действует 15 минут.\n\nЕсли вы не запрашивали сброс, просто проигнорируйте это письмо.` },
   zh: { subject: 'Caro x Gomoku 密码重置验证码', body: (u, c) => `${u}，你好：\n\n你的密码重置验证码是：${c}\n验证码 15 分钟内有效。\n\n如果这不是你本人的操作，请忽略此邮件。` },
 };
+// ja, ko, cs, zh-Hant: mục mail (verify / reset) trong server/src/i18n/<mã>.js; ngôn ngữ thiếu thì thư tiếng Anh (Langs.pick)
+for (const l of Langs.DIR) {
+  const m = Langs.serverTexts(l).mail || {};
+  if (m.verify) VERIFY_MAIL[l] = m.verify;
+  if (m.reset) RESET_MAIL[l] = m.reset;
+}
 /** Lựa chọn thời gian / luật gửi từ client: giới hạn mỗi nước, đồng hồ tổng '3+2', luật khai cuộc, luật thắng. */
 function cleanTc({ timeLimit, clock, opening, rule } = {}) {
   const ck = TC.isClock(clock) ? clock : null;

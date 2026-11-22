@@ -1,0 +1,21 @@
+// Tiếng Hàn – bản dịch của caro/i18n-look.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Hàn).
+window.I18N.extend('ko', {
+  board_style: '판',
+  board_color: '판 색상',
+  board_paper: '종이 (테마에 맞춤)',
+  board_wood: '나무',
+  board_green: '초록',
+  board_blue: '파랑',
+  board_night: '밤',
+  piece_style: '돌',
+  pieces_classic: '얇은 X/O',
+  pieces_bold: '굵은 X/O',
+  pieces_stones: '흑돌 / 백돌',
+  sound_style: '소리 종류',
+  sound_classic: '기본',
+  sound_wood: '나무 소리',
+  sound_soft: '부드러운 소리',
+  set_g_game: '대국',
+  set_g_display: '화면',
+  set_g_sound: '소리와 조작',
+});

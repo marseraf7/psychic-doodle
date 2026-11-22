@@ -1,0 +1,22 @@
+// Tiếng Nhật – bản dịch của caro/i18n-tour-adv.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Nhật).
+window.I18N.extend('ja', {
+  tadv_settings: '詳細設定',
+  tadv_title: '詳細設定',
+  tadv_back_quick: '簡易フォーム',
+  tadv_tab_basic: '基本情報',
+  tadv_tab_format: '形式',
+  tadv_tab_games: '対局',
+  tadv_tab_reg: '参加登録とチェックイン',
+  tadv_tab_access: '公開範囲と参加資格',
+  tadv_help_basic: '名前と説明は大会一覧と大会ページに表示されます。',
+  tadv_help_format: 'プリセットを選ぶか、最大3つのステージを組み合わせます。マッチ数と所要時間の目安は下部ですぐに更新されます。',
+  tadv_help_games: '大会のすべての対局に適用されます。',
+  tadv_help_reg: '開始日時、参加人数の上限、開始前のチェックイン、シード。',
+  tadv_help_access: '大会を一覧で見られる人と、参加できる人。',
+  draft_reset: 'リセット',
+  tour_name_required: '大会名を入力してください。',
+  tour_bad_max: '参加人数の上限は{lo}～{hi}にしてください。',
+  est_line: '約{m}マッチ · {w}ラウンド · 約{t}（{n}人の場合）',
+  est_arena: 'アリーナ · {t} · 最大{n}人',
+  est_hm: '{h}時間{m}分',
+});

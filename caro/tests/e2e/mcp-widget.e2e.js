@@ -92,7 +92,7 @@ function hostScript(locale) {
     ok(true, 'chọn cầm O: máy đi trước');
     await frame.click('text=Chơi bản đầy đủ');
     await sleep(200);
-    ok((await page.evaluate(() => window.log.links[0])) === 'https://caroxo.duckdns.org', 'mở link game đầy đủ qua host');
+    ok((await page.evaluate(() => window.log.links[0])) === require('../../../server/src/site.js').DEFAULT_ORIGIN, 'mở link game đầy đủ qua host');
     await page.close();
 
     // ---- Bài đố, tiếng Anh, màn hẹp 390 px

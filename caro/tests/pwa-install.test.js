@@ -28,6 +28,9 @@ test('ẩn: app điện thoại, app máy tính, đã cài, trình duyệt khôn
   assert.strictEqual(kindOf({ ua: ZALO, tauri: true }), 'none');
   assert.strictEqual(kindOf({ ua: SAFARI_IPHONE, standalone: true }), 'none');
   assert.strictEqual(kindOf({ ua: FIREFOX }), 'none');
+  // Bản cổng game / Telegram / VK (hosted): không cài được trong khung của nền tảng, không link cửa hàng
+  assert.strictEqual(kindOf({ ua: CHROME_ANDROID, prompt: true, hosted: true }), 'none');
+  assert.strictEqual(kindOf({ ua: SAFARI_IPHONE, hosted: true }), 'none');
 });
 test('link mở thẳng Chrome trên Android giữ nguyên đường dẫn và tham số', () => {
   assert.strictEqual(intentUrl('https://caro.example/?t=abc'), 'intent://caro.example/?t=abc#Intent;scheme=https;package=com.android.chrome;end');

@@ -16,6 +16,8 @@
  *  - /?bc=<mã giải>, /broadcast.html : trang Tường thuật giải (broadcast-page.js – thẻ og, nhúng iframe được).
  *  - /api/v1/*             : API công khai v1 (JSON, CORS, ETag, OpenAPI ở /api/v1/openapi.json – api-v1-http.js, tài liệu caro/api.html).
  *  - /mcp                  : connector MCP cho Claude (mcp/index.js; tắt bằng CARO_MCP=0).
+ *  - /robots.txt, /sitemap.xml + canonical / hreflang / JSON-LD ở trang chính (seo.js).
+ *  - Đổi tên miền (MOVED_TO): tên cũ → trang chuyển dữ liệu / 301, /api/migrate (domain-move.js).
  */
 'use strict';
 const fs = require('fs');
@@ -28,9 +30,8 @@ const { rapfiNetSources } = require('./csp-nets.js');
 const Og = require('./og-meta.js'); // thẻ xem trước link chia sẻ (A3)
 const { makeApiV1 } = require('./api-v1-http.js'); // API công khai v1 + OpenAPI (C4)
 const { makeBroadcastPage } = require('./broadcast-page.js'); // Tường thuật giải đấu (C3)
-
-// Tham số link chia sẻ có thẻ xem trước riêng (hub/og.js)
-const LINK_KEYS = ['replay', 'room', 't', 'o', 'club', 'u', 'cls']; // cls: Lớp học / Nghiên cứu (C2)
+const { makeDomainMove } = require('./domain-move.js'); // chuyển tên miền không mất dữ liệu
+const Seo = require('./seo.js'); // canonical, hreflang, JSON-LD, robots.txt, sitemap.xml
 
 const STATIC_DIR = path.resolve(__dirname, '..', '..', 'caro');
 const PNG_CACHE = 300;
@@ -73,6 +74,7 @@ const SECURITY_HEADERS = {
 if (process.env.RAPFI_THREADS !== '0') SECURITY_HEADERS['document-isolation-policy'] = 'isolate-and-credentialless';
 
 const { ipInCidr, fromProxy, wsOriginAllowed, clientIp } = require('./web-net.js'); // IP thật sau proxy, Origin WebSocket
+const { applyHostHeaders } = require('./host-embed.js'); // Mini App Telegram / VK: cho nhúng + thư viện Telegram, chỉ lượt đó
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -110,6 +112,8 @@ function origin(req) {
 function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
   const B = bundle ? makeBundle(STATIC_DIR) : null; // gộp mã trang chính (web-bundle.js)
   const rum = new Rum(); // số đo tốc độ từ máy người chơi (rum.js)
+  const move = makeDomainMove({ clientIp }); // tên miền cũ → tên mới (domain-move.js)
+  const seo = Seo.makeSeo({ hub }); // /robots.txt, /sitemap.xml
   const mcp = process.env.CARO_MCP === '0' ? null : require('./mcp/index.js').makeMcp({ hub, clientIp }); // connector MCP cho Claude (mcp/)
   const pngCache = new Map(); // mã -> ảnh PNG (ván đã lưu không đổi)
   const apiCache = new Map(); // đường dẫn -> { at, body }
@@ -232,6 +236,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       let og = null;
       try { og = query && typeof hub.ogInfo === 'function' ? hub.ogInfo(query) : null; } catch (e) { og = null; } // dữ liệu lạ: trang thường
       if (og) html = Og.inject(html, { ...og, lang: Og.pickLang(query, req.headers['accept-language']), base: origin(req) });
+      html = Seo.inject(html, { query, og }); // canonical về tên miền chính, hreflang, og / JSON-LD trang chủ (seo.js)
       const body = Buffer.from(html);
       // Chưa đặt PUBLIC_URL thì đường dẫn ảnh lấy theo tên miền trình duyệt gửi lên: không cho bộ nhớ đệm dùng chung (CDN) giữ lại
       res.writeHead(200, { 'content-type': MIME['.html'], 'content-length': body.length,
@@ -304,6 +309,8 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     // cả tiến trình. Không đường hợp lệ nào chứa chúng: từ chối trước khi chạm tới fs
     if (/[\x00-\x1f\x7f]/.test(url)) { res.writeHead(400); return res.end(); }
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+    if (move(req, res, url, u)) return;
+    applyHostHeaders(res, url, u.searchParams, CSP); // trang chính mở làm Mini App Telegram / VK (host-embed.js)
     if (apiV1(req, res, url, u.searchParams)) return;
     if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
@@ -316,6 +323,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (url === '/.well-known/assetlinks.json') return serveAssetLinks(res);
     if (url === '/.well-known/apple-app-site-association') return serveAasa(res);
     if (url === '/.well-known/security.txt') return serveSecurityTxt(req, res);
+    if (seo(req, res, url)) return;
     if (url.startsWith('/api/replay/')) {
       const share = url.slice(12);
       return share.endsWith('.png') ? serveReplayPng(share.slice(0, -4), req, res) : serveReplay(share, res);
@@ -352,9 +360,9 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (/^\/api\/og\/room\/\d{6}\.png$/.test(url)) return serveRoomPng(url.slice(13, 19), req, res);
     if (url.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
     if (((url === '/' || url === '/index.html') && u.searchParams.get('bc')) || url === '/broadcast.html') return broadcastPage(req, res, u.searchParams);
-    if ((url === '/' || url === '/index.html') && LINK_KEYS.some((k) => u.searchParams.get(k))) return serveIndex(req, res, u.searchParams);
-    // ?bundle=0: phục vụ index gốc (từng file) để so tốc độ trên cùng máy (docs/do-toc-do-tai-laplace-19-11-2026.md)
-    if (B && (url === '/' || url === '/index.html') && u.searchParams.get('bundle') !== '0' && B.current()) return serveIndex(req, res, null);
+    // Trang chính (link chia sẻ ?replay= ?room= ?t= ?o= ?club= ?u= ?cls= có thẻ og riêng – hub/og.js) luôn kèm thẻ SEO; ?bundle=0: index gốc từng file để so tốc độ
+    // (docs/do-toc-do-tai-laplace-19-11-2026.md)
+    if (url === '/' || url === '/index.html') return serveIndex(req, res, u.searchParams);
     if (B && url === '/sw.js' && B.current()) return sendText(res, req, B.current().sw, MIME['.js'], 'no-cache');
     if (B && url.startsWith('/b/')) {
       const f = B.file(url.slice(1));

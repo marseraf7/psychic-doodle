@@ -1,6 +1,8 @@
 /*
- * Đa ngôn ngữ: Tiếng Việt (gốc), English, Русский, 中文.
- *  - I18N.t('khoá', { tham_số }) trả về chuỗi đã dịch (thiếu bản dịch thì dùng tiếng Việt).
+ * Đa ngôn ngữ: Tiếng Việt (gốc), English, Русский, 简体中文 + các ngôn ngữ thư mục (繁體中文, 日本語, 한국어, Čeština).
+ * Danh sách ngôn ngữ, cách nhận ra ngôn ngữ trình duyệt: langs.js (window.CaroLangs – nạp ngay trước file này).
+ *  - I18N.t('khoá', { tham_số }) trả về chuỗi đã dịch (thiếu bản dịch thì lấy ngôn ngữ dự phòng – tiếng Anh với ngôn ngữ
+ *    thư mục – rồi tiếng Việt).
  *  - Phần tử HTML có data-i18n="khoá" được tự điền chữ; data-i18n-html cho chuỗi có thẻ HTML;
  *    data-i18n-ph / -aria / -title cho placeholder, aria-label, title.
  *  - Thông báo từ máy chủ dùng khoá "srv_<mã>".
@@ -8,6 +10,11 @@
  * File này là lõi: API + chuỗi chung (bàn cờ, ván với máy, cài đặt cơ bản). Chuỗi theo chủ đề nằm ở
  * i18n-<chủ đề>.js gọi I18N.extend(): online, play, account, social, tour, tour-stages, club, study, learn
  * (nạp ngay sau file này), rồi rules, bots, demos, shell…
+ * Ngôn ngữ thư mục (langs.js `dir`): chuỗi ở i18n/<mã>/core.js (chuỗi lõi của file này) và i18n/<mã>/<chủ đề>.js.
+ *   – Bản gộp (server/src/web-bundle.js): đã nằm trong gói b/i18n-<mã>-….js.
+ *   – Trang từng file (?bundle=0, embed.html, broadcast.html, GitHub Pages): file này tự chèn i18n/<mã>/core.js, và mỗi
+ *     lần một file i18n-<chủ đề>.js chạy thì chèn i18n/<mã>/<chủ đề>.js ngay sau nó (document.write lúc trang đang dựng);
+ *     đổi ngôn ngữ lúc đang dùng thì tải các file đó rồi mới đổi. Chỉ tải đúng ngôn ngữ đang dùng.
  */
 (function () {
   'use strict';
@@ -70,24 +77,6 @@
       p_timeout: '{p} hết giờ',
       you_timeout: 'Bạn hết giờ',
       you: 'Bạn',
-      board_style: 'Bàn cờ',
-      board_color: 'Màu bàn',
-      board_paper: 'Giấy (theo giao diện)',
-      board_wood: 'Gỗ',
-      board_green: 'Xanh lá',
-      board_blue: 'Xanh dương',
-      board_night: 'Đêm',
-      piece_style: 'Kiểu quân',
-      pieces_classic: 'X / O nét mảnh',
-      pieces_bold: 'X / O nét đậm',
-      pieces_stones: 'Quân đá đen và trắng',
-      sound_style: 'Kiểu âm thanh',
-      sound_classic: 'Mặc định',
-      sound_wood: 'Tiếng gõ gỗ',
-      sound_soft: 'Nhẹ nhàng',
-      set_g_game: "Ván chơi",
-      set_g_display: "Hiển thị",
-      set_g_sound: 'Âm thanh và thao tác',
     },
 
     en: {
@@ -147,24 +136,6 @@
       p_timeout: '{p} ran out of time',
       you_timeout: 'You ran out of time',
       you: 'You',
-      board_style: 'Board',
-      board_color: 'Board color',
-      board_paper: 'Paper (follows theme)',
-      board_wood: 'Wood',
-      board_green: 'Green',
-      board_blue: 'Blue',
-      board_night: 'Night',
-      piece_style: 'Pieces',
-      pieces_classic: 'Thin X/O',
-      pieces_bold: 'Bold X/O',
-      pieces_stones: 'Black / white stones',
-      sound_style: 'Sound style',
-      sound_classic: 'Default',
-      sound_wood: 'Wood knock',
-      sound_soft: 'Soft',
-      set_g_game: "Game",
-      set_g_display: "Display",
-      set_g_sound: "Sound & controls",
     },
 
     ru: {
@@ -224,24 +195,6 @@
       p_timeout: 'У {p} закончилось время',
       you_timeout: 'У вас закончилось время',
       you: 'Вы',
-      board_style: 'Доска',
-      board_color: 'Цвет доски',
-      board_paper: 'Бумага (по теме)',
-      board_wood: 'Дерево',
-      board_green: 'Зелёная',
-      board_blue: 'Синяя',
-      board_night: 'Ночь',
-      piece_style: 'Фигуры',
-      pieces_classic: 'Тонкие X/O',
-      pieces_bold: 'Жирные X/O',
-      pieces_stones: 'Чёрные / белые камни',
-      sound_style: 'Звуки',
-      sound_classic: 'Обычные',
-      sound_wood: 'Стук дерева',
-      sound_soft: 'Тихие',
-      set_g_game: "Партия",
-      set_g_display: "Внешний вид",
-      set_g_sound: "Звук и управление",
     },
 
     zh: {
@@ -301,46 +254,33 @@
       p_timeout: '{p} 超时',
       you_timeout: '你超时了',
       you: '你',
-      board_style: '棋盘',
-      board_color: '棋盘颜色',
-      board_paper: '纸（跟随主题）',
-      board_wood: '木纹',
-      board_green: '绿色',
-      board_blue: '蓝色',
-      board_night: '夜间',
-      piece_style: '棋子',
-      pieces_classic: '细 X/O',
-      pieces_bold: '粗 X/O',
-      pieces_stones: '黑白棋子',
-      sound_style: '音效',
-      sound_classic: '默认',
-      sound_wood: '木头敲击',
-      sound_soft: '轻柔',
-      set_g_game: "对局",
-      set_g_display: "显示",
-      set_g_sound: "声音与操作",
     },
   };
 
-  const LANGS = [['vi', 'Tiếng Việt'], ['en', 'English'], ['ru', 'Русский'], ['zh', '中文']];
-  const HTML_LANG = { vi: 'vi', en: 'en', ru: 'ru', zh: 'zh-CN' };
+  const LG = window.CaroLangs;
+  for (const l of LG.DIR) DICT[l] = {}; // ngôn ngữ thư mục: chuỗi đến từ i18n/<mã>/*.js (hoặc gói của bản gộp)
+  const LANGS = LG.LIST.map((x) => [x.code, x.name]);
   const KEY = 'caro.lang';
 
   function detect() {
     for (const l of navigator.languages || [navigator.language || '']) {
-      const code = String(l).slice(0, 2).toLowerCase();
-      if (DICT[code]) return code;
+      const code = LG.fromTag(l);
+      if (code) return code;
     }
     return 'vi';
   }
 
   let lang;
   try { lang = localStorage.getItem(KEY); } catch (e) { /* riêng tư */ }
-  if (!DICT[lang]) lang = detect();
+  // Bản cổng game (portal-config.js – build-portal.js): chưa chọn ngôn ngữ thì tiếng Anh, không theo trình duyệt
+  if (!DICT[lang]) lang = DICT[window.CARO_LANG0] ? window.CARO_LANG0 : detect();
   if (DICT[window.CARO_LANG]) lang = window.CARO_LANG; // trang nhúng (embed-boot.js): ?lang= – không lưu lại
+  // Link theo ngôn ngữ (?lang=xx, ?lang=zh-Hant – hreflang cho máy tìm kiếm, server/src/seo.js): dùng cho lần xem này, không lưu lại
+  else { const q = /[?&]lang=([A-Za-z]{2}(?:-[A-Za-z]{4})?)(?:&|#|$)/.exec(location.search); if (q && DICT[q[1]]) lang = q[1]; }
 
   function t(key, args) {
-    const s = DICT[lang][key] ?? DICT.vi[key] ?? key;
+    const fb = LG.fallback(lang);
+    const s = DICT[lang][key] ?? (fb ? DICT[fb][key] : undefined) ?? DICT.vi[key] ?? key;
     if (!args) return s;
     return s.replace(/\{(\w+)\}/g, (_, k) => (args[k] == null ? '' : String(args[k])));
   }
@@ -357,7 +297,7 @@
       const v = el.dataset.i18nTc;
       el.textContent = v[0] === 'c' ? tc(0, v.slice(1)) : tc(Number(v.slice(1)), null);
     });
-    document.documentElement.lang = HTML_LANG[lang];
+    document.documentElement.lang = LG.BY[lang].html;
     document.title = t('app_title');
   }
 
@@ -377,23 +317,46 @@
   // gói của ngôn ngữ đang dùng (window.CARO_PACK). Đổi sang ngôn ngữ khác thì tải gói đó rồi mới đổi.
   const PACKS = window.CARO_PACKS || null;
   const extended = {}; // ngôn ngữ đã nhận chuỗi phụ (gói đã chạy) – extend() đánh dấu
-  const loaded = new Set(PACKS ? [window.CARO_PACK] : Object.keys(DICT));
+  const isDir = (l) => LG.DIR.includes(l);
+  // Trang từng file: ngôn ngữ gốc đã đủ trong các file i18n-*.js; ngôn ngữ thư mục chỉ có khi đã tải i18n/<mã>/*.js
+  const loaded = new Set(PACKS ? [window.CARO_PACK] : LG.INLINE.concat(isDir(lang) ? [lang] : []));
   const changed = () => { apply(); window.dispatchEvent(new Event('langchange')); };
+  const topics = []; // chủ đề i18n-<chủ đề>.js đã chạy trên trang này (trang từng file)
+  const dirFile = (l, topic) => 'i18n/' + l + '/' + topic + '.js';
+  // Chủ đề đã có bản dịch: khoá i18n_files của i18n/<mã>/core.js – 'all' (đủ mọi file) hoặc danh sách 'online play …'
+  // (ngôn ngữ đang dịch dở: không tải file chưa có → không lỗi 404)
+  const hasFile = (l, topic) => { const f = DICT[l] && DICT[l].i18n_files; return f === 'all' || (!!f && f.split(' ').includes(topic)); };
+  /** Đang dựng trang bằng thẻ <script> thường (không async / defer): chèn được thẻ ngay sau file đang chạy. */
+  const canWrite = () => { const s = document.currentScript; return !!(s && s.src && !s.async && !s.defer && document.readyState === 'loading'); };
+  const writeTag = (src) => document.write('<script src="' + src + '"><\/script>');
+  /** Tải các file src (song song) rồi gọi xong(); bỏ qua file lỗi. */
+  function loadAll(srcs, xong) {
+    let left = srcs.length;
+    if (!left) { xong(); return; }
+    for (const src of srcs) {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = s.onerror = () => { if (--left === 0) xong(); };
+      document.head.appendChild(s);
+    }
+  }
   /** Nạp gói của l rồi gọi done(); gói không nạp được (mất mạng, bị chặn) thì gọi fail() nếu có, không thì done(). */
   function withPack(l, done, fail) {
-    if (loaded.has(l) || !PACKS || !PACKS[l]) { done(); return; }
-    const s = document.createElement('script');
-    s.src = PACKS[l];
-    s.onload = () => { if (extended[l]) { loaded.add(l); done(); } else (fail || done)(); };
-    s.onerror = () => (fail || done)();
-    document.head.appendChild(s);
+    if (loaded.has(l)) { done(); return; }
+    const after = () => { if (extended[l]) { loaded.add(l); done(); } else (fail || done)(); };
+    if (PACKS && PACKS[l]) loadAll([PACKS[l]], after);
+    else if (!PACKS && isDir(l)) { // trang từng file: core.js trước (biết chủ đề nào đã dịch), rồi các chủ đề có trên trang
+      loadAll([dirFile(l, 'core')], () => loadAll(topics.filter((tp) => hasFile(l, tp)).map((tp) => dirFile(l, tp)), after));
+    }
+    else done();
   }
   if (PACKS) {
     // Ngôn ngữ chọn ở đây khác gói đã nạp (hiếm: trang nhúng ?lang=…): tải gói rồi vẽ lại
     if (lang !== window.CARO_PACK) withPack(lang, changed);
-    // Gói boot.js chèn vào không chạy được (mất mạng giữa chừng): thử tải lại một lần thay vì để chữ hiện tên khoá
-    document.addEventListener('DOMContentLoaded', () => { if (!extended[lang]) { loaded.delete(lang); withPack(lang, changed); } });
-  }
+  } else if (isDir(lang) && canWrite()) writeTag(dirFile(lang, 'core')); // chạy ngay sau file này, trước các file i18n-*.js
+  // Gói boot.js chèn vào (hoặc file i18n/<mã>/*.js) không chạy được – mất mạng giữa chừng: thử tải lại một lần thay vì để
+  // chữ hiện tên khoá / tiếng Anh
+  if (PACKS || isDir(lang)) document.addEventListener('DOMContentLoaded', () => { if (!extended[lang]) { loaded.delete(lang); withPack(lang, changed); } });
 
   let wanted = lang; // ngôn ngữ người dùng chọn sau cùng (đang chờ tải gói thì lang vẫn là ngôn ngữ cũ)
   function setLang(l) {
@@ -412,7 +375,19 @@
   }
 
   /** Bổ sung / ghi đè chuỗi cho một ngôn ngữ (i18n-rules.js, i18n-bots.js). */
-  function extend(l, obj) { if (DICT[l]) { Object.assign(DICT[l], obj); extended[l] = true; } }
+  function extend(l, obj) {
+    if (!PACKS && typeof document !== 'undefined') {
+      // Trang từng file: i18n-<chủ đề>.js đang chạy → nhớ chủ đề; ngôn ngữ đang dùng là ngôn ngữ thư mục thì chèn bản dịch
+      // i18n/<mã>/<chủ đề>.js ngay sau nó (chạy trước file mã tiếp theo, như khi chuỗi nằm chung một file)
+      const cur = document.currentScript;
+      const m = cur && /(?:^|\/)i18n-([\w-]+)\.js(?:[?#]|$)/.exec(cur.src || '');
+      if (m && !topics.includes(m[1])) {
+        topics.push(m[1]);
+        if (isDir(lang) && hasFile(lang, m[1]) && canWrite()) writeTag(dirFile(lang, m[1]));
+      }
+    }
+    if (DICT[l]) { Object.assign(DICT[l], obj); extended[l] = true; }
+  }
   /** ' · Renju' – nhãn luật thắng khác luật Việt Nam (để nối vào dòng thông tin ván). */
   const ruleTag = (rule) => (rule && rule !== 'vn' ? ' · ' + t('grule_s_' + rule) : '');
 
@@ -427,6 +402,8 @@
     LANGS,
     get lang() { return lang; },
     /** Mã ngôn ngữ cho nút đăng nhập Google. */
-    get googleLocale() { return { vi: 'vi', en: 'en', ru: 'ru', zh: 'zh_CN' }[lang]; },
+    get googleLocale() { return LG.BY[lang].google; },
+    /** Ngôn ngữ cho Intl / toLocaleString (ngày giờ, số): 'vi-VN', 'ja-JP'… */
+    get locale() { return LG.BY[lang].intl; },
   };
 })();

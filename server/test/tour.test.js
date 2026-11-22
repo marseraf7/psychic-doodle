@@ -481,6 +481,9 @@ test('chống spam mở trang giải: dùng lại phần chung đã lưu, giới
   app.hub.tourShared = function (tt, ...a) { if (tt.id === id) builds++; return orig.call(this, tt, ...a); };
   try {
     const cs = [await Client.open(), await Client.open(), await Client.open()]; // cùng IP 127.0.0.1
+    // Nhịp gom cập nhật của lúc tạo giải chạy xong TRƯỚC khi có người xem (máy chậm luôn như vậy – trước đây bài thử chập
+    // chờn: bản đánh dấu "đã đổi" sót lại làm lần gom sau dựng lại phần chung dù giải không đổi)
+    await until(() => !app.hub.tourPushTimers?.has(id), 3000);
     app.hub.fullBuckets?.clear();
     const t0 = Date.now();
     const got = cs.map(() => 0);

@@ -104,7 +104,7 @@ chơi online qua WebSocket (`/ws`):
   `caro_puzzle`, `caro_rules`, `caro_leaderboard`, `caro_player`. Ván là danh sách nước người gọi gửi lên, máy chủ không lưu
   gì. Máy cờ chạy ở luồng phụ (`think.js`, `CARO_MCP_WORKERS`, mặc định 1; nghĩ ≤ 1,3 giây) để không chặn ván online.
   Giới hạn `CARO_MCP_RATE` lần / phút / IP (mặc định 240), mỗi IP tối đa 2 việc trong hàng đợi máy cờ, thân yêu cầu ≤ 64 KB,
-  Host phải là tên miền của game (`CARO_PUBLIC_HOST`, mặc định caroxo.duckdns.org, cùng tên máy của `PUBLIC_URL`; localhost),
+  Host phải là tên miền của game (`CARO_PUBLIC_HOST` thêm vào các tên máy của game – `server/src/site.js`: `PUBLIC_URL` hoặc tên miền mặc định, `MOVED_TO`, `MOVED_FROM`; localhost),
   Origin lạ bị chặn (`CARO_MCP_ORIGINS` để thêm). Hướng dẫn: `/connector.html`; hồ sơ nộp thư mục connector của Claude: `docs/claude-directory/`.
 - **Mật khẩu**: đổi mật khẩu (đăng xuất các thiết bị khác), đặt mật khẩu cho tài khoản Google,
   thêm email và **quên mật khẩu** qua mã 6 số gửi email (cần cấu hình SMTP).
@@ -139,6 +139,9 @@ chơi online qua WebSocket (`/ws`):
     Đặt `PUBLIC_URL=https://ten-mien-cua-ban` để đường dẫn ảnh luôn đúng.
   - API chỉ đọc (gọi được từ trang khác – CORS): `GET /api/player/<tên đăng nhập>` (điểm từng loại, số ván, không có
     email / bạn bè), `GET /api/leaderboard?pool=blitz` (50 người đầu), `GET /api/stats` (số kỳ thủ đang kết nối, số ván đang đấu). Giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
+- **Đổi tên miền không mất dữ liệu** (`src/site.js`, `src/domain-move.js`, `docs/doi-ten-mien.md`): `MOVED_TO=https://tên-mới`
+  (+ `MOVED_FROM`) – tên cũ trả trang chuyển dữ liệu trình duyệt (mã một lần `/api/migrate`, 10 phút, ≤ 512 KB) hoặc 301;
+  đổi tên miền trong mã: `bash scripts/set-domain.sh <tên>`; trên máy chủ: `deploy/move-domain.sh`.
 - **Số liệu máy chủ cho quản trị viên** (Giải đấu → tab Duyệt): số kết nối, người online, phòng, người xem, hàng chờ,
   RAM, các lệnh xử lý chậm (≥ 50 ms, 50 lệnh gần nhất), số lệnh theo loại và số lỗi bất ngờ.
 - Máy chủ kiểm tra mọi nước đi bằng chính `caro/rules.js` (không gian lận được từ client).

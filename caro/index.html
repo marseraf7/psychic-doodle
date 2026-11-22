@@ -8,6 +8,9 @@
   <meta name="description" content="Caro x Gomoku – free, ad-free online Caro (Vietnamese five-in-a-row) and Gomoku: play friends, online opponents and computer characters, analyse games, solve puzzles. Chơi cờ caro online miễn phí.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Caro x Gomoku</title>
+  <!-- Địa chỉ chuẩn cho máy tìm kiếm: bản sao (GitHub Pages) trỏ về tên miền chính; máy chủ tự thay bằng địa chỉ đúng
+       của từng trang (server/src/seo.js). Đổi tên miền: scripts/set-domain.sh -->
+  <link rel="canonical" href="https://caroxo.duckdns.org/">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icon.svg">
@@ -28,11 +31,16 @@
   <link rel="stylesheet" href="class.css">
   <link rel="stylesheet" href="corr.css">
   <link rel="stylesheet" href="a11y.css">
+  <link rel="stylesheet" href="host.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="watchdog.js"></script>
+  <!-- Nhận dữ liệu chuyển từ tên miền cũ (?mig=) – trước mọi file đọc localStorage -->
+  <script src="migrate-in.js"></script>
   <script src="theme.js"></script>
   <script src="boardstyle.js"></script>
   <script src="corners.js"></script>
+  <!-- Chạy trong nền tảng khác (bản cổng game, Telegram, VK): nhận biết sớm, trước mọi mã khác; bản web chính không làm gì -->
+  <script src="host-detect.js"></script>
 </head>
 <body class="shell-on" data-page="home">
   <!-- Bộ biểu tượng (nét 2px, cùng một kiểu) – dùng: <svg class="ico"><use href="#i-..."/></svg> -->
@@ -1087,8 +1095,11 @@
 
   <script src="config.js"></script>
   <script src="native.js"></script>
+  <script src="src-track.js"></script>
   <script src="sched.js"></script>
+  <script src="langs.js"></script>
   <script src="i18n.js"></script>
+  <script src="i18n-look.js"></script>
   <script src="i18n-online.js"></script>
   <script src="i18n-online-msg.js"></script>
   <script src="i18n-play.js"></script>
@@ -1160,6 +1171,7 @@
   <script src="i18n-corr.js"></script>
   <script src="i18n-api.js"></script>
   <script src="i18n-a11y.js"></script>
+  <script src="i18n-host.js"></script>
   <script src="timectl.js"></script>
   <script src="local-clock.js"></script>
   <script src="tc-picker.js"></script>
@@ -1340,6 +1352,8 @@
   <script src="fairplay-core.js"></script>
   <script src="fairplay.js"></script>
   <script src="fairplay-admin.js"></script>
+  <script src="i18n-src.js"></script>
+  <script src="src-admin.js"></script>
   <script src="i18n-recap.js"></script>
   <script src="recap-core.js"></script>
   <script src="recap.js"></script>
@@ -1379,5 +1393,8 @@
   <script src="class-tree.js"></script>
   <script src="classroom.js"></script>
   <script src="class-view.js"></script>
+  <script src="host.js"></script>
+  <script src="host-telegram.js"></script>
+  <script src="host-vk.js"></script>
 </body>
 </html>

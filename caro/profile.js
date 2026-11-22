@@ -28,7 +28,7 @@
     chartPool = POOLS.filter((p) => (profile.history[p] || []).length && profile.pools[p]).sort((a, b) => profile.pools[b].n - profile.pools[a].n)[0] || profile.main;
     renderProfile();
   });
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang]);
+  const locale = () => window.I18N.locale;
   const date = (ms, opts) => { try { return new Date(ms).toLocaleDateString(locale(), opts || { day: '2-digit', month: '2-digit', year: 'numeric' }); } catch (e) { return ''; } };
 
   /** Biểu đồ đường 1 chuỗi (điểm theo thời gian): lưới mờ, nét 2px, chạm/rê để xem giá trị. */

@@ -6,12 +6,15 @@
  *   – Mã: nối các file theo đúng thứ tự trong index.html thành vài khối ~320 KB (`b/core-<băm>.js`), nạp `defer`
  *     (thứ tự chạy giữ nguyên, trước DOMContentLoaded như cũ). Mỗi file bọc try/catch: một file lỗi không chặn các file
  *     sau (như khi còn là thẻ <script> riêng); lỗi vẫn được ném lại để window.onerror (watchdog.js) thấy.
- *   – Chuỗi dịch: chạy từng file i18n-*.js trong vm, chỉ cho gọi window.I18N.extend → gom thành 4 gói, mỗi gói một
- *     ngôn ngữ (`b/i18n-<l>-<băm>.js`). File nào làm việc khác ngoài extend, hoặc có giá trị không phải chuỗi / số,
- *     thì giữ nguyên trong khối mã (an toàn hơn là gom sai).
+ *   – Chuỗi dịch: chạy từng file i18n-*.js trong vm, chỉ cho gọi window.I18N.extend → gom thành một gói cho mỗi ngôn ngữ
+ *     của caro/langs.js (`b/i18n-<l>-<băm>.js`, l: vi, en, ru, zh, zh-Hant, ja, ko, cs). File nào làm việc khác ngoài
+ *     extend, hoặc có giá trị không phải chuỗi / số, thì giữ nguyên trong khối mã (an toàn hơn là gom sai).
+ *     Ngôn ngữ thư mục (ja, ko, cs, zh-Hant): gói lấy thêm caro/i18n/<l>/core.js + i18n/<l>/<chủ đề>.js của mỗi file
+ *     i18n-<chủ đề>.js có trong index.html (đúng thứ tự đó), rồi các file còn lại của thư mục (theo tên). File thư mục chỉ
+ *     được gọi extend cho đúng ngôn ngữ của nó – sai thì thôi gộp (báo lỗi). Khoá thiếu lấy tiếng Anh, rồi tiếng Việt.
  *   – `b/boot-<băm>.js` (nhỏ, chạy đồng bộ ngay sau khối chứa i18n.js): chọn ngôn ngữ như i18n.js (caro.lang đã lưu →
- *     ngôn ngữ trình duyệt → vi) rồi chèn thẻ `defer` của gói ngôn ngữ đó vào đúng vị trí – gói chạy sau i18n.js và
- *     trước mọi file mã phía sau. Đổi ngôn ngữ lúc đang dùng: i18n.js tự tải gói còn thiếu (window.CARO_PACKS).
+ *     [bản cổng game: window.CARO_LANG0] → ngôn ngữ trình duyệt qua langs.js fromTag (zh-TW → zh-Hant) → vi) rồi chèn thẻ `defer` của gói ngôn ngữ đó vào
+ *     đúng vị trí – gói chạy sau i18n.js và trước mọi file mã phía sau. Đổi ngôn ngữ lúc đang dùng: i18n.js tự tải gói còn thiếu (window.CARO_PACKS).
  *   – sw.js: danh sách FILES thay các file lẻ đã gộp bằng các khối mới; tên CACHE thêm mã băm của bản gộp.
  * Tên khối có mã băm nội dung → được lưu lâu (immutable). Dựng lại khi index.html hoặc sw.js đổi (đổi file nào trong
  * caro/ cũng phải tăng CACHE trong sw.js – CLAUDE.md). Dựng lỗi thì phục vụ như cũ (từng file lẻ). Tắt: CARO_BUNDLE=0.
@@ -22,8 +25,9 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const crypto = require('crypto');
+const Langs = require('./langs.js');
 
-const LANGS = ['vi', 'en', 'ru', 'zh'];
+const LANGS = Langs.CODES;
 const CHUNK = 200 * 1024; // một khối lớn quá là một việc CPU dài lúc khởi động (mỗi khối defer chạy thành một việc riêng) – A2: 320 → 200 KB, việc dài nhất @4× ~80 → ~60 ms
 const TAG = /<script src="([^"]+)"><\/script>/g;
 const TAG_LINE = /^([ \t]*)<script src="[^"]+"><\/script>[ \t]*\r?\n/gm; // cả dòng chứa thẻ (bỏ dòng, không để dòng trống)
@@ -66,11 +70,15 @@ function bootJs(packs) {
   return `// Tạo tự động bởi server/src/web-bundle.js – chọn gói chuỗi dịch như i18n.js
 (function () {
   var P = ${JSON.stringify(packs)}, l = null;
+  var fromTag = ${Langs.fromTag.toString()}; // caro/langs.js
   try { l = localStorage.getItem('caro.lang'); } catch (e) { /* riêng tư */ }
+  var q = typeof location !== 'undefined' && /[?&]lang=([A-Za-z]{2}(?:-[A-Za-z]{4})?)(?:&|#|$)/.exec(location.search); // ?lang=xx như i18n.js (hreflang – seo.js)
+  if (q && P[q[1]]) l = q[1];
+  if (!P[l] && P[window.CARO_LANG0]) l = window.CARO_LANG0; // bản cổng game (build-portal.js): mặc định tiếng Anh
   if (!P[l]) {
     l = 'vi';
     var a = navigator.languages || [navigator.language || ''];
-    for (var i = 0; i < a.length; i++) { var c = String(a[i]).slice(0, 2).toLowerCase(); if (P[c]) { l = c; break; } }
+    for (var i = 0; i < a.length; i++) { var c = fromTag(a[i], Object.keys(P)); if (c) { l = c; break; } }
   }
   window.CARO_PACKS = P;
   window.CARO_PACK = l;
@@ -111,15 +119,34 @@ function build(dir) {
     if (n === 'i18n.js') seenCore = true;
   }
 
+  // Ngôn ngữ thư mục: caro/i18n/<l>/core.js, các chủ đề theo thứ tự index.html, rồi file còn lại theo tên
+  const dirFiles = [];
+  for (const l of Langs.DIR) {
+    const d = path.join(dir, 'i18n', l);
+    if (!fs.existsSync(d)) continue;
+    dirFiles.push(path.join('i18n', l));
+    const have = fs.readdirSync(d).filter((f) => /^[\w-]+\.js$/.test(f)).sort();
+    const order = ['core.js'].concat(names.map((n) => /^i18n-([\w-]+)\.js$/.exec(n)).filter(Boolean).map((m) => m[1] + '.js'));
+    for (const f of [...new Set(order.filter((f) => have.includes(f)).concat(have))]) {
+      const rel = path.join('i18n', l, f);
+      const p = langPacks(fs.readFileSync(path.join(dir, rel), 'utf8'));
+      if (!p || Object.keys(p).some((k) => k !== l)) throw new Error(rel + ': chỉ được gọi I18N.extend(' + JSON.stringify(l) + ', { khoá: chuỗi })');
+      Object.assign(packs[l], p[l]);
+      dirFiles.push(rel);
+    }
+  }
+
   const files = new Map();
   const add = (base, text) => { const name = `b/${base}-${hash(text)}.js`; files.set(name, Buffer.from(text)); return name; };
   const tags = [];
   for (const c of chunks(before)) tags.push(`<script defer src="${add('core', c)}"></script>`);
   if (packed) {
-    // Chuỗi còn thiếu ở một ngôn ngữ thì lấy tiếng Việt (như I18N.t) – để gói nào cũng tự đủ
+    // Chuỗi còn thiếu ở một ngôn ngữ thì lấy ngôn ngữ dự phòng (tiếng Anh với ngôn ngữ thư mục), rồi tiếng Việt (như
+    // I18N.t) – để gói nào cũng tự đủ
     const urls = {};
     for (const l of LANGS) {
-      const all = { ...packs.vi, ...packs[l] };
+      const fb = Langs.fallback(l);
+      const all = { ...packs.vi, ...(fb ? packs[fb] : {}), ...packs[l] };
       urls[l] = add('i18n-' + l, `(function () { window.I18N.extend(${JSON.stringify(l)}, ${JSON.stringify(all)}); })();\n`);
     }
     tags.push(`<script src="${add('boot', bootJs(urls))}"></script>`);
@@ -148,7 +175,7 @@ function build(dir) {
   const sw2 = sw.replace(fm[0], () => `const FILES = ${JSON.stringify(next)};`)
     .replace(cm[0], () => `const CACHE = '${cm[1]}-b${key}';`);
 
-  return { html: head + body2, sw: sw2, files, names, key, packed };
+  return { html: head + body2, sw: sw2, files, names, dirFiles, key, packed };
 }
 
 /**
@@ -163,15 +190,16 @@ function makeBundle(dir, { log = console.error } = {}) {
     checked = now;
     // Chữ ký: index.html, sw.js và mọi file đã gộp (sửa một file JS mà quên tăng CACHE, hay cập nhật code ghi file lần
     // lượt, đều dựng lại – không phục vụ mãi một bản lẫn file cũ / mới)
+    // (+ thư mục và file của ngôn ngữ thư mục: thêm / sửa file i18n/<l>/… cũng dựng lại)
     const sigOf = (names) => ['index.html', 'sw.js'].concat(names).map((f) => fs.statSync(path.join(dir, f)).mtimeMs).join(':');
     let s;
-    try { s = sigOf(cur ? cur.names : []); } catch (e) { return cur; }
+    try { s = sigOf(cur ? cur.names.concat(cur.dirFiles) : []); } catch (e) { if (!cur) return cur; s = 'gone'; } // một file đã gộp vừa bị xoá / đổi tên: dựng lại
     if (s === sig) return cur;
     try {
       const b = build(dir);
       if (cur) old = cur.files;
       cur = b;
-      sig = sigOf(b.names); // tính lại theo đúng các file vừa gộp
+      sig = sigOf(b.names.concat(b.dirFiles)); // tính lại theo đúng các file vừa gộp
       failed = '';
     } catch (e) {
       sig = s;

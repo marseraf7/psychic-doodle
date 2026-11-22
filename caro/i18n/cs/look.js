@@ -1,0 +1,21 @@
+// Tiếng Séc – bản dịch của caro/i18n-look.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Séc).
+window.I18N.extend('cs', {
+  board_style: 'Deska',
+  board_color: 'Barva desky',
+  board_paper: 'Papír (podle motivu)',
+  board_wood: 'Dřevo',
+  board_green: 'Zelená',
+  board_blue: 'Modrá',
+  board_night: 'Noc',
+  piece_style: 'Kameny',
+  pieces_classic: 'Tenké X/O',
+  pieces_bold: 'Tučné X/O',
+  pieces_stones: 'Černé a bílé kameny',
+  sound_style: 'Styl zvuku',
+  sound_classic: 'Výchozí',
+  sound_wood: 'Klepnutí do dřeva',
+  sound_soft: 'Jemný',
+  set_g_game: 'Hra',
+  set_g_display: 'Zobrazení',
+  set_g_sound: 'Zvuk a ovládání',
+});

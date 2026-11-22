@@ -4,11 +4,13 @@
  */
 'use strict';
 
-const SITE = 'https://caroxo.duckdns.org';
+const Site = require('../site.js');
 
-/** Địa chỉ trang game (PUBLIC_URL nếu máy chủ đặt, không thì tên miền chính). */
+const SITE = Site.DEFAULT_ORIGIN;
+
+/** Địa chỉ trang game (tên miền mới MOVED_TO / PUBLIC_URL nếu máy chủ đặt, không thì tên miền chính – site.js). */
 function site() {
-  return String(process.env.PUBLIC_URL || SITE).replace(/\/+$/, '');
+  return Site.canonicalOrigin();
 }
 
 /** Dòng cuối của mỗi kết quả: link chơi bản đầy đủ (phễu về web / ứng dụng). */

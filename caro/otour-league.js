@@ -24,7 +24,7 @@
   const evLabel = (t, k) => T(k === 'goal' && t.sport && !GOAL_SPORTS.includes(t.sport) ? 'ot_ev_point' : 'ot_ev_' + k);
 
   // Theo ngôn ngữ của ứng dụng (không theo trình duyệt), giờ 24 tiếng
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N && window.I18N.lang] || undefined);
+  const locale = () => ((window.I18N && window.I18N.locale) || undefined);
   const fmtWhen = (ms) => new Date(ms).toLocaleString(locale(), { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   const toLocalInput = (ms) => (ms ? new Date(ms - new Date(ms).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '');
   const teamOf = (t, uid) => (t.players || []).find((p) => p.uid === uid) || null;

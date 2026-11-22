@@ -42,7 +42,7 @@ test('play_caro: ván mới (người chơi X) chờ nước; người chơi O t
   assert.deepStrictEqual(r.structuredContent.moves, []);
   assert.strictEqual(r.structuredContent.toMove, 'X');
   assert.match(text(r), /Your move \(X\).*Empty board/s);
-  assert.match(text(r), /https:\/\/caroxo\.duckdns\.org/);
+  assert.ok(text(r).includes(require('../src/site.js').DEFAULT_ORIGIN));
   r = await call('play_caro', { you_play: 'O', difficulty: 'easy', rule: 'free' });
   assert.deepStrictEqual(r.structuredContent.moves, [[0, 0]]);
   assert.strictEqual(r.structuredContent.you, 'O');

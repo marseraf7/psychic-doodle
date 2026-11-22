@@ -8,13 +8,14 @@
  *  – sw.js lấy file từ bộ nhớ đệm trước: bản mới cài xong thì trang đang mở vẫn chạy bản cũ. Đang ở các trang (không giữa
  *    ván online) thì tải lại luôn để dùng bản mới; đang chơi thì để lần mở sau. Lần cài đầu (chưa có bản cũ) không tải lại.
  *    Đang gõ dở (ô đang focus, hoặc ô có chữ – form đăng ký, chat…) thì hoãn tới lần chuyển trang / quay lại app sau.
- * Trong ứng dụng điện thoại (CaroNative) các file đã nằm sẵn trong app: không dùng service worker.
+ * Trong ứng dụng điện thoại (CaroNative) các file đã nằm sẵn trong app: không dùng service worker. Bản cổng game
+ * (CARO_PORTAL – CrazyGames / itch.io phục vụ gói từ tên miền của họ) cũng không: tránh bộ đệm trên tên miền lạ.
  * window.CaroSW.status() – { state: 'none' | 'installing' | 'waiting' | 'active' | 'off', controller, scope } (perf-box.js).
  */
 (function () {
   'use strict';
   const SW = navigator.serviceWorker;
-  const usable = !!SW && location.protocol.startsWith('http') && !window.CaroNative;
+  const usable = !!SW && location.protocol.startsWith('http') && !window.CaroNative && !window.CARO_PORTAL;
   let reg = null;
 
   /** Nhờ service worker đang chạy lưu nốt các file chưa có. */

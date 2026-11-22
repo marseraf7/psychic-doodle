@@ -7,7 +7,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { ctx, account, until } = require('./otour-client.js');
+const { ctx, account, until, otFresh } = require('./otour-client.js');
 
 const who = (c) => [...c.msgs].reverse().find((m) => m.t === 'welcome').me;
 const single = { sport: 'esports', stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] };
@@ -29,7 +29,9 @@ test('8a: mùa riêng tư không lộ ở trang mùa công khai; chủ giải v�
   assert.strictEqual(view(await get(org, id)).series.next.id, id2, 'chủ giải: vẫn có liên kết mùa sau');
   assert.strictEqual(ctx.app.hub.publicOTour(id).series.next, null, 'trang công khai JSON: không lộ');
   t2.access = 'public';
-  assert.strictEqual(view(await get(guest, id)).series.next.id, id2, 'mùa công khai: ai cũng thấy');
+  // Khách đang xem: có thể còn bản đẩy dựng lúc mùa sau còn riêng tư trên đường tới – chờ bản sau khi đổi (otFresh)
+  const g2 = await otFresh(guest, id, (m) => !!(view(m).series && view(m).series.next));
+  assert.strictEqual(view(g2).series.next.id, id2, 'mùa công khai: ai cũng thấy');
   [org, guest].forEach((c) => c.close());
 });
 

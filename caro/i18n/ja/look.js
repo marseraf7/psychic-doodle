@@ -1,0 +1,21 @@
+// Tiếng Nhật – bản dịch của caro/i18n-look.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Nhật).
+window.I18N.extend('ja', {
+  board_style: '盤面',
+  board_color: '盤の色',
+  board_paper: '紙（テーマに合わせる）',
+  board_wood: '木目',
+  board_green: '緑',
+  board_blue: '青',
+  board_night: '夜',
+  piece_style: '石の種類',
+  pieces_classic: '細いX/O',
+  pieces_bold: '太いX/O',
+  pieces_stones: '黒石・白石',
+  sound_style: '効果音',
+  sound_classic: '標準',
+  sound_wood: '木を打つ音',
+  sound_soft: 'やわらか',
+  set_g_game: '対局',
+  set_g_display: '表示',
+  set_g_sound: 'サウンドと操作',
+});

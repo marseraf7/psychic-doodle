@@ -19,7 +19,7 @@ const fmt = (m) => `[${m[0]},${m[1]}]`;
 const S = {
   mode: 'play', rule: 'vn', moves: [], winner: null, line: null, draw: false, toMove: 'X', you: 'X', difficulty: 'normal',
   hint: null, reasonCode: null, puzzle: null, verdict: null, solution: null, answer: null, busy: false, error: null,
-  site: 'https://caroxo.duckdns.org', view: null, fresh: -1,
+  site: '', view: null, fresh: -1,
 };
 
 const app = new App({ name: 'Caro x Gomoku', version: '1.0.0' }, {}, { autoResize: true });
@@ -31,7 +31,12 @@ function applyContext(ctx) {
   if (ctx.theme) applyDocumentTheme(ctx.theme);
   if (ctx.styles && ctx.styles.variables) applyHostStyleVariables(ctx.styles.variables);
   if (ctx.styles && ctx.styles.css && ctx.styles.css.fonts) applyHostFonts(ctx.styles.css.fonts);
-  if (ctx.locale) { const l = String(ctx.locale).slice(0, 2).toLowerCase(); lang = DICT[l] ? l : 'en'; document.documentElement.lang = lang; }
+  if (ctx.locale) {
+    // zh-TW → zh-Hant, ja-JP → ja… (caro/langs.js fromTag – widget.js chèn vào); ngôn ngữ chưa có chữ thì tiếng Anh
+    const l = globalThis.CARO_MCP_LANG ? globalThis.CARO_MCP_LANG(ctx.locale, Object.keys(DICT)) : String(ctx.locale).slice(0, 2).toLowerCase();
+    lang = DICT[l] ? l : 'en';
+    document.documentElement.lang = lang;
+  }
   if (ctx.safeAreaInsets) {
     const i = ctx.safeAreaInsets;
     root.style.padding = `${12 + i.top}px ${12 + i.right}px ${12 + i.bottom}px ${12 + i.left}px`;
@@ -113,7 +118,7 @@ function setOpt(key, val) {
   render();
 }
 
-function openSite() { app.openLink({ url: S.site }).catch(() => {}); }
+function openSite() { if (S.site) app.openLink({ url: S.site }).catch(() => {}); } // site: máy chủ gửi kèm kết quả (texts.js site())
 
 // ---------------------------------------------------------------- Vẽ
 const occupied = (x, y) => S.moves.some((m) => m[0] === x && m[1] === y);

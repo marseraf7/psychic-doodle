@@ -1,0 +1,21 @@
+// Tiếng Trung phồn thể – bản dịch của caro/i18n-look.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Trung phồn thể).
+window.I18N.extend('zh-Hant', {
+  board_style: '棋盤',
+  board_color: '棋盤顏色',
+  board_paper: '紙（跟隨主題）',
+  board_wood: '木紋',
+  board_green: '綠色',
+  board_blue: '藍色',
+  board_night: '夜間',
+  piece_style: '棋子',
+  pieces_classic: '細 X/O',
+  pieces_bold: '粗 X/O',
+  pieces_stones: '黑白棋子',
+  sound_style: '音效',
+  sound_classic: '預設',
+  sound_wood: '木頭敲擊',
+  sound_soft: '輕柔',
+  set_g_game: '對局',
+  set_g_display: '顯示',
+  set_g_sound: '聲音與操作',
+});

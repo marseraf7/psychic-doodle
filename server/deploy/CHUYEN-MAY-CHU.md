@@ -4,6 +4,8 @@
 nên không cache được, chỉ rút ngắn quãng đường mới giảm ping thật. Đặt ở Phần Lan: Moscow ≈ 25–45 ms, người chơi ở Mỹ
 ≈ 90–110 ms (vẫn chơi tốt).
 
+> Đổi sang **tên miền mới** (đã mua): xem `docs/doi-ten-mien.md` – tài liệu này chỉ cho việc đổi máy, giữ tên miền.
+
 **Nguyên tắc:** giữ **nguyên tên miền** `caroxo.duckdns.org` rồi chỉ đổi IP nó trỏ tới. App Android / iOS đã dựng sẵn
 tên miền này (`app/README.md`, `CARO_SERVER_URL`), nên không phải phát hành lại app. Chuyển xong người chơi không phải làm gì.
 

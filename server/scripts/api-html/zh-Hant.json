@@ -1,0 +1,44 @@
+{
+  "label": "繁體",
+  "host": "網域",
+  "title": "Caro x Gomoku – 公開 API",
+  "back": "返回遊戲",
+  "h1": "公開 API（v1）",
+  "meta": "唯讀 JSON 資料，可用於網站、Discord / Telegram 機器人和統計工具。",
+  "chips": [
+    "唯讀",
+    "無需金鑰",
+    "開放 CORS",
+    "OpenAPI 3.1"
+  ],
+  "rules_h": "通用規則",
+  "rules": [
+    "基礎網址：<code>/api/v1</code>（與本頁同一網域）。",
+    "每個 IP 每分鐘最多 <strong>120 次請求</strong>；超出時返回 <code>429</code> 並附帶 <code>Retry-After</code>（秒）。",
+    "每個回應都帶有 <code>ETag</code>：在 <code>If-None-Match</code> 中發回即可得到 <code>304</code>（無需重新下載）。",
+    "錯誤格式始終為 <code>{\"error\": \"not_found\", \"message\": \"Not found\"}</code>。",
+    "不含私人資料：電子郵件、好友、已封鎖的玩家、裝置。僅當玩家的對局記錄設為公開時才返回最近對局；私密、俱樂部和草稿賽事不可檢視。"
+  ],
+  "nota_h": "格子記法",
+  "nota": "棋盤無邊界。格子按中心周圍的 15×15 框命名：列 a…o 從左到右，行 1…15 從下到上，中心為 <code>h8</code>；超出此框繼續計數（列 p、q…，行 16…，行 0、-1…）。JSON 中一步棋為 <code>[x, y]</code>：x 向右增大，y 向下增大，<code>[0, 0]</code> = h8。",
+  "ep_h": "端點",
+  "col": [
+    "路徑",
+    "返回"
+  ],
+  "ex_h": "範例",
+  "spec": "完整說明（OpenAPI 3.1）：",
+  "eps": [
+    "公開資料：各時限等級分、勝 / 負 / 和、賽事成績",
+    "等級分歷史：按類別的 <code>[時間 ms, 等級分]</code>",
+    "最近對局（<code>?max=1…50</code>）；對局記錄未公開 → <code>\"hidden\": true</code>",
+    "按分享碼取得一局（同重播連結）",
+    "以 Caro 記法輸出的類 PGN 文字",
+    "公開賽事資訊",
+    "賽事排名",
+    "前 50 名玩家（<code>?pool=bullet|blitz|rapid|classical</code>）",
+    "賽事直播：進行中的對局、排名、最近結果（<code>key</code> = 賽事代碼；線下賽事：<code>o.</code> + 代碼）",
+    "每日謎題（越南時間 0:00 更換；<code>?date=YYYY-MM-DD</code>）",
+    "OpenAPI 3.1 文件"
+  ]
+}

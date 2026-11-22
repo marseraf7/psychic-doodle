@@ -5,12 +5,13 @@
   const COLORS = { light: '#f6f3ec', dark: '#161512' };
   const media = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
   const listeners = [];
+  let hostMode = null; // giao diện do Telegram / VK báo (host.js) – chỉ dùng khi người chơi chưa tự chọn, không lưu
 
+  const saved = () => { try { return localStorage.getItem(KEY); } catch (e) { return null; /* riêng tư */ } };
   function get() {
-    let v;
-    try { v = localStorage.getItem(KEY); } catch (e) { /* riêng tư */ }
-    // Chưa chọn gì: nền tối (như Lichess); 'system' = theo máy
-    return v === 'light' || v === 'system' ? v : 'dark';
+    const v = saved();
+    // Chưa chọn gì: theo nền tảng chứa game nếu có, không thì nền tối (như Lichess); 'system' = theo máy
+    return v === 'light' || v === 'system' || v === 'dark' ? v : hostMode || 'dark';
   }
 
   /** Giao diện thực tế đang hiển thị: 'light' | 'dark'. */
@@ -39,5 +40,12 @@
   apply(get());
   if (media && media.addEventListener) media.addEventListener('change', () => { if (get() === 'system') listeners.forEach((fn) => fn()); });
 
-  window.CaroTheme = { get, set, effective: () => effective(get()), onChange: (fn) => listeners.push(fn) };
+  /** Nền tảng chứa game báo sáng / tối: áp dụng nếu người chơi chưa tự chọn (không lưu). → true nếu đã áp dụng. */
+  function setHost(mode) {
+    if ((mode !== 'light' && mode !== 'dark') || ['light', 'dark', 'system'].includes(saved())) return false;
+    if (hostMode !== mode) { hostMode = mode; apply(mode); listeners.forEach((fn) => fn()); }
+    return true;
+  }
+
+  window.CaroTheme = { get, set, setHost, effective: () => effective(get()), onChange: (fn) => listeners.push(fn) };
 })();

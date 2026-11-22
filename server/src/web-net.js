@@ -4,6 +4,7 @@
  *   ipInCidr(addr, cidr), fromProxy(addr), wsOriginAllowed(req), clientIp(req)
  */
 'use strict';
+const { portalOriginAllowed } = require('./portal-origins.js');
 /** Địa chỉ IPv4 có nằm trong CIDR (vd. 172.17.0.0/16) hay bằng đúng IP đơn lẻ không.
  *  IPv6 chỉ so khớp đúng chuỗi (đủ cho địa chỉ proxy cụ thể). */
 function ipInCidr(addr, cidr) {
@@ -43,23 +44,27 @@ function fromProxy(addr) {
  *  Chính sách: không có Origin (app gốc / công cụ kiểm thử — không phải trình duyệt) thì cho
  *  qua; Origin cùng host với máy chủ (bản web do chính máy chủ phục vụ), Origin của app
  *  Capacitor / Tauri, các địa chỉ web chính thức (OWN_WS_ORIGINS), Origin của PUBLIC_URL, hoặc Origin khai thêm qua
- *  WS_ALLOWED_ORIGINS thì cho qua; còn lại từ chối. */
+ *  WS_ALLOWED_ORIGINS, hoặc Origin của cổng game đã khai (portal-origins.js) thì cho qua; còn lại từ chối. */
 // App desktop Tauri (thí điểm, desktop/): tauri://localhost trên macOS / Linux, http://tauri.localhost trên Windows
 const APP_WS_ORIGINS = ['https://localhost', 'capacitor://localhost', 'http://localhost', 'tauri://localhost', 'http://tauri.localhost'];
 // Các địa chỉ web chính thức của game (cùng chủ, tin được như bản do máy chủ phục vụ) – có sẵn, khỏi đặt
 // WS_ALLOWED_ORIGINS trên máy chủ:
 //  - bản giao diện tĩnh trên GitHub Pages (caro/config.js trỏ về máy chủ chính, #110 P3): tải nhanh ở nơi khó vào
 //    máy chủ (đo từ Nga: Pages hiện ngay, máy chủ chính > 5 phút);
-//  - tên miền phụ caroxo.ddnsgeek.com (cùng máy chủ với caroxo.duckdns.org).
+//  - tên miền phụ caroxo.ddnsgeek.com (cùng máy chủ với tên miền chính – site.js).
+// Tên miền mới khi chuyển (MOVED_TO) cũng được nhận như PUBLIC_URL (wsOriginAllowed).
 const OWN_WS_ORIGINS = ['https://marseraf7.github.io', 'https://caroxo.ddnsgeek.com'];
 function wsOriginAllowed(req) {
   const raw = String((req.headers && req.headers.origin) || '').trim().replace(/\/+$/, '');
   if (!raw) return true;
   const extras = String(process.env.WS_ALLOWED_ORIGINS || '').split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
   if (APP_WS_ORIGINS.includes(raw) || OWN_WS_ORIGINS.includes(raw) || extras.includes(raw)) return true;
+  if (portalOriginAllowed(raw)) return true; // bản cổng game CrazyGames / itch.io (portal-origins.js)
   let o;
   try { o = new URL(raw); } catch (e) { return false; }
-  if (process.env.PUBLIC_URL) { try { if (new URL(process.env.PUBLIC_URL).origin === o.origin) return true; } catch (e) { /* PUBLIC_URL sai định dạng: bỏ qua */ } }
+  for (const env of [process.env.PUBLIC_URL, process.env.MOVED_TO]) {
+    if (env) { try { if (new URL(env).origin === o.origin) return true; } catch (e) { /* sai định dạng: bỏ qua */ } }
+  }
   return o.host === String((req.headers && req.headers.host) || '');
 }
 

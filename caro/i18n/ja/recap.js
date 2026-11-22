@@ -1,0 +1,23 @@
+// Tiếng Nhật – bản dịch của caro/i18n-recap.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Nhật).
+window.I18N.extend('ja', {
+  rc_title: '振り返り',
+  rc_t_month: '月',
+  rc_t_year: '年',
+  rc_year: '{y}年',
+  rc_prev: '前の期間',
+  rc_next: '次の期間',
+  rc_empty: 'この期間にはまだ対局がありません。',
+  rc_dl: '引き分け／負け',
+  rc_streak: '最多連勝',
+  rc_days: 'プレイした日数',
+  rc_pz: '解いた詰め問題',
+  rc_storm: 'ストームの記録',
+  rc_fav_rule: 'よく使うルール：{rule}（{n}局）',
+  rc_fav_pool: 'よく使う持ち時間：{pool}（{n}局）',
+  rc_best: '会心の勝利：{name}（{r}点）に勝利',
+  rc_best_anon: '会心の勝利：レーティング{r}の相手に勝利',
+  rc_opp: '最も多く対局した相手：{name}（{n}局）',
+  rc_note: 'アカウントに保存された対局に基づいています。詰め問題とストームはこの端末の記録です。相手の名前は、お互いに対局履歴を公開している場合だけ表示されます。月、年、プレイした日数は端末のタイムゾーンに従います。',
+  rc_note_local: 'この端末に保存された対局に基づいています。月、年、プレイした日数は端末のタイムゾーンに従います。',
+  rc_share: '振り返りの画像を共有',
+});

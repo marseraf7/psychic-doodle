@@ -2,6 +2,8 @@
  * Trang chính dạng gộp (server/src/web-bundle.js – bước 1 của docs/nghien-cuu-viet-lai-rust-17-11-2026.md):
  *  - Đã chọn tiếng Nga: chỉ tải gói chuỗi tiếng Nga, giao diện hiện tiếng Nga ngay lần nạp đầu, không lỗi JS.
  *  - Đổi sang tiếng Trung lúc đang dùng: tải thêm đúng gói tiếng Trung rồi mới đổi chữ.
+ *  - Ngôn ngữ thư mục (langs.js – ja): đã chọn tiếng Nhật thì chỉ tải gói tiếng Nhật (chuỗi từ caro/i18n/ja/); trang từng
+ *    file (?bundle=0) tự chèn i18n/ja/*.js, đổi sang tiếng Nhật lúc đang dùng thì tải các file đó rồi mới đổi.
  *  - Đo thực địa: rum.js gửi số đo, /api/rum có số của lượt mở trang.
  *  - ?perf=1: ô số đo hiện "Bản gộp"; ?bundle=0&perf=1: trang gốc từng file, ô số đo hiện "Từng file".
  *  - A2: CPU chậm 4× – việc CPU dài nhất dưới ngưỡng; service worker đăng ký sau khi tải xong, lúc rảnh lưu nốt, mất mạng vẫn chơi.
@@ -21,7 +23,7 @@ const { setup, gotoRetry } = require('./helpers');
   const p = await ctx.newPage();
   const errs = [], packs = [];
   p.on('pageerror', (e) => errs.push(e.message));
-  p.on('request', (r) => { const m = /\/b\/i18n-(\w+)-/.exec(r.url()); if (m) packs.push(m[1]); });
+  p.on('request', (r) => { const m = /\/b\/i18n-([A-Za-z-]+?)-[0-9a-f]{10}\.js/.exec(r.url()); if (m) packs.push(m[1]); });
   await gotoRetry(p, URL);
   await sleep(1200);
   const ph = () => p.evaluate(() => document.querySelector('#tb-search').placeholder);
@@ -36,6 +38,44 @@ const { setup, gotoRetry } = require('./helpers');
   for (let i = 0; i < 30 && !(zh = await ph() === '搜索棋手…'); i++) await sleep(100);
   ok(zh && packs.join() === 'ru,zh', 'đổi ngôn ngữ: tải thêm gói tiếng Trung rồi đổi chữ');
   ok(!errs.length, 'không có lỗi JS' + (errs.length ? ': ' + errs.join(' | ') : ''));
+
+  // 2b. Tiếng Nhật (ngôn ngữ thư mục): bản gộp chỉ tải gói ja; trang từng file chèn i18n/ja/*.js; đổi ngôn ngữ lúc đang dùng
+  const JA_PH = 'プレイヤーを検索…';
+  {
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    await c.addInitScript(() => { localStorage.setItem('caro.lang', 'ja'); });
+    const pg = await c.newPage();
+    const got = [], jaErr = [], dirReq = [];
+    pg.on('pageerror', (e) => jaErr.push(e.message));
+    pg.on('request', (r) => { const m = /\/b\/i18n-([A-Za-z-]+?)-[0-9a-f]{10}\.js/.exec(r.url()); if (m) got.push(m[1]); if (/\/i18n\/[\w-]+\//.test(r.url())) dirReq.push(r.url()); });
+    await gotoRetry(pg, URL); await sleep(1200);
+    const st = await pg.evaluate(() => ({ lang: window.I18N.lang, html: document.documentElement.lang, ph: document.querySelector('#tb-search').placeholder, t: window.I18N.t('btn_new') }));
+    ok(st.lang === 'ja' && st.html === 'ja' && got.join() === 'ja' && !dirReq.length, 'bản gộp, tiếng Nhật đã lưu: chỉ tải gói ja, không tải file lẻ i18n/ja/ (' + got.join() + ' ' + JSON.stringify(st) + ')');
+    ok(st.ph === JA_PH && st.t === '新しい対局', 'chữ tiếng Nhật ngay lần đầu (lõi + file chủ đề)');
+    await c.close();
+    // Trang từng file
+    const c2 = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    await c2.addInitScript(() => { localStorage.setItem('caro.lang', 'ja'); });
+    const p2 = await c2.newPage();
+    const req2 = [];
+    p2.on('pageerror', (e) => jaErr.push('bundle=0: ' + e.message));
+    p2.on('request', (r) => { if (/\/i18n\/[\w-]+\//.test(r.url())) req2.push(r.url().replace(/^.*\/i18n\//, '')); });
+    await gotoRetry(p2, URL + '?bundle=0'); await sleep(1500);
+    const st2 = await p2.evaluate(() => ({ packs: !!window.CARO_PACKS, lang: window.I18N.lang, ph: document.querySelector('#tb-search').placeholder, t: window.I18N.t('btn_new') }));
+    ok(!st2.packs && st2.lang === 'ja' && st2.ph === JA_PH && st2.t === '新しい対局', '?bundle=0: chữ tiếng Nhật ' + JSON.stringify(st2));
+    ok(req2.length > 40 && req2.every((u) => u.startsWith('ja/')) && req2.includes('ja/core.js') && req2.includes('ja/topbar.js'), '?bundle=0: chỉ tải i18n/ja/*.js (' + req2.length + ' file)');
+    // Đổi ngôn ngữ lúc đang dùng (trang từng file): vi → ja
+    await p2.evaluate(() => window.I18N.setLang('vi')); await sleep(300);
+    const before = req2.length;
+    await p2.evaluate(() => { localStorage.setItem('caro.lang', 'vi'); });
+    await p2.reload(); await sleep(1200);
+    await p2.evaluate(() => window.I18N.setLang('ja'));
+    let sw = false;
+    for (let i = 0; i < 40 && !(sw = await p2.evaluate((ph) => window.I18N.lang === 'ja' && document.querySelector('#tb-search').placeholder === ph, JA_PH)); i++) await sleep(100);
+    ok(sw && req2.length > before, '?bundle=0: đổi sang tiếng Nhật lúc đang dùng – tải i18n/ja/*.js rồi đổi chữ');
+    ok(!jaErr.length, 'tiếng Nhật: không lỗi JS' + (jaErr.length ? ': ' + jaErr.join(' | ') : ''));
+    await c2.close();
+  }
   // Đo thực địa (rum.js → /api/rum): gửi khi trang bị ẩn; ở đây gọi thẳng rồi đọc bảng gộp của máy chủ
   await p.evaluate(() => window.CaroRum.send());
   let rum = null;

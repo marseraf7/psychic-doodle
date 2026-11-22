@@ -2,7 +2,7 @@
  * Dựng thư mục www cho ứng dụng từ giao diện web (../caro) – hai bản dùng chung một mã nguồn (phần chép chung với
  * app desktop: web-common.js).
  * Biến môi trường:
- *   CARO_SERVER_URL            máy chủ online (mặc định https://caroxo.duckdns.org) – phải là https
+ *   CARO_SERVER_URL            máy chủ online (mặc định tên miền chính – server/src/site.js) – phải là https
  *   CARO_APP_TEST=1            bản thử nghiệm: cho phép máy chủ http (chỉ dùng khi kiểm thử)
  */
 'use strict';
@@ -34,7 +34,7 @@ const VENDOR = [
   ['@capacitor/filesystem/dist/plugin.js', 'filesystem.js'],
   ['@capgo/capacitor-social-login/dist/plugin.js', 'social-login.js'],
 ];
-fs.mkdirSync(path.join(WWW, 'vendor'));
+fs.mkdirSync(path.join(WWW, 'vendor'), { recursive: true }); // caro/vendor/ (vd. vk-bridge.js) đã chép sang cùng chỗ
 for (const [from, to] of VENDOR) {
   const src = path.join(ROOT, 'node_modules', from);
   if (!fs.existsSync(src)) fail('Thiếu ' + from + ' – chạy npm ci trong thư mục app');

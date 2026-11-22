@@ -1,7 +1,7 @@
 # Dựng ứng dụng Cờ Caro cho Android và iOS, và kiểm thử chơi chéo app ⟷ web trên máy ảo Android thật.
 #
 # Tuỳ chọn trong Settings → Secrets and variables → Actions (xem app/README.md):
-#   Variables: CARO_SERVER_URL (mặc định https://caroxo.duckdns.org)
+#   Variables: CARO_SERVER_URL (mặc định tên miền chính – server/src/site.js)
 #   Secrets:   CARO_KEYSTORE_BASE64, CARO_KEYSTORE_PASSWORD, CARO_KEY_ALIAS, CARO_KEY_PASSWORD (ký bản Android phát hành)
 name: App Caro (Android / iOS)
 

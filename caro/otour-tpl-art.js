@@ -209,10 +209,10 @@
 
   // ------------------------------------------------------------ Bài giải thích thể thức (Wikipedia, mở tab mới)
   const WIKI = {
-    rr: { en: 'Round-robin_tournament', vi: 'Thi_đấu_vòng_tròn', ru: 'Круговая_система', zh: '循环赛' },
-    single: { en: 'Single-elimination_tournament', ru: 'Олимпийская_система', zh: '单败淘汰制' },
+    rr: { en: 'Round-robin_tournament', vi: 'Thi_đấu_vòng_tròn', ru: 'Круговая_система', zh: '循环赛', ja: '総当たり戦' },
+    single: { en: 'Single-elimination_tournament', ru: 'Олимпийская_система', zh: '单败淘汰制', ja: 'トーナメント方式' },
     double: { en: 'Double-elimination_tournament', zh: '双败淘汰制' },
-    swiss: { en: 'Swiss-system_tournament', vi: 'Thi_đấu_hệ_Thụy_Sĩ', ru: 'Швейцарская_система', zh: '瑞士制' },
+    swiss: { en: 'Swiss-system_tournament', vi: 'Thi_đấu_hệ_Thụy_Sĩ', ru: 'Швейцарская_система', zh: '瑞士制', ja: 'スイス式トーナメント' },
     page: { en: 'Page_playoff_system', zh: '佩奇制' },
   };
   const wikiKey = (c) => {

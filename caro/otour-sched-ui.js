@@ -22,7 +22,7 @@
     ...(v.places || []).flatMap((p) => p.rounds.flat()), ...(v.groups || []).flatMap((g, gi) => (K.roundsOfGroup(t, v, gi) || []).flat())]).filter((m) => m && real(m.a) && real(m.b) && !m.bye);
   const dayKey = (ms) => { const d = new Date(ms); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
   // Ngày giờ theo ngôn ngữ của ứng dụng (không theo trình duyệt), giờ 24 tiếng
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N && window.I18N.lang] || undefined);
+  const locale = () => ((window.I18N && window.I18N.locale) || undefined);
   const fmtDay = (ms) => new Date(ms).toLocaleDateString(locale(), { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
   const fmtTime = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit', hour12: false });
   const fmtWhen = (ms) => fmtDay(ms) + ' ' + fmtTime(ms);
