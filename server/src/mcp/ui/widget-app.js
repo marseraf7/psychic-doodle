@@ -31,7 +31,12 @@ function applyContext(ctx) {
   if (ctx.theme) applyDocumentTheme(ctx.theme);
   if (ctx.styles && ctx.styles.variables) applyHostStyleVariables(ctx.styles.variables);
   if (ctx.styles && ctx.styles.css && ctx.styles.css.fonts) applyHostFonts(ctx.styles.css.fonts);
-  if (ctx.locale) { const l = String(ctx.locale).slice(0, 2).toLowerCase(); lang = DICT[l] ? l : 'en'; document.documentElement.lang = lang; }
+  if (ctx.locale) {
+    // zh-TW → zh-Hant, ja-JP → ja… (caro/langs.js fromTag – widget.js chèn vào); ngôn ngữ chưa có chữ thì tiếng Anh
+    const l = globalThis.CARO_MCP_LANG ? globalThis.CARO_MCP_LANG(ctx.locale, Object.keys(DICT)) : String(ctx.locale).slice(0, 2).toLowerCase();
+    lang = DICT[l] ? l : 'en';
+    document.documentElement.lang = lang;
+  }
   if (ctx.safeAreaInsets) {
     const i = ctx.safeAreaInsets;
     root.style.padding = `${12 + i.top}px ${12 + i.right}px ${12 + i.bottom}px ${12 + i.left}px`;

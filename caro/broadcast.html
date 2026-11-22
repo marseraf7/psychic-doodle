@@ -7,7 +7,7 @@
   <title>Caro x Gomoku</title>
   <!-- Tường thuật giải đấu (C3): lưới bàn nhỏ các ván đang đấu, bảng xếp hạng, kết quả gần đây – tự cập nhật (broadcast.js).
        Địa chỉ: /?bc=<mã giải> | /?bc=o.<mã giải Offline> (máy chủ thêm thẻ og – web.js / broadcast-page.js) hoặc
-       /broadcast.html?bc=…; nhúng iframe được; &lang=vi|en|ru|zh &theme=light|dark (embed-boot.js). -->
+       /broadcast.html?bc=…; nhúng iframe được; &lang=vi|en|ru|zh|zh-Hant|ja|ko|cs &theme=light|dark (embed-boot.js). -->
   <script src="embed-boot.js"></script>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="broadcast.css">
@@ -18,6 +18,7 @@
   <p id="bc-say" class="sr-only" aria-live="polite"></p>
   <!-- Địa chỉ máy chủ (CARO_SERVER): trong app trang này nằm trong máy, broadcast.js hỏi API ở máy chủ đó -->
   <script src="config.js"></script>
+  <script src="langs.js"></script>
   <script src="i18n.js"></script>
   <script src="i18n-broadcast.js"></script>
   <script src="broadcast.js"></script>

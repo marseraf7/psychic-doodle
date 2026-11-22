@@ -6,10 +6,14 @@
  * File này chỉ dựng chữ + HTML (không đọc dữ liệu): dữ liệu lấy từ hub/og.js (đã kiểm quyền xem như khách chưa đăng nhập).
  * Mọi giá trị đều được thoát HTML; chữ người dùng tự đặt (tên giải, tên CLB…) bị cắt ngắn, bỏ xuống dòng.
  * Ngôn ngữ: ?lang= trong link, không có thì theo Accept-Language của trình duyệt / ứng dụng đọc link, mặc định tiếng Việt.
+ * Danh sách ngôn ngữ: caro/langs.js (qua langs.js); chữ của ngôn ngữ thư mục (ja, ko, cs, zh-Hant): server/src/i18n/<mã>.js, mục og –
+ * khoá thiếu lấy tiếng Anh.
  */
 'use strict';
 
-const LANGS = ['vi', 'en', 'ru', 'zh'];
+const Langs = require('./langs.js');
+
+const LANGS = Langs.CODES;
 const SITE = 'Caro x Gomoku';
 
 // {x} … thay bằng dữ liệu. Giữ ngắn: ứng dụng chat cắt mô tả ở ~2 dòng.
@@ -67,6 +71,7 @@ const S = {
     home_d: '在浏览器中免费与好友或电脑下五子棋',
   },
 };
+Object.assign(S, Langs.withDirLangs('og', {})); // ja, ko, cs, zh-Hant: server/src/i18n/<mã>.js
 
 const escHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 /** Chữ một dòng, tối đa max ký tự (cắt thì thêm "…"). */
@@ -79,19 +84,12 @@ function fill(str, vars) {
   return str.replace(/\{(\w+)\}/g, (m, k) => (vars[k] === undefined ? m : String(vars[k])));
 }
 
-/** Ngôn ngữ của thẻ: ?lang= → Accept-Language (theo trọng số q, q=0 là không nhận) → vi. */
+/** Ngôn ngữ của thẻ: ?lang= (zh-TW, ja-JP… cũng nhận – langs.js fromTag) → Accept-Language (theo trọng số q, q=0 là không
+ * nhận) → vi. */
 function pickLang(query, acceptLang) {
-  const q = query && query.get && String(query.get('lang') || '').slice(0, 2).toLowerCase();
-  if (LANGS.includes(q)) return q;
-  let best = null, bestQ = 0;
-  for (const part of String(acceptLang || '').slice(0, 1000).split(',').slice(0, 30)) {
-    const [tag, ...params] = part.split(';');
-    const l = tag.trim().slice(0, 2).toLowerCase();
-    const qp = params.map((x) => /^\s*q\s*=\s*([\d.]+)\s*$/i.exec(x)).find(Boolean);
-    const w = qp ? Number(qp[1]) : 1;
-    if (LANGS.includes(l) && Number.isFinite(w) && w > bestQ) { best = l; bestQ = w; } // bằng trọng số: giữ cái viết trước
-  }
-  return best || 'vi';
+  const q = query && query.get && Langs.fromTag(String(query.get('lang') || '').slice(0, 20));
+  if (q) return q;
+  return Langs.fromAccept(acceptLang) || 'vi';
 }
 
 /**
@@ -99,8 +97,9 @@ function pickLang(query, acceptLang) {
  * → { title, desc } (chưa thoát HTML).
  */
 function texts(info, lang) {
-  const L = S[LANGS.includes(lang) ? lang : 'vi'];
-  const t = (k, v = {}) => fill(L[k], v);
+  const l = LANGS.includes(lang) ? lang : 'vi';
+  const L = S[l] || {}, F = S[Langs.fallback(l)] || S.vi; // khoá thiếu (ngôn ngữ thư mục chưa dịch xong): tiếng Anh
+  const t = (k, v = {}) => fill(L[k] ?? F[k], v);
   const name = (s) => clip(s || '?', 40);
   switch (info && info.kind) {
     case 'replay': {
@@ -128,7 +127,7 @@ function texts(info, lang) {
 function inject(html, { info, lang, base, url, image }) {
   if (!info) return html;
   const { title, desc } = texts(info, lang);
-  const loc = { vi: 'vi_VN', en: 'en_US', ru: 'ru_RU', zh: 'zh_CN' }[lang] || 'vi_VN';
+  const loc = (Langs.BY[lang] || Langs.BY.vi).og;
   const full = title === SITE ? SITE : title + ' – ' + SITE;
   const tags = [
     ['og:type', 'website'], ['og:site_name', SITE], ['og:title', full], ['og:description', desc], ['og:locale', loc],

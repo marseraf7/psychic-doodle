@@ -14,7 +14,7 @@
   const $ = (id) => document.getElementById(id);
   let list = null; // danh sách lần gần nhất máy chủ gửi
 
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang]);
+  const locale = () => window.I18N.locale;
   function ago(ms) {
     const s = Math.max(0, Date.now() - ms) / 1000;
     if (s < 60) return T('dev_now');

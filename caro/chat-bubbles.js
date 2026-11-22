@@ -41,7 +41,7 @@
   const friends = () => (S.friends && S.friends.friends) || [];
   const friend = (id) => friends().find((f) => f.id === id);
   const signedIn = () => !!(S.me && !S.me.guest && N.connected);
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang] || 'vi-VN');
+  const locale = () => window.I18N.locale;
   const time = (ms) => { try { return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
   const status = (f) => (window.CaroPresence ? window.CaroPresence.text(f) : T('st_' + f.status));
   const avatar = (f, cls) => `<span class="av-st">${window.CaroAvatar.html(f, cls)}<span class="st ${esc(f.status)}"></span></span>`;

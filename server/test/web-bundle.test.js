@@ -9,6 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { build, langPacks, LANGS } = require('../src/web-bundle.js');
+const Langs = require('../src/langs.js');
 const { Store } = require('../src/store.js');
 const { makeHandler } = require('../src/web.js');
 
@@ -41,6 +42,18 @@ test('mọi file mã nằm trong một khối, đúng thứ tự index.html; fil
   assert.ok(B.html.includes('<script src="watchdog.js"></script>'));
 });
 
+/** Chuỗi của ngôn ngữ thư mục l như trình duyệt từng file thấy: i18n/<l>/core.js rồi i18n/<l>/<chủ đề>.js theo index.html. */
+function dirStrings(l) {
+  const out = {}, d = path.join(DIR, 'i18n', l);
+  if (!fs.existsSync(d)) return out;
+  const have = fs.readdirSync(d).filter((f) => f.endsWith('.js'));
+  const order = ['core.js'].concat(bodyNames().map((n) => /^i18n-([\w-]+)\.js$/.exec(n)).filter(Boolean).map((m) => m[1] + '.js'));
+  for (const f of [...new Set(order.filter((f) => have.includes(f)).concat(have.sort()))]) {
+    vm.runInNewContext(fs.readFileSync(path.join(d, f), 'utf8'), { window: { I18N: { extend: (lang, o) => { assert.strictEqual(lang, l, f); Object.assign(out, o); } } } });
+  }
+  return out;
+}
+
 test('gói ngôn ngữ: đủ mọi khoá, đúng giá trị như chạy các file gốc lần lượt', () => {
   const want = Object.fromEntries(LANGS.map((l) => [l, {}]));
   for (const n of bodyNames()) {
@@ -48,14 +61,49 @@ test('gói ngôn ngữ: đủ mọi khoá, đúng giá trị như chạy các fi
     const p = langPacks(fs.readFileSync(path.join(DIR, n), 'utf8'));
     if (p) for (const l of LANGS) Object.assign(want[l], p[l] || {});
   }
+  // Ngôn ngữ thư mục (ja, ko, cs, zh-Hant): chuỗi từ caro/i18n/<l>/, khoá thiếu lấy tiếng Anh (rồi tiếng Việt)
+  for (const l of Langs.DIR) want[l] = { ...want.en, ...dirStrings(l) };
   const boot = text(chunkNames().find((n) => n.startsWith('b/boot-')));
   const urls = JSON.parse(/var P = (\{[^}]+\})/.exec(boot)[1]);
   for (const l of LANGS) {
     const got = {};
     vm.runInNewContext(text(urls[l]), { window: { I18N: { extend: (lang, o) => { assert.strictEqual(lang, l); Object.assign(got, o); } } } });
+    const dirOnly = Langs.DIR.includes(l) ? Object.keys(want[l]).filter((k) => !(k in want.vi)) : [];
     assert.deepStrictEqual(got, { ...want.vi, ...want[l] }, 'gói ' + l);
-    assert.strictEqual(Object.keys(got).length, Object.keys(want.vi).length, 'gói ' + l + ' đủ khoá như tiếng Việt');
+    assert.strictEqual(Object.keys(got).length - dirOnly.length, Object.keys(want.vi).length, 'gói ' + l + ' đủ khoá như tiếng Việt');
   }
+  assert.deepStrictEqual(Object.keys(urls).sort(), [...Langs.CODES].sort(), 'mỗi ngôn ngữ của langs.js một gói');
+  // Gói ngôn ngữ thư mục chỉ có chuỗi của nó (+ tiếng Anh dự phòng), không mang theo tiếng Việt khi tiếng Anh đã có
+  if (fs.existsSync(path.join(DIR, 'i18n', 'ja', 'core.js'))) {
+    const ja = {};
+    vm.runInNewContext(text(urls.ja), { window: { I18N: { extend: (lang, o) => Object.assign(ja, o) } } });
+    const own = dirStrings('ja');
+    for (const k of Object.keys(own)) assert.strictEqual(ja[k], own[k], 'ja.' + k + ' lấy từ caro/i18n/ja/');
+    const k = Object.keys(want.en).find((x) => !(x in own) && want.en[x] !== want.vi[x]);
+    if (k) assert.strictEqual(ja[k], want.en[k], 'khoá chưa dịch (' + k + ') lấy tiếng Anh, không phải tiếng Việt');
+  }
+});
+
+test('file của ngôn ngữ thư mục gọi extend cho ngôn ngữ khác thì thôi gộp (báo lỗi rõ tên file)', () => {
+  const os = require('os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-bundle-dir-'));
+  fs.writeFileSync(path.join(dir, 'i18n.js'), '(function () { window.I18N = {}; })();');
+  fs.writeFileSync(path.join(dir, 'i18n-a.js'), "(function () { window.I18N.extend('vi', { a: 'x' }); window.I18N.extend('en', { a: 'y' }); })();");
+  fs.writeFileSync(path.join(dir, 'app.js'), '(function () { window.app = 1; })();');
+  fs.writeFileSync(path.join(dir, 'sw.js'), "const CACHE = 'caro-v1';\nconst FILES = ['./', 'i18n.js', 'i18n-a.js', 'app.js'];\n");
+  fs.writeFileSync(path.join(dir, 'index.html'), '<html><head></head><body>\n  <script src="i18n.js"></script>\n  <script src="i18n-a.js"></script>\n  <script src="app.js"></script>\n</body></html>');
+  fs.mkdirSync(path.join(dir, 'i18n', 'ja'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'i18n', 'ja', 'a.js'), "window.I18N.extend('ja', { a: 'あ' });");
+  const ok = build(dir);
+  const boot = [...ok.files.entries()].find(([n]) => n.startsWith('b/boot-'))[1].toString();
+  const urls = JSON.parse(/var P = (\{[^}]+\})/.exec(boot)[1]);
+  const got = (l) => { const o = {}; vm.runInNewContext(ok.files.get(urls[l]).toString(), { window: { I18N: { extend: (x, v) => Object.assign(o, v) } } }); return o; };
+  assert.deepStrictEqual(got('ja'), { a: 'あ' });
+  assert.deepStrictEqual(got('ko'), { a: 'y' }, 'chưa có thư mục: tiếng Anh');
+  assert.ok(ok.dirFiles.includes(path.join('i18n', 'ja', 'a.js')), 'file thư mục có trong chữ ký dựng lại');
+  fs.writeFileSync(path.join(dir, 'i18n', 'ja', 'a.js'), "window.I18N.extend('ko', { a: 'x' });");
+  assert.throws(() => build(dir), /i18n[\\/]ja[\\/]a\.js/);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('boot chọn ngôn ngữ như i18n.js và chèn gói đúng chỗ (sau khối có i18n.js, trước khối mã còn lại)', () => {
@@ -81,6 +129,14 @@ test('boot chọn ngôn ngữ như i18n.js và chèn gói đúng chỗ (sau kh�
   assert.strictEqual(run(null, ['vi-VN'], 'en').lang, 'en');
   assert.strictEqual(run('ru', ['vi-VN'], 'en').lang, 'ru');
   assert.strictEqual(run(null, ['zh-CN'], 'xx').lang, 'zh', 'CARO_LANG0 lạ: như trang chính');
+  // Tiếng Trung: Đài Loan / Hồng Kông / Hant → phồn thể; đại lục / Singapore / Hans → giản thể (langs.js fromTag)
+  for (const t of ['zh-TW', 'zh-HK', 'zh-Hant', 'zh-Hant-TW', 'zh-MO']) assert.strictEqual(run(null, [t]).lang, 'zh-Hant', t);
+  for (const t of ['zh', 'zh-CN', 'zh-SG', 'zh-Hans', 'zh-Hans-HK']) assert.strictEqual(run(null, [t]).lang, 'zh', t);
+  assert.strictEqual(run(null, ['fr-FR', 'ja-JP']).lang, 'ja');
+  assert.strictEqual(run(null, ['ko-KR']).lang, 'ko');
+  assert.strictEqual(run(null, ['cs-CZ']).lang, 'cs');
+  assert.strictEqual(run('zh-Hant', ['en']).lang, 'zh-Hant', 'đã lưu zh-Hant');
+  assert.match(run('zh-Hant', []).wrote, /^<script defer src="b\/i18n-zh-Hant-[0-9a-f]+\.js"><\/script>$/);
   assert.match(run('en', []).wrote, /^<script defer src="b\/i18n-en-[0-9a-f]+\.js"><\/script>$/);
 });
 

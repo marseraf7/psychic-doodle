@@ -52,7 +52,8 @@
     const dlg = $('settings');
     const form = $('settings-form');
     // Ngôn ngữ: mỗi thứ tiếng một hàng chọn (trang con "Ngôn ngữ" của Cài đặt)
-    $('lang-list').innerHTML = window.I18N.LANGS.map(([code, label]) => `<label class="li"><span class="li-t">${label}</span><input type="radio" name="lang" value="${code}"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>`).join('');
+    // lang="…" trên tên: chữ Hán của 简体中文 / 繁體中文 / 日本語 hiện đúng kiểu chữ của từng nơi (langs.js)
+    $('lang-list').innerHTML = window.I18N.LANGS.map(([code, label]) => `<label class="li"><span class="li-t" lang="${window.CaroLangs.BY[code].html}">${label}</span><input type="radio" name="lang" value="${code}"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>`).join('');
     function fillForm() {
       form.mode.value = state.mode;
       form.human.value = String(state.human);

@@ -22,8 +22,11 @@ Game cờ caro (Caro x Gomoku) chạy trên web, chơi mượt trên cả điệ
 - **Thời gian mỗi nước**: không giới hạn / 10 / 20 / 30 giây – hết giờ mà chưa đánh thì thua
   (offline: tạm dừng khi mở Cài đặt; online: máy chủ đếm giờ, người tạo phòng/người thách đấu chọn).
 - **Giao diện** Sáng / Tối / Theo hệ thống.
-- **Ngôn ngữ**: Tiếng Việt, English, Русский, 中文 (lần đầu tự chọn theo ngôn ngữ trình duyệt,
-  không khớp thì dùng tiếng Việt; đổi trong Cài đặt). Bản dịch nằm trong `i18n.js` (lõi) và các file `i18n-<chủ đề>.js`.
+- **Ngôn ngữ**: Tiếng Việt, English, Русский, 简体中文, 繁體中文, 日本語, 한국어, Čeština (danh sách: `langs.js`; lần đầu tự
+  chọn theo ngôn ngữ trình duyệt – zh-TW / zh-HK → phồn thể – không khớp thì dùng tiếng Việt; đổi trong Cài đặt). Bản dịch
+  vi / en / ru / zh nằm trong `i18n.js` (lõi) và các file `i18n-<chủ đề>.js`; ngôn ngữ thêm sau (zh-Hant, ja, ko, cs) mỗi
+  ngôn ngữ một thư mục `i18n/<mã>/` (`core.js` + `<chủ đề>.js` soi gương từng file gốc, thiếu khoá thì tiếng Anh) –
+  quy trình ở `docs/van-phong-4-ngon-ngu.md`.
 - Chế độ "chạm 2 lần để đánh" (bật sẵn trên điện thoại) để tránh bấm nhầm.
 - **Không dùng tài nguyên bên ngoài** (không CDN, không Google Fonts, không quảng cáo/analytics):
   mọi thứ nằm trong thư mục này, nên không bị chặn ở Việt Nam hay Nga.
@@ -529,6 +532,7 @@ node caro/tests/e2e/devices.e2e.js       # bố cục đa thiết bị: điện 
 | `boardstyle.js` | Màu bàn, kiểu quân (chạy trong `<head>`), hàm vẽ quân dùng chung |
 | `puzzles.json` | 363 bài đố (thế cờ, bên đi, độ dài chuỗi, độ khó, lời giải, chủ đề VCF / VCT, luật nếu khác luật Việt Nam) |
 | `sound.js` | Âm thanh tạo bằng Web Audio (không cần file âm thanh) |
+| `langs.js`, `i18n/<mã>/*.js` | Danh sách 8 ngôn ngữ (mã, tên tự gọi, `<html lang>`, Intl, hreflang, dự phòng), nhận ra ngôn ngữ trình duyệt (`CaroLangs.fromTag`) – dùng chung với máy chủ (`server/src/langs.js`). `i18n/<mã>/`: chuỗi của ngôn ngữ thư mục (zh-Hant, ja, ko, cs) – bản gộp xếp vào gói ngôn ngữ, trang từng file do `i18n.js` tự chèn |
 | `i18n.js`, `i18n-rules.js`, `i18n-bots.js`, `i18n-demos.js`, `i18n-shell.js`, `i18n-tc.js`, `theme.js` | Bản dịch 4 ngôn ngữ (`i18n-shell.js`: khung trang, Trang chủ, Cài đặt; `i18n-tc.js`: thời gian, Thiết lập ván đấu; `i18n-rules.js`: luật + phần Học, `i18n-bots.js`: lối đánh, tên và lời thoại 24 nhân vật, `i18n-demos.js`: phụ đề phim minh hoạ); giao diện Sáng/Tối/Hệ thống |
 | `i18n-online.js`, `i18n-online-msg.js`, `i18n-play.js`, `i18n-replay.js`, `i18n-analysis.js`, `i18n-account.js`, `i18n-social.js`, `i18n-tour.js`, `i18n-tour-stages.js`, `i18n-club.js`, `i18n-study.js`, `i18n-puzzles.js`, `i18n-bots-old.js`, `i18n-learn.js` | Chuỗi 4 ngôn ngữ tách từ `i18n.js` theo chủ đề: phòng / sảnh / thách đấu; trong ván (hoà, Swap2, xem, phát lại, chia sẻ); tài khoản; bạn bè, tin nhắn, xếp hạng, hồ sơ; giải đấu; thể thức + khiếu nại; CLB; phân tích ván + Thử lại; giải đố + Storm; 6 nhân vật máy đầu tiên + mở khoá đối thủ; học chơi + huy hiệu. Nạp ngay sau `i18n.js` |
 | `online.js`, `online-auth.js`, `online-friends.js`, `online-room.js`, `config.js` | Chế độ online (lõi kết nối trong `online.js`; tài khoản / đăng nhập, bạn bè + lời mời, phòng + kết thúc ván ở 3 file `online-*.js`): kết nối máy chủ (ping mỗi 10 giây, trượt 2 lần liên tiếp thì tự kết nối lại; quá 10 giây chưa có "welcome" cũng kết nối lại; máy chủ cũ chưa có lệnh ping thì thôi ping, không báo lỗi), tài khoản, bạn bè, phòng, thách đấu |

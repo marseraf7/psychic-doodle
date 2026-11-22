@@ -26,10 +26,23 @@
   addEventListener('pointercancel', end);
 })();
 
-// Mỗi lần chỉ hiện một ngôn ngữ (không chạy được JS thì hiện cả 4, như trước).
+// Mỗi lần chỉ hiện một ngôn ngữ (không chạy được JS thì hiện tất cả, như trước).
 // Chọn theo: link có #mục (vd. #delete-en từ cửa hàng ứng dụng) → ngôn ngữ đang dùng trong game → ngôn ngữ trình duyệt.
+// Ngôn ngữ thêm sau (ja, ko, cs, zh-Hant – langs.js): chỉ cần thêm <section id="<mã>" lang="…" data-label="日本語" …>, link
+// trên thanh ngôn ngữ tự thêm ở đây (không sửa dòng <nav> chung của 4 ngôn ngữ đầu).
 (function () {
   const secs = [...document.querySelectorAll('main > section[lang]')];
+  const nav = document.querySelector('.langs');
+  if (nav) {
+    for (const s of secs) {
+      if (nav.querySelector('a[href="#' + s.id + '"]')) continue;
+      const a = document.createElement('a');
+      a.href = '#' + s.id;
+      a.lang = s.lang;
+      a.textContent = s.dataset.label || s.id.toUpperCase();
+      nav.appendChild(a);
+    }
+  }
   const links = [...document.querySelectorAll('.langs a')];
   const byId = (id) => secs.find((s) => s.id === id);
   function fromHash() {
@@ -48,7 +61,10 @@
   }
   let saved = null;
   try { saved = localStorage.getItem('caro.lang'); } catch (e) { /* riêng tư */ }
-  const start = fromHash() || byId(saved) || byId((navigator.language || '').slice(0, 2)) || secs[0];
+  // Ngôn ngữ trình duyệt: zh-TW → zh-Hant, ja-JP → ja… (langs.js nạp trước file này; trang thiếu langs.js thì lấy 2 chữ đầu)
+  const L = window.CaroLangs;
+  const browser = () => (navigator.languages || [navigator.language || '']).map((t) => (L ? L.fromTag(t) : String(t).slice(0, 2))).find((c) => c && byId(c));
+  const start = fromHash() || byId(saved) || byId(browser()) || secs[0];
   show(start);
   // Mở bằng link tới một mục (#delete…): cuộn tới mục đó sau khi ẩn các ngôn ngữ khác
   const target = location.hash && start.querySelector(location.hash.replace(/[^#\w-]/g, ''));

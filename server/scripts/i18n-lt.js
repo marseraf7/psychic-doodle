@@ -2,16 +2,18 @@
 /*
  * Soát chính tả – ngữ pháp chuỗi giao diện bằng LanguageTool (mã nguồn mở, LGPL; có tiếng Anh, Nga, Trung – chưa có
  * tiếng Việt: tiếng Việt soát bằng bài thử server/test/i18n-quality.test.js + bảng thuật ngữ docs/van-phong-4-ngon-ngu.md).
- *   node server/scripts/i18n-lt.js [en,ru,zh] [--out báo-cáo.md] [--server https://api.languagetool.org]
+ *   node server/scripts/i18n-lt.js [en,ru,zh,ja] [--out báo-cáo.md] [--server https://api.languagetool.org]
+ * Ngôn ngữ thư mục (caro/i18n/<mã>/): ja (LanguageTool có tiếng Nhật); cs chỉ có ở máy chủ LanguageTool có gói tiếng Séc;
+ * ko, zh-Hant chưa có – soát tay theo bảng thuật ngữ (docs/van-phong-4-ngon-ngu.md).
  * Mặc định gọi máy chủ công khai api.languagetool.org (miễn phí: ≤ 20 lần / phút, ≤ 20 KB / lần) – tự chia nhỏ và
  * chờ giữa các lần. Chạy LanguageTool riêng (docker / java) thì truyền --server http://localhost:8010.
  * Chỉ gửi chuỗi giao diện (đã công khai trong repo), không gửi dữ liệu người dùng.
  */
 'use strict';
 const fs = require('fs');
-const { loadAll } = require('./i18n-load.js');
+const { loadAll, loadDir, DIR_LANGS } = require('./i18n-load.js');
 
-const CODE = { en: 'en-US', ru: 'ru-RU', zh: 'zh-CN' };
+const CODE = { en: 'en-US', ru: 'ru-RU', zh: 'zh-CN', ja: 'ja-JP', cs: 'cs-CZ' };
 // Bỏ các quy tắc không hợp với chuỗi giao diện ngắn (nhãn nút không cần viết hoa đầu câu / dấu chấm cuối…)
 const OFF = ['UPPERCASE_SENTENCE_START', 'PUNCTUATION_PARAGRAPH_END', 'WHITESPACE_RULE', 'DASH_RULE', 'EN_QUOTES', 'COMMA_PARENTHESIS_WHITESPACE',
   'ARROWS', 'MULTIPLICATION_SIGN', 'PLUS_MINUS', 'DOUBLE_PUNCTUATION', 'EN_UNPAIRED_BRACKETS', 'UNPAIRED_BRACKETS', 'RU_UNPAIRED_BRACKETS',
@@ -59,9 +61,10 @@ async function check(lang, text) {
 
 (async () => {
   const { merged } = loadAll();
+  for (const l of DIR_LANGS) merged[l] = loadDir(l).merged;
   const lines = ['# Soát LanguageTool – ' + new Date().toISOString().slice(0, 10), ''];
   for (const lang of langs) {
-    if (!CODE[lang]) continue;
+    if (!CODE[lang]) { console.error(lang + ': LanguageTool chưa hỗ trợ – bỏ qua'); continue; }
     const found = [];
     const list = chunks(merged[lang]);
     for (const [n, c] of list.entries()) {

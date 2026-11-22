@@ -10,19 +10,21 @@ const { setup } = require('./helpers');
   const PORT = 8165;
   const URL = `http://localhost:${PORT}`;
   const { browser, ok, finish } = await setup(PORT);
-  const ctx = await browser.newContext({ viewport: { width: 390, height: 860 }, locale: 'vi-VN' });
+  // serviceWorkers: 'block' – bản index đã lưu của service worker không có thẻ máy chủ chèn (máy tìm kiếm không dùng SW)
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 860 }, locale: 'vi-VN', serviceWorkers: 'block' });
   const p = await ctx.newPage();
   const errs = [];
   p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
   p.on('pageerror', (e) => errs.push(e.message));
-  for (const [l, html] of [['ru', 'ru'], ['en', 'en'], ['zh', 'zh-CN']]) {
+  const N = 9; // 8 ngôn ngữ của caro/langs.js + x-default
+  for (const [l, html] of [['ru', 'ru'], ['en', 'en'], ['zh', 'zh-CN'], ['zh-Hant', 'zh-Hant'], ['ja', 'ja']]) {
     await p.goto(`${URL}/?lang=${l}`);
     await p.waitForFunction(() => window.I18N && window.CaroOnline, null, { timeout: 20000 });
     const st = await p.evaluate(() => ({ lang: window.I18N.lang, html: document.documentElement.lang, saved: localStorage.getItem('caro.lang'),
       canon: (document.querySelector('link[rel=canonical]') || {}).href, alt: document.querySelectorAll('link[rel=alternate][hreflang]').length,
       ld: !!document.querySelector('script[type="application/ld+json"]') }));
     ok(st.lang === l && st.html === html && !st.saved, `?lang=${l}: giao diện ${st.lang} (<html lang="${st.html}">), không lưu lựa chọn`);
-    ok(/\/\?lang=/.test(st.canon) && st.alt === 5 && st.ld, `?lang=${l}: canonical ${st.canon}, 5 hreflang, JSON-LD`);
+    ok(/\/\?lang=/.test(st.canon) && st.alt === N && st.ld, `?lang=${l}: canonical ${st.canon}, ${st.alt}/${N} hreflang, JSON-LD`);
   }
   await p.goto(URL + '/');
   await p.waitForFunction(() => window.I18N, null, { timeout: 20000 });

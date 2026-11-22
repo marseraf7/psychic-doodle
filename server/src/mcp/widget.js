@@ -29,13 +29,22 @@ function sdkScript() {
 // Chặn chuỗi "</script" trong mã nhúng để không đóng thẻ <script> sớm
 const inline = (js) => js.replace(/<\/script/gi, '<\\/script');
 
+/** Chữ widget của ngôn ngữ thư mục (ja, ko, cs, zh-Hant – mục widget của server/src/i18n/<mã>.js) + hàm nhận ra ngôn ngữ
+ *  của caro/langs.js (zh-TW → zh-Hant…). Khoá thiếu: widget-app.js lấy tiếng Anh. */
+function dirLangs() {
+  const Langs = require('../langs.js');
+  const add = Langs.DIR.map((l) => [l, Langs.serverTexts(l).widget]).filter(([, w]) => w)
+    .map(([l, w]) => `globalThis.CARO_MCP_I18N[${JSON.stringify(l)}] = ${JSON.stringify(w)};`);
+  return `\n${add.join('\n')}\nglobalThis.CARO_MCP_LANG = ${Langs.fromTag.toString()};\n`;
+}
+
 let cached = null;
 function widgetHtml() {
   if (!cached) {
     cached = read('widget.html')
       .replace('/*CSS*/', () => read('widget.css'))
       .replace('/*SDK*/', () => inline(sdkScript()))
-      .replace('/*I18N*/', () => inline(read('widget-i18n.js')))
+      .replace('/*I18N*/', () => inline(read('widget-i18n.js') + dirLangs()))
       .replace('/*APP*/', () => inline(read('widget-app.js')));
   }
   return cached;

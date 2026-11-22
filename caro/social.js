@@ -13,7 +13,7 @@
   const sfx = (name) => window.CaroSound && window.CaroSound.play(name);
   const QUICK = ['hello', 'nice', 'gg', 'rematch', 'hurry', 'oops', 'thanks', 'wow'];
 
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang]);
+  const locale = () => window.I18N.locale;
   const time = (ms) => {
     try { return new Date(ms).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' }); }
     catch (e) { return ''; }

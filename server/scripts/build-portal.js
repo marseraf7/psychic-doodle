@@ -113,6 +113,8 @@ function buildPortal({ mode, server, out, zip, allowHttp = false, src = CARO } =
   fs.copyFileSync(path.join(src, 'sw.js'), path.join(out, 'sw.js'));
   let B;
   try { B = build(out); } finally { fs.rmSync(path.join(out, 'sw.js'), { force: true }); }
+  // Chuỗi của ngôn ngữ thư mục (caro/i18n/<mã>/) đã nằm trong gói b/i18n-<mã>-….js: bỏ file lẻ (bớt số file của gói)
+  fs.rmSync(path.join(out, 'i18n'), { recursive: true, force: true });
   fs.writeFileSync(path.join(out, 'index.html'), B.html);
   fs.mkdirSync(path.join(out, 'b'), { recursive: true });
   for (const [name, buf] of B.files) fs.writeFileSync(path.join(out, name), buf);

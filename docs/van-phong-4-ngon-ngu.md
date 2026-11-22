@@ -1,4 +1,4 @@
-# Văn phong và thuật ngữ – 4 ngôn ngữ (vi, en, ru, zh)
+# Văn phong và thuật ngữ – 4 ngôn ngữ gốc (vi, en, ru, zh) + ngôn ngữ thư mục (zh-Hant, ja, ko, cs)
 
 Quy tắc viết chữ giao diện cho Caro x Gomoku. Ai thêm hoặc sửa chuỗi trong `caro/i18n-*.js` thì đọc trước.
 Tham khảo (chỉ học cách làm, không chép): Microsoft Localization Style Guides (tiếng Việt, Nga, Trung giản thể) và
@@ -113,3 +113,171 @@ Microsoft Terminology Collection; quy ước dịch thuật ngữ cờ của FID
 - Dấu câu toàn khổ sau chữ Hán: ，。：；？！（）. Giữa chữ Hán và chữ Latin / số để một dấu cách (Bo3 赛制、共 16 队).
 - Thuật ngữ: 比赛 / 赛事, 对阵图 (nhánh đấu), 种子 (hạt giống), 轮空 (miễn đấu), 同分排名规则 (chỉ số phụ), 瑞士制,
   单循环, 单败淘汰, 双败淘汰, 总决赛, 小组赛.
+
+## Thêm ngôn ngữ (ngôn ngữ thư mục: zh-Hant, ja, ko, cs)
+
+Danh sách ngôn ngữ ở **một chỗ**: `caro/langs.js` (mã, tên tự gọi, `<html lang>`, hreflang, Intl, ngôn ngữ dự phòng) –
+trình duyệt, bản gộp, SEO, og, thư, widget MCP đều đọc từ đó. 4 ngôn ngữ gốc (vi, en, ru, zh = giản thể) vẫn nằm chung trong
+`caro/i18n*.js`; mỗi ngôn ngữ thư mục chỉ sửa **file của riêng nó** (các nhánh dịch song song không đụng nhau):
+
+| Phần | File của ngôn ngữ `<mã>` | Ghi chú |
+| --- | --- | --- |
+| Chuỗi lõi (`caro/i18n.js`) | `caro/i18n/<mã>/core.js` | Khoá `i18n_files`: tên các chủ đề đã dịch, cách nhau dấu cách (trang từng file chỉ tải các file này – không lỗi 404); đủ hết thì `'all'` (= complete: bài thử đòi đủ mọi khoá) |
+| Chuỗi theo chủ đề | `caro/i18n/<mã>/<chủ đề>.js` | Soi gương `caro/i18n-<chủ đề>.js`: cùng tên, cùng khoá; chỉ `window.I18N.extend('<mã>', { … })` |
+| Máy chủ: og, chuyển tên miền, thư, widget MCP | `server/src/i18n/<mã>.js` | Mẫu: `server/src/i18n/ja.js` (mục `og`, `move`, `mail`, `widget`) |
+| Trang tĩnh privacy / connector / licenses | thay dòng `<!-- @lang-slot <mã> … -->` | `<section id="<mã>" lang="<html lang>" data-label="…">`, dịch từ mục `en` |
+| Trang API | `server/scripts/api-html/<mã>.json` | rồi `python3 server/scripts/gen-api-html.py caro/api.html` |
+| Thuật ngữ | mục "Thuật ngữ – <tên ngôn ngữ>" dưới đây | điền cột của ngôn ngữ mình trước khi dịch |
+
+- **Không cần đăng ký thêm ở đâu**: không thêm thẻ `<script>` vào `index.html`, không thêm vào `FILES` của `sw.js` (bản gộp tự
+  xếp `caro/i18n/<mã>/*.js` vào gói `b/i18n-<mã>-….js`; trang từng file `?bundle=0`, `embed.html`, `broadcast.html` do
+  `i18n.js` tự chèn). Tăng `CACHE` trong `sw.js` để lúc gộp nhánh (trùng dòng thì giữ số lớn nhất + 1).
+- **Khoá thiếu hiện tiếng Anh** (không phải tiếng Việt). Vẫn phải dịch đủ: bài thử `server/test/i18n-langs.test.js` bắt khoá
+  thiếu ở ngôn ngữ `complete` (`i18n_files: 'all'`), `i18n_files` không khớp các file đã có, khoá thừa (đã xoá ở file gốc), biến `{x}` lệch, thẻ HTML lạ, khoảng trắng, chữ Việt / chữ Anh
+  còn sót (chuỗi giống hệt tiếng Anh), dấu câu nửa khổ sau chữ Hán / kana (ja, zh-Hant), chữ phía máy chủ sai khoá / biến.
+- Dịch từ bản **tiếng Anh** (đối chiếu tiếng Việt khi nghĩa chưa rõ). Giữ nguyên `{biến}`, thẻ `<b>…</b>`, emoji, chuỗi bắt
+  đầu bằng " · " (phần nối thêm). Tên riêng (nhân vật máy "Khá Bảnh", "Cờ Caro") giữ như bản tiếng Anh.
+- Thêm khoá mới vào file gốc sau này: thêm luôn vào `caro/i18n/<mã>/<chủ đề>.js` của mọi ngôn ngữ `complete`.
+- Soát chính tả: `node server/scripts/i18n-lt.js ja` (LanguageTool có tiếng Nhật; chưa có tiếng Hàn, tiếng Séc chỉ ở máy chủ
+  LanguageTool riêng) – soát tay theo bảng thuật ngữ. Người bản ngữ duyệt trước khi giới thiệu công khai.
+- Kiểm trên trình duyệt: `E2E_LANGS=<mã> node caro/tests/e2e/ui-nowrap.e2e.js`, `E2E_LANG=<mã> node caro/tests/e2e/otour-ui.e2e.js`
+  (0 lỗi hiển thị ở 390px), `node caro/tests/e2e/bundle-load.e2e.js`.
+
+### Thuật ngữ – 日本語 (ja)
+
+@JA_GLOSSARY@
+
+### Thuật ngữ – 한국어 (ko)
+
+| English | 한국어 | Không dùng / ghi chú |
+| --- | --- | --- |
+| Gomoku (game) |  |  |
+| Renju |  |  |
+| Caro (Vietnamese variant – "blocked at both ends" does not win) |  |  |
+| Freestyle / standard Gomoku |  |  |
+| stone / piece; Black / White (X / O) |  |  |
+| first player / second player |  |  |
+| move (a stone placed) |  |  |
+| forbidden move (Renju) |  |  |
+| double three (3×3) |  |  |
+| double four (4×4) |  |  |
+| overline (6+) |  |  |
+| four-three (4×3) |  |  |
+| open three / open four |  |  |
+| VCF / VCT (forcing win) |  |  |
+| opening (26 Renju openings, Swap2, Soosõrv…) |  |  |
+| takeback |  |  |
+| resign / draw / time out |  |  |
+| time control, increment, byo-yomi |  |  |
+| rating (Elo) |  |  |
+| engine (AI) / computer opponent (bot character) |  |  |
+| puzzle |  |  |
+| replay / game review / analysis |  |  |
+| tournament |  |  |
+| match / game |  |  |
+| round / matchday |  |  |
+| stage / group |  |  |
+| bracket |  |  |
+| seed |  |  |
+| bye |  |  |
+| tie-breaker |  |  |
+| standings |  |  |
+| round robin |  |  |
+| single elimination |  |  |
+| double elimination |  |  |
+| grand final / bracket reset |  |  |
+| Swiss |  |  |
+| check-in |  |  |
+| walkover / forfeit |  |  |
+| organizer |  |  |
+| club |  |  |
+
+### Thuật ngữ – Čeština (cs)
+
+| English | Čeština | Không dùng / ghi chú |
+| --- | --- | --- |
+| Gomoku (game) |  |  |
+| Renju |  |  |
+| Caro (Vietnamese variant – "blocked at both ends" does not win) |  |  |
+| Freestyle / standard Gomoku |  |  |
+| stone / piece; Black / White (X / O) |  |  |
+| first player / second player |  |  |
+| move (a stone placed) |  |  |
+| forbidden move (Renju) |  |  |
+| double three (3×3) |  |  |
+| double four (4×4) |  |  |
+| overline (6+) |  |  |
+| four-three (4×3) |  |  |
+| open three / open four |  |  |
+| VCF / VCT (forcing win) |  |  |
+| opening (26 Renju openings, Swap2, Soosõrv…) |  |  |
+| takeback |  |  |
+| resign / draw / time out |  |  |
+| time control, increment, byo-yomi |  |  |
+| rating (Elo) |  |  |
+| engine (AI) / computer opponent (bot character) |  |  |
+| puzzle |  |  |
+| replay / game review / analysis |  |  |
+| tournament |  |  |
+| match / game |  |  |
+| round / matchday |  |  |
+| stage / group |  |  |
+| bracket |  |  |
+| seed |  |  |
+| bye |  |  |
+| tie-breaker |  |  |
+| standings |  |  |
+| round robin |  |  |
+| single elimination |  |  |
+| double elimination |  |  |
+| grand final / bracket reset |  |  |
+| Swiss |  |  |
+| check-in |  |  |
+| walkover / forfeit |  |  |
+| organizer |  |  |
+| club |  |  |
+
+### Thuật ngữ – 繁體中文 (zh-Hant)
+
+| English | 繁體中文 | Không dùng / ghi chú |
+| --- | --- | --- |
+| Gomoku (game) |  |  |
+| Renju |  |  |
+| Caro (Vietnamese variant – "blocked at both ends" does not win) |  |  |
+| Freestyle / standard Gomoku |  |  |
+| stone / piece; Black / White (X / O) |  |  |
+| first player / second player |  |  |
+| move (a stone placed) |  |  |
+| forbidden move (Renju) |  |  |
+| double three (3×3) |  |  |
+| double four (4×4) |  |  |
+| overline (6+) |  |  |
+| four-three (4×3) |  |  |
+| open three / open four |  |  |
+| VCF / VCT (forcing win) |  |  |
+| opening (26 Renju openings, Swap2, Soosõrv…) |  |  |
+| takeback |  |  |
+| resign / draw / time out |  |  |
+| time control, increment, byo-yomi |  |  |
+| rating (Elo) |  |  |
+| engine (AI) / computer opponent (bot character) |  |  |
+| puzzle |  |  |
+| replay / game review / analysis |  |  |
+| tournament |  |  |
+| match / game |  |  |
+| round / matchday |  |  |
+| stage / group |  |  |
+| bracket |  |  |
+| seed |  |  |
+| bye |  |  |
+| tie-breaker |  |  |
+| standings |  |  |
+| round robin |  |  |
+| single elimination |  |  |
+| double elimination |  |  |
+| grand final / bracket reset |  |  |
+| Swiss |  |  |
+| check-in |  |  |
+| walkover / forfeit |  |  |
+| organizer |  |  |
+| club |  |  |

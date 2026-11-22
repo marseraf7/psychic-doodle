@@ -43,7 +43,7 @@
   if (N) N.on('welcome', () => { sent = undefined; push(true); }); // kết nối lại: máy chủ đã quên
   setInterval(() => push(), 15000); // ván với máy bắt đầu / kết thúc mà không đổi trang
 
-  const locale = () => ({ vi: 'vi-VN', en: 'en-GB', ru: 'ru-RU', zh: 'zh-CN' }[window.I18N.lang] || 'vi-VN');
+  const locale = () => window.I18N.locale;
   function ago(ms) {
     const s = Math.max(0, (Date.now() - ms) / 1000);
     if (s < 60) return T('pr_just_now');

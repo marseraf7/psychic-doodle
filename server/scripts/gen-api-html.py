@@ -1,6 +1,9 @@
 # Sinh caro/api.html (tài liệu API công khai v1, 4 ngôn ngữ – C4) từ một bảng để 4 bản luôn khớp nhau.
 # Dùng: python3 server/scripts/gen-api-html.py caro/api.html   (thêm đường dẫn mới: sửa PATHS + eps của cả 4 ngôn ngữ, và api-v1-openapi.js)
-import html, sys
+# Ngôn ngữ thư mục (ja, ko, cs, zh-Hant – caro/langs.js): mỗi ngôn ngữ một file server/scripts/api-html/<mã>.json, cùng khoá
+# như một mục của L dưới đây + "host" (chữ thay cho tên miền trong ví dụ) + "label" (tên trên thanh ngôn ngữ). Chưa có file
+# thì trang để một dòng chỗ trống "@lang-slot <mã>" (các nhánh dịch song song mỗi nhánh thay đúng dòng của mình).
+import html, json, os, sys
 L = {
  'vi': dict(title='Caro x Gomoku – API công khai', back='Về game', h1='API công khai (v1)', meta='Dữ liệu chỉ đọc dạng JSON cho website, bot Discord / Telegram, công cụ thống kê.',
    chips=['Chỉ đọc', 'Không cần khoá', 'CORS mở', 'OpenAPI 3.1'],
@@ -20,10 +23,10 @@ L = {
    eps=['Public profile: rating per time control, wins / losses / draws, tournament results', 'Rating history: <code>[time ms, rating]</code> per pool', 'Recent games (<code>?max=1…50</code>); non-public game history → <code>"hidden": true</code>', 'One game by share id (like a replay link)', 'Game as PGN-like text in Caro notation', 'Public tournament info', 'Tournament standings', 'Top 50 players (<code>?pool=bullet|blitz|rapid|classical</code>)', 'Tournament broadcast: games in progress, standings, recent results (<code>key</code> = tournament id; offline: <code>o.</code> + id)', 'Puzzle of the day (changes at 0:00 Vietnam time; <code>?date=YYYY-MM-DD</code>)', 'OpenAPI 3.1 document']),
  'ru': dict(title='Caro x Gomoku – открытый API', back='К игре', h1='Открытый API (v1)', meta='Данные только для чтения в формате JSON для сайтов, ботов Discord / Telegram и статистики.',
    chips=['Только чтение', 'Без ключа', 'Открытый CORS', 'OpenAPI 3.1'],
-   rules_h='Общие правила', rules=['Базовый адрес: <code>/api/v1</code> (тот же домен, что и у этой страницы).', 'С одного IP – не больше <strong>120 запросов в минуту</strong>; сверх этого ответ <code>429</code> с заголовком <code>Retry-After</code> (секунды).',
+   rules_h='Общие правила', rules=['Базовый адрес: <code>/api/v1</code> (тот же домен, что и у этой страницы).', 'С одного IP — не больше <strong>120 запросов в минуту</strong>; сверх этого ответ <code>429</code> с заголовком <code>Retry-After</code> (секунды).',
      'Каждый ответ содержит <code>ETag</code>: отправьте его в <code>If-None-Match</code>, чтобы получить <code>304</code> (без повторной загрузки).', 'Ошибки всегда имеют вид <code>{"error": "not_found", "message": "Not found"}</code>.',
      'Никаких личных данных: email, друзья, заблокированные, устройства. Последние партии выдаются, только если история партий игрока открыта для всех; закрытые, клубные и черновые турниры недоступны.'],
-   nota_h='Обозначение клеток', nota='Доска не ограничена. Клетки называются по рамке 15×15 вокруг центра: столбцы a…o слева направо, ряды 1…15 снизу вверх, центр – <code>h8</code>; за рамкой счёт продолжается (столбцы p, q…, ряды 16…, ряды 0, -1…). В JSON ход – это <code>[x, y]</code>: x растёт вправо, y растёт вниз, <code>[0, 0]</code> = h8.',
+   nota_h='Обозначение клеток', nota='Доска не ограничена. Клетки называются по рамке 15×15 вокруг центра: столбцы a…o слева направо, ряды 1…15 снизу вверх, центр — <code>h8</code>; за рамкой счёт продолжается (столбцы p, q…, ряды 16…, ряды 0, -1…). В JSON ход — это <code>[x, y]</code>: x растёт вправо, y растёт вниз, <code>[0, 0]</code> = h8.',
    ep_h='Адреса', col=('Адрес', 'Что возвращает'), ex_h='Примеры', spec='Полное описание (OpenAPI 3.1):',
    eps=['Открытый профиль: рейтинг по контролю времени, победы / поражения / ничьи, турниры', 'История рейтинга: <code>[время в мс, рейтинг]</code> по видам', 'Последние партии (<code>?max=1…50</code>); если история закрыта → <code>"hidden": true</code>', 'Одна партия по коду ссылки (как ссылка на просмотр)', 'Партия текстом в стиле PGN в обозначениях Caro', 'Сведения об открытом турнире', 'Турнирная таблица', 'Топ-50 игроков (<code>?pool=bullet|blitz|rapid|classical</code>)', 'Трансляция турнира: идущие партии, таблица, последние результаты (<code>key</code> = код турнира; офлайн: <code>o.</code> + код)', 'Задача дня (меняется в 0:00 по времени Вьетнама; <code>?date=YYYY-MM-DD</code>)', 'Документ OpenAPI 3.1']),
  'zh': dict(title='Caro x Gomoku – 公开 API', back='返回游戏', h1='公开 API（v1）', meta='只读 JSON 数据，可用于网站、Discord / Telegram 机器人和统计工具。',
@@ -40,6 +43,13 @@ EX = '''curl https://&lt;HOST&gt;/api/v1/player/an_nguyen
 curl https://&lt;HOST&gt;/api/v1/game/AbCdEf12.txt
 curl -H 'If-None-Match: W/"…"' 'https://&lt;HOST&gt;/api/v1/leaderboard?pool=blitz\''''
 HOST = {'vi': 'tên-miền', 'en': 'your-domain', 'ru': 'домен', 'zh': '域名'}
+DIR_LANGS = [('ja', 'ja'), ('ko', 'ko'), ('cs', 'cs'), ('zh-Hant', 'zh-Hant')]  # (mã, <html lang>) – thứ tự chỗ trống trên trang
+EXTRA = {}
+for code, _ in DIR_LANGS:
+    f = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'api-html', code + '.json')
+    if os.path.exists(f):
+        EXTRA[code] = json.load(open(f, encoding='utf8'))
+        HOST[code] = EXTRA[code]['host']
 out = ['''<!doctype html>
 <html lang="vi">
 <head>
@@ -67,9 +77,10 @@ out = ['''<!doctype html>
 </header>
 
 <main class="wrap">''']
-for l, d in L.items():
+def section(l, d, lang, label):
     rows = '\n'.join(f'          <tr><td><code>GET /api/v1{html.escape(p)}</code></td><td>{e}</td></tr>' for p, e in zip(PATHS, d['eps']))
-    out.append(f'''  <section id="{l}" lang="{'zh-CN' if l == 'zh' else l}" data-title="{d['title']}" data-back="{d['back']}" data-brand="Caro x Gomoku">
+    extra = f' data-label="{label}"' if label else ''
+    out.append(f'''  <section id="{l}" lang="{lang}"{extra} data-title="{d['title']}" data-back="{d['back']}" data-brand="Caro x Gomoku">
     <header class="hero">
       <h1>{d['h1']}</h1>
       <p class="meta">{d['meta']}</p>
@@ -101,8 +112,16 @@ for l, d in L.items():
     </div>
   </section>
 ''')
+for l, d in L.items():
+    section(l, d, 'zh-CN' if l == 'zh' else l, None)
+for code, lang in DIR_LANGS:
+    if code in EXTRA:
+        section(code, EXTRA[code], lang, EXTRA[code]['label'])
+    else:
+        out.append(f'  <!-- @lang-slot {code}: server/scripts/api-html/{code}.json rồi chạy lại server/scripts/gen-api-html.py -->\n')
 out.append('''  <footer class="foot"><span id="foot-brand">Caro x Gomoku</span><a href="/api/v1/openapi.json">OpenAPI 3.1</a></footer>
 </main>
+<script src="langs.js"></script>
 <script src="privacy.js"></script>
 </body>
 </html>

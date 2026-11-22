@@ -8,17 +8,17 @@
  *   - /sitemap.xml: trang chủ (kèm bản từng ngôn ngữ), trang tĩnh, giải / giải Offline / CLB / tường thuật công khai,
  *     hồ sơ kỳ thủ đầu bảng (hub/og.js sitemapPaths – chỉ thứ khách chưa đăng nhập xem được, không gồm giải "chỉ link");
  *     tối đa 2000 địa chỉ, dựng lại mỗi giờ.
- * Ngôn ngữ: LANGS (đang bật) lấy theo og-meta.js; HREFLANG đã có sẵn mã cho ja / ko / cs / zh-Hant – bật ngôn ngữ mới chỉ
- * cần thêm vào og-meta.js LANGS (kèm chuỗi).
+ * Ngôn ngữ: danh sách chung caro/langs.js (qua langs.js) – hreflang (zh → zh-Hans, zh-Hant), <html lang>, og:locale.
  * CSP không đổi: JSON-LD là khối dữ liệu (type="application/ld+json"), trình duyệt không chạy.
  */
 'use strict';
 const Og = require('./og-meta.js');
 const Site = require('./site.js');
+const Langs = require('./langs.js');
 
-const HREFLANG = { vi: 'vi', en: 'en', ru: 'ru', zh: 'zh-Hans', ja: 'ja', ko: 'ko', cs: 'cs', 'zh-Hant': 'zh-Hant' };
-const HTML_LANG = { vi: 'vi', en: 'en', ru: 'ru', zh: 'zh-CN', ja: 'ja', ko: 'ko', cs: 'cs', 'zh-Hant': 'zh-Hant' };
-const LANGS = Og.LANGS.filter((l) => HREFLANG[l]);
+const HREFLANG = Object.fromEntries(Langs.LIST.map((x) => [x.code, x.hreflang]));
+const HTML_LANG = Object.fromEntries(Langs.LIST.map((x) => [x.code, x.html]));
+const LANGS = Langs.CODES;
 const STATIC_PAGES = ['/privacy.html', '/connector.html', '/api.html'];
 // Tham số link chia sẻ (hub/og.js): có mà không xem được (mã sai, riêng tư) → chỉ canonical về trang chủ, không thêm og / JSON-LD
 const LINK_PARAMS = ['replay', 'room', 't', 'o', 'club', 'u', 'cls', 'bc'];
@@ -43,7 +43,7 @@ function headTags({ base, path, lang, home }) {
     const L = lang || 'vi';
     const desc = Og.texts(null, L).desc;
     const url = base + (lang ? withLang('/', lang) : '/');
-    const loc = { vi: 'vi_VN', en: 'en_US', ru: 'ru_RU', zh: 'zh_CN' }[L] || 'vi_VN';
+    const loc = Langs.BY[L].og;
     for (const [k, v] of [['og:type', 'website'], ['og:site_name', 'Caro x Gomoku'], ['og:title', 'Caro x Gomoku'], ['og:description', desc],
       ['og:locale', loc], ['og:url', url], ['og:image', base + '/api/og/card.png'], ['og:image:width', '1200'], ['og:image:height', '630']]) {
       tags.push(`<meta property="${k}" content="${esc(v)}">`);
@@ -51,7 +51,7 @@ function headTags({ base, path, lang, home }) {
     tags.push('<meta name="twitter:card" content="summary_large_image">');
     const ld = {
       '@context': 'https://schema.org', '@type': ['WebApplication', 'VideoGame'], name: 'Caro x Gomoku',
-      alternateName: ['Cờ Caro', 'Gomoku', 'Five in a Row', 'Гомоку', '五子棋'], url: base + '/', description: desc,
+      alternateName: ['Cờ Caro', 'Gomoku', 'Five in a Row', 'Гомоку', '五子棋', '五目並べ', '오목', 'Piškvorky'], url: base + '/', description: desc,
       inLanguage: LANGS.map((l) => HREFLANG[l]), applicationCategory: 'GameApplication', genre: ['Board game', 'Strategy'],
       gamePlatform: ['Web browser', 'Android', 'iOS'], operatingSystem: 'Web browser, Android, iOS', playMode: ['SinglePlayer', 'MultiPlayer'],
       isAccessibleForFree: true, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, image: base + '/api/og/card.png',

@@ -19,6 +19,7 @@
 const crypto = require('crypto');
 const Site = require('./site.js');
 const { pickLang, escHtml } = require('./og-meta.js');
+const Langs = require('./langs.js');
 
 const MAX_BODY = 512 * 1024;
 const TTL_MS = 10 * 60 * 1000;
@@ -30,12 +31,13 @@ const CODE_RE = /^[A-Za-z0-9_-]{22}$/;
 // Máy đọc link / máy tìm kiếm: nhận 301 thẳng (thấy ngay tên mới). Không có "zalo" / "telegram": trình duyệt trong app có chữ đó
 const BOT_RE = /bot\b|bot\/|crawl|spider|slurp|facebookexternalhit|facebot|embedly|vkshare|whatsapp|preview|lighthouse/i;
 
-const TEXT = {
+// ja, ko, cs, zh-Hant: mục move trong server/src/i18n/<mã>.js (thiếu thì tiếng Anh)
+const TEXT = Langs.withDirLangs('move', {
   vi: ['Caro x Gomoku đã chuyển sang địa chỉ mới. Đang mang dữ liệu của bạn (đăng nhập, tiến độ, cài đặt) sang…', 'Mở {host}'],
   en: ['Caro x Gomoku has moved to a new address. Bringing your data (sign-in, progress, settings) along…', 'Open {host}'],
   ru: ['Caro x Gomoku переехал на новый адрес. Переносим ваши данные (вход, прогресс, настройки)…', 'Открыть {host}'],
   zh: ['Caro x Gomoku 已迁移到新地址。正在转移你的数据（登录、进度、设置）…', '打开 {host}'],
-};
+});
 
 // Service worker thay cho bản cũ ở tên miền cũ: xoá bộ nhớ đệm, chiếm các tab, tải lại chúng (ra mạng → trang chuyển), tự gỡ
 const RETIRE_SW = `// Tên miền đã chuyển (server/src/domain-move.js): gỡ bản app cũ khỏi máy
@@ -129,11 +131,12 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
 
   /** Trang chuyển (tên cũ, người dùng mở bằng trình duyệt). */
   function handoff(req, res, u, to) {
-    const L = TEXT[pickLang(u.searchParams, req.headers['accept-language'])];
+    const lang = pickLang(u.searchParams, req.headers['accept-language']);
+    const L = Langs.pick(TEXT, lang);
     const host = new URL(to).host;
     const dest = to + u.pathname + u.search;
     const body = Buffer.from(`<!doctype html>
-<html lang="${escHtml(pickLang(u.searchParams, req.headers['accept-language']))}" data-to="${escHtml(to)}">
+<html lang="${escHtml(Langs.BY[lang].html)}" data-to="${escHtml(to)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">

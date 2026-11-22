@@ -26,12 +26,12 @@ function get(handle, url, headers = {}) {
   });
 }
 
-test('seo.inject: trang chủ – canonical về tên miền chính, hreflang 4 ngôn ngữ + x-default, og / twitter, JSON-LD hợp lệ', () => {
+test('seo.inject: trang chủ – canonical về tên miền chính, hreflang 8 ngôn ngữ + x-default, og / twitter, JSON-LD hợp lệ', () => {
   const base = Site.canonicalOrigin();
   const html = Seo.inject(PAGE, { query: q(''), og: null });
   assert.strictEqual((html.match(/rel="canonical"/g) || []).length, 1, 'thay canonical tĩnh, không thêm thẻ thứ hai');
   assert.ok(html.includes(`<link rel="canonical" href="${base}/">`));
-  for (const h of ['vi', 'en', 'ru', 'zh-Hans']) assert.ok(html.includes(`hreflang="${h}" href="${base}/?lang=${h === 'zh-Hans' ? 'zh' : h}"`), h);
+  for (const h of ['vi', 'en', 'ru', 'zh-Hans', 'zh-Hant', 'ja', 'ko', 'cs']) assert.ok(html.includes(`hreflang="${h}" href="${base}/?lang=${h === 'zh-Hans' ? 'zh' : h}"`), h);
   assert.ok(html.includes(`hreflang="x-default" href="${base}/"`));
   assert.match(html, /property="og:title" content="Caro x Gomoku"/);
   assert.match(html, /property="og:image" content="[^"]+\/api\/og\/card\.png"/);
@@ -39,7 +39,7 @@ test('seo.inject: trang chủ – canonical về tên miền chính, hreflang 4 
   const ld = JSON.parse(/<script type="application\/ld\+json">([^<]*)<\/script>/.exec(html)[1]);
   assert.deepStrictEqual(ld['@type'], ['WebApplication', 'VideoGame']);
   assert.strictEqual(ld.name, 'Caro x Gomoku');
-  assert.deepStrictEqual(ld.inLanguage, ['vi', 'en', 'ru', 'zh-Hans']);
+  assert.deepStrictEqual(ld.inLanguage, ['vi', 'en', 'ru', 'zh-Hans', 'zh-Hant', 'ja', 'ko', 'cs']);
   assert.strictEqual(ld.offers.price, '0');
   assert.strictEqual(ld.isAccessibleForFree, true);
   assert.ok(html.indexOf('application/ld+json') < html.indexOf('</head>'), 'trong <head>');

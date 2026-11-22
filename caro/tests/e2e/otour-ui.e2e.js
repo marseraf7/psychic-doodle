@@ -18,7 +18,7 @@ const LONG = 'Giải giao hữu mùa đông các câu lạc bộ phía Bắc m�
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8861;
   const { app, user, ok, shot, finish } = await setup(PORT);
-  const boss = await user('vi', 'ban_ui', 1920);
+  const boss = await user(process.env.E2E_LANG || 'vi', 'ban_ui', 1920); // E2E_LANG=ja …: soát ở ngôn ngữ khác (langs.js)
   const all = [];
   let L1 = 0;
   const report = (where, list) => {
