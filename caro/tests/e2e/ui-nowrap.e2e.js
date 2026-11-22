@@ -14,7 +14,8 @@
 'use strict';
 const { setup, gotoRetry, pickTpl } = require('./helpers');
 
-const LANGS = ['vi', 'en', 'ru', 'zh'];
+// E2E_LANGS=ja,ko: soát ngôn ngữ khác (mã của caro/langs.js)
+const LANGS = process.env.E2E_LANGS ? process.env.E2E_LANGS.split(',') : ['vi', 'en', 'ru', 'zh', 'ja'];
 
 (async () => {
   const PORT = Number(process.env.E2E_PORT) || 8873;

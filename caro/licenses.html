@@ -266,7 +266,44 @@
     </div>
   </section>
 
-  <!-- @lang-slot ja: mục tiếng Nhật -->
+  <section id="ja" lang="ja" data-label="日本語" data-title="Caro x Gomoku – オープンソースライセンス" data-back="ゲームに戻る" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>オープンソースライセンス</h1>
+      <p class="meta">Caro x Gomoku（Web版とAndroid／iOSアプリ）で使っている第三者のコンポーネントとそのライセンス。</p>
+    </header>
+    <div class="card">
+      <h2>Rapfi：BOATの頭脳</h2>
+      <p>ラスボスの<b>BOAT</b>は、Gomocup優勝の五目並べ・連珠エンジン<b>Rapfi</b>をWebAssemblyにコンパイルし、端末上で動かして打ちます。自由ルール、標準ルール、連珠にはオリジナルのRapfiを、ベトナム式ルールには<b>Rapfi-CARO</b>（「両端を止められたら勝ちにならない」ルールを加えるCaroのパッチを当てたRapfi。こちらもGPL-3）を使います。Rapfi © Rapfi developers（Haobin Duanほか）、<b>GNU General Public License バージョン3（GPL-3）</b>で公開されています。ゲームのRapfiの部分（<code>rapfi/</code> フォルダー）もGPL-3で、このライセンスの条件に従って使用、複製、改変、再配布できます。いかなる保証もありません。</p>
+      <ul class="list">
+        <li><a href="rapfi/COPYING.txt">GPL-3の全文</a></li>
+        <li><a href="rapfi/build/rapfi-src-3c94c2a.tar.gz">使用しているバージョン（コミット 3c94c2a）のRapfiのソースコード</a></li>
+        <li><a href="rapfi/build/build.sh">WebAssembly版のビルド方法</a></li>
+        <li><a href="rapfi/build/rapfi-caro.patch">Rapfi-CAROのパッチ（ベトナム式ルールを追加）</a></li>
+        <li><a href="rapfi/build/rapfi-mt.patch">マルチスレッド版のパッチ（PC版Chrome／Edge）</a></li>
+        <li><a href="rapfi/build/expose-fs.js">ビルド時の追加コード（Rapfiの起動前に実行）</a></li>
+        <li><a href="https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">GitHubの元のリポジトリ</a></li>
+        <li><a href="https://github.com/marseraf7/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">GitHubにあるCaroのバックアップ用フォーク</a></li>
+        <li><a href="rapfi/AUTHORS.txt">Rapfiの作者</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Rapfiのニューラルネットワーク</h2>
+      <p>Rapfiの「mix9svq」NNUEネットワークと従来型モデルは、作者により<b>CC0 1.0</b>でパブリックドメインに提供されています。ネットワークはBOATと対局するときだけダウンロードされ（自由ルール・標準ルールで約10 MB、連珠で20 MB）、再ダウンロードしなくて済むよう端末に保存されます。ベトナム式ルールはネットワークを使いません：Rapfi-CAROは従来型モデルと、CaroがRapfi-CAROの自己対局から学習させたベトナム式ルールの評価表（ゲームに同梱、こちらもCC0 1.0）を使います。</p>
+      <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a> · <a href="https://github.com/marseraf7/rapfi-networks" target="_blank" rel="noopener">github.com/marseraf7/rapfi-networks</a>（バックアップ用フォーク）</p>
+    </div>
+    <div class="card">
+      <h2>Caro x Gomoku独自のエンジン</h2>
+      <p>ほかのCPUキャラクター、対局の簡易解析、Rapfiを動かせないブラウザーでのBOATは、Caro x Gomoku独自のエンジンを使います。Rapfiのコードは含みません。</p>
+    </div>
+    <div class="card">
+      <h2>VK Bridge</h2>
+      <p>VK Mini Appの接続部 <code>@vkontakte/vk-bridge</code>（<code>vendor/</code> フォルダー、ゲームがVK内で動くときだけ読み込み）– © V Kontakte, LLC、MITライセンス。</p>
+    </div>
+    <div class="card">
+      <h2>フォント</h2>
+      <p>Noto Sans – SIL Open Font License 1.1。<a href="fonts/OFL-LICENSE.txt">OFLの全文</a></p>
+    </div>
+  </section>
 
   <!-- @lang-slot ko: mục tiếng Hàn – <section id="ko" lang="ko" data-label="한국어" …> -->
 

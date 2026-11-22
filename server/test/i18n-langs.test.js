@@ -22,11 +22,11 @@ const report = (bad) => bad.slice(0, 15).join('\n') + (bad.length > 15 ? `\n… 
 const vars = (s) => [...new Set(String(s).match(/\{\w+\}/g) || [])].sort().join(',');
 const tags = (s) => [...new Set((String(s).match(/<\/?([a-z][a-z0-9]*)/gi) || []).map((t) => t.replace(/[</]/g, '').toLowerCase()))];
 const DIRS = Langs.DIR.map((l) => ({ l, ...loadDir(l) })).filter((d) => d.files.length);
-const CJK = /[぀-ヿ㐀-鿿가-힯豈-﫿]/;
+const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff]/; // kana, chữ Hán, Hangul
 // Từ tiếng Anh được giữ nguyên trong mọi ngôn ngữ (tên riêng, viết tắt, thuật ngữ quốc tế)
 const KEEP = new Set(('caro gomoku renju swap swap2 soosorv taraguchi yamaguchi elo glicko buchholz sonneborn berger koya bo1 bo3 bo5 bo7 '
   + 'pdf png svg csv json ical url api mcp claude google telegram vk zalo messenger discord facebook youtube twitch github rapfi nnue '
-  + 'gomocup vcf vct boat lichess fide wasm webassembly ios android chrome safari firefox ok id oauth http https www html').split(' '));
+  + 'gomocup vcf vct boat lichess fide wasm webassembly ios android chrome safari firefox ok id oauth http https www html username').split(' '));
 
 test('langs.js: 8 ngôn ngữ, tên tự gọi; trình duyệt và máy chủ dùng chung một danh sách', () => {
   assert.deepStrictEqual(Langs.LIST.map((x) => x.name), ['Tiếng Việt', 'English', 'Русский', '简体中文', '繁體中文', '日本語', '한국어', 'Čeština']);
@@ -196,7 +196,7 @@ test('Ngôn ngữ thư mục: biến {x}, thẻ HTML, khoảng trắng như bả
 });
 
 test('Ngôn ngữ thư mục: không sót chữ Việt / chữ Anh chưa dịch; ja, zh-Hant dùng dấu câu toàn khổ', () => {
-  const VI = /[ăâđêôơưĂÂĐÊÔƠƯẠ-ỹ]/;
+  const VI = /[ăâđêôơưĂÂĐÊÔƠƯ\u1ea0-\u1ef9]/;
   const bad = [];
   for (const d of DIRS) {
     for (const [k, s0] of Object.entries(d.merged)) {
@@ -205,11 +205,15 @@ test('Ngôn ngữ thư mục: không sót chữ Việt / chữ Anh chưa dịch;
       const s = s0.replace(/<[^>]+>/g, ' ').replace(/\{\w+\}/g, ' ');
       // Chữ có dấu tiếng Việt chỉ được giữ khi bản tiếng Anh cũng giữ (tên riêng: "Khá Bảnh", "Cờ Caro")
       for (const w of s.match(/[A-Za-zÀ-ỹ]+/g) || []) if (VI.test(w) && !String(en).includes(w)) bad.push(`${d.l}.${k}: chữ Việt «${w}»`);
-      // Chưa dịch: giống hệt tiếng Anh, có từ tiếng Anh thường (không phải tên riêng / viết tắt trong KEEP)
+      // Chưa dịch: giống hệt tiếng Anh và có từ tiếng Anh viết thường (tên riêng viết hoa – "Penaldo", "Rung Động" –, viết tắt và
+      // từ trong KEEP được giữ nguyên)
       const words = (s.match(/[A-Za-z][A-Za-z']{2,}/g) || []).filter((w) => !KEEP.has(w.toLowerCase()) && w !== w.toUpperCase());
-      if (s0 === en && words.length) bad.push(`${d.l}.${k}: giống hệt tiếng Anh «${String(en).slice(0, 40)}»`);
-      else if (d.l !== 'cs' && !CJK.test(s) && words.length >= 2) bad.push(`${d.l}.${k}: không có chữ ${d.l} «${s0.slice(0, 40)}»`);
-      if ((d.l === 'ja' || d.l === 'zh-Hant') && /[぀-ヿ㐀-鿿][,;:?!](?![\d/])/.test(s0)) bad.push(`${d.l}.${k}: dấu câu nửa khổ sau chữ Hán / kana «${s0.slice(0, 30)}»`);
+      const common = words.filter((w) => w === w.toLowerCase());
+      if (s0 === en && common.length) bad.push(`${d.l}.${k}: giống hệt tiếng Anh «${String(en).slice(0, 40)}»`);
+      else if (d.l !== 'cs' && !CJK.test(s) && common.length >= 2) bad.push(`${d.l}.${k}: không có chữ ${d.l} «${s0.slice(0, 40)}»`);
+      // Dấu câu: trong 「…」 là mẫu người dùng gõ ("チーム名: 点数") – giữ nguyên
+      const prose = s0.replace(/「[^」]*」/g, '「」');
+      if ((d.l === 'ja' || d.l === 'zh-Hant') && /[\u3040-\u30ff\u3400-\u9fff][,;:?!](?![\d/])/.test(prose)) bad.push(`${d.l}.${k}: dấu câu nửa khổ sau chữ Hán / kana «${s0.slice(0, 30)}»`);
     }
   }
   assert.deepStrictEqual(bad, [], report(bad));

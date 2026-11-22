@@ -145,7 +145,60 @@ trình duyệt, bản gộp, SEO, og, thư, widget MCP đều đọc từ đó. 
 
 ### Thuật ngữ – 日本語 (ja)
 
-@JA_GLOSSARY@
+- Văn phong: câu đầy đủ dùng です／ます (gợi ý, thông báo, lỗi); nhãn, nút, tiêu đề cột viết gọn kiểu danh từ / động từ gốc
+  ("大会を作成", "保存", "順位表"). Câu hỏi xác nhận: "…しますか？". Gọi người dùng là "あなた" chỉ khi cần (thường bỏ chủ ngữ).
+- Dấu câu toàn khổ sau chữ Hán / kana: 、。：；？！（）「」. Số đếm viết liền đơn vị, không dấu cách ("{n}局", "第{n}局",
+  "{n}人", "{n}秒"); trước mã / tên / số đo để một dấu cách cho dễ đọc ("ルーム {code}", "スコア {score}", "10 KB"). Chữ Latin
+  (Bo{bo}, Elo, Swap2) viết liền với chữ Nhật. Khoảng số "3–20"; "từ…đến" trong câu: "{lo}～{hi}".
+  Mẫu người dùng gõ (trong 「…」, vd. 「チーム名: 点数」) giữ dấu nửa khổ đúng như phải gõ.
+- Tên game "Caro x Gomoku" giữ nguyên. "Caro" (biến thể Việt Nam) giữ chữ Latin "Caro" / "ベトナム式Caro" (không phiên âm カロ –
+  người Nhật không biết tên này; mô tả lần đầu: "Caro（ベトナム式五目並べ）"). Tên nhân vật máy (Chị Bảy, Khá Bảnh…) giữ như
+  bản tiếng Anh. "X" / "O" giữ nguyên (trong luật Renju: 黒 = X, 白 = O).
+- Tên 26 khai cuộc Renju dùng chữ Hán chuẩn (寒星, 渓月, 疎星, 花月, 残月, 雨月, 金星, 松月, 丘月, 新月, 瑞星, 山月, 遊星 /
+  長星, 峡月, 恒星, 水月, 流星, 雲月, 浦月, 嵐月, 銀月, 明星, 斜月, 名月, 彗星), gọi chung là 珠型.
+
+| English | 日本語 | Không dùng / ghi chú |
+| --- | --- | --- |
+| Gomoku (game) | 五目並べ | ゴモク |
+| Renju | 連珠 | レンジュ |
+| Caro (Vietnamese variant – "blocked at both ends" does not win) | ベトナム式Caro | カロ |
+| Freestyle / standard Gomoku | 自由ルールの五目並べ / 標準ルールの五目並べ | フリースタイル |
+| stone / piece; Black / White (X / O) | 石; 黒 / 白 (X / O giữ nguyên) | 駒 |
+| first player / second player | 先手 / 後手 | |
+| move (a stone placed) | 手, 着手; "{n}手目" (nước thứ n) | ムーブ |
+| forbidden move (Renju) | 禁じ手; ô cấm: 禁点 | 禁止手 |
+| double three (3×3) | 三三 | ダブルスリー |
+| double four (4×4) | 四四 | |
+| overline (6+) | 長連 | オーバーライン |
+| four-three (4×3) | 四三 | |
+| open three / open four | 三 (両端が空いた三) / 達四, 両端が空いた四 | 活三, 活四 (tiếng Trung) |
+| VCF / VCT (forcing win) | 四追い（VCF） / 三追い（VCT）; 追い詰め | |
+| opening (26 Renju openings, Swap2, Soosõrv…) | 珠型, 開局, 開局ルール; Swap2, ソーソルブ, タラグチ | オープニング |
+| takeback | 待った | アンドゥ |
+| resign / draw / time out | 投了 / 引き分け / 時間切れ | 降参 |
+| time control, increment, byo-yomi | 持ち時間, 加算, 秒読み; "1手の持ち時間" | |
+| rating (Elo) | レーティング (Elo) | 段級 |
+| engine (AI) / computer opponent (bot character) | エンジン / CPU, CPUキャラクター | ボット (chỉ trong tên riêng) |
+| puzzle | 詰め問題 (Puzzle Storm: パズルストーム) | パズル (đứng riêng) |
+| replay / game review / analysis | 再生 / 振り返り / 解析 | リプレイ |
+| tournament | 大会 | トーナメント (= loại trực tiếp) |
+| match / game | マッチ / 対局 (thể thao khác: 試合) | ゲーム |
+| round / matchday | ラウンド, 回戦 (loại trực tiếp: "{n}回戦") / 節 | |
+| stage / group | ステージ / グループ | |
+| bracket | トーナメント表 (nhánh: 勝者側 / 敗者側) | ブラケット (trừ tên riêng "Winners Bracket" của giải) |
+| seed | シード | |
+| bye | 不戦勝（バイ） | |
+| tie-breaker | タイブレーク; chỉ số: ブッフホルツ, ゾンネボルン–ベルガー | |
+| standings | 順位表 | ランキング (= bảng xếp hạng kỳ thủ) |
+| round robin | 総当たり | ラウンドロビン |
+| single elimination | シングルエリミネーション | |
+| double elimination | ダブルエリミネーション | |
+| grand final / bracket reset | グランドファイナル / リセットマッチ | |
+| Swiss | スイス式 | |
+| check-in | チェックイン | |
+| walkover / forfeit | 不戦勝 / 不戦敗, 棄権 | |
+| organizer | 主催者 (người cùng tổ chức: 共同主催者) | 運営 |
+| club | クラブ | サークル |
 
 ### Thuật ngữ – 한국어 (ko)
 

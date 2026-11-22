@@ -1,0 +1,20 @@
+// Tiếng Nhật – bản dịch của caro/i18n-fairplay.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Nhật).
+window.I18N.extend('ja', {
+  fp_title: 'フェアプレーの審査',
+  fp_hint: '審査対象の対局です。数値は参考のみで、自動で処罰されることはなく、管理者が判断します。',
+  fp_open_n: '審査待ち：{n}局',
+  fp_empty: 'この一覧に対局はありません。',
+  fp_st_open: '審査待ち',
+  fp_st_reviewed: '審査済み',
+  fp_st_dismissed: '対象外',
+  fp_st_all: 'すべて',
+  fp_why_blur: 'タブを頻繁に離れた',
+  fp_why_tour_top: '大会の上位卓',
+  fp_why_report: '不正行為で通報された',
+  fp_blur: 'タブを{n}回離れた、{s}秒',
+  fp_stats: 'エンジン一致率 {m}% · 平均低下 {l}% · 正確度 {a}%（{n}手）',
+  fp_analyze: 'エンジンと比較',
+  fp_running: '解析中…',
+  fp_mark_reviewed: '審査済みにする',
+  fp_mark_dismissed: '対象外にする',
+});

@@ -201,7 +201,49 @@ curl -H 'If-None-Match: W/"…"' 'https://&lt;域名&gt;/api/v1/leaderboard?pool
     </div>
   </section>
 
-  <!-- @lang-slot ja: server/scripts/api-html/ja.json rồi chạy lại server/scripts/gen-api-html.py -->
+  <section id="ja" lang="ja" data-label="日本語" data-title="Caro x Gomoku – 公開API" data-back="ゲームに戻る" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>公開API（v1）</h1>
+      <p class="meta">Webサイト、Discord／Telegramのボット、統計ツール向けの読み取り専用JSONデータ。</p>
+      <ul class="chips"><li>読み取り専用</li><li>キー不要</li><li>CORS開放</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>共通のルール</h2>
+      <ul class="list"><li><span>ベースURL：<code>/api/v1</code>（このページと同じドメイン）。</span></li><li><span>1つのIPから<strong>1分あたり120リクエスト</strong>まで。超えると <code>429</code> と <code>Retry-After</code>（秒）が返ります。</span></li><li><span>すべての応答に <code>ETag</code> が付きます。<code>If-None-Match</code> で送り返すと <code>304</code> が返ります（再ダウンロード不要）。</span></li><li><span>エラーは常に <code>{"error": "not_found", "message": "Not found"}</code> の形式です。</span></li><li><span>個人データは含みません：メールアドレス、フレンド、ブロックしたプレイヤー、端末。最近の対局は、プレイヤーが対局履歴を「公開」にしている場合だけ返します。非公開・クラブ限定・下書きの大会は見られません。</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>マスの表記</h2>
+      <p>盤面は無限です。マスは中央の周りの15×15の枠で名前を付けます：列は左から右へa…o、行は下から上へ1…15、中央は <code>h8</code>。枠の外も続けて数えます（列p、q…、行16…、行0、-1…）。JSONでは手は <code>[x, y]</code> で、xは右へ、yは下へ増え、<code>[0, 0]</code> = h8 です。</p>
+    </div>
+    <div class="card">
+      <h2>エンドポイント</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">パス</th><th scope="col">返す内容</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>公開プロフィール：持ち時間ごとのレーティング、勝ち／負け／引き分け、大会の成績</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>レーティングの推移：種類ごとの <code>[時刻 ms, レーティング]</code></td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>最近の対局（<code>?max=1…50</code>）。対局履歴が非公開なら → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>共有コードで1局を取得（再生リンクと同じ）</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Caroの表記によるPGN風テキストの対局</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>公開大会の情報</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>大会の順位表</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>上位50人（<code>?pool=bullet|blitz|rapid|classical</code>）</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>大会の中継：進行中の対局、順位表、最近の結果（<code>key</code> = 大会のコード。オフライン大会：<code>o.</code> + コード）</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>今日の1問（ベトナム時間の0:00に更新。<code>?date=YYYY-MM-DD</code>）</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1のドキュメント</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>詳しい仕様（OpenAPI 3.1）： <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>例</h2>
+      <pre class="api-pre">curl https://&lt;ドメイン&gt;/api/v1/player/an_nguyen
+curl https://&lt;ドメイン&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;ドメイン&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
 
   <!-- @lang-slot ko: server/scripts/api-html/ko.json rồi chạy lại server/scripts/gen-api-html.py -->
 

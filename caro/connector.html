@@ -217,7 +217,53 @@
     </div>
   </section>
 
-  <!-- @lang-slot ja: mục tiếng Nhật -->
+  <section id="ja" lang="ja" data-label="日本語" data-title="Caro x Gomoku – Claudeコネクター" data-back="ゲームに戻る" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Claude用のCaro x Gomoku</h1>
+      <p class="meta">Claudeとの会話の中で、Caro（五目並べ）でCPUと対局したり、詰め問題を解いたり、手の提案を受けたりできます。</p>
+      <span class="updated">更新日：2026-11-20</span>
+      <ul class="chips"><li>アカウント不要</li><li>保存なし</li><li>広告なし</li><li>無料</li></ul>
+    </header>
+    <div class="card">
+      <h2>設定</h2>
+      <p class="steps">ディレクトリから：Claudeで<b>設定</b> → <b>コネクター</b> → <b>コネクターを参照</b>を開き、<b>Caro x Gomoku</b>を検索して<b>接続</b>をクリックします。</p>
+      <p class="steps">カスタムコネクターとして：<b>設定</b> → <b>コネクター</b> → <b>カスタムコネクターを追加</b>で、名前を<b>Caro x Gomoku</b>にし、サーバーのURL <b>https://caroxo.duckdns.org/mcp</b> を貼り付けます。ログインは不要です。</p>
+      <p>あとはClaudeに頼むだけです。例：<i>「Caroで対局しよう、私が先手」</i>。Claudeがアプリの表示を確認してきたら<b>許可</b>を選びます。</p>
+    </div>
+    <div class="card">
+      <h2>できること</h2>
+      <ul class="list">
+        <li><b>CPUと対局</b>（play_caro）：盤面をクリックして着手します。やさしい・ふつう・むずかしいを選び、XかOを持ち、待ったや新しい対局もできます。ルールは4種類：ベトナム式Caro、自由ルールの五目並べ、標準ルールの五目並べ、連珠。</li>
+        <li><b>ヒント</b>（suggest_caro_move）：どんな局面でも、短い理由つきで最善手を示します。</li>
+        <li><b>詰め問題</b>（caro_puzzle）：今日の1問、または363問のどれか。答えをタップし、好きなときに答えを見られます。</li>
+        <li><b>ルールを学ぶ</b>（caro_rules）、オンラインサーバーの<b>ランキング</b>（caro_leaderboard）と<b>公開プロフィール</b>（caro_player）を見る。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>頼み方の例</h2>
+      <ul class="list">
+        <li>「むずかしいでCaroを打とう。私がOで、そっちが先手」</li>
+        <li>「今日のCaroの詰め問題を出して」</li>
+        <li>「連珠のルールは？ベトナム式Caroとどう違う？」</li>
+        <li>「この対局でXは[0,0],[1,1],[1,0]、Oは[2,0],[0,1]と打った。Oの次の手は？」</li>
+        <li>「caroxo.duckdns.orgのブリッツの上位5人は？」</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>困ったときは</h2>
+      <ul class="list">
+        <li><b>盤面が表示されない：</b>確認されたらClaudeにアプリの表示を許可してください（またはコネクターを「常に許可」にします）。文章の回答にも局面と手が含まれています。</li>
+        <li><b>「The Caro engine is busy」：</b>多くの対局を同時に計算しています。数秒待ってからもう一度お試しください。</li>
+        <li><b>「Too many requests」：</b>表示された秒数だけ待ってから、もう一度お試しください。</li>
+        <li><b>「Move N … is on an occupied cell」または「off the board」：</b>座標は-30から30の[x, y]で、[0,0]が中央、xは右へ、yは下へ増えます。手順が混乱したら、Claudeに新しい対局を始めるよう頼んでください。</li>
+        <li>そのほかの問題：<a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a> でissueを作成してください。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>プライバシー</h2>
+      <p>コネクターが受け取るのは、手順、ルール、問題番号、公開ユーザー名だけです。アカウントは不要で、何も保存しません。詳しくは<a href="privacy.html#claude-ja">プライバシーポリシー</a>をご覧ください。</p>
+    </div>
+  </section>
 
   <!-- @lang-slot ko: mục tiếng Hàn – <section id="ko" lang="ko" data-label="한국어" …> -->
 
