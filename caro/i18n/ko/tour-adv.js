@@ -1,0 +1,22 @@
+// Tiếng Hàn – bản dịch của caro/i18n-tour-adv.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Hàn).
+window.I18N.extend('ko', {
+  tadv_settings: '고급 설정',
+  tadv_title: '고급 설정',
+  tadv_back_quick: '간단 설정',
+  tadv_tab_basic: '기본 정보',
+  tadv_tab_format: '방식',
+  tadv_tab_games: '대국',
+  tadv_tab_reg: '신청과 체크인',
+  tadv_tab_access: '공개와 참가',
+  tadv_help_basic: '이름과 설명은 대회 목록과 대회 페이지에 표시돼요.',
+  tadv_help_format: '프리셋을 고르거나 스테이지를 최대 3개까지 조합하세요. 매치 수와 예상 시간은 아래에 바로 반영돼요.',
+  tadv_help_games: '대회의 모든 대국에 적용돼요.',
+  tadv_help_reg: '시작 시간, 최대 인원, 시작 전 체크인, 시드 배정.',
+  tadv_help_access: '목록에서 대회를 볼 수 있는 사람과 참가할 수 있는 사람.',
+  draft_reset: '초기화',
+  tour_name_required: '대회 이름을 입력하세요.',
+  tour_bad_max: '최대 인원은 {lo}~{hi}명이어야 해요.',
+  est_line: '≈ 매치 {m}개 · {w}라운드 · 약 {t} ({n}명 기준)',
+  est_arena: '아레나 · {t} · 최대 {n}명',
+  est_hm: '{h}시간 {m}분',
+});

@@ -265,7 +265,53 @@
     </div>
   </section>
 
-  <!-- @lang-slot ko: mục tiếng Hàn – <section id="ko" lang="ko" data-label="한국어" …> -->
+  <section id="ko" lang="ko" data-label="한국어" data-title="Caro x Gomoku – Claude 커넥터" data-back="게임으로 돌아가기" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Claude용 Caro x Gomoku</h1>
+      <p class="meta">Claude와 대화하면서 Caro(오목)로 컴퓨터와 대국하고, 퍼즐을 풀고, 수 추천을 받을 수 있습니다.</p>
+      <span class="updated">업데이트: 2026-11-20</span>
+      <ul class="chips"><li>계정 필요 없음</li><li>저장 없음</li><li>광고 없음</li><li>무료</li></ul>
+    </header>
+    <div class="card">
+      <h2>설정</h2>
+      <p class="steps">디렉터리에서: Claude에서 <b>설정</b> → <b>커넥터</b> → <b>커넥터 찾아보기</b>를 열고 <b>Caro x Gomoku</b>를 검색한 뒤 <b>연결</b>을 누르세요.</p>
+      <p class="steps">사용자 지정 커넥터로: <b>설정</b> → <b>커넥터</b> → <b>사용자 지정 커넥터 추가</b>에서 이름을 <b>Caro x Gomoku</b>로 하고 서버 URL <b>https://caroxo.duckdns.org/mcp</b>를 붙여 넣으세요. 로그인은 필요 없습니다.</p>
+      <p>이제 Claude에게 부탁하기만 하면 됩니다. 예: <i>“Caro 한 판 두자, 내가 먼저 둘게”</i>. Claude가 앱 표시를 확인하면 <b>허용</b>을 고르세요.</p>
+    </div>
+    <div class="card">
+      <h2>할 수 있는 것</h2>
+      <ul class="list">
+        <li><b>컴퓨터와 대국</b>(play_caro): 판을 눌러 둡니다. 쉬움·보통·어려움을 고르고, X나 O를 잡고, 무르기와 새 대국도 할 수 있습니다. 규칙은 4가지: 베트남식 Caro, 자유 규칙 오목, 표준 규칙 오목, 렌주.</li>
+        <li><b>힌트</b>(suggest_caro_move): 어떤 국면에서든 짧은 이유와 함께 최선의 수를 알려 줍니다.</li>
+        <li><b>퍼즐</b>(caro_puzzle): 오늘의 퍼즐 또는 363문제 중 아무거나. 정답 칸을 누르고, 원할 때 정답을 볼 수 있습니다.</li>
+        <li><b>규칙 배우기</b>(caro_rules), 온라인 서버의 <b>랭킹</b>(caro_leaderboard)과 <b>공개 프로필</b>(caro_player) 보기.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>부탁 예시</h2>
+      <ul class="list">
+        <li>“어려움으로 Caro 두자. 나는 O, 네가 먼저 둬”</li>
+        <li>“오늘의 Caro 퍼즐 내 줘”</li>
+        <li>“렌주 규칙이 뭐야? 베트남식 Caro와 뭐가 달라?”</li>
+        <li>“이 대국에서 X는 [0,0],[1,1],[1,0], O는 [2,0],[0,1]에 뒀어. O의 다음 수는?”</li>
+        <li>“caroxo.duckdns.org의 블리츠 상위 5명은?”</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>문제 해결</h2>
+      <ul class="list">
+        <li><b>판이 보이지 않을 때:</b> 확인을 요청하면 Claude가 앱을 표시하도록 허용하세요(또는 커넥터를 “항상 허용”으로 설정). 글로 된 답에도 국면과 수가 들어 있습니다.</li>
+        <li><b>“The Caro engine is busy”:</b> 많은 대국을 동시에 계산하고 있습니다. 몇 초 기다린 뒤 다시 시도하세요.</li>
+        <li><b>“Too many requests”:</b> 표시된 초만큼 기다린 뒤 다시 시도하세요.</li>
+        <li><b>“Move N … is on an occupied cell” 또는 “off the board”:</b> 좌표는 -30부터 30까지의 [x, y]이며 [0,0]이 가운데, x는 오른쪽으로, y는 아래쪽으로 커집니다. 수순이 꼬이면 Claude에게 새 대국을 시작해 달라고 하세요.</li>
+        <li>그 밖의 문제: <a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a>에 이슈를 남겨 주세요.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>개인정보</h2>
+      <p>커넥터는 수순, 규칙, 퍼즐 번호, 공개 사용자 이름만 받습니다. 계정이 필요 없고 아무것도 저장하지 않습니다. 자세한 내용은 <a href="privacy.html#claude-ko">개인정보 처리방침</a>을 보세요.</p>
+    </div>
+  </section>
 
   <!-- @lang-slot cs: mục tiếng Séc – <section id="cs" lang="cs" data-label="CS" …> -->
 

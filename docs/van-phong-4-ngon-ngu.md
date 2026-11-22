@@ -202,48 +202,66 @@ trình duyệt, bản gộp, SEO, og, thư, widget MCP đều đọc từ đó. 
 
 ### Thuật ngữ – 한국어 (ko)
 
+- Văn phong: câu trong giao diện (gợi ý, thông báo, lỗi, hộp xác nhận) dùng **해요체** lịch sự, hiện đại ("저장했어요",
+  "다시 시도하세요", câu hỏi xác nhận "…할까요?"); nhãn, nút, tiêu đề cột viết gọn kiểu danh từ ("대회 만들기", "저장",
+  "순위표"). Trang tĩnh trang trọng (privacy, connector, licenses, api) và thư gửi người dùng dùng **합니다체** ("…합니다").
+  Thường bỏ chủ ngữ; khi cần gọi người dùng: "나" / "내" (nhãn: "내 차례", "내 대회"), lời nhân vật máy nói "당신".
+- Dấu câu nửa khổ như tiếng Anh (Hàn Quốc dùng , . ? ! : bình thường), ngoặc kép “…”. Số đếm viết liền đơn vị, không dấu
+  cách ("{n}판", "{n}수", "{n}명", "{n}팀", "{n}초", "{n}라운드", "{n}위"); trước mã / tên / số đo để một dấu cách ("방 {code}",
+  "레이팅 {r}", "10 KB"). Khoảng số "3–20"; "từ…đến" trong câu: "{lo}~{hi}".
+- **Tiểu từ sau biến**: tiếng Hàn đổi tiểu từ theo âm cuối (이/가, 을/를, 은/는, 와/과, (으)로). Không viết tiểu từ dính sau
+  `{biến}` chứa tên / số; dùng dạng ghép "{name}이(가)", "{name}을(를)", "{x}(으)로", hoặc đổi câu sang "{name}님", "{name}의",
+  "{name}: …", "{x}에서 / {x}에게" (không phụ thuộc âm cuối).
+- Tên game "Caro x Gomoku" giữ nguyên. "Caro" (biến thể Việt Nam) giữ chữ Latin: "베트남식 Caro" (không phiên âm 카로 – người Hàn
+  không biết tên này; mô tả lần đầu: "Caro(베트남식 오목)"). Tên nhân vật máy (Chị Bảy, Khá Bảnh…) giữ như bản tiếng Anh.
+  "X" / "O" giữ nguyên (trong luật Renju: 흑 = X, 백 = O).
+- Tên 26 khai cuộc Renju (주형) đọc âm Hán–Hàn: 한성, 계월, 소성, 화월, 잔월, 우월, 금성, 송월, 구월, 신월, 서성, 산월, 유성(遊星) /
+  장성, 협월, 항성, 수월, 유성(流星), 운월, 포월, 남월, 은월, 명성, 사월, 명월, 혜성. Hai chữ "유성" trùng âm nên luôn kèm chữ Hán.
+- Thuật ngữ e-sport / thể thao khác dùng từ mượn quen thuộc ở Hàn (밴픽, 피어리스, 시드, 플레이 인, 승자조 / 패자조, 와일드카드);
+  "trận" trong giải thể thao khác (otour) là "경기", trong giải cờ là "매치" (cả loạt) / "대국" (một ván).
+
 | English | 한국어 | Không dùng / ghi chú |
 | --- | --- | --- |
-| Gomoku (game) |  |  |
-| Renju |  |  |
-| Caro (Vietnamese variant – "blocked at both ends" does not win) |  |  |
-| Freestyle / standard Gomoku |  |  |
-| stone / piece; Black / White (X / O) |  |  |
-| first player / second player |  |  |
-| move (a stone placed) |  |  |
-| forbidden move (Renju) |  |  |
-| double three (3×3) |  |  |
-| double four (4×4) |  |  |
-| overline (6+) |  |  |
-| four-three (4×3) |  |  |
-| open three / open four |  |  |
-| VCF / VCT (forcing win) |  |  |
-| opening (26 Renju openings, Swap2, Soosõrv…) |  |  |
-| takeback |  |  |
-| resign / draw / time out |  |  |
-| time control, increment, byo-yomi |  |  |
-| rating (Elo) |  |  |
-| engine (AI) / computer opponent (bot character) |  |  |
-| puzzle |  |  |
-| replay / game review / analysis |  |  |
-| tournament |  |  |
-| match / game |  |  |
-| round / matchday |  |  |
-| stage / group |  |  |
-| bracket |  |  |
-| seed |  |  |
-| bye |  |  |
-| tie-breaker |  |  |
-| standings |  |  |
-| round robin |  |  |
-| single elimination |  |  |
-| double elimination |  |  |
-| grand final / bracket reset |  |  |
-| Swiss |  |  |
-| check-in |  |  |
-| walkover / forfeit |  |  |
-| organizer |  |  |
-| club |  |  |
+| Gomoku (game) | 오목 | 고모쿠 |
+| Renju | 렌주 | 연주 |
+| Caro (Vietnamese variant – "blocked at both ends" does not win) | 베트남식 Caro | 카로 |
+| Freestyle / standard Gomoku | 자유 규칙 오목 / 표준 규칙 오목 | 프리스타일 |
+| stone / piece; Black / White (X / O) | 돌; 흑 / 백 (X / O giữ nguyên) | 말, 피스 |
+| first player / second player | 선공 / 후공 | 선수 / 후수 (dễ nhầm "cầu thủ") |
+| move (a stone placed) | 수, 착수; "{n}수" | 무브 |
+| forbidden move (Renju) | 금수; ô cấm: 금수점 | 금지수 |
+| double three (3×3) | 삼삼 | 쌍삼 (khẩu ngữ – chỉ khi giải thích) |
+| double four (4×4) | 사사 | 쌍사 |
+| overline (6+) | 장목 | 오버라인 |
+| four-three (4×3) | 사삼 | |
+| open three / open four | 열린 삼 / 열린 사 (bài nhập môn: "양쪽이 열린 3목 / 4목") | 활삼, 활사 |
+| VCF / VCT (forcing win) | VCF(연속 사) / VCT(연속 위협); 강제 수순, 필승 수순 | |
+| opening (26 Renju openings, Swap2, Soosõrv…) | 주형 (26가지 주형), 개국, 개국 규칙; 포석 (cách khai cuộc trong ván); 스왑2, 수소르브, 타라구치 | 오프닝 |
+| takeback | 무르기 | 언두, 되돌리기 (chỉ cho kết quả / dữ liệu) |
+| resign / draw / time out | 기권 / 무승부 / 시간 초과 | 항복 |
+| time control, increment, byo-yomi | 시간 설정, 제한 시간; 추가 시간 ("한 수마다 추가 시간"); 초읽기 | |
+| rating (Elo) | 레이팅 (Elo); provisional: 임시 레이팅 | 급수, 단 |
+| engine (AI) / computer opponent (bot character) | 엔진 / 컴퓨터, 컴퓨터 캐릭터; play style: 기풍 | 봇 (chỉ trong tên riêng) |
+| puzzle | 퍼즐 (Puzzle Storm: 퍼즐 스톰) | 묘수풀이 (của cờ vây) |
+| replay / game review / analysis | 다시 보기 / 복기 / 분석 | 리플레이 |
+| tournament | 대회 | 토너먼트 (= loại trực tiếp) |
+| match / game | 매치 / 대국 (thể thao khác: 경기); đếm ván: "{n}판" | 게임 |
+| round / matchday | 라운드, "{n}라운드" / 경기일, "{n}주 차" | 회전 |
+| stage / group | 스테이지 / 조 ("A조"), 그룹 (giải e-sport) | 단계 (chỉ cho tie-break ladder) |
+| bracket | 대진표 (nhánh: 승자조 / 패자조) | 브래킷 |
+| seed | 시드 ("1번 시드") | |
+| bye | 부전승 | 바이 |
+| tie-breaker | 타이브레이크, 동점 처리; chỉ số: 부크홀츠, 존네본-베르거, 승자승 (head-to-head) | |
+| standings | 순위표 | 랭킹 (= bảng xếp hạng kỳ thủ) |
+| round robin | 리그전 (풀리그) | 라운드 로빈 |
+| single elimination | 싱글 엘리미네이션 (giải thích: 한 번 지면 탈락) | 단판 토너먼트 |
+| double elimination | 더블 엘리미네이션 | |
+| grand final / bracket reset | 그랜드 파이널 / 리셋 매치 | |
+| Swiss | 스위스 방식 | 스위스 시스템 |
+| check-in | 체크인 | |
+| walkover / forfeit | 부전승 / 몰수패, 기권 | |
+| organizer | 주최자 (người cùng tổ chức: 공동 주최자) | 운영자 (= moderator của máy chủ) |
+| club | 클럽 (chủ: 클럽장, ban điều hành: 운영진) | 동호회 |
 
 ### Thuật ngữ – Čeština (cs)
 

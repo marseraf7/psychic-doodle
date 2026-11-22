@@ -245,7 +245,49 @@ curl -H 'If-None-Match: W/"…"' 'https://&lt;ドメイン&gt;/api/v1/leaderboar
     </div>
   </section>
 
-  <!-- @lang-slot ko: server/scripts/api-html/ko.json rồi chạy lại server/scripts/gen-api-html.py -->
+  <section id="ko" lang="ko" data-label="한국어" data-title="Caro x Gomoku – 공개 API" data-back="게임으로 돌아가기" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>공개 API (v1)</h1>
+      <p class="meta">웹사이트, Discord / Telegram 봇, 통계 도구를 위한 읽기 전용 JSON 데이터.</p>
+      <ul class="chips"><li>읽기 전용</li><li>키 필요 없음</li><li>CORS 허용</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>공통 규칙</h2>
+      <ul class="list"><li><span>기본 URL: <code>/api/v1</code> (이 페이지와 같은 도메인).</span></li><li><span>IP 하나당 <strong>분당 요청 120회</strong>까지. 넘으면 <code>429</code>와 <code>Retry-After</code>(초)를 돌려줍니다.</span></li><li><span>모든 응답에 <code>ETag</code>가 붙습니다. <code>If-None-Match</code>로 다시 보내면 <code>304</code>를 돌려줍니다(다시 내려받을 필요 없음).</span></li><li><span>오류는 항상 <code>{"error": "not_found", "message": "Not found"}</code> 형식입니다.</span></li><li><span>개인 데이터는 포함하지 않습니다: 이메일 주소, 친구, 차단한 플레이어, 기기. 최근 대국은 플레이어가 대국 기록을 “전체 공개”로 했을 때만 돌려줍니다. 비공개·클럽 전용·임시 저장 대회는 볼 수 없습니다.</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>칸 표기</h2>
+      <p>판은 무한합니다. 칸은 가운데를 둘러싼 15×15 틀로 이름을 붙입니다: 열은 왼쪽에서 오른쪽으로 a…o, 행은 아래에서 위로 1…15, 가운데는 <code>h8</code>. 틀 밖으로도 계속 셉니다(열 p, q…, 행 16…, 행 0, -1…). JSON에서 수는 <code>[x, y]</code>이며 x는 오른쪽으로, y는 아래쪽으로 커지고 <code>[0, 0]</code> = h8입니다.</p>
+    </div>
+    <div class="card">
+      <h2>엔드포인트</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">경로</th><th scope="col">돌려주는 내용</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>공개 프로필: 시간 설정별 레이팅, 승 / 패 / 무, 대회 성적</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>레이팅 변화: 종류별 <code>[시각 ms, 레이팅]</code></td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>최근 대국 (<code>?max=1…50</code>). 대국 기록이 비공개면 → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>공유 코드로 대국 하나 가져오기 (다시 보기 링크와 같음)</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Caro 표기의 PGN 형식 텍스트 대국</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>공개 대회 정보</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>대회 순위표</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>상위 50명 (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>대회 중계: 진행 중인 대국, 순위표, 최근 결과 (<code>key</code> = 대회 코드. 오프라인 대회: <code>o.</code> + 코드)</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>오늘의 퍼즐 (베트남 시간 0:00에 갱신. <code>?date=YYYY-MM-DD</code>)</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>OpenAPI 3.1 문서</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>자세한 명세 (OpenAPI 3.1): <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>예시</h2>
+      <pre class="api-pre">curl https://&lt;도메인&gt;/api/v1/player/an_nguyen
+curl https://&lt;도메인&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;도메인&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
 
   <!-- @lang-slot cs: server/scripts/api-html/cs.json rồi chạy lại server/scripts/gen-api-html.py -->
 
