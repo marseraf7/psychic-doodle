@@ -9,6 +9,7 @@ const path = require('path');
 const zlib = require('zlib');
 const { buildPortal, report, absolutePaths, serverOriginOf, portalHtml, SDK_URL } = require('../scripts/build-portal.js');
 const { zipFiles } = require('../scripts/zip-lite.js');
+const { unlinkHtml, externalLinks, isExternal, shownUrl } = require('../scripts/portal-links.js');
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-portal-test-'));
 test.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -71,6 +72,24 @@ test('CrazyGames: gói tự đủ, cờ bản cổng, SDK, không service worker
   const w = z.find((e) => e.name === 'rapfi/worker.js');
   assert.ok(w && w.data.equals(fs.readFileSync(path.join(out, 'rapfi', 'worker.js'))) && zlib.crc32(w.data) === w.crc);
   assert.match(report(r), /✓ Đạt giới hạn/);
+  // Không link ra ngoài (quy định CrazyGames): mọi trang .html trong ZIP không còn <a href> http(s) / // / mailto:
+  const htmls = z.filter((e) => /\.html$/.test(e.name));
+  assert.ok(htmls.some((e) => e.name === 'privacy.html') && htmls.some((e) => e.name === 'licenses.html'));
+  for (const e of htmls) {
+    const ext = [...e.data.toString('utf8').matchAll(/<a\b[^>]*\bhref\s*=\s*["']?\s*((?:[a-z][a-z0-9+.-]*:|\/\/)[^"'\s>]*)/gi)]
+      .map((m) => m[1]).filter((h) => !/^javascript:/i.test(h));
+    assert.deepStrictEqual(ext, [], e.name + ': còn link ra ngoài');
+  }
+  assert.deepStrictEqual(externalLinks(out), []);
+  // Giấy phép: địa chỉ mã nguồn vẫn hiện dạng chữ; trang đã bỏ khỏi gói (connector.html) không còn là link
+  const lic = fs.readFileSync(path.join(out, 'licenses.html'), 'utf8');
+  assert.ok(lic.includes('(github.com/dhbloo/rapfi/tree/') && lic.includes('<span class="ext-link">github.com/dhbloo/rapfi-networks</span>'));
+  assert.ok(lic.includes('.ext-link { overflow-wrap: anywhere; }'));
+  const priv = fs.readFileSync(path.join(out, 'privacy.html'), 'utf8');
+  assert.ok(!/href="connector\.html"/.test(priv) && priv.includes('<span class="mail ext-link">'));
+  assert.ok(priv.includes('href="#en"') && priv.includes('href="./"'), 'link nội bộ giữ nguyên');
+  // Bản web chính không đổi
+  assert.ok(fs.readFileSync(path.join(__dirname, '..', '..', 'caro', 'licenses.html'), 'utf8').includes('href="https://github.com/dhbloo/rapfi-networks"'));
 });
 
 test('itch.io: không nạp SDK CrazyGames, giới hạn 1000 file', () => {
@@ -103,6 +122,32 @@ test('soát đường dẫn tuyệt đối bắt đúng mẫu lỗi; ZIP rỗng 
   assert.strictEqual(z[0].method, 0, 'file nén không nhỏ hơn: lưu nguyên');
   assert.strictEqual(z[0].data.toString(), 'x');
   assert.strictEqual(zipFiles([]).length, 22, 'ZIP rỗng: chỉ phần kết');
+});
+
+test('portal-links: link ra ngoài thành chữ (giữ địa chỉ), link nội bộ giữ nguyên, kết quả cố định', () => {
+  for (const h of ['https://e.org', 'http://e.org', '//cdn.x/a', 'mailto:a@b.c', 'tel:123', 'intent://x', ' HTTPS://E.ORG']) assert.ok(isExternal(h), h);
+  for (const h of ['#vi', './', 'licenses.html', 'b/x.html?y=1', 'javascript:void(0)', 'data:text/plain,x', '']) assert.ok(!isExternal(h), h);
+  assert.strictEqual(shownUrl('https://github.com/a/b/'), 'github.com/a/b');
+  assert.strictEqual(shownUrl('mailto:a@b.c'), 'a@b.c');
+  const src = '<html><head><title>t</title></head><body>'
+    + '<a href="https://github.com/a/b" target="_blank" rel="noopener">Mã nguồn</a> · '
+    + "<a class='mail' href='mailto:a@b.c'>a@b.c</a> · <a href=https://x.org/>x.org</a> · "
+    + '<a href="#en">EN</a> · <a href="./">Về</a> · <a href="licenses.html">L</a> · <a href="connector.html#x">C</a> · <a name="k">k</a>'
+    + '<A HREF="//cdn.x/p?a=1&amp;b=2"><b>CDN</b></A></body></html>';
+  const out = unlinkHtml(src, (f) => f === 'licenses.html');
+  assert.strictEqual(out, '<html><head><title>t</title><style>.ext-link { overflow-wrap: anywhere; }</style>\n</head><body>'
+    + '<span class="ext-link">Mã nguồn (github.com/a/b)</span> · '
+    + '<span class="mail ext-link">a@b.c</span> · <span class="ext-link">x.org</span> · '
+    + '<a href="#en">EN</a> · <a href="./">Về</a> · <a href="licenses.html">L</a> · <span class="ext-link">C</span> · <a name="k">k</a>'
+    + '<span class="ext-link"><b>CDN</b> (cdn.x/p?a=1&amp;b=2)</span></body></html>');
+  assert.strictEqual(unlinkHtml(out), out, 'chạy lại không đổi gì (không thêm <style> lần hai)');
+  assert.strictEqual(unlinkHtml('<a href="#x">x</a>'), '<a href="#x">x</a>', 'không đổi thì không chèn <style>');
+  const d = path.join(tmp, 'links');
+  fs.mkdirSync(path.join(d, 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'index.html'), '<a href="https://e.org">e</a><a href="#a">a</a>');
+  fs.writeFileSync(path.join(d, 'sub', 'p.htm'), "<a class=x href='//c.d'>c</a>");
+  fs.writeFileSync(path.join(d, 'a.js'), '"<a href=\\"https://e.org\\">"');
+  assert.deepStrictEqual(externalLinks(d), ['index.html: https://e.org', 'sub/p.htm: //c.d']);
 });
 
 test('báo cáo: vượt giới hạn thì liệt kê từng lỗi', () => {

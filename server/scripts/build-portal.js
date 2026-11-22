@@ -12,16 +12,19 @@
  *     không phải tham số URL; config.js của gói cũng trỏ về máy chủ đó;
  *   – portal.js (đăng nhập, link ra ngoài – xem file đó); bản 'crazygames' thêm thẻ SDK v3 của CrazyGames
  *     (https://sdk.crazygames.com/crazygames-sdk-v3.js – docs.crazygames.com → SDK → Intro) và portal-crazygames.js;
- *   – bỏ <link rel="manifest"> (không cài PWA, không link cửa hàng); không sw.js.
+ *   – bỏ <link rel="manifest"> (không cài PWA, không link cửa hàng); không sw.js;
+ *   – trang tĩnh (privacy.html, licenses.html…): link ra ngoài thành chữ thường, địa chỉ vẫn hiện dạng chữ (portal-links.js –
+ *     CrazyGames không cho link ra ngoài / quảng bá chéo); link tới trang đã bỏ khỏi gói cũng thành chữ.
  * Kiểm: mọi đường dẫn trong HTML / CSS của gói là tương đối; số file / dung lượng so với giới hạn của cổng (CrazyGames:
  * tổng ≤ 250 MB, tải ban đầu ≤ 50 MB, ≤ 1500 file – docs.crazygames.com → Requirements → Technical; itch.io: ≤ 500 MB,
- * ≤ 1000 file – itch.io/docs/creators/html5). Vượt giới hạn hay còn đường dẫn tuyệt đối: báo lỗi, mã thoát 1.
+ * ≤ 1000 file – itch.io/docs/creators/html5). Vượt giới hạn, còn đường dẫn tuyệt đối hay còn <a href> ra ngoài: báo lỗi, mã thoát 1.
  */
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const { build } = require('../src/web-bundle.js');
 const { zipFiles, listDir } = require('./zip-lite.js');
+const { unlinkDir, externalLinks } = require('./portal-links.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const CARO = path.join(ROOT, 'caro');
@@ -118,12 +121,14 @@ function buildPortal({ mode, server, out, zip, allowHttp = false, src = CARO } =
   fs.writeFileSync(path.join(out, 'index.html'), B.html);
   fs.mkdirSync(path.join(out, 'b'), { recursive: true });
   for (const [name, buf] of B.files) fs.writeFileSync(path.join(out, name), buf);
+  unlinkDir(out); // link ra ngoài trong trang tĩnh → chữ (portal-links.js)
 
   const list = listDir(out);
   const total = list.reduce((s, f) => s + fs.statSync(f.file).size, 0);
   const initial = initialBytes(out, B.html);
   const lim = LIMITS[mode];
   const problems = absolutePaths(out).map((s) => 'đường dẫn tuyệt đối: ' + s);
+  for (const s of externalLinks(out)) problems.push('link ra ngoài: ' + s);
   if (list.length > lim.files) problems.push(`quá nhiều file: ${list.length} > ${lim.files}`);
   if (total > lim.total) problems.push(`quá dung lượng: ${(total / MB).toFixed(1)} MB > ${lim.total / MB} MB`);
   if (lim.initial && initial > lim.initial) problems.push(`tải ban đầu quá lớn: ${(initial / MB).toFixed(1)} MB > ${lim.initial / MB} MB`);
@@ -150,7 +155,7 @@ function report(r) {
     '  (máy cờ Rapfi ~1,3 MB và mạng NNUE ~10 MB chỉ tải khi đấu BOAT / phân tích; mạng NNUE tải từ jsDelivr / GitHub)',
   ].filter(Boolean);
   if (r.problems.length) lines.push('✗ Chưa đạt:', ...r.problems.map((p) => '  – ' + p));
-  else lines.push('✓ Đạt giới hạn của cổng, mọi đường dẫn trong gói là tương đối');
+  else lines.push('✓ Đạt giới hạn của cổng, mọi đường dẫn trong gói là tương đối, không còn link ra ngoài');
   return lines.join('\n');
 }
 
