@@ -292,45 +292,64 @@ trình duyệt, bản gộp, SEO, og, thư, widget MCP đều đọc từ đó. 
 
 ### Thuật ngữ – 繁體中文 (zh-Hant)
 
+- Dành cho Đài Loan (chính) và Hồng Kông: chữ phồn thể chuẩn Đài Loan, từ vựng Đài Loan – không chỉ đổi mặt chữ từ bản giản thể.
+  Từ hay lệch: 軟體 (không 軟件), 訊息 / 資訊 (không 信息), 網路 (không 網絡), 設定 (không 設置), 使用者 (không 用戶), 影片 (không
+  視頻), 預設 (không 默認), 帳號 (không 賬號), 登入 / 登出 (không 登錄 / 退出登錄), 伺服器 (không 服務器), 連結 (không 鏈接), 儲存
+  (không 保存), 檔案 (không 文件), 載入 (không 加載), 搜尋 (không 搜索), 貼上 (không 粘貼), 匯出 / 匯入 (không 導出 / 導入), 列印,
+  清單 (không 列表), 範本 (không 模板), 範例 (không 示例), 封鎖 (không 拉黑 / 屏蔽), 檢舉 (không 舉報), 訪客 (không 遊客), 私訊
+  (không 私信), 重播 (không 回放), App (ứng dụng; không 應用) / 套用 (áp dụng), 電子郵件 (không 郵箱), IP 位址, 西洋棋 (không
+  國際象棋), 桌球 (bóng bàn), 自行車賽.
+- Cẩn thận với OpenCC "twp" (đổi từ theo Đài Loan): giữ 循環賽 (không 迴圈賽), 審核 (không 稽覈), 分區 (không 分割槽), 權限 (không
+  許可權), 類型 (không 型別), 參數 (không 引數), 發布 (không 釋出), 項目 = môn thi đấu (không 專案), 通過 = được duyệt / vượt qua
+  (透過 chỉ nghĩa "qua, bằng cách"), 並發起 (không 併發起).
+- Dấu câu toàn khổ sau chữ Hán: ，。：；？！（）; ngoặc kép kiểu Đài Loan 「…」, ngoặc lồng 『…』 (không dùng “…”). Giữa chữ Hán và chữ
+  Latin / số để một dấu cách như bản giản thể ("Bo3 賽制"、"共 16 隊"、"App 已安裝"). Mẫu người dùng gõ trong 「…」 giữ dấu nửa khổ.
+- Gọi người dùng là 你 (thân mật, như bản giản thể); câu hỏi xác nhận "…嗎？". Tên game "Caro x Gomoku" giữ nguyên; tên nhân vật máy
+  (Chị Bảy, Khá Bảnh…) giữ như bản tiếng Anh. "X" / "O" giữ nguyên (luật Renju: 黑方 = X, 白方 = O).
+- "Caro" (biến thể Việt Nam) giữ chữ Latin: "越南 Caro", lần đầu giải thích "越南五子棋（Caro）"; luật "越南 Caro 規則" (không phiên
+  âm 卡羅).
+- Tên 26 khai cuộc Renju: chữ Hán phồn thể (寒星, 溪月, 疏星, 花月, 殘月, 雨月, 金星, 松月, 丘月, 新月, 瑞星, 山月, 遊星 / 長星, 峽月,
+  恆星, 水月, 流星, 雲月, 浦月, 嵐月, 銀月, 明星, 斜月, 名月, 彗星).
+
 | English | 繁體中文 | Không dùng / ghi chú |
 | --- | --- | --- |
-| Gomoku (game) |  |  |
-| Renju |  |  |
-| Caro (Vietnamese variant – "blocked at both ends" does not win) |  |  |
-| Freestyle / standard Gomoku |  |  |
-| stone / piece; Black / White (X / O) |  |  |
-| first player / second player |  |  |
-| move (a stone placed) |  |  |
-| forbidden move (Renju) |  |  |
-| double three (3×3) |  |  |
-| double four (4×4) |  |  |
-| overline (6+) |  |  |
-| four-three (4×3) |  |  |
-| open three / open four |  |  |
-| VCF / VCT (forcing win) |  |  |
-| opening (26 Renju openings, Swap2, Soosõrv…) |  |  |
-| takeback |  |  |
-| resign / draw / time out |  |  |
-| time control, increment, byo-yomi |  |  |
-| rating (Elo) |  |  |
-| engine (AI) / computer opponent (bot character) |  |  |
-| puzzle |  |  |
-| replay / game review / analysis |  |  |
-| tournament |  |  |
-| match / game |  |  |
-| round / matchday |  |  |
-| stage / group |  |  |
-| bracket |  |  |
-| seed |  |  |
-| bye |  |  |
-| tie-breaker |  |  |
-| standings |  |  |
-| round robin |  |  |
-| single elimination |  |  |
-| double elimination |  |  |
-| grand final / bracket reset |  |  |
-| Swiss |  |  |
-| check-in |  |  |
-| walkover / forfeit |  |  |
-| organizer |  |  |
-| club |  |  |
+| Gomoku (game) | 五子棋 | |
+| Renju | 連珠 | |
+| Caro (Vietnamese variant – "blocked at both ends" does not win) | 越南 Caro; 越南五子棋（Caro） | 卡羅 |
+| Freestyle / standard Gomoku | 自由五子棋 / 標準五子棋 | |
+| stone / piece; Black / White (X / O) | 棋子, 子; 黑方 / 白方 (X / O giữ nguyên) | |
+| first player / second player | 先手 / 後手 | |
+| move (a stone placed) | 手, 著法, 一步; "第 {n} 手" | 着法 (giản thể) |
+| forbidden move (Renju) | 禁手 | |
+| double three (3×3) | 三三 | |
+| double four (4×4) | 四四 | |
+| overline (6+) | 長連 | |
+| four-three (4×3) | 四三 | |
+| open three / open four | 活三 / 活四; 衝四 (bốn bị chặn một đầu) | 冲四 (giản thể) |
+| VCF / VCT (forcing win) | VCF（連續衝四） / VCT（連續威脅） | |
+| opening (26 Renju openings, Swap2, Soosõrv…) | 開局, 開局規則; Swap2, Soosõrv, Taraguchi giữ chữ Latin | |
+| takeback | 悔棋 | 撤銷 (chỉ dùng cho hủy kết quả trận đấu) |
+| resign / draw / time out | 認輸 / 和棋 / 超時 | |
+| time control, increment, byo-yomi | 用時, 每步加秒, 讀秒 | |
+| rating (Elo) | 等級分 (Elo) | |
+| engine (AI) / computer opponent (bot character) | 引擎 / 電腦, 電腦角色 | 機器人 (chỉ cho bot Discord / Telegram) |
+| puzzle | 謎題, 題目 (Puzzle Storm giữ tên) | |
+| replay / game review / analysis | 重播 / 覆盤 / 分析 | 回放 |
+| tournament | 比賽, 賽事 | |
+| match / game | 比賽, 場 / 對局, 局 | 遊戲 (= trò chơi) |
+| round / matchday | 輪, 第 {n} 輪 / 比賽日 | |
+| stage / group | 階段 / 小組 | |
+| bracket | 對陣圖 (勝者組 / 敗者組) | |
+| seed | 種子 | |
+| bye | 輪空 | |
+| tie-breaker | 同分排名規則; Buchholz, Sonneborn–Berger giữ chữ Latin | |
+| standings | 排名, 積分榜 | |
+| round robin | 循環賽 (單循環 / 雙循環) | 迴圈賽 |
+| single elimination | 單敗淘汰 | |
+| double elimination | 雙敗淘汰 | |
+| grand final / bracket reset | 總決賽 / 總決賽「重置」 | |
+| Swiss | 瑞士制 | |
+| check-in | 簽到 | |
+| walkover / forfeit | 不戰而勝 / 棄權, 判負 | |
+| organizer | 主辦方, 組織者 (người cùng tổ chức: 協辦人) | |
+| club | 俱樂部 | 社團 |

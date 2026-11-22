@@ -309,7 +309,43 @@
 
   <!-- @lang-slot cs: mục tiếng Séc – <section id="cs" lang="cs" data-label="CS" …> -->
 
-  <!-- @lang-slot zh-Hant: mục tiếng Trung phồn thể – <section id="zh-Hant" lang="zh-Hant" data-label="繁體" …> -->
+  <section id="zh-Hant" lang="zh-Hant" data-label="繁體" data-title="Caro x Gomoku – 開源許可" data-back="返回遊戲" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>開源許可</h1>
+      <p class="meta">Caro（網頁版及 Android / iOS App）中的第三方元件及其許可。</p>
+    </header>
+    <div class="card">
+      <h2>Rapfi——BOAT 的大腦</h2>
+      <p>最終頭目 <b>BOAT</b> 使用 <b>Rapfi</b>——Gomocup 冠軍五子棋 / 連珠引擎——的 WebAssembly 版本，直接在你的裝置上執行：自由、標準和連珠規則使用原版 Rapfi；越南 Caro 規則使用 <b>Rapfi-CARO</b>——Rapfi 加上 Caro 編寫的、增加「兩端被堵不算贏」規則的補丁（同樣為 GPL-3）。Rapfi © Rapfi developers（Haobin Duan 等），以 <b>GNU 通用公共許可證第 3 版（GPL-3）</b>發布。遊戲中的 Rapfi 部分（<code>rapfi/</code> 資料夾）同樣採用 GPL-3：你可以按該許可的條款使用、複製、修改和再分發。本軟體不附帶任何擔保。</p>
+      <ul class="list">
+        <li><a href="rapfi/COPYING.txt">GPL-3 全文</a></li>
+        <li><a href="rapfi/build/rapfi-src-3c94c2a.tar.gz">目前所用版本的 Rapfi 原始碼（提交 3c94c2a）</a></li>
+        <li><a href="rapfi/build/build.sh">如何重新建置 WebAssembly 版本</a></li>
+        <li><a href="rapfi/build/rapfi-caro.patch">Rapfi-CARO 補丁（增加越南 Caro 規則）</a></li>
+        <li><a href="rapfi/build/expose-fs.js">建置時新增的部分（在 Rapfi 啟動前執行）</a></li>
+        <li><a href="https://github.com/dhbloo/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">GitHub 上游儲存庫</a></li>
+        <li><a href="https://github.com/marseraf7/rapfi/tree/3c94c2a976f24a0dd1c5517623e9ab6fffe66bd7" target="_blank" rel="noopener">Caro 在 GitHub 上的備份（fork）</a></li>
+        <li><a href="rapfi/AUTHORS.txt">Rapfi 作者</a></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Rapfi 神經網路</h2>
+      <p>Rapfi 的 「mix9svq」 NNUE 網路和經典模型由作者以 <b>CC0 1.0</b> 貢獻至公有領域。只有在你與 BOAT 對局時才會下載網路（自由或標準規則約 10 MB，連珠約 20 MB），並儲存在裝置上，下次無需再次下載。越南 Caro 規則不需要網路：Rapfi-CARO 使用經典模型及 Caro 用 Rapfi-CARO 自我對弈對局訓練的越南 Caro 規則評估表（隨遊戲附帶，同樣為 CC0 1.0）。</p>
+      <p><a href="https://github.com/dhbloo/rapfi-networks" target="_blank" rel="noopener">github.com/dhbloo/rapfi-networks</a> · <a href="https://github.com/marseraf7/rapfi-networks" target="_blank" rel="noopener">github.com/marseraf7/rapfi-networks</a>（備份）</p>
+    </div>
+    <div class="card">
+      <h2>Caro 自己的引擎</h2>
+      <p>其他電腦角色、快速對局分析，以及在無法執行 Rapfi 的瀏覽器上的 BOAT，都使用 Caro 自己的引擎——其中不包含 Rapfi 的程式碼。</p>
+    </div>
+    <div class="card">
+      <h2>VK Bridge</h2>
+      <p>VK 小程式橋接函式庫 <code>@vkontakte/vk-bridge</code>（<code>vendor/</code> 資料夾，僅在 VK 中執行遊戲時載入）– © V Kontakte, LLC，MIT 許可證。</p>
+    </div>
+    <div class="card">
+      <h2>字型</h2>
+      <p>Noto Sans – SIL Open Font License 1.1。 <a href="fonts/OFL-LICENSE.txt">OFL 全文</a></p>
+    </div>
+  </section>
 
   <footer class="foot"><span id="foot-brand">Caro x Gomoku</span><a href="https://github.com/dhbloo/rapfi" target="_blank" rel="noopener">github.com/dhbloo/rapfi</a></footer>
 </main>

@@ -1,0 +1,22 @@
+// Tiếng Trung phồn thể – bản dịch của caro/i18n-tour-adv.js (docs/van-phong-4-ngon-ngu.md, mục 繁體中文).
+window.I18N.extend('zh-Hant', {
+  tadv_settings: '高階設定',
+  tadv_title: '高階設定',
+  tadv_back_quick: '快速表單',
+  tadv_tab_basic: '基本資訊',
+  tadv_tab_format: '賽制',
+  tadv_tab_games: '對局',
+  tadv_tab_reg: '報名與簽到',
+  tadv_tab_access: '可見性與權限',
+  tadv_help_basic: '名稱和簡介顯示在比賽清單和比賽頁面上。',
+  tadv_help_format: '選擇預設，或最多組合 3 個階段。底部的比賽場數和預計時間會即時更新。',
+  tadv_help_games: '適用於本賽事的所有對局。',
+  tadv_help_reg: '開始時間、人數上限、賽前簽到和種子排列。',
+  tadv_help_access: '誰能在清單中看到本賽事，誰可以參加。',
+  draft_reset: '重置',
+  tour_name_required: '請填寫比賽名稱。',
+  tour_bad_max: '人數上限須在 {lo} 到 {hi} 之間。',
+  est_line: '≈ {m} 場比賽 · {w} 輪 · 約 {t}（按 {n} 人計）',
+  est_arena: '競技場 · {t} · 最多 {n} 人',
+  est_hm: '{h} 小時 {m} 分鐘',
+});

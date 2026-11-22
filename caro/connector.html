@@ -269,7 +269,53 @@
 
   <!-- @lang-slot cs: mục tiếng Séc – <section id="cs" lang="cs" data-label="CS" …> -->
 
-  <!-- @lang-slot zh-Hant: mục tiếng Trung phồn thể – <section id="zh-Hant" lang="zh-Hant" data-label="繁體" …> -->
+  <section id="zh-Hant" lang="zh-Hant" data-label="繁體" data-title="Caro x Gomoku – Claude 連接器" data-back="返回遊戲" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>在 Claude 中玩 Caro x Gomoku</h1>
+      <p class="meta">在與 Claude 的對話中直接和電腦下 Caro（越南五子棋），做題，取得著法建議。</p>
+      <span class="updated">更新日期：2026-11-20</span>
+      <ul class="chips"><li>無需帳號</li><li>不儲存資料</li><li>無廣告</li><li>免費</li></ul>
+    </header>
+    <div class="card">
+      <h2>安裝</h2>
+      <p class="steps">從目錄新增：在 Claude 中開啟 <b>Settings</b> → <b>Connectors</b> → <b>Browse connectors</b>，搜尋 <b>Caro x Gomoku</b>，點選 <b>Connect</b>。</p>
+      <p class="steps">手動新增：<b>Settings</b> → <b>Connectors</b> → <b>Add custom connector</b>，名稱填 <b>Caro x Gomoku</b>，伺服器網址填 <b>https://caroxo.duckdns.org/mcp</b>。無需登入。</p>
+      <p>然後對 Claude 說，例如：<i>「來下一盤 Caro，我先走」</i>。Claude 請求顯示 App 時，選擇 <b>Allow</b>。</p>
+    </div>
+    <div class="card">
+      <h2>可以做什麼</h2>
+      <ul class="list">
+        <li><b>和電腦對局</b>（play_caro）：點選棋盤落子；可選簡單、普通或困難，執 X 或 O，悔棋，開新對局。四種規則：越南五子棋、自由五子棋、標準五子棋和連珠。</li>
+        <li><b>取得提示</b>（suggest_caro_move）：任意局面的最佳著法和簡短理由。</li>
+        <li><b>做題</b>（caro_puzzle）：每日一題或 363 道題中的任意一道；點選你的答案，需要時檢視答案。</li>
+        <li><b>瞭解規則</b>（caro_rules），檢視線上伺服器的<b>排行榜</b>（caro_leaderboard）和<b>公開玩家資料</b>（caro_player）。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>範例提問</h2>
+      <ul class="list">
+        <li>「用困難難度下一盤 Caro。我執 O，你先走。」</li>
+        <li>「給我今天的 Caro 每日一題。」</li>
+        <li>「連珠有哪些規則？和越南五子棋有什麼不同？」</li>
+        <li>「這盤棋 X 下了 [0,0]、[1,1]、[1,0]，O 下了 [2,0]、[0,1]。O 下一步該下哪裡？」</li>
+        <li>「caroxo.duckdns.org 上快棋前 5 名是誰？」</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>常見問題</h2>
+      <ul class="list">
+        <li><b>棋盤沒有顯示：</b>Claude 請求顯示 App 時請允許（或把連接器設為 「Always allow」）。文字回答中仍有局面和著法。</li>
+        <li><b>「The Caro engine is busy」：</b>伺服器正在同時計算很多對局。請等幾秒後重試。</li>
+        <li><b>「Too many requests」：</b>請等待提示的秒數後重試。</li>
+        <li><b>「Move N … is on an occupied cell」 或 「off the board」：</b>座標為 [x, y]，範圍 -30 到 30，[0,0] 在中央，x 向右，y 向下。如果著法清單混亂，請讓 Claude 開始新對局。</li>
+        <li>其他問題：請在 <a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a> 提交 issue。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>隱私</h2>
+      <p>連接器只接收著法、規則、題目編號和公開使用者名稱。無需帳號，不儲存任何資料。詳情：<a href="privacy.html#claude-zh">隱私政策</a>。</p>
+    </div>
+  </section>
 
   <footer class="foot"><span id="foot-brand">Caro x Gomoku</span><a href="https://github.com/marseraf7/psychic-doodle/issues">Support · GitHub issues</a></footer>
 </main>

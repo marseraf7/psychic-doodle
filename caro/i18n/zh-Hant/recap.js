@@ -1,0 +1,23 @@
+// Tiếng Trung phồn thể – bản dịch của caro/i18n-recap.js (docs/van-phong-4-ngon-ngu.md, mục 繁體中文).
+window.I18N.extend('zh-Hant', {
+  rc_title: '總結',
+  rc_t_month: '月',
+  rc_t_year: '年',
+  rc_year: '{y} 年',
+  rc_prev: '上一期',
+  rc_next: '下一期',
+  rc_empty: '這段時間還沒有對局。',
+  rc_dl: '和 / 負',
+  rc_streak: '最長連勝',
+  rc_days: '下棋天數',
+  rc_pz: '已解謎題',
+  rc_storm: 'Storm 最高紀錄',
+  rc_fav_rule: '最常用規則：{rule}（{n} 盤）',
+  rc_fav_pool: '最常用時限：{pool}（{n} 盤）',
+  rc_best: '最佳勝局：戰勝 {name}（{r} 分）',
+  rc_best_anon: '最佳勝局：戰勝一位 {r} 分的對手',
+  rc_opp: '最常遇到的對手：{name}（{n} 盤）',
+  rc_note: '基於帳號儲存的對局。謎題和 Storm 來自本裝置。只有雙方都公開對局記錄時才顯示對手的名字。月份、年份和下棋天數按裝置時區計算。',
+  rc_note_local: '基於本裝置儲存的對局。月份、年份和下棋天數按裝置時區計算。',
+  rc_share: '分享總結圖片',
+});
