@@ -34,7 +34,7 @@ const VENDOR = [
   ['@capacitor/filesystem/dist/plugin.js', 'filesystem.js'],
   ['@capgo/capacitor-social-login/dist/plugin.js', 'social-login.js'],
 ];
-fs.mkdirSync(path.join(WWW, 'vendor'));
+fs.mkdirSync(path.join(WWW, 'vendor'), { recursive: true }); // caro/vendor/ (vd. vk-bridge.js) đã chép sang cùng chỗ
 for (const [from, to] of VENDOR) {
   const src = path.join(ROOT, 'node_modules', from);
   if (!fs.existsSync(src)) fail('Thiếu ' + from + ' – chạy npm ci trong thư mục app');
