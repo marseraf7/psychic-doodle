@@ -16,6 +16,7 @@
  *  - /?bc=<mã giải>, /broadcast.html : trang Tường thuật giải (broadcast-page.js – thẻ og, nhúng iframe được).
  *  - /api/v1/*             : API công khai v1 (JSON, CORS, ETag, OpenAPI ở /api/v1/openapi.json – api-v1-http.js, tài liệu caro/api.html).
  *  - /mcp                  : connector MCP cho Claude (mcp/index.js; tắt bằng CARO_MCP=0).
+ *  - Đổi tên miền (MOVED_TO): tên cũ → trang chuyển dữ liệu / 301, /api/migrate (domain-move.js).
  */
 'use strict';
 const fs = require('fs');
@@ -28,6 +29,7 @@ const { rapfiNetSources } = require('./csp-nets.js');
 const Og = require('./og-meta.js'); // thẻ xem trước link chia sẻ (A3)
 const { makeApiV1 } = require('./api-v1-http.js'); // API công khai v1 + OpenAPI (C4)
 const { makeBroadcastPage } = require('./broadcast-page.js'); // Tường thuật giải đấu (C3)
+const { makeDomainMove } = require('./domain-move.js'); // chuyển tên miền không mất dữ liệu
 
 // Tham số link chia sẻ có thẻ xem trước riêng (hub/og.js)
 const LINK_KEYS = ['replay', 'room', 't', 'o', 'club', 'u', 'cls']; // cls: Lớp học / Nghiên cứu (C2)
@@ -110,6 +112,7 @@ function origin(req) {
 function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
   const B = bundle ? makeBundle(STATIC_DIR) : null; // gộp mã trang chính (web-bundle.js)
   const rum = new Rum(); // số đo tốc độ từ máy người chơi (rum.js)
+  const move = makeDomainMove({ clientIp }); // tên miền cũ → tên mới (domain-move.js)
   const mcp = process.env.CARO_MCP === '0' ? null : require('./mcp/index.js').makeMcp({ hub, clientIp }); // connector MCP cho Claude (mcp/)
   const pngCache = new Map(); // mã -> ảnh PNG (ván đã lưu không đổi)
   const apiCache = new Map(); // đường dẫn -> { at, body }
@@ -304,6 +307,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     // cả tiến trình. Không đường hợp lệ nào chứa chúng: từ chối trước khi chạm tới fs
     if (/[\x00-\x1f\x7f]/.test(url)) { res.writeHead(400); return res.end(); }
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
+    if (move(req, res, url, u)) return;
     if (apiV1(req, res, url, u.searchParams)) return;
     if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });

@@ -17,6 +17,8 @@
  *   ANDROID_UPDATE_URL, IOS_UPDATE_URL  link cửa hàng hiện trong thông báo "cần cập nhật app"
  *   ADMIN_USERNAMES   tên đăng nhập quản trị viên, cách nhau bởi dấu phẩy (duyệt câu lạc bộ và giải đấu)
  *   PUBLIC_URL        địa chỉ công khai của trang (vd. https://caro.example.com) – dùng cho ảnh xem trước link chia sẻ
+ *   MOVED_TO, MOVED_FROM  đổi tên miền: tên cũ → chuyển dữ liệu trình duyệt + 301 sang tên mới (src/domain-move.js,
+ *                     src/site.js – docs/doi-ten-mien.md)
  * Phần HTTP (file tĩnh, ảnh xem trước, API công khai): src/web.js
  */
 'use strict';

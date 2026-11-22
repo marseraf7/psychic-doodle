@@ -139,6 +139,9 @@ chơi online qua WebSocket (`/ws`):
     Đặt `PUBLIC_URL=https://ten-mien-cua-ban` để đường dẫn ảnh luôn đúng.
   - API chỉ đọc (gọi được từ trang khác – CORS): `GET /api/player/<tên đăng nhập>` (điểm từng loại, số ván, không có
     email / bạn bè), `GET /api/leaderboard?pool=blitz` (50 người đầu), `GET /api/stats` (số kỳ thủ đang kết nối, số ván đang đấu). Giữ kết quả 60 giây, mỗi IP tối đa 60 lần / phút.
+- **Đổi tên miền không mất dữ liệu** (`src/site.js`, `src/domain-move.js`, `docs/doi-ten-mien.md`): `MOVED_TO=https://tên-mới`
+  (+ `MOVED_FROM`) – tên cũ trả trang chuyển dữ liệu trình duyệt (mã một lần `/api/migrate`, 10 phút, ≤ 512 KB) hoặc 301;
+  đổi tên miền trong mã: `bash scripts/set-domain.sh <tên>`; trên máy chủ: `deploy/move-domain.sh`.
 - **Số liệu máy chủ cho quản trị viên** (Giải đấu → tab Duyệt): số kết nối, người online, phòng, người xem, hàng chờ,
   RAM, các lệnh xử lý chậm (≥ 50 ms, 50 lệnh gần nhất), số lệnh theo loại và số lỗi bất ngờ.
 - Máy chủ kiểm tra mọi nước đi bằng chính `caro/rules.js` (không gian lận được từ client).
