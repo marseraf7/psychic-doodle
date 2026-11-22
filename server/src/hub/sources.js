@@ -4,6 +4,7 @@
  *   srcSeen(conn, pid)  – gọi từ core.attach: ghi lần đầu thấy danh tính + hoạt động trong ngày (store-sources.js);
  *                          khách vừa đăng ký / đăng nhập thì tài khoản (chưa có dòng nào) nhận nguồn của khách
  *   srcGames(pids)      – gọi khi ván online xong (rooms.js)
+ *   srcSweep(now)       – gọi mỗi phút từ core.sweep: dọn dữ liệu cũ mỗi ngày một lần
  *   on_srcStats         – bảng cho quản trị viên (requireAdmin): 30 ngày, người mới / D1 / D7 / số ván mỗi người theo nguồn
  * Không lưu IP / UA; không có API công khai. Lỗi CSDL ở đây không được làm hỏng đăng nhập / ván đấu (chỉ ghi log).
  */
@@ -39,6 +40,15 @@ class Sources {
       const c = conns && conns.size ? conns.values().next().value : null;
       this.srcSafe(() => this.store.srcGame(pid, (c && c.src) || (this.store.srcFirst(pid) || {}).src || 'unknown'));
     }
+  }
+
+  /** Gọi mỗi phút từ core.sweep; dọn dữ liệu cũ (src_active 60 ngày, src_daily 400 ngày) mỗi ngày một lần – trước đây
+   *  chỉ dọn khi quản trị viên mở bảng, không ai mở thì bảng hoạt động theo ngày phình mãi. → true nếu đã dọn. */
+  srcSweep(now = Date.now()) {
+    if (now - (this.srcPrunedAt || 0) < 24 * 3600 * 1000) return false;
+    this.srcPrunedAt = now;
+    this.srcSafe(() => this.store.srcPrune(now));
+    return true;
   }
 
   on_srcStats(conn, { days } = {}) {

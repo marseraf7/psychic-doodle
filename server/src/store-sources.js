@@ -74,7 +74,7 @@ class SourcesStore {
     db.prepare('DELETE FROM src_active WHERE pid = ?').run(pid);
   }
 
-  /** Dọn dữ liệu cũ (gọi mỗi ngày từ hub). */
+  /** Dọn dữ liệu cũ (hub/sources.js srcSweep – mỗi ngày một lần, và khi quản trị viên mở bảng). */
   srcPrune(at = Date.now()) {
     const db = this.src();
     db.prepare('DELETE FROM src_active WHERE day < ?').run(addDays(dayOf(at), -ACTIVE_KEEP_DAYS));

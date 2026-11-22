@@ -65,6 +65,20 @@ test('store-sources: lần đầu / hoạt động trong ngày / ván; D1, D7 đ
   assert.ok(!cols.some((c) => /ip|ua|agent/i.test(c)), cols.join(','));
 });
 
+test('sources: srcSweep dọn dữ liệu cũ mỗi ngày một lần (không phải chờ quản trị viên mở bảng)', () => {
+  const { Sources } = require('../src/hub/sources.js');
+  const calls = [];
+  const h = Object.assign(Object.create(Sources.prototype), { store: { srcPrune: (t) => calls.push(t) } });
+  const DAY = 86400000, T = Date.parse('2026-11-22T00:00:00Z');
+  assert.strictEqual(h.srcSweep(T), true);
+  assert.strictEqual(h.srcSweep(T + 60000), false, 'mỗi phút: không dọn lại');
+  assert.strictEqual(h.srcSweep(T + DAY), true, 'qua một ngày: dọn');
+  assert.deepStrictEqual(calls, [T, T + DAY]);
+  const bad = Object.assign(Object.create(Sources.prototype), { store: { srcPrune: () => { throw new Error('db'); } } });
+  const err = console.error; console.error = () => {};
+  try { assert.strictEqual(bad.srcSweep(T), true, 'lỗi CSDL không lan ra nhịp dọn của hub'); } finally { console.error = err; }
+});
+
 test('sources: làm sạch src / ref', () => {
   assert.strictEqual(cleanSrc('telegram'), 'telegram');
   assert.strictEqual(cleanSrc('<x>'), 'unknown');

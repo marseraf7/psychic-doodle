@@ -373,6 +373,7 @@ class Hub {
     this.safeTimer('league', () => this.leagueTick(now)); // hạng đấu tuần: sang tuần mới thì chốt tuần cũ (league.js)
     this.safeTimer('corrBeat', () => this.corrBeat(now)); // nhịp sống + bù thời gian máy chủ treo (corr.js) – trước khi quét hết giờ
     this.corrSweep(now); // ván chơi theo lượt quá hạn (corr.js – C1)
+    this.srcSweep(now); // thống kê nguồn người chơi: dọn dữ liệu cũ mỗi ngày (sources.js)
     for (const room of [...this.rooms.values()]) {
       for (const p of [...room.players]) {
         const off = this.offlineAt.get(p.id);
