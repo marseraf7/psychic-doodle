@@ -21,3 +21,6 @@ caro/rapfi/nets/
 app/store/shots/
 .claude/worktrees/
 node_modules
+
+# Gói bản cổng game (server/scripts/build-portal.js) – dựng lại được, không đưa lên git
+/dist/

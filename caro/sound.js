@@ -1,7 +1,8 @@
 /*
  * Âm thanh tổng hợp bằng Web Audio (không cần file âm thanh – nhẹ, chơi được khi mất mạng). Bật / tắt, kiểu âm thanh và
  * âm lượng trong Cài đặt → Âm thanh và Cài đặt nhanh (quick-settings.js). Mọi tiếng đi qua một nút âm lượng chung.
- *   CaroSound = { play(name), enabled, style, STYLES, volume (0–100) }
+ *   CaroSound = { play(name), enabled, style, STYLES, volume (0–100), hostMute }
+ * hostMute: nền tảng chứa game yêu cầu tắt tiếng (CrazyGames – portal-crazygames.js); không lưu, không đổi cài đặt của người chơi.
  */
 (function () {
   'use strict';
@@ -11,6 +12,7 @@
   let volume = 80;
   try { const v = localStorage.getItem(KEY + 'Vol'); if (v !== null && !isNaN(+v)) volume = Math.max(0, Math.min(100, Math.round(+v))); } catch (e) { /* riêng tư */ }
   let ctx = null, out = null;
+  let hostMute = false;
 
   // Âm lượng nghe "đều tay" hơn theo hàm mũ: 50 % ≈ một nửa độ to cảm nhận
   const gainOf = (v) => Math.pow(v / 100, 1.6);
@@ -97,7 +99,7 @@
   window.CaroSound = {
     STYLES,
     play(name) {
-      if (!enabled || !ctx || !volume || !SOUNDS[name]) return;
+      if (!enabled || hostMute || !ctx || !volume || !SOUNDS[name]) return;
       try { resume(); SOUNDS[name](); } catch (e) { /* bỏ qua */ }
     },
     get enabled() { return enabled; },
@@ -105,6 +107,8 @@
       enabled = !!v;
       try { localStorage.setItem(KEY, enabled ? 'on' : 'off'); } catch (e) { /* riêng tư */ }
     },
+    get hostMute() { return hostMute; },
+    set hostMute(v) { hostMute = !!v; },
     get style() { return style; },
     set style(v) {
       if (!STYLES.includes(v)) return;

@@ -74,6 +74,7 @@ const SECURITY_HEADERS = {
 if (process.env.RAPFI_THREADS !== '0') SECURITY_HEADERS['document-isolation-policy'] = 'isolate-and-credentialless';
 
 const { ipInCidr, fromProxy, wsOriginAllowed, clientIp } = require('./web-net.js'); // IP thật sau proxy, Origin WebSocket
+const { applyHostHeaders } = require('./host-embed.js'); // Mini App Telegram / VK: cho nhúng + thư viện Telegram, chỉ lượt đó
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -309,6 +310,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (/[\x00-\x1f\x7f]/.test(url)) { res.writeHead(400); return res.end(); }
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
     if (move(req, res, url, u)) return;
+    applyHostHeaders(res, url, u.searchParams, CSP); // trang chính mở làm Mini App Telegram / VK (host-embed.js)
     if (apiV1(req, res, url, u.searchParams)) return;
     if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });

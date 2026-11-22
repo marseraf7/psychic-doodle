@@ -163,3 +163,19 @@ test('SW: mở link /?bc= (tường thuật giải – C3) ra trang tường thu
   const home = await w.fire('fetch', { request: { method: 'GET', url: abs('?replay=AbC123'), mode: 'navigate' } });
   assert.strictEqual(home.body, '/', 'link khác vẫn ra trang chính');
 });
+
+test('SW: mở làm Mini App Telegram / VK – hỏi mạng trước (header cho nhúng), mất mạng thì dùng bản đã lưu', async () => {
+  const w = makeWorld();
+  await w.fire('install', {});
+  for (const q of ['?host=tg', '?host=vk&vk_app_id=1&sign=x', '?vk_app_id=1&sign=x', '?tgWebAppStartParam=room-123456']) {
+    w.fetched.length = 0;
+    const res = await w.fire('fetch', { request: { method: 'GET', url: abs(q), mode: 'navigate' } });
+    assert.ok(res && res.ok && w.fetched.includes(abs(q)), q + ': hỏi mạng');
+  }
+  w.netErrors.add('/');
+  const off = await w.fire('fetch', { request: { method: 'GET', url: abs('?host=tg'), mode: 'navigate' } });
+  assert.ok(off && off.ok, 'mất mạng: bản đã lưu');
+  w.fetched.length = 0;
+  await w.fire('fetch', { request: { method: 'GET', url: abs('?host=xx'), mode: 'navigate' } });
+  assert.ok(!w.fetched.length, 'tham số khác: vẫn lấy bản đã lưu trước');
+});
