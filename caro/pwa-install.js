@@ -4,7 +4,8 @@
  *  – iPhone / iPad (Safari): không có hộp cài → gợi ý "Chia sẻ → Thêm vào MH chính".
  *  – Trình duyệt trong Zalo / Messenger / Facebook / Instagram…: không cài được → gợi ý "Mở bằng trình duyệt" (Android: nút
  *    mở thẳng Chrome; nơi khác: sao chép link).
- *  – Ẩn hẳn: trong app điện thoại (Capacitor – CaroNative), app máy tính (Tauri), đã cài (display-mode standalone).
+ *  – Ẩn hẳn: trong app điện thoại (Capacitor – CaroNative), app máy tính (Tauri), đã cài (display-mode standalone), bản cổng
+ *    game và trong Telegram / VK (hosted: CARO_PORTAL / CARO_HOST – không link cửa hàng, không cài được trong khung của họ).
  * kindOf(env) là hàm thuần (kiểm thử: caro/tests/pwa-install.test.js). window.CaroInstall = { kind, act, render }.
  */
 (function () {
@@ -14,11 +15,11 @@
   const IOS = /iPhone|iPad|iPod/i;
 
   /**
-   * Cách cài trên máy này. env: { ua, standalone, native, tauri, prompt, touchMac }.
+   * Cách cài trên máy này. env: { ua, standalone, native, tauri, hosted, prompt, touchMac }.
    * → 'none' (ẩn: app / đã cài / không cài được kiểu nào) | 'prompt' | 'ios' | 'inapp'.
    */
   function kindOf(env) {
-    if (env.native || env.tauri || env.standalone) return 'none';
+    if (env.native || env.tauri || env.hosted || env.standalone) return 'none';
     const ua = String(env.ua || '');
     if (IN_APP.test(ua)) return 'inapp';
     if (env.prompt) return 'prompt';
@@ -47,6 +48,7 @@
       ua: navigator.userAgent,
       standalone: installed || mm('(display-mode: standalone)') || mm('(display-mode: fullscreen)') || navigator.standalone === true,
       native: !!window.CaroNative,
+      hosted: !!(window.CARO_PORTAL || window.CARO_HOST),
       tauri: !!(window.__TAURI__ || window.__TAURI_INTERNALS__) || location.protocol === 'tauri:' || location.hostname === 'tauri.localhost',
       prompt: !!deferred,
       touchMac: /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1,

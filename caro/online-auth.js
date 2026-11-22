@@ -80,6 +80,8 @@
     // ------------------------------------------------------------ Đăng nhập / Google
     let authTab = 'login';
     function openAuth(tab) {
+      // Bản cổng game (portal.js): không đăng nhập / đăng ký – chỉ báo một dòng, vẫn chơi khách
+      if (window.CaroPortal && window.CaroPortal.on) { window.CaroPortal.noLogin(); return; }
       authTab = tab;
       const f = $('auth-form');
       f.classList.toggle('register', tab === 'register');

@@ -28,11 +28,14 @@
   <link rel="stylesheet" href="class.css">
   <link rel="stylesheet" href="corr.css">
   <link rel="stylesheet" href="a11y.css">
+  <link rel="stylesheet" href="host.css">
   <!-- Áp dụng giao diện Sáng/Tối trước khi vẽ để không bị nháy màu -->
   <script src="watchdog.js"></script>
   <script src="theme.js"></script>
   <script src="boardstyle.js"></script>
   <script src="corners.js"></script>
+  <!-- Chạy trong nền tảng khác (bản cổng game, Telegram, VK): nhận biết sớm, trước mọi mã khác; bản web chính không làm gì -->
+  <script src="host-detect.js"></script>
 </head>
 <body class="shell-on" data-page="home">
   <!-- Bộ biểu tượng (nét 2px, cùng một kiểu) – dùng: <svg class="ico"><use href="#i-..."/></svg> -->
@@ -1160,6 +1163,7 @@
   <script src="i18n-corr.js"></script>
   <script src="i18n-api.js"></script>
   <script src="i18n-a11y.js"></script>
+  <script src="i18n-host.js"></script>
   <script src="timectl.js"></script>
   <script src="local-clock.js"></script>
   <script src="tc-picker.js"></script>

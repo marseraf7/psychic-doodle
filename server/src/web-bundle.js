@@ -10,8 +10,8 @@
  *     ngôn ngữ (`b/i18n-<l>-<băm>.js`). File nào làm việc khác ngoài extend, hoặc có giá trị không phải chuỗi / số,
  *     thì giữ nguyên trong khối mã (an toàn hơn là gom sai).
  *   – `b/boot-<băm>.js` (nhỏ, chạy đồng bộ ngay sau khối chứa i18n.js): chọn ngôn ngữ như i18n.js (caro.lang đã lưu →
- *     ngôn ngữ trình duyệt → vi) rồi chèn thẻ `defer` của gói ngôn ngữ đó vào đúng vị trí – gói chạy sau i18n.js và
- *     trước mọi file mã phía sau. Đổi ngôn ngữ lúc đang dùng: i18n.js tự tải gói còn thiếu (window.CARO_PACKS).
+ *     [bản cổng game: window.CARO_LANG0] → ngôn ngữ trình duyệt → vi) rồi chèn thẻ `defer` của gói ngôn ngữ đó vào
+ *     đúng vị trí – gói chạy sau i18n.js và trước mọi file mã phía sau. Đổi ngôn ngữ lúc đang dùng: i18n.js tự tải gói còn thiếu (window.CARO_PACKS).
  *   – sw.js: danh sách FILES thay các file lẻ đã gộp bằng các khối mới; tên CACHE thêm mã băm của bản gộp.
  * Tên khối có mã băm nội dung → được lưu lâu (immutable). Dựng lại khi index.html hoặc sw.js đổi (đổi file nào trong
  * caro/ cũng phải tăng CACHE trong sw.js – CLAUDE.md). Dựng lỗi thì phục vụ như cũ (từng file lẻ). Tắt: CARO_BUNDLE=0.
@@ -67,6 +67,7 @@ function bootJs(packs) {
 (function () {
   var P = ${JSON.stringify(packs)}, l = null;
   try { l = localStorage.getItem('caro.lang'); } catch (e) { /* riêng tư */ }
+  if (!P[l] && P[window.CARO_LANG0]) l = window.CARO_LANG0; // bản cổng game (build-portal.js): mặc định tiếng Anh
   if (!P[l]) {
     l = 'vi';
     var a = navigator.languages || [navigator.language || ''];

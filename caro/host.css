@@ -1,0 +1,25 @@
+/*
+ * Giao diện khi game chạy trong nền tảng khác.
+ * Bản cổng game (html.portal – CrazyGames / itch.io, host-detect.js + portal.js): ẩn đăng nhập / đăng ký, link ra ngoài
+ * (trang chính, mạng xã hội, cửa hàng ứng dụng, trang API cho nhà phát triển) và chat tự do – chỉ còn chat nhanh câu mẫu.
+ * Bản web chính không có lớp nào ở đây nên không đổi gì.
+ */
+html.portal [data-auth],
+html.portal #go-login,
+html.portal #go-register,
+html.portal #google-box,
+html.portal .api-link,
+html.portal #cb,
+html.portal #tb-msg,
+html.portal #chat-form,
+html.portal .cc-form,
+html.portal a[href^="http:"],
+html.portal a[href^="https:"],
+html.portal a[href^="//"],
+html.portal a[href^="mailto:"] {
+  display: none !important;
+}
+/* Thẻ tài khoản của khách: bỏ dòng mời "tạo tài khoản để kết bạn…" (bản cổng không có tài khoản) */
+html.portal #account .row:has(#go-login) + .hint {
+  display: none !important;
+}

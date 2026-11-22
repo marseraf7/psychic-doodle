@@ -65,9 +65,9 @@ test('boot chọn ngôn ngữ như i18n.js và chèn gói đúng chỗ (sau kh�
   const before = tags.slice(0, bi).map(text).join('');
   assert.ok(before.includes(fs.readFileSync(path.join(DIR, 'i18n.js'), 'utf8')), 'i18n.js chạy trước gói');
   assert.ok(B.html.includes(`<script src="${tags[bi]}"></script>`), 'boot chạy đồng bộ (không defer) để document.write');
-  const run = (stored, languages) => {
+  const run = (stored, languages, lang0) => {
     let wrote = '';
-    const win = {};
+    const win = { CARO_LANG0: lang0 };
     vm.runInNewContext(text(tags[bi]), {
       window: win, navigator: { languages },
       localStorage: { getItem: () => stored }, document: { write: (s) => { wrote += s; } },
@@ -77,6 +77,10 @@ test('boot chọn ngôn ngữ như i18n.js và chèn gói đúng chỗ (sau kh�
   assert.strictEqual(run('ru', ['en-US']).lang, 'ru', 'ngôn ngữ đã lưu thắng ngôn ngữ trình duyệt');
   assert.strictEqual(run(null, ['fr-FR', 'zh-CN']).lang, 'zh', 'ngôn ngữ trình duyệt đầu tiên có hỗ trợ');
   assert.strictEqual(run('xx', ['fr']).lang, 'vi', 'không khớp: tiếng Việt');
+  // Bản cổng game (portal-config.js): chưa chọn thì CARO_LANG0 (tiếng Anh), không theo trình duyệt; đã chọn thì giữ
+  assert.strictEqual(run(null, ['vi-VN'], 'en').lang, 'en');
+  assert.strictEqual(run('ru', ['vi-VN'], 'en').lang, 'ru');
+  assert.strictEqual(run(null, ['zh-CN'], 'xx').lang, 'zh', 'CARO_LANG0 lạ: như trang chính');
   assert.match(run('en', []).wrote, /^<script defer src="b\/i18n-en-[0-9a-f]+\.js"><\/script>$/);
 });
 

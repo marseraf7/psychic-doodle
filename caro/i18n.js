@@ -336,7 +336,8 @@
 
   let lang;
   try { lang = localStorage.getItem(KEY); } catch (e) { /* riêng tư */ }
-  if (!DICT[lang]) lang = detect();
+  // Bản cổng game (portal-config.js – build-portal.js): chưa chọn ngôn ngữ thì tiếng Anh, không theo trình duyệt
+  if (!DICT[lang]) lang = DICT[window.CARO_LANG0] ? window.CARO_LANG0 : detect();
   if (DICT[window.CARO_LANG]) lang = window.CARO_LANG; // trang nhúng (embed-boot.js): ?lang= – không lưu lại
 
   function t(key, args) {
