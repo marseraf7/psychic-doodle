@@ -8,6 +8,8 @@
  *                liệu trình duyệt (domain-move.js). Thường đặt cùng PUBLIC_URL = MOVED_TO.
  *   MOVED_FROM   tên máy cũ (phẩy ngăn cách, vd. caroxo.duckdns.org,caroxo.ddnsgeek.com). Bỏ trống: mọi tên máy khác tên
  *                miền mới, trừ localhost / 127.0.0.1 / ::1 (lệnh kiểm tra trong máy – update.sh – không bị chuyển hướng).
+ *                Mang dữ liệu trình duyệt sang tên mới CẦN khai MOVED_FROM (vé chống đăng nhập hộ chỉ gửi về tên đã khai –
+ *                domain-move.js · begin); move-domain.sh tự điền.
  */
 'use strict';
 

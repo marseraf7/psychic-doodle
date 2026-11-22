@@ -4,7 +4,8 @@
  *   1. Người có tài khoản đã cài service worker ở tên cũ + có tiến độ trên máy; khách chỉ có tiến độ trên máy.
  *   2. Máy chủ bật MOVED_TO: mở lại tên cũ (kèm link ?u=) → service worker cũ tự gỡ → trang chuyển → sang tên mới cùng
  *      đường dẫn; vẫn đăng nhập đúng tài khoản, khách giữ đúng khoá khách (cùng danh tính ở máy chủ) + tiến độ; URL không
- *      còn ?mig=; khoá đã có ở tên mới không bị ghi đè; mã chuyển chỉ dùng được một lần.
+ *      còn ?mig=; khoá đã có ở tên mới không bị ghi đè; mã chuyển chỉ dùng được một lần, chỉ ở trình duyệt có cookie vé
+ *      (begin); link ?mig= do người khác tạo không đăng nhập hộ được (login CSRF).
  *   node caro/tests/e2e/domain-move.e2e.js
  */
 'use strict';
@@ -86,11 +87,29 @@ const { setup } = require('./helpers');
   ok(newB['caro.lg.g.g1'] && JSON.parse(newB['caro.lg.index']).length === 1, 'mang theo ván lưu trên máy');
   ok(newB['caro.sound'] === 'off-new', 'khoá đã có ở tên mới không bị ghi đè');
 
-  // Mã chuyển một lần: lấy lại mã cũ không được
-  const r = await fetch(OLD + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ keys: { 'caro.lang': 'en' } }) });
+  // Mã chuyển một lần, chỉ cho trình duyệt có cookie vé (begin) của chính lượt đó
+  const begin = await fetch(NEW + '/api/migrate/begin?from=' + encodeURIComponent(`127.0.0.1:${PORT}`) + '&p=/', { redirect: 'manual' });
+  const ticket = new URL(begin.headers.get('location')).searchParams.get('migt');
+  ok(begin.status === 302 && /^caro_mig=[\w-]{22}; Path=\/api\/migrate;.*HttpOnly/.test(begin.headers.get('set-cookie') || ''), 'begin: cookie vé HttpOnly ở tên mới');
+  const r = await fetch(OLD + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: ticket, keys: { 'caro.token': oldA['caro.token'], 'caro.lang': 'en' } }) });
   const { code } = await r.json();
-  const first = await fetch(NEW + '/api/migrate/' + code), again = await fetch(NEW + '/api/migrate/' + code);
-  ok(first.status === 200 && again.status === 404, 'mã chuyển dùng một lần');
+  const cookie = { headers: { cookie: 'caro_mig=' + ticket } };
+  const foreign = await fetch(NEW + '/api/migrate/' + code);
+  const first = await fetch(NEW + '/api/migrate/' + code, cookie), again = await fetch(NEW + '/api/migrate/' + code, cookie);
+  ok(foreign.status === 403 && first.status === 200 && again.status === 404, 'mã chuyển: thiếu cookie vé → 403; đúng vé: một lần');
+
+  // Chống đăng nhập hộ: kẻ xấu tạo mã chứa token của mình, gửi link ?mig= cho người chưa từng mở tên mới
+  const b2 = await fetch(NEW + '/api/migrate/begin?from=' + encodeURIComponent(`127.0.0.1:${PORT}`) + '&p=/', { redirect: 'manual' });
+  const t2 = new URL(b2.headers.get('location')).searchParams.get('migt');
+  const evil = await (await fetch(OLD + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: t2, keys: { 'caro.token': oldA['caro.token'], 'caro.guestKey': 'k'.repeat(32) } }) })).json();
+  const ctxV = await browser.newContext({ viewport: { width: 390, height: 860 } });
+  const v = await ctxV.newPage();
+  watch(v, 'nạn nhân');
+  await v.goto(NEW + '/?mig=' + evil.code, { waitUntil: 'commit' });
+  const doneV = await until(async () => !new URL(v.url()).searchParams.has('mig') && v.evaluate(() => { const m = window.CaroOnline && window.CaroOnline.state.me; return m && m.id; }), 30000);
+  const newV = await local(v);
+  ok(doneV && !newV['caro.token'] && newV['caro.guestKey'] !== 'k'.repeat(32), `link ?mig= của người khác: không nhận token / khoá khách lạ (${doneV})`);
+  await ctxV.close();
 
   delete process.env.MOVED_TO;
   delete process.env.MOVED_FROM;

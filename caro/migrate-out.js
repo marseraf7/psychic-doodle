@@ -3,8 +3,12 @@
  *  1. Gỡ service worker + xoá bộ nhớ đệm của tên cũ (không để bản app cũ chạy tiếp từ bộ nhớ).
  *  2. Đọc các khoá caro.* trong localStorage – đăng nhập, khoá khách, cài đặt, tiến độ, ván lưu trên máy – theo thứ tự ưu
  *     tiên, tổng ≤ ~500 KB (ván lưu trên máy mới nhất trước; danh sách ván chỉ giữ ván đã gửi kèm).
- *  3. POST /api/migrate → mã dùng một lần (10 phút) → sang https://tên-mới/<cùng đường dẫn + tham số>&mig=<mã>
- *     (caro/migrate-in.js khôi phục ở tên mới). Lỗi / không có dữ liệu / quá 8 giây: vẫn sang tên mới, không kèm mã.
+ *  3. Chưa có vé (?migt=): sang https://tên-mới/api/migrate/begin?from=<tên này>&p=<đường dẫn> – máy chủ đặt cookie vé ở
+ *     tên mới rồi đưa về đây kèm ?migt=<vé> (chống "đăng nhập hộ": mã chỉ dùng được ở trình duyệt có cookie vé –
+ *     server/src/domain-move.js). Có vé: POST /api/migrate { t: vé, keys } → mã dùng một lần (10 phút) → sang
+ *     https://tên-mới/<cùng đường dẫn + tham số>&mig=<mã> (caro/migrate-in.js khôi phục ở tên mới).
+ *     Lỗi / không có dữ liệu / quá 8 giây: vẫn sang tên mới, không kèm mã.
+ * Đường dẫn mang theo luôn bắt đầu bằng đúng một '/' (link "https://tên-cũ//trang-lạ/" không đưa mã sang trang lạ).
  * Dữ liệu ở tên cũ không bị xoá.
  */
 (function () {
@@ -18,13 +22,27 @@
   const LG = 'caro.lg.';
   let gone = false;
 
-  function go(code) {
+  const sp = new URLSearchParams(location.search);
+  const ticket = /^[A-Za-z0-9_-]{22}$/.test(sp.get('migt') || '') ? sp.get('migt') : '';
+
+  /** Đường dẫn + tham số + # của trang này (bỏ mig / migt), luôn bắt đầu bằng đúng một '/'. */
+  function rel() {
+    const u = new URL('http://x/' + location.pathname.replace(/^[/\\]+/, '') + location.search + location.hash);
+    u.searchParams.delete('mig');
+    u.searchParams.delete('migt');
+    return u.pathname + u.search + u.hash;
+  }
+
+  /** Sang tên mới (url: đường dẫn bắt đầu bằng '/' – ghép sau gốc của tên mới nên không đổi được tên máy). */
+  function nav(url) {
     if (gone) return;
     gone = true;
-    const u = new URL(location.pathname + location.search + location.hash, to);
-    u.searchParams.delete('mig');
+    location.replace(to + url);
+  }
+  function go(code) {
+    const u = new URL('http://x' + rel());
     if (code) u.searchParams.set('mig', code);
-    location.replace(u.href);
+    nav(u.pathname + u.search + u.hash);
   }
 
   const bytes = (s) => (window.TextEncoder ? new TextEncoder().encode(s).length : s.length * 3);
@@ -79,7 +97,9 @@
   cleanup().then(() => {
     const keys = collect();
     if (!keys) return go('');
-    return fetch((window.CARO_SERVER || '') + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ v: 1, keys }), credentials: 'omit', cache: 'no-store' })
+    // Bước 1: lấy vé ở tên mới (máy chủ đưa về trang này kèm ?migt=)
+    if (!ticket) return nav('/api/migrate/begin?from=' + encodeURIComponent(location.host) + '&p=' + encodeURIComponent(rel()));
+    return fetch((window.CARO_SERVER || '') + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ v: 1, t: ticket, keys }), credentials: 'omit', cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => go(j && /^[A-Za-z0-9_-]{22}$/.test(j.code) ? j.code : ''), () => go(''));
   });

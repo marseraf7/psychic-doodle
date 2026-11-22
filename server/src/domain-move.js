@@ -3,17 +3,27 @@
  * cả tên cũ lẫn tên mới cùng trỏ về máy chủ này, phân biệt theo header Host.
  * Tên miền CŨ:
  *   - Người mở trang bằng trình duyệt (GET trang, Accept: text/html, không phải máy đọc link): trang chuyển nhỏ (không phải
- *     app) nạp /migrate-out.js – gỡ service worker + bộ nhớ đệm của tên cũ, đọc các khoá caro.* trong localStorage (đăng
- *     nhập, khoá khách, cài đặt, tiến độ, ván lưu trên máy – tối đa 512 KB), gửi POST /api/migrate, rồi sang
- *     https://tên-mới/<cùng đường dẫn + tham số>&mig=<mã>.
+ *     app) nạp /migrate-out.js – gỡ service worker + bộ nhớ đệm của tên cũ, lấy vé ở tên mới (begin – xem "Chống đăng nhập
+ *     hộ" dưới đây), đọc các khoá caro.* trong localStorage (đăng nhập, khoá khách, cài đặt, tiến độ, ván lưu trên máy –
+ *     tối đa 512 KB), gửi POST /api/migrate kèm vé, rồi sang https://tên-mới/<cùng đường dẫn + tham số>&mig=<mã>.
  *   - /sw.js: service worker "nghỉ hưu" – xoá bộ nhớ đệm, tự gỡ, tải lại trang (app cũ trong bộ nhớ đệm không còn chạy).
  *   - Máy đọc link, file / ảnh / API (GET), trang nhúng: 301 sang tên mới (kèm CORS để app gọi API theo được).
  *   - Giữ nguyên, không chuyển: /healthz, /mcp (connector cũ), /.well-known/* (link sâu của app), yêu cầu không phải
  *     GET / HEAD (app cũ POST), yêu cầu có Origin của trang khác (app Android / iOS / desktop, bản GitHub Pages) – app cũ trỏ
  *     tên cũ vẫn chạy; WebSocket /ws không qua đây.
  * Tên miền MỚI: GET /api/migrate/<mã> trả dữ liệu MỘT lần rồi xoá (caro/migrate-in.js khôi phục các khoá chưa có).
- * Bảo mật: mã 128 bit ngẫu nhiên, dùng một lần, hết hạn sau 10 phút, không gắn với gì bí mật; mỗi IP tối đa 10 lần gửi /
- * 10 phút và 60 lần lấy / phút; tổng bộ nhớ ≤ 32 MB; thân ≤ 512 KB; chỉ nhận khoá caro.* là chuỗi; KHÔNG ghi log nội dung.
+ * Chống "đăng nhập hộ" (login CSRF – rà soát 22/11): ai cũng gửi được dữ liệu của mình lên tên cũ để lấy mã, rồi gửi link
+ * https://tên-mới/?mig=<mã> cho người khác → máy người đó nhận token / khoá khách của kẻ gửi. Vì vậy mã gắn với MỘT trình
+ * duyệt: bước đầu luôn đi qua tên MỚI –
+ *   1. trang chuyển (tên cũ) → GET https://tên-mới/api/migrate/begin?from=<tên cũ>&p=<đường dẫn>: máy chủ tạo vé 128 bit,
+ *      đặt cookie caro_mig=<vé> (HttpOnly, SameSite=Lax, chỉ đường /api/migrate, 15 phút) ở tên MỚI, rồi 302 về đúng tên
+ *      cũ đã khai ở MOVED_FROM (không phải tên lạ – không lộ vé) kèm ?migt=<vé>;
+ *   2. trang chuyển đọc vé, gửi POST /api/migrate { t: vé, keys } → mã → sang tên mới ?mig=<mã>;
+ *   3. GET /api/migrate/<mã> chỉ trả khi cookie caro_mig của trình duyệt đúng vé đã gắn với mã (sai / thiếu: 403, mã vẫn
+ *      giữ cho chủ thật) và xoá cookie. Kẻ gửi link không đặt được cookie ở máy người khác, cũng không đọc được vé của họ.
+ * Bảo mật khác: mã 128 bit ngẫu nhiên, dùng một lần, hết hạn sau 10 phút; mỗi IP tối đa 10 lần gửi / 10 phút và 60 lần
+ * lấy / phút; tổng bộ nhớ ≤ 32 MB; thân ≤ 512 KB; chỉ nhận khoá caro.* là chuỗi; KHÔNG ghi log nội dung. Đường dẫn mang
+ * theo luôn giữ trên tên miền của game ("//tên-lạ/" không thành link sang trang khác).
  */
 'use strict';
 const crypto = require('crypto');
@@ -27,7 +37,10 @@ const MAX_TOTAL = 32 * 1024 * 1024;
 const PUT_PER_IP = 10; // lần gửi / 10 phút / IP
 const GET_PER_IP = 60; // lần lấy / phút / IP
 const KEY_RE = /^caro\.[\w.-]{1,80}$/;
-const CODE_RE = /^[A-Za-z0-9_-]{22}$/;
+const CODE_RE = /^[A-Za-z0-9_-]{22}$/; // mã và vé: 128 bit base64url
+const COOKIE = 'caro_mig';
+const COOKIE_S = 15 * 60; // vé sống 15 phút (đủ cho trang chuyển + mã 10 phút)
+const FROM_RE = /^(\[[0-9a-f:.]+\]|[a-z0-9.-]{1,253})(:\d{1,5})?$/i;
 // Máy đọc link / máy tìm kiếm: nhận 301 thẳng (thấy ngay tên mới). Không có "zalo" / "telegram": trình duyệt trong app có chữ đó
 const BOT_RE = /bot\b|bot\/|crawl|spider|slurp|facebookexternalhit|facebot|embedly|vkshare|whatsapp|preview|lighthouse/i;
 
@@ -50,6 +63,29 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
   await self.registration.unregister();
 })()));
 `;
+
+/** Đường dẫn + tham số + # mang theo khi chuyển, luôn nằm trên tên miền của game: bắt đầu bằng đúng một '/' ('//tên-lạ/'
+ *  hay '/\\tên-lạ' thành '/tên-lạ/'), bỏ mig / migt, tối đa 4000 ký tự; sai → '/'. */
+function safePath(p) {
+  p = String(p || '');
+  if (p.length > 4000 || /[\x00-\x1f\x7f]/.test(p)) return '/';
+  try {
+    const u = new URL('/' + p.replace(/^[/\\]+/, ''), 'http://x');
+    if (u.origin !== 'http://x') return '/';
+    u.searchParams.delete('mig');
+    u.searchParams.delete('migt');
+    return u.pathname.replace(/^\/+/, '/') + u.search + u.hash;
+  } catch (e) { return '/'; }
+}
+/** Giá trị cookie name trong header Cookie, hoặc ''. */
+function cookieOf(req, name) {
+  for (const part of String(req.headers.cookie || '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0 && part.slice(0, i).trim() === name) return part.slice(i + 1).trim();
+  }
+  return '';
+}
+const clearCookie = () => `${COOKIE}=; Path=/api/migrate; Max-Age=0; HttpOnly; SameSite=Lax`;
 
 /** Làm sạch dữ liệu gửi lên: chỉ khoá caro.* có giá trị chuỗi. → { keys } hoặc null. */
 function cleanPayload(obj) {
@@ -102,13 +138,17 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
     req.on('end', () => {
       if (done) return;
       done = true;
-      let data = null;
-      try { data = cleanPayload(JSON.parse(Buffer.concat(parts).toString('utf8'))); } catch (e) { data = null; }
-      if (!data) return send(res, 400, { error: 'bad_request' });
+      let data = null, ticket = '';
+      try {
+        const obj = JSON.parse(Buffer.concat(parts).toString('utf8'));
+        ticket = obj && typeof obj.t === 'string' && CODE_RE.test(obj.t) ? obj.t : '';
+        data = cleanPayload(obj);
+      } catch (e) { data = null; }
+      if (!data || !ticket) return send(res, 400, { error: 'bad_request' }); // không có vé của tên mới: không nhận
       const buf = Buffer.from(JSON.stringify(data));
       if (total + buf.length > MAX_TOTAL) return send(res, 503, { error: 'busy' }, { 'retry-after': '60' });
       const code = crypto.randomBytes(16).toString('base64url');
-      box.set(code, { buf, exp: now() + TTL_MS });
+      box.set(code, { buf, ticket, exp: now() + TTL_MS });
       total += buf.length;
       send(res, 200, { code });
     });
@@ -123,10 +163,35 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
     if (wait) return send(res, 429, { error: 'too_many_requests' }, { 'retry-after': String(wait) });
     const e = CODE_RE.test(code) && box.get(code);
     if (!e) return send(res, 404, { error: 'not_found' });
+    // Mã chỉ cho đúng trình duyệt đã đi bước begin (cookie vé). Sai / thiếu: không xoá mã (người khác cầm được mã – vd. từ
+    // lịch sử trình duyệt – không làm hỏng lượt chuyển của chủ thật), mã vẫn hết hạn sau 10 phút
+    const have = Buffer.from(cookieOf(req, COOKIE)), want = Buffer.from(e.ticket);
+    if (have.length !== want.length || !crypto.timingSafeEqual(have, want)) return send(res, 403, { error: 'wrong_browser' });
     box.delete(code);
     total -= e.buf.length;
-    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': e.buf.length, 'cache-control': 'no-store' });
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': e.buf.length, 'cache-control': 'no-store',
+      'set-cookie': clearCookie() });
     res.end(e.buf);
+  }
+
+  /** GET /api/migrate/begin?from=<tên cũ>&p=<đường dẫn> (tên mới): đặt cookie vé rồi 302 về tên cũ kèm ?migt=<vé>. */
+  function begin(req, res, u, to) {
+    const p = safePath(u.searchParams.get('p'));
+    const from = String(u.searchParams.get('from') || '');
+    const old = FROM_RE.test(from) ? Site.hostName(from) : '';
+    // Chỉ tên cũ đã khai (MOVED_FROM) – không bao giờ gửi vé tới tên máy do link tự đặt
+    if (!old || !Site.movedFrom().includes(old)) {
+      res.writeHead(302, { location: to + p, 'cache-control': 'no-store' });
+      return res.end();
+    }
+    const ticket = crypto.randomBytes(16).toString('base64url');
+    const back = new URL(new URL(to).protocol + '//' + from + p);
+    back.searchParams.delete('mig');
+    back.searchParams.set('migt', ticket);
+    const secure = to.startsWith('https:') ? '; Secure' : '';
+    res.writeHead(302, { location: back.href, 'cache-control': 'no-store',
+      'set-cookie': `${COOKIE}=${ticket}; Path=/api/migrate; Max-Age=${COOKIE_S}; HttpOnly; SameSite=Lax${secure}` });
+    res.end();
   }
 
   /** Trang chuyển (tên cũ, người dùng mở bằng trình duyệt). */
@@ -134,7 +199,7 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
     const lang = pickLang(u.searchParams, req.headers['accept-language']);
     const L = Langs.pick(TEXT, lang);
     const host = new URL(to).host;
-    const dest = to + u.pathname + u.search;
+    const dest = to + safePath(u.pathname + u.search);
     const body = Buffer.from(`<!doctype html>
 <html lang="${escHtml(Langs.BY[lang].html)}" data-to="${escHtml(to)}">
 <head>
@@ -158,8 +223,14 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
 
   /** → true nếu đã trả lời yêu cầu. url: đường dẫn đã giải mã; u: URL của yêu cầu. */
   function handle(req, res, url, u) {
-    if (url.startsWith('/api/migrate/') && req.method === 'GET') { take(url.slice(13), req, res); return true; }
     const old = Site.isOldHost(req.headers.host);
+    if (url === '/api/migrate/begin' && req.method === 'GET') {
+      const to = Site.movedTo();
+      if (old || !to) send(res, 404, { error: 'not_found' });
+      else begin(req, res, u, to);
+      return true;
+    }
+    if (url.startsWith('/api/migrate/') && req.method === 'GET') { take(url.slice(13), req, res); return true; }
     if (url === '/api/migrate' && req.method === 'POST') {
       if (!old) { send(res, 404, { error: 'not_found' }); return true; }
       put(req, res);
@@ -194,4 +265,4 @@ function makeDomainMove({ clientIp, now = () => Date.now() } = {}) {
   return handle;
 }
 
-module.exports = { makeDomainMove, cleanPayload, RETIRE_SW, MAX_BODY, TTL_MS };
+module.exports = { makeDomainMove, cleanPayload, safePath, RETIRE_SW, MAX_BODY, TTL_MS };

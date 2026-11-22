@@ -3,7 +3,8 @@
  * index.html (trước theme.js và mọi file đọc localStorage):
  *  - Không có ?mig= hợp lệ: không làm gì.
  *  - Có: ghi lại các khoá đã có trên máy TRƯỚC khi app chạy, dừng nạp trang (window.stop – app chưa chạy, chưa tạo khoá
- *    khách mới), lấy GET /api/migrate/<mã> (máy chủ xoá ngay sau lần lấy), khôi phục các khoá caro.* CHƯA có trên máy
+ *    khách mới), lấy GET /api/migrate/<mã> kèm cookie vé (máy chủ chỉ trả cho trình duyệt đã bắt đầu chuyển – chống link
+ *    ?mig= của người khác – và xoá ngay sau lần lấy), khôi phục các khoá caro.* CHƯA có trên máy
  *    (không ghi đè dữ liệu mới hơn ở tên mới; đã có danh sách ván trên máy thì bỏ các ván kèm theo), rồi mở lại trang
  *    không kèm ?mig=. Lỗi / quá 8 giây: vẫn mở lại trang bình thường.
  * Dữ liệu nhận được coi như không tin cậy: chỉ khoá caro.<chữ, số, . _ -> ≤ 80 ký tự, giá trị là chuỗi ≤ 300 000 ký tự.
@@ -46,11 +47,12 @@
     done = true;
     const u = new URL(location.href);
     u.searchParams.delete('mig');
-    location.replace(u.pathname + u.search + u.hash);
+    location.replace(u.href); // địa chỉ đầy đủ: đường dẫn "//tên-lạ/" không thành link sang trang khác
   };
   setTimeout(finish, 8000);
   if (!ls) return finish();
-  fetch((window.CARO_SERVER || '') + '/api/migrate/' + m[1], { cache: 'no-store', credentials: 'omit' })
+  // credentials 'same-origin': gửi cookie vé caro_mig (máy chủ chỉ trả dữ liệu cho đúng trình duyệt đã bắt đầu chuyển)
+  fetch((window.CARO_SERVER || '') + '/api/migrate/' + m[1], { cache: 'no-store', credentials: 'same-origin' })
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => { if (d) restore(d, had, ls); })
     .catch(() => {})

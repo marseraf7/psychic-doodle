@@ -7,9 +7,13 @@ Kế hoạch: `docs/ke-hoach-tiep-can-toan-cau-21-11-2026.md` (Đợt 0, bước
 
 - Cả tên cũ lẫn tên mới cùng trỏ về **một máy chủ**; máy chủ phân biệt theo tên trình duyệt gọi (header Host).
 - Người mở tên cũ bằng trình duyệt: thấy trang "Đang chuyển…" (không phải app) → trang gỡ bản app cũ (service worker,
-  bộ nhớ đệm), gom dữ liệu trên máy (đăng nhập, khoá khách, cài đặt, tiến độ, ván lưu trên máy – tối đa ~500 KB), gửi lên
-  máy chủ lấy **mã dùng một lần** (128 bit, 10 phút), rồi sang `https://TEN_MOI/<cùng đường dẫn>?…&mig=<mã>`. Ở tên mới,
-  app lấy dữ liệu một lần (máy chủ xoá ngay), chỉ điền các khoá **chưa có** (không ghi đè dữ liệu mới hơn), bỏ `?mig=`.
+  bộ nhớ đệm), ghé qua tên mới lấy **vé** (`/api/migrate/begin` – máy chủ đặt cookie `caro_mig` 15 phút ở tên mới rồi đưa về
+  tên cũ), gom dữ liệu trên máy (đăng nhập, khoá khách, cài đặt, tiến độ, ván lưu trên máy – tối đa ~500 KB), gửi lên
+  máy chủ kèm vé lấy **mã dùng một lần** (128 bit, 10 phút), rồi sang `https://TEN_MOI/<cùng đường dẫn>?…&mig=<mã>`. Ở tên
+  mới, app lấy dữ liệu một lần (máy chủ xoá ngay) – **chỉ trình duyệt có cookie vé của lượt đó lấy được**, nên link
+  `?mig=` do người khác gửi không "đăng nhập hộ" được (login CSRF) – chỉ điền các khoá **chưa có** (không ghi đè dữ liệu
+  mới hơn), bỏ `?mig=`. Vé chỉ được gửi về tên cũ có trong `MOVED_FROM` (**bắt buộc khai** – bỏ trống thì vẫn chuyển hướng
+  nhưng không mang dữ liệu).
 - Máy tìm kiếm, máy đọc link (Zalo / Messenger / Facebook), file, ảnh, API, trang nhúng: **301** sang tên mới.
 - Vẫn chạy ở tên cũ (không chuyển): WebSocket, `/mcp` (connector cũ), `/.well-known/*` (link sâu app), `/healthz`, POST của
   app cũ, API gọi từ app Android / iOS / desktop và bản GitHub Pages. App đã cài trỏ tên cũ **vẫn chơi được**.
