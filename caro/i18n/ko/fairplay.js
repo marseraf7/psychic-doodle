@@ -1,0 +1,20 @@
+// Tiếng Hàn – bản dịch của caro/i18n-fairplay.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Hàn).
+window.I18N.extend('ko', {
+  fp_title: '페어플레이 검토',
+  fp_hint: '검토할 대국이에요. 수치는 참고용이에요. 자동으로 처벌하지 않고 관리자가 판단해요.',
+  fp_open_n: '검토 대기: 대국 {n}개',
+  fp_empty: '이 목록에 대국이 없어요.',
+  fp_st_open: '검토 대기',
+  fp_st_reviewed: '검토 완료',
+  fp_st_dismissed: '기각됨',
+  fp_st_all: '전체',
+  fp_why_blur: '탭을 자주 벗어남',
+  fp_why_tour_top: '대회 상위 테이블',
+  fp_why_report: '부정행위 신고',
+  fp_blur: '탭 이탈 {n}회, {s}초',
+  fp_stats: '엔진 일치 {m}% · 평균 손실 {l}% · 정확도 {a}% ({n}수)',
+  fp_analyze: '엔진과 비교',
+  fp_running: '분석 중…',
+  fp_mark_reviewed: '검토 완료',
+  fp_mark_dismissed: '기각',
+});

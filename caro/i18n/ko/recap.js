@@ -1,0 +1,23 @@
+// Tiếng Hàn – bản dịch của caro/i18n-recap.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Hàn).
+window.I18N.extend('ko', {
+  rc_title: '돌아보기',
+  rc_t_month: '월간',
+  rc_t_year: '연간',
+  rc_year: '{y}년',
+  rc_prev: '이전 기간',
+  rc_next: '다음 기간',
+  rc_empty: '이 기간에는 아직 대국이 없어요.',
+  rc_dl: '무승부 / 패배',
+  rc_streak: '최장 연승',
+  rc_days: '플레이한 날',
+  rc_pz: '푼 퍼즐',
+  rc_storm: '스톰 기록',
+  rc_fav_rule: '가장 많이 둔 규칙: {rule} ({n}판)',
+  rc_fav_pool: '가장 많이 둔 시간 설정: {pool} ({n}판)',
+  rc_best: '최고의 승리: {name} 상대 ({r}점)',
+  rc_best_anon: '최고의 승리: 레이팅 {r} 상대',
+  rc_opp: '가장 많이 둔 상대: {name} ({n}판)',
+  rc_note: '계정에 저장된 대국을 바탕으로 해요. 퍼즐과 스톰은 이 기기의 기록이에요. 상대 이름은 두 사람 모두 대국 기록을 공개했을 때만 보여요. 월, 연도, 플레이한 날은 기기의 시간대를 따라요.',
+  rc_note_local: '이 기기에 저장된 대국을 바탕으로 해요. 월, 연도, 플레이한 날은 기기의 시간대를 따라요.',
+  rc_share: '돌아보기 이미지 공유',
+});
