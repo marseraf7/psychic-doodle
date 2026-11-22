@@ -13,7 +13,8 @@ test('Telegram: #tgWebAppData / tgWebAppVersion, ?tgWebAppStartParam, TelegramWe
   assert.strictEqual(detect({ search: '', hash: TG_HASH }), 'telegram');
   assert.strictEqual(detect({ search: '', hash: '#tgWebAppVersion=7.0' }), 'telegram');
   assert.strictEqual(detect({ search: '?tgWebAppStartParam=room-123456', hash: '' }), 'telegram');
-  assert.strictEqual(detect({ search: '', hash: '', tgProxy: true }), 'telegram', 'app Telegram điện thoại');
+  assert.strictEqual(detect({ search: '?host=tg', hash: '', tgProxy: true }), 'telegram', 'app Telegram điện thoại (địa chỉ Web App có ?host=tg)');
+  assert.strictEqual(detect({ search: '?room=123456', hash: '', tgProxy: true }), null, 'trình duyệt trong app Telegram mở link thường: không phải Mini App');
   assert.strictEqual(detect({ search: VK, hash: '' }), 'vk');
   assert.strictEqual(detect({ search: '?vk_app_id=1', hash: '' }), null, 'thiếu sign: không phải VK');
   assert.strictEqual(detect({ search: '?host=tg', hash: '' }), null, '?host=tg chỉ là dấu cho máy chủ – mở bằng trình duyệt thường không phải Telegram');

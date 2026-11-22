@@ -9,7 +9,7 @@
  *      Telegram: https://telegram.org/js/telegram-web-app.js (chính thức; CSP cho phép ở server/src/host-embed.js);
  *      VK: vendor/vk-bridge.js (@vkontakte/vk-bridge, MIT – bản tự phục vụ).
  *    Nhận biết TRƯỚC khi thư viện nạp: Telegram thêm #tgWebAppData=…&tgWebAppVersion=… vào địa chỉ (và ?tgWebAppStartParam=
- *    khi mở bằng link startapp), app điện thoại có sẵn window.TelegramWebviewProxy; VK thêm ?vk_app_id=…&sign=… (tham số
+ *    khi mở bằng link startapp), app điện thoại có sẵn window.TelegramWebviewProxy (chỉ tính kèm ?host=tg); VK thêm ?vk_app_id=…&sign=… (tham số
  *    khởi chạy). Nhớ trong sessionStorage ('caro.host'): tải lại trang (mất #…) vẫn nhận ra.
  *    Link sâu: start_param của Telegram (t.me/<bot>/<app>?startapp=room-123456) / tham số hash của VK (vk.com/app<id>#room-…)
  *    → thêm ?room= ?replay= ?t= ?o= ?club= ?u= ?cls= vào địa chỉ (history.replaceState) để mã sẵn có xử lý như link thường;
@@ -31,7 +31,9 @@
   /** env: { search, hash, tgProxy, session } → 'telegram' | 'vk' | null. */
   function detect(env) {
     const q = new URLSearchParams(env.search || ''), h = hashParams(env.hash);
-    if (h.has('tgWebAppData') || h.has('tgWebAppVersion') || q.has('tgWebAppStartParam') || q.has('tgWebAppData') || env.tgProxy) return 'telegram';
+    // TelegramWebviewProxy có cả trong trình duyệt trong app Telegram khi mở link thường (không phải Mini App): chỉ tính khi
+    // địa chỉ có dấu ?host=tg của Mini App – không thì trang web chính mở từ chat Telegram bị nhận nhầm (nguồn, ẩn cài PWA…)
+    if (h.has('tgWebAppData') || h.has('tgWebAppVersion') || q.has('tgWebAppStartParam') || q.has('tgWebAppData') || (env.tgProxy && q.get('host') === 'tg')) return 'telegram';
     if (q.has('vk_app_id') && q.has('sign')) return 'vk';
     return env.session === 'telegram' || env.session === 'vk' ? env.session : null;
   }
