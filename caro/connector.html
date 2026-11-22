@@ -267,7 +267,53 @@
 
   <!-- @lang-slot ko: mục tiếng Hàn – <section id="ko" lang="ko" data-label="한국어" …> -->
 
-  <!-- @lang-slot cs: mục tiếng Séc – <section id="cs" lang="cs" data-label="CS" …> -->
+  <section id="cs" lang="cs" data-label="CS" data-title="Caro x Gomoku – konektor pro Claude" data-back="Zpět do hry" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Caro x Gomoku pro Claude</h1>
+      <p class="meta">Hraj Caro (piškvorky, pět v řadě) proti počítači, řeš úlohy a nech si radit s tahy přímo v konverzaci s Claude.</p>
+      <span class="updated">Aktualizováno: 2026-11-20</span>
+      <ul class="chips"><li>Bez účtu</li><li>Nic se neukládá</li><li>Bez reklam</li><li>Zdarma</li></ul>
+    </header>
+    <div class="card">
+      <h2>Nastavení</h2>
+      <p class="steps">Z adresáře: v Claude otevři <b>Settings</b> (Nastavení) → <b>Connectors</b> (Konektory) → <b>Browse connectors</b>, vyhledej <b>Caro x Gomoku</b> a klepni na <b>Connect</b>.</p>
+      <p class="steps">Jako vlastní konektor: <b>Settings</b> → <b>Connectors</b> → <b>Add custom connector</b>, pojmenuj ho <b>Caro x Gomoku</b> a vlož adresu serveru <b>https://caroxo.duckdns.org/mcp</b>. Přihlášení není potřeba.</p>
+      <p>Pak Claude požádej, například: <i>„Zahrajeme si Caro, začnu já“</i>. Když se Claude zeptá, zda zobrazit aplikaci, zvol <b>Allow</b> (Povolit).</p>
+    </div>
+    <div class="card">
+      <h2>Co můžeš dělat</h2>
+      <ul class="list">
+        <li><b>Hrát proti počítači</b> (play_caro): tahy klepnutím na desku; vyber Lehkou, Střední nebo Těžkou obtížnost, hraj za X nebo O, vracej tahy, začni novou hru. Čtyři sady pravidel: vietnamské Caro, volné piškvorky, standardní piškvorky a renju.</li>
+        <li><b>Získat nápovědu</b> (suggest_caro_move): nejlepší tah pro libovolnou pozici s krátkým zdůvodněním.</li>
+        <li><b>Řešit úlohy</b> (caro_puzzle): úloha dne nebo kterákoli z 363 úloh; klepni na svou odpověď, řešení si ukaž, kdy chceš.</li>
+        <li><b>Naučit se pravidla</b> (caro_rules), prohlédnout si <b>žebříček</b> (caro_leaderboard) a <b>veřejné profily hráčů</b> (caro_player) online serveru.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Ukázkové dotazy</h2>
+      <ul class="list">
+        <li>„Zahrajeme si Caro na těžkou obtížnost. Já hraju za O, ty začínáš.“</li>
+        <li>„Dej mi dnešní úlohu Caro.“</li>
+        <li>„Jaká jsou pravidla renju a čím se liší od vietnamského Caro?“</li>
+        <li>„V této partii X zahrál [0,0],[1,1],[1,0] a O zahrál [2,0],[0,1]. Co má O zahrát teď?“</li>
+        <li>„Kdo je top 5 hráčů bleskovek na caroxo.duckdns.org?“</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Řešení potíží</h2>
+      <ul class="list">
+        <li><b>Deska se nezobrazí:</b> po dotazu povol Claude zobrazit aplikaci (nebo nastav konektor na „Always allow“). Textová odpověď stále obsahuje pozici i tah.</li>
+        <li><b>„The Caro engine is busy“:</b> naráz se počítá mnoho partií. Počkej pár sekund a zkus to znovu.</li>
+        <li><b>„Too many requests“:</b> počkej uvedený počet sekund a zkus to znovu.</li>
+        <li><b>„Move N … is on an occupied cell“ nebo „off the board“:</b> souřadnice jsou [x, y] od -30 do 30 s [0,0] ve středu, x doprava a y dolů. Pokud se seznam tahů popletl, požádej Claude o novou hru.</li>
+        <li>Jiné problémy: založ issue na <a class="mail" href="https://github.com/marseraf7/psychic-doodle/issues">github.com/marseraf7/psychic-doodle/issues</a>.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Soukromí</h2>
+      <p>Konektor přijímá jen tahy, pravidla, čísla úloh a veřejná uživatelská jména. Nepotřebuje účet a nic neukládá. Podrobnosti: <a href="privacy.html#claude-cs">zásady ochrany osobních údajů</a>.</p>
+    </div>
+  </section>
 
   <!-- @lang-slot zh-Hant: mục tiếng Trung phồn thể – <section id="zh-Hant" lang="zh-Hant" data-label="繁體" …> -->
 

@@ -1,0 +1,22 @@
+// Tiếng Séc – bản dịch của caro/i18n-tour-adv.js (docs/van-phong-4-ngon-ngu.md, mục Čeština).
+window.I18N.extend('cs', {
+  tadv_settings: 'Pokročilá nastavení',
+  tadv_title: 'Pokročilá nastavení',
+  tadv_back_quick: 'Rychlý formulář',
+  tadv_tab_basic: 'Základní údaje',
+  tadv_tab_format: 'Formát',
+  tadv_tab_games: 'Partie',
+  tadv_tab_reg: 'Přihlášky a prezence',
+  tadv_tab_access: 'Viditelnost a přístup',
+  tadv_help_basic: 'Název a popis se zobrazí v seznamu turnajů a na stránce turnaje.',
+  tadv_help_format: 'Vyber předvolbu nebo zkombinuj až 3 fáze. Počet zápasů a odhad času se dole průběžně aktualizují.',
+  tadv_help_games: 'Platí pro všechny partie turnaje.',
+  tadv_help_reg: 'Čas začátku, limit hráčů, prezence před startem a nasazení.',
+  tadv_help_access: 'Kdo turnaj uvidí v seznamu a kdo se může přidat.',
+  draft_reset: 'Obnovit',
+  tour_name_required: 'Zadej název turnaje.',
+  tour_bad_max: 'Limit hráčů musí být mezi {lo} a {hi}.',
+  est_line: '≈ zápasy: {m} · kola: {w} · asi {t} (při {n} hráčích)',
+  est_arena: 'Aréna · {t} · hráči: max. {n}',
+  est_hm: '{h} hod. {m} min',
+});

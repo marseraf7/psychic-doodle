@@ -1,0 +1,36 @@
+{
+  "label": "CS",
+  "host": "tvoje-domena",
+  "title": "Caro x Gomoku – veřejné API",
+  "back": "Zpět do hry",
+  "h1": "Veřejné API (v1)",
+  "meta": "Data JSON jen pro čtení pro weby, boty pro Discord / Telegram a statistické nástroje.",
+  "chips": ["Jen pro čtení", "Bez klíče", "Otevřený CORS", "OpenAPI 3.1"],
+  "rules_h": "Obecná pravidla",
+  "rules": [
+    "Základní adresa: <code>/api/v1</code> (stejná doména jako tato stránka).",
+    "Z jedné IP adresy max. <strong>120 požadavků za minutu</strong>; při překročení přijde <code>429</code> s <code>Retry-After</code> (sekundy).",
+    "Každá odpověď nese <code>ETag</code>: pošli ho zpět v <code>If-None-Match</code> a dostaneš <code>304</code> (bez opětovného stahování).",
+    "Chyby mají vždy tvar <code>{\"error\": \"not_found\", \"message\": \"Not found\"}</code>.",
+    "Žádná soukromá data: e-mail, přátelé, zablokovaní hráči, zařízení. Poslední partie se vracejí, jen když má hráč historii her nastavenou jako Veřejnou; soukromé, klubové a rozpracované turnaje nejsou dostupné."
+  ],
+  "nota_h": "Značení polí",
+  "nota": "Deska je neomezená. Pole se pojmenovávají v rámci 15×15 kolem středu: sloupce a…o zleva doprava, řady 1…15 zdola nahoru, střed je <code>h8</code>; za rámcem se počítá dál (sloupce p, q…, řady 16…, řady 0, -1…). V JSON je tah <code>[x, y]</code>: x roste doprava, y roste dolů, <code>[0, 0]</code> = h8.",
+  "ep_h": "Koncové body",
+  "col": ["Cesta", "Vrací"],
+  "ex_h": "Příklady",
+  "spec": "Úplný popis (OpenAPI 3.1):",
+  "eps": [
+    "Veřejný profil: rating podle tempa, výhry / prohry / remízy, výsledky turnajů",
+    "Vývoj ratingu: <code>[čas ms, rating]</code> podle kategorie",
+    "Poslední partie (<code>?max=1…50</code>); neveřejná historie her → <code>\"hidden\": true</code>",
+    "Jedna partie podle kódu sdílení (jako odkaz na záznam)",
+    "Partie jako text podobný PGN ve značení Caro",
+    "Informace o veřejném turnaji",
+    "Pořadí turnaje",
+    "Top 50 hráčů (<code>?pool=bullet|blitz|rapid|classical</code>)",
+    "Přenos turnaje: probíhající partie, pořadí, poslední výsledky (<code>key</code> = kód turnaje; offline: <code>o.</code> + kód)",
+    "Úloha dne (mění se v 0:00 vietnamského času; <code>?date=YYYY-MM-DD</code>)",
+    "Dokument OpenAPI 3.1"
+  ]
+}

@@ -1,0 +1,20 @@
+// Tiếng Séc – bản dịch của caro/i18n-fairplay.js (docs/van-phong-4-ngon-ngu.md, mục Čeština).
+window.I18N.extend('cs', {
+  fp_title: 'Kontrola fair play',
+  fp_hint: 'Partie ke kontrole. Čísla jsou jen orientační: nic se netrestá automaticky, rozhoduje správce.',
+  fp_open_n: 'Čeká na kontrolu: {n} (partie)',
+  fp_empty: 'V tomto seznamu nejsou žádné partie.',
+  fp_st_open: 'Ke kontrole',
+  fp_st_reviewed: 'Zkontrolováno',
+  fp_st_dismissed: 'Zamítnuto',
+  fp_st_all: 'Vše',
+  fp_why_blur: 'Časté opouštění karty',
+  fp_why_tour_top: 'Přední deska turnaje',
+  fp_why_report: 'Nahlášeno za podvádění',
+  fp_blur: 'opuštění karty: {n}×, {s} s',
+  fp_stats: 'shoda s enginem {m} % · průměrná ztráta {l} % · přesnost {a} % (tahy: {n})',
+  fp_analyze: 'Porovnat s enginem',
+  fp_running: 'Analyzuji…',
+  fp_mark_reviewed: 'Zkontrolováno',
+  fp_mark_dismissed: 'Zamítnout',
+});

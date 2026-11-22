@@ -247,7 +247,49 @@ curl -H 'If-None-Match: W/"…"' 'https://&lt;ドメイン&gt;/api/v1/leaderboar
 
   <!-- @lang-slot ko: server/scripts/api-html/ko.json rồi chạy lại server/scripts/gen-api-html.py -->
 
-  <!-- @lang-slot cs: server/scripts/api-html/cs.json rồi chạy lại server/scripts/gen-api-html.py -->
+  <section id="cs" lang="cs" data-label="CS" data-title="Caro x Gomoku – veřejné API" data-back="Zpět do hry" data-brand="Caro x Gomoku">
+    <header class="hero">
+      <h1>Veřejné API (v1)</h1>
+      <p class="meta">Data JSON jen pro čtení pro weby, boty pro Discord / Telegram a statistické nástroje.</p>
+      <ul class="chips"><li>Jen pro čtení</li><li>Bez klíče</li><li>Otevřený CORS</li><li>OpenAPI 3.1</li></ul>
+    </header>
+    <div class="card">
+      <h2>Obecná pravidla</h2>
+      <ul class="list"><li><span>Základní adresa: <code>/api/v1</code> (stejná doména jako tato stránka).</span></li><li><span>Z jedné IP adresy max. <strong>120 požadavků za minutu</strong>; při překročení přijde <code>429</code> s <code>Retry-After</code> (sekundy).</span></li><li><span>Každá odpověď nese <code>ETag</code>: pošli ho zpět v <code>If-None-Match</code> a dostaneš <code>304</code> (bez opětovného stahování).</span></li><li><span>Chyby mají vždy tvar <code>{"error": "not_found", "message": "Not found"}</code>.</span></li><li><span>Žádná soukromá data: e-mail, přátelé, zablokovaní hráči, zařízení. Poslední partie se vracejí, jen když má hráč historii her nastavenou jako Veřejnou; soukromé, klubové a rozpracované turnaje nejsou dostupné.</span></li></ul>
+    </div>
+    <div class="card">
+      <h2>Značení polí</h2>
+      <p>Deska je neomezená. Pole se pojmenovávají v rámci 15×15 kolem středu: sloupce a…o zleva doprava, řady 1…15 zdola nahoru, střed je <code>h8</code>; za rámcem se počítá dál (sloupce p, q…, řady 16…, řady 0, -1…). V JSON je tah <code>[x, y]</code>: x roste doprava, y roste dolů, <code>[0, 0]</code> = h8.</p>
+    </div>
+    <div class="card">
+      <h2>Koncové body</h2>
+      <div class="api-scroll">
+        <table class="api-table">
+          <thead><tr><th scope="col">Cesta</th><th scope="col">Vrací</th></tr></thead>
+          <tbody>
+          <tr><td><code>GET /api/v1/player/{username}</code></td><td>Veřejný profil: rating podle tempa, výhry / prohry / remízy, výsledky turnajů</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/rating-history</code></td><td>Vývoj ratingu: <code>[čas ms, rating]</code> podle kategorie</td></tr>
+          <tr><td><code>GET /api/v1/player/{username}/games</code></td><td>Poslední partie (<code>?max=1…50</code>); neveřejná historie her → <code>"hidden": true</code></td></tr>
+          <tr><td><code>GET /api/v1/game/{id}</code></td><td>Jedna partie podle kódu sdílení (jako odkaz na záznam)</td></tr>
+          <tr><td><code>GET /api/v1/game/{id}.txt</code></td><td>Partie jako text podobný PGN ve značení Caro</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}</code></td><td>Informace o veřejném turnaji</td></tr>
+          <tr><td><code>GET /api/v1/tournament/{id}/standings</code></td><td>Pořadí turnaje</td></tr>
+          <tr><td><code>GET /api/v1/leaderboard</code></td><td>Top 50 hráčů (<code>?pool=bullet|blitz|rapid|classical</code>)</td></tr>
+          <tr><td><code>GET /api/v1/broadcast/{key}</code></td><td>Přenos turnaje: probíhající partie, pořadí, poslední výsledky (<code>key</code> = kód turnaje; offline: <code>o.</code> + kód)</td></tr>
+          <tr><td><code>GET /api/v1/puzzle/daily</code></td><td>Úloha dne (mění se v 0:00 vietnamského času; <code>?date=YYYY-MM-DD</code>)</td></tr>
+          <tr><td><code>GET /api/v1/openapi.json</code></td><td>Dokument OpenAPI 3.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Úplný popis (OpenAPI 3.1): <a href="/api/v1/openapi.json"><code>/api/v1/openapi.json</code></a></p>
+    </div>
+    <div class="card">
+      <h2>Příklady</h2>
+      <pre class="api-pre">curl https://&lt;tvoje-domena&gt;/api/v1/player/an_nguyen
+curl https://&lt;tvoje-domena&gt;/api/v1/game/AbCdEf12.txt
+curl -H 'If-None-Match: W/"…"' 'https://&lt;tvoje-domena&gt;/api/v1/leaderboard?pool=blitz'</pre>
+    </div>
+  </section>
 
   <!-- @lang-slot zh-Hant: server/scripts/api-html/zh-Hant.json rồi chạy lại server/scripts/gen-api-html.py -->
 
