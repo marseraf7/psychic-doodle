@@ -47,3 +47,16 @@ test('máy chủ: header Mini App chỉ cho trang chính có dấu hiệu', asyn
     assert.strictEqual(r.headers['x-frame-options'], 'DENY', u);
   }
 });
+
+test('vendor/vk-bridge.js: đúng nguyên bản @vkontakte/vk-bridge 3.0.2 (dist/browser.min.js, bỏ dòng sourceMappingURL) + có toàn văn giấy phép MIT', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const crypto = require('node:crypto');
+  const dir = path.join(__dirname, '..', '..', 'caro', 'vendor');
+  const src = fs.readFileSync(path.join(dir, 'vk-bridge.js'), 'utf8');
+  const body = src.slice(src.indexOf('*/\n') + 3); // bỏ khối chú thích đầu file của mình
+  // Băm của bản trong gói npm (npm pack @vkontakte/vk-bridge@3.0.2). Nâng phiên bản: chép bản mới, sửa số này và dòng đầu file
+  assert.strictEqual(crypto.createHash('sha256').update(body).digest('hex'), '58c7fa7fb109d1db235770c8ddcf88ec34344a58d9ed62e2fe08f56c93865606');
+  const lic = fs.readFileSync(path.join(dir, 'vk-bridge-LICENSE.txt'), 'utf8');
+  assert.match(lic, /MIT License[\s\S]*V Kontakte, LLC[\s\S]*Permission is hereby granted/);
+});
