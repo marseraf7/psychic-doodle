@@ -11,6 +11,7 @@
 const REPLACE = [
   'server/src/site.js', // DEFAULT_HOST – nguồn cho máy chủ, MCP, app/desktop (web-common.js), bài thử
   'caro/config.js', // bản GitHub Pages trỏ về máy chủ chính
+  'caro/index.html', // <link rel="canonical"> của bản tĩnh (GitHub Pages) – máy chủ tự thay bằng địa chỉ đúng (seo.js)
   'caro/connector.html', // hướng dẫn thêm connector (4 ngôn ngữ)
   'caro/privacy.html', // địa chỉ connector trong chính sách riêng tư (4 ngôn ngữ)
   'app/README.md',

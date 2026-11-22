@@ -67,6 +67,8 @@ function bootJs(packs) {
 (function () {
   var P = ${JSON.stringify(packs)}, l = null;
   try { l = localStorage.getItem('caro.lang'); } catch (e) { /* riêng tư */ }
+  var q = typeof location !== 'undefined' && /[?&]lang=([a-z]{2})(?:&|#|$)/.exec(location.search); // ?lang=xx như i18n.js (hreflang – seo.js)
+  if (q && P[q[1]]) l = q[1];
   if (!P[l]) {
     l = 'vi';
     var a = navigator.languages || [navigator.language || ''];

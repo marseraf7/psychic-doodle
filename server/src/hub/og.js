@@ -5,9 +5,11 @@
  *   không lộ tên người trong phòng riêng) · ?t= giải đấu · ?o= giải Offline · ?club= CLB · ?u=<tên đăng nhập> hồ sơ · ?bc= tường thuật giải (C3) ·
  *   ?cls= bài Lớp học / Nghiên cứu (C2 – chỉ bài công khai / có link: classroom.js clsCanView như khách).
  * Không tìm thấy / không được xem → null (trang chính giữ thẻ mặc định, không lộ là có tồn tại).
+ * sitemapPaths(): đường dẫn công khai cho /sitemap.xml (seo.js) – cùng luật xem như khách, bỏ giải "chỉ link".
  */
 'use strict';
 const { plainRich } = require('./shared.js');
+const R = require('../rating.js');
 
 const KEY = /^[\w.-]{1,40}$/; // mã ván (base64url), mã phòng, mã / link riêng của giải, CLB, tên đăng nhập
 
@@ -65,6 +67,25 @@ class Og {
         url: '/?u=' + u.username, image: '/api/og/card.png' };
     }
     return null;
+  }
+
+  /** Đường dẫn công khai cho sitemap (seo.js): giải trực tuyến công khai (+ tường thuật khi đang đấu), giải Offline công
+   *  khai, CLB đã duyệt mà khách xem được, hồ sơ kỳ thủ đầu các bảng xếp hạng. Giải "chỉ link" / riêng tư / CLB / nháp: không. */
+  sitemapPaths(limit = 2000) {
+    const out = [];
+    const tours = [...this.tours.values()].filter((t) => t.access === 'public' && this.canSeeTour(t, null))
+      .sort((a, b) => (b.startsAt || b.created || 0) - (a.startsAt || a.created || 0)).slice(0, 300);
+    for (const t of tours) {
+      out.push('/?t=' + (t.slug || t.id));
+      if (t.status === 'running') out.push('/?bc=' + t.id);
+    }
+    for (const t of this.store.listOTours({ limit: 300 })) if (t.status !== 'draft') out.push('/?o=' + (t.slug || t.id));
+    for (const c of [...this.clubs.values()].filter((x) => x.status === 'approved' && this.canSeeClub(x, null)).slice(0, 300)) out.push('/?club=' + c.id);
+    const seen = new Set();
+    for (const pool of [null, ...R.POOLS]) {
+      for (const p of this.publicLeaderboard(pool).players) if (!seen.has(p.username)) { seen.add(p.username); out.push('/?u=' + p.username); }
+    }
+    return out.slice(0, limit);
   }
 
   /** Ván đang đấu xem được (cho ảnh og của link ?room=): nước đi + luật, hoặc null. */
