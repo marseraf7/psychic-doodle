@@ -46,7 +46,8 @@
       try { return new URLSearchParams(hashParams(env.hash).get('tgWebAppData') || '').get('start_param') || ''; } catch (e) { return ''; }
     }
     // VK: "Các ký tự sau # sẽ được truyền cho ứng dụng trong tham số URL hash" (dev.vk.ru → Launch params)
-    if (host === 'vk') return q.get('hash') || '';
+    // Một số bản VK đưa thẳng phần sau # vào địa chỉ của khung (location.hash): nhận cả hai (chưa kiểm trên máy thật)
+    if (host === 'vk') return q.get('hash') || String(env.hash || '').replace(/^#/, '');
     return '';
   }
 

@@ -29,6 +29,8 @@ test('start_param: ?tgWebAppStartParam trước, không có thì trong tgWebAppD
   assert.strictEqual(startParam('telegram', { search: '', hash: '#tgWebAppVersion=8.0' }), '');
   assert.strictEqual(startParam('vk', { search: VK + '&hash=replay-AbC123', hash: '' }), 'replay-AbC123');
   assert.strictEqual(startParam('vk', { search: VK, hash: '' }), '');
+  assert.strictEqual(startParam('vk', { search: VK, hash: '#room-123456' }), 'room-123456', 'VK đưa phần sau # vào location.hash');
+  assert.strictEqual(startParam('vk', { search: VK + '&hash=t-abc', hash: '#room-1' }), 't-abc', 'tham số hash đứng trước');
   assert.strictEqual(startParam(null, { search: '?hash=room-1' }), '');
 });
 
