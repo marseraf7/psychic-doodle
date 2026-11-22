@@ -117,8 +117,15 @@ class TourPush {
     if (!this.tourJson) this.tourJson = new Map();
     const c = this.tourJson.get(t.id);
     if (!shared && c && Date.now() - c.at < VIEW_TTL_MS) return c.json;
-    const json = JSON.stringify(shared || this.tourShared(t));
+    const built = shared || this.tourShared(t);
+    const json = JSON.stringify(built);
     this.tourJson.set(t.id, { json, at: Date.now() });
+    // Chưa có mốc so sánh (chưa ai xem từ lần gom trước – mọi người đang xem đều mở trang sau lần đó nên còn chờ bản đầy đủ,
+    // tourFull): bản vừa dựng là mốc luôn, khỏi dựng lại ở nhịp gom sau khi giải không đổi
+    if (!shared) {
+      if (!this.tourSnaps) this.tourSnaps = new Map();
+      if (!this.tourSnaps.has(t.id)) { this.tourSnaps.set(t.id, viewParts(built)); this.tourDirty?.delete(t.id); }
+    }
     return json;
   }
 
@@ -163,6 +170,7 @@ class TourPush {
     for (const set of this.byPid.values()) for (const conn of set) if (conn.watchTour === id) watchers.push(conn);
     if (!watchers.length || !t) {
       this.tourSnaps.delete(id); // không ai xem: bỏ bản lưu để đỡ tốn bộ nhớ (lần sau gửi đầy đủ)
+      this.tourDirty?.delete(id); // không còn mốc để so: dấu "đã đổi" không còn nghĩa (người mở sau nhận bản mới dựng)
       for (const conn of watchers) conn.send({ t: 'tour', id, tour: null });
       return;
     }
