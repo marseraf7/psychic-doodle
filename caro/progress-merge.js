@@ -122,7 +122,11 @@
     for (const k of Object.keys(c.habits.earned)) if (!ok(c.habits.earned[k])) delete c.habits.earned[k];
     if (c.pz.daily && !ok(c.pz.daily.d)) c.pz.daily = null;
     const span = Math.max(0, Math.round((toDate(max) - toDate(SINCE)) / 86400000) + 1);
-    c.habits.best = Math.min(Math.max(c.habits.best, longest(c.habits.days)), span);
+    // Chuỗi dài nhất phải có danh sách ngày chứng minh: máy giữ tới MAX_DAYS ngày nên chuỗi thật luôn nằm trong danh sách;
+    // chỉ khi danh sách đã bị cắt (đủ MAX_DAYS ngày) mới tin số máy báo. Không thì "best: 99999" sẽ thành chuỗi 30 ngày
+    // ngay khi tính năng đã chạy đủ 30 ngày (trần span hết tác dụng).
+    const run = longest(c.habits.days);
+    c.habits.best = Math.min(c.habits.days.length >= MAX_DAYS ? Math.max(c.habits.best, run) : run, span);
     // Thang (bậc đã có trần RUNGS khi làm sạch): lúc đổi không ở tương lai
     if (c.ladder.at > (now == null ? Date.now() : now) + 14 * 3600000) c.ladder.at = 0;
     return c;
