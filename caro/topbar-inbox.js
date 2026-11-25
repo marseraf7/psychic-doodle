@@ -57,6 +57,7 @@
       <span class="tb-nt-act"><button type="button" class="tb-btn sm" data-accept="${esc(p.id)}">${esc(T('pf_accept'))}</button>
       <button type="button" class="tb-link sm" data-deny="${esc(p.id)}">${esc(T('nt_deny'))}</button></span></span></li>`).join('');
     const tour = (n) => (n.k === 'tour_match' ? T('nt_tour_match', { name: n.name, opp: n.opp })
+      : n.k === 'tour_soon' ? T('nt_tour_soon', { name: n.name }) // Giải tuần sắp bắt đầu (server: hub/weekly-cup.js)
       : n.place ? T('nt_tour_place', { name: n.name, n: n.place }) : T('nt_tour_done', { name: n.name, winner: n.winner || '—' }));
     const title = (n) => (/^corr_/.test(n.k) ? T('nt_' + n.k, { name: n.name }) : n.k === 'ot_invite' ? T('nt_ot_invite', { name: n.name }) : n.k === 'club' ? T('nt_club', { club: n.name }) : /^tour_/.test(n.k) ? tour(n) : T(n.k === 'invite' ? 'nt_invite' : 'nt_accepted', { name: n.name }));
     const items = readLog().map((n, i) => `<li class="tb-nt${n.read ? '' : ' unread'}"><button type="button" data-item="${i}">${/^corr_/.test(n.k) ? '<span class="tb-club">📅</span>' : n.k === 'ot_invite' ? '<span class="tb-club">✉️</span>' : n.k === 'club' ? `<span class="tb-club">${esc(n.icon || '♟️')}</span>` : /^tour_/.test(n.k) ? `<span class="tb-club">${n.k === 'tour_result' && n.place === 1 ? '🏆' : '♟️'}</span>` : avatar(n)}

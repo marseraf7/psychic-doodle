@@ -321,6 +321,8 @@
             <button type="button" class="hbtn" data-home="pvp"><svg class="ico" aria-hidden="true"><use href="#i-swords"/></svg><span data-i18n="home_pvp"></span></button>
           </aside>
           <div class="home-left">
+            <!-- Giải tuần: máy chủ tự tạo mỗi tuần (weekly-cup.js); ẩn khi máy chủ tắt tính năng / bản cổng game -->
+            <section class="card online-need wc-card" id="weekly-card" hidden></section>
             <section class="card online-need" id="tour-card">
               <h3 data-i18n="tours_clubs"></h3>
               <div class="row">
@@ -1377,6 +1379,8 @@
   <script src="more.js"></script>
   <script src="home.js"></script>
   <script src="home-hero.js"></script>
+  <script src="i18n-weekly.js"></script>
+  <script src="weekly-cup.js"></script>
   <script src="backdrop.js"></script>
   <script src="player-search.js"></script>
   <script src="quick-settings.js"></script>

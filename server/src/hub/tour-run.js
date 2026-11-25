@@ -56,6 +56,7 @@ class TourRun {
     this.notifyPlayers(t, 'tour_cancelled');
     if (wasPending) this.notifyAdmins();
     if (reason === 'too_few') this.tourRecur(t); // định kỳ: kỳ này thiếu người vẫn tạo kỳ sau (ban tổ chức tự huỷ thì dừng chuỗi)
+    if (t.weekly) this.weeklyDone(t); // giải tuần: tạo lần kế tiếp (lần đã huỷ không tạo lại – weekly-cup.js)
   }
 
   // ------------------------------------------------------------ Vận hành
@@ -154,6 +155,7 @@ class TourRun {
     const champ = t.podium[0] && this.player(t, t.podium[0]);
     this.notifyPlayers(t, 'tour_finished', { winner: champ ? champ.name : '—' });
     this.tourRecur(t); // giải định kỳ: tạo giải kế tiếp (tour-tpl.js)
+    if (t.weekly) this.weeklyDone(t); // giải tuần: danh hiệu hạng 1–3, tạo giải tuần sau (weekly-cup.js)
     this.notifyResults(t); // gửi kết quả cho người chơi có tài khoản (tour-notes.js)
   }
 

@@ -233,7 +233,9 @@ test('hồ sơ công khai: chuỗi ngày / huy hiệu tự báo bị giới hạ
   assert.ok(r.data.habits.best <= Math.round((Date.now() - Date.parse(P.SINCE)) / 86400000) + 2, 'chuỗi dài nhất không vượt số ngày có tính năng');
   assert.strictEqual(r.data.habits.earned.first_game, undefined);
   const prof = (await a.req({ t: 'profile', username: ua.username }, 'profile')).profile.progress;
-  for (const id of ['online_10', 'online_100', 'win_streak_5', 'rating_1800', 'tour_win', 'daily_30']) {
+  // daily_30: chỉ "chưa đạt" khi trần chuỗi (số ngày từ P.SINCE + 2) còn dưới 30 – từ 25/11/2026 trần đã đủ 30 ngày
+  const cap = Math.round((Date.now() - Date.parse(P.SINCE)) / 86400000) + 2;
+  for (const id of ['online_10', 'online_100', 'win_streak_5', 'rating_1800', 'tour_win', ...(cap < 30 ? ['daily_30'] : [])]) {
     assert.ok(!prof.badges.includes(id), 'huy hiệu tài khoản chưa đạt không hiện: ' + id);
   }
   assert.ok(prof.badges.includes('beat_boat'), 'huy hiệu chỉ có trên máy: giữ như máy báo');
