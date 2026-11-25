@@ -14,7 +14,8 @@ node server/scripts/build-portal.js itch --server https://<tên miền máy ch�
 - Ra `dist/portal-<cổng>/` (thư mục tĩnh, `index.html` ở gốc, đường dẫn tương đối) và `dist/caro-<cổng>.zip` (tải file
   ZIP này lên cổng). Không có `--server` thì lấy `CARO_SERVER_URL`, rồi `PUBLIC_URL`, mặc định tên miền chính khai trong `server/src/site.js`.
 - Script in số file, tổng dung lượng, phần tải ban đầu so với giới hạn của cổng; vượt giới hạn hoặc còn đường dẫn tuyệt đối
-  thì báo lỗi. Đo 22/11/2026: ~400 file, ~13 MB (ZIP ~5 MB), tải ban đầu ~2,5 MB.
+  thì báo lỗi. Đo 25/11/2026 (bản crazygames): 419 file, ~13,9 MB (ZIP ~5,2 MB), tải ban đầu ~2,5 MB; đo bằng Chromium:
+  2 818 KB tới khi bàn cờ chơi được (chi tiết: `docs/crazygames-nop-basic-launch.md` mục 2).
 - Bản cổng: chơi khách mặc định, không đăng nhập / đăng ký, không link ra ngoài, không chat tự do (còn chat nhanh câu mẫu),
   không service worker, không quảng cáo, tiếng Anh mặc định (đổi được). Bản CrazyGames có SDK v3 mức Basic.
 
@@ -27,13 +28,28 @@ node server/scripts/build-portal.js itch --server https://<tên miền máy ch�
 
 ### CrazyGames (Minh)
 
+Gói nộp đầy đủ (Đợt 2): **`docs/crazygames-nop-basic-launch.md`** – danh sách kiểm, số đo thật của gói, metadata tiếng Anh
+(tên, mô tả, hướng dẫn điều khiển, tag), ghi chú cho QA, thư hỏi support về WebSocket + phương án dự phòng, theo dõi sau nộp,
+mục nghiệm thu của Laplace trong QA Tool + mẫu báo cáo. Bài nháp Reddit / Discord và thông báo Giải tuần:
+**`docs/reddit-discord-bai-nhap.md`**.
+
+Ảnh bìa + video bìa từ gameplay thật (dựng bản cổng, chơi một ván với máy trong Chromium, chụp / quay):
+
+```
+node server/scripts/portal-media.js                      # dist/portal-media/: cover-1920x1080 / 800x1200 / 800x800 (.png, -raw.png) + cover-video.mp4
+node server/scripts/portal-media.js --sizes 1920x1080 --no-video   # chỉ một ảnh
+```
+
+Cỡ 1920×1080 / 800×1200 / 800×800 là cỡ CrazyGames thường yêu cầu – **kiểm lại trong biểu mẫu Developer Portal trước khi
+nộp**, khác thì đổi `--sizes` / `--video-size`.
+
 1. Đăng ký CrazyGames Developer Portal, xong khai thanh toán (Tipalti) trước khi nộp.
-2. Nên hỏi support trước: "game có máy chủ multiplayer riêng qua WebSocket (wss) – có được không?".
+2. Nên hỏi support trước: "game có máy chủ multiplayer riêng qua WebSocket (wss) – có được không?" (thư nháp trong tài liệu
+   nộp, mục 6).
 3. Nộp game: chọn Basic Launch, tải `dist/caro-crazygames.zip`, điền tên / mô tả / hướng dẫn tiếng Anh, ảnh bìa và video bìa
-   (kích thước theo biểu mẫu thật), khai PEGI 12, ghi chú cho QA: "multiplayer backend riêng, chơi khách mặc định, máy cờ
-   WASM tải khi cần".
+   (kích thước theo biểu mẫu thật), khai PEGI 12, ghi chú cho QA (bản tiếng Anh trong tài liệu nộp, mục 5).
 4. Kiểm trong QA Tool (Laplace): mở được, chơi trọn ván với máy, sự kiện `gameplayStart` khi vào ván, thời gian tới lúc
-   chơi được ≤ 20 giây, không nút đăng nhập, online được hay không (ghi nguyên văn).
+   chơi được ≤ 20 giây, không nút đăng nhập, online được hay không (ghi nguyên văn) – chi tiết + mẫu báo cáo ở mục 9.
 
 ### itch.io (Minh)
 
