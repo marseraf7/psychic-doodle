@@ -10,6 +10,7 @@ html.portal #go-login,
 html.portal #go-register,
 html.portal #google-box,
 html.portal .api-link,
+html.portal .home-about, /* câu giới thiệu nhắc đăng nhập Google – bản cổng không có đăng nhập */
 html.portal #cb,
 html.portal #tb-msg,
 html.portal #chat-form,
