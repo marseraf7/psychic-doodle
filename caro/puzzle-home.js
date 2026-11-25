@@ -1,6 +1,7 @@
 /*
  * Đầu tab Câu đố (như Lichess): thẻ "Câu đố hôm nay" với bàn cờ thu nhỏ của bài trong ngày, bên đi, số nước,
- * độ khó và nút Giải ngay. Bài lấy từ study.js (dailyPuzzle – giống nhau cho mọi người trong ngày).
+ * độ khó, nút Giải ngay và nút Xuất video (video-maker.js – video ngắn 9:16 của bài này; không có trong bản cổng game).
+ * Bài lấy từ study.js (dailyPuzzle – giống nhau cho mọi người trong ngày).
  */
 (function () {
   'use strict';
@@ -39,9 +40,15 @@
       <div class="pzt-info"><h3>${esc(T('pz_daily'))}</h3>
         <p><b class="${p.toLowerCase()}">${p}</b> ${esc(T('tr_find_win'))} ${esc(T('tr_in_n', { n: q.len }))}</p>
         <small>${esc(T('pz_rating_n', { n: q.r }))} · ${esc($('pz-daily-sub').textContent)}</small>
-        <button type="button" class="primary" data-pz-today>${esc(T('pz_go'))}</button></div>`;
+        <div class="pzt-btns"><button type="button" class="primary" data-pz-today>${esc(T('pz_go'))}</button>
+        <button type="button" class="vid-btn pzt-video" data-pz-video><svg class="ico" aria-hidden="true"><use href="#i-video"/></svg><span>${esc(T('vid_btn'))}</span></button></div></div>`;
+    shown = q;
   }
-  $('pz-today').addEventListener('click', (e) => { if (e.target.closest('[data-pz-today]')) S.startMode('daily'); });
+  let shown = null; // bài đang hiện trên thẻ (cho nút Xuất video – video-maker.js)
+  $('pz-today').addEventListener('click', (e) => {
+    if (e.target.closest('[data-pz-today]')) S.startMode('daily');
+    else if (e.target.closest('[data-pz-video]') && window.CaroVideo) window.CaroVideo.openPuzzle(shown);
+  });
   window.addEventListener('caro:page', (e) => { if (e.detail.id === 'puzzles') render(); });
   window.addEventListener('langchange', () => { if (window.CaroShell.current === 'puzzles') render(); });
 })();
