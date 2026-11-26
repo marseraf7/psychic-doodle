@@ -30,7 +30,7 @@ const { setup, gotoRetry } = require('./helpers');
   ok(await p.evaluate(() => !!window.CARO_PACKS && window.I18N.lang === 'ru'), 'trang gộp, ngôn ngữ đã lưu: tiếng Nga');
   ok(packs.join() === 'ru', 'chỉ tải gói chuỗi tiếng Nga (đã tải: ' + packs.join() + ')');
   ok(await ph() === 'Поиск игроков…', 'chữ trong file dịch phụ hiện tiếng Nga ngay lần đầu');
-  ok(await p.evaluate(() => document.querySelectorAll('body script[src]').length <= 12), 'vài khối thay cho hơn 200 file lẻ');
+  ok(await p.evaluate(() => document.querySelectorAll('body script[src]').length <= 16), 'vài khối thay cho hơn 200 file lẻ' /* khối ~200 KB (CHUNK): mã lớn thêm thì thêm khối */);
 
   // 2. Đổi sang tiếng Trung lúc đang dùng
   await p.evaluate(() => window.I18N.setLang('zh'));
