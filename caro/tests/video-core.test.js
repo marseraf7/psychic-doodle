@@ -118,6 +118,23 @@ test('khung bàn cờ: chứa mọi quân (+2 ô), vuông, tối thiểu 9 ô; b
   assert.ok(f.x0 >= 80 && f.x1 - f.x0 + 1 <= 20, 'không kéo về gốc toạ độ');
   const e = V.boxFor([]);
   assert.strictEqual(e.x1 - e.x0 + 1, 9);
+  // Quân rải rất xa (máy chủ cho tới ±512): giới hạn max ô quanh nước cuối – ô không teo về 0 điểm ảnh, canvas không khổng lồ
+  const wide = [[-500, -500], [3, 4], [500, 480], [10, 12]];
+  const w = V.boxFor(wide, 9, 41);
+  assert.strictEqual(w.x1 - w.x0 + 1, 41);
+  assert.strictEqual(w.y1 - w.y0 + 1, 41);
+  assert.ok(w.x0 <= 10 && w.x1 >= 10 && w.y0 <= 12 && w.y1 >= 12, 'chứa nước cuối');
+  assert.deepStrictEqual(V.boxFor(far, 9, 41), f, 'ván bình thường: max không đổi gì');
+});
+
+test('nước của ván hỏng: chỉ giữ phần đầu hợp lệ (cặp số nguyên), giữ đúng thứ tự X / O', () => {
+  assert.deepStrictEqual(V.validMoves([[0, 0], [1, 1], null, [2, 2]]), [[0, 0], [1, 1]]);
+  assert.deepStrictEqual(V.validMoves([[0, 0], ['a', 1]]), [[0, 0]]);
+  assert.deepStrictEqual(V.validMoves([[0, 0], [1.5, 2]]), [[0, 0]]);
+  assert.deepStrictEqual(V.validMoves([[0, 0], [NaN, 2]]), [[0, 0]]);
+  assert.deepStrictEqual(V.validMoves([[0, 0], [5, 5, 1]]), [[0, 0], [5, 5]]);
+  assert.deepStrictEqual(V.validMoves('x'), []);
+  assert.deepStrictEqual(V.validMoves(null), []);
 });
 
 test('chuỗi thắng của câu đố (cách "Xem lời giải" của trình luyện): bắt đầu bằng nước đáp án, kết thúc 5 quân', () => {
@@ -158,6 +175,10 @@ test('ngắt chữ: theo từ, theo ký tự với chữ Hán; quá số dòng t
   assert.deepStrictEqual(V.wrap('averyveryverylongdomain.example', 100, 4, m).map((l) => l.length), [10, 10, 10, 1], 'từ dài cắt theo ký tự');
   assert.deepStrictEqual(V.wrap('', 100, 2, m), []);
   assert.deepStrictEqual(V.wrap(null, 100, 2, m), []);
+  // Cắt để thêm "…" không được tách đôi ký tự ngoài BMP (emoji trong tên / chữ): không còn nửa cặp surrogate
+  const lone = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+  const emo = V.wrap('ab😀😀 cd', 45, 1, m);
+  assert.ok(!lone.test(emo[0]) && emo[0].endsWith('…'), 'emoji: ' + JSON.stringify(emo));
   const at = (t, z) => t.length * z * 0.5;
   assert.strictEqual(V.fitSize('abcdefghij', 400, 84, 40, at), 80);
   assert.strictEqual(V.fitSize('abc', 400, 84, 40, at), 84);
@@ -211,4 +232,11 @@ test('WebM: đã có Duration, không phải WebM hoặc file hỏng thì trả 
   assert.strictEqual(V.fixWebmDuration(cut, 5000).length, cut.length);
   assert.strictEqual(V.fixWebmDuration(new Uint8Array(0), 1).length, 0);
   assert.strictEqual(V.fixWebmDuration(fakeWebm().buffer, 1000).length, fakeWebm().length + 18, 'nhận cả ArrayBuffer');
+  // Segment có kích thước đã biết: chèn byte sẽ làm Segment sai kích thước (file hỏng) – giữ nguyên
+  const known = fakeWebm();
+  known.set([0x01, 0, 0, 0, 0, 0, 0, known.length - 21], 13); // kích thước Segment = phần còn lại sau 21 byte đầu
+  assert.strictEqual(V.fixWebmDuration(known, 5000), known);
+  // Info bị cắt cụt (file ghi dở): không đọc quá cuối file, giữ nguyên
+  const short = fakeWebm().subarray(0, 30);
+  assert.strictEqual(V.fixWebmDuration(short, 5000), short);
 });

@@ -7,7 +7,7 @@ Minh chuyển hướng dẫn này cho Laplace và nhận báo cáo về. Chỉ *
 Game có nút **Xuất video** (video dọc 9:16, 1080×1920, 30 khung/giây, không tiếng) để Minh đăng TikTok / YouTube Shorts /
 Facebook Reels. Có ở hai chỗ:
 
-- Tab **Câu đố** → thẻ "Câu đố hôm nay" → **Xuất video** (video câu đố ~12–17 giây).
+- Tab **Câu đố** → thẻ "Câu đố hôm nay" → **Xuất video** (video câu đố ~12–16 giây).
 - Xem lại một ván (ván vừa chơi xong → Xem lại / Phân tích, hoặc Lịch sử ván) → **Chia sẻ** → **Xuất video** (video ván
   đấu, tối đa ~47 giây).
 

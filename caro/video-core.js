@@ -130,16 +130,33 @@
    * Khung toạ độ vừa các quân (+2 ô viền), gần vuông và tối thiểu min × min ô (thế ít quân không bị phóng quá to).
    * Bàn lớn chỉ lấy vùng có quân (như ảnh chia sẻ – share.js).
    */
-  function boxFor(moves, min) {
+  function boxFor(moves, min, max) {
     min = min || 9;
     const xs = moves.map((m) => m[0]), ys = moves.map((m) => m[1]);
     if (!xs.length) { xs.push(0); ys.push(0); }
     const box = { x0: Math.min(...xs) - 2, x1: Math.max(...xs) + 2, y0: Math.min(...ys) - 2, y1: Math.max(...ys) + 2 };
     const grow = (a, b, want) => { let lo = box[a], hi = box[b], k = 0; while (hi - lo + 1 < want) { if (k++ % 2) lo--; else hi++; } box[a] = lo; box[b] = hi; };
     const side = Math.max(min, box.x1 - box.x0 + 1, box.y1 - box.y0 + 1);
+    // Quân rải quá xa (máy chủ cho tới ±512 ô): chỉ lấy vùng max × max quanh nước cuối – ô không teo về 0 điểm ảnh
+    // (canvas rộng 0 làm drawImage ném lỗi), quân ngoài vùng bị cắt khi vẽ lên lớp bàn cờ
+    if (max && side > max) {
+      const [lx, ly] = moves.length ? moves[moves.length - 1] : [0, 0], h = Math.floor(max / 2);
+      return { x0: lx - h, x1: lx - h + max - 1, y0: ly - h, y1: ly - h + max - 1 };
+    }
     grow('x0', 'x1', side);
     grow('y0', 'y1', side);
     return box;
+  }
+
+  /** Nước của ván (dữ liệu có thể hỏng – ván lưu trên máy, link chia sẻ): phần đầu gồm các cặp số nguyên [x, y]. */
+  function validMoves(list) {
+    const out = [];
+    if (!Array.isArray(list)) return out;
+    for (const m of list) {
+      if (!Array.isArray(m) || !Number.isInteger(m[0]) || !Number.isInteger(m[1])) break; // dừng ở nước hỏng: giữ đúng lượt X / O
+      out.push([m[0], m[1]]);
+    }
+    return out;
   }
 
   /**
@@ -203,7 +220,10 @@
     if (out.length <= max) return out;
     const keep = out.slice(0, max);
     let last = keep[max - 1];
-    while (last.length > 1 && measure(last + '…') > w) last = last.slice(0, -1);
+    // Bớt từng ký tự (Array.from: không tách đôi emoji / chữ ngoài BMP thành nửa cặp surrogate)
+    const chars = Array.from(last);
+    while (chars.length > 1 && measure(chars.join('') + '…') > w) chars.pop();
+    last = chars.join('');
     keep[max - 1] = last + '…';
     return keep;
   }
@@ -219,7 +239,7 @@
   /**
    * MediaRecorder của Chrome / Firefox ghi WebM kiểu "phát trực tiếp": mục Info không có Duration nên trình phát / trang đăng
    * video không biết dài bao lâu (thanh tua không dùng được). Hàm này chèn Duration (float 64 bit, đơn vị TimecodeScale)
-   * vào Info. Segment có kích thước "không biết" và bản ghi không có SeekHead / Cues nên chèn thêm byte không làm lệch gì.
+   * vào Info. Chỉ sửa khi Segment có kích thước "không biết" (bản ghi không có SeekHead / Cues) – chèn thêm byte không làm lệch gì.
    * Không nhận ra cấu trúc (hoặc đã có Duration) thì trả lại nguyên bản.
    */
   function fixWebmDuration(bytes, ms) {
@@ -242,7 +262,9 @@
       id = readId(o);
       if (!id || id.v !== 0x18538067) return u; // Segment
       sz = readSize(o + id.n);
-      const segData = o + id.n + sz.n, segEnd = sz.unknown ? u.length : Math.min(u.length, segData + sz.v);
+      // Segment có kích thước đã biết: chèn thêm byte sẽ làm kích thước sai (file hỏng) – chỉ sửa bản ghi "phát trực tiếp"
+      if (!sz || !sz.unknown) return u;
+      const segData = o + id.n + sz.n, segEnd = u.length;
       for (o = segData; o < segEnd;) {
         const eid = readId(o);
         if (!eid) return u;
@@ -250,6 +272,7 @@
         if (!es) return u;
         const data = o + eid.n + es.n;
         if (eid.v === 0x1549a966 && !es.unknown) { // Info
+          if (data + es.v > u.length) return u; // Info bị cắt cụt (file ghi dở): không đọc quá cuối file
           let scale = 1000000; // TimecodeScale mặc định: 1 ms
           for (let p = data; p < data + es.v;) {
             const cid = readId(p), cs = readSize(p + cid.n), cd = p + cid.n + cs.n;
@@ -280,7 +303,7 @@
 
   const api = {
     W, H, FPS, BITRATE, SAFE, MIMES, safeArea, layout, pickMime, extOf, baseMime, fileName,
-    moveStep, puzzleTimeline, gameTimeline, sceneAt, shownAt, boxFor, solveLine, siteHost, wrap, fitSize, fixWebmDuration,
+    moveStep, puzzleTimeline, gameTimeline, sceneAt, shownAt, boxFor, validMoves, solveLine, siteHost, wrap, fitSize, fixWebmDuration,
   };
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.CaroVideoCore = api;

@@ -151,20 +151,23 @@ From the puzzle set of a free Caro/Gomoku web game I'm building – more like th
 
 ### Bài 4 – Thông báo Giải tuần
 
-Giải: **Chủ nhật 20:00 giờ Việt Nam (UTC+7) = 13:00 UTC = 16:00 Moskva**, Arena 60 phút, thưởng **danh hiệu** (huy hiệu
-"Champion" / "Чемпион" / "Nhà vô địch" trên hồ sơ – có sẵn trong game khi vô địch một giải – và tên trong bài kết quả),
-**không thu phí, không thưởng tiền**. Tham gia giải cần tài khoản miễn phí trên trang chính (khách chỉ xem được; bản
-CrazyGames / itch.io không có đăng nhập nên không vào giải được). Mỗi tuần Minh tạo giải Arena trong app rồi điền `<link
-giải>`, `<luật>`, `<thời gian ván>`.
+Giải: **Chủ nhật 20:00 giờ Việt Nam (UTC+7) = 13:00 UTC = 16:00 Moskva**, Arena 60 phút, luật Caro Việt Nam, đồng hồ 3+2
+(mặc định – `docs/giai-tuan.md`). Máy chủ **tự tạo** giải mỗi tuần với tên `Cúp tuần Caro #N · Weekly Cup` (Minh không phải
+tạo bằng tay); thẻ "Giải tuần" ở Trang chủ có nút **Chia sẻ** / trang giải có link `/?t=<mã giải>` để điền `<link giải>`.
+Thưởng **danh hiệu** trên hồ sơ cho hạng 1–3 ("Vô địch / Á quân / Hạng ba Cúp tuần Caro #N"; tiếng Anh "Weekly Cup #N
+champion / runner-up / third place", tiếng Nga «Победитель / Второе место / Третье место турнира недели #N») và tên trong bài
+kết quả, **không thu phí, không thưởng tiền**. Tham gia giải cần tài khoản miễn phí trên trang chính (khách chỉ xem được;
+bản CrazyGames / itch.io không có đăng nhập nên không vào giải được). Đổi giờ / luật / đồng hồ bằng biến `WEEKLY_CUP_*` thì
+sửa các chỗ tương ứng trong bài.
 
 Tiếng Anh (Reddit bình luận / Discord #announcements, #weekly-cup):
 
 ```
-Weekly Cup – Sunday 13:00 UTC (20:00 Vietnam, 16:00 Moscow)
+Weekly Cup #<N> – Sunday 13:00 UTC (20:00 Vietnam, 16:00 Moscow)
 
 Format: Arena, 60 minutes – play as many games as you like, you are paired again as soon as your game ends; wins and streaks score points.
-Rules: <rule: Vietnamese Caro / Freestyle Gomoku / Renju>, <time control, e.g. 3+2>.
-Prize: the "Champion" badge on your profile and a shout-out in the results post. Free to enter – no entry fee, no money prizes.
+Rules: Vietnamese Caro (five blocked at both ends does not win), 3+2 clock, rated.
+Prize: places 1–3 get a title on their profile ("Weekly Cup #<N> champion", "runner-up", "third place") and a shout-out in the results post. Free to enter – no entry fee, no money prizes.
 How to join: open <tournament link>, sign in with a free account and press Join (you can join any time while it runs). Guests can watch.
 Fair play: no engine help; flagged games are reviewed.
 See you on the board!
@@ -173,11 +176,11 @@ See you on the board!
 Tiếng Nga (VK, Telegram):
 
 ```
-Еженедельный турнир – воскресенье, 16:00 по Москве (13:00 UTC, 20:00 по Вьетнаму)
+Турнир недели #<N> – воскресенье, 16:00 по Москве (13:00 UTC, 20:00 по Вьетнаму)
 
 Формат: Арена, 60 минут – играйте сколько угодно партий, новая пара подбирается сразу после окончания партии; очки за победы и серии побед.
-Правила: <правила: вьетнамское каро / гомоку (свободное) / рэндзю>, <контроль времени, например 3+2>.
-Награда: значок «Чемпион» в профиле и упоминание в итогах турнира. Участие бесплатное – без взноса, без денежных призов.
+Правила: вьетнамское каро (пятёрка, закрытая с двух сторон, не выигрывает), контроль 3+2, на рейтинг.
+Награда: места 1–3 получают звание в профиле («Победитель турнира недели #<N>», «Второе место», «Третье место») и упоминание в итогах турнира. Участие бесплатное – без взноса, без денежных призов.
 Как участвовать: откройте <ссылка на турнир>, войдите в бесплатный аккаунт и нажмите «Участвовать» (можно присоединиться в любой момент, пока турнир идёт). Гости могут смотреть.
 Честная игра: без помощи программ; подозрительные партии проверяются.
 До встречи за доской!
@@ -186,11 +189,11 @@ Tiếng Nga (VK, Telegram):
 Tiếng Việt (Group Facebook):
 
 ```
-Giải tuần – 20:00 tối Chủ nhật (giờ Việt Nam)
+Cúp tuần Caro #<N> – 20:00 tối Chủ nhật (giờ Việt Nam)
 
 Thể thức: Arena 60 phút – đánh bao nhiêu ván cũng được, hết ván là được ghép đối thủ mới ngay; thắng và thắng liên tiếp được cộng điểm.
-Luật: <luật: Caro Việt Nam / Gomoku tự do / Renju>, <thời gian, ví dụ 3+2>.
-Phần thưởng: huy hiệu "Nhà vô địch" trên hồ sơ và tên trong bài tổng kết. Không thu phí, không thưởng tiền.
+Luật: Caro Việt Nam (năm quân bị chặn hai đầu không thắng), đồng hồ 3+2, tính Elo.
+Phần thưởng: hạng 1–3 nhận danh hiệu trên hồ sơ ("Vô địch / Á quân / Hạng ba Cúp tuần Caro #<N>") và tên trong bài tổng kết. Không thu phí, không thưởng tiền.
 Cách tham gia: mở <link giải>, đăng nhập tài khoản (miễn phí) rồi bấm Tham gia – vào lúc nào cũng được khi giải đang chạy. Khách vào xem được.
 Chơi đẹp: không dùng phần mềm trợ giúp; ván có dấu hiệu bất thường sẽ được xem lại.
 Hẹn gặp mọi người trên bàn cờ!

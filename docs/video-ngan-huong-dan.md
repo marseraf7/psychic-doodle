@@ -7,7 +7,7 @@ Công cụ "Xuất video" nằm ngay trong game (điện thoại hoặc máy tí
 
 ## 1. Tạo video
 
-**Câu đố (12–17 giây)**
+**Câu đố (khoảng 12–16 giây)**
 
 1. Tab **Câu đố** → thẻ "Câu đố hôm nay" → nút **Xuất video**.
 2. Muốn bài khác: gõ **Bài số** (từ 1 tới số bài hiện có, khoảng 360) hoặc bấm **Bài khác** (ngẫu nhiên). Ô xem trước hiện khung đầu.

@@ -205,6 +205,17 @@ test('huỷ giải → tạo tuần sau (#2), không tạo lại lần đã hu�
   const e = hub.weeklyEnsure(Date.now() + 120000);
   assert.strictEqual(e.weeklyKey, d.weeklyKey);
   assert.strictEqual(e.weeklyN, d.weeklyN);
+  // Hai tiến trình cùng giữ lại chỗ của giải bị mất: tiến trình kia giữ trước → tiến trình này KHÔNG tạo giải (không trùng, không #0)
+  hub.tours.delete(e.id);
+  store.deleteTour(e.id);
+  const claim = store.wcClaim.bind(store);
+  store.wcClaim = (key, id, when, reuse) => {
+    if (reuse) claim(key, 'otherproc01', when, reuse); // tiến trình kia vừa giữ lại chỗ này (giải của nó chưa ghi xuống đĩa)
+    return claim(key, id, when, reuse);
+  };
+  assert.strictEqual(hub.weeklyEnsure(Date.now() + 240000), null, 'không tạo giải thứ hai cho cùng lần');
+  assert.ok(![...hub.tours.values()].some((x) => x.weekly && x.weeklyN === 0), 'không có giải #0');
+  assert.strictEqual(store.wcSlot(e.weeklyKey).id, 'otherproc01');
   hub.close(); store.close();
 });
 

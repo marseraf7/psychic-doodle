@@ -153,8 +153,9 @@
   }
   /** Ván đấu: { moves, x, o, winner?, reason?, rule, id? } – cùng dữ liệu hộp chia sẻ ảnh / GIF (share.js). */
   function openGame(game) {
-    if (!game || !Array.isArray(game.moves) || !game.moves.length) return false;
-    return open('game', game);
+    const moves = V.validMoves(game && game.moves); // ván hỏng: chỉ giữ phần đầu hợp lệ
+    if (!moves.length) return false;
+    return open('game', { ...game, moves });
   }
 
   async function pickPuzzle(id, random) {
@@ -281,7 +282,8 @@
   $('vid-names').onchange = () => { if (st && st.phase !== 'rec') { st.names = $('vid-names').checked; refresh(); } };
   $('vid-pz-id').onchange = () => pickPuzzle(Math.floor(+$('vid-pz-id').value), false);
   $('vid-pz-rand').onclick = () => pickPuzzle(0, true);
-  dlg.addEventListener('close', () => { stop(true); if (st) st.phase = 'closed'; });
+  // Đóng hộp: dừng bản ghi, thu hồi object URL + bỏ blob (video ~20 MB không nằm lại trong bộ nhớ – mở lại sẽ dựng mới)
+  dlg.addEventListener('close', () => { stop(true); clearResult(); if (st) st.phase = 'closed'; });
   window.addEventListener('langchange', () => { if (st && dlg.open && st.phase !== 'rec') refresh(); });
 
   window.CaroVideo = {

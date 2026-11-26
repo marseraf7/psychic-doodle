@@ -81,6 +81,7 @@ class WeeklyCup {
         if (st) continue; // xong / huỷ
         if (now - cur.at < LOST_MS) return null; // vừa giữ chỗ ở nơi khác, chưa kịp ghi giải
         n = S.wcClaim(slot.key, id, now, cur); // giải bị mất trước khi ghi xuống đĩa: tạo lại, giữ số cũ
+        if (!n) return null; // tiến trình khác vừa giữ lại chỗ này trước: để nó tạo (không tạo trùng, không giải #0)
       }
       return this.weeklyCreate(slot, n, id, now);
     }

@@ -15,7 +15,7 @@
     const L = V.layout(W, H);
     const col = spec.col, font = spec.font, tx = spec.text;
     const all = spec.kind === 'puzzle' ? spec.moves.concat(spec.line) : spec.moves;
-    const box = V.boxFor(all, 9);
+    const box = V.boxFor(all, 9, 41); // tối đa 41 × 41 ô (quân rải quá xa: vùng quanh nước cuối)
     const cols = box.x1 - box.x0 + 1, rows = box.y1 - box.y0 + 1;
     const s = Math.floor(Math.min(L.board.w / cols, L.board.h / rows));
     const bx = L.board.x + Math.round((L.board.w - s * cols) / 2), by = L.board.y + Math.round((L.board.h - s * rows) / 2);
@@ -93,7 +93,14 @@
         return;
       }
       const half = r.w / 2 - 12;
-      const clip = (t, max) => { t = String(t || '?'); if (ctx.measureText(t).width <= max) return t; while (t.length > 1 && ctx.measureText(t + '…').width > max) t = t.slice(0, -1); return t + '…'; };
+      // Tên dài: bớt từng ký tự rồi thêm "…" (Array.from: không tách đôi emoji trong tên)
+      const clip = (t, max) => {
+        t = String(t || '?');
+        if (ctx.measureText(t).width <= max) return t;
+        const ch = Array.from(t);
+        while (ch.length > 1 && ctx.measureText(ch.join('') + '…').width > max) ch.pop();
+        return ch.join('') + '…';
+      };
       setFont(52, 700);
       const gw = ctx.measureText('X ').width;
       ctx.textAlign = 'left';

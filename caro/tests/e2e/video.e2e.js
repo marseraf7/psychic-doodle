@@ -118,6 +118,8 @@ const SPEED = 4;
   await p.click('#rp-share');
   await sleep(300);
   ok(await p.isVisible('#sh-video') && await p.isVisible('#sh-gif'), 'hộp chia sẻ ván: nút Xuất video cạnh GIF / PNG');
+  // Ghi lại mọi chữ vẽ lên canvas: ẩn tên (mặc định) thì video không có tên người chơi ở bất kỳ cảnh nào
+  await p.evaluate(() => { window.__txt = []; const f = CanvasRenderingContext2D.prototype.fillText; CanvasRenderingContext2D.prototype.fillText = function (t, ...a) { window.__txt.push(String(t)); return f.call(this, t, ...a); }; });
   await p.click('#sh-video');
   await sleep(500);
   ok(await p.isVisible('#vid-names-row') && !(await p.isChecked('#vid-names')) && await p.isHidden('#vid-pz-row'), 'ván đấu: ô "Hiện tên người chơi" mặc định tắt');
@@ -125,12 +127,18 @@ const SPEED = 4;
   await p.check('#vid-names');
   await sleep(300);
   ok(await previewInk() > 4, 'bật hiện tên: vẽ lại xem trước');
+  ok(await p.evaluate(() => window.__txt.some((t) => /An Nguyễn/.test(t))), 'bật hiện tên: tên có trên khung (đối chứng cho bài thử ẩn tên)');
+  await p.uncheck('#vid-names'); // ghi video với tên ẩn (mặc định): không cảnh nào được có tên
+  await sleep(300);
+  await p.evaluate(() => { window.__txt = []; });
   await auditDlg('hộp Xuất video (ván đấu)');
   await p.evaluate(() => { window.__caroVideoTest.mime = 'video/webm;codecs=vp9'; });
   await p.click('#vid-start');
   ok(await waitPhase('done', 30000), 'dựng xong video ván đấu');
   const r2 = await p.evaluate(() => window.CaroVideo.result);
   ok(r2 && r2.size > 10000 && r2.type === 'video/webm' && /^caro-game-\d+\.webm$/.test(r2.name), `blob WebM ${r2 && r2.size} byte, ${r2 && r2.name}`);
+  const leaked = await p.evaluate(() => window.__txt.filter((t) => /An Nguyễn|Bình/.test(t)));
+  ok(leaked.length === 0 && (await p.evaluate(() => window.__txt.length)) > 10, 'ẩn tên: cả video không vẽ tên người chơi' + (leaked.length ? ' – ' + leaked.join(' | ') : ''));
   const f2 = await saveBlob(r2.name);
   const i2 = probe(f2);
   if (i2) {
@@ -139,6 +147,15 @@ const SPEED = 4;
     ok(frameOk(f2, r2.dur * 0.5), 'khung giữa video ván đấu có nội dung');
   }
   await p.evaluate(() => { delete window.__caroVideoTest.mime; });
+  // Đóng hộp khi đã có video: thu hồi object URL, bỏ blob (không giữ ~20 MB trong bộ nhớ); mở lại cho phần sau
+  const href = await p.getAttribute('#vid-dl', 'href');
+  await p.evaluate(() => { window.__revoked = []; const r = URL.revokeObjectURL; URL.revokeObjectURL = (u) => { window.__revoked.push(u); r.call(URL, u); }; window.CaroOnline.closeDlg('video-dlg'); });
+  await sleep(200);
+  ok(await p.evaluate((h) => window.__revoked.includes(h) && window.CaroVideo.result === null, href), 'đóng hộp: thu hồi object URL, bỏ blob');
+  await p.click('#rp-share');
+  await sleep(300);
+  await p.click('#sh-video');
+  await sleep(500);
 
   // ------------------------------------------------------------ 3. Huỷ, tab bị ẩn, không hỗ trợ
   await p.click('#vid-start');
@@ -158,6 +175,16 @@ const SPEED = 4;
   ok(/không quay được video/.test(await p.textContent('#confirm-dlg')), 'nội dung báo lỗi gọn');
   await p.click('#confirm-ok');
   await p.evaluate(() => { window.MediaRecorder = window.__mr; });
+  // Ván lạ / hỏng: quân rải rất xa (±500 ô) và nước hỏng ở giữa – vẫn mở, vẽ được (không ném lỗi), bỏ phần hỏng
+  const odd = await p.evaluate(() => {
+    try {
+      const okOpen = window.CaroVideo.openGame({ moves: [[-500, -500], [500, 480], [0, 0], [1, 1], null, [2, 2]], x: 'A', o: 'B', rule: 'vn' });
+      return okOpen === true && window.CaroVideo.phase === 'ready';
+    } catch (e) { return 'lỗi: ' + e.message; }
+  });
+  ok(odd === true, 'ván quân rải xa + nước hỏng: mở và vẽ được – ' + odd);
+  ok(await previewInk() > 4, 'ván quân rải xa: xem trước có hình');
+  ok(await p.evaluate(() => window.CaroVideo.openGame({ moves: [null, [0, 0]] })) === false, 'ván không có nước hợp lệ: không mở');
   await sleep(200);
 
   // ------------------------------------------------------------ 4. Ngôn ngữ dài / chữ Nhật ở 390px
