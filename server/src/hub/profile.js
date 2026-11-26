@@ -91,6 +91,7 @@ class Profile {
         league: this.leagueBadge(u.id), // bậc hạng đấu tuần (league.js)
         bio: u.bio || '', // giới thiệu bản thân (đánh dấu như Markdown; trình duyệt dựng HTML an toàn)
         progress: this.progressOf(u), // chuỗi ngày chơi, huy hiệu, Puzzle Storm (progress.js – A5)
+        titles: (u.titles || []).slice(-30), // danh hiệu Giải tuần hạng 1–3 (weekly-cup.js)
         self: meUid === u.id, friend: !!(me && me.friends.includes(u.id)), h2h: me && me.id !== u.id ? this.store.h2h(me.id, u.id) : null,
       },
     });

@@ -184,6 +184,20 @@ html:not(.caro-ready) #page-home > .pg-body { visibility: hidden; animation: car
 .hbtn:active { transform: scale(0.99); }
 .home-left { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .home-left > .card { background: var(--panel); border: 0; }
+/* Thẻ Giải tuần ở Trang chủ (weekly-cup.js): nhãn nhỏ, tên một dòng có "…", giờ theo máy, đếm ngược, nút xuống dòng được */
+.wc-card[hidden] { display: none; }
+.home-left > .wc-card { border-left: 3px solid var(--accent); }
+.wc-card .ellip { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-card p { margin: 0; }
+.wc-eyebrow { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--accent); font-size: var(--fs-xs); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: .04em; }
+.wc-name { min-width: 0; }
+.wc-name > .ellip { flex: 1; }
+.wc-meta, .wc-when, .wc-last { font-size: var(--fs-sm); color: var(--muted); line-height: 1.45; }
+.wc-cd { font-size: var(--fs-sm); }
+.wc-cd b { font-variant-numeric: tabular-nums; }
+.wc-last { display: flex; align-items: center; gap: 6px; color: var(--text); }
+.wc-act { gap: 8px; }
+.wc-adm { display: block; }
 .home-intro { margin: 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.55; }
 /* Chân Trang chủ: mục đích của trang, đơn vị làm game, liên kết chính sách */
 .home-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--muted) 25%, transparent); text-align: center; }

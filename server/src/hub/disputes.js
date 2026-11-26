@@ -34,7 +34,7 @@ class Disputes {
   /** Ban tổ chức đang có tài khoản: người tạo giải và quản lý CLB (quản trị viên xem trên trang giải). */
   /** perm: chỉ đồng ban tổ chức có quyền này (chủ giải luôn nhận). */
   tourManagers(t, perm) {
-    const out = new Set([t.creator]);
+    const out = new Set(t.system ? this.adminIds : [t.creator]); // giải do máy chủ tạo (Giải tuần): báo quản trị viên
     const c = t.club && this.clubs.get(t.club);
     if (c) for (const uid of Object.keys(c.members)) if (this.clubCan(c, uid, 'tours')) out.add(uid);
     for (const s of t.staff || []) if (!perm || s.perms.includes('all') || s.perms.includes(perm)) out.add(s.uid); // đồng ban tổ chức

@@ -20,6 +20,7 @@
       <div class="pf-stats">${cell(s.conns, 'adm_conns')}${cell(s.online, 'adm_online')}${cell(s.rooms + ' / ' + s.active, 'adm_rooms')}
         ${cell(s.watchers, 'adm_watchers')}${cell(s.queue, 'adm_queue')}${cell(s.users, 'adm_users')}
         ${cell(s.mem.rss + ' MB', 'adm_rss')}${cell(s.mem.heap + ' / ' + s.mem.heapTotal + ' MB', 'adm_heap')}</div>
+      ${window.CaroWeekly ? window.CaroWeekly.adminHtml(s.weekly) : ''}
       <h4>${esc(T('adm_slow'))}</h4>
       ${s.slow.length ? `<ul class="adm-list">${s.slow.slice(0, 15).map((x) => `<li><code>${esc(x.t)}</code> <b>${x.ms} ms</b> <small>${esc(when(x.at))}</small></li>`).join('')}</ul>` : `<p class="hint">${esc(T('adm_none'))}</p>`}
       <h4>${esc(T('adm_count'))}</h4>
