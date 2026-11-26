@@ -74,7 +74,7 @@ const SECURITY_HEADERS = {
 if (process.env.RAPFI_THREADS !== '0') SECURITY_HEADERS['document-isolation-policy'] = 'isolate-and-credentialless';
 
 const { ipInCidr, fromProxy, wsOriginAllowed, clientIp } = require('./web-net.js'); // IP thật sau proxy, Origin WebSocket
-const { applyHostHeaders } = require('./host-embed.js'); // Mini App Telegram / VK: cho nhúng + thư viện Telegram, chỉ lượt đó
+const { applyHostHeaders, injectDiscord } = require('./host-embed.js'); // Mini App Telegram / VK, Discord Activity: cho nhúng, chỉ lượt đó
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -237,6 +237,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
       try { og = query && typeof hub.ogInfo === 'function' ? hub.ogInfo(query) : null; } catch (e) { og = null; } // dữ liệu lạ: trang thường
       if (og) html = Og.inject(html, { ...og, lang: Og.pickLang(query, req.headers['accept-language']), base: origin(req) });
       html = Seo.inject(html, { query, og }); // canonical về tên miền chính, hreflang, og / JSON-LD trang chủ (seo.js)
+      html = injectDiscord(html, query); // mở làm Discord Activity: thẻ meta client id (host-embed.js)
       const body = Buffer.from(html);
       // Chưa đặt PUBLIC_URL thì đường dẫn ảnh lấy theo tên miền trình duyệt gửi lên: không cho bộ nhớ đệm dùng chung (CDN) giữ lại
       res.writeHead(200, { 'content-type': MIME['.html'], 'content-length': body.length,
@@ -310,7 +311,7 @@ function makeHandler({ store, hub, bundle = process.env.CARO_BUNDLE !== '0' }) {
     if (/[\x00-\x1f\x7f]/.test(url)) { res.writeHead(400); return res.end(); }
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
     if (move(req, res, url, u)) return;
-    applyHostHeaders(res, url, u.searchParams, CSP); // trang chính mở làm Mini App Telegram / VK (host-embed.js)
+    applyHostHeaders(res, url, u.searchParams, CSP); // trang chính mở làm Mini App Telegram / VK / Discord Activity (host-embed.js)
     if (apiV1(req, res, url, u.searchParams)) return;
     if (req.method === 'OPTIONS' && url.startsWith('/api/')) {
       res.writeHead(204, { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' });
