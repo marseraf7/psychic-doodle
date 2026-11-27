@@ -30,6 +30,7 @@ const MAX_ACTIVE_TOURS_PER_USER = 3;
 const MAX_START_DAYS = 30;
 const MAX_PLAYERS = 512; // tối đa người mỗi giải (mọi thể thức)
 const NOSHOW_MIN = [1, 2, 3, 5, 10, 15]; // thời gian chờ vắng mặt chọn được (phút)
+const SYSTEM_NAME = 'Caro x Gomoku'; // ban tổ chức của giải do máy chủ tự tạo (Giải tuần – weekly-cup.js)
 
 class Tournaments {
   loadTours() {
@@ -123,7 +124,7 @@ class Tournaments {
       id: t.id, name: t.name, format: t.format, status: t.status, startsAt: t.startsAt, endsAt: t.endsAt || null,
       minutes: t.minutes || null, timeLimit: t.timeLimit, clock: t.clock || null, opening: t.opening || 'free', rule: t.rule || 'vn', stages: t.stages || null, stage: t.stage || 0, rated: t.rated, access: t.access,
       club: c ? { id: c.id, name: c.name } : null, count: t.players.filter((p) => !p.withdrawn).length,
-      maxPlayers: t.maxPlayers, creator: this.store.users.get(t.creator)?.name || '?',
+      maxPlayers: t.maxPlayers, creator: t.system ? SYSTEM_NAME : this.store.users.get(t.creator)?.name || '?', weekly: t.weeklyN || null, // giải tuần (weekly-cup.js)
       joined: !!(uid && this.player(t, uid) && !this.player(t, uid).withdrawn), checkin: this.inCheckin(t), offline: !!t.offline,
       winner: champ ? champ.name : null,
     };
@@ -409,4 +410,4 @@ class Tournaments {
   }
 }
 
-module.exports = { Tournaments, STAFF_PERMS };
+module.exports = { Tournaments, STAFF_PERMS, ARENA_MINUTES, MAX_PLAYERS };

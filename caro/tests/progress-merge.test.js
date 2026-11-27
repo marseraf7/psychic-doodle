@@ -41,3 +41,11 @@ test('thang nhân vật máy (B9) trong tiến độ: làm sạch có trần s�
   assert.strictEqual(P.sane({ ladder: { r: { vn: 2 }, at: now + 86400000 * 30 } }, now).ladder.at, 0);
   assert.strictEqual(P.sane({ ladder: { r: { vn: 2 }, at: now - 1000 } }, now).ladder.at, now - 1000);
 });
+
+test('sane: chuỗi dài nhất phải có danh sách ngày chứng minh (máy tự báo best lớn không thành chuỗi 30 ngày khi tính năng đã chạy lâu)', () => {
+  const now = Date.UTC(2027, 1, 1); // ~3 tháng sau khi có tính năng: trần span không còn chặn được 30
+  const day = (n) => new Date(now - n * 86400000).toISOString().slice(0, 10);
+  assert.strictEqual(P.sane({ habits: { days: [day(0)], best: 99999 } }, now).habits.best, 1, 'một ngày thật: chuỗi 1');
+  const run = Array.from({ length: 31 }, (_, i) => day(i + 5));
+  assert.strictEqual(P.sane({ habits: { days: run, best: 2 } }, now).habits.best, 31, 'danh sách ngày liên tiếp: chuỗi thật');
+});

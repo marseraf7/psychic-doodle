@@ -51,6 +51,7 @@ class Api {
         mem: { rss: mb(mem.rss), heap: mb(mem.heapUsed), heapTotal: mb(mem.heapTotal), ext: mb(mem.external) },
         count: Object.entries(m.count).sort((a, b) => b[1] - a[1]).slice(0, 40),
         slow: m.slow.slice().reverse(), crash: m.crash,
+        weekly: this.weeklyStatus(), // Giải tuần: bật / tắt, lần kế, cấu hình hiệu lực (weekly-cup.js)
       },
     });
   }

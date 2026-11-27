@@ -131,7 +131,7 @@ jobs:
         run: |
           cd server && npm ci
           mkdir -p "$RUNNER_TEMP/caro-data"
-          PORT=8790 DATA_DIR="$RUNNER_TEMP/caro-data" ADMIN_USERNAMES=web_1 nohup node --disable-warning=ExperimentalWarning server.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          PORT=8790 DATA_DIR="$RUNNER_TEMP/caro-data" ADMIN_USERNAMES=web_1,web_2 nohup node --disable-warning=ExperimentalWarning server.js > "$RUNNER_TEMP/server.log" 2>&1 &
           for i in $(seq 1 30); do curl -sf http://localhost:8790/healthz && break; sleep 1; done
       - name: Cài Playwright
         working-directory: app
@@ -158,7 +158,9 @@ jobs:
           working-directory: app
           script: |
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-            node tests/android-e2e.js
+            # Mã 75: Android giết app vì Play Services (gms.persistent) tự khởi động lại trên máy ảo – app (WebView) giữ kết
+            # nối tới FontsProvider của nó; không phải lỗi game → chạy lại cả kịch bản MỘT lần, tài khoản mới (E2E_RUN=2)
+            code=0; node tests/android-e2e.js || code=$?; if [ "$code" = 75 ]; then echo "::warning::Play Services chết kéo app chết – chạy lại kịch bản một lần"; adb shell pm clear io.github.marseraf7.caro; E2E_RUN=2 node tests/android-e2e.js; else exit $code; fi
       - name: Nhật ký máy chủ
         if: always()
         run: cat "$RUNNER_TEMP/server.log" || true

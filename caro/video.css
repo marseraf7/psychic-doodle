@@ -1,0 +1,43 @@
+/* Xuất video ngắn 9:16 (video-maker.js): hộp thoại, nút trên thẻ Câu đố hôm nay. Bản cổng game ẩn hẳn (host.css). */
+
+/* Canvas dựng 1080×1920 – ẩn ngoài màn hình (vẫn nằm trong trang để mọi trình duyệt chịu ghi hình) */
+.vid-work { position: fixed; left: -20000px; top: 0; width: 108px; height: 192px; pointer-events: none; }
+
+.vid-body { display: flex; gap: 16px; align-items: flex-start; }
+.vid-preview {
+  flex: none; width: 150px; height: auto; aspect-ratio: 9 / 16; border-radius: 12px;
+  background: var(--board); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+.vid-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1; }
+.vid-pz { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--fs-sm); }
+.vid-pz[hidden], .vid-prog[hidden], .vid-side .check[hidden] { display: none; }
+#vid-pz-row input { width: 6em; flex: none; min-height: 40px; margin: 0; }
+.vid-prog { display: flex; align-items: center; gap: 10px; font-size: var(--fs-sm); }
+.vid-prog progress { flex: 1; min-width: 0; height: 12px; accent-color: var(--accent); }
+.vid-prog span { flex: none; font-variant-numeric: tabular-nums; }
+.vid-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.vid-btns > *, .vid-pz button {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 16px;
+  border-radius: 12px; text-decoration: none; font-weight: var(--fw-semibold); font-size: var(--fs-sm);
+}
+.vid-btns > [hidden] { display: none; }
+.vid-sec { background: rgba(127, 127, 127, 0.14); color: var(--text); }
+@media (hover: hover) { .vid-sec:hover { background: rgba(127, 127, 127, 0.22); } }
+.vid-btns .ico, .vid-pz .ico { width: 20px; height: 20px; flex: none; }
+#vid-status.err { color: #e5392f; }
+
+/* Màn hẹp: xem trước nằm trên, nút và chữ bên dưới */
+@media (max-width: 520px) {
+  .vid-body { flex-direction: column; align-items: center; }
+  .vid-preview { width: 132px; }
+  .vid-side { width: 100%; }
+}
+
+/* Thẻ Câu đố hôm nay: Giải ngay + Xuất video */
+.pzt-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.pzt-info .pzt-btns .primary { margin-top: 0; }
+.pzt-video {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 12px;
+  background: rgba(127, 127, 127, 0.14); color: var(--text); font-size: var(--fs-sm); font-weight: var(--fw-medium);
+}
+.pzt-video .ico { width: 18px; height: 18px; flex: none; }

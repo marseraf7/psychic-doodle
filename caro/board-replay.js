@@ -144,7 +144,7 @@
       const d = state.replay.data;
       const nm = (v) => v || T('deleted_player');
       const result = resultText(d, T, X, true);
-      window.CaroShare.open({ moves: d.moves, x: nm(d.x), o: nm(d.o), result, rule: d.rule }, d.share && net() ? () => net().shareReplay(d) : null);
+      window.CaroShare.open({ moves: d.moves, x: nm(d.x), o: nm(d.o), result, rule: d.rule, winner: d.winner, reason: d.reason, id: d.share }, d.share && net() ? () => net().shareReplay(d) : null);
     };
 
     return { openReplay, fitReplayView, seekReplay, stopReplay, toggleReplayPlay, closeReplay, updateReplayUI };

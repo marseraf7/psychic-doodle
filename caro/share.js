@@ -21,27 +21,23 @@
   }
 
   /**
-   * Vẽ thế cờ sau n nước lên ctx (W x H). info: { x, o, result } – tên hai bên và dòng kết quả.
-   * box: khung toạ độ cố định cho mọi khung hình (để GIF không bị nhảy).
+   * Vẽ bàn cờ (lưới, quân, ô nước cuối; final: vạch 5 quân thắng) sau n nước, góc trên trái (ox, oy), mỗi ô s điểm ảnh,
+   * khung toạ độ box. Dùng chung cho ảnh / GIF (drawFrame) và video ngắn (video-draw.js). lw: độ dày lưới (mặc định 1).
+   * Trả về { cell(x, y) → [tâm x, tâm y], board, win (5 quân thắng hoặc null) }.
    */
-  function drawFrame(ctx, W, H, moves, n, info, box, col, final) {
-    const head = 56, foot = 26;
-    ctx.fillStyle = col.panel;
-    ctx.fillRect(0, 0, W, H);
-    const bw = W - 16, bh = H - head - foot - 8;
+  function drawBoard(ctx, ox, oy, s, box, moves, n, rule, col, final, lw) {
     const cols = box.x1 - box.x0 + 1, rows = box.y1 - box.y0 + 1;
-    const s = Math.floor(Math.min(bw / cols, bh / rows));
-    const ox = Math.round((W - s * cols) / 2), oy = head + Math.round((bh - s * rows) / 2);
+    const g = lw || 1, half = g % 2 ? 0.5 : 0;
     ctx.fillStyle = col.bg;
     ctx.fillRect(ox, oy, s * cols, s * rows);
     ctx.strokeStyle = col.grid;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = g;
     ctx.beginPath();
-    for (let i = 0; i <= cols; i++) { ctx.moveTo(ox + i * s + 0.5, oy); ctx.lineTo(ox + i * s + 0.5, oy + s * rows); }
-    for (let j = 0; j <= rows; j++) { ctx.moveTo(ox, oy + j * s + 0.5); ctx.lineTo(ox + s * cols, oy + j * s + 0.5); }
+    for (let i = 0; i <= cols; i++) { ctx.moveTo(ox + i * s + half, oy); ctx.lineTo(ox + i * s + half, oy + s * rows); }
+    for (let j = 0; j <= rows; j++) { ctx.moveTo(ox, oy + j * s + half); ctx.lineTo(ox + s * cols, oy + j * s + half); }
     ctx.stroke();
     const cell = (x, y) => [ox + (x - box.x0) * s + s / 2, oy + (y - box.y0) * s + s / 2];
-    const b = new C.Board(info && info.rule);
+    const b = new C.Board(rule);
     // Dữ liệu chia sẻ có thể hỏng/trùng nước: bỏ qua nước lỗi (H-E1), vẫn vẽ phần còn lại.
     for (let i = 0; i < n; i++) { try { b.play(moves[i][0], moves[i][1], i % 2 ? C.O : C.X); } catch (e) { /* bỏ qua nước hỏng */ } }
     if (n) {
@@ -55,16 +51,33 @@
     }
     // Nước cuối theo bàn đã dựng (nước hỏng trong dữ liệu bị bỏ qua nên b.moves có thể ngắn hơn n – H-E1)
     const last = b.moves[b.moves.length - 1];
+    let win = null;
     if (final && last) {
-      const w = C.checkWin(b, last.x, last.y, last.p);
-      if (w) {
-        const [ax, ay] = cell(w[0][0], w[0][1]), [bx, by] = cell(w[w.length - 1][0], w[w.length - 1][1]);
+      win = C.checkWin(b, last.x, last.y, last.p) || null;
+      if (win) {
+        const [ax, ay] = cell(win[0][0], win[0][1]), [bx, by] = cell(win[win.length - 1][0], win[win.length - 1][1]);
         ctx.strokeStyle = col.win;
         ctx.lineWidth = Math.max(3, s * 0.14);
         ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
       }
     }
+    return { cell, board: b, win };
+  }
+
+  /**
+   * Vẽ thế cờ sau n nước lên ctx (W x H). info: { x, o, result } – tên hai bên và dòng kết quả.
+   * box: khung toạ độ cố định cho mọi khung hình (để GIF không bị nhảy).
+   */
+  function drawFrame(ctx, W, H, moves, n, info, box, col, final) {
+    const head = 56, foot = 26;
+    ctx.fillStyle = col.panel;
+    ctx.fillRect(0, 0, W, H);
+    const bw = W - 16, bh = H - head - foot - 8;
+    const cols = box.x1 - box.x0 + 1, rows = box.y1 - box.y0 + 1;
+    const s = Math.floor(Math.min(bw / cols, bh / rows));
+    const ox = Math.round((W - s * cols) / 2), oy = head + Math.round((bh - s * rows) / 2);
+    drawBoard(ctx, ox, oy, s, box, moves, n, info && info.rule, col, final);
     // Đầu: tên hai bên + kết quả; chân: tên game
     const font = getComputedStyle(document.body).fontFamily;
     ctx.textBaseline = 'middle';
@@ -277,6 +290,8 @@
   $('sh-png').onclick = () => run('png', $('sh-png'));
   $('sh-gif').onclick = () => run('gif', $('sh-gif'));
   $('sh-link').onclick = () => { window.CaroOnline.closeDlg('share-dlg'); if (current && current.onLink) current.onLink(); };
+  // Video ngắn 9:16 (video-maker.js – không có trong bản cổng game)
+  $('sh-video').onclick = () => { window.CaroOnline.closeDlg('share-dlg'); if (current && window.CaroVideo) window.CaroVideo.openGame(current.game); };
 
-  window.CaroShare = { open, png, gif, gifBytes, lzw };
+  window.CaroShare = { open, png, gif, gifBytes, lzw, drawBoard, palette };
 })();

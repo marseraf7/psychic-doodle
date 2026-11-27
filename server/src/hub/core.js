@@ -13,7 +13,8 @@ class Hub {
    * minAppVersion / updateUrls: bản app điện thoại cũ hơn minAppVersion bị yêu cầu cập nhật
    * (updateUrls = { android, ios } – link cửa hàng). Bản web luôn là bản mới nhất nên không bị kiểm tra.
    */
-  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {}, minAppVersion = '', updateUrls = {}, admins = [] }) {
+  /** weeklyCup: biến môi trường cấu hình Giải tuần (weekly-cup.js) – null = tắt (test). */
+  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {}, minAppVersion = '', updateUrls = {}, admins = [], weeklyCup = null }) {
     this.store = store;
     this.minAppVersion = minAppVersion;
     this.updateUrls = updateUrls;
@@ -24,7 +25,7 @@ class Hub {
     this.T = { NEXT_GAME_MS, OFFLINE_FORFEIT_MS, INVITE_TTL_MS, SECOND_MS: 1000, DRAW_COOLDOWN_MS, MATCH_TICK_MS: 1000, LOBBY_DEBOUNCE_MS: 250,
       TOUR_TICK_MS: 1000, TOUR_CHECKIN_MS: 10 * 60 * 1000, TOUR_NOSHOW_MS: 2 * 60 * 1000, TOUR_MIN_LEAD_MS: 5 * 60 * 1000, TOUR_PUSH_MS: 300,
       ARENA_REST_MS: 3000, ARENA_REPEAT_MS: 20000, THROTTLE_SCALE: 1, FIRST_MOVE_MS: 30 * 1000, TOUR_DISPUTE_MS: 5 * 60 * 1000,
-      CLUB_MSG_MS: 12 * 3600 * 1000, ...timers };
+      CLUB_MSG_MS: 12 * 3600 * 1000, WEEKLY_TICK_MS: 10 * 60 * 1000, ...timers };
     // Quản trị viên: duyệt câu lạc bộ và giải đấu. Cấu hình theo tên đăng nhập, nhưng quyền
     // gắn theo ID tài khoản (H-S4): adminIds/adminBinds được bindAdmins() tra cứu lúc khởi động.
     this.admins = new Set(admins.map((a) => String(a).trim().toLowerCase()).filter(Boolean));
@@ -45,6 +46,7 @@ class Hub {
     this.lobbyTimer = null;
     this.loadClubs();
     this.loadTours();
+    this.weeklyInit(weeklyCup); // Giải tuần: bảo đảm luôn có một giải sắp tới (weekly-cup.js)
     // Ván theo lượt (corr.js): máy chủ vừa ngừng bao lâu thì dời hạn chót thêm chừng ấy, trước lượt quét hết giờ đầu tiên
     this.safeTimer('corrBeat', () => this.corrBeat());
     this.sweeper = setInterval(() => this.safeTimer('sweep', () => this.sweep()), 60 * 1000);
@@ -58,6 +60,7 @@ class Hub {
     this.stopMatching();
     clearTimeout(this.lobbyTimer);
     clearInterval(this.tourTimer);
+    clearInterval(this.wcTimer); // weekly-cup.js
     for (const t of (this.presenceTimers || new Map()).values()) clearTimeout(t); // lobby.js
     for (const timer of (this.tourPushTimers || new Map()).values()) clearTimeout(timer);
     // Hẹn giờ của từng phòng (hết giờ, xử thua khi mất kết nối, số người xem): chạy sau khi CSDL đã đóng sẽ ghi kết quả

@@ -59,14 +59,15 @@ const PROBE_WAIT_MS = 10000; // gói đo chưa được trả lời sau 10 giây
 function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.db'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken,
   sendMail = SMTP_URL ? smtpMailer(SMTP_URL, process.env.MAIL_FROM) : null, timers, msgRate = MSG_RATE,
   minAppVersion = process.env.MIN_APP_VERSION || '', admins = (process.env.ADMIN_USERNAMES || '').split(','),
-  updateUrls = { android: process.env.ANDROID_UPDATE_URL || '', ios: process.env.IOS_UPDATE_URL || '' } } = {}) {
+  updateUrls = { android: process.env.ANDROID_UPDATE_URL || '', ios: process.env.IOS_UPDATE_URL || '' }, weeklyCup = null } = {}) {
   // dataFile = null: chỉ lưu trong bộ nhớ (test). Còn file db.json của bản cũ thì tự nhập một lần.
   const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
   // Khoá bí mật cho mã người gửi điểm phân tích (src/evalcache.js) – file riêng cạnh caro.db, không nằm trong bản sao lưu CSDL
   if (dataFile) EvalCache.useKeyFile(path.join(path.dirname(dataFile), 'eval-key'));
   // Khoá HMAC cho mã 6 số quên mật khẩu / xác minh email (L-1, src/code-hash.js) – khoá riêng, không cần sao lưu
   if (dataFile) CodeHash.useKeyFile(path.join(path.dirname(dataFile), 'code-key'));
-  const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, ...(timers ? { timers } : {}) });
+  // weeklyCup: biến môi trường của Giải tuần (WEEKLY_CUP…, hub/weekly-cup.js) – chỉ bật khi chạy thật (dưới đây), test / e2e tắt
+  const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, weeklyCup, ...(timers ? { timers } : {}) });
   // Trợ lý AI tạo giải offline (hub/otour-ai.js): khoá API bí mật ở DATA_DIR/muse-key (Muse Spark – mặc định) hoặc
   // DATA_DIR/anthropic-key (Claude); hoặc biến MODEL_API_KEY / ANTHROPIC_API_KEY
   if (dataFile) hub.otAiKeyDir = path.dirname(dataFile);
@@ -167,7 +168,7 @@ if (require.main === module) {
   if (process.env.TRUST_PROXY && !process.env.TRUSTED_PROXY_CIDRS && HOST !== '127.0.0.1' && HOST !== '::1') {
     console.warn('(CẢNH BÁO M-S2: TRUST_PROXY đang bật, máy chủ nghe trên mọi địa chỉ và chưa đặt TRUSTED_PROXY_CIDRS — ai nối thẳng vào cổng này cũng có thể giả X-Forwarded-For để qua mặt giới hạn theo IP. Hãy đặt HOST=127.0.0.1 khi chạy sau proxy trên cùng máy, hoặc TRUSTED_PROXY_CIDRS=<CIDR/IP của proxy>.)');
   }
-  const app = start();
+  const app = start({ weeklyCup: process.env }); // Giải tuần tự động (WEEKLY_CUP=0 để tắt – docs/giai-tuan.md)
   app.server.on('listening', () => {
     console.log(`Cờ Caro đang chạy: http://localhost:${app.server.address().port}`);
     if (!GOOGLE_CLIENT_ID) console.log('(Chưa đặt GOOGLE_CLIENT_ID – nút đăng nhập Google sẽ được ẩn)');

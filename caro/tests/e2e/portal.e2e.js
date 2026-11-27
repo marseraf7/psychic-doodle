@@ -79,7 +79,7 @@ const STUB = `(function () {
   ok(st.lang === 'en', 'tiếng Anh mặc định (' + st.lang + ')');
   ok(!!st.me && st.me.guest, 'kết nối online từ nguồn của cổng, chơi khách mặc định');
   ok(st.sw === 0 && st.install === 'none', 'không đăng ký service worker, không gợi ý cài ứng dụng');
-  ok((await visible(p, '[data-auth], #go-login, #go-register, #google-box')).length === 0, 'Trang chủ: không nút đăng nhập / đăng ký');
+  ok((await visible(p, '[data-auth], #go-login, #go-register, #google-box, .home-about')).length === 0, 'Trang chủ: không nút đăng nhập / đăng ký');
   await p.click('#tabbar [data-tab="more"]');
   await sleep(400);
   ok((await visible(p, '[data-auth], #go-login, #go-register')).length === 0, 'Xem thêm (thẻ tài khoản): không nút đăng nhập / đăng ký');
