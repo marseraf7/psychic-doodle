@@ -24,7 +24,7 @@ window.I18N.extend('zh-Hant', {
   ds_rec_bo_last: '2–2 場次 Bo{bo}',
   ot_seed_tool: '自動排種子',
   ot_seed_mode: '依據',
-  ot_seed_rating: '排名分（Elo、世界排名……）',
+  ot_seed_rating: '排名分（Elo、世界排名…）',
   ot_seed_ballot: '各隊投票',
   ot_seed_hint_rating: '每行一隊：「隊名：分數」。分數高者在前；無分數的隊伍按原順序排在最後。',
   ot_seed_hint_ballot: '每行一張選票，由強到弱排列其餘隊伍：「投票隊：A 隊 ＞ B 隊 ＞ …」。按 Bradley–Terry 模型（Elo 的基礎）由選票中的所有兩兩比較計算實力。',

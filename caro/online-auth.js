@@ -29,7 +29,7 @@
       const avatar = window.CaroAvatar.html(me); // ảnh đã tải lên, chưa có thì chữ cái đầu (avatar.js)
       if (me.guest) {
         el.innerHTML = `
-          <div class="who">${avatar}<div><b>${esc(me.name)}</b><small>${esc(T('guest'))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
+          <div class="who">${avatar}<div><b>${esc(me.name)}</b><small>${esc(T('guest'))}<span class="rename-wrap"> · <a href="#" id="rename">${esc(T('rename'))}</a></span></small></div></div>
           <div class="row">
             <button type="button" class="primary" id="go-login">${esc(T('login'))}</button>
             <button type="button" class="ghost" id="go-register">${esc(T('register'))}</button>
@@ -41,7 +41,7 @@
       } else {
         const st = me.stats || { wins: 0, losses: 0, draws: 0 };
         el.innerHTML = `
-          <div class="who">${avatar}<div><b><a href="#" class="plink" data-profile="${esc(me.uid)}">${esc(me.name)}</a> <span class="rating">${esc(T('rating_short', { n: me.rating || 1200 }))}</span></b><small>@${esc(me.username)} · ${esc(T('stats3', { w: st.wins, l: st.losses, d: st.draws || 0 }))} · <a href="#" id="rename">${esc(T('rename'))}</a></small></div></div>
+          <div class="who">${avatar}<div><b><a href="#" class="plink" data-profile="${esc(me.uid)}">${esc(me.name)}</a> <span class="rating">${esc(T('rating_short', { n: me.rating || 1200 }))}</span></b><small>@${esc(me.username)} · ${esc(T('stats3', { w: st.wins, l: st.losses, d: st.draws || 0 }))}<span class="rename-wrap"> · <a href="#" id="rename">${esc(T('rename'))}</a></span></small></div></div>
           <div class="row">
             <button type="button" class="ghost sm" data-profile="${esc(me.uid)}">${esc(T('profile'))}</button>
             <button type="button" class="ghost sm" data-social="history">🕘 ${esc(T('history'))}</button>

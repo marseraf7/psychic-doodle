@@ -176,7 +176,7 @@
     opt_mtg_top: '本阶段前重新轮抽（排座）',
     opt_mtg_deck: '录入成绩前必须提交牌表',
     opt_mtg_cross: '每次轮抽第一轮与对面座位配对',
-    opt_mtg_hint: '只管理轮抽流程，不含卡牌数据。传包方向依次为左、右、左……',
+    opt_mtg_hint: '只管理轮抽流程，不含卡牌数据。传包方向依次为左、右、左…',
     srv_ot_deck_none: '该选手没有轮抽。',
     srv_ot_deck_small: '牌表至少需要 {n} 张。',
     srv_ot_deck_missing: '本次轮抽仍有选手未提交牌表。',

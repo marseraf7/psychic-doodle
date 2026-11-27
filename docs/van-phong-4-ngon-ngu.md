@@ -111,6 +111,7 @@ Microsoft Terminology Collection; quy ước dịch thuật ngữ cờ của FID
 ## Tiếng Trung (giản thể)
 
 - Dấu câu toàn khổ sau chữ Hán: ，。：；？！（）. Giữa chữ Hán và chữ Latin / số để một dấu cách (Bo3 赛制、共 16 队).
+- Dấu ba chấm: một ký tự "…" (cả giản thể và phồn thể), không dùng "……" – Minh chốt 27/11/2026 (bài thử i18n-quality).
 - Thuật ngữ: 比赛 / 赛事, 对阵图 (nhánh đấu), 种子 (hạt giống), 轮空 (miễn đấu), 同分排名规则 (chỉ số phụ), 瑞士制,
   单循环, 单败淘汰, 双败淘汰, 总决赛, 小组赛.
 

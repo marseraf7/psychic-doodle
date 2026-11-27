@@ -58,7 +58,7 @@ window.I18N.extend('zh-Hant', {
   mg_schedule: '各輪賽程',
   mg_schedule_hint: '每輪的預計時間和地點，顯示在賽事頁面和記分表上。',
   mg_news: '公告',
-  mg_news_ph: '給選手的公告……',
+  mg_news_ph: '給選手的公告…',
   mg_news_post: '發布公告',
   mg_delete: '刪除',
   mg_settings: '設定',

@@ -95,6 +95,14 @@ test('Tiếng Trung: dấu câu toàn khổ sau chữ Hán', () => {
   assert.deepStrictEqual(bad, [], report(bad));
 });
 
+test('Tiếng Trung (giản thể + phồn thể): dấu ba chấm một ký tự "…", không dùng "……" (Minh chốt 27/11/2026)', () => {
+  const fs = require('fs'), path = require('path');
+  const bad = Object.entries(merged.zh).filter(([, s]) => s.includes('……')).map(([k, s]) => `zh.${k}: ${s.slice(0, 40)}`);
+  const dir = path.join(__dirname, '..', '..', 'caro', 'i18n', 'zh-Hant');
+  for (const f of fs.readdirSync(dir)) if (fs.readFileSync(path.join(dir, f), 'utf8').includes('……')) bad.push('zh-Hant/' + f);
+  assert.deepStrictEqual(bad, [], report(bad));
+});
+
 test('Tiếng Nga: không lẫn chữ Latin trong một từ (vd. "Mатч" gõ nhầm chữ M Latin)', () => {
   const bad = [];
   for (const [k, s] of Object.entries(merged.ru)) {

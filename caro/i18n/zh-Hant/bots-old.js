@@ -32,5 +32,5 @@ window.I18N.extend('zh-Hant', {
   bot_rong_desc: '最終大魔王：極深的衝棋計算，瞬間化解威脅。',
   bot_rong_hi: '你竟敢挑戰 GOAT？',
   bot_rong_win: 'GOAT 依然是 GOAT！',
-  bot_rong_lose: '不可能……現在你才是 GOAT！',
+  bot_rong_lose: '不可能…現在你才是 GOAT！',
 });

@@ -10,6 +10,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const { until, sleep, parseDevtoolsSockets, parsePidof, createStepWatch, attachWebView } = require('./android-attach');
 const { createDiagnose, providerDependents } = require('./android-diag');
+const { createProviderWatch, warmUp } = require('./android-provider-watch');
 
 const PKG = 'io.github.marseraf7.caro';
 const SHOTS = process.env.SHOTS_DIR || '.';
@@ -66,8 +67,24 @@ async function die(reason, step) {
   watch.done(); // hạn giờ của bước đang chạy không được cắt ngang lúc chẩn đoán
   console.log('FAIL ' + reason);
   setTimeout(() => { console.log('Chẩn đoán quá 4 phút – thoát'); process.exit(exitCode()); }, 4 * 60000);
+  fontsProbe('lúc dừng');
   try { await diagnose(reason, step); } catch (e) { console.log('Chẩn đoán lỗi: ' + e.message); }
   process.exit(exitCode());
+}
+/** Điều tra app phụ thuộc FontsProvider của Play Services: dòng nhật ký về phông (FontLog / FontsProvider / Typeface /
+ *  font của Chromium – thường ghi tên phông được xin) + chi tiết provider (kết nối stable/unstable của app). Chỉ in. */
+function fontsProbe(when) {
+  try {
+    const lines = adb('logcat', '-d', '-v', 'time', '-t', '20000').split('\n')
+      .filter((l) => /font/i.test(l) && !/fontWeightAdjustment/.test(l));
+    console.log(`FONTS (${when}) – ${lines.length} dòng nhật ký có "font", 80 dòng cuối:`);
+    for (const l of lines.slice(-80)) console.log('  ' + l);
+  } catch (e) { console.log('FONTS: không đọc được logcat: ' + e.message.split('\n')[0]); }
+  try {
+    // `dumpsys activity provider <tên>` không liệt kê kết nối của app – đọc bảng đầy đủ rồi lọc như chẩn đoán
+    const deps = providerDependents(adb('shell', 'dumpsys', 'activity', 'providers'), PKG).filter((d) => /gms/.test(d.provider));
+    console.log('FONTS provider Play Services app đang giữ: ' + (deps.length ? JSON.stringify(deps) : 'không có'));
+  } catch (e) { console.log('FONTS provider: lỗi ' + e.message.split('\n')[0]); }
 }
 const exitCode = () => (gmsKilledApp() ? GMS_EXIT : 1);
 /** Mã thoát riêng: Android giết app vì tiến trình Play Services (com.google.android.gms.persistent) chết – app (WebView)
@@ -115,7 +132,17 @@ async function step(name, ms) {
     }
     return false;
   };
+  // Làm nóng: máy ảo mới khởi động, lần đầu WebView xin phông thì Play Services tải phông rồi tự khởi động lại và kéo app
+  // chết theo (android-provider-watch.js) – cho việc đó xảy ra trước kịch bản, rồi mới mở app để kiểm thử
+  await step('làm nóng Play Services', 3 * 60000);
+  dismissSystemDialogs();
+  await warmUp({ adb, pkg: PKG, providerDependents, sleep,
+    launch: () => { adb('shell', 'am', 'force-stop', PKG); adb('shell', 'monkey', '-p', PKG, '-c', 'android.intent.category.LAUNCHER', '1'); } });
+  try { adb('shell', 'pm', 'clear', PKG); } catch (e) { console.log('pm clear lỗi: ' + e.message.split('\n')[0]); } // kịch bản bắt đầu như lần cài đầu
   await step('mở app', 4 * 60000);
+  // Theo dõi kết nối provider của app trong 3 phút đầu: lúc nào, ở bước nào app nối tới FontsProvider của Play Services
+  const provWatch = createProviderWatch({ adb, pkg: PKG, providerDependents, stepName: () => watch.current() && watch.current().name });
+  provWatch.start();
   await launch();
   // Gắn vào WebView qua DevTools (socket webview_devtools_remote_<pid>): pid đọc lại mỗi lần, có hạn giờ; quá hạn thì mở
   // lại app (tiến trình mới) rồi gắn lại – Playwright tự nó chờ mãi (webview.page() không có hạn giờ)
@@ -148,6 +175,7 @@ async function step(name, ms) {
     const deps = providerDependents(adb('shell', 'dumpsys', 'activity', 'providers'), PKG);
     console.log('Provider app đang phụ thuộc:', deps.length ? JSON.stringify(deps) : 'không có');
   } catch (e) { console.log('Không đọc được dumpsys activity providers: ' + e.message.split('\n')[0]); }
+  fontsProbe('sau khi app nạp xong');
   check('chạy trong app Android thật (Capacitor native)', info.native && info.platform === 'android');
   check('các plugin gốc có mặt', ['App', 'Share', 'Clipboard', 'Haptics', 'SocialLogin'].every((p) => info.plugins.includes(p)), info.plugins.join(','));
   check('Chia sẻ dùng bảng chia sẻ gốc', await app.evaluate(() => typeof navigator.share === 'function' && window.Capacitor.isPluginAvailable('Share')));
@@ -460,6 +488,7 @@ async function step(name, ms) {
   await browser.close();
   await device.close();
   watch.done();
+  fontsProbe('cuối kịch bản');
   console.log(failed ? `✗ ${failed} kiểm tra thất bại` : '✓ Tất cả kiểm tra đều đạt');
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); die('lỗi dừng test: ' + String(e && e.message || e).split('\n')[0], watch.current() && watch.current().name); });

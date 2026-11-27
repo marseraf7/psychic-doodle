@@ -83,6 +83,7 @@ const STUB = `(function () {
   await p.click('#tabbar [data-tab="more"]');
   await sleep(400);
   ok((await visible(p, '[data-auth], #go-login, #go-register')).length === 0, 'Xem thêm (thẻ tài khoản): không nút đăng nhập / đăng ký');
+  ok(await p.evaluate(() => !!document.querySelector('#account #rename')) && (await visible(p, '#rename, .rename-wrap')).length === 0, 'thẻ tài khoản: khách không có nút Đổi tên');
   const links = await p.evaluate(() => [...document.querySelectorAll('a[href]')].filter((a) => a.getClientRects().length && window.CaroPortal.isExternal(a.href)).map((a) => a.href));
   ok(links.length === 0, 'không link ra ngoài đang hiện' + (links.length ? ': ' + links.slice(0, 3).join(' ') : ''));
   // Mở hộp đăng nhập bằng mã (như các chỗ cần tài khoản): chỉ báo "không có đăng nhập"

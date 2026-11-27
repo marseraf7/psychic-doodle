@@ -1,7 +1,7 @@
 // Tiếng Trung phồn thể – bản dịch của caro/i18n-otour-lib.js (docs/van-phong-4-ngon-ngu.md, mục 繁體中文).
 window.I18N.extend('zh-Hant', {
   otl_tile: '知名賽事範本 · {n} 個',
-  otl_tile_h: '足球、電子競技、大逃殺、棋類……點選檢視規則和賽制圖，再選擇範本。',
+  otl_tile_h: '足球、電子競技、大逃殺、棋類…點選檢視規則和賽制圖，再選擇範本。',
   otl_title: '知名賽事範本',
   otl_search: '按名稱或項目搜尋',
   otl_all: '全部',

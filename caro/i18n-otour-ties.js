@@ -193,7 +193,7 @@
     ds_rec_bo_last: '2–2 场次 Bo{bo}',
     ot_seed_tool: '自动排种子',
     ot_seed_mode: '依据',
-    ot_seed_rating: '排名分（Elo、世界排名……）',
+    ot_seed_rating: '排名分（Elo、世界排名…）',
     ot_seed_ballot: '各队投票',
     ot_seed_hint_rating: '每行一队：「队名：分数」。分数高者在前；无分数的队伍按原顺序排在最后。',
     ot_seed_hint_ballot: '每行一张选票，由强到弱排列其余队伍：「投票队：A 队 ＞ B 队 ＞ …」。按 Bradley–Terry 模型（Elo 的基础）由选票中的所有两两比较计算实力。',

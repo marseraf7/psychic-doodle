@@ -132,7 +132,7 @@
     mg_up: '上移', mg_down: '下移', mg_shuffle: '随机抽签', mg_by_rating: '按等级分', mg_seed_auto: '取消手动种子', mg_random_note: '随机排种子：实际顺序在开赛时抽签（除非你在此手动排列并保存）。', mg_save: '保存', mg_saved: '已保存',
     mg_pairs: '第 1 轮对阵',
     mg_schedule: '各轮赛程', mg_schedule_hint: '每轮的预计时间和地点，显示在赛事页面和记分表上。',
-    mg_news: '公告', mg_news_ph: '给选手的公告……', mg_news_post: '发布公告', mg_delete: '删除',
+    mg_news: '公告', mg_news_ph: '给选手的公告…', mg_news_post: '发布公告', mg_delete: '删除',
     mg_settings: '设置', mg_edit_settings: '编辑赛事设置', mg_locked_hint: '赛事已开始：只能修改名称和介绍（赛制、人数、报名已锁定）。',
     mg_danger: '危险操作', mg_hold: '暂停赛事', mg_resume: '继续', mg_reset: '重置赛事', mg_delete_tour: '删除赛事',
     mg_reset_confirm: '将赛事重置到开赛前？对阵表和比分将被清除，选手保留。',
