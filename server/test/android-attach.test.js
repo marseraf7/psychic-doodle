@@ -273,3 +273,30 @@ test('android-provider-watch: dời mốc giờ, lọc nhật ký theo khoảng,
   assert.doesNotMatch(text, /sớm quá|muộn quá/);
   assert.match(text, /dừng theo dõi .*1 lần đổi/);
 });
+
+test('android-provider-watch warmUp: chờ WebView xin phông xong + Play Services ổn định, đếm lần Play Services khởi động lại, tắt app', async () => {
+  const W = require(path.join(APP, 'tests', 'android-provider-watch.js'));
+  let tick = 0;
+  const calls = [];
+  const fonts = `\n  * ContentProviderRecord{abc u0 com.google.android.gms/.fonts.provider.FontsProvider}\n    authority=com.google.android.gms.fonts\n      -> 4321:${PKG}/u0a209 s1/1 u0/0 +3s\n`;
+  const adb = (...a) => {
+    calls.push(a.join(' '));
+    if (a.includes('providers')) return tick >= 2 && tick <= 4 ? fonts : '';
+    if (a.includes('com.google.android.gms.persistent')) return tick < 3 ? '1180\n' : '2572\n'; // khởi động lại một lần
+    if (a.includes('pidof')) return '4321\n';
+    return '';
+  };
+  const orig = console.log; const out = [];
+  console.log = (s) => out.push(String(s));
+  let r;
+  try {
+    r = await W.warmUp({ adb, pkg: PKG, providerDependents: D.providerDependents, launch: () => calls.push('launch'),
+      sleep: async () => { tick++; }, maxMs: 5000, settleMs: 0 });
+  } finally { console.log = orig; }
+  assert.strictEqual(r.fonts, true);
+  assert.strictEqual(r.released, true);
+  assert.strictEqual(r.gmsRestarts, 1);
+  assert.strictEqual(r.appDied, false);
+  assert.ok(calls.includes('launch') && calls.some((c) => c === `shell am force-stop ${PKG}`));
+  assert.match(out.join('\n'), /Làm nóng Play Services: /);
+});

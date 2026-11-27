@@ -5,6 +5,12 @@
  * (dòng FontLog của Play Services + dòng của chính tiến trình app) để biết ai trong app mở kết nối và xin phông gì.
  * Chỉ in, không làm bài thử thất bại. Dùng: const w = createProviderWatch({ adb, pkg, providerDependents, stepName });
  * w.start() lúc mở app, w.stop() khi đã qua phần khởi động (mặc định tự dừng sau 3 phút).
+ *
+ * Kết quả đo (CI 27/11/2026): ~8 giây sau khi mở app, WebView (bộ tra phông của Chromium, AndroidFontLookup) nối tới
+ * FontsProvider và nạp sẵn Google Sans 400/500/700 + Noto Color Emoji Compat, ~22 giây thì nhả. Trên máy ảo vừa khởi
+ * động, lần xin phông đầu tiên làm Play Services tải danh mục / tệp phông rồi tự khởi động lại tiến trình persistent –
+ * nếu đúng lúc đó app đang giữ kết nối thì Android giết app theo. Không phải mã của game, không tắt được từ app.
+ * warmUp(): làm nóng trước kịch bản – mở app một lần, chờ WebView xin phông xong và Play Services ổn định, rồi tắt app.
  */
 'use strict';
 
@@ -85,4 +91,44 @@ function createProviderWatch({ adb, pkg, providerDependents, stepName, everyMs =
   return { start, stop };
 }
 
-module.exports = { createProviderWatch, linesBetween, shift, stampOf };
+/**
+ * Làm nóng Play Services trước kịch bản (xem đầu file). launch(): mở app (force-stop + monkey). Không bao giờ ném lỗi;
+ * trả { fonts: đã thấy kết nối FontsProvider, released: đã nhả, gmsRestarts: số lần pid Play Services persistent đổi,
+ * appDied: app chết giữa chừng, ms }. Chờ tối đa maxMs.
+ */
+async function warmUp({ adb, pkg, providerDependents, launch, sleep, maxMs = 120000, settleMs = 15000 }) {
+  const t0 = Date.now();
+  const pid = (name) => { try { return adb('shell', 'pidof', name).trim().split(/\s+/)[0] || null; } catch (e) { return null; } };
+  const fontsDep = () => {
+    try { return providerDependents(adb('shell', 'dumpsys', 'activity', 'providers'), pkg).some((d) => /fonts/.test(d.provider)); } catch (e) { return false; }
+  };
+  const r = { fonts: false, released: false, gmsRestarts: 0, appDied: false, ms: 0 };
+  let gms = pid('com.google.android.gms.persistent'), stableSince = Date.now();
+  const watchGms = () => {
+    const p = pid('com.google.android.gms.persistent');
+    if (p !== gms) { if (gms && p) r.gmsRestarts++; gms = p; stableSince = Date.now(); }
+  };
+  try {
+    launch();
+    let appPid = null;
+    while (Date.now() - t0 < maxMs) {
+      await sleep(1000);
+      watchGms();
+      const ap = pid(pkg);
+      if (appPid && ap !== appPid) r.appDied = true;
+      appPid = ap || appPid;
+      const dep = fontsDep();
+      if (dep) r.fonts = true;
+      else if (r.fonts) r.released = true;
+      // Xong khi: WebView đã xin phông và nhả (hoặc 40 giây không thấy xin), Play Services không đổi pid trong settleMs
+      const fontsDone = r.released || (!r.fonts && Date.now() - t0 > 40000);
+      if (fontsDone && Date.now() - stableSince >= settleMs) break;
+    }
+  } catch (e) { console.log('Làm nóng: lỗi ' + e.message.split('\n')[0]); }
+  try { adb('shell', 'am', 'force-stop', pkg); } catch (e) { /* bỏ qua */ }
+  r.ms = Date.now() - t0;
+  console.log('Làm nóng Play Services: ' + JSON.stringify(r));
+  return r;
+}
+
+module.exports = { createProviderWatch, warmUp, linesBetween, shift, stampOf };

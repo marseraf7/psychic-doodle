@@ -10,7 +10,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const { until, sleep, parseDevtoolsSockets, parsePidof, createStepWatch, attachWebView } = require('./android-attach');
 const { createDiagnose, providerDependents } = require('./android-diag');
-const { createProviderWatch } = require('./android-provider-watch');
+const { createProviderWatch, warmUp } = require('./android-provider-watch');
 
 const PKG = 'io.github.marseraf7.caro';
 const SHOTS = process.env.SHOTS_DIR || '.';
@@ -132,6 +132,13 @@ async function step(name, ms) {
     }
     return false;
   };
+  // Làm nóng: máy ảo mới khởi động, lần đầu WebView xin phông thì Play Services tải phông rồi tự khởi động lại và kéo app
+  // chết theo (android-provider-watch.js) – cho việc đó xảy ra trước kịch bản, rồi mới mở app để kiểm thử
+  await step('làm nóng Play Services', 3 * 60000);
+  dismissSystemDialogs();
+  await warmUp({ adb, pkg: PKG, providerDependents, sleep,
+    launch: () => { adb('shell', 'am', 'force-stop', PKG); adb('shell', 'monkey', '-p', PKG, '-c', 'android.intent.category.LAUNCHER', '1'); } });
+  try { adb('shell', 'pm', 'clear', PKG); } catch (e) { console.log('pm clear lỗi: ' + e.message.split('\n')[0]); } // kịch bản bắt đầu như lần cài đầu
   await step('mở app', 4 * 60000);
   // Theo dõi kết nối provider của app trong 3 phút đầu: lúc nào, ở bước nào app nối tới FontsProvider của Play Services
   const provWatch = createProviderWatch({ adb, pkg: PKG, providerDependents, stepName: () => watch.current() && watch.current().name });
