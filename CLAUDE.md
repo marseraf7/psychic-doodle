@@ -21,6 +21,8 @@
 - **Không giao việc cho Antigravity nữa** (Minh, 19/11/2026; skill `giao-viec-antigravity` chỉ còn để tham khảo).
   Đo / kiểm trên máy thật, trong Zalo / Messenger, rà soát lỗi → giao **Laplace**: soạn hướng dẫn trong `docs/` (việc cần làm,
   cách đo, mẫu báo cáo) để Minh chuyển cho Laplace. Việc còn lại tự làm.
+  **Ngoại lệ duy nhất** (người dùng xác nhận 27/11/2026): việc **dịch ngôn ngữ mới** giao Antigravity theo
+  `docs/quy-trinh-them-ngon-ngu.md` (Issue nhãn `agent:agy`, mỗi Issue 3–5 ngôn ngữ). Claude tạo khung, review, sửa lỗi, merge.
 - Kiểm thử: `cd server && npm run coverage` (unit + độ phủ), `node caro/tests/e2e/<tên>.e2e.js` (trình duyệt).
 - **Merge PR**: người dùng cho phép (5/11/2026) tự merge PR của Claude khi CI xanh và không xung đột, không cần hỏi
   (kiểu merge commit). Sau merge: `git merge --ff-only origin/<base>` rồi push nhánh làm việc.

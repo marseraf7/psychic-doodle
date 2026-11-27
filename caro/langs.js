@@ -31,6 +31,10 @@
     { code: 'ja', name: '日本語', html: 'ja', intl: 'ja-JP', google: 'ja', og: 'ja_JP', fallback: 'en', dir: true, script: 'Jpan', status: 'mt-draft' },
     { code: 'ko', name: '한국어', html: 'ko', intl: 'ko-KR', google: 'ko', og: 'ko_KR', fallback: 'en', dir: true, script: 'Kore', status: 'mt-draft' },
     { code: 'cs', name: 'Čeština', html: 'cs', intl: 'cs-CZ', google: 'cs', og: 'cs_CZ', fallback: 'en', dir: true, script: 'Latn', status: 'mt-draft' },
+    { code: 'es', name: 'Español', html: 'es', intl: 'es-ES', google: 'es', og: 'es_ES', fallback: 'en', dir: true, script: 'Latn', status: 'hidden' },
+    { code: 'pt', name: 'Português', html: 'pt', intl: 'pt-BR', google: 'pt', og: 'pt_BR', fallback: 'en', dir: true, script: 'Latn', status: 'hidden' },
+    { code: 'fr', name: 'Français', html: 'fr', intl: 'fr-FR', google: 'fr', og: 'fr_FR', fallback: 'en', dir: true, script: 'Latn', status: 'hidden' },
+    { code: 'de', name: 'Deutsch', html: 'de', intl: 'de-DE', google: 'de', og: 'de_DE', fallback: 'en', dir: true, script: 'Latn', status: 'hidden' },
     // @new-lang – server/scripts/new-lang.js chèn ngôn ngữ mới ngay trên dòng này (giữ nguyên dòng)
   ];
   for (const x of LIST) x.hreflang = x.hreflang || x.html;

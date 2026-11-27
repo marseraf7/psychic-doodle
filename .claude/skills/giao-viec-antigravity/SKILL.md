@@ -7,6 +7,7 @@ description: Quy tắc Claude Code (Quản trị viên) chia việc với Antigr
 
 > **Ngừng dùng (Minh, 19/11/2026): không giao việc cho Antigravity nữa.** Việc đo / kiểm trên máy thật giao Laplace
 > (xem CLAUDE.md). Phần dưới chỉ giữ để tham khảo cách viết đề bài và tiêu chí xong.
+> **Ngoại lệ (27/11/2026): dịch ngôn ngữ mới** vẫn giao Antigravity – quy trình và mẫu Issue ở `docs/quy-trinh-them-ngon-ngu.md`.
 
 
 Mục tiêu: Claude Code dồn token và thời gian vào việc khó (tìm nguyên nhân gốc, thiết kế, engine, server, bảo mật);

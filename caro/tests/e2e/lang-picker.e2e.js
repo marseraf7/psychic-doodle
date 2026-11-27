@@ -70,7 +70,8 @@ const ROOT = path.join(__dirname, '..', '..');
   // ---------------------------------------------------------------- 2. Danh sách dài: ô tìm
   let src = fs.readFileSync(path.join(ROOT, 'langs.js'), 'utf8');
   const extra = ['es', 'fr', 'de', 'pt', 'it', 'pl', 'uk', 'tr', 'id', 'nl', 'hi', 'th', 'he', 'fa', 'sw'];
-  for (const c of extra) src = NL.setStatus(NL.addToLangs(src, NL.cldrInfo(c)), c, 'mt-draft');
+  // ngôn ngữ đã có khung (status hidden – vd. es, fr…) thì chỉ đổi status
+  for (const c of extra) src = NL.setStatus(new RegExp(`code: '${c}'`).test(src) ? src : NL.addToLangs(src, NL.cldrInfo(c)), c, 'mt-draft');
   src = NL.addToLangs(src, NL.cldrInfo('ar')); // ar còn hidden
   const p2 = await open('vi', '?bundle=0', src);
   await toLangPage(p2);
