@@ -20,16 +20,20 @@
  * (JSON.stringify / console.log / util.inspect đối tượng hub không làm lộ). Kết quả từ chối chỉ có lý do ngắn (why) cho
  * kiểm thử; hub không gửi why cho máy khách, không ghi dữ liệu nhận được vào log.
  *
- * API: makeHostAuth(env) → null (không bật nền tảng nào) | { providers: ['telegram', 'vk'?], maxAgeSec, verify(provider, data, now) };
+ * CrazyGames (Full Launch, làm sẵn – tắt mặc định): token JWT của SDK, kiểm ở crazygames-auth.js; verify trả Promise.
+ *
+ * API: makeHostAuth(env) → null (không bật nền tảng nào) | { providers: ['telegram', 'vk', 'crazygames'?], maxAgeSec,
+ *      verify(provider, data, now) → kết quả (Telegram / VK) hoặc Promise kết quả (CrazyGames) – nơi gọi luôn await };
  *      tgVerify(initData, botToken, opts), vkVerify(query, secret, opts), vkSign(query, secret) – xuất ra cho kiểm thử.
  */
 'use strict';
 const crypto = require('crypto');
+const { makeCgVerifier } = require('./crazygames-auth.js');
 
 const MAX_DATA = 4096; // initData / chuỗi tham số dài hơn thì từ chối luôn (thật chỉ vài trăm ký tự)
 const FUTURE_SEC = 5 * 60; // đồng hồ máy người dùng / máy nền tảng lệch: cho phép tối đa 5 phút ở tương lai
 const DAY_SEC = 24 * 3600;
-const PROVIDERS = ['telegram', 'vk'];
+const PROVIDERS = ['telegram', 'vk', 'crazygames'];
 
 const no = (why) => ({ ok: false, why });
 const hmac = (key, msg) => crypto.createHmac('sha256', key).update(msg).digest();
@@ -150,10 +154,12 @@ function vkVerify(query, secret, { now = Date.now(), maxAgeSec = DAY_SEC, appId 
  * Đọc cấu hình từ biến môi trường. Không đặt bí mật nào → null (tính năng tắt hẳn).
  *   TELEGRAM_BOT_TOKEN – token của bot (BotFather); VK_APP_SECRET – khoá bí mật (Защищённый ключ) của VK Mini App;
  *   VK_APP_ID – mã app VK (tuỳ chọn, đặt thì vk_app_id phải khớp); HOST_AUTH_MAX_AGE – số giây dữ liệu còn hiệu lực
- *   (60…86400, mặc định 86400 = 24 giờ – chỉ rút ngắn được, không kéo dài).
- * log(msg): báo cấu hình sai (KHÔNG BAO GIỜ kèm giá trị bí mật).
+ *   (60…86400, mặc định 86400 = 24 giờ – chỉ rút ngắn được, không kéo dài);
+ *   CRAZYGAMES_GAME_ID – mã game trên CrazyGames Developer Portal (không phải bí mật): đặt thì bật đăng nhập bằng tài khoản
+ *   CrazyGames cho bản cổng Full Launch (token tự hết hạn sau 1 giờ – HOST_AUTH_MAX_AGE không áp dụng).
+ * log(msg): báo cấu hình sai (KHÔNG BAO GIỜ kèm giá trị bí mật). opts.fetchJwks: thay cách tải khoá CrazyGames (bài thử).
  */
-function makeHostAuth(env = process.env, log = (m) => console.warn(m)) {
+function makeHostAuth(env = process.env, log = (m) => console.warn(m), opts = {}) {
   let tgToken = String(env.TELEGRAM_BOT_TOKEN || '').trim();
   const vkSecret = String(env.VK_APP_SECRET || '').trim();
   let vkAppId = String(env.VK_APP_ID || '').trim();
@@ -172,9 +178,16 @@ function makeHostAuth(env = process.env, log = (m) => console.warn(m)) {
     if (Number.isInteger(n) && n >= 60 && n <= DAY_SEC) maxAgeSec = n;
     else log('[host-auth] HOST_AUTH_MAX_AGE phải là số giây 60…86400 – dùng mặc định 86400');
   }
+  let cgGame = String(env.CRAZYGAMES_GAME_ID || '').trim();
+  if (cgGame && !/^[A-Za-z0-9_-]{1,64}$/.test(cgGame)) {
+    log('[host-auth] CRAZYGAMES_GAME_ID sai định dạng – tắt đăng nhập bằng CrazyGames');
+    cgGame = '';
+  }
+  const cg = cgGame ? makeCgVerifier({ gameId: cgGame, log, ...(opts.fetchJwks ? { fetchJwks: opts.fetchJwks } : {}) }) : null;
   const providers = [];
   if (tgToken) providers.push('telegram');
   if (vkSecret) providers.push('vk');
+  if (cg) providers.push('crazygames');
   if (!providers.length) return null;
   return Object.freeze({
     providers: Object.freeze(providers),
@@ -183,6 +196,7 @@ function makeHostAuth(env = process.env, log = (m) => console.warn(m)) {
     verify(provider, data, now = Date.now()) {
       if (provider === 'telegram' && tgToken) return tgVerify(data, tgToken, { now, maxAgeSec });
       if (provider === 'vk' && vkSecret) return vkVerify(data, vkSecret, { now, maxAgeSec, appId: vkAppId });
+      if (provider === 'crazygames' && cg) return cg.verify(data, now);
       return no('disabled');
     },
   });
