@@ -73,13 +73,15 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS storm_runs_uid ON storm_runs (uid, at);
   CREATE INDEX IF NOT EXISTS storm_runs_best ON storm_runs (week, uid, score DESC, at);
   CREATE TABLE IF NOT EXISTS host_links (provider TEXT NOT NULL, ext_id TEXT NOT NULL, uid TEXT NOT NULL, at INTEGER NOT NULL,
-    PRIMARY KEY (provider, ext_id));
+    seen INTEGER, PRIMARY KEY (provider, ext_id));
   CREATE UNIQUE INDEX IF NOT EXISTS host_links_uid ON host_links (uid, provider);
 `;
 // Cột thêm sau (CSDL tạo từ bản cũ chưa có): đồng hồ tổng và luật khai cuộc của ván
 // Phiên đăng nhập: thông tin thiết bị (mục Thiết bị – store-sessions.js)
+// host_links.seen: mốc thời gian của dữ liệu khởi chạy dùng gần nhất (chống phát lại – store-hostlinks.js)
 const ADD_COLUMNS = [['games', 'clock', 'TEXT'], ['games', 'opening', 'TEXT'], ['games', 'rule', 'TEXT'],
-  ['sessions', 'platform', 'TEXT'], ['sessions', 'ua', 'TEXT'], ['sessions', 'ip', 'TEXT'], ['sessions', 'seen', 'INTEGER']];
+  ['sessions', 'platform', 'TEXT'], ['sessions', 'ua', 'TEXT'], ['sessions', 'ip', 'TEXT'], ['sessions', 'seen', 'INTEGER'],
+  ['host_links', 'seen', 'INTEGER']];
 
 function openDb(file) {
   if (file) fs.mkdirSync(path.dirname(file), { recursive: true });

@@ -25,9 +25,12 @@ test('dấu hiệu Discord: đủ frame_id + instance_id + platform desktop|mobi
   }
 });
 
-test('frame-ancestors Discord: discord.com (+ con), discordapp.com (+ con), *.discordsays.com; DISCORD_FRAME_ANCESTORS đổi được', () => {
-  const c = E.discordCsp(CSP, {});
-  assert.match(c, /frame-ancestors https:\/\/discord\.com https:\/\/\*\.discord\.com https:\/\/discordapp\.com https:\/\/\*\.discordapp\.com https:\/\/\*\.discordsays\.com;/);
+test('frame-ancestors Discord: discord.com (+ con), discordapp.com (+ con), đúng <DISCORD_CLIENT_ID>.discordsays.com; DISCORD_FRAME_ANCESTORS đổi được', () => {
+  // Không nhận mọi *.discordsays.com: Activity của người khác cũng ở đó – không cho họ nhúng trang thật của game (có phiên đăng nhập)
+  assert.match(E.discordCsp(CSP, {}), /frame-ancestors https:\/\/discord\.com https:\/\/\*\.discord\.com https:\/\/discordapp\.com https:\/\/\*\.discordapp\.com;/);
+  const c = E.discordCsp(CSP, { DISCORD_CLIENT_ID: `${ID}, 42424242, 12ab` });
+  assert.match(c, new RegExp(`frame-ancestors https://discord\\.com https://\\*\\.discord\\.com https://discordapp\\.com https://\\*\\.discordapp\\.com https://${ID}\\.discordsays\\.com https://42424242\\.discordsays\\.com;`));
+  assert.ok(!c.includes('*.discordsays'), 'không có ký tự đại diện cho discordsays.com');
   assert.ok(c.includes("script-src 'self' 'wasm-unsafe-eval'"), 'không thêm nguồn script nào (SDK tự phục vụ)');
   assert.ok(!c.includes('telegram') && !c.includes('vk.com'), 'không lẫn Telegram / VK');
   assert.match(E.discordCsp(CSP, { DISCORD_FRAME_ANCESTORS: 'none' }), /frame-ancestors 'none'/);

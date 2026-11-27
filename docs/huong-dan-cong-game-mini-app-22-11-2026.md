@@ -144,11 +144,15 @@ Cài đặt tài khoản. Chưa nạp bí mật thì tính năng **tắt hẳn**
   `auth_date` không cũ quá 24 giờ, không ở tương lai quá 5 phút. VK: chỉ các tham số `vk_…`, sắp theo tên, HMAC-SHA256 bằng khoá
   bí mật, base64url (ví dụ chính thức `VKCOM/vk-apps-launch-params` – có trong bài thử); `vk_ts` bắt buộc, không quá 24 giờ;
   `vk_app_id` phải khớp `VK_APP_ID`. `HOST_AUTH_MAX_AGE` (giây, 60–86400) rút ngắn thời hạn nếu muốn.
-- Máy chủ chỉ lưu nền tảng + id Telegram / VK + lúc liên kết (bảng `host_links`); không lưu initData, username Telegram, ảnh.
-  Xoá tài khoản / huỷ liên kết là xoá dòng đó.
+- Máy chủ chỉ lưu nền tảng + id Telegram / VK + lúc liên kết + mốc thời gian (`auth_date` / `vk_ts`) của dữ liệu khởi chạy
+  dùng gần nhất (bảng `host_links`); không lưu initData, username Telegram, ảnh. Xoá tài khoản / huỷ liên kết là xoá dòng đó.
+- **Chống phát lại** (rà soát Đợt 3): dữ liệu khởi chạy có mốc cũ hơn lần dùng gần nhất của cùng Telegram / VK thì không cấp
+  phiên – bản initData / `sign` bị lộ của một lần mở trước hết dùng được ngay khi người chơi mở lại Mini App (tải lại trang trong
+  cùng lần mở vẫn được). Chưa chặn được: kẻ có bản lộ dùng TRƯỚC khi người chơi mở lại (trong thời hạn `HOST_AUTH_MAX_AGE`).
 - **Tài khoản quản trị viên không đăng nhập / liên kết được bằng Telegram / VK** – quyền cao nhất chỉ vào bằng mật khẩu / Google.
 - Tên đăng nhập tự sinh `tg_xxxxxxxx` / `vk_xxxxxxxx` (ngẫu nhiên, không chứa id Telegram / VK).
 - VK: trang chép tham số có chữ ký vào sessionStorage rồi **bỏ `sign` khỏi địa chỉ** (thêm `?host=vk`) để chữ ký không lọt vào
-  link sao chép / lịch sử. Địa chỉ lượt mở đầu (có `sign`) vẫn tới máy chủ: nếu proxy (Caddy / nginx) ghi log đầy đủ địa chỉ,
+  link sao chép / lịch sử. Lượt mở Mini App trả `referrer-policy: strict-origin` để CSS / script tải trước khi kịp bỏ `sign`
+  không mang nguyên địa chỉ làm Referer. Địa chỉ lượt mở đầu (có `sign`) vẫn tới máy chủ: nếu proxy (Caddy / nginx) ghi log đầy đủ địa chỉ,
   nên tắt ghi query string hoặc giữ log ngắn hạn – ai đọc được log có thể đăng nhập thay người chơi trong thời hạn còn hiệu lực.
 - Giới hạn: 30 lần dữ liệu sai / IP / 10 phút; 1 lần / giây / kết nối; tạo tài khoản chung hạn mức với đăng ký thường.

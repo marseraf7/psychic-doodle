@@ -22,6 +22,9 @@
  *     lúc đăng nhập (kiểm isAdmin mỗi lần).
  *   – Từ chối chung chung (host_auth_failed), log một dòng không kèm dữ liệu; đếm lần sai theo IP như đăng nhập Google;
  *     mỗi kết nối tối đa 1 lần / giây; tạo tài khoản dùng chung hạn mức "reg:<IP>" với đăng ký thường.
+ *   – Chống phát lại (rẻ, không thêm bước nào cho người chơi): mỗi liên kết nhớ mốc thời gian (auth_date / vk_ts) của dữ liệu
+ *     khởi chạy dùng gần nhất; dữ liệu có mốc cũ hơn thì không cấp phiên (store-hostlinks.js · hlSeen). Bản initData / sign
+ *     bị lộ (lịch sử, nhật ký truy cập…) hết dùng được ngay khi người chơi mở lại Mini App, thay vì còn hiệu lực đủ 24 giờ.
  *   – Tên đăng nhập tự sinh tg_<8 ký tự ngẫu nhiên> / vk_<…> – không chứa id Telegram / VK (tên đăng nhập là công khai),
  *     không trùng tên đã có và không trùng tên trong cấu hình quản trị (người đầu tiên lấy tên đó sẽ thành quản trị).
  */
@@ -83,6 +86,12 @@ class HostLogin {
       throw E('host_auth_failed');
     }
     const extId = r.user.id;
+    // Dữ liệu cũ hơn lần dùng gần nhất của cùng Telegram / VK (bản bị lộ của một lần mở trước) = từ chối như sai chữ ký
+    const stale = () => {
+      this.fail(rules);
+      console.warn(`[host-auth] từ chối dữ liệu khởi chạy ${provider} cũ hơn lần dùng gần nhất`);
+      return E('host_auth_failed');
+    };
     const cur = uidOf(conn.pid) && this.store.users.get(uidOf(conn.pid));
     const ownerId = this.store.hlOwner(provider, extId);
     let owner = ownerId && this.store.users.get(ownerId);
@@ -93,7 +102,7 @@ class HostLogin {
       if (this.isAdmin(cur.id)) throw E('host_admin_blocked');
       if (owner === cur) { this.hostSendMe(conn.pid); return conn.send(note('host_linked_' + provider)); }
       if (owner) throw E('host_taken');
-      if (!this.store.hlLink(provider, extId, cur.id)) throw E('host_has_other');
+      if (!this.store.hlLink(provider, extId, cur.id, Date.now(), r.ts)) throw E('host_has_other');
       this.hostSendMe(conn.pid);
       return conn.send(note('host_linked_' + provider));
     }
@@ -105,6 +114,7 @@ class HostLogin {
       }
       if (cur === owner) return conn.send({ t: 'hostState', provider, state: 'linked' });
       if (cur) throw E('host_taken'); // đang đăng nhập tài khoản khác: không tự đổi tài khoản
+      if (!this.store.hlSeen(provider, extId, r.ts)) throw stale(); // chỉ cấp phiên cho dữ liệu không cũ hơn lần trước
       return this.loginConn(conn, owner);
     }
     if (mode === 'auto') return conn.send({ t: 'hostState', provider, state: 'unlinked' });
@@ -117,7 +127,7 @@ class HostLogin {
     const pick = (s) => { const n = cleanName(s); return n && !isOffensiveName(n) ? n : ''; };
     const name = pick(r.user.firstName) || pick(typeof msg.name === 'string' ? msg.name.slice(0, 64) : '') || 'Player';
     const user = this.store.createUser({ username: this.hostFreeUsername(provider), name });
-    if (!this.store.hlLink(provider, extId, user.id)) { // không xảy ra (mã đồng bộ) – vẫn dọn cho chắc
+    if (!this.store.hlLink(provider, extId, user.id, Date.now(), r.ts)) { // không xảy ra (mã đồng bộ) – vẫn dọn cho chắc
       this.store.deleteUser(user);
       throw E('host_taken');
     }

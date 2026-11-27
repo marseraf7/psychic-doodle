@@ -106,7 +106,15 @@ Facebook, giải tuần – [L-FB 2.13]).
 
 ## 4. Telegram đăng nhập bằng initData
 
-Đang làm ở nhánh khác (máy chủ kiểm chữ ký initData bằng token bot, không tin `user.id` phía trình duyệt).
+Đã làm (Telegram + VK): máy chủ kiểm chữ ký initData / tham số VK, không tin `user.id` phía trình duyệt – cách bật và quyết
+định bảo mật ở `docs/huong-dan-cong-game-mini-app-22-11-2026.md` mục 4, bài kiểm cho Laplace ở
+`docs/laplace-kiem-dang-nhap-mini-app-26-11-2026.md`. Rà soát Đợt 3 (27/11/2026) thêm: chống phát lại (dữ liệu cũ hơn lần dùng
+gần nhất bị từ chối), `referrer-policy: strict-origin` ở lượt mở Mini App. Cần Minh quyết:
+- Nhật ký truy cập của Caddy (`/var/log/caddy/caro-access.log`) ghi nguyên địa chỉ lượt mở VK (có `sign`, `vk_user_id`). Nên
+  thêm bộ lọc xoá tham số `sign` trong khối `log` của Caddyfile (chưa sửa vì chưa thử được cú pháp trên Caddy thật) hoặc giữ log
+  ngắn hạn.
+- `HOST_AUTH_MAX_AGE` mặc định 24 giờ: rút xuống (vd. 3600) thì bản lộ hết hạn sớm hơn, nhưng người để Mini App mở quá thời hạn
+  rồi mới bấm "Lưu tiến độ" sẽ phải đóng / mở lại.
 
 ## 5. Discord Activities
 

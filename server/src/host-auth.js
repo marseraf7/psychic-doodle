@@ -54,7 +54,7 @@ const shortStr = (v, max) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\
 
 /**
  * Kiểm initData của Telegram. opts: { now (ms), maxAgeSec }.
- * → { ok: true, user: { id, firstName, username, lang }, authDate } | { ok: false, why }.
+ * → { ok: true, user: { id, firstName, username, lang }, authDate, ts (= authDate) } | { ok: false, why }.
  */
 function tgVerify(initData, botToken, { now = Date.now(), maxAgeSec = DAY_SEC } = {}) {
   if (typeof botToken !== 'string' || !botToken) return no('disabled');
@@ -86,6 +86,7 @@ function tgVerify(initData, botToken, { now = Date.now(), maxAgeSec = DAY_SEC } 
     ok: true,
     user: { id: String(u.id), firstName: shortStr(u.first_name, 64), username: shortStr(u.username, 64), lang: shortStr(u.language_code, 16) },
     authDate: Number(fields.get('auth_date')),
+    ts: Number(fields.get('auth_date')), // mốc chung với VK (hub/host-login.js – chống phát lại)
   };
 }
 

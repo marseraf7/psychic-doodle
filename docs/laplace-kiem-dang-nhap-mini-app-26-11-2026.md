@@ -68,6 +68,11 @@ mục 2, 3). Đợt 3 thêm **đăng nhập bằng dữ liệu khởi chạy có
 12. **Giao diện**: đổi ngôn ngữ (English, Русский): nút / hộp hỏi không bị cắt chữ, không đè nhau ở màn hẹp. Chụp ảnh.
 13. VK: sau khi mở, nhìn địa chỉ trang (nếu xem được – vk.com bản máy tính: chuột phải khung game → "Sao chép địa chỉ khung" /
     công cụ nhà phát triển): địa chỉ **không còn** `sign=`. Không xem được thì ghi [KHÔNG XEM ĐƯỢC].
+14. **Hai máy cùng tài khoản Telegram / VK** (kiểm chống phát lại – máy chủ không nhận dữ liệu khởi chạy cũ hơn lần dùng gần
+    nhất): máy A mở Mini App (đã liên kết ở bước 2) rồi Đăng xuất (về khách), **để nguyên không đóng**; máy B mở Mini App sau
+    đó (tự vào tài khoản). Quay lại máy A: kéo xuống / tải lại trang trong Mini App (nếu có) và bấm "Lưu tiến độ…". Ghi nguyên
+    văn thông báo (dự kiến: "Không xác minh được dữ liệu đăng nhập. Hãy đóng rồi mở lại ứng dụng mini"). Đóng hẳn Mini App ở máy
+    A rồi mở lại: **phải tự vào đúng tài khoản**. Ghi thêm: lần tải lại trang (không đóng) ở bước 3 có tự vào không.
 
 ## Mẫu báo cáo (mỗi dòng máy một bảng)
 
@@ -89,6 +94,7 @@ Ngày giờ bắt đầu: __/__/2026 __:__
 | 11 Mở lâu > 30 phút | | |
 | 12 Giao diện EN / RU | | |
 | 13 VK: địa chỉ không còn sign= | | |
+| 14 Hai máy – máy mở trước bị từ chối, đóng / mở lại vào được | | |
 Lỗi lạ / thông báo khác (nguyên văn + giờ): ______
 ```
 

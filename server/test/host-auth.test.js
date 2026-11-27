@@ -207,12 +207,14 @@ test('makeHostAuth: thiếu biến môi trường → tắt (null); sai dạng �
 });
 
 // ------------------------------------------------------------------ Lưu trữ
-test('store: bảng host_links (có trên CSDL cũ), duy nhất theo (provider, id) và (tài khoản, provider), xoá tài khoản xoá liên kết', () => {
+test('store: bảng host_links (có trên CSDL cũ, thêm cột seen), duy nhất theo (provider, id) và (tài khoản, provider), xoá tài khoản xoá liên kết', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caro-hl-'));
   const file = path.join(dir, 'caro.db');
   const { DatabaseSync } = require('node:sqlite');
   const old = new DatabaseSync(file); // CSDL "bản cũ": chưa có host_links
   old.exec('CREATE TABLE users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, data TEXT NOT NULL)');
+  // Bảng host_links của bản thử trước (chưa có cột seen) → tự thêm cột
+  old.exec('CREATE TABLE host_links (provider TEXT NOT NULL, ext_id TEXT NOT NULL, uid TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (provider, ext_id))');
   old.close();
   const s = new Store(file);
   const a = s.createUser({ username: 'hl_a', name: 'A' });
@@ -224,7 +226,16 @@ test('store: bảng host_links (có trên CSDL cũ), duy nhất theo (provider, 
   assert.strictEqual(s.hlOwner('telegram', '1'), a.id);
   assert.deepStrictEqual(s.hlList(a.id), [{ provider: 'telegram', at: 5 }, { provider: 'vk', at: s.hlList(a.id)[1].at }]);
   const cols = s.db.prepare('PRAGMA table_info(host_links)').all().map((c) => c.name);
-  assert.deepStrictEqual(cols, ['provider', 'ext_id', 'uid', 'at'], 'chỉ lưu dữ liệu tối thiểu');
+  assert.deepStrictEqual(cols, ['provider', 'ext_id', 'uid', 'at', 'seen'], 'chỉ lưu dữ liệu tối thiểu');
+  // Mốc dữ liệu khởi chạy (chống phát lại): chỉ nhận mốc không cũ hơn; không có liên kết / mốc sai → false
+  assert.strictEqual(s.hlSeen('telegram', '1', 100), true, 'chưa có mốc');
+  assert.strictEqual(s.hlSeen('telegram', '1', 100), true, 'bằng mốc cũ');
+  assert.strictEqual(s.hlSeen('telegram', '1', 99), false, 'cũ hơn');
+  assert.strictEqual(s.hlSeen('telegram', '1', 200), true);
+  assert.strictEqual(s.hlSeen('telegram', '1', 150), false);
+  assert.strictEqual(s.hlSeen('telegram', '404', 300), false, 'không có liên kết');
+  assert.strictEqual(s.hlSeen('telegram', '1', NaN), false);
+  assert.strictEqual(s.hlSeen('telegram', '1', undefined), false);
   assert.strictEqual(s.hlUnlink(a.id, 'vk'), true);
   assert.strictEqual(s.hlUnlink(a.id, 'vk'), false);
   s.deleteUser(a);
@@ -499,6 +510,33 @@ test('dữ liệu sai chữ ký / hết hạn → từ chối chung chung, log m
   assert.strictEqual((await c.ask({ t: 'hostLogin', provider: 'telegram', data: tg(1104), mode: 'create' }, 'auth')).code, 'too_many_attempts');
   app.hub.fails.clear();
   c.close();
+});
+
+test('phát lại: dữ liệu khởi chạy cũ hơn lần dùng gần nhất của cùng Telegram / VK bị từ chối (cùng lần mở vẫn dùng lại được)', async () => {
+  const c = await Client.open();
+  await c.req({ t: 'hostLogin', provider: 'telegram', data: tg(1201, { auth_date: String(SEC - 600) }), mode: 'create' }, 'welcome');
+  const uid = c.me.uid;
+  c.close();
+  // Người chơi mở lại Mini App (dữ liệu mới hơn) → vào được; tải lại đúng lần mở đó (cùng dữ liệu) → vẫn vào được
+  for (const at of [SEC - 300, SEC - 300]) {
+    const d = await Client.open();
+    await d.req({ t: 'hostLogin', provider: 'telegram', data: tg(1201, { auth_date: String(at) }), mode: 'auto' }, 'welcome');
+    assert.strictEqual(d.me.uid, uid);
+    d.close();
+  }
+  // Kẻ giữ bản initData của lần mở trước không dùng lại được nữa
+  const e = await Client.open();
+  assert.strictEqual((await e.req({ t: 'hostLogin', provider: 'telegram', data: tg(1201, { auth_date: String(SEC - 600) }), mode: 'auto' }, 'hostState')).state, 'failed');
+  assert.strictEqual((await e.ask({ t: 'hostLogin', provider: 'telegram', data: tg(1201, { auth_date: String(SEC - 600) }), mode: 'create' }, 'auth')).code, 'host_auth_failed');
+  assert.ok(e.me.guest);
+  // VK: tương tự theo vk_ts; gắn từ trong tài khoản cũng ghi mốc
+  const { c: a } = await account();
+  await a.req({ t: 'hostLogin', provider: 'vk', data: vk(7301, { vk_ts: String(SEC - 200) }), mode: 'link' }, 'toast');
+  const f = await Client.open();
+  assert.strictEqual((await f.req({ t: 'hostLogin', provider: 'vk', data: vk(7301, { vk_ts: String(SEC - 900) }), mode: 'auto' }, 'hostState')).state, 'failed');
+  await f.req({ t: 'hostLogin', provider: 'vk', data: vk(7301, { vk_ts: String(SEC - 100) }), mode: 'auto' }, 'welcome');
+  assert.strictEqual(f.me.uid, a.me.uid);
+  a.close(); e.close(); f.close();
 });
 
 test('token bot / khoá VK không xuất hiện trong bất cứ tin gửi máy khách hay dòng log nào', async () => {
