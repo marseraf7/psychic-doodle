@@ -4,7 +4,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert');
-const { detect, startParam, parseStart, routeSearch, ROUTE_KEYS } = require('../host-detect.js');
+const { detect, startParam, parseStart, routeSearch, vkLaunch, ROUTE_KEYS } = require('../host-detect.js');
 
 const TG_HASH = '#tgWebAppData=' + encodeURIComponent('query_id=AA&user=%7B%22id%22%3A1%7D&auth_date=1&start_param=o-giai-tuan&hash=x') + '&tgWebAppVersion=8.0&tgWebAppPlatform=android';
 const VK = '?vk_access_token_settings=&vk_app_id=51234567&vk_are_notifications_enabled=0&vk_is_app_user=1&vk_language=ru&vk_platform=desktop_web&vk_ref=other&vk_ts=1700000000&vk_user_id=1&sign=abcDEF';
@@ -50,4 +50,14 @@ test('routeSearch: thêm tham số vào địa chỉ, giữ tham số của nề
   assert.strictEqual(routeSearch('', 'replay-AbC'), '?replay=AbC');
   assert.strictEqual(routeSearch('?room=111111', 't-abc'), null);
   assert.strictEqual(routeSearch('?x=1', 'nope'), null);
+});
+
+test('vkLaunch: giữ nguyên văn vk_… + sign cho đăng nhập (Đợt 3), bỏ sign khỏi địa chỉ, luôn có host=vk', () => {
+  const r = vkLaunch(VK + '&hash=room-1&vk_access_token_settings2=a%2Cb');
+  assert.strictEqual(r.raw, VK.slice(1) + '&vk_access_token_settings2=a%2Cb', 'nguyên văn, đúng thứ tự, giữ mã hoá');
+  assert.ok(!/sign=/.test(r.search) && /^\?host=vk&vk_access_token_settings=/.test(r.search) && /&hash=room-1/.test(r.search), r.search);
+  assert.strictEqual(vkLaunch('?host=vk&vk_app_id=1&sign=x').search, '?host=vk&vk_app_id=1', 'đã có host: không thêm lần nữa');
+  assert.strictEqual(vkLaunch('?vk_app_id=1'), null, 'không có sign');
+  assert.strictEqual(vkLaunch(''), null);
+  assert.strictEqual(vkLaunch('?signx=1&vk_app_id=1'), null, 'signx không phải sign');
 });

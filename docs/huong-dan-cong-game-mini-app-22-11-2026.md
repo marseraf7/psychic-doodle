@@ -2,7 +2,8 @@
 
 Việc của Minh (tài khoản, bấm nộp) và việc kiểm thật của Laplace, theo `docs/ke-hoach-tiep-can-toan-cau-21-11-2026.md`
 (Đợt 1). Phần code: `server/scripts/build-portal.js`, `caro/portal*.js`, `server/src/portal-origins.js`; Mini App:
-`caro/host-detect.js`, `caro/host*.js`, `caro/vendor/vk-bridge.js`, `server/src/host-embed.js`.
+`caro/host-detect.js`, `caro/host*.js`, `caro/vendor/vk-bridge.js`, `server/src/host-embed.js`; đăng nhập bằng Mini App
+(Đợt 3, 26/11/2026): `caro/host-auth.js`, `server/src/host-auth.js`, `server/src/hub/host-login.js` – mục 4.
 
 ## 1. Đóng gói bản cổng (CrazyGames / itch.io)
 
@@ -62,13 +63,13 @@ nộp**, khác thì đổi `--sizes` / `--video-size`.
 
 Mini App mở đúng trang chính (không bản riêng), tự nhận ra Telegram: ready / expand, chặn vuốt dọc đóng app, giao diện sáng /
 tối theo Telegram (nếu người chơi chưa tự chọn), nút Back của Telegram = lùi trong app, link ra ngoài mở bằng trình duyệt
-ngoài, đang chơi online thì đóng app phải xác nhận. Không đăng nhập bằng Telegram (giữ tài khoản Caro / khách như web).
+ngoài, đang chơi online thì đóng app phải xác nhận. Đăng nhập bằng Telegram: bật khi Minh nạp token bot vào máy chủ (mục 4).
 Khán giả: Nga / quốc tế, không quảng bá cho người chơi Việt Nam (kế hoạch C0.3).
 
 Minh làm trong Telegram, mở **@BotFather** (tên mục có thể khác theo bản Telegram – làm theo giao diện thật, ghi lại đã đặt gì):
 
-1. `/newbot` → tên hiển thị + username kết thúc bằng `bot`. BotFather trả **token**: MVP **không cần** token – không dán
-   vào chat, tài liệu hay repo. Lỡ lộ thì `/revoke` ngay.
+1. `/newbot` → tên hiển thị + username kết thúc bằng `bot`. BotFather trả **token**: chỉ dùng để bật đăng nhập bằng Telegram
+   (mục 4) – Minh tự nạp thẳng vào máy chủ, **không** dán vào chat, tài liệu hay repo. Lỡ lộ thì `/revoke` ngay.
 2. `/newapp` (hoặc Bot Settings → Configure Mini App): chọn bot, đặt tên, mô tả, ảnh, **Web App URL**
    `https://<tên miền>/?host=tg`, **short name** (vd. `play`) → link mở thẳng `https://t.me/<bot>/play`.
 3. Bot Settings → **Menu Button** → URL `https://<tên miền>/?host=tg`, chữ nút "Play" / "Играть".
@@ -85,16 +86,16 @@ Laplace kiểm (Android + Desktop, iOS nếu có): direct link mở đúng game;
 
 ## 3. VK Mini App (MVP)
 
-Tự nhận ra VK (tham số khởi chạy `vk_app_id` + `sign`): VKWebAppInit, giao diện sáng / tối theo VK. **Không** kiểm chữ ký
-`sign` (máy chủ chưa có khoá bí mật) nên không tin `vk_user_id`, không đăng nhập bằng VK.
+Tự nhận ra VK (tham số khởi chạy `vk_app_id` + `sign`): VKWebAppInit, giao diện sáng / tối theo VK. Đăng nhập bằng VK: bật
+khi Minh nạp khoá bí mật của app vào máy chủ (mục 4) – máy chủ kiểm chữ ký `sign`, chưa kiểm thì không bao giờ tin `vk_user_id`.
 
 Minh làm ở dev.vk.ru (Mini Apps → Create app / Создать приложение; tên mục chưa kiểm được từ đây – làm theo giao diện thật):
 
 1. Chọn loại Mini App (Игра nếu muốn vào danh mục game), đặt tên, ảnh.
 2. Mục Hosting / Размещение: địa chỉ cho **mobile** (`vk.com` app Android / iOS), **m.vk.com** và **vk.com bản máy tính**
    đều là `https://<tên miền>/?host=vk` (VK tự thêm `vk_*` + `sign`).
-3. Bật app, gắn vào cộng đồng VK của game (Community → Apps / Приложения). Khoá bí mật (Защищённый ключ) giữ ở chỗ an
-   toàn – MVP không dùng, không gửi qua chat.
+3. Bật app, gắn vào cộng đồng VK của game (Community → Apps / Приложения). Khoá bí mật (Защищённый ключ) + mã số app: dùng để
+   bật đăng nhập bằng VK (mục 4) – Minh tự nạp thẳng vào máy chủ, không gửi qua chat.
 4. Link sâu: `https://vk.com/app<id>#room-123456` (VK truyền phần sau `#` trong tham số `hash`; app nhận cả khi VK đưa thẳng vào `location.hash` – Laplace kiểm bản nào đúng).
 
 Laplace kiểm: mở trên vk.com (máy tính – iframe), m.vk.com, app VK Android; chơi trọn ván với máy; giao diện đổi theo
@@ -106,3 +107,52 @@ chế độ tối của VK; link `#room-…` vào đúng phòng.
   `https://web.telegram.org`, `vk.com`, `vk.ru` (và tên miền con) và được nạp `https://telegram.org/js/telegram-web-app.js`.
   Mọi lượt khác giữ nguyên `frame-ancestors 'none'`. Đổi danh sách bằng `HOST_FRAME_ANCESTORS` (cách nhau dấu cách;
   `none` = tắt).
+
+## 4. Đăng nhập bằng Telegram / VK (Đợt 3 – Minh nạp bí mật vào máy chủ)
+
+Người chơi trong Mini App: đã liên kết thì **tự vào đúng tài khoản** (kể cả máy mới / đã xoá dữ liệu trình duyệt – lý do làm:
+localStorage trong WebView của Telegram / VK không bền); khách thấy nút "Lưu tiến độ bằng Telegram / VK" (tạo tài khoản không
+mật khẩu, mang tiến độ khách sang); người đã có tài khoản Caro thấy nút "Liên kết Telegram / VK" (hỏi xác nhận). Huỷ liên kết ở
+Cài đặt tài khoản. Chưa nạp bí mật thì tính năng **tắt hẳn** (không nút, máy chủ báo "không hỗ trợ").
+
+### Minh làm (trực tiếp trên máy chủ – không gửi token / khoá qua chat, email, Issue, repo)
+
+1. Lấy bí mật:
+   - Telegram: token của bot đã tạo ở mục 2 (BotFather → bot → API Token).
+   - VK: dev.vk.ru → app → Settings / Настройки: **Защищённый ключ** (Secure key) và **ID приложения** (App ID).
+2. SSH vào máy chủ, mở file cấu hình (chỉ root đọc được):
+   ```
+   sudo nano /etc/caro/caro.env
+   ```
+   Điền (mẫu ở `server/deploy/caro.env.example`):
+   ```
+   TELEGRAM_BOT_TOKEN=<dán token>
+   VK_APP_SECRET=<dán khoá bí mật>
+   VK_APP_ID=<mã số app>
+   ```
+   Chỉ dùng một nền tảng thì để trống dòng của nền tảng kia. Lưu, rồi `sudo systemctl restart caro`.
+3. Kiểm: `sudo journalctl -u caro -n 30` phải có dòng `(Đăng nhập bằng Mini App: telegram, vk)`. Có dòng
+   `TELEGRAM_BOT_TOKEN sai định dạng` thì token dán thiếu / thừa ký tự. Log **không bao giờ** in token / khoá.
+4. Giao Laplace kiểm theo `docs/laplace-kiem-dang-nhap-mini-app-26-11-2026.md`.
+5. Lỡ lộ: Telegram – BotFather `/revoke` lấy token mới; VK – tạo lại khoá bí mật; nạp lại vào máy chủ, khởi động lại. Tài
+   khoản / liên kết của người chơi không mất (liên kết theo id Telegram / VK, không theo token).
+
+### Cách hoạt động, quyết định bảo mật
+
+- Telegram: máy chủ kiểm `initData` theo core.telegram.org/bots/webapps ("Validating data received via the Mini App"): HMAC-SHA256
+  với khoá `HMAC_SHA256("WebAppData", token)`, mọi trường trừ `hash` (cả `signature`), so bằng `crypto.timingSafeEqual`;
+  `auth_date` không cũ quá 24 giờ, không ở tương lai quá 5 phút. VK: chỉ các tham số `vk_…`, sắp theo tên, HMAC-SHA256 bằng khoá
+  bí mật, base64url (ví dụ chính thức `VKCOM/vk-apps-launch-params` – có trong bài thử); `vk_ts` bắt buộc, không quá 24 giờ;
+  `vk_app_id` phải khớp `VK_APP_ID`. `HOST_AUTH_MAX_AGE` (giây, 60–86400) rút ngắn thời hạn nếu muốn.
+- Máy chủ chỉ lưu nền tảng + id Telegram / VK + lúc liên kết + mốc thời gian (`auth_date` / `vk_ts`) của dữ liệu khởi chạy
+  dùng gần nhất (bảng `host_links`); không lưu initData, username Telegram, ảnh. Xoá tài khoản / huỷ liên kết là xoá dòng đó.
+- **Chống phát lại** (rà soát Đợt 3): dữ liệu khởi chạy có mốc cũ hơn lần dùng gần nhất của cùng Telegram / VK thì không cấp
+  phiên – bản initData / `sign` bị lộ của một lần mở trước hết dùng được ngay khi người chơi mở lại Mini App (tải lại trang trong
+  cùng lần mở vẫn được). Chưa chặn được: kẻ có bản lộ dùng TRƯỚC khi người chơi mở lại (trong thời hạn `HOST_AUTH_MAX_AGE`).
+- **Tài khoản quản trị viên không đăng nhập / liên kết được bằng Telegram / VK** – quyền cao nhất chỉ vào bằng mật khẩu / Google.
+- Tên đăng nhập tự sinh `tg_xxxxxxxx` / `vk_xxxxxxxx` (ngẫu nhiên, không chứa id Telegram / VK).
+- VK: trang chép tham số có chữ ký vào sessionStorage rồi **bỏ `sign` khỏi địa chỉ** (thêm `?host=vk`) để chữ ký không lọt vào
+  link sao chép / lịch sử. Lượt mở Mini App trả `referrer-policy: strict-origin` để CSS / script tải trước khi kịp bỏ `sign`
+  không mang nguyên địa chỉ làm Referer. Địa chỉ lượt mở đầu (có `sign`) vẫn tới máy chủ: nếu proxy (Caddy / nginx) ghi log đầy đủ địa chỉ,
+  nên tắt ghi query string hoặc giữ log ngắn hạn – ai đọc được log có thể đăng nhập thay người chơi trong thời hạn còn hiệu lực.
+- Giới hạn: 30 lần dữ liệu sai / IP / 10 phút; 1 lần / giây / kết nối; tạo tài khoản chung hạn mức với đăng ký thường.

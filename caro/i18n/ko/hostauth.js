@@ -1,0 +1,27 @@
+// Tiếng Hàn – bản dịch của caro/i18n-hostauth.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Hàn).
+// {host} đứng trước "계정", "에서" để không phải chọn tiểu từ theo phụ âm cuối (Telegram / VK).
+window.I18N.extend('ko', {
+  hostauth_save: '{host} 계정으로 진행 상황 저장',
+  hostauth_save_hint: '비밀번호가 필요 없어요. 다음에 {host}에서 게임을 열면 이 계정으로 로그인돼요.',
+  hostauth_link_btn: '{host} 연결',
+  hostauth_link_q: '지금 사용 중인 {host} 계정을 {name} 계정에 연결할까요? 다음에 {host}에서 게임을 열면 자동으로 이 계정에 로그인돼요.',
+  hostauth_linked_tag: '✓ {host} 연결됨',
+  hostauth_card_title: 'Telegram 및 VK',
+  hostauth_card_hint: '연결된 미니 앱에서 게임을 열면 이 계정에 자동으로 로그인돼요. 연결을 해제하면 서버에 저장된 Telegram 또는 VK 계정 ID가 삭제돼요.',
+  hostauth_only_note: '이 계정은 비밀번호도 Google 연결도 없어서 미니 앱으로만 들어올 수 있어요. 웹에서도 로그인하려면 위에서 비밀번호를 설정하세요.',
+  hostauth_unlink: '연결 해제',
+  hostauth_unlink_q: '{host} 연결을 해제할까요? {host}에서 게임을 열어도 더 이상 이 계정에 자동으로 로그인되지 않아요.',
+  hostauth_unlink_last_q: '{host} 계정은 이 계정에 로그인하는 유일한 방법이에요. 연결을 해제하면 로그아웃한 뒤 다시 이 계정에 들어올 수 없어요. 먼저 비밀번호를 설정하세요. 그래도 연결을 해제할까요?',
+  srv_host_auth_disabled: '이 서버에서는 Telegram 또는 VK 로그인이 켜져 있지 않아요',
+  srv_host_auth_failed: '로그인 정보를 확인하지 못했어요. 미니 앱을 닫았다가 다시 열어 주세요',
+  srv_host_admin_blocked: '관리자 계정은 Telegram 또는 VK로 로그인할 수 없어요',
+  srv_host_taken: '이 Telegram 또는 VK 계정은 다른 계정에 연결돼 있어요',
+  srv_host_has_other: '내 계정은 이미 다른 Telegram 또는 VK 계정에 연결돼 있어요',
+  srv_host_logged_in: '로그인 중이에요. 이 계정에 연결하는 버튼을 사용하세요',
+  srv_host_not_linked: '이 계정은 이 플랫폼에 연결돼 있지 않아요',
+  srv_host_unlink_last: '이 계정에 로그인하는 유일한 방법이에요. 먼저 비밀번호를 설정하세요',
+  srv_host_linked_telegram: 'Telegram 연결됨',
+  srv_host_linked_vk: 'VK 연결됨',
+  srv_host_unlinked_telegram: 'Telegram 연결 해제됨',
+  srv_host_unlinked_vk: 'VK 연결 해제됨',
+});

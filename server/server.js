@@ -4,6 +4,8 @@
  *   PORT              cổng (mặc định 8080)
  *   DATA_DIR          thư mục lưu tài khoản (mặc định ./data)
  *   GOOGLE_CLIENT_ID  OAuth Client ID để bật "Đăng nhập bằng Google" (tuỳ chọn)
+ *   TELEGRAM_BOT_TOKEN, VK_APP_SECRET, VK_APP_ID, HOST_AUTH_MAX_AGE  đăng nhập bằng Telegram / VK Mini App (src/host-auth.js;
+ *                     bỏ trống = tắt). Bí mật: chỉ đặt trên máy chủ, không bao giờ ghi log
  *   HOST              địa chỉ lắng nghe (mặc định mọi địa chỉ; chạy sau Caddy/nginx trên cùng máy: 127.0.0.1)
  *   TRUST_PROXY=1     lấy IP thật từ X-Forwarded-For khi chạy sau nginx/Caddy
  *                     (chỉ tin header này khi kết nối đến từ chính máy chủ hoặc mạng nội bộ – proxy)
@@ -33,6 +35,7 @@ const { Hub, verifyGoogleToken } = require('./src/hub.js');
 const { makeHandler, clientIp, fromProxy, wsOriginAllowed } = require('./src/web.js');
 const { LagMeter } = require('./src/lag.js');
 const { guardHttp, guardCall } = require('./src/guard.js');
+const { makeHostAuth } = require('./src/host-auth.js');
 
 const PORT = Number(process.env.PORT) || 8080;
 const HOST = process.env.HOST || '';
@@ -59,7 +62,8 @@ const PROBE_WAIT_MS = 10000; // gói đo chưa được trả lời sau 10 giây
 function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.db'), googleClientId = GOOGLE_CLIENT_ID, verifyGoogle = verifyGoogleToken,
   sendMail = SMTP_URL ? smtpMailer(SMTP_URL, process.env.MAIL_FROM) : null, timers, msgRate = MSG_RATE,
   minAppVersion = process.env.MIN_APP_VERSION || '', admins = (process.env.ADMIN_USERNAMES || '').split(','),
-  updateUrls = { android: process.env.ANDROID_UPDATE_URL || '', ios: process.env.IOS_UPDATE_URL || '' }, weeklyCup = null } = {}) {
+  updateUrls = { android: process.env.ANDROID_UPDATE_URL || '', ios: process.env.IOS_UPDATE_URL || '' }, weeklyCup = null,
+  hostAuth = makeHostAuth(process.env) } = {}) {
   // dataFile = null: chỉ lưu trong bộ nhớ (test). Còn file db.json của bản cũ thì tự nhập một lần.
   const store = new Store(dataFile, dataFile ? path.join(path.dirname(dataFile), 'db.json') : null);
   // Khoá bí mật cho mã người gửi điểm phân tích (src/evalcache.js) – file riêng cạnh caro.db, không nằm trong bản sao lưu CSDL
@@ -67,7 +71,8 @@ function start({ port = PORT, host = HOST, dataFile = path.join(DATA_DIR, 'caro.
   // Khoá HMAC cho mã 6 số quên mật khẩu / xác minh email (L-1, src/code-hash.js) – khoá riêng, không cần sao lưu
   if (dataFile) CodeHash.useKeyFile(path.join(path.dirname(dataFile), 'code-key'));
   // weeklyCup: biến môi trường của Giải tuần (WEEKLY_CUP…, hub/weekly-cup.js) – chỉ bật khi chạy thật (dưới đây), test / e2e tắt
-  const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, weeklyCup, ...(timers ? { timers } : {}) });
+  // hostAuth: đăng nhập bằng Telegram / VK Mini App (src/host-auth.js – bí mật nằm trong closure, không phải thuộc tính)
+  const hub = new Hub({ store, googleClientId, verifyGoogle, sendMail, minAppVersion, updateUrls, admins, weeklyCup, hostAuth, ...(timers ? { timers } : {}) });
   // Trợ lý AI tạo giải offline (hub/otour-ai.js): khoá API bí mật ở DATA_DIR/muse-key (Muse Spark – mặc định) hoặc
   // DATA_DIR/anthropic-key (Claude); hoặc biến MODEL_API_KEY / ANTHROPIC_API_KEY
   if (dataFile) hub.otAiKeyDir = path.dirname(dataFile);
@@ -173,6 +178,8 @@ if (require.main === module) {
     console.log(`Cờ Caro đang chạy: http://localhost:${app.server.address().port}`);
     if (!GOOGLE_CLIENT_ID) console.log('(Chưa đặt GOOGLE_CLIENT_ID – nút đăng nhập Google sẽ được ẩn)');
     if (!SMTP_URL) console.log('(Chưa đặt SMTP_URL – tính năng quên mật khẩu qua email sẽ tắt)');
+    const ha = app.hub.hostProviders();
+    console.log(ha.length ? `(Đăng nhập bằng Mini App: ${ha.join(', ')})` : '(Chưa đặt TELEGRAM_BOT_TOKEN / VK_APP_SECRET – đăng nhập bằng Telegram / VK tắt)');
   });
   const shutdown = () => app.stop().then(() => process.exit(0));
   process.on('SIGINT', shutdown);

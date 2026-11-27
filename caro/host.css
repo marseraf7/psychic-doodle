@@ -26,3 +26,27 @@ html.portal a[href^="mailto:"] {
 html.portal #account .row:has(#go-login) + .hint {
   display: none !important;
 }
+/*
+ * Discord Activity (html.host-discord – host-detect.js, host-discord.js): chế độ khách như bản cổng – ẩn đăng nhập / đăng ký,
+ * link ra ngoài (còn sót thì host-discord.js mở qua openExternalLink). Chat vẫn giữ. Hộp "Thông tin phòng": link mời là địa
+ * chỉ discordsays.com (không mở được ngoài Discord) nên ẩn ô link / nút chia sẻ / câu "mở link…", thay bằng nút mời của
+ * Discord (#ri-discord) và câu hướng dẫn vào bằng mã (#ri-discord-hint).
+ */
+html.host-discord [data-auth],
+html.host-discord #go-login,
+html.host-discord #go-register,
+html.host-discord #google-box,
+html.host-discord .api-link,
+html.host-discord .home-about,
+html.host-discord #room-info .link-row,
+html.host-discord #ri-share,
+html.host-discord #ri-hint,
+html.host-discord a[href^="http:"],
+html.host-discord a[href^="https:"],
+html.host-discord a[href^="//"],
+html.host-discord a[href^="mailto:"] {
+  display: none !important;
+}
+html.host-discord #account .row:has(#go-login) + .hint {
+  display: none !important;
+}

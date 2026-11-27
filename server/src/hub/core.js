@@ -14,8 +14,10 @@ class Hub {
    * (updateUrls = { android, ios } – link cửa hàng). Bản web luôn là bản mới nhất nên không bị kiểm tra.
    */
   /** weeklyCup: biến môi trường cấu hình Giải tuần (weekly-cup.js) – null = tắt (test). */
-  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {}, minAppVersion = '', updateUrls = {}, admins = [], weeklyCup = null }) {
+  /** hostAuth: bộ kiểm dữ liệu khởi chạy Telegram / VK (../host-auth.js · makeHostAuth) – null = tắt (host-login.js). */
+  constructor({ store, googleClientId = '', verifyGoogle = null, sendMail = null, timers = {}, minAppVersion = '', updateUrls = {}, admins = [], weeklyCup = null, hostAuth = null }) {
     this.store = store;
+    this.hostAuth = hostAuth;
     this.minAppVersion = minAppVersion;
     this.updateUrls = updateUrls;
     this.sendMail = sendMail;
@@ -242,6 +244,7 @@ class Hub {
     const u = this.store.users.get(uid);
     return {
       id: pid, uid, name: u.name, username: u.username, av: u.avatar ? u.avatar.v : 0, guest: false, google: !!u.google, hasPassword: !!u.pass,
+      hosts: this.hostLinksOf(uid), // nền tảng Mini App đã gắn: ['telegram', 'vk'] (host-login.js)
       stats: u.stats, rating: u.rating, rated: u.rated, email: u.email,
       pools: Object.fromEntries(R.POOLS.map((p) => [p, R.ratingIn(u, p)])), streak: u.wstreak, lstreak: u.lstreak, tours: u.tours,
       pendingEmail: u.emailPending && u.emailPending.expires > Date.now() ? u.emailPending.email : '',
@@ -259,6 +262,7 @@ class Hub {
       t: 'welcome',
       me: this.meView(pid),
       googleClientId: this.googleClientId,
+      hostAuth: this.hostProviders(), // nền tảng Mini App bật đăng nhập (host-login.js)
       resetEnabled: !!this.sendMail,
       room: room ? this.roomView(room) : null,
     });
