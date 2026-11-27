@@ -6,9 +6,9 @@
 
 /* ============================ Thẻ người chơi ============================ */
 .pstrip {
-  position: fixed; left: 50%; transform: translateX(-50%); z-index: 5;
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 5; /* ltr-ok: căn giữa bằng translateX(-50%) */
   width: min(460px, calc(100% - 16px)); height: var(--strip-h);
-  display: flex; align-items: center; gap: 10px; padding: 0 6px 0 8px;
+  display: flex; align-items: center; gap: 10px; padding-block: 0; padding-inline: 8px 6px;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   border: 1px solid var(--panel-border); border-radius: 12px; box-shadow: var(--shadow);
@@ -28,7 +28,7 @@
 /* Câu chat nhanh gần nhất của đối thủ, ghim ngay dưới thẻ người chơi tới nước đi tiếp theo (social.js).
  * Thẻ có chiều cao cố định nên ghim phải nổi ra ngoài (absolute), không chen vào hàng của thẻ. */
 .quick-pin {
-  position: absolute; top: calc(100% + 4px); left: 8px; max-width: calc(100% - 16px);
+  position: absolute; top: calc(100% + 4px); inset-inline-start: 8px; max-width: calc(100% - 16px);
   padding: 2px 8px; border-radius: 8px; background: color-mix(in srgb, var(--panel) 92%, transparent);
   border: 1px solid var(--panel-border); font-size: var(--fs-2xs); color: var(--muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -61,7 +61,7 @@ body:not(.online):not(.replay):not(.ext) .fab-center { display: none; }
 /* ============================ Điện thoại: thanh công cụ phẳng sát đáy (như app Lichess) ============================ */
 @media (max-width: 899px) {
   .bar.bottom {
-    left: 0; right: 0; transform: none; max-width: none; width: 100%;
+    inset-inline-start: 0; inset-inline-end: 0; transform: none; max-width: none; width: 100%;
     bottom: 0; border-radius: 0; border: 0; border-top: 1px solid var(--panel-border);
     box-shadow: none; padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
     justify-content: space-around; gap: 0;
@@ -76,7 +76,7 @@ body:not(.online):not(.replay):not(.ext) .fab-center { display: none; }
 
 /* ============================ Máy tính: thẻ người chơi ở cột phải, như Lichess ============================ */
 @media (min-width: 1100px) {
-  .pstrip { left: auto; right: 24px; transform: none; width: 320px; }
+  .pstrip { inset-inline-start: auto; inset-inline-end: 24px; transform: none; width: 320px; }
   .pl-top { top: calc(50% - var(--strip-h) - 70px); }
   .pl-bot { bottom: auto; top: calc(50% + 70px); }
   body.replay .pstrip { display: none; }

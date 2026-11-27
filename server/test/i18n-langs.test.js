@@ -14,7 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const Langs = require('../src/langs.js');
-const { loadAll, loadDir, topicOf } = require('../scripts/i18n-load.js');
+const { loadAll, loadDir, topicOf, SCRIPT_CHARS } = require('../scripts/i18n-load.js');
 
 const CARO = path.join(__dirname, '..', '..', 'caro');
 const { files: baseFiles, merged } = loadAll();
@@ -22,7 +22,9 @@ const report = (bad) => bad.slice(0, 15).join('\n') + (bad.length > 15 ? `\n… 
 const vars = (s) => [...new Set(String(s).match(/\{\w+\}/g) || [])].sort().join(',');
 const tags = (s) => [...new Set((String(s).match(/<\/?([a-z][a-z0-9]*)/gi) || []).map((t) => t.replace(/[</]/g, '').toLowerCase()))];
 const DIRS = Langs.DIR.map((l) => ({ l, ...loadDir(l) })).filter((d) => d.files.length);
-const CJK = /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\uf900-\ufaff]/; // kana, chữ Hán, Hangul
+// Chữ viết không phải Latin (script trong langs.js): chuỗi có từ tiếng Anh mà không có chữ nào của chữ viết đó = chưa dịch.
+// Ngôn ngữ chữ Latin (cs, es…) chỉ bắt được chuỗi giống hệt tiếng Anh.
+const SCRIPT_RE = Object.fromEntries(Langs.LIST.filter((x) => SCRIPT_CHARS[x.script]).map((x) => [x.code, new RegExp('[' + SCRIPT_CHARS[x.script] + ']', 'u')]));
 // Từ tiếng Anh được giữ nguyên trong mọi ngôn ngữ (tên riêng, viết tắt, thuật ngữ quốc tế)
 const KEEP = new Set(('caro gomoku renju swap swap2 soosorv taraguchi yamaguchi elo glicko buchholz sonneborn berger koya bo1 bo3 bo5 bo7 '
   + 'pdf png svg csv json ical url api mcp claude google telegram vk zalo messenger discord facebook youtube twitch github rapfi nnue '
@@ -55,7 +57,7 @@ test('fromTag: zh-TW / zh-HK / Hant → phồn thể, zh-CN / zh-SG / Hans → g
 });
 
 /** Chạy caro/i18n.js (sau langs.js) trong vm với DOM giả. */
-function runI18n({ stored = null, languages = ['vi'], search = '', packs = null, current = null } = {}) {
+function runI18n({ stored = null, languages = ['vi'], search = '', packs = null, current = null, langsSrc = null } = {}) {
   const writes = [], added = [], events = {};
   const window = { CARO_PACKS: packs, CARO_PACK: packs ? Object.keys(packs)[0] : undefined, dispatchEvent() {} };
   const document = {
@@ -64,7 +66,7 @@ function runI18n({ stored = null, languages = ['vi'], search = '', packs = null,
     createElement: () => ({}), head: { appendChild: (s) => added.push(s) },
   };
   const ctx = { window, document, navigator: { languages }, location: { search }, localStorage: { getItem: () => stored, setItem() {} }, Event: function () {} };
-  vm.runInNewContext(fs.readFileSync(path.join(CARO, 'langs.js'), 'utf8'), { window, globalThis: window });
+  vm.runInNewContext(langsSrc || fs.readFileSync(path.join(CARO, 'langs.js'), 'utf8'), { window, globalThis: window });
   vm.runInNewContext(fs.readFileSync(path.join(CARO, 'i18n.js'), 'utf8'), ctx);
   return { I18N: window.I18N, writes, added, document, events };
 }
@@ -94,6 +96,38 @@ test('i18n.js: chọn ngôn ngữ (trình duyệt, ?lang=, đã lưu); thiếu k
   zt.I18N.apply(zt.document);
   assert.strictEqual(zt.document.documentElement.lang, 'zh-Hant');
   assert.strictEqual(zt.I18N.locale, 'zh-TW');
+});
+
+test('i18n.js: hướng chữ (dir="rtl"), ngôn ngữ hidden chỉ mở bằng ?lang=, số nhiều theo Intl.PluralRules', () => {
+  const NL = require('../scripts/new-lang.js');
+  const src = NL.addToLangs(fs.readFileSync(path.join(CARO, 'langs.js'), 'utf8'), NL.cldrInfo('ar'));
+  // ar còn 'hidden': trình duyệt tiếng Ả Rập không tự chọn; ?lang=ar thì mở để người dịch xem thử
+  assert.strictEqual(runI18n({ languages: ['ar-EG', 'en'], langsSrc: src }).I18N.lang, 'en');
+  const ar = runI18n({ search: '?lang=ar', langsSrc: src });
+  assert.strictEqual(ar.I18N.lang, 'ar');
+  assert.strictEqual(ar.document.documentElement.dir, 'rtl', 'đặt dir ngay khi chọn ngôn ngữ, trước khi vẽ');
+  ar.I18N.apply(ar.document);
+  assert.strictEqual(ar.document.documentElement.lang, 'ar');
+  assert.strictEqual(ar.document.documentElement.dir, 'rtl');
+  // Mã 3 chữ / có vùng vẫn nhận qua ?lang=
+  const fil = runI18n({ search: '?lang=fil', langsSrc: NL.addToLangs(src, NL.cldrInfo('fil')) });
+  assert.strictEqual(fil.I18N.lang, 'fil');
+  assert.strictEqual(fil.document.documentElement.dir, 'ltr');
+  // Số nhiều: 'khoá|few'… chọn theo loại số của ngôn ngữ; thiếu dạng thì khoá gốc; n không phải số thì khoá gốc
+  ar.I18N.extend('en', { k_n: '{n} moves', 'k_n|one': '{n} move' });
+  ar.I18N.extend('ar', { k_n: '{n} نقلة', 'k_n|two': 'نقلتان', 'k_n|few': '{n} نقلات' });
+  assert.strictEqual(ar.I18N.t('k_n', { n: 2 }), 'نقلتان');
+  assert.strictEqual(ar.I18N.t('k_n', { n: 5 }), '5 نقلات');
+  assert.strictEqual(ar.I18N.t('k_n', { n: 11 }), '11 نقلة', 'many – không có dạng riêng: khoá gốc');
+  assert.strictEqual(ar.I18N.t('k_n', { n: 'x' }), 'x نقلة');
+  const en = runI18n({ stored: 'en' });
+  en.I18N.extend('en', { k_n: '{n} moves', 'k_n|one': '{n} move' });
+  assert.strictEqual(en.I18N.t('k_n', { n: 1 }), '1 move');
+  assert.strictEqual(en.I18N.t('k_n', { n: '1' }), '1 move');
+  assert.strictEqual(en.I18N.t('k_n', { n: 3 }), '3 moves');
+  const vi = runI18n({ stored: 'vi' });
+  vi.I18N.apply(vi.document);
+  assert.strictEqual(vi.document.documentElement.dir, 'ltr');
 });
 
 test('i18n.js trang từng file: chèn i18n/<mã>/core.js và i18n/<mã>/<chủ đề>.js đúng lúc; đổi ngôn ngữ thì tải rồi mới đổi', () => {
@@ -155,7 +189,8 @@ test('caro/i18n/<mã>/: mỗi file soi gương một file gốc, chỉ extend đ
       if (!topics.has(f.topic)) { bad.push(`${f.file}: không có file gốc ${f.topic === 'core' ? 'i18n.js' : 'i18n-' + f.topic + '.js'}`); continue; }
       if (f.other.length) bad.push(`${f.file}: extend cho ngôn ngữ khác (${f.other.join(', ')})`);
       const vi = topics.get(f.topic);
-      for (const k of Object.keys(f.strings)) if (!(k in vi)) bad.push(`${f.file}: khoá ${k} không có trong file gốc (đã xoá / đổi tên?)`);
+      // 'khoá|few' – dạng số nhiều của khoá gốc (bài thử i18n-script.test.js kiểm riêng)
+      for (const k of Object.keys(f.strings)) if (!(k.split('|')[0] in vi)) bad.push(`${f.file}: khoá ${k} không có trong file gốc (đã xoá / đổi tên?)`);
     }
   }
   assert.deepStrictEqual(bad, [], report(bad));
@@ -210,7 +245,7 @@ test('Ngôn ngữ thư mục: không sót chữ Việt / chữ Anh chưa dịch;
       const words = (s.match(/[A-Za-z][A-Za-z']{2,}/g) || []).filter((w) => !KEEP.has(w.toLowerCase()) && w !== w.toUpperCase());
       const common = words.filter((w) => w === w.toLowerCase());
       if (s0 === en && common.length) bad.push(`${d.l}.${k}: giống hệt tiếng Anh «${String(en).slice(0, 40)}»`);
-      else if (d.l !== 'cs' && !CJK.test(s) && common.length >= 2) bad.push(`${d.l}.${k}: không có chữ ${d.l} «${s0.slice(0, 40)}»`);
+      else if (SCRIPT_RE[d.l] && !SCRIPT_RE[d.l].test(s) && common.length >= 2) bad.push(`${d.l}.${k}: không có chữ ${d.l} «${s0.slice(0, 40)}»`);
       // Dấu câu: trong 「…」 là mẫu người dùng gõ ("チーム名: 点数") – giữ nguyên
       const prose = s0.replace(/「[^」]*」/g, '「」');
       if ((d.l === 'ja' || d.l === 'zh-Hant') && /[\u3040-\u30ff\u3400-\u9fff][,;:?!](?![\d/])/.test(prose)) bad.push(`${d.l}.${k}: dấu câu nửa khổ sau chữ Hán / kana «${s0.slice(0, 30)}»`);

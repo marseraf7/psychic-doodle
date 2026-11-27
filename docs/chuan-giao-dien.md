@@ -56,6 +56,16 @@ Văn bản trích từ DOM / cây trợ năng có thể thiếu chữ, thiếu d
 16/11). Chỉ ghi nhận là lỗi hiển thị khi có ảnh chụp tại vị trí lỗi. Nội dung trôi dưới thanh dính **trong lúc đang cuộn** là bình
 thường; chỉ là lỗi khi app tự đưa tới (focus, `scrollIntoView`) mà phần tử vẫn nằm dưới thanh.
 
+## 4d. Sẵn sàng cho chữ viết từ phải sang trái (RTL)
+
+Ngôn ngữ RTL (Ả Rập, Do Thái…) đặt `<html dir="rtl">` (i18n.js); bố cục tự lật nhờ thuộc tính **logic**.
+
+| Quy tắc | Tự kiểm |
+|---|---|
+| Trong `caro/*.css` không dùng thuộc tính vật lý trái/phải: `margin-inline-start/end` thay `margin-left/right` (tương tự `padding`, `border`), `inset-inline-start/end` thay `left/right`, `text-align: start/end`, `float: inline-start`, `border-start-start-radius`…; viết tắt 4 giá trị trái ≠ phải tách thành `margin-block` + `margin-inline` (`inset`, `border-radius` cũng vậy) | `css-rules.test.js` (luật 4) |
+| Chỗ buộc giữ vật lý ghi `/* ltr-ok: lý do */` cùng dòng: căn giữa bằng `left: 50%` + `translateX(-50%)`; phần tử JS đặt `style.left` / `style.right` (nếu để logic, RTL sẽ có cả hai cạnh → phần tử bị kéo dãn); toạ độ bàn cờ / đồ thị; vị trí trái/phải người dùng tự chọn | `css-rules.test.js` |
+| Thứ phải lật hoặc giữ LTR bằng tay đặt trong `caro/lang-scripts.css` (bộ chọn gốc kèm `[dir="rtl"]`): mũi tên `#i-chev`, `#i-chevl`, `#i-back`, `#i-exit`, `#i-undo` lật `scaleX(-1)`; SVG đồ thị, nhánh đấu, ký hiệu nước đi, đồng hồ, ô nhập mã số, nhóm nút xem lại giữ `direction: ltr`; vạch màu bằng `box-shadow` đổi cạnh. Biểu tượng không có hướng không lật | `rtl-layout.e2e.js` (ép `dir="rtl"`, 390px + 1280px) |
+
 ## 5. Cách kiểm trước khi đẩy code giao diện
 
 1. `cd server && npm run coverage` – gồm `css-rules`, `i18n-vars`, `i18n-quality`, `no-native-dialogs`.

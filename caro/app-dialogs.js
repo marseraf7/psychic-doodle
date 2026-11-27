@@ -51,9 +51,10 @@
 
     const dlg = $('settings');
     const form = $('settings-form');
-    // Ngôn ngữ: mỗi thứ tiếng một hàng chọn (trang con "Ngôn ngữ" của Cài đặt)
-    // lang="…" trên tên: chữ Hán của 简体中文 / 繁體中文 / 日本語 hiện đúng kiểu chữ của từng nơi (langs.js)
-    $('lang-list').innerHTML = window.I18N.LANGS.map(([code, label]) => `<label class="li"><span class="li-t" lang="${window.CaroLangs.BY[code].html}">${label}</span><input type="radio" name="lang" value="${code}"><svg class="ico tick" aria-hidden="true"><use href="#i-check"/></svg></label>`).join('');
+    // Ngôn ngữ: mỗi thứ tiếng một hàng chọn (trang con "Ngôn ngữ" của Cài đặt) – lang-picker.js; đổi ngôn ngữ thì vẽ lại
+    // (tên theo ngôn ngữ giao diện, nhãn "Bản dịch máy" đổi theo)
+    window.CaroLangPicker.render($('lang-list'));
+    window.addEventListener('langchange', () => window.CaroLangPicker.render($('lang-list')));
     function fillForm() {
       form.mode.value = state.mode;
       form.human.value = String(state.human);

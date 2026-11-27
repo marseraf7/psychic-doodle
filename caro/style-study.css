@@ -9,7 +9,7 @@
 
 /* ============================ Nút "Về giữa" nổi (thanh dưới dành chỗ cho Giải đố) */
 .fab-center {
-  position: fixed; right: 12px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 11;
+  position: fixed; inset-inline-end: 12px; bottom: calc(86px + env(safe-area-inset-bottom)); z-index: 11;
   width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: var(--panel); border: 1px solid var(--panel-border); box-shadow: var(--shadow); color: var(--text);
 }
@@ -44,7 +44,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 }
 .an-head { display: flex; align-items: center; gap: 8px; font-size: var(--fs-md); flex: none; }
 .an-head .ico { color: var(--accent); }
-.an-head .x-close { margin-left: auto; width: 32px; height: 32px; }
+.an-head .x-close { margin-inline-start: auto; width: 32px; height: 32px; }
 .an-body { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
 .an-prog { height: 6px; border-radius: 3px; background: rgba(127, 127, 127, 0.18); overflow: hidden; margin: 8px 0 6px; }
 .an-prog i { display: block; height: 100%; background: var(--accent); transition: width 0.2s; }
@@ -60,9 +60,9 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 .an-player { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 30px; }
 .an-player .dot { font-size: var(--fs-md); font-weight: var(--fw-bold); }
 .an-player .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-semibold); }
-.an-acc { font-size: var(--fs-md); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.an-acc { font-size: var(--fs-md); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: end; }
 .an-chips { display: flex; gap: 4px; }
-.an-chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 5px 2px 2px; border-radius: 999px; font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text); }
+.an-chip { display: inline-flex; align-items: center; gap: 3px; padding-block: 2px; padding-inline: 2px 5px; border-radius: 999px; font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text); }
 @media (hover: hover) { .an-chip:hover { background: rgba(127, 127, 127, 0.14); } }
 .an-chip i, .an-badge {
   display: inline-flex; align-items: center; justify-content: center; min-width: 1.45em; height: 1.45em; padding: 0 3px;
@@ -83,13 +83,13 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 /* Kéo trên biểu đồ để tua (an-graph.js): vuốt dọc vẫn cuộn bảng; nhãn nổi ghi số nước + khả năng thắng */
 .an-gwrap { position: relative; touch-action: pan-y; }
 .an-tip {
-  position: absolute; top: 4px; left: 0; padding: 2px 7px; border-radius: 7px; pointer-events: none; white-space: nowrap;
+  position: absolute; top: 4px; left: 0; padding: 2px 7px; border-radius: 7px; pointer-events: none; white-space: nowrap; /* ltr-ok: JS đặt style.left theo toạ độ đồ thị */
   background: var(--panel); border: 1px solid var(--panel-border); color: var(--text); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums;
 }
 .an-tip[hidden] { display: none; }
 /* Thời điểm quan trọng: 2–3 nước lật cán cân mạnh nhất, bấm để tới */
 .an-kms { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; flex: none; }
-.an-km-h { font-size: var(--fs-xs); color: var(--muted); margin-right: 2px; }
+.an-km-h { font-size: var(--fs-xs); color: var(--muted); margin-inline-end: 2px; }
 .an-km {
   display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; color: var(--text);
   background: color-mix(in srgb, var(--text) 6%, transparent); font-size: var(--fs-xs); font-variant-numeric: tabular-nums;
@@ -107,8 +107,8 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
   border-radius: 10px; background: color-mix(in srgb, var(--text) 4%, transparent); scrollbar-width: thin;
   font-variant-numeric: tabular-nums;
 }
-.an-no { padding: 5px 6px; color: var(--muted); text-align: right; white-space: nowrap; background: color-mix(in srgb, var(--text) 5%, transparent); }
-.an-mv { display: flex; align-items: center; gap: 4px; padding: 5px 8px; white-space: nowrap; border-radius: 0; text-align: left; font-weight: var(--fw-medium); min-height: 30px; }
+.an-no { padding: 5px 6px; color: var(--muted); text-align: end; white-space: nowrap; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.an-mv { display: flex; align-items: center; gap: 4px; padding: 5px 8px; white-space: nowrap; border-radius: 0; text-align: start; font-weight: var(--fw-medium); min-height: 30px; }
 .an-mv b { font-weight: var(--fw-bold); }
 @media (hover: hover) { .an-mv:not(.empty):hover { background: rgba(127, 127, 127, 0.14); } }
 .an-mv.cur { background: var(--accent); color: #fff; }
@@ -120,14 +120,14 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
    chữ – trước đây nút đứng cạnh, ép nhận xét thành cột hẹp vài chữ một dòng */
 .an-now > span:nth-child(2) { flex: 1 1 calc(100% - 2.6em); min-width: 0; }
 .an-now > .an-badge { margin-top: 0.05em; }
-.an-now > button { margin-left: calc(1.45em * 0.86 + 14px); }
-.an-now > button ~ button { margin-left: 0; }
+.an-now > button { margin-inline-start: calc(1.45em * 0.86 + 14px); }
+.an-now > button ~ button { margin-inline-start: 0; }
 .an-now .dot { font-weight: var(--fw-bold); }
 .an-now { flex-wrap: wrap; }
 /* Dòng máy gợi ý (quân mờ đánh số trên bàn) + lời nhắc chạm để đi thử: xuống dòng riêng dưới nhận xét */
 .an-pv, .an-tap { flex-basis: 100%; margin: 0; font-size: var(--fs-xs); line-height: 1.5; }
 .an-pv b { color: #5c9e31; }
-.an-pv button { margin-left: 4px; }
+.an-pv button { margin-inline-start: 4px; }
 /* Đi thử: khả năng thắng hai bên trên thanh trên (an-explore.js) */
 .ex-wc b.x { color: var(--x); }
 .ex-wc b.o { color: var(--o); }
@@ -142,9 +142,9 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 
 /* ---- Máy tính: cột bên phải, bàn cờ chiếm phần còn lại */
 @media (min-width: 860px) {
-  .an-panel { top: 0; right: 0; bottom: 0; width: var(--an-w); padding: 14px 14px calc(10px + env(safe-area-inset-bottom)); border-left: 1px solid var(--panel-border); box-shadow: -6px 0 24px rgba(0, 0, 0, 0.06); }
+  .an-panel { top: 0; inset-inline-end: 0; bottom: 0; width: var(--an-w); padding: 14px 14px calc(10px + env(safe-area-inset-bottom)); border-inline-start: 1px solid var(--panel-border); box-shadow: -6px 0 24px rgba(0, 0, 0, 0.06); }
   body.analysis:not(.ext) #board { width: calc(100% - var(--an-w)); }
-  body.analysis:not(.ext) .bar.top { left: calc((100% - var(--an-w)) / 2); max-width: calc(100% - var(--an-w) - 2 * var(--edge)); }
+  body.analysis:not(.ext) .bar.top { left: calc((100% - var(--an-w)) / 2); max-width: calc(100% - var(--an-w) - 2 * var(--edge)); } /* ltr-ok: căn giữa bằng translateX(-50%); RTL đặt riêng ở lang-scripts.css */
   body.analysis:not(.ext) .bar.bottom.replay-only { display: none !important; }
   /* Màn thấp (thu phóng 100–150%, laptop 720p): cả bảng cuộn thay vì nội dung tràn đè nút điều khiển; danh sách nước
      đi luôn đủ ~4 hàng để bấm */
@@ -154,7 +154,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 /* ---- Điện thoại / màn hẹp: bảng dưới bàn cờ, ngay trên thanh điều khiển; danh sách nước đi cuộn ngang */
 @media (max-width: 859px) {
   .an-panel {
-    left: max(var(--edge), env(safe-area-inset-left)); right: max(var(--edge), env(safe-area-inset-right));
+    inset-inline-start: max(var(--edge), env(safe-area-inset-left)); inset-inline-end: max(var(--edge), env(safe-area-inset-right));
     bottom: calc(84px + env(safe-area-inset-bottom)); height: var(--an-h); padding: 10px 12px;
     border: 1px solid var(--panel-border); border-radius: 16px; box-shadow: var(--shadow); gap: 8px;
   }
@@ -168,7 +168,7 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
   .an-now { order: 2; min-height: 0; }
   .an-moves { order: 3; display: flex; flex: none; overflow-x: auto; overflow-y: hidden; white-space: nowrap; min-height: 38px; }
   /* Số thứ tự không co: co lại thì "109." đè lên tên ô bên cạnh (máy có cỡ chữ lớn / phông khác) */
-  .an-no { display: flex; flex: none; align-items: center; background: none; padding: 5px 2px 5px 8px; }
+  .an-no { display: flex; flex: none; align-items: center; background: none; padding-block: 5px; padding-inline: 8px 2px; }
   .an-mv { border-radius: 8px; padding: 5px 7px; flex: none; }
   .an-mv.empty { display: none; }
   .an-players { order: 4; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -202,11 +202,11 @@ body.ext .local-only, body.ext .replay-only, body.ext #banner, body.ext .an-pane
 }
 .bot-av > img:first-child { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block; }
 .bot-av .bot-ic {
-  position: absolute; right: -6px; bottom: -6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  position: absolute; inset-inline-end: -6px; bottom: -6px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
   background: var(--panel); box-shadow: 0 0 0 1.5px var(--c); font-style: normal; font-size: 12px; line-height: 1; object-fit: cover;
 }
 .bot-av.lg { width: 64px; height: 64px; font-size: var(--fs-xl); }
-.bot-av.lg .bot-ic { width: 26px; height: 26px; font-size: 15px; right: -7px; bottom: -7px; }
+.bot-av.lg .bot-ic { width: 26px; height: 26px; font-size: 15px; inset-inline-end: -7px; bottom: -7px; }
 .bot-av.sm { width: 28px; height: 28px; font-size: var(--fs-sm); box-shadow: 0 0 0 1.5px var(--panel), 0 0 0 2.5px var(--c); }
 .bot-av.sm .bot-ic { display: none; }
 /* Khung giới thiệu nhân vật đang chọn */
@@ -242,7 +242,7 @@ dialog div.dlg { padding: 16px 18px 18px; }
 .sb-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 2px; }
 .sb-list li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
 .sb-list li.me { background: rgba(127, 127, 127, 0.12); font-weight: var(--fw-semibold); }
-.sb-rank { flex: none; width: 2.2em; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sb-rank { flex: none; width: 2.2em; text-align: end; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sb-name { flex: 1; cursor: pointer; }
 .sb-score { flex: none; font-variant-numeric: tabular-nums; }
 .sb-me { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--muted); }
@@ -251,7 +251,7 @@ dialog div.dlg { padding: 16px 18px 18px; }
 .pf-badges li { display: flex; align-items: center; gap: 6px; max-width: 100%; padding: 4px 10px; border-radius: 999px; background: rgba(127, 127, 127, 0.1); font-size: var(--fs-sm); }
 .pf-badges li > .ellip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pz-mode {
-  display: flex; align-items: center; gap: 12px; padding: 12px; text-align: left;
+  display: flex; align-items: center; gap: 12px; padding: 12px; text-align: start;
   border: 1px solid var(--panel-border); border-radius: 14px; transition: background-color 0.15s, transform 0.1s;
 }
 .pz-mode .ico { width: 26px; height: 26px; flex: 0 0 auto; color: var(--accent); }

@@ -1,0 +1,50 @@
+/*
+ * Quy tắc theo chữ viết của ngôn ngữ (docs/quy-trinh-them-ngon-ngu.md):
+ *  1. Phông theo chữ viết – chữ Ả Rập, Devanagari, Thái, Khmer… Mỗi ngôn ngữ có `font` trong caro/langs.js thì ở đây có:
+ *       @font-face { font-family: '<font>'; font-display: swap; unicode-range: …; src: url('fonts/<file>.woff2') … }
+ *       :lang(<html lang>) { --font: '<font>', 'Noto Sans', system-ui, …; }
+ *     Trình duyệt chỉ tải tệp phông khi trang đang ở ngôn ngữ đó VÀ có chữ trong unicode-range – người dùng ngôn ngữ khác
+ *     không tải gì. Phông Noto: SIL Open Font License (fonts/OFL-LICENSE.txt). Bài thử: server/test/i18n-script.test.js.
+ *  2. Chữ viết từ phải sang trái (RTL – ar, he, fa, ur…): i18n.js đặt <html dir="rtl">; các file CSS dùng thuộc tính
+ *     logic (margin-inline-start…) nên tự lật. Ở đây chỉ còn những chỗ phải lật bằng tay (mũi tên…).
+ */
+
+/* ============================ RTL: những chỗ phải lật / giữ bằng tay ============================
+ * File này nạp sớm (ngay sau style.css) nên mỗi luật lặp lại ĐỦ bộ chọn gốc kèm [dir="rtl"] để thắng nhờ độ ưu tiên,
+ * không nhờ thứ tự. Luật nào dùng thuộc tính vật lý trái/phải phải có ghi chú "ltr-ok: <lý do>" (server/test/css-rules.test.js). */
+
+/* 1. Biểu tượng có hướng: mũi tên quay lại / đi vào / thoát / đi lại – lật gương. Biểu tượng không có hướng giữ nguyên.
+ *    Nút điều khiển xem lại (đầu / lùi / chạy / tới / cuối) KHÔNG lật: cả nhóm giữ LTR (mục 3), như phím ← / →; biểu tượng
+ *    trong nhóm đó (nút thoát) cũng không lật. */
+[dir="rtl"] svg.ico:is(:has(> use[href="#i-chev"]), :has(> use[href="#i-chevl"]), :has(> use[href="#i-back"]),
+  :has(> use[href="#i-exit"]), :has(> use[href="#i-undo"])):not(.an-nav *, .bar.bottom.replay-only *) { transform: scaleX(-1); }
+/* Mũi tên bằng ký tự trong content */
+[dir="rtl"] .pg-body .pz-mode::after { content: "‹"; }
+[dir="rtl"] details.fold-more:not([open]) > summary::before { content: '◂'; }
+[dir="rtl"] .ot-step-adv > details.fold:not([open]) > summary::after { transform: rotate(90deg); }
+
+/* 2. Vạch màu / bóng đổ đặt theo một cạnh (box-shadow không có bản logical) */
+[dir="rtl"] .clocks > .ck.x { box-shadow: inset -3px 0 0 var(--x); }
+[dir="rtl"] .clocks > .ck.o { box-shadow: inset -3px 0 0 var(--o); }
+[dir="rtl"] table.stand tr.adv td:first-child { box-shadow: inset -3px 0 0 #2fb45a; }
+[dir="rtl"] table.stand tr.bye td:first-child { box-shadow: inset -6px 0 0 #2fb45a; }
+@media (min-width: 860px) {
+  /* Bảng phân tích nằm bên trái (inset-inline-end) → bóng đổ sang phải; thanh trên căn giữa phần bàn cờ còn lại */
+  [dir="rtl"] .an-panel { box-shadow: 6px 0 24px rgba(0, 0, 0, 0.06); }
+  [dir="rtl"] body.analysis:not(.ext) .bar.top { left: calc(var(--an-w) + (100% - var(--an-w)) / 2); } /* ltr-ok: căn giữa bằng translateX(-50%) */
+}
+/* Bảng cài đặt nhanh nổi (topbar.js đặt style.right): bỏ cạnh trái mà .qs { inset-inline-end } tạo ra trong RTL */
+[dir="rtl"] .qs.qs-float { left: auto; } /* ltr-ok: JS đặt style.right */
+
+/* 3. Vùng luôn LTR: hình vẽ / đồ thị SVG (text-anchor start/end theo direction), nhánh đấu (đường nối đo từ mép trái),
+ *    ký hiệu nước đi, đồng hồ số, ô nhập mã số, nhóm nút xem lại. Bàn cờ là canvas, không chịu ảnh hưởng của direction. */
+[dir="rtl"] svg:not(.ico),
+[dir="rtl"] .bracket,
+[dir="rtl"] .an-no,
+[dir="rtl"] .an-mv,
+[dir="rtl"] .an-chip,
+[dir="rtl"] .ck,
+[dir="rtl"] #clock-n,
+[dir="rtl"] input[inputmode="numeric"],
+[dir="rtl"] .bar.bottom.replay-only,
+[dir="rtl"] .an-nav { direction: ltr; }

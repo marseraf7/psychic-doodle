@@ -7,7 +7,7 @@ const test = require('node:test');
 const assert = require('node:assert');
 const ST = require('../src/hub/stages.js');
 const M = require('../src/hub/otour-multi.js');
-const { ctx, account, until } = require('./otour-client.js');
+const { ctx, account, until, otFresh } = require('./otour-client.js');
 
 const single = { sport: 'esports', stages: [{ type: 'single', bestOf: 1, thirdPlace: false }] };
 // Đấu hết giải: hạt giống cao luôn thắng
@@ -84,7 +84,8 @@ test('Giải tổng qua máy chủ: giải con không tính hạn mức, điểm
   org.send({ t: 'otMultiCfg', id, table: '10 1' });
   await until(() => P.multi.table[0] === 10);
   c2.access = 'private';
-  v = (await get(id));
+  // Chờ bản dựng SAU thay đổi (otFresh – bản đẩy của nhịp gom dựng trước có thể tới muộn hơn otGet)
+  v = (await otFresh(org, id, (m) => m.tour.multi.hidden === 1)).tour;
   assert.deepStrictEqual([v.multi.clubs.map((c) => [c.name, c.pts]), v.multi.hidden], [[['Alpha', 10], ['Beta', 1], ['Gamma', 0]], 1]);
   // N6 (kiểm thử 12/11/2026): người quản lý vẫn thấy giải con riêng tư trong danh sách để mở; người khác không thấy
   const mineOf = async (cl) => (await cl.req({ t: 'otGet', id }, 'ot', (m) => m.id === id && m.tour)).mine || {};
@@ -92,7 +93,7 @@ test('Giải tổng qua máy chủ: giải con không tính hạn mức, điểm
   assert.strictEqual((await mineOf(other)).multiPriv, undefined);
   // Giải tổng cũng riêng tư (mẫu tạo giải con theo chế độ giải tổng): giải con riêng tư cùng chủ hiện và cộng điểm như thường
   P.access = 'private';
-  v = (await get(id));
+  v = (await otFresh(org, id, (m) => m.tour.multi.hidden === 0)).tour;
   assert.deepStrictEqual([v.multi.children.length, v.multi.hidden, v.multi.clubs.map((c) => [c.name, c.pts])], [12, 0, [['Alpha', 11], ['Beta', 11], ['Gamma', 0]]]);
   assert.deepStrictEqual((await mineOf(org)).multiPriv, []);
   // Trang giải con riêng tư có liên kết về giải tổng riêng tư; giải con công khai thì không lộ giải tổng riêng tư

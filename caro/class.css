@@ -1,7 +1,7 @@
 /* Lớp học / Nghiên cứu (classroom.js, class-view.js – C2): hộp danh sách, khung bài trên bàn cờ (bên phải trên màn rộng,
    nửa dưới màn hình trên điện thoại – bàn cờ vẫn thấy ở nửa trên). */
 .cls-list { list-style: none; margin: 0 0 8px; padding: 0; }
-.cls-row { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-width: 0; padding: 8px 0; text-align: left;
+.cls-row { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-width: 0; padding: 8px 0; text-align: start;
   background: none; border: 0; border-top: 1px solid var(--line); color: inherit; font: inherit; cursor: pointer; }
 .cls-row .ellip, .cls-head .ellip { display: block; max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cls-row small { color: var(--muted); font-size: var(--fs-xs); }
@@ -13,11 +13,11 @@
 @media (min-width: 640px) { .cls-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .cls-form button { justify-self: start; } }
 
 .cls-panel {
-  position: fixed; z-index: 6; left: 0; right: 0; bottom: 0; max-height: 46vh; overflow-y: auto; padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
+  position: fixed; z-index: 6; inset-inline-start: 0; inset-inline-end: 0; bottom: 0; max-height: 46vh; overflow-y: auto; padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
   background: var(--panel); color: var(--text); border-top: 1px solid var(--panel-border); box-shadow: var(--shadow);
 }
 @media (min-width: 900px) {
-  .cls-panel { left: auto; top: 72px; width: 360px; max-height: none; border-top: 0; border-left: 1px solid var(--panel-border); }
+  .cls-panel { inset-inline-start: auto; top: 72px; width: 360px; max-height: none; border-top: 0; border-inline-start: 1px solid var(--panel-border); }
 }
 .cls-panel[hidden], body.shell-on .cls-panel { display: none; }
 .cls-head { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }

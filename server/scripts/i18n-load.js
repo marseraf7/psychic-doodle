@@ -79,4 +79,11 @@ function loadDir(l) {
   return out;
 }
 
-module.exports = { loadAll, loadDir, topicOf, LANGS, DIR_LANGS };
+/** Lớp ký tự Unicode của từng chữ viết ISO 15924 không phải Latin (script trong caro/langs.js) – bài thử i18n-langs / i18n-script:
+ * chuỗi có từ tiếng Anh mà không có chữ nào của chữ viết đó = chưa dịch. Thêm ngôn ngữ chữ viết mới: thêm dòng ở đây. */
+const SCRIPT_CHARS = { Jpan: '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}', Kore: '\\p{Script=Hangul}\\p{Script=Han}', Hans: '\\p{Script=Han}', Hant: '\\p{Script=Han}',
+  Cyrl: '\\p{Script=Cyrillic}', Arab: '\\p{Script=Arabic}', Hebr: '\\p{Script=Hebrew}', Deva: '\\p{Script=Devanagari}', Beng: '\\p{Script=Bengali}',
+  Thai: '\\p{Script=Thai}', Khmr: '\\p{Script=Khmer}', Mymr: '\\p{Script=Myanmar}', Ethi: '\\p{Script=Ethiopic}', Grek: '\\p{Script=Greek}',
+  Geor: '\\p{Script=Georgian}', Armn: '\\p{Script=Armenian}', Taml: '\\p{Script=Tamil}', Telu: '\\p{Script=Telugu}', Guru: '\\p{Script=Gurmukhi}',
+  Gujr: '\\p{Script=Gujarati}', Sinh: '\\p{Script=Sinhala}', Knda: '\\p{Script=Kannada}', Mlym: '\\p{Script=Malayalam}', Laoo: '\\p{Script=Lao}' };
+module.exports = { loadAll, loadDir, topicOf, LANGS, DIR_LANGS, SCRIPT_CHARS };

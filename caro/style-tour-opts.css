@@ -13,7 +13,7 @@
 .rt-bold { font-weight: 700; }
 .rt-italic { font-style: italic; }
 .rt-strike { text-decoration: line-through; }
-.rt-preview { margin-left: auto; font-family: ui-monospace, monospace; }
+.rt-preview { margin-inline-start: auto; font-family: ui-monospace, monospace; }
 .rt-sep { width: 1px; height: 22px; background: var(--panel-border); margin: 0 3px; }
 /* Ô chọn kiểu đoạn: cao cố định 32px – bỏ đệm dọc của select trong form (trước bị cắt mất nửa dưới chữ "Đoạn văn") */
 .rt-para, .tour-body select.rt-para { height: 32px; width: 10.5em; max-width: none; flex: none; padding: 0 8px; line-height: 30px; font-size: var(--fs-sm); } /* rộng theo lựa chọn dài nhất: không cắt chữ */
@@ -27,13 +27,13 @@
 .tdesc.rich { white-space: normal; overflow-wrap: anywhere; }
 .rich p { margin: 0 0 6px; }
 .rich .rt-h { margin: 10px 0 4px; }
-.rich ul, .rich ol { margin: 0 0 6px; padding-left: 22px; }
-.rich blockquote { margin: 0 0 6px; padding: 4px 10px; border-left: 3px solid var(--accent); color: var(--muted); }
+.rich ul, .rich ol { margin: 0 0 6px; padding-inline-start: 22px; }
+.rich blockquote { margin: 0 0 6px; padding: 4px 10px; border-inline-start: 3px solid var(--accent); color: var(--muted); }
 .rich hr { border: 0; border-top: 1px solid var(--panel-border); margin: 8px 0; }
 .rich .rt-img { display: block; max-width: 100%; height: auto; border-radius: 8px; margin: 6px 0; }
 .rich .rt-c { text-align: center; }
-.rich .rt-c .rt-img { margin-left: auto; margin-right: auto; }
-.rich .rt-r { text-align: right; }
+.rich .rt-c .rt-img { margin-inline-start: auto; margin-inline-end: auto; }
+.rich .rt-r { text-align: right; } /* ltr-ok: người dùng chọn căn phải */
 .rich .rt-j { text-align: justify; }
 
 /* ---- URL riêng */
@@ -51,7 +51,7 @@
   font-size: var(--fs-sm); cursor: pointer; }
 .place-pick .chip:has(input:checked), .sc-form .chip:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .place-pick .row { gap: 6px; }
-.bo-n { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+.bo-n { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 6px; }
 .bo-n input { width: 64px; }
 .sc-body .tb-help, .sc-body .place-pick, .sc-body > .hint { grid-column: 1 / -1; }
 .tb-help { font-size: var(--fs-sm); }
@@ -64,13 +64,13 @@
 /* ---- Nhánh xem trước */
 .pv-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .pv-g { border: 1px solid var(--panel-border); border-radius: 10px; padding: 6px 10px; }
-.pv-g ol { margin: 4px 0 0; padding-left: 20px; font-size: var(--fs-sm); }
+.pv-g ol { margin: 4px 0 0; padding-inline-start: 20px; font-size: var(--fs-sm); }
 
 /* ---- Hộp thoại ảnh kết quả / đính kèm trận */
 .mx-dlg { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 32px); border: 0; border-radius: 14px; padding: 16px; background: var(--bg); color: var(--text); }
 .mx-dlg::backdrop { background: rgba(0, 0, 0, 0.45); }
-.mx-dlg h4 { margin: 0 0 8px; padding-right: 36px; }
-.mx-x { position: absolute; top: 10px; right: 10px; }
+.mx-dlg h4 { margin: 0 0 8px; padding-inline-end: 36px; }
+.mx-x { position: absolute; top: 10px; inset-inline-end: 10px; }
 .mx-img img { width: 100%; height: auto; border-radius: 8px; display: block; margin-bottom: 10px; }
 .mx-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .mx-list li { display: flex; gap: 8px; align-items: flex-start; border-bottom: 1px solid var(--panel-border); padding-bottom: 8px; }
@@ -108,7 +108,7 @@
 
 /* ---- Mùa giải kiểu Mỹ: bảng số lần gặp theo quan hệ (otour-season-edit.js) */
 .sn-table { border-collapse: collapse; font-size: var(--fs-sm); }
-.sn-table th, .sn-table td { padding: 3px 6px; text-align: left; }
+.sn-table th, .sn-table td { padding: 3px 6px; text-align: start; }
 .sn-table th[scope="row"] { font-weight: 500; }
 .sn-table input { width: 5em; }
 .sn-sum { font-weight: 600; color: var(--text); }
@@ -116,7 +116,7 @@
 .sc-homes { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; }
 .sc-day { margin: 12px 0 4px; text-transform: capitalize; }
 .ot-sched .mrow.sc-warn { border-color: var(--warn, #d9a43b); }
-.sc-cf ul { margin: 4px 0; padding-left: 18px; }
+.sc-cf ul { margin: 4px 0; padding-inline-start: 18px; }
 .sc-shift { flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 /* Esports (otour-games-ui.js): các ván, cấm chọn, biểu đồ vàng */
 .esp-games { margin-top: 10px; display: grid; gap: 8px; }
@@ -131,11 +131,11 @@
 s.chip-x { opacity: .7; }
 .esp-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
 .esp-st td, .esp-st th { text-align: center; }
-.esp-st td:first-child { text-align: left; }
+.esp-st td:first-child { text-align: start; }
 .esp-st input { width: 6.5em; }
 .dr-step { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
 .dr-step span { min-width: 4.5em; font-size: var(--fs-sm); }
-.dr-step .dr-no { min-width: 1.6em; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dr-step .dr-no { min-width: 1.6em; text-align: end; color: var(--muted); font-variant-numeric: tabular-nums; }
 .dr-step.ban input { text-decoration: line-through; }
 .pl-row { display: grid; grid-template-columns: 1.3fr 1.3fr .6fr .6fr .6fr; gap: 4px; margin: 2px 0; }
 .pl-row input { min-width: 0; }

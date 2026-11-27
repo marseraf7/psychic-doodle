@@ -19,13 +19,18 @@ description: Chuẩn giao diện chống lặp lỗi hiển thị trong repo C�
 - **Màu có nghĩa** (đi tiếp, bị loại) → luôn kèm chữ / nhãn.
 - **Mục ẩn vì quyền xem** → người quản lý vẫn thấy, có nhãn; không báo "0 mục" khi có mục ẩn.
 - **`aria-live`** → chỉ thông báo của trang đang mở.
+- **Trái / phải (RTL)** → thuộc tính logic: `margin-inline-start`, `padding-inline-end`, `border-inline-start`,
+  `inset-inline-end`, `text-align: start/end`, `border-start-start-radius`; viết tắt 4 giá trị trái ≠ phải → `*-block` + `*-inline`.
+  Buộc giữ vật lý (căn giữa `left: 50%` + `translateX`, JS đặt `style.left/right`, toạ độ bàn cờ / đồ thị) → ghi
+  `/* ltr-ok: lý do */` cùng dòng. Lật / giữ LTR bằng tay (mũi tên, đồ thị…) → `caro/lang-scripts.css` với `[dir="rtl"]`.
 
 ## Trước khi đẩy
 
-1. `cd server && npm run coverage` (có `css-rules.test.js`, `i18n-vars.test.js`).
+1. `cd server && npm run coverage` (có `css-rules.test.js` – cả luật trái/phải RTL, `i18n-vars.test.js`).
 2. `node caro/tests/e2e/otour-ui.e2e.js` → "Soát giao diện: 0 lỗi hiển thị" (1920px + 390px).
-3. Trang / tính năng mới: thêm `ok((await audit(page)).length === 0, …)` (từ `caro/tests/e2e/ui-audit.js`) vào e2e của nó, ít nhất ở màn hẹp.
-4. Tăng `CACHE` trong `caro/sw.js`.
+3. Đổi bố cục chung (thanh, trang chủ, bàn cờ): `node caro/tests/e2e/rtl-layout.e2e.js` (ép `dir="rtl"`).
+4. Trang / tính năng mới: thêm `ok((await audit(page)).length === 0, …)` (từ `caro/tests/e2e/ui-audit.js`) vào e2e của nó, ít nhất ở màn hẹp.
+5. Tăng `CACHE` trong `caro/sw.js`.
 
 ## Khi nhận báo lỗi giao diện
 
