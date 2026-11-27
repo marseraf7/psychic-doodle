@@ -25,7 +25,7 @@ test('không nhận nhầm: thiếu tham số, platform lạ, tên miền giốn
     assert.strictEqual(isDiscordLaunch(q), false, q);
     assert.strictEqual(detect({ search: q, hash: '' }), null, q);
   }
-  for (const h of ['discordsays.com.evil.example', 'evildiscordsays.com', 'discord.com', 'caroxo.duckdns.org', 'localhost']) {
+  for (const h of ['discordsays.com.evil.example', 'evildiscordsays.com', 'discord.com', require('../../server/src/site.js').DEFAULT_HOST, 'localhost']) {
     assert.strictEqual(detect({ search: '', hash: '', hostname: h }), null, h);
   }
   assert.strictEqual(detect({ search: '', hash: '', session: 'zalo' }), null);

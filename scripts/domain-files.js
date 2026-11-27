@@ -17,6 +17,7 @@ const REPLACE = [
   'app/README.md',
   'docs/claude-directory/SUBMISSION.md',
   'docs/claude-directory/listing.md',
+  'docs/discord-activity.md', // ví dụ Target của URL Mapping (Discord Developer Portal)
 ];
 
 const ADD = [
