@@ -17,9 +17,14 @@ function wallToUtc(y, m, d, hh, mm, tz) {
   const wall = Date.UTC(y, m - 1, d, hh, mm);
   const o1 = LT.localKey(wall, tz).off;
   let at = wall - o1 * 60000;
-  // Độ lệch lúc "at" khác lúc đoán (giờ thật nằm ở phía bên kia lần đổi giờ): tính lại theo độ lệch mới
+  // Độ lệch lúc "at" khác lúc đoán (giờ thật nằm ở phía bên kia lần đổi giờ): thử theo độ lệch mới; giờ đó vẫn không tự khớp
+  // (giờ nằm trong khoảng nhảy – không tồn tại) thì lấy giờ SAU khi nhảy = trừ độ lệch nhỏ hơn. Đúng cả múi giờ dương
+  // (Prague 02:30 → 03:30 CEST) lẫn âm (New York 02:30 → 03:30 EDT) – rà soát 27/11/2026: bản cũ lùi sớm 1 giờ ở múi âm.
   const o2 = LT.localKey(at, tz).off;
-  if (o2 !== o1) at = wall - o2 * 60000;
+  if (o2 !== o1) {
+    const a2 = wall - o2 * 60000;
+    at = LT.localKey(a2, tz).off === o2 ? a2 : wall - Math.min(o1, o2) * 60000;
+  }
   return at;
 }
 

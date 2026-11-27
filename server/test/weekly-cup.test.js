@@ -354,3 +354,42 @@ test('hẹn giờ: nhịp chạy định kỳ, hub đóng thì dừng hẳn (ti�
   h2.close();
   store.close();
 });
+
+test('rà soát 27/11/2026: huỷ liên tiếp nhiều lần không kẹt (lượt quá 29 ngày chờ lần quét sau); giờ không tồn tại ở múi âm; dời giờ thì nhắc lại', () => {
+  const store = new Store(null);
+  const hub = mkHub(store);
+  const errs = [];
+  const w = console.warn, e0 = console.error, l = console.log;
+  console.warn = (...a) => errs.push(a.join(' ')); console.error = (...a) => errs.push(a.join(' ')); console.log = () => {};
+  try {
+    let t = hub.weeklyLive();
+    const first = t.startsAt;
+    for (let i = 0; i < 6; i++) { hub.cancelTour(t, 'organizer'); t = hub.weeklyLive(); if (!t) break; }
+    assert.ok(!errs.some((x) => /tour_bad_start|lỗi ở việc hẹn giờ/.test(x)), 'không lỗi khi huỷ liên tiếp: ' + errs.join(' | '));
+    if (t) assert.ok(t.startsAt <= Date.now() + 30 * 86400000, 'giải tạo được luôn trong 30 ngày');
+    // Không có giải (lượt kế quá xa): lần quét khi đã đủ gần thì tạo
+    const live = hub.weeklyLive() || hub.weeklyEnsure(first + 28 * 86400000);
+    assert.ok(live && live.weekly, 'thời gian trôi tới gần lượt kế: có giải');
+  } finally { console.warn = w; console.error = e0; console.log = l; }
+  hub.close(); store.close();
+  // Giờ không tồn tại (khoảng nhảy giờ mùa hè) → giờ sau khi nhảy, cả múi giờ âm
+  assert.strictEqual(iso(WT.wallToUtc(2026, 3, 8, 2, 30, 'America/New_York')), '2026-03-08T07:30:00.000Z', 'New York 02:30 → 03:30 EDT');
+  assert.strictEqual(iso(WT.wallToUtc(2026, 9, 6, 0, 30, 'America/Santiago')), '2026-09-06T04:30:00.000Z', 'Santiago 00:30 → 01:30 -03 (không lùi sang thứ Bảy)');
+  assert.strictEqual(iso(WT.wallToUtc(2027, 3, 28, 2, 30, 'Europe/Prague')), '2027-03-28T01:30:00.000Z', 'Prague vẫn đúng');
+  assert.strictEqual(iso(WT.wallToUtc(2026, 11, 1, 1, 30, 'America/New_York')), '2026-11-01T05:30:00.000Z', 'giờ lặp (lùi giờ): lấy lần đầu');
+  // Dời giờ đấu sau khi đã nhắc → nhắc lại theo giờ mới
+  const s2 = new Store(null);
+  const h2 = mkHub(s2);
+  const t2 = h2.weeklyLive();
+  const u = s2.createUser({ username: 'rem2', name: 'Rem2' });
+  t2.players.push({ uid: u.id, name: 'Rem2', rating: 1200, score: 0, wins: 0, draws: 0, losses: 0, games: 0, streak: 0, firsts: 0 });
+  const notes = [];
+  h2.pushNote = (uid, item) => notes.push(item.starts);
+  h2.weeklyTick(t2.startsAt - 10 * 60000);
+  const old = t2.startsAt;
+  t2.startsAt = old + 3600000; // quản trị viên dời 1 giờ
+  h2.weeklyTick(t2.startsAt - 10 * 60000);
+  h2.weeklyTick(t2.startsAt - 5 * 60000);
+  assert.deepStrictEqual(notes, [old, old + 3600000]);
+  h2.close(); s2.close();
+});

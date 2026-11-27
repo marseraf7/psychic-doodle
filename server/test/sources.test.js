@@ -132,3 +132,39 @@ test('sources: hello mang src / ref; khách đăng ký giữ nguồn; ván onlin
     for (const c of [a, b, boss]) c.close();
   } finally { await app.stop(); }
 });
+
+test('store-sources (rà soát 27/11/2026): ván qua nửa đêm UTC cộng active; dòng khách cũ được dọn, tài khoản giữ; hub: một kết nối một danh tính khách, bảng ≤ 60 ngày', () => {
+  const s = new Store(null);
+  s.srcTouch('g_night', 'web', null, T0); // kết nối mở ngày 1/11
+  s.srcGame('g_night', 'web', T0 + DAY); // ván xong sau nửa đêm (2/11)
+  const d2 = s.srcReport(30, T0 + DAY).daily.find((x) => x.day === dayOf(T0 + DAY) && x.src === 'web');
+  assert.strictEqual(d2.active, 1, 'ngày mới có hoạt động: active 1');
+  assert.strictEqual(d2.games, 1);
+  s.srcGame('g_night', 'web', T0 + DAY); // ván thứ hai cùng ngày: không cộng active nữa
+  assert.strictEqual(s.srcReport(30, T0 + DAY).daily.find((x) => x.day === dayOf(T0 + DAY) && x.src === 'web').active, 1);
+  // Dọn: khách cũ hơn 100 ngày bỏ, tài khoản giữ
+  s.srcTouch('g_old', 'web', null, T0);
+  s.srcTouch('u_old', 'web', null, T0);
+  s.srcPrune(T0 + 101 * DAY);
+  assert.strictEqual(s.srcFirst('g_old'), null);
+  assert.ok(s.srcFirst('u_old'));
+  // Hub: gửi lại hello với khoá khách khác trên cùng kết nối → không ghi danh tính khách thứ hai
+  const { Sources } = require('../src/hub/sources.js');
+  const hub = Object.assign(Object.create(Sources.prototype), { store: s });
+  const conn = { src: 'web' };
+  hub.srcSeen(conn, 'g_first');
+  hub.srcSeen(conn, 'g_spam1');
+  hub.srcSeen(conn, 'g_spam2');
+  assert.ok(s.srcFirst('g_first'));
+  assert.strictEqual(s.srcFirst('g_spam1'), null);
+  assert.strictEqual(s.srcFirst('g_spam2'), null);
+  hub.srcSeen(conn, 'u_after'); // khách đăng ký: vẫn ghi
+  assert.ok(s.srcFirst('u_after'));
+  // Bảng: days > 60 → 30 (hoạt động chỉ giữ 60 ngày)
+  const sent = [];
+  Object.assign(hub, { requireAdmin() {} });
+  hub.srcStats = null;
+  hub.on_srcStats({ send: (m) => sent.push(m) }, { days: 90 });
+  hub.on_srcStats({ send: (m) => sent.push(m) }, { days: 60 });
+  assert.deepStrictEqual(sent.map((m) => m.days), [30, 60]);
+});

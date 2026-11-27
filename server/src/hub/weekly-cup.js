@@ -23,6 +23,7 @@ const SYSTEM_UID = '~system'; // không trùng được mã tài khoản (16 ch�
 const OPEN = ['draft', 'pending', 'scheduled', 'running'];
 const LEAD_MS = 30 * 60000; // tạo giải mới: giờ đấu phải còn ít nhất 30 phút nữa (không thì lấy tuần sau)
 const REMIND_MS = 30 * 60000; // nhắc người đã đăng ký khi còn ≤ 30 phút
+const AHEAD_MAX_MS = 29 * 86400000; // giờ đấu xa nhất được tạo giải (giải hẹn tối đa 30 ngày – tournaments.js MAX_START_DAYS)
 const LOST_MS = 60000; // chỗ đã giữ mà không thấy giải sau 1 phút: giải bị mất (máy chủ tắt trước khi ghi) – giữ lại chỗ
 const MAX_TITLES = 50;
 
@@ -70,6 +71,9 @@ class WeeklyCup {
     for (let i = 0; i < 12; i++) {
       const slot = WT.nextSlot(after, this.wc);
       after = slot.at;
+      // Huỷ nhiều lần liên tiếp đẩy lượt kế tiếp ra xa: quá 29 ngày (giải không được hẹn quá 30 ngày – tournaments.js) thì
+      // CHƯA giữ chỗ – lần quét sau tạo khi đã đủ gần (bản cũ giữ chỗ rồi tạo lỗi, kẹt tới khi lọt vào 30 ngày)
+      if (slot.at > now + AHEAD_MAX_MS) return null;
       if ([...this.tours.values()].some((t) => t.weeklyKey === slot.key)) continue; // lần này đã có giải (xong / huỷ)
       const id = crypto.randomBytes(5).toString('hex');
       let n = S.wcClaim(slot.key, id, now);
@@ -131,8 +135,9 @@ class WeeklyCup {
   }
 
   weeklyRemind(t, now) {
-    if (t.status !== 'scheduled' || t.wcReminded || now < t.startsAt - REMIND_MS || now >= t.startsAt) return;
-    t.wcReminded = true;
+    // wcReminded = giờ đấu đã nhắc: dời giờ / đặt lại giải (giờ đấu đổi) thì nhắc lại (true: dữ liệu của bản cũ – coi như đã nhắc)
+    if (t.status !== 'scheduled' || t.wcReminded === true || t.wcReminded === t.startsAt || now < t.startsAt - REMIND_MS || now >= t.startsAt) return;
+    t.wcReminded = t.startsAt;
     for (const p of t.players) if (!p.withdrawn) this.pushNote(p.uid, { k: 'tour_soon', id: t.id, name: t.name, starts: t.startsAt });
     this.saveTour(t);
   }

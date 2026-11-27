@@ -17,6 +17,8 @@ const SCHEMA = `
     games INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, src));
 `;
 const ACTIVE_KEEP_DAYS = 60;
+const GUEST_FIRST_KEEP_DAYS = 100;
+const MAX_REPORT_DAYS = 60; // bảng không xem quá số ngày còn giữ hoạt động (D1 / D7 của nhóm cũ hơn sẽ sai về 0)
 const DAILY_KEEP_DAYS = 400;
 
 const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -62,9 +64,11 @@ class SourcesStore {
   srcGame(pid, src, at = Date.now()) {
     const db = this.src();
     const day = dayOf(at);
-    db.prepare(`INSERT INTO src_active (pid, day, games) VALUES (?, ?, 1) ON CONFLICT(pid, day) DO UPDATE SET games = games + 1`).run(pid, day);
-    db.prepare(`INSERT INTO src_daily (day, src, new, active, games) VALUES (?, ?, 0, 0, 1)
-      ON CONFLICT(day, src) DO UPDATE SET games = games + 1`).run(day, src);
+    // Kết nối kéo qua nửa đêm UTC: dòng hoạt động của ngày mới tạo ở đây → cũng cộng "active" (rà soát 27/11/2026)
+    const fresh = db.prepare('INSERT OR IGNORE INTO src_active (pid, day, games) VALUES (?, ?, 0)').run(pid, day).changes > 0;
+    db.prepare('UPDATE src_active SET games = games + 1 WHERE pid = ? AND day = ?').run(pid, day);
+    db.prepare(`INSERT INTO src_daily (day, src, new, active, games) VALUES (?, ?, 0, ?, 1)
+      ON CONFLICT(day, src) DO UPDATE SET games = games + 1, active = active + excluded.active`).run(day, src, fresh ? 1 : 0);
   }
 
   /** Xoá tài khoản: bỏ dấu vết nguồn của danh tính đó. */
@@ -78,6 +82,9 @@ class SourcesStore {
   srcPrune(at = Date.now()) {
     const db = this.src();
     db.prepare('DELETE FROM src_active WHERE day < ?').run(addDays(dayOf(at), -ACTIVE_KEEP_DAYS));
+    // Danh tính khách (g_…) cũ: bỏ dòng "lần đầu" sau GUEST_FIRST_KEEP_DAYS – khoá khách do máy khách tự đặt, không dọn thì bảng
+    // phình mãi (tài khoản u_… giữ: ít, và cần để không tính lại là người mới)
+    db.prepare("DELETE FROM src_first WHERE pid LIKE 'g\\_%' ESCAPE '\\' AND day < ?").run(addDays(dayOf(at), -GUEST_FIRST_KEEP_DAYS));
     db.prepare('DELETE FROM src_daily WHERE day < ?').run(addDays(dayOf(at), -DAILY_KEEP_DAYS));
   }
 
@@ -123,4 +130,4 @@ class SourcesStore {
   }
 }
 
-module.exports = { SourcesStore, dayOf, addDays };
+module.exports = { SourcesStore, dayOf, addDays, MAX_REPORT_DAYS };

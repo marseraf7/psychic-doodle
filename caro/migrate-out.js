@@ -23,7 +23,17 @@
   let gone = false;
 
   const sp = new URLSearchParams(location.search);
-  const ticket = /^[A-Za-z0-9_-]{22}$/.test(sp.get('migt') || '') ? sp.get('migt') : '';
+  // Vé chỉ hợp lệ khi CHÍNH tab này vừa đi bước begin (cờ trong sessionStorage – cùng tab, cùng tên miền, còn qua vòng chuyển
+  // hướng): link ?migt=<vé của người khác> không làm tab này gửi dữ liệu kèm vé lạ (rà soát 27/11/2026 – kẻ xấu giữ cookie vé
+  // đó lấy được dữ liệu + phiên đăng nhập, còn người bị gửi link mất danh tính khách). Không có cờ: đi lại bước begin.
+  const BEGUN = 'caro.migBegun';
+  const ss = {
+    get: (k) => { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
+    set: (k, v) => { try { if (v == null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { /* riêng tư */ } },
+  };
+  const begun = ss.get(BEGUN);
+  ss.set(BEGUN, null);
+  const ticket = /^[A-Za-z0-9_-]{22}$/.test(sp.get('migt') || '') && begun && Date.now() - Number(begun) < 5 * 60000 ? sp.get('migt') : '';
 
   /** Đường dẫn + tham số + # của trang này (bỏ mig / migt), luôn bắt đầu bằng đúng một '/'. */
   function rel() {
@@ -98,9 +108,18 @@
     const keys = collect();
     if (!keys) return go('');
     // Bước 1: lấy vé ở tên mới (máy chủ đưa về trang này kèm ?migt=)
-    if (!ticket) return nav('/api/migrate/begin?from=' + encodeURIComponent(location.host) + '&p=' + encodeURIComponent(rel()));
-    return fetch((window.CARO_SERVER || '') + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ v: 1, t: ticket, keys }), credentials: 'omit', cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => go(j && /^[A-Za-z0-9_-]{22}$/.test(j.code) ? j.code : ''), () => go(''));
+    if (!ticket) {
+      ss.set(BEGUN, String(Date.now()));
+      return nav('/api/migrate/begin?from=' + encodeURIComponent(location.host) + '&p=' + encodeURIComponent(rel()));
+    }
+    // Máy chủ bận / quá lượt (429, 503): thử lại trong khung 8 giây thay vì sang tên mới không kèm dữ liệu (mất danh tính khách)
+    const body = JSON.stringify({ v: 1, t: ticket, keys });
+    const send = (left) => fetch((window.CARO_SERVER || '') + '/api/migrate', { method: 'POST', headers: { 'content-type': 'application/json' }, body, credentials: 'omit', cache: 'no-store' })
+      .then((r) => {
+        if (r.ok) return r.json();
+        if ((r.status === 429 || r.status === 503) && left > 0) return new Promise((res) => setTimeout(res, 1500)).then(() => send(left - 1));
+        return null;
+      });
+    return send(3).then((j) => go(j && /^[A-Za-z0-9_-]{22}$/.test(j.code) ? j.code : ''), () => go(''));
   });
 })();
