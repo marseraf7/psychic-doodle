@@ -9,6 +9,7 @@
  * Không lưu IP / UA; không có API công khai. Lỗi CSDL ở đây không được làm hỏng đăng nhập / ván đấu (chỉ ghi log).
  */
 'use strict';
+const { MAX_REPORT_DAYS } = require('../store-sources.js');
 
 const SOURCES = ['web', 'pwa', 'app', 'desktop', 'telegram', 'vk', 'crazygames', 'itch', 'mcp', 'embed', 'unknown'];
 const cleanSrc = (s) => (SOURCES.includes(s) ? s : 'unknown');
@@ -26,6 +27,9 @@ class Sources {
   srcSeen(conn, pid) {
     if (!pid || !conn) return;
     const prev = conn.srcPid;
+    // Một kết nối chỉ được tính MỘT danh tính khách: gửi lại hello với khoá khách tự chọn khác (bơm "người mới", phình bảng
+    // src_first) thì không ghi nữa (rà soát 27/11/2026). Khách → tài khoản (đăng ký / đăng nhập) vẫn ghi như thường.
+    if (prev && prev !== pid && prev.startsWith('g_') && pid.startsWith('g_')) return;
     conn.srcPid = pid;
     this.srcSafe(() => {
       if (prev && prev !== pid && prev.startsWith('g_') && pid.startsWith('u_')) this.store.srcAdopt(prev, pid);
@@ -53,7 +57,7 @@ class Sources {
 
   on_srcStats(conn, { days } = {}) {
     this.requireAdmin(conn);
-    const n = Number.isInteger(days) && days >= 7 && days <= 90 ? days : 30;
+    const n = Number.isInteger(days) && days >= 7 && days <= MAX_REPORT_DAYS ? days : 30;
     this.srcSafe(() => this.store.srcPrune());
     const r = this.srcSafe(() => this.store.srcReport(n)) || { sources: [], refs: [], daily: [], days: n };
     conn.send({ t: 'srcStats', ...r });

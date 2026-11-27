@@ -7,6 +7,9 @@
  * Chống phát lại (hlSeen): dữ liệu khởi chạy có mốc CŨ HƠN lần dùng gần nhất bị từ chối – bản initData / sign bị lộ của
  * một lần mở trước mất tác dụng ngay khi người chơi mở lại Mini App (cùng một lần mở – tải lại trang – vẫn dùng lại được).
  * Xoá tài khoản (store.deleteUser) → hlUserGone xoá mọi liên kết trong cùng giao dịch.
+ * Mốc huỷ (bảng host_unlinked, rà soát 27/11/2026): huỷ liên kết / xoá tài khoản xoá luôn mốc seen, nên một bản initData / sign
+ * cũ bị lộ (còn trong hạn 24 giờ) lại tạo / gắn được tài khoản mới với Telegram / VK đó. Nay ghi mốc lúc huỷ (giây);
+ * hlFloor(provider, extId) trả mốc này – hub/host-login.js từ chối dữ liệu khởi chạy không mới hơn mốc.
  */
 'use strict';
 
@@ -23,6 +26,9 @@ class HostLinkStore {
         unlink: q('DELETE FROM host_links WHERE uid = ? AND provider = ?'),
         drop: q('DELETE FROM host_links WHERE provider = ? AND ext_id = ?'),
         gone: q('DELETE FROM host_links WHERE uid = ?'),
+        extOf: q('SELECT provider, ext_id FROM host_links WHERE uid = ?'),
+        tomb: q('INSERT INTO host_unlinked (provider, ext_id, at) VALUES (?, ?, ?) ON CONFLICT (provider, ext_id) DO UPDATE SET at = MAX(at, excluded.at)'),
+        floor: q('SELECT at FROM host_unlinked WHERE provider = ? AND ext_id = ?'),
       };
     }
     return this.hlStmts;
@@ -50,14 +56,29 @@ class HostLinkStore {
     return Number(this.hlQ().seen.run(ts, provider, extId, ts).changes) > 0;
   }
 
-  /** Bỏ liên kết provider của tài khoản; true nếu có dòng bị xoá. */
-  hlUnlink(uid, provider) { return Number(this.hlQ().unlink.run(uid, provider).changes) > 0; }
+  /** Ghi mốc huỷ (giây) cho các liên kết của uid (lọc theo provider nếu có) – gọi TRƯỚC khi xoá dòng. */
+  hlTomb(uid, provider = null, at = Date.now()) {
+    const sec = Math.floor(at / 1000);
+    for (const r of this.hlQ().extOf.all(uid)) if (!provider || r.provider === provider) this.hlQ().tomb.run(r.provider, r.ext_id, sec);
+  }
+
+  /** Mốc huỷ liên kết gần nhất của (provider, extId) – giây; 0 nếu chưa từng huỷ. */
+  hlFloor(provider, extId) { return Number(this.hlQ().floor.get(provider, extId)?.at ?? 0); }
+
+  /** Bỏ liên kết provider của tài khoản (ghi mốc huỷ); true nếu có dòng bị xoá. */
+  hlUnlink(uid, provider, at = Date.now()) {
+    this.hlTomb(uid, provider, at);
+    return Number(this.hlQ().unlink.run(uid, provider).changes) > 0;
+  }
 
   /** Bỏ liên kết theo id ngoài (dòng mồ côi – tài khoản không còn). */
   hlDrop(provider, extId) { this.hlQ().drop.run(provider, extId); }
 
   /** Tài khoản bị xoá: xoá mọi liên kết (gọi trong giao dịch của deleteUser). */
-  hlUserGone(uid) { this.hlQ().gone.run(uid); }
+  hlUserGone(uid) {
+    this.hlTomb(uid);
+    this.hlQ().gone.run(uid);
+  }
 }
 
 module.exports = { HostLinkStore };

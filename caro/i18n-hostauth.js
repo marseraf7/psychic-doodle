@@ -8,9 +8,11 @@
   const I = window.I18N;
   I.extend('vi', {
     hostauth_save: 'Lưu tiến độ bằng {host}',
+    cg_login: 'Đăng nhập bằng CrazyGames', // bản CrazyGames Full
     hostauth_save_hint: 'Không cần mật khẩu. Lần sau mở game trong {host}, bạn vào đúng tài khoản này.',
     hostauth_link_btn: 'Liên kết {host}',
-    hostauth_link_q: 'Liên kết tài khoản {host} đang dùng với tài khoản {name}? Lần sau mở game trong {host}, bạn tự vào tài khoản này.',
+    hostauth_link_q: 'Liên kết {host} {who} với tài khoản Caro {name}? Lần sau mở game trong {host}, bạn tự vào tài khoản này.',
+    hostauth_create_q: 'Tạo tài khoản Caro gắn với {host} {who}? Lần sau mở game trong {host}, bạn tự vào tài khoản này. Nếu đây không phải tài khoản {host} của bạn, hãy bấm Huỷ.',
     hostauth_linked_tag: '✓ Đã liên kết {host}',
     hostauth_card_title: 'Telegram và VK',
     hostauth_card_hint: 'Mở game trong ứng dụng mini đã liên kết là tự vào tài khoản này. Huỷ liên kết thì máy chủ xoá mã tài khoản Telegram hoặc VK đã lưu.',
@@ -33,9 +35,11 @@
   });
   I.extend('en', {
     hostauth_save: 'Save progress with {host}',
+    cg_login: 'Log in with CrazyGames', // bản CrazyGames Full
     hostauth_save_hint: 'No password needed. Next time you open the game in {host}, you are logged in to this account.',
     hostauth_link_btn: 'Link {host}',
-    hostauth_link_q: 'Link the {host} account you are using to {name}? Next time you open the game in {host}, you are logged in to this account automatically.',
+    hostauth_link_q: 'Link {host} {who} to your Caro account {name}? Next time you open the game in {host}, you are logged in to this account automatically.',
+    hostauth_create_q: 'Create a Caro account linked to {host} {who}? Next time you open the game in {host}, you are logged in to it automatically. If this is not your {host} account, tap Cancel.',
     hostauth_linked_tag: '✓ {host} linked',
     hostauth_card_title: 'Telegram and VK',
     hostauth_card_hint: 'Opening the game in a linked Mini App logs you in to this account. Unlinking deletes the stored Telegram or VK account ID from the server.',
@@ -58,9 +62,11 @@
   });
   I.extend('ru', {
     hostauth_save: 'Сохранить прогресс через {host}',
+    cg_login: 'Войти через CrazyGames', // bản CrazyGames Full
     hostauth_save_hint: 'Пароль не нужен. В следующий раз, открыв игру в {host}, вы войдёте в этот аккаунт.',
     hostauth_link_btn: 'Привязать {host}',
-    hostauth_link_q: 'Привязать текущий аккаунт {host} к аккаунту {name}? В следующий раз, открыв игру в {host}, вы автоматически войдёте в этот аккаунт.',
+    hostauth_link_q: 'Привязать {host} {who} к аккаунту Caro {name}? В следующий раз, открыв игру в {host}, вы автоматически войдёте в этот аккаунт.',
+    hostauth_create_q: 'Создать аккаунт Caro, привязанный к {host} {who}? В следующий раз, открыв игру в {host}, вы автоматически войдёте в него. Если это не ваш аккаунт {host}, нажмите «Отмена».',
     hostauth_linked_tag: '✓ {host} привязан',
     hostauth_card_title: 'Telegram и VK',
     hostauth_card_hint: 'Если открыть игру в привязанном мини-приложении, вы автоматически войдёте в этот аккаунт. При отвязке сервер удаляет сохранённый ID аккаунта Telegram или VK.',
@@ -83,9 +89,11 @@
   });
   I.extend('zh', {
     hostauth_save: '用 {host} 保存进度',
+    cg_login: '用 CrazyGames 登录', // bản CrazyGames Full
     hostauth_save_hint: '无需密码。下次在 {host} 中打开游戏，就会登录这个账号。',
     hostauth_link_btn: '关联 {host}',
-    hostauth_link_q: '将当前使用的 {host} 账号关联到 {name}？下次在 {host} 中打开游戏会自动登录这个账号。',
+    hostauth_link_q: '将 {host} {who} 关联到 Caro 账号 {name}？下次在 {host} 中打开游戏会自动登录这个账号。',
+    hostauth_create_q: '创建一个关联 {host} {who} 的 Caro 账号？下次在 {host} 中打开游戏会自动登录。如果这不是你的 {host} 账号，请点“取消”。',
     hostauth_linked_tag: '✓ 已关联 {host}',
     hostauth_card_title: 'Telegram 和 VK',
     hostauth_card_hint: '在已关联的小程序中打开游戏会自动登录这个账号。取消关联后，服务器会删除保存的 Telegram 或 VK 账号 ID。',

@@ -42,6 +42,9 @@ jobs:
       - name: Cài Playwright
         run: |
           npm install --no-save playwright@1.56.1
+          # Kho apt packages.microsoft.com có sẵn trên máy CI đôi khi trả 403 / "no longer signed" (27/11/2026) làm apt-get
+          # update của --with-deps dừng, trình duyệt không được cài. Game không cần gì từ kho đó: bỏ kho trước khi cài.
+          for f in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$f"; then sudo rm -f "$f"; fi; done
           npx playwright install --with-deps ${{ matrix.browser }}
       - name: Bộ nhớ đệm mạng Rapfi
         uses: actions/cache@v4
@@ -99,7 +102,7 @@ jobs:
         timeout-minutes: 20
         if: matrix.browser == 'chromium' && (success() || failure())
         run: |
-          for t in bundle-load share-links a11y api-docs corr broadcast classroom pwa-install storm-sync ui-nowrap insights league coach ladder fairplay recap confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun tour-adv-more tour-opts tour-arrange rich-desc portal portal-media host-apps host-discord host-auth video weekly-cup; do
+          for t in bundle-load share-links a11y api-docs corr broadcast classroom pwa-install storm-sync ui-nowrap insights league coach ladder fairplay recap confirm-dlg queue-resume rematch resume-card moretime watch-fix144 fix141 premove analysis-plus rotate analysis-layout inbox tour-adv tour-offline tour-manage tour-staff tour-view club-admin club-talk club-battle tour-fun tour-adv-more tour-opts tour-arrange rich-desc portal portal-media host-apps host-discord host-auth portal-cg-full video weekly-cup; do
             E2E_BROWSER=chromium E2E_OUT=$RUNNER_TEMP/shots node caro/tests/e2e/retry-crash.js caro/tests/e2e/$t.e2e.js || exit 1
           done
       # Mở / tải lại khi mạng chậm: Trang chủ hiện sẵn từ HTML, service worker lấy file từ bộ nhớ đệm trước (boot.e2e.js)
@@ -127,6 +130,9 @@ jobs:
       - name: Cài Playwright
         run: |
           npm install --no-save playwright@1.56.1
+          # Kho apt packages.microsoft.com có sẵn trên máy CI đôi khi trả 403 / "no longer signed" (27/11/2026) làm apt-get
+          # update của --with-deps dừng, trình duyệt không được cài. Game không cần gì từ kho đó: bỏ kho trước khi cài.
+          for f in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$f"; then sudo rm -f "$f"; fi; done
           npx playwright install --with-deps chromium
       - name: Kiểm thử trình duyệt giải đấu Offline
         timeout-minutes: 30

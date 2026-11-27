@@ -44,8 +44,15 @@ const tgStub = (init) => `(function () {
     enableClosingConfirmation: function () {}, disableClosingConfirmation: function () {}, openLink: function () {}, openTelegramLink: function () {},
     BackButton: { show: function () {}, hide: function () {}, onClick: function () {} } } };
 })();`;
-const VK_STUB = `(function () {
-  window.vkBridge = { send: function (m) { return m === 'VKWebAppGetUserInfo' ? Promise.resolve({ id: 1, first_name: 'Pyotr' }) : Promise.resolve({ result: true }); },
+// app VK giả: VKWebAppGetLaunchParams trả vk_user_id của chuỗi đã ký (như app thật); otherId: app trả id khác (link giả);
+// embedded = false: trình duyệt thường (không có app VK để trả lời)
+const vkStub = ({ embedded = true, otherId = '' } = {}) => `(function () {
+  var mine = new URLSearchParams(sessionStorage.getItem('caro.vkLaunch') || '').get('vk_user_id');
+  window.vkBridge = { isEmbedded: function () { return ${embedded}; },
+    send: function (m) {
+      if (m === 'VKWebAppGetUserInfo') return Promise.resolve({ id: 1, first_name: 'Pyotr' });
+      if (m === 'VKWebAppGetLaunchParams') return ${embedded} ? Promise.resolve({ vk_user_id: Number(${JSON.stringify(otherId)} || mine) }) : new Promise(function () {});
+      return Promise.resolve({ result: true }); },
     subscribe: function () {} };
 })();`;
 
@@ -55,18 +62,20 @@ const VK_STUB = `(function () {
   const base = `http://localhost:${PORT}/`;
 
   /** Mở trang (hồ sơ trình duyệt mới). init: initData Telegram giả; puzzles: tiến độ Giải đố khách sẵn trên máy. */
-  async function open(url, { init = '', puzzles = null } = {}) {
+  // embed: trang đang ở trong app Telegram (có cầu nối TelegramWebviewProxy) – false = link mở ở trình duyệt thường; vk: tuỳ chọn app VK giả
+  async function open(url, { init = '', puzzles = null, embed = true, vk = {} } = {}) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
-    await ctx.addInitScript((pz) => {
+    await ctx.addInitScript(([pz, tgEmbed]) => {
       if (!localStorage.getItem('caro.lang')) localStorage.setItem('caro.lang', 'en');
       if (pz && !localStorage.getItem('caro.puzzles')) localStorage.setItem('caro.puzzles', pz);
-    }, puzzles);
+      if (tgEmbed && /tgWebApp/.test(location.hash)) window.TelegramWebviewProxy = { postEvent: function () {} };
+    }, [puzzles, embed]);
     const p = await ctx.newPage();
     p.errs = []; p.out = [];
     p.on('pageerror', (e) => p.errs.push(e.message));
     p.on('websocket', (ws) => ws.on('framesent', (f) => { if (typeof f.payload === 'string') p.out.push(f.payload); }));
     await ctx.route('https://telegram.org/**', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: tgStub(init) }));
-    await ctx.route('**/vendor/vk-bridge.js', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: VK_STUB }));
+    await ctx.route('**/vendor/vk-bridge.js', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: vkStub(vk) }));
     await gotoRetry(p, url);
     await p.waitForFunction(() => window.CaroApp && window.CaroShell && window.CaroOnline, null, { timeout: 15000 });
     await p.waitForFunction(() => window.CaroOnline.connected, null, { timeout: 15000 });
@@ -89,7 +98,10 @@ const VK_STUB = `(function () {
   await a.evaluate(() => document.getElementById('host-auth-save').scrollIntoView({ block: 'center' }));
   await a.screenshot({ path: require('path').join(process.env.E2E_OUT || require('os').tmpdir(), 'hostauth-guest.png') });
   await a.click('#host-auth-save');
-  ok(await waitFor(a, () => window.CaroOnline.state.me && !window.CaroOnline.state.me.guest), 'bấm nút: tạo tài khoản, đăng nhập');
+  await waitFor(a, () => document.getElementById('confirm-dlg').open);
+  ok(/Masha \(@u424242\)/.test(await a.textContent('#confirm-q')), 'bấm nút: hộp hỏi nêu rõ tài khoản Telegram sẽ gắn (Masha (@u424242))');
+  await a.click('#confirm-ok');
+  ok(await waitFor(a, () => window.CaroOnline.state.me && !window.CaroOnline.state.me.guest), 'đồng ý: tạo tài khoản, đăng nhập');
   const m1 = await me(a);
   ok(/^tg_[a-z0-9]{8}$/.test(m1.username) && m1.name === 'Masha' && !m1.hasPassword && (m1.hosts || []).includes('telegram'), `tài khoản mới không mật khẩu, tên từ Telegram, username tự sinh (@${m1.username})`);
   ok(await waitFor(a, () => document.querySelector('#host-auth-row .tag')), 'thẻ tài khoản: "✓ Telegram linked"');
@@ -134,7 +146,7 @@ const VK_STUB = `(function () {
   ok(await waitFor(c, () => document.getElementById('host-auth-link')), 'tài khoản chưa liên kết: nút "Link Telegram"');
   await c.click('#host-auth-link');
   await waitFor(c, () => document.getElementById('confirm-dlg').open);
-  ok(/@olga_caro/.test(await c.textContent('#confirm-q')), 'hỏi xác nhận trong app: liên kết với @olga_caro?');
+  ok(/@olga_caro/.test(await c.textContent('#confirm-q')) && /Olga \(@u515151\)/.test(await c.textContent('#confirm-q')), 'hỏi xác nhận trong app: liên kết Telegram Olga (@u515151) với @olga_caro?');
   await c.click('#confirm-ok');
   ok(await waitFor(c, () => (window.CaroOnline.state.me.hosts || []).includes('telegram')), 'đồng ý: đã liên kết Telegram');
   ok(app.store.hlOwner('telegram', '515151') === (await me(c)).uid, 'máy chủ lưu liên kết đúng tài khoản');
@@ -162,6 +174,9 @@ const VK_STUB = `(function () {
   await toMore(v);
   ok(/Save progress with VK/.test(await v.textContent('#host-auth-save')), 'VK: nút "Save progress with VK"');
   await v.click('#host-auth-save');
+  await waitFor(v, () => document.getElementById('confirm-dlg').open);
+  ok(/Pyotr \(id 777001\)/.test(await v.textContent('#confirm-q')), 'VK: hộp hỏi nêu rõ tài khoản VK (Pyotr (id 777001))');
+  await v.click('#confirm-ok');
   ok(await waitFor(v, () => window.CaroOnline.state.me && !window.CaroOnline.state.me.guest), 'VK: tạo tài khoản');
   const mv = await me(v);
   ok(/^vk_[a-z0-9]{8}$/.test(mv.username) && mv.name === 'Pyotr', `VK: username tự sinh, tên từ VK Bridge (@${mv.username}, ${mv.name})`);
@@ -176,6 +191,26 @@ const VK_STUB = `(function () {
   await toMore(bad);
   ok(!(await bad.$('#host-auth-save')) && !(await bad.$('.toast')), 'chữ ký sai: không nút, không thông báo lỗi');
   await bad.context().close();
+
+  // ---------------------------------------------------------------- Link giả (dữ liệu khởi chạy của người khác gắn vào link)
+  // Người khác gửi link có initData / tham số VK của họ: mở ở trình duyệt thường → không tự đăng nhập, không nút tạo / liên kết
+  const initX = tgInit(424242, 'Masha'); // Telegram đã gắn tài khoản m1
+  const fx = await open(tgUrl(initX), { init: initX, embed: false });
+  await sleep(2500);
+  await toMore(fx);
+  const fxs = await fx.evaluate(() => ({ guest: window.CaroOnline.state.me.guest, row: !!document.getElementById('host-auth-row') }));
+  ok(fxs.guest && !fxs.row && !fx.out.some((s) => s.includes('hostLogin')), 'link giả Telegram ở trình duyệt thường: vẫn là khách, không nút, không gửi hostLogin');
+  await fx.context().close();
+  const fv = await open(base + vkSearch(777001), { vk: { embedded: false } });
+  await sleep(4000);
+  await toMore(fv);
+  ok(!(await fv.$('#host-auth-row')) && !fv.out.some((s) => s.includes('hostLogin')) && (await me(fv)).guest, 'link giả VK ở trình duyệt thường (không có app VK): không tự đăng nhập, không nút');
+  await fv.context().close();
+  const fo = await open(base + vkSearch(777001), { vk: { otherId: '999' } });
+  await sleep(1500);
+  await toMore(fo);
+  ok(!(await fo.$('#host-auth-row')) && !fo.out.some((s) => s.includes('hostLogin')), 'VK: app VK báo người dùng khác với chuỗi đã ký (link giả mở trong VK) → không dùng');
+  await fo.context().close();
 
   // ---------------------------------------------------------------- Ngoài Mini App
   const w = await open(base);

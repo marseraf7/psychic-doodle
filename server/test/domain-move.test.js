@@ -117,11 +117,11 @@ test('mã chuyển: chỉ nhận ở tên cũ, lấy được đúng một lần
   } finally { await s.close(); }
 }));
 
-test('mã chuyển: giới hạn 10 lần gửi / 10 phút mỗi IP, 60 lần lấy / phút; tổng bộ nhớ có trần', () => withEnv(async () => {
+test('mã chuyển: giới hạn 120 lần gửi / 10 phút mỗi IP (CGNAT), 60 lần lấy / phút; tổng bộ nhớ có trần', () => withEnv(async () => {
   const s = await serve();
   try {
     const body = JSON.stringify({ t: TICKET, keys: { 'caro.lang': 'en' } });
-    for (let i = 0; i < 10; i++) assert.strictEqual((await s.req('POST', '/api/migrate', { body })).status, 200);
+    for (let i = 0; i < 120; i++) assert.strictEqual((await s.req('POST', '/api/migrate', { body })).status, 200);
     const r = await s.req('POST', '/api/migrate', { body });
     assert.strictEqual(r.status, 429);
     assert.ok(Number(r.headers['retry-after']) > 0);
@@ -231,19 +231,30 @@ test('safePath: luôn một "/" đầu, bỏ mig / migt, giữ tham số + #', (
 });
 
 /** Chạy caro/migrate-out.js trong vm: trang chuyển ở http://old.test<path>. → { nav (địa chỉ đã sang), posted (thân POST) } */
-async function runMigrateOut(path, search, store = { 'caro.token': 'tok' }) {
+// opts.begun: tab này đã đi bước begin (cờ caro.migBegun – mặc định có khi địa chỉ có migt); opts.statuses: mã trả lần lượt
+async function runMigrateOut(path, search, store = { 'caro.token': 'tok' }, opts = {}) {
   const src = fs.readFileSync(path0('caro', 'migrate-out.js'), 'utf8');
-  const out = { nav: null, posted: null };
+  const out = { nav: null, posted: null, posts: 0, ss: {} };
+  const begun = opts.begun !== undefined ? opts.begun : /migt=/.test(search);
+  if (begun) out.ss['caro.migBegun'] = String(Date.now() - (opts.begunAgo || 1000));
+  const sessionStorage = { getItem: (k) => (k in out.ss ? out.ss[k] : null), setItem: (k, v) => { out.ss[k] = String(v); }, removeItem: (k) => { delete out.ss[k]; } };
+  const statuses = (opts.statuses || []).slice();
   const ls = { get length() { return Object.keys(store).length; }, key: (i) => Object.keys(store)[i], getItem: (k) => (k in store ? store[k] : null) };
   const loc = { pathname: path, search, hash: '', host: 'old.test', replace: (u) => { out.nav = u; } };
   const win = { localStorage: ls, TextEncoder, location: loc };
   const ctx = {
-    window: win, location: loc, navigator: {}, URL, URLSearchParams, Promise, JSON, TextEncoder, setTimeout: () => 0,
+    window: win, location: loc, navigator: {}, URL, URLSearchParams, Promise, JSON, TextEncoder, sessionStorage, Date, Number, String,
+    setTimeout: (fn, ms) => (ms < 5000 ? setImmediate(fn) : 0), // chờ thử lại: chạy ngay; hạn 8 giây: bỏ
     document: { documentElement: { getAttribute: () => 'http://new.test' } },
-    fetch: async (u, o) => { out.posted = { url: u, body: JSON.parse(o.body) }; return { ok: true, json: async () => ({ code: 'C'.repeat(22) }) }; },
+    fetch: async (u, o) => {
+      out.posts++;
+      out.posted = { url: u, body: JSON.parse(o.body) };
+      const st = statuses.length ? statuses.shift() : 200;
+      return st === 200 ? { ok: true, status: 200, json: async () => ({ code: 'C'.repeat(22) }) } : { ok: false, status: st, json: async () => ({}) };
+    },
   };
   vm.runInNewContext(src, ctx);
-  for (let i = 0; i < 20 && !out.nav; i++) await new Promise((r) => setImmediate(r));
+  for (let i = 0; i < 60 && !out.nav; i++) await new Promise((r) => setImmediate(r));
   return out;
 }
 const path0 = (...p) => path.join(__dirname, '..', '..', ...p);
@@ -265,4 +276,27 @@ test('migrate-out.js: chưa có vé → begin ở tên mới; có vé → POST k
   // Không có dữ liệu: sang thẳng tên mới
   r = await runMigrateOut('/x', '', {});
   assert.strictEqual(r.nav, 'http://new.test/x');
+});
+
+test('migrate-out.js: link ?migt=<vé của người khác> (tab này chưa đi bước begin) → không gửi dữ liệu, đi lại bước begin; cờ quá 5 phút cũng vậy', async () => {
+  let r = await runMigrateOut('/', '?migt=' + TICKET, undefined, { begun: false });
+  assert.strictEqual(r.posted, null, 'không gửi dữ liệu kèm vé lạ');
+  assert.ok(r.nav.startsWith('http://new.test/api/migrate/begin?'), r.nav);
+  assert.ok(r.ss['caro.migBegun'], 'đặt cờ trước khi sang begin');
+  r = await runMigrateOut('/', '?migt=' + TICKET, undefined, { begunAgo: 6 * 60000 });
+  assert.strictEqual(r.posted, null);
+  r = await runMigrateOut('/', '?migt=' + TICKET);
+  assert.strictEqual(r.posted.body.t, TICKET, 'tab vừa đi begin: gửi kèm vé');
+  assert.ok(!r.ss['caro.migBegun'], 'dùng xong thì xoá cờ');
+});
+
+test('migrate-out.js: máy chủ trả 429 / 503 → thử lại (tối đa 3 lần) rồi mới sang tên mới; hết lượt thử thì sang không kèm mã', async () => {
+  let r = await runMigrateOut('/', '?migt=' + TICKET, undefined, { statuses: [429, 503] });
+  assert.strictEqual(r.posts, 3);
+  assert.strictEqual(r.nav, 'http://new.test/?mig=' + 'C'.repeat(22));
+  r = await runMigrateOut('/', '?migt=' + TICKET, undefined, { statuses: [429, 429, 429, 429, 429] });
+  assert.strictEqual(r.posts, 4);
+  assert.strictEqual(r.nav, 'http://new.test/');
+  r = await runMigrateOut('/', '?migt=' + TICKET, undefined, { statuses: [400] });
+  assert.strictEqual(r.posts, 1, '400: không thử lại');
 });

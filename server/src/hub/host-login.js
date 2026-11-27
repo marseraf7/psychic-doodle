@@ -35,7 +35,7 @@ const { isOffensiveName } = require('../moderation.js');
 const { PROVIDERS } = require('../host-auth.js');
 const { cleanName, uidOf } = require('./shared.js');
 
-const PREFIX = { telegram: 'tg_', vk: 'vk_' };
+const PREFIX = { telegram: 'tg_', vk: 'vk_', crazygames: 'cg_' };
 const ALNUM = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 class HostLogin {
@@ -58,7 +58,7 @@ class HostLogin {
     for (const c of this.byPid.get(pid) || []) c.send({ t: 'me', me: this.meView(pid) });
   }
 
-  on_hostLogin(conn, msg) {
+  async on_hostLogin(conn, msg) {
     const provider = msg.provider;
     const mode = ['auto', 'create', 'link'].includes(msg.mode) ? msg.mode : 'create';
     if (!PROVIDERS.includes(provider) || !this.hostProviders().includes(provider)) {
@@ -67,19 +67,22 @@ class HostLogin {
     }
     if (mode !== 'auto') return this.hostLoginRun(conn, provider, msg, mode);
     try {
-      this.hostLoginRun(conn, provider, msg, mode);
+      await this.hostLoginRun(conn, provider, msg, mode);
     } catch (e) {
       if (!e.code) throw e; // lỗi bất ngờ: handle() báo chung chung + đếm crash như mọi lệnh
       conn.send({ t: 'hostState', provider, state: 'failed' });
     }
   }
 
-  hostLoginRun(conn, provider, msg, mode) {
+  async hostLoginRun(conn, provider, msg, mode) {
     // 1 lần / giây / kết nối, đếm riêng lần thử im lặng (máy khách chỉ gửi một lần) để bấm nút ngay sau khi mở không bị chặn
     this.throttle(conn, mode === 'auto' ? 'hostLoginAuto' : 'hostLogin', 1000);
     const rules = [['host:' + conn.ip, 30]];
     this.limit(rules);
-    const r = this.hostAuth.verify(provider, msg.data, Date.now());
+    // CrazyGames: kiểm token có thể phải tải khoá công khai (Promise). MỌI trạng thái (đang đăng nhập ai, liên kết của ai) đọc
+    // SAU lần chờ này – phần sau đây chạy đồng bộ, không chen được giữa lúc đọc và lúc ghi.
+    const r = await this.hostAuth.verify(provider, msg.data, Date.now());
+    if (conn.gone || !conn.pid) return; // kết nối đã đóng trong lúc chờ (core.disconnect đặt conn.gone)
     if (!r.ok) {
       this.fail(rules);
       console.warn(`[host-auth] từ chối dữ liệu khởi chạy ${provider}`); // không ghi dữ liệu, lý do, IP
@@ -97,11 +100,16 @@ class HostLogin {
     let owner = ownerId && this.store.users.get(ownerId);
     if (ownerId && !owner) { this.store.hlDrop(provider, extId); owner = null; } // dòng mồ côi (không nên có)
 
+    // Liên kết mới (gắn / tạo): dữ liệu khởi chạy phải mới hơn lần huỷ liên kết / xoá tài khoản gần nhất của id này –
+    // bản cũ bị lộ không gắn lại được Telegram / VK của người khác vào tài khoản kẻ xấu tạo (store-hostlinks.js · hlFloor)
+    const fresh = () => !(r.ts <= this.store.hlFloor(provider, extId));
+
     if (mode === 'link') {
       if (!cur) throw E('need_account');
       if (this.isAdmin(cur.id)) throw E('host_admin_blocked');
       if (owner === cur) { this.hostSendMe(conn.pid); return conn.send(note('host_linked_' + provider)); }
       if (owner) throw E('host_taken');
+      if (!fresh()) throw stale();
       if (!this.store.hlLink(provider, extId, cur.id, Date.now(), r.ts)) throw E('host_has_other');
       this.hostSendMe(conn.pid);
       return conn.send(note('host_linked_' + provider));
@@ -119,6 +127,7 @@ class HostLogin {
     }
     if (mode === 'auto') return conn.send({ t: 'hostState', provider, state: 'unlinked' });
     if (cur) throw E('host_logged_in'); // đang đăng nhập: dùng nút "Gắn" (có hỏi xác nhận) thay vì tạo tài khoản mới
+    if (!fresh()) throw stale();
 
     // Tạo tài khoản mới không mật khẩu
     const reg = [['reg:' + conn.ip, 30]];

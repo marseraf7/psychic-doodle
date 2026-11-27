@@ -10,7 +10,7 @@ review + test như các đợt trước).
 |---|---|---|
 | Telegram đăng nhập bằng initData | Đang làm ở nhánh khác (kiểm chữ ký initData ở máy chủ) | – |
 | Discord Activities | **Đã làm bản đầu** – xem `docs/discord-activity.md` | Tạo app Discord, đặt `DISCORD_CLIENT_ID`, nhờ Laplace kiểm |
-| CrazyGames Full Launch | Chỉ khi được mời; **mặc định không nhận** vì là kiếm tiền | Có mở lại "Kiếm tiền" cho riêng bản CrazyGames không |
+| CrazyGames Full Launch | **Đã làm sẵn, tắt mặc định** (Minh chốt 27/11/2026) – `docs/crazygames-full-launch.md` | Chỉ bật khi được mời + đồng ý |
 | TWA Google Play | **Không làm** – giữ app Capacitor | – (chỉ quyết nếu muốn bỏ Capacitor) |
 | Facebook Approved Partner | Nộp đơn thử (0 đồng) **chỉ khi** có giấy tờ doanh nghiệp; chưa viết mã | Có / không có pháp nhân (hộ kinh doanh, công ty) |
 

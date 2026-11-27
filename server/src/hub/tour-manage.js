@@ -212,6 +212,7 @@ class TourManage {
     this.tours.delete(t.id);
     this.store.deleteTour(t.id);
     this.weeklyGone(t); // giải tuần: không tạo lại lần đã xoá (weekly-cup.js)
+    if (t.weekly) this.weeklyDone(t); // … và tạo ngay lần kế tiếp (không để Trang chủ trống tới lần quét sau)
     for (const set of this.byPid.values()) for (const c of set) if (c.watchTour === t.id) { c.watchTour = null; c.send({ t: 'tour', id: t.id, tour: null }); }
     conn.send({ t: 'tourDeleted', id: t.id });
     if (wasPending) this.notifyAdmins();

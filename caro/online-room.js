@@ -48,6 +48,10 @@
     });
 
     function inviteLink(code) {
+      // Bản CrazyGames Full: link mời của nền tảng (SDK game.inviteLink – portal-crazygames-full.js); lỗi thì dùng link thường
+      if (typeof window.CaroInvite === 'function') {
+        try { const l = window.CaroInvite(code); if (typeof l === 'string' && /^https:\/\//.test(l)) return l; } catch (e) { /* bỏ qua */ }
+      }
       const u = new URL(ctx.base ? ctx.base + '/' : location.href);
       if (!ctx.base) { u.search = ''; u.hash = ''; }
       u.searchParams.set('room', code);

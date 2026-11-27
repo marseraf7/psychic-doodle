@@ -51,3 +51,19 @@ html.host-discord a[href^="mailto:"] {
 html.host-discord #account .row:has(#go-login) + .hint {
   display: none !important;
 }
+
+/*
+ * Bản CrazyGames Full Launch (html.cg-full – portal-crazygames-full.js, chỉ gói dựng bằng --full): không có nút Đăng xuất trong
+ * game (CrazyGames không cho – phiên theo tài khoản CrazyGames), không liên kết Google; màn che lúc quảng cáo đang chạy.
+ */
+html.cg-full #logout,
+html.cg-full #link-google,
+html.cg-full #google-link-btn {
+  display: none !important;
+}
+#cg-ad-cover {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(0, 0, 0, 0.85);
+}

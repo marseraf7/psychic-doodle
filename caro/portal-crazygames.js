@@ -40,7 +40,11 @@
   const api = { isPlaying, makeTracker };
   if (typeof module === 'object' && module.exports) { module.exports = api; return; }
   root.CaroCrazy = api;
-  if (root.CARO_PORTAL !== 'crazygames') return;
+  // ready: Promise → SDK đã init (môi trường crazygames / local) hoặc null (không tải được / ngoài CrazyGames). Bản Full
+  // (portal-crazygames-full.js) chờ lời hứa này trước khi gọi quảng cáo / tài khoản.
+  let readyFn = () => {};
+  api.ready = new Promise((r) => { readyFn = r; });
+  if (root.CARO_PORTAL !== 'crazygames') { readyFn(null); return; }
 
   /** Ảnh chụp trạng thái từ CaroApp / CaroShell (null khi app chưa khởi động xong). */
   function snapshot() {
@@ -57,12 +61,13 @@
 
   async function start() {
     const SDK = root.CrazyGames && root.CrazyGames.SDK;
-    if (!SDK) return; // thẻ SDK không tải được
-    try { await SDK.init(); } catch (e) { return; }
-    if (SDK.environment === 'disabled' || !SDK.game) return;
+    if (!SDK) return readyFn(null); // thẻ SDK không tải được
+    try { await SDK.init(); } catch (e) { return readyFn(null); }
+    if (SDK.environment === 'disabled' || !SDK.game) return readyFn(null);
     const game = SDK.game;
     const call = (fn) => { try { game[fn](); } catch (e) { /* bỏ qua */ } };
     root.CaroCrazy.sdk = SDK;
+    readyFn(SDK);
 
     // Tắt tiếng theo cổng
     const mute = (st) => { if (root.CaroSound && st) root.CaroSound.hostMute = !!st.muteAudio; };

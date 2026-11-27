@@ -2,9 +2,11 @@
 // {host} không chia cách: "v aplikaci {host}", "účet {host}", "Propojeno: {host}".
 window.I18N.extend('cs', {
   hostauth_save: 'Uložit postup přes {host}',
+  cg_login: 'Přihlásit se přes CrazyGames',
   hostauth_save_hint: 'Heslo není potřeba. Až příště otevřeš hru v aplikaci {host}, přihlásíš se k tomuto účtu.',
   hostauth_link_btn: 'Propojit {host}',
-  hostauth_link_q: 'Propojit účet {host}, který právě používáš, s účtem {name}? Až příště otevřeš hru v aplikaci {host}, přihlásíš se k tomuto účtu automaticky.',
+  hostauth_link_q: 'Propojit {host} {who} s účtem Caro {name}? Až příště otevřete hru v {host}, přihlásíte se k tomuto účtu automaticky.',
+  hostauth_create_q: 'Vytvořit účet Caro propojený s {host} {who}? Až příště otevřete hru v {host}, přihlásíte se automaticky. Pokud to není váš účet {host}, klepněte na „Zrušit“.',
   hostauth_linked_tag: '✓ Propojeno: {host}',
   hostauth_card_title: 'Telegram a VK',
   hostauth_card_hint: 'Když otevřeš hru v propojené miniaplikaci, automaticky se přihlásíš k tomuto účtu. Po zrušení propojení server smaže uložené ID účtu Telegram nebo VK.',

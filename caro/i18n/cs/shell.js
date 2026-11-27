@@ -27,6 +27,7 @@ window.I18N.extend('cs', {
   home_custom: 'Vlastní',
   home_bot_hint: 'Hraješ za X, počítač hraje stylem {style}. Poraz nejvyšší úroveň a odemkni silnější.',
   home_intro: 'Caro x Gomoku je zdarma a bez reklam: hraj proti počítači, s přáteli nebo online soupeři, řeš úlohy a uč se zahájení.',
+  home_intro_free: 'Caro x Gomoku je zdarma: hraj proti počítači, s přáteli nebo online soupeři, řeš úlohy a uč se zahájení.',
   home_offline: 'Bez serveru: můžeš hrát proti počítači nebo ve 2 na jednom zařízení.',
   home_about: 'Caro x Gomoku je bezplatný web a aplikace bez reklam pro hru Caro (vietnamské piškvorky) a Gomoku: hraj online s přáteli nebo s nalezenými soupeři, proti postavám počítače, analyzuj své partie, řeš úlohy a uč se zahájení. Přihlášení přes Google slouží jen k vytvoření hráčského účtu a přihlášení do něj.',
   home_credit: 'Produkt organizace Svazu mládeže při Univerzitě Ministerstva vnitra Ruské federace',
