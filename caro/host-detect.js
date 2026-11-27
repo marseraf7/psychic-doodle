@@ -13,7 +13,12 @@
  *    khởi chạy). Nhớ trong sessionStorage ('caro.host'): tải lại trang (mất #…) vẫn nhận ra.
  *    Link sâu: start_param của Telegram (t.me/<bot>/<app>?startapp=room-123456) / tham số hash của VK (vk.com/app<id>#room-…)
  *    → thêm ?room= ?replay= ?t= ?o= ?club= ?u= ?cls= vào địa chỉ (history.replaceState) để mã sẵn có xử lý như link thường;
- *    mỗi phiên một lần. Không dùng vk_user_id / initData để đăng nhập (chưa kiểm chữ ký – MVP giữ tài khoản Caro / khách).
+ *    mỗi phiên một lần.
+ *    Đăng nhập bằng Mini App (Đợt 3 – host-auth.js, máy chủ kiểm chữ ký): VK – ngay lúc mở, chép nguyên văn các tham số vk_… +
+ *    sign vào sessionStorage ('caro.vkLaunch') rồi BỎ sign khỏi địa chỉ (thêm ?host=vk nếu chưa có để máy chủ / sw.js vẫn nhận
+ *    ra lượt mở Mini App): sign là "vé" đăng nhập còn hiệu lực nhiều giờ – không để nó nằm trong địa chỉ (lịch sử, link sao
+ *    chép, otour.js / tour.js giữ nguyên search khi đổi địa chỉ). Các tham số vk_ khác giữ nguyên (VK Bridge đọc vk_platform).
+ *    Telegram: initData do telegram-web-app.js giữ (Telegram.WebApp.initData, nằm sau # – không tới máy chủ).
  *  – Discord Activity (docs/discord-activity.md): Discord mở trang trong iframe ở https://<client_id>.discordsays.com (mọi
  *    yêu cầu qua proxy của Discord) với ?frame_id=…&instance_id=…&platform=desktop|mobile (SDK đòi đủ ba tham số này). Nhận
  *    biết theo ba tham số đó (không dùng ?host=discord: URL Mapping chỉ trỏ tiền tố → tên miền, không thêm được tham số) hoặc
@@ -22,7 +27,7 @@
  *    vendor/discord-sdk.js (@discord/embedded-app-sdk, MIT – bản tự phục vụ).
  * Hàm thuần (kiểm thử trên Node: caro/tests/host-detect.test.js):
  *   window.CaroHostDetect = { PORTALS, portalOf, ROUTE_KEYS, detect(env), isDiscordLaunch(search), startParam(host, env),
- *                            parseStart(s), routeSearch(search, s) }
+ *     parseStart(s), routeSearch(search, s), vkLaunch(search) }
  */
 (function (root) {
   'use strict';
@@ -85,7 +90,21 @@
     return '?' + q.toString();
   }
 
-  const api = { PORTALS, portalOf, ROUTE_KEYS, detect, isDiscordLaunch, startParam, parseStart, routeSearch };
+  /**
+   * Tham số khởi chạy VK: → { raw: 'vk_…&…&sign=…' (nguyên văn, đúng thứ tự – để máy chủ kiểm chữ ký),
+   *   search: địa chỉ mới không có sign, luôn có host=vk } hoặc null (không có sign).
+   */
+  function vkLaunch(search) {
+    const segs = String(search || '').replace(/^\?/, '').split('&').filter(Boolean);
+    const isSign = (s) => /^sign(=|$)/.test(s);
+    if (!segs.some(isSign)) return null;
+    const raw = segs.filter((s) => /^vk_/.test(s) || isSign(s)).join('&');
+    const rest = segs.filter((s) => !isSign(s));
+    if (!rest.some((s) => /^host=/.test(s))) rest.unshift('host=vk');
+    return { raw, search: '?' + rest.join('&') };
+  }
+
+  const api = { PORTALS, portalOf, ROUTE_KEYS, detect, isDiscordLaunch, startParam, parseStart, routeSearch, vkLaunch };
   if (typeof module === 'object' && module.exports) { module.exports = api; return; }
 
   const w = root;
@@ -110,6 +129,15 @@
   w.CARO_HOST = host;
   w.CARO_SRC = host;
   html.classList.add('host', 'host-' + host);
+
+  // VK: giữ tham số khởi chạy có chữ ký cho đăng nhập (host-auth.js), bỏ sign khỏi địa chỉ
+  if (host === 'vk') {
+    const vl = vkLaunch(location.search);
+    if (vl) {
+      ss.set('caro.vkLaunch', vl.raw);
+      try { history.replaceState(history.state, '', location.pathname + vl.search + location.hash); } catch (e) { /* bỏ qua */ }
+    }
+  }
 
   // Link sâu: mỗi phiên một lần (tải lại trang không mở lại link đã xử lý – mã web xoá tham số sau khi dùng)
   const sp = startParam(host, env);

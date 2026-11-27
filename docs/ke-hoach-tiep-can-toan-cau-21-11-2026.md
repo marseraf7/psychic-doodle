@@ -52,6 +52,9 @@ Reddit / Discord.
 
 **Đợt 3 (sau 6 tuần, theo số đo)**: Telegram đăng nhập bằng initData (nếu localStorage không bền), CrazyGames Full
 Launch nếu được mời, TWA Google Play, Facebook Approved Partner (phép thử 0 đồng), Discord Activities.
+- 26/11/2026: đã làm đăng nhập bằng dữ liệu khởi chạy có chữ ký cho Telegram (initData) và VK (sign) – tắt cho tới khi Minh nạp
+  token / khoá vào máy chủ (`docs/huong-dan-cong-game-mini-app-22-11-2026.md` mục 4); Laplace kiểm theo
+  `docs/laplace-kiem-dang-nhap-mini-app-26-11-2026.md`.
 
 ## 4. Đo hiệu quả
 

@@ -23,6 +23,7 @@ const { SourcesStore } = require('./store-sources.js'); // nguồn người chơ
 const { CorrStore } = require('./store-corr.js'); // ván chơi theo lượt (C1)
 const { ClassStore } = require('./store-class.js'); // lớp học / nghiên cứu (C2)
 const { WeeklyStore } = require('./store-weekly.js'); // giải tuần: số thứ tự #N, giữ chỗ mỗi lần giải
+const { HostLinkStore } = require('./store-hostlinks.js'); // liên kết Telegram / VK (đăng nhập bằng Mini App)
 const { EvalCache } = require('./evalcache.js');
 
 const HISTORY_PER_USER = 300; // số ván giữ lại cho mỗi tài khoản (Lịch sử đấu); ván cũ hơn tự xoá
@@ -189,6 +190,7 @@ class Store {
       this.lgUserGone(id); // hạng đấu tuần (store-league.js)
       this.fpPrune(); // soát chơi đẹp: bỏ dòng của ván đã xoá (store-fairplay.js)
       this.srcForget('u_' + u.id); // nguồn người chơi (store-sources.js)
+      this.hlUserGone(id); // liên kết Telegram / VK (store-hostlinks.js)
       this.db.exec('COMMIT');
     } catch (e) {
       this.db.exec('ROLLBACK');
@@ -442,7 +444,8 @@ async function dummyCheckPassword(password) {
 // + chat / diễn đàn câu lạc bộ (store-club.js) + giải đấu offline (store-otour.js) + tiến độ / Storm (store-progress.js)
 // + đọc ván cho thống kê (store-stats.js) + hạng đấu tuần (store-league.js) + soát chơi đẹp (store-fairplay.js)
 // + chơi theo lượt (store-corr.js – C1) + lớp học / nghiên cứu (store-class.js – C2) + giải tuần (store-weekly.js)
-for (const part of [Sessions, ClubStore, OTourStore, ProgressStore, StatsStore, LeagueStore, FairplayStore, CorrStore, ClassStore, SourcesStore, WeeklyStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
+// + liên kết Telegram / VK (store-hostlinks.js)
+for (const part of [Sessions, ClubStore, OTourStore, ProgressStore, StatsStore, LeagueStore, FairplayStore, CorrStore, ClassStore, SourcesStore, WeeklyStore, HostLinkStore]) for (const name of Object.getOwnPropertyNames(part.prototype)) {
   if (name !== 'constructor') Object.defineProperty(Store.prototype, name, Object.getOwnPropertyDescriptor(part.prototype, name));
 }
 
