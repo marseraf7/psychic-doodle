@@ -1,7 +1,7 @@
 /* Xuất video ngắn 9:16 (video-maker.js): hộp thoại, nút trên thẻ Câu đố hôm nay. Bản cổng game ẩn hẳn (host.css). */
 
 /* Canvas dựng 1080×1920 – ẩn ngoài màn hình (vẫn nằm trong trang để mọi trình duyệt chịu ghi hình) */
-.vid-work { position: fixed; left: -20000px; top: 0; width: 108px; height: 192px; pointer-events: none; }
+.vid-work { position: fixed; left: -20000px; top: 0; width: 108px; height: 192px; pointer-events: none; } /* ltr-ok: giấu ngoài mép trái (mép phải sẽ sinh thanh cuộn ngang) */
 
 .vid-body { display: flex; gap: 16px; align-items: flex-start; }
 .vid-preview {

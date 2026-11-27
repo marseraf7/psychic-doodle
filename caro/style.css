@@ -195,7 +195,7 @@ html, body {
 
 .bar {
   position: fixed;
-  left: 50%;
+  left: 50%; /* ltr-ok: căn giữa bằng translateX(-50%) */
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -274,8 +274,8 @@ button {
 
 .banner {
   position: fixed;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   bottom: calc(86px + env(safe-area-inset-bottom));
   display: flex;
   justify-content: center;
@@ -323,7 +323,7 @@ fieldset label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin: 0 12px 6px 0;
+  margin-block: 0 6px; margin-inline: 0 12px;
   font-size: var(--fs-md);
   cursor: pointer;
 }
@@ -331,7 +331,7 @@ fieldset label.switch { display: flex; }
 input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
 .rules { font-size: var(--fs-sm); color: var(--muted); margin: 4px 0 14px; }
 .rules summary { cursor: pointer; color: var(--text); }
-.rules ul { padding-left: 18px; margin: 8px 0 0; }
+.rules ul { padding-inline-start: 18px; margin: 8px 0 0; }
 .rules li { margin-bottom: 4px; }
 .dialog-actions { display: flex; justify-content: space-between; gap: 8px; }
 form.pvp .ai-only { display: none; }

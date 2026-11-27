@@ -293,7 +293,7 @@ const { setup } = require('./helpers');
     ok(/Settings/.test(await p.textContent('#page-settings .pg-title')) && /English/.test(await p.textContent('#settings-form [data-val="lang"]')), 'nút ‹: về trang gốc Cài đặt, hàng Ngôn ngữ ghi English');
     await p.tap('#settings-form [data-go="lang"]'); await sleep(200);
     // 8 ngôn ngữ của langs.js, tên tự gọi, vừa màn hẹp; đổi sang tiếng Nhật (ngôn ngữ thư mục – tải gói rồi đổi)
-    const langs = await p.evaluate(() => ({ names: [...document.querySelectorAll('#lang-list .li-t')].map((e) => e.textContent),
+    const langs = await p.evaluate(() => ({ names: [...document.querySelectorAll('#lang-list .li-t > span')].map((e) => e.textContent),
       fit: [...document.querySelectorAll('#lang-list label')].every((e) => e.getBoundingClientRect().right <= innerWidth) && document.documentElement.scrollWidth <= innerWidth }));
     ok(langs.names.join() === 'Tiếng Việt,English,Русский,简体中文,繁體中文,日本語,한국어,Čeština' && langs.fit, 'ô chọn ngôn ngữ: 8 ngôn ngữ, vừa màn hình ' + JSON.stringify(langs));
     await p.tap('#lang-list label:has(input[value="ja"])');

@@ -14,12 +14,10 @@
  * không nhờ thứ tự. Luật nào dùng thuộc tính vật lý trái/phải phải có ghi chú "ltr-ok: <lý do>" (server/test/css-rules.test.js). */
 
 /* 1. Biểu tượng có hướng: mũi tên quay lại / đi vào / thoát / đi lại – lật gương. Biểu tượng không có hướng giữ nguyên.
- *    Nút điều khiển xem lại (đầu / lùi / chạy / tới / cuối) KHÔNG lật: cả nhóm giữ LTR (mục 3), như phím ← / →. */
-[dir="rtl"] svg.ico:has(> use[href="#i-chev"]),
-[dir="rtl"] svg.ico:has(> use[href="#i-chevl"]),
-[dir="rtl"] svg.ico:has(> use[href="#i-back"]),
-[dir="rtl"] svg.ico:has(> use[href="#i-exit"]),
-[dir="rtl"] svg.ico:has(> use[href="#i-undo"]) { transform: scaleX(-1); }
+ *    Nút điều khiển xem lại (đầu / lùi / chạy / tới / cuối) KHÔNG lật: cả nhóm giữ LTR (mục 3), như phím ← / →; biểu tượng
+ *    trong nhóm đó (nút thoát) cũng không lật. */
+[dir="rtl"] svg.ico:is(:has(> use[href="#i-chev"]), :has(> use[href="#i-chevl"]), :has(> use[href="#i-back"]),
+  :has(> use[href="#i-exit"]), :has(> use[href="#i-undo"])):not(.an-nav *, .bar.bottom.replay-only *) { transform: scaleX(-1); }
 /* Mũi tên bằng ký tự trong content */
 [dir="rtl"] .pg-body .pz-mode::after { content: "‹"; }
 [dir="rtl"] details.fold-more:not([open]) > summary::before { content: '◂'; }
@@ -44,6 +42,7 @@
 [dir="rtl"] .bracket,
 [dir="rtl"] .an-no,
 [dir="rtl"] .an-mv,
+[dir="rtl"] .an-chip,
 [dir="rtl"] .ck,
 [dir="rtl"] #clock-n,
 [dir="rtl"] input[inputmode="numeric"],

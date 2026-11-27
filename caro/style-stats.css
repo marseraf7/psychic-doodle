@@ -30,11 +30,11 @@ svg.ins-shape .so { fill: var(--o, #2f6fd2); }
 .feat-list li.up { background: rgba(47, 154, 76, 0.12); }
 .feat-list li.down { background: rgba(210, 56, 47, 0.1); }
 .feat-list li.locked { opacity: 0.6; }
-.feat-list .rk { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+.feat-list .rk { font-variant-numeric: tabular-nums; color: var(--muted); text-align: end; }
 .feat-list .nm { min-width: 0; }
 .feat-list .nm b, .feat-list .nm small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .feat-list .nm small { color: var(--muted); font-size: var(--fs-xs); }
-.feat-list .pt { font-variant-numeric: tabular-nums; text-align: right; }
+.feat-list .pt { font-variant-numeric: tabular-nums; text-align: end; }
 .feat-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: var(--fs-xs); background: rgba(127, 127, 127, 0.14); }
 .feat-tag.up { background: rgba(47, 154, 76, 0.18); }
 .feat-tag.down { background: rgba(210, 56, 47, 0.16); }
@@ -47,12 +47,12 @@ svg.ins-shape .so { fill: var(--o, #2f6fd2); }
 .lg-head small { color: var(--muted); font-size: var(--fs-xs); }
 .lg-emb { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border-radius: 50%; background: var(--c);
   color: #fff; font-weight: 700; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.18); }
-.lg-emb.sm { width: 20px; height: 20px; flex-basis: 20px; font-size: var(--fs-xs); vertical-align: middle; margin-right: 4px; }
-.lg-rules { margin: 0; padding-left: 18px; font-size: var(--fs-sm); color: var(--muted); display: grid; gap: 4px; }
-.pf-league { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; font-size: var(--fs-xs); }
+.lg-emb.sm { width: 20px; height: 20px; flex-basis: 20px; font-size: var(--fs-xs); vertical-align: middle; margin-inline-end: 4px; }
+.lg-rules { margin: 0; padding-inline-start: 18px; font-size: var(--fs-sm); color: var(--muted); display: grid; gap: 4px; }
+.pf-league { display: inline-flex; align-items: center; gap: 2px; margin-inline-start: 6px; font-size: var(--fs-xs); }
 
 /* Lời giải thích của huấn luyện viên trong bảng phân tích (coach-ui.js) */
-.an-coach { margin: 6px 0 0; padding: 6px 10px; border-left: 3px solid var(--accent); border-radius: 6px; background: rgba(127, 127, 127, 0.08);
+.an-coach { margin: 6px 0 0; padding: 6px 10px; border-inline-start: 3px solid var(--accent); border-radius: 6px; background: rgba(127, 127, 127, 0.08);
   font-size: var(--fs-sm); flex-basis: 100%; }
 
 /* Thang nhân vật máy (bot-ladder.js) */
@@ -82,5 +82,5 @@ svg.ins-shape .so { fill: var(--o, #2f6fd2); }
 /* Nguồn người chơi – bảng quản trị (src-admin.js): bảng rộng thì cuộn ngang trong khung, không đẩy cả trang */
 .src-wrap { overflow-x: auto; margin: 6px 0 12px; }
 .src-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-.src-table th, .src-table td { padding: 6px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line, rgba(127, 127, 127, 0.25)); }
-.src-table th:first-child, .src-table td:first-child { text-align: left; }
+.src-table th, .src-table td { padding: 6px 8px; text-align: end; white-space: nowrap; border-bottom: 1px solid var(--line, rgba(127, 127, 127, 0.25)); }
+.src-table th:first-child, .src-table td:first-child { text-align: start; }

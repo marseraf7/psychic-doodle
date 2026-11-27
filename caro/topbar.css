@@ -4,7 +4,7 @@
  */
 
 /* ============================ Thanh trên ============================ */
-.tb-tools { position: relative; display: flex; align-items: center; gap: 4px; margin-left: 6px; }
+.tb-tools { position: relative; display: flex; align-items: center; gap: 4px; margin-inline-start: 6px; }
 .tb-ic {
   width: 40px; height: 40px; flex: none; border-radius: 10px;
   display: flex; align-items: center; justify-content: center; color: var(--muted);
@@ -33,7 +33,7 @@
 .tb-name { display: none; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
 
 /* Điện thoại: thanh trên nằm ở đầu Trang chủ – tiêu đề sang trái, công cụ bên phải */
-#page-home .pg-head { grid-template-columns: 0 1fr auto; padding-left: 12px; }
+#page-home .pg-head { grid-template-columns: 0 1fr auto; padding-inline-start: 12px; }
 #page-home .pg-title { justify-content: flex-start; }
 #page-home .pg-right { gap: 2px; }
 /* Điện thoại hẹp: tiêu đề chỉ còn logo, nút Đăng nhập / Đăng ký gọn lại – không đẩy bánh răng ra ngoài */
@@ -45,31 +45,31 @@
 /* Điện thoại: ô tìm, gợi ý, Cài đặt nhanh canh theo đầu Trang chủ (không theo cụm nút nhỏ bên phải) */
 #page-home .pg-head { position: relative; }
 #page-home .tb-tools, #page-home .tb-search.ps-wrap { position: static; }
-#page-home .qs { right: 8px; }
+#page-home .qs { inset-inline-end: 8px; }
 /* Đang tìm: ô nhập phủ đầu trang (chừa kính lúp và bánh răng) */
 .tb-tools.searching .tb-auth { display: none; }
 .tb-tools.searching .tb-search input {
-  display: block; position: absolute; z-index: 3; left: 12px; right: 96px; width: auto; top: 50%; transform: translateY(-50%);
+  display: block; position: absolute; z-index: 3; inset-inline-start: 12px; inset-inline-end: 96px; width: auto; top: 50%; transform: translateY(-50%);
   height: 38px; padding: 0 12px; border-radius: 10px;
   border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: var(--fs-md);
 }
-#page-home .ps-list { left: 12px; right: 12px; top: calc(100% - 4px); }
+#page-home .ps-list { inset-inline-start: 12px; inset-inline-end: 12px; top: calc(100% - 4px); }
 
 /* Màn hình rộng: công cụ ở cuối menu trên cùng. Bánh răng LUÔN hiện: công cụ không co (flex: none), menu tab co lại
    theo từng mức bề rộng (bỏ chữ logo, thu nhỏ khoảng cách, bỏ biểu tượng tab, cắt chữ) – kể cả khi Windows phóng to 125–150 % */
 @media (min-width: 900px) {
   .tabbar > button { min-width: 0; flex-shrink: 1; }
   .tb-logo { flex-shrink: 0; }
-  .tb-tools { margin-left: auto; gap: 4px; flex: none; }
+  .tb-tools { margin-inline-start: auto; gap: 4px; flex: none; }
   .tb-search { position: relative; }
   .tb-tools.searching .tb-auth { display: flex; }
   #tb-tools .tb-search input, #tb-tools.searching .tb-search input {
-    display: block; position: static; transform: none; width: clamp(150px, 13vw, 220px); height: 36px; padding: 0 12px 0 34px;
+    display: block; position: static; transform: none; width: clamp(150px, 13vw, 220px); height: 36px; padding-block: 0; padding-inline: 34px 12px;
     border-radius: 18px; border: 1px solid var(--line); background: var(--panel); color: var(--text); font-size: var(--fs-sm);
   }
-  .tb-search .tb-ic { position: absolute; left: 2px; width: 32px; height: 32px; pointer-events: none; }
+  .tb-search .tb-ic { position: absolute; inset-inline-start: 2px; width: 32px; height: 32px; pointer-events: none; }
   .tb-search .tb-ic .ico { width: 17px; height: 17px; }
-  .tb-search .ps-list, .tb-tools.searching .tb-search .ps-list { left: 0; right: auto; width: 300px; }
+  .tb-search .ps-list, .tb-tools.searching .tb-search .ps-list { inset-inline-start: 0; inset-inline-end: auto; width: 300px; }
   .tb-name { display: inline; max-width: 120px; }
 }
 /* Vừa: bỏ tên (còn ảnh), ô tìm thu về kính lúp – bấm thì ô nhập mở đè lên menu */
@@ -78,17 +78,17 @@
 }
 @media (min-width: 900px) and (max-width: 1279px) {
   .tb-logo > span { display: none; }
-  .tb-logo { margin-right: 6px; }
+  .tb-logo { margin-inline-end: 6px; }
   .tabbar > button { padding: 0 9px; }
   #tb-tools .tb-search { position: static; }
   #tb-tools .tb-search input { display: none; }
   #tb-tools .tb-search .tb-ic { position: static; width: 40px; height: 40px; pointer-events: auto; }
   #tb-tools .tb-search .tb-ic .ico { width: 22px; height: 22px; }
   #tb-tools.searching .tb-search input {
-    display: block; position: absolute; z-index: 3; right: 100%; top: 50%; transform: translateY(-50%); width: 260px;
-    padding: 0 12px; border-radius: 10px; margin-right: 4px;
+    display: block; position: absolute; z-index: 3; inset-inline-end: 100%; top: 50%; transform: translateY(-50%); width: 260px;
+    padding: 0 12px; border-radius: 10px; margin-inline-end: 4px;
   }
-  #tb-tools.searching .tb-search .ps-list { left: auto; right: 0; top: calc(100% + 6px); width: 320px; }
+  #tb-tools.searching .tb-search .ps-list { inset-inline-start: auto; inset-inline-end: 0; top: calc(100% + 6px); width: 320px; }
 }
 @media (min-width: 900px) and (max-width: 1059px) {
   .tabbar > button .ico { display: none; }
@@ -101,22 +101,22 @@
 .tb-inbox[hidden] { display: none; }
 .tb-inbox .tb-ic { position: relative; }
 .tb-count {
-  position: absolute; top: 3px; right: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+  position: absolute; top: 3px; inset-inline-end: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
   background: var(--danger, #e5484d); color: #fff; font-size: var(--fs-2xs); font-style: normal; font-weight: var(--fw-bold);
   display: grid; place-items: center; box-shadow: 0 0 0 2px var(--panel); pointer-events: none;
 }
 .tb-count[hidden] { display: none; }
 .tb-pop {
-  position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: min(340px, calc(100vw - 16px)); padding: 6px;
+  position: absolute; z-index: 30; top: calc(100% + 6px); inset-inline-end: 0; width: min(340px, calc(100vw - 16px)); padding: 6px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
   text-transform: none; letter-spacing: 0; max-height: min(70vh, 520px); display: flex; flex-direction: column;
 }
 .tb-pop[hidden] { display: none; }
 #page-home .tb-inbox { position: static; }
-#page-home .tb-pop { right: 8px; }
+#page-home .tb-pop { inset-inline-end: 8px; }
 .tb-pop-h { padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: var(--fs-md); }
 .tb-pop-list { list-style: none; margin: 0; padding: 4px 0; overflow-y: auto; flex: 1; min-height: 0; }
-.tb-pop-list li > button, .tb-nt { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; color: var(--text); text-align: left; }
+.tb-pop-list li > button, .tb-nt { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; color: var(--text); text-align: start; }
 .tb-nt { align-items: flex-start; }
 .tb-nt > button { padding: 0; }
 .tb-pop-list li > button:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
@@ -133,7 +133,7 @@
 /* ============================ Gợi ý kỳ thủ ============================ */
 .ps-wrap { position: relative; }
 .ps-list {
-  position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; margin: 0; padding: 4px; list-style: none;
+  position: absolute; z-index: 30; top: calc(100% + 4px); inset-inline-start: 0; inset-inline-end: 0; margin: 0; padding: 4px; list-style: none;
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   max-height: 60vh; overflow-y: auto; text-transform: none; letter-spacing: 0;
 }
@@ -149,7 +149,7 @@
 
 /* ============================ Cài đặt nhanh ============================ */
 .qs {
-  position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: min(330px, calc(100vw - 16px)); padding: 6px;
+  position: absolute; z-index: 30; top: calc(100% + 6px); inset-inline-end: 0; width: min(330px, calc(100vw - 16px)); padding: 6px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
   text-transform: none; letter-spacing: 0; max-height: calc(100vh - 80px); overflow-y: auto;
 }
@@ -158,20 +158,20 @@
 .qs.qs-float { position: fixed; top: auto; z-index: 70; max-width: calc(100vw - 16px); max-height: min(70vh, 520px); }
 .qs-row {
   width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 9px;
-  color: var(--text); font-size: var(--fs-sm); text-align: left;
+  color: var(--text); font-size: var(--fs-sm); text-align: start;
 }
 .qs-row:hover, .qs-row:focus-visible { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .qs-row > .ico { width: 19px; height: 19px; flex: none; color: var(--muted); }
 .qs-row > .ico:last-child { width: 16px; height: 16px; }
 .qs-t { flex: 1; min-width: 0; }
 /* Giá trị dài ("Giấy (theo giao diện)"): xuống dòng, canh phải – không cắt (lỗi E3) */
-.qs-v { color: var(--muted); font-size: var(--fs-xs); max-width: 55%; text-align: right; overflow-wrap: anywhere; }
+.qs-v { color: var(--muted); font-size: var(--fs-xs); max-width: 55%; text-align: end; overflow-wrap: anywhere; }
 .qs-head { font-weight: var(--fw-semibold); border-bottom: 1px solid var(--line); border-radius: 9px 9px 0 0; margin-bottom: 4px; }
 .qs-opt.on { color: var(--accent); font-weight: var(--fw-semibold); }
 .qs-opt.on > .ico { color: var(--accent); }
 .qs-opt .swatch { width: 18px; height: 18px; border-radius: 5px; background: var(--sw); box-shadow: inset 0 0 0 1px var(--line); flex: none; }
 .qs-sw { width: 36px; height: 20px; border-radius: 10px; background: color-mix(in srgb, var(--text) 22%, transparent); position: relative; flex: none; transition: background 0.15s; }
-.qs-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.qs-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; } /* ltr-ok: nút gạt trượt bằng translateX */
 .qs-sw.on { background: var(--accent); }
 .qs-sw.on::after { transform: translateX(16px); }
 .qs-net {
@@ -183,7 +183,7 @@
 /* ============================ Số kỳ thủ / số ván (góc phải dưới Trang chủ, như Lichess) ============================ */
 .online-count {
   align-self: flex-end; margin: 8px 0 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
-  font-size: var(--fs-xs); color: var(--muted); text-align: right;
+  font-size: var(--fs-xs); color: var(--muted); text-align: end;
 }
 .online-count[hidden] { display: none; }
 .online-count .linkish { padding: 0; color: var(--muted); font-size: inherit; text-decoration: underline dotted; }
@@ -197,7 +197,7 @@
 .avatar > b { line-height: 1; }
 .avatar.sm { width: 28px; height: 28px; font-size: var(--fs-xs); }
 .av-st { position: relative; display: inline-flex; flex: none; }
-.av-st .st { position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px; box-shadow: 0 0 0 2px var(--panel); }
+.av-st .st { position: absolute; inset-inline-end: -1px; bottom: -1px; width: 9px; height: 9px; box-shadow: 0 0 0 2px var(--panel); }
 
 /* ============================ Ảnh nền (tuỳ chọn, mặc định tắt) ============================ */
 body.bg-img .shell {

@@ -36,7 +36,7 @@
     .top .wrap { display: flex; align-items: center; gap: 12px; min-height: 60px; }
     .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: var(--fw-bold); font-size: var(--fs-md); letter-spacing: -0.01em; white-space: nowrap; }
     .brand img { width: 30px; height: 30px; border-radius: 8px; }
-    .langs { display: flex; gap: 2px; padding: 3px; margin-left: auto; border-radius: 12px; background: rgba(127, 127, 127, 0.12); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .langs { display: flex; gap: 2px; padding: 3px; margin-inline-start: auto; border-radius: 12px; background: rgba(127, 127, 127, 0.12); min-width: 0; overflow-x: auto; scrollbar-width: none; }
     .langs::-webkit-scrollbar { display: none; } /* 8 ngôn ngữ ở màn hẹp: thanh ngôn ngữ cuộn ngang, trang không cuộn ngang (như policy-page.css) */
     .langs a {
       padding: 6px 10px; border-radius: 9px; font-size: var(--fs-sm); font-weight: var(--fw-medium);
@@ -80,7 +80,7 @@
     ul.list li { position: relative; padding: 12px 0 12px 22px; border-top: 1px solid var(--panel-border); max-width: 72ch; }
     ul.list li:first-child { border-top: 0; padding-top: 0; }
     ul.list li:last-child { padding-bottom: 0; }
-    ul.list li::before { content: ''; position: absolute; left: 4px; top: calc(12px + 0.62em); width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: 0.75; }
+    ul.list li::before { content: ''; position: absolute; inset-inline-start: 4px; top: calc(12px + 0.62em); width: 7px; height: 7px; border-radius: 50%; background: var(--accent); opacity: 0.75; }
     ul.list li:first-child::before { top: 0.62em; }
     ul.list li b:first-child { display: block; color: var(--text); }
     .steps b { display: inline-block; padding: 1px 9px; margin: 2px 0; border-radius: 7px; background: rgba(127, 127, 127, 0.14); font-weight: var(--fw-semibold); line-height: 1.6; }

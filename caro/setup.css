@@ -19,7 +19,7 @@
 }
 .tcp-two { display: grid !important; grid-template-columns: 1fr 1fr; gap: 18px; flex-direction: row !important; }
 .tcp-two label { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--fs-xs); color: var(--muted); }
-.tcp-two label:last-child { text-align: right; }
+.tcp-two label:last-child { text-align: end; }
 /* Thanh trượt */
 input.tcp-range {
   -webkit-appearance: none; appearance: none; width: 100%; height: 28px; margin: 0; background: transparent; cursor: pointer;
@@ -60,7 +60,7 @@ dialog.setup-dlg { width: min(560px, calc(100% - 16px)); }
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   padding: 12px 6px; cursor: pointer; text-align: center; font-size: var(--fs-sm); color: var(--text); min-width: 0;
 }
-.side-pick label + label { border-left: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
+.side-pick label + label { border-inline-start: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
 .side-pick input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .side-pick b { font-size: var(--fs-xl); line-height: 1; font-weight: var(--fw-bold); }
 .side-pick b i { font-style: normal; color: var(--muted); margin: 0 2px; }
