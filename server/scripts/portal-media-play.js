@@ -111,15 +111,20 @@ async function clickCell(page, x, y) {
     }
     const [sx, sy] = p;
     const inside = sx > 4 && sy > 4 && sx < innerWidth - 4 && sy < innerHeight - 4;
-    return { sx, sy, ok: inside && document.elementFromPoint(sx, sy) === c };
+    const el = inside ? document.elementFromPoint(sx, sy) : null;
+    const who = !inside ? 'ngoài khung nhìn' : el ? el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).join('.') : '') : 'không có';
+    return { sx, sy, ok: el === c, who };
   }, [x, y]);
   let p = await at();
   if (!p.ok) { await centerBoard(page); p = await at(); }
-  if (!p.ok) {
+  // Khung nhìn nhỏ (vd. video 640×360) + máy chậm (CI): thông báo nổi (huy hiệu, mở khoá…) có thể đang che giữa bàn cờ –
+  // chờ chúng tắt rồi thử lại vài lần (dời khung nhìn tới ô đó mỗi lần)
+  for (let i = 0; !p.ok && i < 4; i++) {
+    if (i) await page.waitForFunction(() => !document.querySelector('#toasts .toast'), null, { timeout: 4000 }).catch(() => {});
     await page.evaluate(([cx, cy]) => window.CaroApp.show(cx, cy), [x, y]);
     p = await at();
   }
-  if (!p.ok) throw new Error(`Ô (${x}, ${y}) bị che hoặc ngoài khung nhìn – không bấm được`);
+  if (!p.ok) throw new Error(`Ô (${x}, ${y}) bị che hoặc ngoài khung nhìn – không bấm được (${p.who})`);
   await page.mouse.move(p.sx, p.sy, { steps: 6 });
   await page.mouse.click(p.sx, p.sy);
 }
