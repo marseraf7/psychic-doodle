@@ -79,7 +79,7 @@
   });
 
   X('zh', {
-    otl_tile: '知名赛事模板 · {n} 个', otl_tile_h: '足球、电子竞技、大逃杀、棋类……点击查看规则和赛制图，再选择模板。',
+    otl_tile: '知名赛事模板 · {n} 个', otl_tile_h: '足球、电子竞技、大逃杀、棋类…点击查看规则和赛制图，再选择模板。',
     otl_title: '知名赛事模板', otl_search: '按名称或项目搜索', otl_all: '全部', otl_none: '没有匹配的模板。请换个词试试。',
     otl_cat_football: '足球', otl_cat_esports: '电子竞技', otl_cat_br: '大逃杀与多队混战', otl_cat_sports: '其他运动',
     otl_cat_race: '竞速与积分赛', otl_cat_mind: '棋牌与智力运动',

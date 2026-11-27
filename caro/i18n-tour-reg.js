@@ -155,7 +155,7 @@
   X('zh', {
     days_n: '{n} 天', hours_n: '{n} 小时', seed_list: '按名单顺序', tag_offline: '线下',
     reg_offline: '线下赛事：主办方录入选手名单和比分',
-    reg_offline_hint: '用于线下比赛（俱乐部、学校……）。选手无需账号，赛事不计等级分；主办方按局录入比分并打印记分表。',
+    reg_offline_hint: '用于线下比赛（俱乐部、学校…）。选手无需账号，赛事不计等级分；主办方按局录入比分并打印记分表。',
     reg_score_mode: '比赛比分计算', reg_score_sets: '胜局数', reg_score_points: '各局总分',
     reg_close_at: '报名截止（留空：到开赛为止）', reg_close_bad: '截止时间须晚于现在且早于开赛。',
     reg_approval: '主办方逐一审核报名', reg_waitlist: '满员后进入候补名单（有人退出自动递补）',
@@ -183,7 +183,7 @@
     score_need_sets: '请填写每局比分。', score_need_extra: '请填写附加结果。',
     score_undo_confirm: '撤销此场结果？对阵表将回到录入之前。',
     score_tap_hint: '点击一场比赛录入比分。', score_live: '比赛进行中，请等对局结束。', score_done_online: '此场已有结果。',
-    score_override_hint: '比赛无法进行（缺席、故障……）：主办方判定胜方。',
+    score_override_hint: '比赛无法进行（缺席、故障…）：主办方判定胜方。',
     score_win_for: '判 {name} 胜', score_override_confirm: '{name}？结果立即记入赛事。', score_override_tag: '主办方判定',
     sheet_print: '打印记分表', sheet_waiting: '打印 {n} 场待赛记分表', sheet_blank: '打印空白记分表',
     sheet_title: '比赛记分表', sheet_time: '时间', sheet_place: '地点', sheet_result: '结果', sheet_note: '备注',

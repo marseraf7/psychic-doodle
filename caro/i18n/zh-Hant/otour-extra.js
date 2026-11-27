@@ -33,7 +33,7 @@ window.I18N.extend('zh-Hant', {
   opt_mtg_top: '本階段前重新輪抽（排座）',
   opt_mtg_deck: '錄入成績前必須提交牌表',
   opt_mtg_cross: '每次輪抽第一輪與對面座位配對',
-  opt_mtg_hint: '只管理輪抽流程，不含卡牌資料。傳包方向依次為左、右、左……',
+  opt_mtg_hint: '只管理輪抽流程，不含卡牌資料。傳包方向依次為左、右、左…',
   srv_ot_deck_none: '該選手沒有輪抽。',
   srv_ot_deck_small: '牌表至少需要 {n} 張。',
   srv_ot_deck_missing: '本次輪抽仍有選手未提交牌表。',

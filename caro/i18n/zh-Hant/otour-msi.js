@@ -9,7 +9,7 @@ window.I18N.extend('zh-Hant', {
   opt_route_pos: '名次段位置',
   route_top: '從第一名起',
   route_after: '在晉級隊伍之後',
-  pair_valve16: '2023 年 11 月前的 CS Major 式（第 1 輪：1 號種子對 16 號，2 號對 15 號……）',
+  pair_valve16: '2023 年 11 月前的 CS Major 式（第 1 輪：1 號種子對 16 號，2 號對 15 號…）',
   pair_draw: '2017 年 Major 式（第 1 輪：第 1 檔抽籤對第 4 檔，第 2 檔對第 3 檔；之後同戰績隨機抽籤）',
   ds_valve16: '2023 年 11 月前的 CS Major 式配對（第 1 輪：1 對 16）',
   ds_draw: '2017 年 Major 式配對（同戰績隨機抽籤）',

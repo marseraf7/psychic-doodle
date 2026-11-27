@@ -279,7 +279,7 @@
   // ================================================================ 中文
   X('zh', {
     ot_entry: '线下赛事（任何项目）', ot_title: '线下赛事', ot_create: '创建线下赛事',
-    ot_intro: '为任何项目办赛——足球、羽毛球、乒乓球、电竞、棋类…… 有链接即可观看，无需登录。',
+    ot_intro: '为任何项目办赛——足球、羽毛球、乒乓球、电竞、棋类… 有链接即可观看，无需登录。',
     ot_login_hint: '登录后可创建赛事。观看无需账号。', ot_mine: '我的赛事', ot_recent: '最近的公开赛事', ot_none: '暂无赛事。',
     ot_by: '主办：{name}', ot_st_draft: '未开始', ot_st_running: '进行中', ot_st_finished: '已结束',
     ot_access: '谁可以查看', ot_acc_public: '公开', ot_acc_link: '仅限有链接者', ot_acc_private: '私密（仅自己）',
@@ -305,7 +305,7 @@
     opt_sn_meet: '交手次数', sn_lv_div: '同赛区', sn_lv_conf: '同分区不同赛区', sn_lv_inter: '不同分区',
     sn_col_m: '与每队交手（场）', sn_col_x: '多赛一场的球队数',
     sn_sum: '每队 {per} 场 · 整个赛季 {all} 场 · 每个分区 {cs} 队，每个赛区 {ds} 队',
-    opt_season_hint: '球队按名单顺序划分：分区 1 包含赛区 1、2……，然后是分区 2。“多赛一场”可做出与真实联赛一样的不均衡赛程（如 NBA：同分区 10 队中 6 队交手 4 次，其余 4 队 3 次）。每个分区单独排名。',
+    opt_season_hint: '球队按名单顺序划分：分区 1 包含赛区 1、2…，然后是分区 2。“多赛一场”可做出与真实联赛一样的不均衡赛程（如 NBA：同分区 10 队中 6 队交手 4 次，其余 4 队 3 次）。每个分区单独排名。',
     adv_per_conf: '每个分区晋级球队数', adv_conf_n: '每个分区前 {n} 名晋级', conf_name: '{name} 分区', div_name: '{name} 赛区', div_tables: '赛区排名',
     fmt_season: '赛季（{c} 个分区）', fmt_season_div: '赛季（{c} 个分区 × {d} 个赛区）',
     srv_ot_season_split: '球队数必须能平均分成 {c} 个分区 × {d} 个赛区',

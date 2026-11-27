@@ -151,6 +151,6 @@
     bot_rong_desc: '最终大魔王：极深的冲棋计算，瞬间化解威胁。',
     bot_rong_hi: "你竟敢挑战 GOAT？",
     bot_rong_win: "GOAT 依然是 GOAT！",
-    bot_rong_lose: "不可能……现在你才是 GOAT！",
+    bot_rong_lose: "不可能…现在你才是 GOAT！",
   });
 })();

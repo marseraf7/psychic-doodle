@@ -156,7 +156,7 @@
     opt_route_pos: '名次段位置',
     route_top: '从第一名起',
     route_after: '在晋级队伍之后',
-    pair_valve16: '2023 年 11 月前的 CS Major 式（第 1 轮：1 号种子对 16 号，2 号对 15 号……）',
+    pair_valve16: '2023 年 11 月前的 CS Major 式（第 1 轮：1 号种子对 16 号，2 号对 15 号…）',
     pair_draw: '2017 年 Major 式（第 1 轮：第 1 档抽签对第 4 档，第 2 档对第 3 档；之后同战绩随机抽签）',
     ds_valve16: '2023 年 11 月前的 CS Major 式配对（第 1 轮：1 对 16）',
     ds_draw: '2017 年 Major 式配对（同战绩随机抽签）',
