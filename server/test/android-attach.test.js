@@ -238,3 +238,38 @@ test('AndroidManifest: tắt EmojiCompat tự khởi động (không phụ thu�
   // Không tự xin phông tải về từ GMS (chỉ xét mã, bỏ chú thích)
   assert.doesNotMatch(xml.replace(/<!--[\s\S]*?-->/g, ''), /com\.google\.android\.gms\.fonts|preloaded_fonts|font_certs/);
 });
+
+test('android-provider-watch: dời mốc giờ, lọc nhật ký theo khoảng, báo kết nối Play Services mới kèm nhật ký quanh mốc', async () => {
+  const W = require(path.join(APP, 'tests', 'android-provider-watch.js'));
+  assert.strictEqual(W.shift('11-27 07:43:49.840', -8), '11-27 07:43:41.840');
+  assert.strictEqual(W.shift('11-27 07:43:59.500', 2), '11-27 07:44:01.500');
+  assert.strictEqual(W.stampOf('rác'), null);
+  const log = '11-27 07:43:40.000 I/FontLog ( 1180): sớm quá\n11-27 07:43:49.840 I/FontLog ( 1180): Received query Google Sans\n'
+    + '11-27 07:43:50.100 I/chromium ( 4321): app đang làm gì đó\n11-27 07:44:30.000 I/FontLog ( 1180): muộn quá';
+  assert.deepStrictEqual(W.linesBetween(log, '11-27 07:43:45.000', '11-27 07:43:55.000', (l) => /FontLog/.test(l)).length, 1);
+  // Đồ giả adb: lượt đọc thứ hai mới có kết nối tới FontsProvider
+  let n = 0;
+  const block = `\n  * ContentProviderRecord{abc u0 com.google.android.gms/.fonts.provider.FontsProvider}\n    package=com.google.android.gms process=com.google.android.gms.persistent\n    authority=com.google.android.gms.fonts\n    Connections:\n      -> 4321:${PKG}/u0a209 s1/1 u0/0 +3s\n`;
+  const adb = (...a) => {
+    if (a.includes('providers')) return ++n >= 2 ? 'ACTIVITY MANAGER CONTENT PROVIDERS' + block : 'ACTIVITY MANAGER CONTENT PROVIDERS\n';
+    if (a.includes('date')) return '11-27 07:43:52.000\n';
+    if (a.includes('pidof')) return '4321\n';
+    if (a[0] === 'logcat') return log;
+    return '';
+  };
+  const out = [], orig = console.log;
+  console.log = (s) => out.push(String(s));
+  try {
+    const w = W.createProviderWatch({ adb, pkg: PKG, providerDependents: D.providerDependents, stepName: () => 'mở app', everyMs: 10 });
+    w.start();
+    await new Promise((r) => setTimeout(r, 60));
+    w.stop();
+  } finally { console.log = orig; }
+  const text = out.join('\n');
+  assert.match(text, /\+ com\.google\.android\.gms\/\.fonts\.provider\.FontsProvider \(com\.google\.android\.gms\.persistent\) stable 1/);
+  assert.match(text, /bước «mở app», pid 4321/);
+  assert.match(text, /Received query Google Sans/);
+  assert.match(text, /app đang làm gì đó/);
+  assert.doesNotMatch(text, /sớm quá|muộn quá/);
+  assert.match(text, /dừng theo dõi .*1 lần đổi/);
+});

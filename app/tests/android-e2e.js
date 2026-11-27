@@ -10,6 +10,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const { until, sleep, parseDevtoolsSockets, parsePidof, createStepWatch, attachWebView } = require('./android-attach');
 const { createDiagnose, providerDependents } = require('./android-diag');
+const { createProviderWatch } = require('./android-provider-watch');
 
 const PKG = 'io.github.marseraf7.caro';
 const SHOTS = process.env.SHOTS_DIR || '.';
@@ -80,8 +81,9 @@ function fontsProbe(when) {
     for (const l of lines.slice(-80)) console.log('  ' + l);
   } catch (e) { console.log('FONTS: không đọc được logcat: ' + e.message.split('\n')[0]); }
   try {
-    const d = adb('shell', 'dumpsys', 'activity', 'provider', 'com.google.android.gms/.fonts.provider.FontsProvider');
-    console.log('FONTS provider:\n' + d.split('\n').filter((l) => /Client|conn|->|stable|ContentProviderRecord|proc=|caro/i.test(l)).slice(0, 40).map((l) => '  ' + l).join('\n'));
+    // `dumpsys activity provider <tên>` không liệt kê kết nối của app – đọc bảng đầy đủ rồi lọc như chẩn đoán
+    const deps = providerDependents(adb('shell', 'dumpsys', 'activity', 'providers'), PKG).filter((d) => /gms/.test(d.provider));
+    console.log('FONTS provider Play Services app đang giữ: ' + (deps.length ? JSON.stringify(deps) : 'không có'));
   } catch (e) { console.log('FONTS provider: lỗi ' + e.message.split('\n')[0]); }
 }
 const exitCode = () => (gmsKilledApp() ? GMS_EXIT : 1);
@@ -131,6 +133,9 @@ async function step(name, ms) {
     return false;
   };
   await step('mở app', 4 * 60000);
+  // Theo dõi kết nối provider của app trong 3 phút đầu: lúc nào, ở bước nào app nối tới FontsProvider của Play Services
+  const provWatch = createProviderWatch({ adb, pkg: PKG, providerDependents, stepName: () => watch.current() && watch.current().name });
+  provWatch.start();
   await launch();
   // Gắn vào WebView qua DevTools (socket webview_devtools_remote_<pid>): pid đọc lại mỗi lần, có hạn giờ; quá hạn thì mở
   // lại app (tiến trình mới) rồi gắn lại – Playwright tự nó chờ mãi (webview.page() không có hạn giờ)
