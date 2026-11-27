@@ -361,10 +361,23 @@
       }
     }
 
+    /** Phần bàn cờ bị thanh người chơi (#pl-top / #pl-bot, đè lên canvas) che, px theo toạ độ canvas – tối thiểu 70 / 90
+     *  như trước. Màn hình thấp (vd. 640×360) thanh cao hơn 70 px: ô "đã thấy" theo lề cũ vẫn nằm dưới thanh. */
+    function overlayInsets() {
+      let top = 70, bottom = 90;
+      try {
+        const r = canvas.getBoundingClientRect();
+        const t = document.getElementById('pl-top'), b = document.getElementById('pl-bot');
+        if (t && !t.hidden && t.getClientRects().length) top = Math.max(top, t.getBoundingClientRect().bottom - r.top);
+        if (b && !b.hidden && b.getClientRects().length) bottom = Math.max(bottom, r.bottom - b.getBoundingClientRect().top);
+      } catch (e) { /* không có DOM (bài thử Node): lề mặc định */ }
+      return { top, bottom };
+    }
+
     function ensureVisible(x, y) {
       const [sx, sy] = toScreen(x, y);
       const m = cam.size * 1.5;
-      const top = 70, bottom = 90;
+      const { top, bottom } = overlayInsets();
       if (sx < m || sx > W - m || sy < top + m || sy > H - bottom - m) {
         animateCamera(x, y - (top - bottom) / 2 / cam.size);
       }
