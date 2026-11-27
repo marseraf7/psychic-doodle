@@ -61,14 +61,15 @@ const diagnose = createDiagnose({
 /** Dừng test vì lỗi / treo: chẩn đoán (có hạn giờ) rồi thoát mã 1. Gọi lần thứ hai thì thoát luôn. */
 let dying = false;
 async function die(reason, step) {
-  if (dying) process.exit(1);
+  if (dying) process.exit(exitCode());
   dying = true;
   watch.done(); // hạn giờ của bước đang chạy không được cắt ngang lúc chẩn đoán
   console.log('FAIL ' + reason);
-  setTimeout(() => { console.log('Chẩn đoán quá 4 phút – thoát'); process.exit(1); }, 4 * 60000);
+  setTimeout(() => { console.log('Chẩn đoán quá 4 phút – thoát'); process.exit(exitCode()); }, 4 * 60000);
   try { await diagnose(reason, step); } catch (e) { console.log('Chẩn đoán lỗi: ' + e.message); }
-  process.exit(gmsKilledApp() ? GMS_EXIT : 1);
+  process.exit(exitCode());
 }
+const exitCode = () => (gmsKilledApp() ? GMS_EXIT : 1);
 /** Mã thoát riêng: Android giết app vì tiến trình Play Services (com.google.android.gms.persistent) chết – app (WebView)
  *  giữ kết nối tới FontsProvider của Play Services; Play Services tự khởi động lại trên máy ảo mới (làm mới cấu hình /
  *  cập nhật module) bất kỳ lúc nào. Không phải lỗi của game: CI (.github/workflows/app.yml) chạy lại cả kịch bản MỘT lần. */
@@ -207,8 +208,8 @@ async function step(name, ms) {
   await web.click('#add-friend button');
   await until(() => app.$('#friends [data-accept]'));
   await app.click('#friends [data-accept]');
-  check('web và app là bạn bè, thấy nhau online', !!(await until(() => web.evaluate(() =>
-    window.CaroOnline.state.friends.friends.some((f) => f.username === APP_USER && f.status === 'online')))));
+  check('web và app là bạn bè, thấy nhau online', !!(await until(() => web.evaluate((u) =>
+    window.CaroOnline.state.friends.friends.some((f) => f.username === u && f.status === 'online'), APP_USER))));
   await web.evaluate(() => window.CaroOnline.send({ t: 'dmSend', to: window.CaroOnline.state.friends.friends[0].id, text: 'Hello from web' }));
   check('app nhận tin nhắn từ web', !!(await until(() => app.evaluate(() =>
     [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Hello from web'))))));
