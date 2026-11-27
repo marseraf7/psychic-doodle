@@ -41,6 +41,10 @@ async function tourDiag(app, web, id) {
   console.log('Chẩn đoán giải:', JSON.stringify({ app: await side(app), web: await side(web), tour: brief }));
 }
 
+// Lượt chạy (CI chạy lại cả kịch bản một lần khi Play Services chết kéo app chết – xem die()): tên tài khoản riêng mỗi lượt
+const RUN = /^[1-9]$/.test(process.env.E2E_RUN || '') ? process.env.E2E_RUN : '1';
+const APP_USER = 'android_' + RUN, WEB_USER = 'web_' + RUN;
+
 const { adb, waitBoot, systemDialog, dismissSystemDialogs, realTap, pressBack, screenState, dumpLogcat, systemBars,
   webViewBounds, stableTapPoint, screenRect } = require('./android-device');
 
@@ -63,7 +67,17 @@ async function die(reason, step) {
   console.log('FAIL ' + reason);
   setTimeout(() => { console.log('Chẩn đoán quá 4 phút – thoát'); process.exit(1); }, 4 * 60000);
   try { await diagnose(reason, step); } catch (e) { console.log('Chẩn đoán lỗi: ' + e.message); }
-  process.exit(1);
+  process.exit(gmsKilledApp() ? GMS_EXIT : 1);
+}
+/** Mã thoát riêng: Android giết app vì tiến trình Play Services (com.google.android.gms.persistent) chết – app (WebView)
+ *  giữ kết nối tới FontsProvider của Play Services; Play Services tự khởi động lại trên máy ảo mới (làm mới cấu hình /
+ *  cập nhật module) bất kỳ lúc nào. Không phải lỗi của game: CI (.github/workflows/app.yml) chạy lại cả kịch bản MỘT lần. */
+const GMS_EXIT = 75;
+function gmsKilledApp() {
+  try {
+    const log = adb('logcat', '-d', '-v', 'brief', '-t', '4000');
+    return new RegExp(`Killing \\d+:${PKG.replace(/\./g, '\\.')}/\\S+ .*depends on provider com\\.google\\.android\\.gms/\\S+ in dying proc com\\.google\\.android\\.gms`).test(log);
+  } catch (e) { return false; }
 }
 // Mỗi bước một hạn giờ: bước nào treo (evaluate / kết nối DevTools không trả lời…) thì dừng ngay, báo tên bước + chẩn đoán
 const watch = createStepWatch({ onTimeout: ({ name, ms }) => die(`bước «${name}» treo quá ${Math.round(ms / 1000)} giây`, name) });
@@ -174,27 +188,27 @@ async function step(name, ms) {
   check('app kết nối máy chủ', !!(await until(() => app.evaluate(() => window.CaroOnline.connected), 45000)));
   await app.click('#go-register');
   await app.fill('#auth-form input[name=name]', 'Android');
-  await app.fill('#auth-form input[name=username]', 'android_1');
+  await app.fill('#auth-form input[name=username]', APP_USER);
   await app.fill('#auth-form input[name=password]', 'caro-pass1');
   await app.click('#auth-submit');
   const appMe = await until(() => app.evaluate(() => { const m = window.CaroOnline.state.me; return m && !m.guest && m; }));
-  check('app đăng ký tài khoản', !!appMe && appMe.username === 'android_1');
+  check('app đăng ký tài khoản', !!appMe && appMe.username === APP_USER);
 
   // Web: tài khoản + kết bạn + nhắn tin
   await step('web đăng ký, kết bạn, nhắn tin', 3 * 60000);
   await web.click('#tabbar [data-tab="more"]');
   await until(() => web.evaluate(() => window.CaroOnline.connected));
   await web.click('#go-register');
-  await web.fill('#auth-form input[name=username]', 'web_1');
+  await web.fill('#auth-form input[name=username]', WEB_USER);
   await web.fill('#auth-form input[name=password]', 'caro-pass1');
   await web.click('#auth-submit');
   await until(() => web.evaluate(() => { const m = window.CaroOnline.state.me; return m && !m.guest; }));
-  await web.fill('#add-friend input', 'android_1');
+  await web.fill('#add-friend input', APP_USER);
   await web.click('#add-friend button');
   await until(() => app.$('#friends [data-accept]'));
   await app.click('#friends [data-accept]');
   check('web và app là bạn bè, thấy nhau online', !!(await until(() => web.evaluate(() =>
-    window.CaroOnline.state.friends.friends.some((f) => f.username === 'android_1' && f.status === 'online')))));
+    window.CaroOnline.state.friends.friends.some((f) => f.username === APP_USER && f.status === 'online')))));
   await web.evaluate(() => window.CaroOnline.send({ t: 'dmSend', to: window.CaroOnline.state.friends.friends[0].id, text: 'Hello from web' }));
   check('app nhận tin nhắn từ web', !!(await until(() => app.evaluate(() =>
     [...document.querySelectorAll('#toasts .toast')].some((t) => t.textContent.includes('Hello from web'))))));
@@ -394,7 +408,7 @@ async function step(name, ms) {
   shot('matched');
 
   await step('giải đấu Arena', 4 * 60000);
-  // Giải đấu: web (quản trị viên, ADMIN_USERNAMES=web_1 trong CI) tạo giải Arena; app mở trang giải bằng giao diện,
+  // Giải đấu: web (quản trị viên, ADMIN_USERNAMES=web_1,web_2 trong CI) tạo giải Arena; app mở trang giải bằng giao diện,
   // bấm Tham gia; bắt đầu giải -> app tự vào ván của giải
   await web.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
   await app.evaluate(() => window.CaroOnline.send({ t: 'leaveRoom' }));
