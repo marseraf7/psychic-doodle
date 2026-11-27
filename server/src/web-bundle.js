@@ -72,13 +72,14 @@ function bootJs(packs) {
   var P = ${JSON.stringify(packs)}, l = null;
   var fromTag = ${Langs.fromTag.toString()}; // caro/langs.js
   try { l = localStorage.getItem('caro.lang'); } catch (e) { /* riêng tư */ }
-  var q = typeof location !== 'undefined' && /[?&]lang=([A-Za-z]{2}(?:-[A-Za-z]{4})?)(?:&|#|$)/.exec(location.search); // ?lang=xx như i18n.js (hreflang – seo.js)
+  var q = typeof location !== 'undefined' && /[?&]lang=([a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?)(?:&|#|$)/.exec(location.search); // ?lang=xx như i18n.js (hreflang – seo.js)
   if (q && P[q[1]]) l = q[1];
   if (!P[l] && P[window.CARO_LANG0]) l = window.CARO_LANG0; // bản cổng game (build-portal.js): mặc định tiếng Anh
   if (!P[l]) {
     l = 'vi';
     var a = navigator.languages || [navigator.language || ''];
-    for (var i = 0; i < a.length; i++) { var c = fromTag(a[i], Object.keys(P)); if (c) { l = c; break; } }
+    // tự nhận theo trình duyệt: chỉ ngôn ngữ đang hiện (status khác 'hidden' – caro/langs.js)
+    for (var i = 0; i < a.length; i++) { var c = fromTag(a[i], ${JSON.stringify(Langs.SHOWN)}.filter(function (x) { return P[x]; })); if (c) { l = c; break; } }
   }
   window.CARO_PACKS = P;
   window.CARO_PACK = l;

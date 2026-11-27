@@ -276,11 +276,17 @@
   if (!DICT[lang]) lang = DICT[window.CARO_LANG0] ? window.CARO_LANG0 : detect();
   if (DICT[window.CARO_LANG]) lang = window.CARO_LANG; // trang nhúng (embed-boot.js): ?lang= – không lưu lại
   // Link theo ngôn ngữ (?lang=xx, ?lang=zh-Hant – hreflang cho máy tìm kiếm, server/src/seo.js): dùng cho lần xem này, không lưu lại
-  else { const q = /[?&]lang=([A-Za-z]{2}(?:-[A-Za-z]{4})?)(?:&|#|$)/.exec(location.search); if (q && DICT[q[1]]) lang = q[1]; }
+  else { const q = /[?&]lang=([a-z]{2,3}(?:-[A-Z][a-z]{3})?(?:-[A-Z]{2})?)(?:&|#|$)/.exec(location.search); if (q && DICT[q[1]]) lang = q[1]; }
+  if (typeof document !== 'undefined') document.documentElement.dir = LG.dirOf(lang); // trước khi vẽ: không nháy LTR → RTL
 
+  // Số nhiều (tuỳ chọn): chuỗi có {n} có thể có thêm dạng theo loại số nhiều CLDR của ngôn ngữ đó – 'khoá|one', 'khoá|few',
+  // 'khoá|many'… (Intl.PluralRules). Thiếu dạng thì dùng 'khoá'. Không cần sửa chỗ gọi: T('k', { n: 5 }) tự chọn.
+  const PR = {};
+  const plural = (l, n) => { try { return (PR[l] = PR[l] || new Intl.PluralRules(LG.BY[l].intl)).select(n); } catch (e) { return 'other'; } };
+  const look = (l, key, n) => (n === null ? undefined : DICT[l][key + '|' + plural(l, n)]) ?? DICT[l][key];
   function t(key, args) {
-    const fb = LG.fallback(lang);
-    const s = DICT[lang][key] ?? (fb ? DICT[fb][key] : undefined) ?? DICT.vi[key] ?? key;
+    const fb = LG.fallback(lang), n = args && args.n != null && args.n !== '' && isFinite(args.n) ? Number(args.n) : null;
+    const s = look(lang, key, n) ?? (fb ? look(fb, key, n) : undefined) ?? DICT.vi[key] ?? key;
     if (!args) return s;
     return s.replace(/\{(\w+)\}/g, (_, k) => (args[k] == null ? '' : String(args[k])));
   }
@@ -298,6 +304,7 @@
       el.textContent = v[0] === 'c' ? tc(0, v.slice(1)) : tc(Number(v.slice(1)), null);
     });
     document.documentElement.lang = LG.BY[lang].html;
+    document.documentElement.dir = LG.dirOf(lang); // ar, he, fa…: phải sang trái (CSS dùng thuộc tính logic – lang-scripts.css)
     document.title = t('app_title');
   }
 

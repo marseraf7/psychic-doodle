@@ -117,6 +117,9 @@ Microsoft Terminology Collection; quy ước dịch thuật ngữ cờ của FID
 
 ## Thêm ngôn ngữ (ngôn ngữ thư mục: zh-Hant, ja, ko, cs)
 
+> Quy trình đầy đủ (ai làm gì, tạo khung bằng `server/scripts/new-lang.js`, status `hidden` / `mt-draft` / `reviewed`, RTL,
+> phông theo chữ viết, số nhiều `khoá|loại`): **`docs/quy-trinh-them-ngon-ngu.md`**.
+
 Danh sách ngôn ngữ ở **một chỗ**: `caro/langs.js` (mã, tên tự gọi, `<html lang>`, hreflang, Intl, ngôn ngữ dự phòng) –
 trình duyệt, bản gộp, SEO, og, thư, widget MCP đều đọc từ đó. 4 ngôn ngữ gốc (vi, en, ru, zh = giản thể) vẫn nằm chung trong
 `caro/i18n*.js`; mỗi ngôn ngữ thư mục chỉ sửa **file của riêng nó** (các nhánh dịch song song không đụng nhau):

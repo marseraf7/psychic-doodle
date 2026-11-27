@@ -19,6 +19,7 @@ const Langs = require('./langs.js');
 const HREFLANG = Object.fromEntries(Langs.LIST.map((x) => [x.code, x.hreflang]));
 const HTML_LANG = Object.fromEntries(Langs.LIST.map((x) => [x.code, x.html]));
 const LANGS = Langs.CODES;
+const SHOWN = Langs.SHOWN; // hreflang / sitemap / inLanguage: không đưa ngôn ngữ 'hidden' (đang dịch dở) cho máy tìm kiếm
 const STATIC_PAGES = ['/privacy.html', '/connector.html', '/api.html'];
 // Tham số link chia sẻ (hub/og.js): có mà không xem được (mã sai, riêng tư) → chỉ canonical về trang chủ, không thêm og / JSON-LD
 const LINK_PARAMS = ['replay', 'room', 't', 'o', 'club', 'u', 'cls', 'bc'];
@@ -37,7 +38,7 @@ const withLang = (p, l) => p + (p.includes('?') ? '&' : '?') + 'lang=' + l;
 /** Khối thẻ <head>: canonical + hreflang (+ og / twitter / JSON-LD cho trang chủ). */
 function headTags({ base, path, lang, home }) {
   const tags = [`<link rel="canonical" href="${esc(base + (lang ? withLang(path, lang) : path))}">`];
-  for (const l of LANGS) tags.push(`<link rel="alternate" hreflang="${HREFLANG[l]}" href="${esc(base + withLang(path, l))}">`);
+  for (const l of SHOWN) tags.push(`<link rel="alternate" hreflang="${HREFLANG[l]}" href="${esc(base + withLang(path, l))}">`);
   tags.push(`<link rel="alternate" hreflang="x-default" href="${esc(base + path)}">`);
   if (home) {
     const L = lang || 'vi';
@@ -52,7 +53,7 @@ function headTags({ base, path, lang, home }) {
     const ld = {
       '@context': 'https://schema.org', '@type': ['WebApplication', 'VideoGame'], name: 'Caro x Gomoku',
       alternateName: ['Cờ Caro', 'Gomoku', 'Five in a Row', 'Гомоку', '五子棋', '五目並べ', '오목', 'Piškvorky'], url: base + '/', description: desc,
-      inLanguage: LANGS.map((l) => HREFLANG[l]), applicationCategory: 'GameApplication', genre: ['Board game', 'Strategy'],
+      inLanguage: SHOWN.map((l) => HREFLANG[l]), applicationCategory: 'GameApplication', genre: ['Board game', 'Strategy'],
       gamePlatform: ['Web browser', 'Android', 'iOS'], operatingSystem: 'Web browser, Android, iOS', playMode: ['SinglePlayer', 'MultiPlayer'],
       isAccessibleForFree: true, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, image: base + '/api/og/card.png',
     };
@@ -87,10 +88,10 @@ function robotsTxt() {
 function sitemapXml(paths) {
   const base = Site.canonicalOrigin();
   const day = new Date().toISOString().slice(0, 10);
-  const alt = (p) => LANGS.map((l) => `<xhtml:link rel="alternate" hreflang="${HREFLANG[l]}" href="${xmlEsc(base + withLang(p, l))}"/>`)
+  const alt = (p) => SHOWN.map((l) => `<xhtml:link rel="alternate" hreflang="${HREFLANG[l]}" href="${xmlEsc(base + withLang(p, l))}"/>`)
     .concat(`<xhtml:link rel="alternate" hreflang="x-default" href="${xmlEsc(base + p)}"/>`).join('');
   const urls = [`<url><loc>${xmlEsc(base + '/')}</loc><lastmod>${day}</lastmod><changefreq>daily</changefreq><priority>1.0</priority>${alt('/')}</url>`];
-  for (const l of LANGS) urls.push(`<url><loc>${xmlEsc(base + withLang('/', l))}</loc><changefreq>daily</changefreq><priority>0.9</priority>${alt('/')}</url>`);
+  for (const l of SHOWN) urls.push(`<url><loc>${xmlEsc(base + withLang('/', l))}</loc><changefreq>daily</changefreq><priority>0.9</priority>${alt('/')}</url>`);
   for (const p of STATIC_PAGES) urls.push(`<url><loc>${xmlEsc(base + p)}</loc><changefreq>monthly</changefreq><priority>0.3</priority></url>`);
   const seen = new Set();
   for (const p of paths || []) {

@@ -13,17 +13,25 @@
  */
 (function (root) {
   'use strict';
-  // code: mã · name: tên tự gọi (ô chọn ngôn ngữ) · html: <html lang> / hreflang · intl: định dạng ngày giờ, số (Intl)
-  // google: nút đăng nhập Google · og: og:locale · fallback: ngôn ngữ dự phòng khi thiếu khoá · dir: chuỗi ở caro/i18n/<mã>/
+  // code: mã · name: tên tự gọi (ô chọn ngôn ngữ; ngôn ngữ mới lấy từ CLDR) · html: <html lang> / hreflang · intl: định dạng
+  // ngày giờ, số (Intl) · google: nút đăng nhập Google · og: og:locale · fallback: ngôn ngữ dự phòng khi thiếu khoá
+  // dir: chuỗi ở caro/i18n/<mã>/ (KHÔNG phải hướng chữ) · script: chữ viết ISO 15924 (Latn, Cyrl, Arab, Deva…)
+  // rtl: viết từ phải sang trái → <html dir="rtl"> · font: phông theo chữ viết trong caro/lang-scripts.css (không có: phông chung)
+  // status – mức tin cậy của bản dịch (docs/quy-trinh-them-ngon-ngu.md):
+  //   'reviewed' – người dùng tiếng đó đã soát trong game;
+  //   'mt-draft' – bản dịch máy / AI chưa có người bản xứ soát: ô chọn ngôn ngữ ghi nhãn "Bản dịch máy";
+  //   'hidden'   – mới có khung hoặc đang dịch dở: KHÔNG có trong ô chọn, không tự nhận theo trình duyệt, không có trong
+  //                hreflang / sitemap; vẫn mở được bằng ?lang=<mã> để người dịch xem thử.
   const LIST = [
-    { code: 'vi', name: 'Tiếng Việt', html: 'vi', intl: 'vi-VN', google: 'vi', og: 'vi_VN' },
-    { code: 'en', name: 'English', html: 'en', intl: 'en-GB', google: 'en', og: 'en_US' },
-    { code: 'ru', name: 'Русский', html: 'ru', intl: 'ru-RU', google: 'ru', og: 'ru_RU' },
-    { code: 'zh', name: '简体中文', html: 'zh-CN', hreflang: 'zh-Hans', intl: 'zh-CN', google: 'zh_CN', og: 'zh_CN' },
-    { code: 'zh-Hant', name: '繁體中文', html: 'zh-Hant', intl: 'zh-TW', google: 'zh_TW', og: 'zh_TW', fallback: 'en', dir: true },
-    { code: 'ja', name: '日本語', html: 'ja', intl: 'ja-JP', google: 'ja', og: 'ja_JP', fallback: 'en', dir: true },
-    { code: 'ko', name: '한국어', html: 'ko', intl: 'ko-KR', google: 'ko', og: 'ko_KR', fallback: 'en', dir: true },
-    { code: 'cs', name: 'Čeština', html: 'cs', intl: 'cs-CZ', google: 'cs', og: 'cs_CZ', fallback: 'en', dir: true },
+    { code: 'vi', name: 'Tiếng Việt', html: 'vi', intl: 'vi-VN', google: 'vi', og: 'vi_VN', script: 'Latn', status: 'reviewed' },
+    { code: 'en', name: 'English', html: 'en', intl: 'en-GB', google: 'en', og: 'en_US', script: 'Latn', status: 'reviewed' },
+    { code: 'ru', name: 'Русский', html: 'ru', intl: 'ru-RU', google: 'ru', og: 'ru_RU', script: 'Cyrl', status: 'reviewed' },
+    { code: 'zh', name: '简体中文', html: 'zh-CN', hreflang: 'zh-Hans', intl: 'zh-CN', google: 'zh_CN', og: 'zh_CN', script: 'Hans', status: 'reviewed' },
+    { code: 'zh-Hant', name: '繁體中文', html: 'zh-Hant', intl: 'zh-TW', google: 'zh_TW', og: 'zh_TW', fallback: 'en', dir: true, script: 'Hant', status: 'mt-draft' },
+    { code: 'ja', name: '日本語', html: 'ja', intl: 'ja-JP', google: 'ja', og: 'ja_JP', fallback: 'en', dir: true, script: 'Jpan', status: 'mt-draft' },
+    { code: 'ko', name: '한국어', html: 'ko', intl: 'ko-KR', google: 'ko', og: 'ko_KR', fallback: 'en', dir: true, script: 'Kore', status: 'mt-draft' },
+    { code: 'cs', name: 'Čeština', html: 'cs', intl: 'cs-CZ', google: 'cs', og: 'cs_CZ', fallback: 'en', dir: true, script: 'Latn', status: 'mt-draft' },
+    // @new-lang – server/scripts/new-lang.js chèn ngôn ngữ mới ngay trên dòng này (giữ nguyên dòng)
   ];
   for (const x of LIST) x.hreflang = x.hreflang || x.html;
   const CODES = LIST.map((x) => x.code);
@@ -32,7 +40,8 @@
   /**
    * Thẻ ngôn ngữ (navigator.languages, Accept-Language, hostContext.locale…) → mã của game, hoặc null.
    * zh-TW / zh-HK / zh-MO / zh-Hant* / yue → zh-Hant; zh / zh-CN / zh-SG / zh-Hans* → zh; ja-JP → ja; en_US → en.
-   * codes: các mã đang có (mặc định: tất cả). Viết không dùng biến ngoài: bản gộp chép nguyên hàm này vào boot.js.
+   * codes: các mã được nhận (mặc định: ngôn ngữ đang hiện = SHOWN – không tự nhận ngôn ngữ 'hidden'; bài thử
+   * server/test/i18n-langs.test.js bắt danh sách này khớp SHOWN). Viết không dùng biến ngoài: bản gộp chép nguyên hàm vào boot.js.
    */
   function fromTag(tag, codes) {
     const all = codes || ['vi', 'en', 'ru', 'zh', 'zh-Hant', 'ja', 'ko', 'cs'];
@@ -65,8 +74,13 @@
   /** Ngôn ngữ dự phòng của l (thiếu khoá thì lấy chữ ở đây) – null với ngôn ngữ gốc. */
   const fallback = (l) => (BY[l] && BY[l].fallback) || null;
 
+  /** Hướng chữ của ngôn ngữ l: 'rtl' | 'ltr'. */
+  const dirOf = (l) => (BY[l] && BY[l].rtl ? 'rtl' : 'ltr');
+
   const api = {
-    LIST, CODES, BY, fromTag, fromAccept, fallback,
+    LIST, CODES, BY, fromTag, fromAccept, fallback, dirOf,
+    /** Ngôn ngữ người dùng thấy (ô chọn, tự nhận theo trình duyệt, hreflang / sitemap): mọi ngôn ngữ trừ status 'hidden'. */
+    SHOWN: LIST.filter((x) => x.status !== 'hidden').map((x) => x.code),
     /** Ngôn ngữ gốc (chuỗi trong caro/i18n*.js) và ngôn ngữ thư mục (caro/i18n/<mã>/). */
     INLINE: LIST.filter((x) => !x.dir).map((x) => x.code),
     DIR: LIST.filter((x) => x.dir).map((x) => x.code),
