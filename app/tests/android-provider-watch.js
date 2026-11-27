@@ -40,7 +40,8 @@ function shift(stamp, sec) {
 
 function createProviderWatch({ adb, pkg, providerDependents, stepName, everyMs = 1000, maxMs = 3 * 60000 }) {
   let timer = null, last = new Set(), t0 = 0, changes = 0;
-  const now = () => { try { return adb('shell', 'date', '+%m-%d %H:%M:%S.000').trim(); } catch (e) { return null; } };
+  // adb shell nối các tham số bằng dấu cách rồi shell máy ảo tách lại – chuỗi định dạng có dấu cách phải nằm trong ngoặc
+  const now = () => { try { return adb('shell', "date +'%m-%d %H:%M:%S.000'").trim(); } catch (e) { return null; } };
   const pidOf = () => { try { return adb('shell', 'pidof', pkg).trim().split(/\s+/)[0] || null; } catch (e) { return null; } };
 
   function context(stamp, pid) {

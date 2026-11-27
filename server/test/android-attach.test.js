@@ -252,7 +252,7 @@ test('android-provider-watch: dời mốc giờ, lọc nhật ký theo khoảng,
   const block = `\n  * ContentProviderRecord{abc u0 com.google.android.gms/.fonts.provider.FontsProvider}\n    package=com.google.android.gms process=com.google.android.gms.persistent\n    authority=com.google.android.gms.fonts\n    Connections:\n      -> 4321:${PKG}/u0a209 s1/1 u0/0 +3s\n`;
   const adb = (...a) => {
     if (a.includes('providers')) return ++n >= 2 ? 'ACTIVITY MANAGER CONTENT PROVIDERS' + block : 'ACTIVITY MANAGER CONTENT PROVIDERS\n';
-    if (a.includes('date')) return '11-27 07:43:52.000\n';
+    if (a.some((x) => x.startsWith('date'))) return '11-27 07:43:52.000\n';
     if (a.includes('pidof')) return '4321\n';
     if (a[0] === 'logcat') return log;
     return '';
