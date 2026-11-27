@@ -9,13 +9,14 @@
  *    ván online) thì tải lại luôn để dùng bản mới; đang chơi thì để lần mở sau. Lần cài đầu (chưa có bản cũ) không tải lại.
  *    Đang gõ dở (ô đang focus, hoặc ô có chữ – form đăng ký, chat…) thì hoãn tới lần chuyển trang / quay lại app sau.
  * Trong ứng dụng điện thoại (CaroNative) các file đã nằm sẵn trong app: không dùng service worker. Bản cổng game
- * (CARO_PORTAL – CrazyGames / itch.io phục vụ gói từ tên miền của họ) cũng không: tránh bộ đệm trên tên miền lạ.
+ * (CARO_PORTAL – CrazyGames / itch.io phục vụ gói từ tên miền của họ) cũng không: tránh bộ đệm trên tên miền lạ. Discord Activity
+ * (CARO_HOST 'discord' – trang chạy trên tên miền discordsays.com của Discord, qua proxy của họ) cũng vậy.
  * window.CaroSW.status() – { state: 'none' | 'installing' | 'waiting' | 'active' | 'off', controller, scope } (perf-box.js).
  */
 (function () {
   'use strict';
   const SW = navigator.serviceWorker;
-  const usable = !!SW && location.protocol.startsWith('http') && !window.CaroNative && !window.CARO_PORTAL;
+  const usable = !!SW && location.protocol.startsWith('http') && !window.CaroNative && !window.CARO_PORTAL && window.CARO_HOST !== 'discord';
   let reg = null;
 
   /** Nhờ service worker đang chạy lưu nốt các file chưa có. */

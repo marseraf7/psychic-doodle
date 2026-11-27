@@ -11,12 +11,39 @@
  *     Đổi bằng HOST_FRAME_ANCESTORS (danh sách https://… cách nhau dấu cách; 'none' = không cho nhúng).
  *   – script-src thêm đúng file https://telegram.org/js/telegram-web-app.js (thư viện chính thức, Telegram khuyên nạp từ
  *     telegram.org); VK Bridge thì tự phục vụ (caro/vendor/vk-bridge.js – 'self').
+ *   – referrer-policy: strict-origin (cả Discord) – địa chỉ lượt này có dữ liệu khởi chạy (sign của VK), không để nó đi theo
+ *     Referer của các file tải kèm.
  * caro/sw.js: lượt mở có dấu hiệu luôn hỏi mạng trước (không lấy trang đã lưu kèm header cũ 'none').
+ *
+ * Discord Activity (docs/discord-activity.md): Discord mở trang qua proxy của nó ở https://<client_id>.discordsays.com
+ * (URL Mapping '/' → tên miền của game), trong iframe của discord.com, với ?frame_id=…&instance_id=…&platform=desktop|mobile
+ * (Embedded App SDK đòi đủ ba tham số). Lượt tải trang chính có đủ ba tham số đó:
+ *   – frame-ancestors: discord.com (+ tên miền con ptb / canary), discordapp.com (+ con) và đúng
+ *     https://<DISCORD_CLIENT_ID>.discordsays.com (không phải mọi *.discordsays.com – Activity của người khác); bỏ
+ *     X-Frame-Options. Đổi bằng DISCORD_FRAME_ANCESTORS (cùng cú pháp HOST_FRAME_ANCESTORS). script-src không thêm gì: SDK
+ *     tự phục vụ (caro/vendor/discord-sdk.js), mọi yêu cầu cùng nguồn discordsays.com qua proxy;
+ *   – DISCORD_CLIENT_ID (client id công khai, không phải secret) → thẻ <meta name="caro-discord-client-id"> trong trang
+ *     (host-discord.js; trên discordsays.com client id còn lấy được từ tên miền). WebSocket từ
+ *     https://<DISCORD_CLIENT_ID>.discordsays.com: portal-origins.js.
  */
 'use strict';
 
 const TG_SCRIPT = 'https://telegram.org/js/telegram-web-app.js';
 const DEFAULT_ANCESTORS = ['https://web.telegram.org', 'https://vk.com', 'https://*.vk.com', 'https://vk.ru', 'https://*.vk.ru'];
+const DISCORD_ANCESTORS = ['https://discord.com', 'https://*.discord.com', 'https://discordapp.com', 'https://*.discordapp.com'];
+const DISCORD_ID = /^\d{5,25}$/;
+
+/** Client id công khai đã khai trong DISCORD_CLIENT_ID (chỉ chữ số; nhiều app cách nhau dấu phẩy). */
+const discordIds = (env = process.env) => String(env.DISCORD_CLIENT_ID || '').split(',').map((s) => s.trim()).filter((s) => DISCORD_ID.test(s));
+
+/** frame-ancestors mặc định của Discord: Discord + đúng tên miền Activity của game (KHÔNG phải mọi *.discordsays.com –
+ *  Activity của người khác cũng ở đó, không cho họ nhúng trang thật của game, nơi trình duyệt có phiên đăng nhập). */
+const discordAncestors = (env = process.env) => DISCORD_ANCESTORS.concat(discordIds(env).map((id) => 'https://' + id + '.discordsays.com'));
+
+/** Lượt tải có đủ tham số khởi chạy Discord Activity không (như caro/host-detect.js · isDiscordLaunch). */
+function isDiscordLaunch(sp) {
+  return !!(sp.get('frame_id') && sp.get('instance_id') && /^(desktop|mobile)$/.test(sp.get('platform') || ''));
+}
 
 /** Lượt tải có dấu hiệu Mini App không (searchParams của URL). */
 function isHostLaunch(sp) {
@@ -25,9 +52,9 @@ function isHostLaunch(sp) {
 }
 
 /** Danh sách frame-ancestors (chuỗi CSP). Mục sai dạng bị bỏ – không bao giờ thành '*'. */
-function ancestors(env = process.env) {
-  const raw = env.HOST_FRAME_ANCESTORS;
-  if (raw === undefined || raw === '') return DEFAULT_ANCESTORS.join(' ');
+function ancestors(env = process.env, key = 'HOST_FRAME_ANCESTORS', defaults = DEFAULT_ANCESTORS) {
+  const raw = env[key];
+  if (raw === undefined || raw === '') return defaults.join(' ');
   if (raw.trim() === 'none' || raw.trim() === "'none'") return "'none'";
   const ok = raw.split(/[\s,]+/).filter((s) => /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d{1,5})?$/i.test(s));
   return ok.length ? ok.join(' ') : "'none'";
@@ -38,12 +65,39 @@ function hostCsp(csp, env = process.env) {
   return csp.replace("frame-ancestors 'none'", 'frame-ancestors ' + ancestors(env)).replace("script-src 'self'", "script-src 'self' " + TG_SCRIPT);
 }
 
-/** Đặt header Mini App cho lượt tải trang chính có dấu hiệu; true nếu đã đặt. */
+/** CSP của trang chính khi mở làm Discord Activity: chỉ đổi frame-ancestors. */
+function discordCsp(csp, env = process.env) {
+  return csp.replace("frame-ancestors 'none'", 'frame-ancestors ' + ancestors(env, 'DISCORD_FRAME_ANCESTORS', discordAncestors(env)));
+}
+
+/** Đặt header Mini App / Discord Activity cho lượt tải trang chính có dấu hiệu; true nếu đã đặt. */
 function applyHostHeaders(res, url, sp, csp, env = process.env) {
-  if ((url !== '/' && url !== '/index.html') || !isHostLaunch(sp)) return false;
-  res.setHeader('content-security-policy', hostCsp(csp, env));
+  if (url !== '/' && url !== '/index.html') return false;
+  const discord = isDiscordLaunch(sp);
+  if (!discord && !isHostLaunch(sp)) return false;
+  res.setHeader('content-security-policy', discord ? discordCsp(csp, env) : hostCsp(csp, env));
   res.removeHeader('x-frame-options');
+  // Địa chỉ lượt này mang dữ liệu khởi chạy (VK: sign còn hiệu lực nhiều giờ). Trình duyệt tải CSS / script đầu trang trước khi
+  // host-detect.js kịp bỏ sign khỏi địa chỉ – các yêu cầu đó chỉ gửi nguồn làm Referer, không gửi nguyên địa chỉ (nhật ký truy
+  // cập của proxy ghi header). Máy chủ game không dùng Referer.
+  res.setHeader('referrer-policy', 'strict-origin');
   return true;
 }
 
-module.exports = { TG_SCRIPT, DEFAULT_ANCESTORS, isHostLaunch, ancestors, hostCsp, applyHostHeaders };
+/** Client id công khai của Discord Activity (DISCORD_CLIENT_ID, mục đầu nếu khai nhiều – chỉ chữ số) hoặc ''. */
+function discordClientId(env = process.env) {
+  const id = String(env.DISCORD_CLIENT_ID || '').split(',')[0].trim();
+  return DISCORD_ID.test(id) ? id : '';
+}
+
+/** Trang chính (HTML) của lượt mở Discord Activity: thêm thẻ meta client id (khi đã đặt DISCORD_CLIENT_ID). */
+function injectDiscord(html, sp, env = process.env) {
+  const id = sp && isDiscordLaunch(sp) ? discordClientId(env) : '';
+  if (!id || !html.includes('</head>')) return html;
+  return html.replace('</head>', `<meta name="caro-discord-client-id" content="${id}">\n</head>`);
+}
+
+module.exports = {
+  TG_SCRIPT, DEFAULT_ANCESTORS, DISCORD_ANCESTORS, discordAncestors, isHostLaunch, isDiscordLaunch, ancestors, hostCsp, discordCsp, applyHostHeaders,
+  discordClientId, injectDiscord,
+};

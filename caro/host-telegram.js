@@ -11,7 +11,7 @@
  *  – BackButton (6.1): hiện khi có bước lùi trong app (CaroHost.canBack), bấm = CaroHost.back();
  *  – đang chơi online: enableClosingConfirmation (6.2) – đóng Mini App phải xác nhận (ván vẫn khôi phục khi mở lại);
  *  – link ra ngoài: openLink (link t.me: openTelegramLink).
- * Không đăng nhập bằng Telegram ở MVP (initData chưa kiểm chữ ký ở máy chủ – giữ tài khoản Caro / khách như web).
+ * Đăng nhập bằng Telegram (initData có chữ ký, máy chủ kiểm – Đợt 3): host-auth.js.
  */
 (function () {
   'use strict';

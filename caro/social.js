@@ -225,6 +225,7 @@
     $('delete-label').textContent = has ? T('current_password') : T('delete_label_user', { username: me.username });
     secret.type = has ? 'password' : 'text';
     secret.autocomplete = has ? 'current-password' : 'off';
+    if (window.CaroHostAuth) window.CaroHostAuth.fill(); // Telegram / VK đã liên kết (host-auth.js)
   }
   $('delete-form').onsubmit = async (e) => {
     e.preventDefault();

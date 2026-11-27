@@ -39,9 +39,13 @@ test('máy chủ: header Mini App chỉ cho trang chính có dấu hiệu', asyn
     assert.match(r.headers['content-security-policy'], /frame-ancestors https:\/\/web\.telegram\.org/, u);
     assert.ok(r.headers['content-security-policy'].includes(TG_SCRIPT), u);
     assert.strictEqual(r.headers['x-frame-options'], undefined, u + ': nhúng iframe được');
+    // sign của VK nằm trong địa chỉ lượt này: các file tải kèm (CSS, script – trước khi host-detect.js kịp bỏ sign) không
+    // được mang nguyên địa chỉ làm Referer (nhật ký truy cập của proxy ghi header)
+    assert.strictEqual(r.headers['referrer-policy'], 'strict-origin', u);
   }
   for (const u of ['/', '/?room=123456', '/?host=x', '/api.html?host=tg', '/licenses.html?vk_app_id=1&sign=x']) {
     const r = await get(h, u);
+    assert.strictEqual(r.headers['referrer-policy'], 'strict-origin-when-cross-origin', u);
     assert.match(r.headers['content-security-policy'], /frame-ancestors 'none'/, u);
     assert.ok(!r.headers['content-security-policy'].includes('telegram'), u);
     assert.strictEqual(r.headers['x-frame-options'], 'DENY', u);

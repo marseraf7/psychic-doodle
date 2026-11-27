@@ -1,0 +1,27 @@
+// Tiếng Séc – bản dịch của caro/i18n-hostauth.js (docs/van-phong-4-ngon-ngu.md, mục Čeština).
+// {host} không chia cách: "v aplikaci {host}", "účet {host}", "Propojeno: {host}".
+window.I18N.extend('cs', {
+  hostauth_save: 'Uložit postup přes {host}',
+  hostauth_save_hint: 'Heslo není potřeba. Až příště otevřeš hru v aplikaci {host}, přihlásíš se k tomuto účtu.',
+  hostauth_link_btn: 'Propojit {host}',
+  hostauth_link_q: 'Propojit účet {host}, který právě používáš, s účtem {name}? Až příště otevřeš hru v aplikaci {host}, přihlásíš se k tomuto účtu automaticky.',
+  hostauth_linked_tag: '✓ Propojeno: {host}',
+  hostauth_card_title: 'Telegram a VK',
+  hostauth_card_hint: 'Když otevřeš hru v propojené miniaplikaci, automaticky se přihlásíš k tomuto účtu. Po zrušení propojení server smaže uložené ID účtu Telegram nebo VK.',
+  hostauth_only_note: 'Tento účet nemá heslo ani Google, takže se do něj dostaneš jen přes miniaplikaci. Nastav si nahoře heslo a přihlásíš se i na webu.',
+  hostauth_unlink: 'Zrušit propojení',
+  hostauth_unlink_q: 'Zrušit propojení s účtem {host}? Otevření hry v aplikaci {host} tě už k tomuto účtu automaticky nepřihlásí.',
+  hostauth_unlink_last_q: '{host} je jediný způsob, jak se k tomuto účtu přihlásit. Když propojení zrušíš, po odhlášení se do účtu už nedostaneš. Nejdřív si nastav heslo. Přesto zrušit propojení?',
+  srv_host_auth_disabled: 'Přihlášení přes Telegram nebo VK není na tomto serveru zapnuté',
+  srv_host_auth_failed: 'Přihlašovací údaje se nepodařilo ověřit. Zavři miniaplikaci a otevři ji znovu',
+  srv_host_admin_blocked: 'K účtu správce se nelze přihlásit přes Telegram nebo VK',
+  srv_host_taken: 'Tento účet Telegram nebo VK je propojen s jiným účtem',
+  srv_host_has_other: 'Tvůj účet je už propojen s jiným účtem Telegram nebo VK',
+  srv_host_logged_in: 'Už jsi přihlášený. Použij tlačítko pro propojení s tímto účtem',
+  srv_host_not_linked: 'Účet není propojen s touto platformou',
+  srv_host_unlink_last: 'Je to jediný způsob přihlášení k účtu. Nejdřív si nastav heslo',
+  srv_host_linked_telegram: 'Účet Telegram propojen',
+  srv_host_linked_vk: 'Účet VK propojen',
+  srv_host_unlinked_telegram: 'Propojení s účtem Telegram zrušeno',
+  srv_host_unlinked_vk: 'Propojení s účtem VK zrušeno',
+});
