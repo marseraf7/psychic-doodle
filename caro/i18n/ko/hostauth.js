@@ -2,6 +2,7 @@
 // {host} đứng trước "계정", "에서" để không phải chọn tiểu từ theo phụ âm cuối (Telegram / VK).
 window.I18N.extend('ko', {
   hostauth_save: '{host} 계정으로 진행 상황 저장',
+  cg_login: 'CrazyGames로 로그인',
   hostauth_save_hint: '비밀번호가 필요 없어요. 다음에 {host}에서 게임을 열면 이 계정으로 로그인돼요.',
   hostauth_link_btn: '{host} 연결',
   hostauth_link_q: '{host} {who}을(를) Caro 계정 {name}에 연결할까요? 다음에 {host}에서 게임을 열면 이 계정으로 자동 로그인됩니다.',

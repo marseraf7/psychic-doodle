@@ -1,6 +1,7 @@
 // Tiếng Trung phồn thể – bản dịch của caro/i18n-hostauth.js (docs/van-phong-4-ngon-ngu.md, mục 繁體中文).
 window.I18N.extend('zh-Hant', {
   hostauth_save: '用 {host} 儲存進度',
+  cg_login: '用 CrazyGames 登入',
   hostauth_save_hint: '不需要密碼。下次在 {host} 中開啟遊戲，就會登入這個帳號。',
   hostauth_link_btn: '關聯 {host}',
   hostauth_link_q: '將 {host} {who} 連結到 Caro 帳號 {name}？下次在 {host} 中開啟遊戲會自動登入這個帳號。',

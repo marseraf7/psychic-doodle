@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /*
  * Đóng gói bản cổng game (PORTAL_MODE) – thư mục tĩnh tự đủ + file ZIP để tải lên CrazyGames / itch.io:
- *   node server/scripts/build-portal.js crazygames|itch [--server https://máy-chủ] [--out thư-mục] [--zip file.zip] [--test]
+ *   node server/scripts/build-portal.js crazygames|itch [--full] [--server https://máy-chủ] [--out thư-mục] [--zip file.zip] [--test]
+ * --full (chỉ crazygames): bản Full Launch LÀM SẴN – quảng cáo midgame, tài khoản CrazyGames, link mời của SDK
+ * (caro/portal-crazygames-full.js; máy chủ cần CRAZYGAMES_GAME_ID). Mặc định KHÔNG có: gói Basic như cũ (Minh chốt 27/11/2026).
  * Máy chủ online (WebSocket, API): --server, không có thì CARO_SERVER_URL, rồi PUBLIC_URL, mặc định tên miền chính (server/src/site.js)
  * (chỉ giao thức + tên miền; http chỉ nhận khi --test – bài thử trên máy). Mặc định ra dist/portal-<cổng>/ và
  * dist/caro-<cổng>.zip ở gốc repo (dist/ không đưa lên git).
@@ -50,16 +52,17 @@ function serverOriginOf(raw, allowHttp) {
   return u.origin;
 }
 
-const flagsJs = (mode, server) => [
+const flagsJs = (mode, server, full = false) => [
   '// Tạo tự động bởi server/scripts/build-portal.js – không sửa tay.',
   `window.CARO_PORTAL = ${JSON.stringify(mode)};`,
   `window.CARO_SERVER = ${JSON.stringify(server)};`,
   "window.CARO_LANG0 = 'en';",
+  ...(full ? ['window.CARO_CG_FULL = true; // bản Full Launch (quảng cáo + tài khoản CrazyGames)'] : []),
   '',
 ].join('\n');
 
 /** Sửa index.html của gói (trước khi gộp mã). */
-function portalHtml(html, mode) {
+function portalHtml(html, mode, full = false) {
   const sub = (from, to) => {
     if (!html.includes(from)) throw new Error('index.html thiếu ' + from);
     html = html.replace(from, to);
@@ -68,7 +71,9 @@ function portalHtml(html, mode) {
   sub('<html lang="vi">', '<html lang="en">');
   const sdk = mode === 'crazygames' ? `<script src="${SDK_URL}"></script>\n  ` : '';
   sub('<script src="watchdog.js"></script>', `${sdk}<script src="portal-config.js"></script>\n  <script src="watchdog.js"></script>`);
-  if (mode === 'crazygames') sub('<script src="host-detect.js"></script>', '<script src="host-detect.js"></script>\n  <script src="portal-crazygames.js"></script>');
+  if (mode === 'crazygames') sub('<script src="host-detect.js"></script>', '<script src="host-detect.js"></script>\n  <script src="portal-crazygames.js"></script>' + (full ? '\n  <script src="portal-crazygames-full.js"></script>' : ''));
+  // Bản Full có quảng cáo: mô tả trang không được ghi "ad-free"
+  if (full) html = html.replace(/\bfree, ad-free\b/g, 'free');
   sub('</body>', '  <script src="portal.js"></script>\n</body>');
   return html;
 }
@@ -98,8 +103,9 @@ function initialBytes(out, html) {
  * Dựng gói. → { out, zip, mode, server, files, total, initial, zipBytes, limits, problems: [chuỗi] }
  * (problems rỗng = đạt). Ném lỗi khi tham số sai.
  */
-function buildPortal({ mode, server, out, zip, allowHttp = false, src = CARO } = {}) {
+function buildPortal({ mode, server, out, zip, allowHttp = false, src = CARO, full = false } = {}) {
   if (!LIMITS[mode]) throw new Error('Cổng phải là crazygames hoặc itch');
+  if (full && mode !== 'crazygames') throw new Error('--full chỉ dùng cho crazygames');
   server = serverOriginOf(server, allowHttp);
   out = path.resolve(out || path.join(ROOT, 'dist', 'portal-' + mode));
   zip = zip === false ? null : path.resolve(zip || path.join(path.dirname(out), 'caro-' + mode + '.zip'));
@@ -107,10 +113,11 @@ function buildPortal({ mode, server, out, zip, allowHttp = false, src = CARO } =
   fs.rmSync(out, { recursive: true, force: true });
   const skip = (rel) => SKIP.has(rel) || SKIP.has(rel.split(path.sep)[0]);
   fs.cpSync(src, out, { recursive: true, filter: (f) => f === src || !skip(path.relative(src, f)) });
-  fs.writeFileSync(path.join(out, 'config.js'), flagsJs(mode, server));
-  fs.writeFileSync(path.join(out, 'portal-config.js'), flagsJs(mode, server));
+  fs.writeFileSync(path.join(out, 'config.js'), flagsJs(mode, server, full));
+  fs.writeFileSync(path.join(out, 'portal-config.js'), flagsJs(mode, server, full));
   if (mode !== 'crazygames') fs.rmSync(path.join(out, 'portal-crazygames.js'), { force: true });
-  fs.writeFileSync(path.join(out, 'index.html'), portalHtml(fs.readFileSync(path.join(src, 'index.html'), 'utf8'), mode));
+  if (!full) fs.rmSync(path.join(out, 'portal-crazygames-full.js'), { force: true });
+  fs.writeFileSync(path.join(out, 'index.html'), portalHtml(fs.readFileSync(path.join(src, 'index.html'), 'utf8'), mode, full));
 
   // Bản gộp dựng từ chính thư mục gói (config.js của gói nằm trong khối mã); cần sw.js tạm để đọc FILES / CACHE
   fs.copyFileSync(path.join(src, 'sw.js'), path.join(out, 'sw.js'));
@@ -140,13 +147,13 @@ function buildPortal({ mode, server, out, zip, allowHttp = false, src = CARO } =
     fs.writeFileSync(zip, buf);
     zipBytes = buf.length;
   }
-  return { out, zip, mode, server, files: list.length, total, initial, zipBytes, limits: lim, problems };
+  return { out, zip, mode, full, server, files: list.length, total, initial, zipBytes, limits: lim, problems };
 }
 
 function report(r) {
   const mb = (n) => (n / MB).toFixed(2) + ' MB';
   const lines = [
-    `Bản cổng ${r.mode} · máy chủ ${r.server}`,
+    `Bản cổng ${r.mode}${r.full ? ' (FULL LAUNCH: quảng cáo + tài khoản CrazyGames)' : ''} · máy chủ ${r.server}`,
     `  thư mục: ${r.out}`,
     r.zip ? `  ZIP:     ${r.zip} (${mb(r.zipBytes)})` : '',
     `  số file: ${r.files} / tối đa ${r.limits.files}`,
@@ -164,14 +171,14 @@ if (require.main === module) {
   const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
   try {
     const r = buildPortal({
-      mode: args[0], out: opt('--out'), zip: opt('--zip'), allowHttp: args.includes('--test'),
+      mode: args[0], out: opt('--out'), zip: opt('--zip'), allowHttp: args.includes('--test'), full: args.includes('--full'),
       server: opt('--server') || process.env.CARO_SERVER_URL || process.env.PUBLIC_URL,
     });
     console.log(report(r));
     if (r.problems.length) process.exitCode = 1;
   } catch (e) {
     console.error('✗ ' + e.message);
-    console.error('Dùng: node server/scripts/build-portal.js crazygames|itch [--server https://máy-chủ] [--out thư-mục] [--zip file.zip] [--test]');
+    console.error('Dùng: node server/scripts/build-portal.js crazygames|itch [--full] [--server https://máy-chủ] [--out thư-mục] [--zip file.zip] [--test]');
     process.exitCode = 1;
   }
 }

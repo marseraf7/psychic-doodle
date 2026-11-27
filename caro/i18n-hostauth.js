@@ -8,6 +8,7 @@
   const I = window.I18N;
   I.extend('vi', {
     hostauth_save: 'Lưu tiến độ bằng {host}',
+    cg_login: 'Đăng nhập bằng CrazyGames', // bản CrazyGames Full
     hostauth_save_hint: 'Không cần mật khẩu. Lần sau mở game trong {host}, bạn vào đúng tài khoản này.',
     hostauth_link_btn: 'Liên kết {host}',
     hostauth_link_q: 'Liên kết {host} {who} với tài khoản Caro {name}? Lần sau mở game trong {host}, bạn tự vào tài khoản này.',
@@ -34,6 +35,7 @@
   });
   I.extend('en', {
     hostauth_save: 'Save progress with {host}',
+    cg_login: 'Log in with CrazyGames', // bản CrazyGames Full
     hostauth_save_hint: 'No password needed. Next time you open the game in {host}, you are logged in to this account.',
     hostauth_link_btn: 'Link {host}',
     hostauth_link_q: 'Link {host} {who} to your Caro account {name}? Next time you open the game in {host}, you are logged in to this account automatically.',
@@ -60,6 +62,7 @@
   });
   I.extend('ru', {
     hostauth_save: 'Сохранить прогресс через {host}',
+    cg_login: 'Войти через CrazyGames', // bản CrazyGames Full
     hostauth_save_hint: 'Пароль не нужен. В следующий раз, открыв игру в {host}, вы войдёте в этот аккаунт.',
     hostauth_link_btn: 'Привязать {host}',
     hostauth_link_q: 'Привязать {host} {who} к аккаунту Caro {name}? В следующий раз, открыв игру в {host}, вы автоматически войдёте в этот аккаунт.',
@@ -86,6 +89,7 @@
   });
   I.extend('zh', {
     hostauth_save: '用 {host} 保存进度',
+    cg_login: '用 CrazyGames 登录', // bản CrazyGames Full
     hostauth_save_hint: '无需密码。下次在 {host} 中打开游戏，就会登录这个账号。',
     hostauth_link_btn: '关联 {host}',
     hostauth_link_q: '将 {host} {who} 关联到 Caro 账号 {name}？下次在 {host} 中打开游戏会自动登录这个账号。',

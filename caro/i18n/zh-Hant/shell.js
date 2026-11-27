@@ -27,6 +27,7 @@ window.I18N.extend('zh-Hant', {
   home_custom: '自定義',
   home_bot_hint: '你執 X，電腦採用「{style}」風格。戰勝最高等級即可解鎖更強的對手。',
   home_intro: 'Caro x Gomoku 免費無廣告：與電腦、好友或線上對手對弈，練習謎題，學習開局。',
+  home_intro_free: 'Caro x Gomoku 免費：與電腦、好友或線上對手對弈，練習謎題，學習開局。',
   home_offline: '沒有伺服器：可以與電腦對弈或雙人同機。',
   home_about: 'Caro x Gomoku 是免費、無廣告的網站和 App，用於下越南五子棋（Caro）和五子棋（Gomoku）：線上與好友或配對的對手對弈，與電腦角色對弈，分析棋局，解謎題，學習開局。Google 登入僅用於建立和登入您的棋手帳號。',
   home_credit: '俄羅斯聯邦內務部大學青年團支部出品',

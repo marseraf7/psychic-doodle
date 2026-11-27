@@ -1,6 +1,7 @@
 // Tiếng Nhật – bản dịch của caro/i18n-hostauth.js (docs/van-phong-4-ngon-ngu.md, mục Tiếng Nhật).
 window.I18N.extend('ja', {
   hostauth_save: '{host}で進行状況を保存',
+  cg_login: 'CrazyGamesでログイン',
   hostauth_save_hint: 'パスワードは不要です。次回{host}でゲームを開くと、このアカウントでログインします。',
   hostauth_link_btn: '{host}と連携',
   hostauth_link_q: '{host}の{who}をCaroアカウント{name}と連携しますか？次回{host}でゲームを開くと、自動でこのアカウントにログインします。',

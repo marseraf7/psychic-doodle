@@ -2,6 +2,7 @@
 // {host} không chia cách: "v aplikaci {host}", "účet {host}", "Propojeno: {host}".
 window.I18N.extend('cs', {
   hostauth_save: 'Uložit postup přes {host}',
+  cg_login: 'Přihlásit se přes CrazyGames',
   hostauth_save_hint: 'Heslo není potřeba. Až příště otevřeš hru v aplikaci {host}, přihlásíš se k tomuto účtu.',
   hostauth_link_btn: 'Propojit {host}',
   hostauth_link_q: 'Propojit {host} {who} s účtem Caro {name}? Až příště otevřete hru v {host}, přihlásíte se k tomuto účtu automaticky.',

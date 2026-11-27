@@ -139,6 +139,7 @@
       S.me = m.me;
       S.googleClientId = m.googleClientId || '';
       S.resetEnabled = !!m.resetEnabled;
+      S.hostAuth = Array.isArray(m.hostAuth) ? m.hostAuth : []; // nền tảng bật đăng nhập (host-auth.js, portal-crazygames-full.js)
       if (m.me.guest) S.friends = { friends: [], incoming: [], outgoing: [] };
       setRoom(m.room);
       render();
@@ -372,6 +373,12 @@
     /** Kết nối (khi mở Trang chủ / Xem) – chỉ sau khi đã biết có máy chủ game. */
     connect: () => { if (serverChecked) connect(); },
     get connected() { return S.status === 'online'; },
+    /** Mở như link mời ?room=<mã> (bản CrazyGames Full: mã phòng lấy từ tham số mời của SDK – portal-crazygames-full.js). */
+    openRoomLink: (code) => {
+      pendingLink = String(code || '').replace(/\D/g, '').slice(0, 6) || null;
+      if (!pendingLink) return;
+      if (S.status === 'online') checkJoinLink(); else if (serverChecked) connect();
+    },
   };
 
   // Đổi ngôn ngữ: vẽ lại các phần do JS tạo ra.

@@ -102,6 +102,24 @@ test('itch.io: không nạp SDK CrazyGames, giới hạn 1000 file', () => {
   assert.match(fs.readFileSync(path.join(out, 'portal-config.js'), 'utf8'), /CARO_PORTAL = "itch"/);
 });
 
+test('CrazyGames Full Launch (--full, làm sẵn – tắt mặc định): gói thường không có module Full; gói Full có cờ + module, bỏ chữ "ad-free"; --full chỉ cho crazygames', () => {
+  const basic = buildPortal({ mode: 'crazygames', server: 'https://caro.example.com', out: path.join(tmp, 'cg-basic'), zip: false });
+  assert.ok(!fs.existsSync(path.join(basic.out, 'portal-crazygames-full.js')), 'gói thường: không có module Full');
+  assert.ok(!/CARO_CG_FULL/.test(fs.readFileSync(path.join(basic.out, 'portal-config.js'), 'utf8')));
+  assert.ok(!/portal-crazygames-full/.test(fs.readFileSync(path.join(basic.out, 'index.html'), 'utf8')));
+  const full = buildPortal({ mode: 'crazygames', full: true, server: 'https://caro.example.com', out: path.join(tmp, 'cg-full'), zip: false });
+  assert.deepStrictEqual(full.problems, []);
+  assert.strictEqual(full.full, true);
+  const html = fs.readFileSync(path.join(full.out, 'index.html'), 'utf8');
+  const head = html.slice(0, html.indexOf('</head>'));
+  assert.ok(head.indexOf('portal-crazygames.js') < head.indexOf('portal-crazygames-full.js'), 'module Full nạp sau portal-crazygames.js');
+  assert.ok(!/ad-free/.test(html), 'mô tả trang không ghi ad-free');
+  assert.ok(/window\.CARO_CG_FULL = true;/.test(fs.readFileSync(path.join(full.out, 'portal-config.js'), 'utf8')));
+  assert.ok(fs.existsSync(path.join(full.out, 'portal-crazygames-full.js')));
+  assert.match(report(full), /FULL LAUNCH/);
+  assert.throws(() => buildPortal({ mode: 'itch', full: true, server: 'https://caro.example.com', out: path.join(tmp, 'it-full'), zip: false }), /chỉ dùng cho crazygames/);
+});
+
 test('tham số sai: báo lỗi rõ; http chỉ cho bài thử', () => {
   assert.throws(() => buildPortal({ mode: 'kongregate' }), /crazygames hoặc itch/);
   assert.throws(() => serverOriginOf('http://caro.example.com'), /https/);
