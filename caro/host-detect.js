@@ -14,8 +14,15 @@
  *    Link sâu: start_param của Telegram (t.me/<bot>/<app>?startapp=room-123456) / tham số hash của VK (vk.com/app<id>#room-…)
  *    → thêm ?room= ?replay= ?t= ?o= ?club= ?u= ?cls= vào địa chỉ (history.replaceState) để mã sẵn có xử lý như link thường;
  *    mỗi phiên một lần. Không dùng vk_user_id / initData để đăng nhập (chưa kiểm chữ ký – MVP giữ tài khoản Caro / khách).
+ *  – Discord Activity (docs/discord-activity.md): Discord mở trang trong iframe ở https://<client_id>.discordsays.com (mọi
+ *    yêu cầu qua proxy của Discord) với ?frame_id=…&instance_id=…&platform=desktop|mobile (SDK đòi đủ ba tham số này). Nhận
+ *    biết theo ba tham số đó (không dùng ?host=discord: URL Mapping chỉ trỏ tiền tố → tên miền, không thêm được tham số) hoặc
+ *    theo tên miền *.discordsays.com (chỉ Discord phục vụ). CARO_HOST = CARO_SRC = 'discord'; nhớ chuỗi tham số khởi chạy
+ *    ('caro.discordLaunch') để host-discord.js tạo SDK đúng cả khi mã khác đã xoá tham số khỏi địa chỉ; nạp
+ *    vendor/discord-sdk.js (@discord/embedded-app-sdk, MIT – bản tự phục vụ).
  * Hàm thuần (kiểm thử trên Node: caro/tests/host-detect.test.js):
- *   window.CaroHostDetect = { PORTALS, portalOf, ROUTE_KEYS, detect(env), startParam(host, env), parseStart(s), routeSearch(search, s) }
+ *   window.CaroHostDetect = { PORTALS, portalOf, ROUTE_KEYS, detect(env), isDiscordLaunch(search), startParam(host, env),
+ *                            parseStart(s), routeSearch(search, s) }
  */
 (function (root) {
   'use strict';
@@ -28,14 +35,22 @@
   const VALUE = /^[A-Za-z0-9_.-]{1,64}$/;
   const hashParams = (h) => new URLSearchParams(String(h || '').replace(/^#/, ''));
 
-  /** env: { search, hash, tgProxy, session } → 'telegram' | 'vk' | null. */
+  const HOSTS = ['telegram', 'vk', 'discord'];
+  /** Địa chỉ có đủ tham số khởi chạy Discord Activity không (như SDK kiểm: frame_id, instance_id, platform hợp lệ). */
+  function isDiscordLaunch(search) {
+    const q = new URLSearchParams(search || '');
+    return !!(q.get('frame_id') && q.get('instance_id') && /^(desktop|mobile)$/.test(q.get('platform') || ''));
+  }
+
+  /** env: { search, hash, tgProxy, session, hostname } → 'telegram' | 'vk' | 'discord' | null. */
   function detect(env) {
     const q = new URLSearchParams(env.search || ''), h = hashParams(env.hash);
     // TelegramWebviewProxy có cả trong trình duyệt trong app Telegram khi mở link thường (không phải Mini App): chỉ tính khi
     // địa chỉ có dấu ?host=tg của Mini App – không thì trang web chính mở từ chat Telegram bị nhận nhầm (nguồn, ẩn cài PWA…)
     if (h.has('tgWebAppData') || h.has('tgWebAppVersion') || q.has('tgWebAppStartParam') || q.has('tgWebAppData') || (env.tgProxy && q.get('host') === 'tg')) return 'telegram';
     if (q.has('vk_app_id') && q.has('sign')) return 'vk';
-    return env.session === 'telegram' || env.session === 'vk' ? env.session : null;
+    if (isDiscordLaunch(env.search) || /(^|\.)discordsays\.com$/i.test(env.hostname || '')) return 'discord';
+    return HOSTS.includes(env.session) ? env.session : null;
   }
 
   /** Tham số link sâu do nền tảng truyền vào (chuỗi thô) hoặc ''. */
@@ -70,7 +85,7 @@
     return '?' + q.toString();
   }
 
-  const api = { PORTALS, portalOf, ROUTE_KEYS, detect, startParam, parseStart, routeSearch };
+  const api = { PORTALS, portalOf, ROUTE_KEYS, detect, isDiscordLaunch, startParam, parseStart, routeSearch };
   if (typeof module === 'object' && module.exports) { module.exports = api; return; }
 
   const w = root;
@@ -88,7 +103,7 @@
     return; // gói của cổng chạy trên tên miền của cổng: không phải Mini App
   }
 
-  const env = { search: location.search, hash: location.hash, tgProxy: !!w.TelegramWebviewProxy, session: ss.get('caro.host') };
+  const env = { search: location.search, hash: location.hash, tgProxy: !!w.TelegramWebviewProxy, session: ss.get('caro.host'), hostname: location.hostname };
   const host = detect(env);
   if (!host) return;
   ss.set('caro.host', host);
@@ -104,6 +119,7 @@
     if (next) try { history.replaceState(history.state, '', location.pathname + next + location.hash); } catch (e) { /* bỏ qua */ }
   }
 
-  const lib = host === 'telegram' ? 'https://telegram.org/js/telegram-web-app.js?65' : 'vendor/vk-bridge.js';
+  if (host === 'discord' && isDiscordLaunch(location.search)) ss.set('caro.discordLaunch', location.search);
+  const lib = host === 'telegram' ? 'https://telegram.org/js/telegram-web-app.js?65' : host === 'vk' ? 'vendor/vk-bridge.js' : 'vendor/discord-sdk.js';
   document.write('<script src="' + lib + '"><\/script>');
 })(this);

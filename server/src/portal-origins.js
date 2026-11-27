@@ -9,6 +9,11 @@
  *   PORTAL_WS_ORIGINS  thêm mẫu, cách nhau dấu phẩy: origin đúng (https://a.example) hoặc https://*.đuôi (mọi tên miền
  *                      con của đuôi, đuôi có ít nhất 2 nhãn – không nhận '*', '*.com', 'https://*')
  *   PORTAL_WS=0        tắt các mẫu có sẵn ở trên (chỉ còn PORTAL_WS_ORIGINS)
+ * Discord Activity (docs/discord-activity.md): trang chạy ở https://<client_id>.discordsays.com, WebSocket đi qua proxy của
+ * Discord nên Origin là tên miền đó. Chỉ nhận đúng client id của game – không nhận mọi *.discordsays.com (Activity của người
+ * khác cũng ở đó):
+ *   DISCORD_CLIENT_ID  client id công khai của app (chỉ chữ số; nhiều app – ví dụ bản thử – cách nhau dấu phẩy)
+ *   DISCORD_WS=0       tắt (không nhận Origin discordsays.com nào)
  * Ghi chú: mọi game trên cùng cổng chung tên miền này nên cũng nối được – chấp nhận được (mục đích của chặn Origin là không
  * cho trang lạ bất kỳ mượn trình duyệt + IP người thăm; xác thực của game dùng token trong tin hello, không dùng cookie).
  */
@@ -28,12 +33,20 @@ function patterns(env = process.env) {
   return (env.PORTAL_WS === '0' ? [] : DEFAULT_PORTAL_ORIGINS).concat(extra).map(parsePattern).filter(Boolean);
 }
 
-/** Origin (chuỗi trong header) thuộc một cổng game đã khai không. */
+/** Origin của Discord Activity của chính game: https://<DISCORD_CLIENT_ID>.discordsays.com. */
+function discordOriginAllowed(origin, env = process.env) {
+  if (env.DISCORD_WS === '0') return false;
+  const ids = String(env.DISCORD_CLIENT_ID || '').split(',').map((s) => s.trim()).filter((s) => /^\d{5,25}$/.test(s));
+  return ids.some((id) => String(origin) === 'https://' + id + '.discordsays.com');
+}
+
+/** Origin (chuỗi trong header) thuộc một cổng game đã khai (hoặc Discord Activity của game) không. */
 function portalOriginAllowed(origin, env = process.env) {
   let u;
   try { u = new URL(String(origin)); } catch (e) { return false; }
   if (u.origin === 'null' || u.origin !== String(origin).replace(/\/+$/, '').toLowerCase()) return false; // có đường dẫn / lạ
+  if (discordOriginAllowed(u.origin, env)) return true;
   return patterns(env).some((p) => u.protocol === p.scheme && (p.wild ? u.host.endsWith('.' + p.host) : u.host === p.host));
 }
 
-module.exports = { DEFAULT_PORTAL_ORIGINS, parsePattern, patterns, portalOriginAllowed };
+module.exports = { DEFAULT_PORTAL_ORIGINS, parsePattern, patterns, discordOriginAllowed, portalOriginAllowed };
