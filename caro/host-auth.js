@@ -13,7 +13,16 @@
  *    sessionStorage) – không thì đăng xuất xong lại tự vào ngay.
  *  – Cài đặt tài khoản (mọi nơi, cả web): mục "Telegram và VK" liệt kê nền tảng đã liên kết, nút Huỷ liên kết (tài khoản không
  *    còn cách đăng nhập nào khác thì cảnh báo rõ trước khi huỷ). social.js gọi CaroHostAuth.fill() khi vẽ hộp Tài khoản.
- * window.CaroHostAuth = { host, state, launchData(), fill() }.
+ *  – CHỐNG LINK GIẢ (rà soát 27/11/2026): dữ liệu khởi chạy có chữ ký chỉ chứng minh "tài khoản Telegram / VK này vừa mở Mini
+ *    App", không chứng minh người cầm máy là chủ. Kẻ xấu có thể gắn initData / vk_…&sign của chính mình vào link gửi người khác
+ *    (#tgWebAppData=… / ?vk_app_id=…&sign=…) để người đó tạo / liên kết tài khoản với Telegram / VK của kẻ xấu, rồi kẻ xấu
+ *    mở Mini App là vào tài khoản đó. Nên:
+ *      · chỉ dùng dữ liệu khởi chạy khi thật sự đang ở trong nền tảng (trusted()): VK – app VK trả lời VKWebAppGetLaunchParams
+ *        với ĐÚNG vk_user_id của chuỗi đã ký (trình duyệt thường không có VK để trả lời); Telegram – trang nằm trong khung
+ *        (web.telegram.org – CSP frame-ancestors của lượt Mini App chỉ cho Telegram nhúng) hoặc có cầu nối của app Telegram;
+ *      · tạo / liên kết luôn hỏi lại, nêu rõ tài khoản Telegram / VK nào (tên, @username / id) sẽ được gắn (who()).
+ *    Còn sót (ghi cho Laplace kiểm): trình duyệt trong app Telegram mở link thường cũng có cầu nối – lớp còn lại là hộp hỏi.
+ * window.CaroHostAuth = { host, state, launchData(), fill(), trusted() }.
  */
 (function () {
   'use strict';
@@ -42,7 +51,51 @@
     if (HOST === 'vk') return ss.get('caro.vkLaunch') || '';
     return '';
   }
-  const on = () => !!HOST && providers.includes(HOST) && !!launchData();
+  const on = () => !!HOST && providers.includes(HOST) && !!launchData() && trustedOk === true;
+
+  let trustedOk = null; // null: đang kiểm | true | false
+  let trustedP = null;
+  /** Đang thật sự chạy trong Telegram / VK không (xem đầu file). Kiểm một lần mỗi lần tải trang. */
+  function trusted() {
+    if (!trustedP) {
+      trustedP = (async () => {
+        try {
+          if (HOST === 'telegram') {
+            const ext = window.external;
+            return window.parent !== window || !!window.TelegramWebviewProxy || !!(ext && typeof ext === 'object' && 'notify' in ext);
+          }
+          if (HOST === 'vk') {
+            const B = window.vkBridge, id = new URLSearchParams(ss.get('caro.vkLaunch') || '').get('vk_user_id');
+            if (!B || !id || (typeof B.isEmbedded === 'function' && !B.isEmbedded())) return false;
+            const ask = B.send('VKWebAppGetLaunchParams').then((p) => !!p && String(p.vk_user_id) === id, () => false);
+            return await Promise.race([ask, new Promise((r) => setTimeout(() => r(false), 3000))]);
+          }
+        } catch (e) { /* coi như không tin được */ }
+        return false;
+      })().then((ok) => { trustedOk = ok; N.render(); return ok; });
+    }
+    return trustedP;
+  }
+
+  /** Tài khoản Telegram / VK sẽ được gắn, để người chơi nhận ra: "Ivan (@ivan_tg)" / "Пётр (id 123)". */
+  async function who() {
+    const clip = (v) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 40) : '');
+    if (HOST === 'telegram') {
+      // Đọc từ chính chuỗi initData sẽ gửi máy chủ (máy chủ kiểm chữ ký đúng chuỗi này) – không dùng bản đã tách của thư viện
+      let u = {};
+      try { u = JSON.parse(new URLSearchParams(launchData()).get('user') || '{}') || {}; } catch (e) { u = {}; }
+      const name = clip([u.first_name, u.last_name].filter(Boolean).join(' '));
+      const tag = u.username ? '@' + clip(u.username) : u.id ? 'id ' + clip(String(u.id)) : '';
+      return name && tag ? `${name} (${tag})` : name || tag;
+    }
+    const id = clip(new URLSearchParams(ss.get('caro.vkLaunch') || '').get('vk_user_id') || '');
+    let name = '';
+    if (window.vkBridge) {
+      const ask = window.vkBridge.send('VKWebAppGetUserInfo').then((u) => clip([u && u.first_name, u && u.last_name].filter((x) => typeof x === 'string').join(' ')), () => '');
+      name = await Promise.race([ask, new Promise((r) => setTimeout(() => r(''), 1500))]);
+    }
+    return name ? `${name} (id ${id})` : 'id ' + id;
+  }
   const me = () => N.state.me;
 
   /** Tên gợi ý cho tài khoản mới (VK không có tên trong tham số khởi chạy): tên khách tự đặt, hoặc tên VK qua VK Bridge. */
@@ -64,6 +117,10 @@
 
   async function save(btn) {
     btn.disabled = true;
+    if (!(await trusted()) || !(await window.CaroConfirm.ask(T('hostauth_create_q', { host: NAME[HOST], who: await who() })))) {
+      btn.disabled = false;
+      return;
+    }
     ss.set(NO_AUTO, null); // người chơi tự bấm: lại cho tự đăng nhập ở các lần mở sau trong phiên
     const name = await suggestName();
     if (!login('create', name)) btn.disabled = false;
@@ -71,8 +128,8 @@
 
   async function link() {
     const m = me();
-    if (!m || m.guest) return;
-    if (!(await window.CaroConfirm.ask(T('hostauth_link_q', { host: NAME[HOST], name: '@' + m.username })))) return;
+    if (!m || m.guest || !(await trusted())) return;
+    if (!(await window.CaroConfirm.ask(T('hostauth_link_q', { host: NAME[HOST], who: await who(), name: '@' + m.username })))) return;
     login('link');
   }
 
@@ -141,7 +198,7 @@
     if (!HOST || !providers.includes(HOST) || autoSent || ss.get(NO_AUTO) || !m || !m.guest || !N.connected) return;
     if (!launchData()) { if (n < 25) setTimeout(() => tryAuto(n + 1), 200); return; }
     autoSent = true;
-    login('auto');
+    trusted().then((ok) => { if (ok && me() && me().guest) login('auto'); }); // link giả ngoài nền tảng: không tự đăng nhập
   }
 
   N.on('welcome', (m) => {
@@ -166,5 +223,6 @@
   window.addEventListener('caro:online', renderCard);
   window.addEventListener('langchange', () => { if (N.isOpen('account-dlg')) fill(); });
 
-  window.CaroHostAuth = { host: HOST, get state() { return state; }, launchData, fill };
+  if (HOST) trusted();
+  window.CaroHostAuth = { host: HOST, get state() { return state; }, launchData, fill, trusted };
 })();

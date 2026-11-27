@@ -433,6 +433,29 @@ test('luồng d) hủy liên kết: còn mật khẩu → hủy ngay; chỉ còn
   c.close(); t.close(); g.close();
 });
 
+test('huỷ liên kết / xoá tài khoản ghi mốc: dữ liệu khởi chạy cũ (bản bị lộ) không tạo / gắn lại được; dữ liệu mở mới sau đó thì được', async () => {
+  const old = Math.floor(Date.now() / 1000) - 60; // bản initData của lần mở 1 phút trước (giả như bị lộ)
+  const t = await Client.open();
+  await t.req({ t: 'hostLogin', provider: 'telegram', data: tg(901, { auth_date: String(old) }), mode: 'create' }, 'welcome');
+  assert.strictEqual((await t.req({ t: 'hostUnlink', provider: 'telegram', confirm: true }, 'toast')).code, 'host_unlinked_telegram');
+  assert.ok(app.store.hlFloor('telegram', '901') >= old + 60 - 2, 'ghi mốc huỷ');
+  // Kẻ xấu dùng lại bản cũ: tạo tài khoản mới / gắn vào tài khoản của hắn đều bị từ chối
+  const x = await Client.open();
+  assert.strictEqual((await x.ask({ t: 'hostLogin', provider: 'telegram', data: tg(901, { auth_date: String(old) }), mode: 'create' }, 'welcome')).code, 'host_auth_failed');
+  const { c: y } = await account();
+  assert.strictEqual((await y.ask({ t: 'hostLogin', provider: 'telegram', data: tg(901, { auth_date: String(old) }), mode: 'link' }, 'toast')).code, 'host_auth_failed');
+  // Chủ thật mở lại Mini App (dữ liệu mới hơn mốc huỷ): tạo lại được
+  const fresh = Math.floor(Date.now() / 1000) + 2;
+  await x.req({ t: 'hostLogin', provider: 'telegram', data: tg(901, { auth_date: String(fresh) }), mode: 'create' }, 'welcome');
+  assert.deepStrictEqual(x.me.hosts, ['telegram']);
+  // Xoá tài khoản cũng ghi mốc (store.deleteUser → hlUserGone)
+  const u = app.store.users.get(x.me.uid);
+  app.store.deleteUser(u);
+  assert.ok(app.store.hlFloor('telegram', '901') >= fresh - 3);
+  assert.strictEqual(app.store.hlOwner('telegram', '901'), null);
+  t.close(); x.close(); y.close();
+});
+
 test('quản trị viên: không gắn được, không đăng nhập được bằng Telegram / VK (kể cả đã gắn trước khi thành quản trị); tên tự sinh tránh tên quản trị', async () => {
   const { c } = await account('boss_hl');
   assert.ok(c.me.admin);
