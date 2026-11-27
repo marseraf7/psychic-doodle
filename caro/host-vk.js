@@ -5,8 +5,8 @@
  *  – vkBridge.send('VKWebAppInit') – báo VK app đã sẵn sàng;
  *  – giao diện sáng / tối theo VK: VKWebAppGetConfig lúc mở + sự kiện VKWebAppUpdateConfig (data.appearance 'light' | 'dark'),
  *    chỉ khi người chơi chưa tự chọn (CaroHost.applyScheme – không lưu).
- * MVP KHÔNG kiểm chữ ký sign (máy chủ chưa có khoá bí mật của app) nên không tin vk_user_id: không đăng nhập bằng VK, giữ
- * tài khoản Caro / khách như web.
+ * Đăng nhập bằng VK (Đợt 3): host-auth.js gửi tham số khởi chạy có chữ ký (host-detect.js đã chép vào sessionStorage),
+ * máy chủ kiểm sign bằng khoá bí mật của app (server/src/host-auth.js) – không bao giờ tin vk_user_id khi chưa kiểm.
  */
 (function () {
   'use strict';

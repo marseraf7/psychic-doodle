@@ -184,6 +184,7 @@ Biến môi trường:
 | `HOST` | Địa chỉ lắng nghe (mặc định mọi địa chỉ). Chạy sau Caddy/nginx trên cùng máy thì đặt `127.0.0.1` để không ai gọi thẳng vào cổng Node |
 | `DATA_DIR` | Thư mục chứa CSDL `caro.db` (mặc định `server/data`) – nhớ sao lưu |
 | `GOOGLE_CLIENT_ID` | Bật nút "Đăng nhập bằng Google" (bỏ trống thì nút bị ẩn) |
+| `TELEGRAM_BOT_TOKEN`, `VK_APP_SECRET`, `VK_APP_ID`, `HOST_AUTH_MAX_AGE` | Đăng nhập bằng Telegram / VK Mini App (`src/host-auth.js`, `src/hub/host-login.js`): token bot / khoá bí mật VK để kiểm chữ ký dữ liệu khởi chạy (bỏ trống = tắt). Bí mật: chỉ đặt trên máy chủ, không bao giờ ghi log / gửi máy khách. `HOST_AUTH_MAX_AGE`: số giây dữ liệu còn hiệu lực (60–86400, mặc định 86400) |
 | `SMTP_URL` | Bật "Quên mật khẩu" qua email, ví dụ `smtps://ten%40gmail.com:mat-khau-ung-dung@smtp.gmail.com:465` (bỏ trống thì tính năng bị ẩn) |
 | `ADMIN_USERNAMES` | Tên đăng nhập của quản trị viên, cách nhau bởi dấu phẩy, ví dụ `minh,lan`. Quản trị viên duyệt câu lạc bộ và giải đấu mới (nút **Giải đấu → Duyệt**). Tạo tài khoản bình thường trong game rồi điền tên đăng nhập vào đây. Bỏ trống = không ai duyệt được, giải / CLB mới chỉ nằm ở trạng thái chờ |
 | `MIN_APP_VERSION` | Bản app điện thoại thấp nhất còn được chơi online, ví dụ `1.0.0`. App cũ hơn hiện "Cần cập nhật app" (chơi offline vẫn được). Bỏ trống = không kiểm tra. Bản web luôn mới nhất nên không bị ảnh hưởng |
