@@ -155,7 +155,7 @@ test('service worker lưu sẵn các khối mới thay cho file lẻ; tên bộ 
 test('file chuỗi dịch làm việc khác ngoài I18N.extend, hoặc có hàm, thì không gom', () => {
   assert.strictEqual(langPacks("(function(){ window.I18N.extend('vi', { a: 'x' }); document.title = 'y'; })();"), null);
   assert.strictEqual(langPacks("(function(){ window.I18N.extend('vi', { a: function () {} }); })();"), null);
-  assert.strictEqual(langPacks("(function(){ window.I18N.extend('fr', { a: 'x' }); })();"), null);
+  assert.strictEqual(langPacks("(function(){ window.I18N.extend('xx', { a: 'x' }); })();"), null); // mã không có trong langs.js
   assert.deepStrictEqual(langPacks("(function(){ var X = window.I18N.extend; X('vi', { a: 'x' }); X('en', { a: 'y' }); })();"), { vi: { a: 'x' }, en: { a: 'y' } });
 });
 

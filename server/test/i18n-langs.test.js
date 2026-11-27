@@ -30,14 +30,17 @@ const KEEP = new Set(('caro gomoku renju swap swap2 soosorv taraguchi yamaguchi 
   + 'pdf png svg csv json ical url api mcp claude google telegram vk zalo messenger discord facebook youtube twitch github rapfi nnue '
   + 'gomocup vcf vct boat lichess fide wasm webassembly ios android chrome safari firefox ok id oauth http https www html username').split(' '));
 
-test('langs.js: 8 ngôn ngữ, tên tự gọi; trình duyệt và máy chủ dùng chung một danh sách', () => {
-  assert.deepStrictEqual(Langs.LIST.map((x) => x.name), ['Tiếng Việt', 'English', 'Русский', '简体中文', '繁體中文', '日本語', '한국어', 'Čeština']);
+test('langs.js: tên tự gọi; 4 ngôn ngữ gốc + ngôn ngữ thư mục; trình duyệt và máy chủ dùng chung một danh sách', () => {
+  // 8 ngôn ngữ đầu cố định; ngôn ngữ thêm bằng new-lang.js nối sau (tên tự gọi lấy từ CLDR – i18n-script.test.js)
+  assert.deepStrictEqual(Langs.LIST.slice(0, 8).map((x) => x.name), ['Tiếng Việt', 'English', 'Русский', '简体中文', '繁體中文', '日本語', '한국어', 'Čeština']);
   assert.deepStrictEqual(Langs.INLINE, ['vi', 'en', 'ru', 'zh']);
-  assert.deepStrictEqual(Langs.DIR, ['zh-Hant', 'ja', 'ko', 'cs']);
+  assert.deepStrictEqual(Langs.DIR.slice(0, 4), ['zh-Hant', 'ja', 'ko', 'cs']);
+  assert.deepStrictEqual(Langs.DIR, Langs.LIST.slice(4).map((x) => x.code));
+  for (const x of Langs.LIST.slice(8)) assert.strictEqual(x.name, require('../scripts/new-lang.js').cldrInfo(x.code, x.intl).name, x.code + ': tên tự gọi theo CLDR');
   for (const l of Langs.DIR) assert.strictEqual(Langs.fallback(l), 'en', l + ': thiếu khoá thì tiếng Anh');
   assert.strictEqual(Langs.BY.zh.hreflang, 'zh-Hans');
   assert.strictEqual(Langs.BY['zh-Hant'].hreflang, 'zh-Hant');
-  for (const x of Langs.LIST) assert.ok(/^[a-z]{2}(-[A-Z][a-z]{3})?$/.test(x.code) && x.intl && x.og && x.google && x.html, x.code);
+  for (const x of Langs.LIST) assert.ok(/^[a-z]{2,3}(-[A-Z][a-z]{3})?(-[A-Z]{2})?$/.test(x.code) && x.intl && x.og && x.google && x.html, x.code);
 });
 
 test('fromTag: zh-TW / zh-HK / Hant → phồn thể, zh-CN / zh-SG / Hans → giản thể; Accept-Language theo q', () => {
