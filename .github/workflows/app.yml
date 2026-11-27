@@ -137,6 +137,9 @@ jobs:
         working-directory: app
         run: |
           npm install --no-save playwright@1.56.1
+          # Kho apt packages.microsoft.com có sẵn trên máy CI đôi khi trả 403 / "no longer signed" (27/11/2026) làm apt-get
+          # update của --with-deps dừng, trình duyệt không được cài. Game không cần gì từ kho đó: bỏ kho trước khi cài.
+          for f in /etc/apt/sources.list.d/*; do if grep -qs packages.microsoft.com "$f"; then sudo rm -f "$f"; fi; done
           npx playwright install --with-deps chromium
       - name: Bật KVM cho máy ảo
         run: |
