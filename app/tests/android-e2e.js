@@ -66,8 +66,23 @@ async function die(reason, step) {
   watch.done(); // hạn giờ của bước đang chạy không được cắt ngang lúc chẩn đoán
   console.log('FAIL ' + reason);
   setTimeout(() => { console.log('Chẩn đoán quá 4 phút – thoát'); process.exit(exitCode()); }, 4 * 60000);
+  fontsProbe('lúc dừng');
   try { await diagnose(reason, step); } catch (e) { console.log('Chẩn đoán lỗi: ' + e.message); }
   process.exit(exitCode());
+}
+/** Điều tra app phụ thuộc FontsProvider của Play Services: dòng nhật ký về phông (FontLog / FontsProvider / Typeface /
+ *  font của Chromium – thường ghi tên phông được xin) + chi tiết provider (kết nối stable/unstable của app). Chỉ in. */
+function fontsProbe(when) {
+  try {
+    const lines = adb('logcat', '-d', '-v', 'time', '-t', '20000').split('\n')
+      .filter((l) => /font/i.test(l) && !/fontWeightAdjustment/.test(l));
+    console.log(`FONTS (${when}) – ${lines.length} dòng nhật ký có "font", 80 dòng cuối:`);
+    for (const l of lines.slice(-80)) console.log('  ' + l);
+  } catch (e) { console.log('FONTS: không đọc được logcat: ' + e.message.split('\n')[0]); }
+  try {
+    const d = adb('shell', 'dumpsys', 'activity', 'provider', 'com.google.android.gms/.fonts.provider.FontsProvider');
+    console.log('FONTS provider:\n' + d.split('\n').filter((l) => /Client|conn|->|stable|ContentProviderRecord|proc=|caro/i.test(l)).slice(0, 40).map((l) => '  ' + l).join('\n'));
+  } catch (e) { console.log('FONTS provider: lỗi ' + e.message.split('\n')[0]); }
 }
 const exitCode = () => (gmsKilledApp() ? GMS_EXIT : 1);
 /** Mã thoát riêng: Android giết app vì tiến trình Play Services (com.google.android.gms.persistent) chết – app (WebView)
@@ -148,6 +163,7 @@ async function step(name, ms) {
     const deps = providerDependents(adb('shell', 'dumpsys', 'activity', 'providers'), PKG);
     console.log('Provider app đang phụ thuộc:', deps.length ? JSON.stringify(deps) : 'không có');
   } catch (e) { console.log('Không đọc được dumpsys activity providers: ' + e.message.split('\n')[0]); }
+  fontsProbe('sau khi app nạp xong');
   check('chạy trong app Android thật (Capacitor native)', info.native && info.platform === 'android');
   check('các plugin gốc có mặt', ['App', 'Share', 'Clipboard', 'Haptics', 'SocialLogin'].every((p) => info.plugins.includes(p)), info.plugins.join(','));
   check('Chia sẻ dùng bảng chia sẻ gốc', await app.evaluate(() => typeof navigator.share === 'function' && window.Capacitor.isPluginAvailable('Share')));
@@ -460,6 +476,7 @@ async function step(name, ms) {
   await browser.close();
   await device.close();
   watch.done();
+  fontsProbe('cuối kịch bản');
   console.log(failed ? `✗ ${failed} kiểm tra thất bại` : '✓ Tất cả kiểm tra đều đạt');
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); die('lỗi dừng test: ' + String(e && e.message || e).split('\n')[0], watch.current() && watch.current().name); });
