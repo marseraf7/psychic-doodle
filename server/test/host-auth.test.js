@@ -492,6 +492,8 @@ test('dữ liệu sai chữ ký / hết hạn → từ chối chung chung, log m
   for (let i = 0; i < 28; i++) await c.ask({ t: 'hostLogin', provider: 'vk', data: 'vk_user_id=1&sign=x', mode: 'create' }, 'auth');
   assert.strictEqual((await c.ask({ t: 'hostLogin', provider: 'vk', data: vk(1102), mode: 'create' }, 'auth')).code, 'too_many_attempts');
   assert.strictEqual((await c.req({ t: 'hostLogin', provider: 'vk', data: vk(1102), mode: 'auto' }, 'hostState')).state, 'failed');
+  // IP của kết nối thử như máy chủ thấy (127.0.0.1 hay ::1 / ::ffff:127.0.0.1 tuỳ máy – CI dùng IPv6)
+  const ip = [...app.hub.fails.keys()].find((k) => k.startsWith('host:')).slice(5);
   app.hub.fails.clear();
   // Mỗi kết nối tối đa 1 lần / giây
   app.hub.T.THROTTLE_SCALE = 1;
@@ -506,7 +508,7 @@ test('dữ liệu sai chữ ký / hết hạn → từ chối chung chung, log m
     d.close();
   } finally { app.hub.T.THROTTLE_SCALE = 0; }
   // Tạo tài khoản dùng chung hạn mức reg:<IP> với đăng ký thường
-  app.hub.fails.set('reg:127.0.0.1', { n: 30, t: Date.now() });
+  app.hub.fails.set('reg:' + ip, { n: 30, t: Date.now() });
   assert.strictEqual((await c.ask({ t: 'hostLogin', provider: 'telegram', data: tg(1104), mode: 'create' }, 'auth')).code, 'too_many_attempts');
   app.hub.fails.clear();
   c.close();
